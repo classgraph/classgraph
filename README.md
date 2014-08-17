@@ -15,7 +15,7 @@ Usage example:
         { "com.xyz.widget", "com.xyz.gizmo" })  // Whitelisted packages to scan
       .matchSubclassesOf(DBModel.class,
           // c is the matched class
-          c -> System.out.println("Found DBModel subclass: " + c.getName()))
+          c -> System.out.println("Found subclass of DBModel: " + c.getName()))
       .matchClassesImplementing(Runnable.class,
           c -> System.out.println("Found Runnable: " + c.getName()))
       .matchClassesWithAnnotation(RestHandler.class,
