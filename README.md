@@ -28,3 +28,5 @@ Note that you need to pass a whitelist of packages to scan into the constructor,
 Inspired by: https://github.com/rmuller/infomas-asl/tree/master/annotation-detector
 
 See also: http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.4
+
+Author: Luke Hutchison <luke .dot. hutch .at. gmail .dot. com>
