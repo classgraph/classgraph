@@ -8,7 +8,7 @@ This classpath scanner is able to find:
 * classes that implement an interface or one of its subinterfaces, and
 * classes that have a given annotation.
 
-Usage example:
+Usage example (uses Java 8 FunctionalInterface / lambda):
 
 ```java
     new ClasspathScanner(new String[]
