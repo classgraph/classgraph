@@ -37,6 +37,8 @@ import java.util.zip.ZipFile;
  *   .scan();  // Actually perform the scan
  * </code>
  * 
+ * Hosted at: https://github.com/lukehutch/fast-classpath-scanner
+ * 
  * Inspired by: https://github.com/rmuller/infomas-asl/tree/master/annotation-detector
  * 
  * See also: http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.4
