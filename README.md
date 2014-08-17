@@ -19,7 +19,7 @@ Usage example:
       .matchClassesImplementing(Runnable.class,
           c -> System.out.println("Found Runnable: " + c.getName()))
       .matchClassesWithAnnotation(RestHandler.class,
-          c -> System.out.println("Found RestHandler annotation on: " + c.getName()))
+          c -> System.out.println("Found RestHandler annotation on class: " + c.getName()))
       .scan();  // Actually perform the scan
 ```
 
