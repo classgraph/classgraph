@@ -11,7 +11,8 @@ This classpath scanner is able to find:
 Usage example:
 
 ```java
-    new ClasspathScanner(new String[] { "com.xyz.widget", "com.xyz.gizmo" })  // Whitelisted packages to scan
+    new ClasspathScanner(new String[]
+          { "com.xyz.widget", "com.xyz.gizmo" })  // Whitelisted packages to scan
       .matchSubclassesOf(DBModel.class,
           // c is the matched class
           c -> System.out.println("Found subclass of DBModel: " + c.getName()))
