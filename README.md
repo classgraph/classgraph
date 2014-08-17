@@ -1,7 +1,7 @@
 fast-classpath-scanner
 ======================
 
-Scans the classpath, reading the classfile binary format directly to avoid calling classloader. (Calling the classloader for all classes on classpath to probe the classes with reflection can take five times longer.)
+Uber-fast classpath scanner. Scans the classpath by reading the classfile binary format directly to avoid calling classloader. (Calling the classloader for all classes on classpath to probe the classes with reflection can take five times longer.)
 
 This classpath scanner is able to find:
 * classes that subclass a given class or one of its subclasses
