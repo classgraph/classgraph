@@ -5,8 +5,9 @@ Uber-fast Java classpath scanner. Scans the classpath by parsing the classfile b
 
 This classpath scanner is able to scan directories and jar/zip files on the classpath to locate:
 * classes that subclass a given class or one of its subclasses
-* classes that implement an interface or one of its subinterfaces, and/or
-* classes that have a given annotation.
+* classes that implement an interface or one of its subinterfaces
+* classes that have a given annotation
+* files (even non-classfiles) anywhere on the classpath that match a given regexp.
 
 Usage example (uses Java 8 lambda expressions):
 
