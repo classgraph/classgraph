@@ -29,7 +29,8 @@ Usage example (uses Java 8 lambda expressions):
           
       .matchFilenamePattern("^template/.*\\.html",
           // templatePath is a path on the classpath that matches the pattern;
-          // inputStream is a stream opened on the file or zipfile entry
+          // inputStream is a stream opened on the file or zipfile entry.
+          // No need to close inputStream before exiting, it is closed by caller.
           (templatePath, inputStream) -> {
               try {
                   BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, "UTF-8"));
