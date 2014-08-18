@@ -25,7 +25,7 @@ Usage example (with Java 8 lambda expressions):
           
       .matchClassesWithAnnotation(RestHandler.class,
           // c is a class annotated with @RestHandler
-          c -> System.out.println("Found RestHandler annotation on class: " + c.getName()))
+          c -> System.out.println("Found @RestHandler annotation on: " + c.getName()))
           
       .matchFilenamePattern("^template/.*\\.html",
           // templatePath is a path on the classpath that matches the above pattern;
