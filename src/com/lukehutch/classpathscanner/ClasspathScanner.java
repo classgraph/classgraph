@@ -71,7 +71,7 @@ import java.util.zip.ZipFile;
  * 
  * Note that you need to pass a whitelist of package prefixes to scan into the constructor, and the ability to
  * detect that a class or interface extends another depends upon the entire ancestral path between the two
- * classes or interfaces being within the whitelisted packages.
+ * classes or interfaces having one of the whitelisted package prefixes.
  * 
  * Hosted at: https://github.com/lukehutch/fast-classpath-scanner
  * 
