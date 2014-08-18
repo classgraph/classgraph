@@ -49,7 +49,7 @@ import java.util.zip.ZipFile;
  * 
  * 
  *       .matchFilenamePattern("^template/.*\\.html",
- *           // templatePath is a path on the classpath that matches the pattern;
+ *           // templatePath is a path on the classpath that matches the above pattern;
  *           // inputStream is a stream opened on the file or zipfile entry
  *           // No need to close inputStream before exiting, it is closed by caller.
  *           (templatePath, inputStream) -> {
