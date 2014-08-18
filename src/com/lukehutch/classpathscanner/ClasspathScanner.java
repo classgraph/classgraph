@@ -60,7 +60,7 @@ import java.util.zip.ZipFile;
  *                      buf.append(line);
  *                      buf.append('\n');
  *                  }
- *                  System.out.println("Found template: " + templatePath + " (size " + buf.size() + ")");
+ *                  System.out.println("Found template: " + templatePath + " (size " + buf.length() + ")");
  *              } catch (IOException e) {
  *                  throw new RuntimeException(e);
  *              }
