@@ -9,7 +9,7 @@ This classpath scanner is able to scan directories and jar/zip files on the clas
 * classes that have a given annotation
 * file paths (even for non-classfiles) anywhere on the classpath that match a given regexp.
 
-Usage example (uses Java 8 lambda expressions):
+Usage example (with Java 8 lambda expressions):
 
 ```java
     new ClasspathScanner(new String[]
