@@ -2,13 +2,16 @@ package com.lukehutch.classpathscanner;
 
 //NB requires the import of some Log class if you want logging.
 import gribbit.util.Log;
+import gribbit.view.Template;
 
 import java.io.BufferedInputStream;
+import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -26,7 +29,8 @@ import java.util.zip.ZipFile;
  * 
  * This classpath scanner is able to scan directories and jar/zip files on the classpath to locate: (1)
  * classes that subclass a given class or one of its subclasses; (2) classes that implement an interface or
- * one of its subinterfaces, and/or (3) classes that have a given annotation.
+ * one of its subinterfaces; (3) classes that have a given annotation; and (4) files (even non-classfiles)
+ * anywhere on the classpath that match a given regexp.
  * 
  * Usage example (uses Java 8 lambda expressions):
  * 
@@ -45,6 +49,26 @@ import java.util.zip.ZipFile;
  *       .matchClassesWithAnnotation(RestHandler.class,
  *           // c is a class annotated with @RestHandler
  *           c -> System.out.println("Found RestHandler annotation on class: " + c.getName()))
+ * 
+ * 
+ *       .matchFilenamePattern("^template/.*\\.html",
+ *           // templatePath is a path on the classpath that matches the pattern;
+ *           // inputStream is a stream opened on the file or zipfile entry
+ *           // No need to close inputStream before exiting, it is closed by caller.
+ * 
+ *           (templatePath, inputStream) -> {
+ *              try {
+ *                  BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, "UTF-8"));
+ *                  StringBuilder buf = new StringBuilder();
+ *                  for (String line; (line = reader.readLine()) != null;) {
+ *                      buf.append(line);
+ *                      buf.append('\n');
+ *                  }
+ *                  System.out.println("Found template: " + templatePath + " (size " + buf.size() + ")");
+ *              } catch (IOException e) {
+ *                  throw new RuntimeException(e);
+ *              }
+ *          })
  * 
  *       .scan();  // Actually perform the scan
  * </code>
@@ -87,6 +111,10 @@ import java.util.zip.ZipFile;
  */
 public class ClasspathScanner {
 
+    /**
+     * List of directory path prefixes to scan (produced from list of package prefixes passed into the
+     * constructor)
+     */
     private String[] pathsToScan;
 
     /**
