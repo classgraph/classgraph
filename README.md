@@ -23,7 +23,7 @@ Usage example (uses Java 8 lambda expressions):
           c -> System.out.println("Found Runnable: " + c.getName()))
           
       .matchClassesWithAnnotation(RestHandler.class,
-          // c is a class that has a @RestHandler annotation
+          // c is a class annotated with @RestHandler
           c -> System.out.println("Found RestHandler annotation on class: " + c.getName()))
           
       .scan();  // Actually perform the scan
