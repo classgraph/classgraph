@@ -1,11 +1,11 @@
 fast-classpath-scanner
 ======================
 
-Uber-fast Java classpath scanner. Scans the classpath by reading the classfile binary format directly to avoid calling the classloader. (Calling the classloader for all classes on classpath to probe the classes with reflection can take five times longer.) Is able to scan within zip and jar files.
+Uber-fast Java classpath scanner. Scans the classpath by parsing the classfile binary format directly rather than by using reflection. (Reflection causes the classloader to load each class, which can take an order of magnitude more time than parsing the classfile directly.)
 
-This classpath scanner is able to find:
+This classpath scanner is able to scan directories and jar/zip files on the classpath to locate:
 * classes that subclass a given class or one of its subclasses
-* classes that implement an interface or one of its subinterfaces, and
+* classes that implement an interface or one of its subinterfaces, and/or
 * classes that have a given annotation.
 
 Usage example (uses Java 8 lambda expressions):
