@@ -15,13 +15,15 @@ Usage example (uses Java 8 FunctionalInterface / lambda):
           { "com.xyz.widget", "com.xyz.gizmo" })  // Whitelisted packages to scan
           
       .matchSubclassesOf(DBModel.class,
-          // c is the matched class
+          // c is a matched subclass of DBModel
           c -> System.out.println("Found subclass of DBModel: " + c.getName()))
           
       .matchClassesImplementing(Runnable.class,
+          // c is a matched class that implements Runnable
           c -> System.out.println("Found Runnable: " + c.getName()))
           
       .matchClassesWithAnnotation(RestHandler.class,
+          // c is a class with the @RestHandler annotation
           c -> System.out.println("Found RestHandler annotation on class: " + c.getName()))
           
       .scan();  // Actually perform the scan
