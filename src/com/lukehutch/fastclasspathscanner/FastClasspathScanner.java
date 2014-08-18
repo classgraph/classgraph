@@ -1,4 +1,4 @@
-package com.lukehutch.classpathscanner;
+package com.lukehutch.fastclasspathscanner;
 
 //NB requires the import of some Log class if you want logging.
 import gribbit.util.Log;
