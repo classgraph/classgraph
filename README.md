@@ -26,6 +26,23 @@ Usage example (uses Java 8 lambda expressions):
           // c is a class annotated with @RestHandler
           c -> System.out.println("Found RestHandler annotation on class: " + c.getName()))
           
+      .matchFilenamePattern("^template/.*\\.html",
+          // templatePath is a path on the classpath that matches the pattern;
+          // inputStream is a stream opened on the file or zipfile entry
+          (templatePath, inputStream) -> {
+              try {
+                  BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, "UTF-8"));
+                  StringBuilder buf = new StringBuilder();
+                  for (String line; (line = reader.readLine()) != null;) {
+                      buf.append(line);
+                      buf.append('\n');
+                  }
+                  System.out.println("Found template: " + templatePath + " (size " + buf.size() + ")");
+              } catch (IOException e) {
+                  throw new RuntimeException(e);
+              }
+          })
+
       .scan();  // Actually perform the scan
 ```
 
