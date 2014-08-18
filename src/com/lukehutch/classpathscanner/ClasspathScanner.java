@@ -612,7 +612,7 @@ public class ClasspathScanner {
     /**
      * Directly examine contents of classfile binary header.
      */
-    public void readClassInfoFromClassfileHeader(final InputStream inputStream) throws IOException {
+    private void readClassInfoFromClassfileHeader(final InputStream inputStream) throws IOException {
         DataInputStream inp = new DataInputStream(new BufferedInputStream(inputStream, 1024));
 
         // Magic
