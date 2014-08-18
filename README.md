@@ -12,7 +12,7 @@ This classpath scanner is able to scan directories and jar/zip files on the clas
 Usage example (with Java 8 lambda expressions):
 
 ```java
-    new ClasspathScanner(new String[]
+    new FastClasspathScanner(new String[]
           { "com.xyz.widget", "com.xyz.gizmo" })  // Whitelisted package prefixes to scan
           
       .matchSubclassesOf(DBModel.class,
