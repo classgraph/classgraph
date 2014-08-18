@@ -1,7 +1,7 @@
 fast-classpath-scanner
 ======================
 
-Uber-fast Java classpath scanner. Scans the classpath by reading the classfile binary format directly to avoid calling the classloader. (Calling the classloader for all classes on classpath to probe the classes with reflection can take five times longer.)
+Uber-fast Java classpath scanner. Scans the classpath by reading the classfile binary format directly to avoid calling the classloader. (Calling the classloader for all classes on classpath to probe the classes with reflection can take five times longer.) Is able to scan within zip and jar files.
 
 This classpath scanner is able to find:
 * classes that subclass a given class or one of its subclasses
@@ -29,7 +29,7 @@ Usage example (uses Java 8 lambda expressions):
       .scan();  // Actually perform the scan
 ```
 
-Note that you need to pass a whitelist of packages to scan into the constructor, and the ability to detect that one class or interface extends another depends upon the entire ancestral path between the two classes or interfaces being within the whitelisted packages.
+Note that you need to pass a whitelist of package prefixes to scan into the constructor, and the ability to detect that one class or interface extends another depends upon the entire ancestral path between the two classes or interfaces being within the whitelisted packages.
 
 Inspired by: https://github.com/rmuller/infomas-asl/tree/master/annotation-detector
 
