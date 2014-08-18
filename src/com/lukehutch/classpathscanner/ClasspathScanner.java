@@ -20,7 +20,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 /**
- * Uber-fast Java classpath scanner. Scans the classpath by parsing the classfile binary format directly
+ * Uber-fast, ultra-lightweight Java classpath scanner. Scans the classpath by parsing the classfile binary format directly
  * rather than by using reflection. (Reflection causes the classloader to load each class, which can take an
  * order of magnitude more time than parsing the classfile directly.)
  * 
@@ -30,7 +30,7 @@ import java.util.zip.ZipFile;
  * non-classfiles) anywhere on the classpath that match a given regexp.
  * 
  * 
- * Usage example (uses Java 8 lambda expressions):
+ * Usage example (with Java 8 lambda expressions):
  * 
  * <code>
  *     new ClasspathScanner(new String[]
@@ -55,13 +55,15 @@ import java.util.zip.ZipFile;
  *           // No need to close inputStream before exiting, it is closed by caller.
  *           (templatePath, inputStream) -> {
  *              try {
- *                  BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, "UTF-8"));
+ *                  BufferedReader reader = new BufferedReader(
+ *                          new InputStreamReader(inputStream, "UTF-8"));
  *                  StringBuilder buf = new StringBuilder();
  *                  for (String line; (line = reader.readLine()) != null;) {
  *                      buf.append(line);
  *                      buf.append('\n');
  *                  }
- *                  System.out.println("Found template: " + templatePath + " (size " + buf.length() + ")");
+ *                  System.out.println("Found template: " + templatePath
+ *                          + " (size " + buf.length() + ")");
  *              } catch (IOException e) {
  *                  throw new RuntimeException(e);
  *              }
