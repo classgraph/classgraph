@@ -13,13 +13,17 @@ Usage example (uses Java 8 FunctionalInterface / lambda):
 ```java
     new ClasspathScanner(new String[]
           { "com.xyz.widget", "com.xyz.gizmo" })  // Whitelisted packages to scan
+          
       .matchSubclassesOf(DBModel.class,
           // c is the matched class
           c -> System.out.println("Found subclass of DBModel: " + c.getName()))
+          
       .matchClassesImplementing(Runnable.class,
           c -> System.out.println("Found Runnable: " + c.getName()))
+          
       .matchClassesWithAnnotation(RestHandler.class,
           c -> System.out.println("Found RestHandler annotation on class: " + c.getName()))
+          
       .scan();  // Actually perform the scan
 ```
 
