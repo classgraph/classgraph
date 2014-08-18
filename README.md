@@ -33,13 +33,15 @@ Usage example (uses Java 8 lambda expressions):
           // No need to close inputStream before exiting, it is closed by caller.
           (templatePath, inputStream) -> {
               try {
-                  BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, "UTF-8"));
+                  BufferedReader reader = new BufferedReader(
+                          new InputStreamReader(inputStream, "UTF-8"));
                   StringBuilder buf = new StringBuilder();
                   for (String line; (line = reader.readLine()) != null;) {
                       buf.append(line);
                       buf.append('\n');
                   }
-                  System.out.println("Found template: " + templatePath + " (size " + buf.length() + ")");
+                  System.out.println("Found template: " + templatePath
+                          + " (size " + buf.length() + ")");
               } catch (IOException e) {
                   throw new RuntimeException(e);
               }
