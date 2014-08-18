@@ -20,9 +20,9 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 /**
- * Uber-fast, ultra-lightweight Java classpath scanner. Scans the classpath by parsing the classfile binary format directly
- * rather than by using reflection. (Reflection causes the classloader to load each class, which can take an
- * order of magnitude more time than parsing the classfile directly.)
+ * Uber-fast, ultra-lightweight Java classpath scanner. Scans the classpath by parsing the classfile binary
+ * format directly rather than by using reflection. (Reflection causes the classloader to load each class,
+ * which can take an order of magnitude more time than parsing the classfile directly.)
  * 
  * This classpath scanner is able to scan directories and jar/zip files on the classpath to locate: (1)
  * classes that subclass a given class or one of its subclasses; (2) classes that implement an interface or
