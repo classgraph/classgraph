@@ -15,11 +15,11 @@ Usage example (uses Java 8 lambda expressions):
           { "com.xyz.widget", "com.xyz.gizmo" })  // Whitelisted packages to scan
           
       .matchSubclassesOf(DBModel.class,
-          // c is a matched subclass of DBModel
+          // c is a subclass of DBModel
           c -> System.out.println("Found subclass of DBModel: " + c.getName()))
           
       .matchClassesImplementing(Runnable.class,
-          // c is a matched class that implements Runnable
+          // c is a class that implements Runnable
           c -> System.out.println("Found Runnable: " + c.getName()))
           
       .matchClassesWithAnnotation(RestHandler.class,
