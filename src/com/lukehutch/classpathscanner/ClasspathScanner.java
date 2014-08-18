@@ -33,7 +33,7 @@ import java.util.zip.ZipFile;
  * Usage example (with Java 8 lambda expressions):
  * 
  * <code>
- *     new ClasspathScanner(new String[]
+ *     new FastClasspathScanner(new String[]
  *           { "com.xyz.widget", "com.xyz.gizmo" })  // Whitelisted package prefixes to scan
  * 
  *       .matchSubclassesOf(DBModel.class,
@@ -108,7 +108,7 @@ import java.util.zip.ZipFile;
  *          OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  * 
  */
-public class ClasspathScanner {
+public class FastClasspathScanner {
 
     /**
      * List of directory path prefixes to scan (produced from list of package prefixes passed into the
@@ -122,7 +122,7 @@ public class ClasspathScanner {
      * @param pacakagesToScan
      *            A list of package prefixes to scan.
      */
-    public ClasspathScanner(String[] pacakagesToScan) {
+    public FastClasspathScanner(String[] pacakagesToScan) {
         this.pathsToScan = Stream.of(pacakagesToScan).map(p -> p.replace('.', '/') + "/")
                 .toArray(String[]::new);
     }
@@ -145,7 +145,7 @@ public class ClasspathScanner {
      *            the ClassMatchProcessor to call when a match is found.
      */
     @SuppressWarnings("unchecked")
-    public <T> ClasspathScanner matchSubclassesOf(final Class<T> superclass,
+    public <T> FastClasspathScanner matchSubclassesOf(final Class<T> superclass,
             final SubclassMatchProcessor<T> classMatchProcessor) {
         if (superclass.isInterface()) {
             // No support yet for scanning for interfaces that extend other interfaces
@@ -198,7 +198,7 @@ public class ClasspathScanner {
      *            the ClassMatchProcessor to call when a match is found.
      */
     @SuppressWarnings("unchecked")
-    public <T> ClasspathScanner matchClassesImplementing(final Class<T> iface,
+    public <T> FastClasspathScanner matchClassesImplementing(final Class<T> iface,
             final InterfaceMatchProcessor<T> interfaceMatchProcessor) {
         if (!iface.isInterface()) {
             throw new IllegalArgumentException(iface.getName() + " is not an interface");
@@ -241,7 +241,7 @@ public class ClasspathScanner {
      * @param classMatchProcessor
      *            the ClassMatchProcessor to call when a match is found.
      */
-    public ClasspathScanner matchClassesWithAnnotation(final Class<?> annotation,
+    public FastClasspathScanner matchClassesWithAnnotation(final Class<?> annotation,
             final ClassAnnotationMatchProcessor classMatchProcessor) {
         if (!annotation.isAnnotation()) {
             throw new IllegalArgumentException("Class " + annotation.getName() + " is not an annotation");
@@ -284,7 +284,7 @@ public class ClasspathScanner {
      * @param fileMatchProcessor
      *            The FileMatchProcessor to call when each match is found.
      */
-    public ClasspathScanner matchFilenamePattern(final String filenameMatchPattern,
+    public FastClasspathScanner matchFilenamePattern(final String filenameMatchPattern,
             final FileMatchProcessor fileMatchProcessor) {
         filePathMatchers.add(new FilePathMatcher(Pattern.compile(filenameMatchPattern), fileMatchProcessor));
         return this;
