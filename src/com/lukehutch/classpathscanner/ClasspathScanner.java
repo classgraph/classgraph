@@ -26,8 +26,9 @@ import java.util.zip.ZipFile;
  * 
  * This classpath scanner is able to scan directories and jar/zip files on the classpath to locate: (1)
  * classes that subclass a given class or one of its subclasses; (2) classes that implement an interface or
- * one of its subinterfaces; (3) classes that have a given annotation; and (4) files (even non-classfiles)
- * anywhere on the classpath that match a given regexp.
+ * one of its subinterfaces; (3) classes that have a given annotation; and (4) file paths (even for
+ * non-classfiles) anywhere on the classpath that match a given regexp.
+ * 
  * 
  * Usage example (uses Java 8 lambda expressions):
  * 
