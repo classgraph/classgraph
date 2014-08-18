@@ -17,15 +17,15 @@ Usage example (with Java 8 lambda expressions):
           
       .matchSubclassesOf(DBModel.class,
           // c is a subclass of DBModel
-          c -> System.out.println("Found subclass of DBModel: " + c.getName()))
+          c -> System.out.println("Subclasses DBModel: " + c.getName()))
           
       .matchClassesImplementing(Runnable.class,
           // c is a class that implements Runnable
-          c -> System.out.println("Found Runnable: " + c.getName()))
+          c -> System.out.println("Implements Runnable: " + c.getName()))
           
       .matchClassesWithAnnotation(RestHandler.class,
           // c is a class annotated with @RestHandler
-          c -> System.out.println("Found @RestHandler annotation on: " + c.getName()))
+          c -> System.out.println("Has @RestHandler class annotation: " + c.getName()))
           
       .matchFilenamePattern("^template/.*\\.html",
           // templatePath is a path on the classpath that matches the above pattern;
