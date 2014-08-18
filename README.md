@@ -28,7 +28,7 @@ Usage example (uses Java 8 lambda expressions):
           c -> System.out.println("Found RestHandler annotation on class: " + c.getName()))
           
       .matchFilenamePattern("^template/.*\\.html",
-          // templatePath is a path on the classpath that matches the pattern;
+          // templatePath is a path on the classpath that matches the above pattern;
           // inputStream is a stream opened on the file or zipfile entry.
           // No need to close inputStream before exiting, it is closed by caller.
           (templatePath, inputStream) -> {
