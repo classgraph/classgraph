@@ -1,6 +1,7 @@
 package com.lukehutch.classpathscanner;
 
-// NB requires the import of some Log class if you want logging.
+//NB requires the import of some Log class if you want logging.
+import gribbit.util.Log;
 
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
@@ -19,23 +20,38 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 /**
- * Uber-fast Java classpath scanner. Scans the classpath by reading the classfile binary format directly to avoid calling the classloader. (Calling the classloader for all classes
- * on classpath to probe them with reflection can take five times longer.) The classloader is only called for classes that match the required criterion, so that the corresponding
- * Class<?> object may be returned.
+ * Uber-fast Java classpath scanner. Scans the classpath by parsing the classfile binary format directly
+ * rather than by using reflection. (Reflection causes the classloader to load each class, which can take an
+ * order of magnitude more time than parsing the classfile directly.)
  * 
- * This classpath scanner is able to find classes that subclass a given class or one of its subclasses, classes that implement an interface or one of its subinterfaces, and classes
- * that have a given annotation. (Note that you need to pass a whitelist of packages to scan into the constructor, and the ability to detect that one class or interface extends
- * another depends upon the entire ancestral path between the two classes or interfaces being within the whitelisted packages.)
+ * This classpath scanner is able to scan directories and jar/zip files on the classpath to locate: (1)
+ * classes that subclass a given class or one of its subclasses; (2) classes that implement an interface or
+ * one of its subinterfaces, and/or (3) classes that have a given annotation.
  * 
- * Usage example (uses Java 8 FunctionalInterface / lambda):
+ * Usage example (uses Java 8 lambda expressions):
  * 
  * <code>
- * new ClasspathScanner(new String[] { "com.xyz.widget", "com.xyz.gizmo" })  // Whitelisted packages to scan
- *   .matchSubclassesOf(DBModel.class, c -> System.out.println("Found subclass of DBModel: " + c.getName()))  // c is the matched class
- *   .matchClassesImplementing(Runnable.class, c -> System.out.println("Found Runnable: " + c.getName()))
- *   .matchClassesWithAnnotation(RestHandler.class, c -> System.out.println("Found RestHandler annotation on: " + c.getName()))
- *   .scan();  // Actually perform the scan
+ *     new ClasspathScanner(new String[]
+ *           { "com.xyz.widget", "com.xyz.gizmo" })  // Whitelisted package prefixes to scan
+ * 
+ *       .matchSubclassesOf(DBModel.class,
+ *           // c is a subclass of DBModel
+ *           c -> System.out.println("Found subclass of DBModel: " + c.getName()))
+ * 
+ *       .matchClassesImplementing(Runnable.class,
+ *           // c is a class that implements Runnable
+ *           c -> System.out.println("Found Runnable: " + c.getName()))
+ * 
+ *       .matchClassesWithAnnotation(RestHandler.class,
+ *           // c is a class annotated with @RestHandler
+ *           c -> System.out.println("Found RestHandler annotation on class: " + c.getName()))
+ * 
+ *       .scan();  // Actually perform the scan
  * </code>
+ * 
+ * Note that you need to pass a whitelist of package prefixes to scan into the constructor, and the ability to
+ * detect that a class or interface extends another depends upon the entire ancestral path between the two
+ * classes or interfaces being within the whitelisted packages.
  * 
  * Hosted at: https://github.com/lukehutch/fast-classpath-scanner
  * 
@@ -43,6 +59,8 @@ import java.util.zip.ZipFile;
  * 
  * See also: http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.4
  * 
+ * Let me know if you find this useful!
+ *
  * @author Luke Hutchison <luke .dot. hutch .at. gmail .dot. com>
  * 
  * @license MIT
@@ -51,15 +69,20 @@ import java.util.zip.ZipFile;
  *
  *          Copyright (c) 2014 Luke Hutchison
  * 
- *          Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the
- *          Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
- *          and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *          Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
+ *          associated documentation files (the "Software"), to deal in the Software without restriction,
+ *          including without limitation the rights to use, copy, modify, merge, publish, distribute,
+ *          sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is
+ *          furnished to do so, subject to the following conditions:
  * 
- *          The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+ *          The above copyright notice and this permission notice shall be included in all copies or
+ *          substantial portions of the Software.
  * 
- *          THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
- *          PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
- *          CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ *          THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT
+ *          NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *          NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+ *          DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT
+ *          OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  * 
  */
 public class ClasspathScanner {
@@ -73,19 +96,21 @@ public class ClasspathScanner {
      *            A list of package prefixes to scan.
      */
     public ClasspathScanner(String[] pacakagesToScan) {
-        this.pathsToScan = Stream.of(pacakagesToScan).map(p -> p.replace('.', '/') + "/").toArray(String[]::new);
+        this.pathsToScan = Stream.of(pacakagesToScan).map(p -> p.replace('.', '/') + "/")
+                .toArray(String[]::new);
     }
 
-    // --------------------------------------------------------------------------------------------------------------------------------------------    
+    // ------------------------------------------------------------------------------------------------------    
 
-    /** The method is run when a subclass of a specific class is found on the classpath. */
+    /** The method to run when a subclass of a specific class is found on the classpath. */
     @FunctionalInterface
     public interface SubclassMatchProcessor<T> {
         public void processMatch(Class<? extends T> matchingClass);
     }
 
     /**
-     * Call the given ClassMatchProcessor if classes are found on the classpath that extend the specified superclass.
+     * Call the given ClassMatchProcessor if classes are found on the classpath that extend the specified
+     * superclass.
      * 
      * @param superclass
      *            The superclass to match (i.e. the class that subclasses need to extend to match).
@@ -93,47 +118,52 @@ public class ClasspathScanner {
      *            the ClassMatchProcessor to call when a match is found.
      */
     @SuppressWarnings("unchecked")
-    public <T> ClasspathScanner matchSubclassesOf(final Class<T> superclass, final SubclassMatchProcessor<T> classMatchProcessor) {
+    public <T> ClasspathScanner matchSubclassesOf(final Class<T> superclass,
+            final SubclassMatchProcessor<T> classMatchProcessor) {
         if (superclass.isInterface()) {
             // No support yet for scanning for interfaces that extend other interfaces
             throw new IllegalArgumentException(superclass.getName() + " is an interface, not a regular class");
         }
         if (superclass.isAnnotation()) {
             // No support yet for scanning for interfaces that extend other interfaces
-            throw new IllegalArgumentException(superclass.getName() + " is an annotation, not a regular class");
+            throw new IllegalArgumentException(superclass.getName()
+                    + " is an annotation, not a regular class");
         }
         classMatchers.add(() -> {
-            // Call class loader for all subclasses of the specified superclass, and call classMatchProcessor with these classes
-                ClassInfo superclassInfo = classNameToClassInfo.get(superclass.getName());
-                boolean foundMatches = false;
-                if (superclassInfo != null) {
-                    for (ClassInfo subclassInfo : superclassInfo.allSubclasses) {
-                        try {
-                            Class<? extends T> klass = (Class<? extends T>) Class.forName(subclassInfo.name);
-                            classMatchProcessor.processMatch(klass);
-                            foundMatches = true;
-                        } catch (ClassNotFoundException | NoClassDefFoundError e) {
-                            throw new RuntimeException(e);
-                        }
+            ClassInfo superclassInfo = classNameToClassInfo.get(superclass.getName());
+            boolean foundMatches = false;
+            if (superclassInfo != null) {
+                // For all subclasses of the given superclass
+                for (ClassInfo subclassInfo : superclassInfo.allSubclasses) {
+                    try {
+                        // Load class
+                        Class<? extends T> klass = (Class<? extends T>) Class.forName(subclassInfo.name);
+                        // Process match
+                        classMatchProcessor.processMatch(klass);
+                        foundMatches = true;
+                    } catch (ClassNotFoundException | NoClassDefFoundError e) {
+                        throw new RuntimeException(e);
                     }
                 }
-                if (!foundMatches) {
-                    Log.info("No classes found with superclass " + superclass.getName());
-                }
-            });
+            }
+            if (!foundMatches) {
+                Log.info("No classes found with superclass " + superclass.getName());
+            }
+        });
         return this;
     }
 
-    // --------------------------------------------------------------------------------------------------------------------------------------------    
+    // ------------------------------------------------------------------------------------------------------    
 
-    /** The method is run when a class implementing a specific interface is found on the classpath. */
+    /** The method to run when a class implementing a specific interface is found on the classpath. */
     @FunctionalInterface
     public interface InterfaceMatchProcessor<T> {
         public void processMatch(Class<? extends T> matchingClass);
     }
 
     /**
-     * Call the given ClassMatchProcessor if classes are found on the classpath that implement the specified interface.
+     * Call the given ClassMatchProcessor if classes are found on the classpath that implement the specified
+     * interface.
      * 
      * @param iface
      *            The interface to match (i.e. the interface that classes need to implement to match).
@@ -141,91 +171,101 @@ public class ClasspathScanner {
      *            the ClassMatchProcessor to call when a match is found.
      */
     @SuppressWarnings("unchecked")
-    public <T> ClasspathScanner matchClassesImplementing(final Class<T> iface, final InterfaceMatchProcessor<T> interfaceMatchProcessor) {
+    public <T> ClasspathScanner matchClassesImplementing(final Class<T> iface,
+            final InterfaceMatchProcessor<T> interfaceMatchProcessor) {
         if (!iface.isInterface()) {
             throw new IllegalArgumentException(iface.getName() + " is not an interface");
         }
         classMatchers.add(() -> {
-            // Call class loader for all classes implementing the specified interface, and call classMatchProcessor with these classes
-                ArrayList<String> classesImplementingIface = interfaceToClasses.get(iface.getName());
-                if (classesImplementingIface != null) {
-                    for (String implClass : classesImplementingIface) {
-                        try {
-                            Class<? extends T> klass = (Class<? extends T>) Class.forName(implClass);
-                            interfaceMatchProcessor.processMatch(klass);
-                        } catch (ClassNotFoundException | NoClassDefFoundError e) {
-                            throw new RuntimeException(e);
-                        }
+            ArrayList<String> classesImplementingIface = interfaceToClasses.get(iface.getName());
+            if (classesImplementingIface != null) {
+                // For all classes implementing the given interface
+                for (String implClass : classesImplementingIface) {
+                    try {
+                        // Load class
+                        Class<? extends T> klass = (Class<? extends T>) Class.forName(implClass);
+                        // Process match
+                        interfaceMatchProcessor.processMatch(klass);
+                    } catch (ClassNotFoundException | NoClassDefFoundError e) {
+                        throw new RuntimeException(e);
                     }
-                } else {
-                    Log.info("No classes found implementing interface " + iface.getName());
                 }
-            });
+            } else {
+                Log.info("No classes found implementing interface " + iface.getName());
+            }
+        });
         return this;
     }
 
-    // --------------------------------------------------------------------------------------------------------------------------------------------    
+    // ------------------------------------------------------------------------------------------------------    
 
-    /** The method is run when a class with the right matching annotation is found on the classpath. */
+    /** The method to run when a class with the right matching annotation is found on the classpath. */
     @FunctionalInterface
     public interface ClassAnnotationMatchProcessor {
         public void processMatch(Class<?> matchingClass);
     }
 
     /**
-     * Call the given ClassMatchProcessor if classes are found on the classpath that have the given annotation.
+     * Call the given ClassMatchProcessor if classes are found on the classpath that have the given
+     * annotation.
      * 
      * @param annotation
      *            The class annotation to match.
      * @param classMatchProcessor
      *            the ClassMatchProcessor to call when a match is found.
      */
-    public ClasspathScanner matchClassesWithAnnotation(final Class<?> annotation, final ClassAnnotationMatchProcessor classMatchProcessor) {
+    public ClasspathScanner matchClassesWithAnnotation(final Class<?> annotation,
+            final ClassAnnotationMatchProcessor classMatchProcessor) {
         if (!annotation.isAnnotation()) {
             throw new IllegalArgumentException("Class " + annotation.getName() + " is not an annotation");
         }
         classMatchers.add(() -> {
-            // Class-load all classes that have the specified class annotation, and call classMatchProcessor with these classes
-                ArrayList<String> classesWithAnnotation = annotationToClasses.get(annotation.getName());
-                if (classesWithAnnotation != null) {
-                    for (String classWithAnnotation : classesWithAnnotation) {
-                        try {
-                            Class<?> klass = Class.forName(classWithAnnotation);
-                            classMatchProcessor.processMatch(klass);
-                        } catch (ClassNotFoundException | NoClassDefFoundError e) {
-                            throw new RuntimeException(e);
-                        }
+            ArrayList<String> classesWithAnnotation = annotationToClasses.get(annotation.getName());
+            if (classesWithAnnotation != null) {
+                // For all classes with the given annotation
+                for (String classWithAnnotation : classesWithAnnotation) {
+                    try {
+                        // Load class
+                        Class<?> klass = Class.forName(classWithAnnotation);
+                        // Process match
+                        classMatchProcessor.processMatch(klass);
+                    } catch (ClassNotFoundException | NoClassDefFoundError e) {
+                        throw new RuntimeException(e);
                     }
-                } else {
-                    Log.info("No classes found with annotation " + annotation.getName());
                 }
-            });
+            } else {
+                Log.info("No classes found with annotation " + annotation.getName());
+            }
+        });
         return this;
     }
 
-    // --------------------------------------------------------------------------------------------------------------------------------------------    
+    // ------------------------------------------------------------------------------------------------------    
 
-    /** The method is run when a matching file is found on the classpath. */
+    /** The method to run when a matching file is found on the classpath. */
     @FunctionalInterface
     public interface FileMatchProcessor {
         public void processMatch(String path, InputStream inputStream);
     }
 
     /**
-     * Call the given FileMatchProcessor if files are found on the classpath with the given regex pattern in their path.
+     * Call the given FileMatchProcessor if files are found on the classpath with the given regex pattern in
+     * their path.
      * 
      * @param filenameMatchPattern
      *            The regex to match, e.g. "app/templates/.*\\.html"
      * @param fileMatchProcessor
      *            The FileMatchProcessor to call when each match is found.
      */
-    public ClasspathScanner matchFilenamePattern(final String filenameMatchPattern, final FileMatchProcessor fileMatchProcessor) {
+    public ClasspathScanner matchFilenamePattern(final String filenameMatchPattern,
+            final FileMatchProcessor fileMatchProcessor) {
         filePathMatchers.add(new FilePathMatcher(Pattern.compile(filenameMatchPattern), fileMatchProcessor));
         return this;
     }
 
-    // --------------------------------------------------------------------------------------------------------------------------------------------    
+    // ------------------------------------------------------------------------------------------------------    
 
+    /** An interface used for testing if a file path matches a specified pattern. */
     private static class FilePathMatcher {
         Pattern pattern;
         FileMatchProcessor fileMatchProcessor;
@@ -236,23 +276,35 @@ public class ClasspathScanner {
         }
     }
 
+    /**
+     * A list of file path matchers to call when a directory or subdirectory on the classpath matches a given
+     * regexp.
+     */
     private ArrayList<FilePathMatcher> filePathMatchers = new ArrayList<>();
 
+    /** A functional interface used for testing if a class matches specified criteria. */
     @FunctionalInterface
     private static interface ClassMatcher {
         public abstract void lookForMatches();
     }
 
+    /** A list of class matchers to call once all classes have been read in from classpath. */
     private ArrayList<ClassMatcher> classMatchers = new ArrayList<>();
 
-    // --------------------------------------------------------------------------------------------------------------------------------------------    
+    // ------------------------------------------------------------------------------------------------------    
 
-    /** An object to hold class information. For speed purposes, this is reconstructed directly from the classfile header without calling the classloader. */
+    /**
+     * An object to hold class information. For speed purposes, this is reconstructed directly from the
+     * classfile header without calling the classloader.
+     */
     private static class ClassInfo {
         /** Class name */
         String name;
 
-        /** Set to true when this class is encountered in the classpath (false if the class is so far only cited as a superclass) */
+        /**
+         * Set to true when this class is encountered in the classpath (false if the class is so far only
+         * cited as a superclass)
+         */
         boolean encountered;
 
         /** Direct superclass */
@@ -279,7 +331,10 @@ public class ClasspathScanner {
             this.encounter(interfaces, annotations);
         }
 
-        /** If called by another class, this class was previously cited as a superclass, and now has been itself encountered on the classpath. */
+        /**
+         * If called by another class, this class was previously cited as a superclass, and now has been
+         * itself encountered on the classpath.
+         */
         public void encounter(ArrayList<String> interfaces, HashSet<String> annotations) {
             this.encountered = true;
             this.interfaces.addAll(interfaces);
@@ -296,7 +351,8 @@ public class ClasspathScanner {
         /** Connect this class to a subclass. */
         public void addSubclass(ClassInfo subclass) {
             if (subclass.directSuperclass != null && subclass.directSuperclass != this) {
-                throw new RuntimeException(subclass.name + " has two superclasses: " + subclass.directSuperclass.name + ", " + this.name);
+                throw new RuntimeException(subclass.name + " has two superclasses: "
+                        + subclass.directSuperclass.name + ", " + this.name);
             }
             subclass.directSuperclass = this;
             subclass.allSuperclasses.add(this);
@@ -310,6 +366,9 @@ public class ClasspathScanner {
         }
     }
 
+    /**
+     * Direct and ancestral interfaces of a given interface.
+     */
     private static class InterfaceInfo {
         ArrayList<String> superInterfaces = new ArrayList<>();
 
@@ -321,7 +380,7 @@ public class ClasspathScanner {
 
     }
 
-    // --------------------------------------------------------------------------------------------------------------------------------------------    
+    // ------------------------------------------------------------------------------------------------------    
 
     /** A map from fully-qualified class name to the corresponding ClassInfo object. */
     private final HashMap<String, ClassInfo> classNameToClassInfo = new HashMap<>();
@@ -335,9 +394,11 @@ public class ClasspathScanner {
     /** Reverse mapping from interface to classes that implement the interface */
     private final HashMap<String, ArrayList<String>> interfaceToClasses = new HashMap<>();
 
-    // --------------------------------------------------------------------------------------------------------------------------------------------    
+    // ------------------------------------------------------------------------------------------------------    
 
-    /** recursively find all subclasses for each class; called by finalizeClassHierarchy. */
+    /**
+     * Recursively find all subclasses for each class; called by finalizeClassHierarchy.
+     */
     private static void finalizeClassHierarchyRec(ClassInfo curr) {
         // DFS through subclasses
         for (ClassInfo subclass : curr.directSubclasses) {
@@ -349,7 +410,9 @@ public class ClasspathScanner {
         }
     }
 
-    /** Recursively find all superinterfaces of each interface; called by finalizeClassHierarchy. */
+    /**
+     * Recursively find all superinterfaces of each interface; called by finalizeClassHierarchy.
+     */
     private void finalizeInterfaceHierarchyRec(InterfaceInfo interfaceInfo) {
         // Interface inheritance is a DAG; don't double-visit nodes
         if (interfaceInfo.allSuperInterfaces.isEmpty() && !interfaceInfo.superInterfaces.isEmpty()) {
@@ -365,7 +428,9 @@ public class ClasspathScanner {
         }
     }
 
-    /** Find all superclasses and subclasses for each class once all classes have been read. */
+    /**
+     * Find all superclasses and subclasses for each class once all classes have been read.
+     */
     private void finalizeClassHierarchy() {
         if (classNameToClassInfo.isEmpty() && interfaceNameToInterfaceInfo.isEmpty()) {
             // If no classes or interfaces were matched, there is no hierarchy to build
@@ -380,7 +445,8 @@ public class ClasspathScanner {
             }
         }
 
-        // Accumulate all superclasses and interfaces along each branch of class hierarchy. Traverse top down / breadth first from roots.
+        // Accumulate all superclasses and interfaces along each branch of class hierarchy.
+        // Traverse top down / breadth first from roots.
         LinkedList<ClassInfo> nodes = new LinkedList<>();
         nodes.addAll(roots);
         while (!nodes.isEmpty()) {
@@ -397,7 +463,8 @@ public class ClasspathScanner {
             }
         }
 
-        // Accumulate all subclasses along each branch of class hierarchy. Traverse depth first, postorder from roots.
+        // Accumulate all subclasses along each branch of class hierarchy.
+        // Traverse depth first, postorder from roots.
         for (ClassInfo root : roots) {
             finalizeClassHierarchyRec(root);
         }
@@ -439,15 +506,19 @@ public class ClasspathScanner {
         }
     }
 
-    // --------------------------------------------------------------------------------------------------------------------------------------------    
+    // ------------------------------------------------------------------------------------------------------    
 
-    /** Read annotation entry from classfile. */
+    /**
+     * Read annotation entry from classfile.
+     */
     private String readAnnotation(final DataInputStream inp, Object[] constantPool) throws IOException {
         String annotationFieldDescriptor = readRefdString(inp, constantPool);
         String annotationClassName;
-        if (annotationFieldDescriptor.charAt(0) == 'L' && annotationFieldDescriptor.charAt(annotationFieldDescriptor.length() - 1) == ';') {
+        if (annotationFieldDescriptor.charAt(0) == 'L'
+                && annotationFieldDescriptor.charAt(annotationFieldDescriptor.length() - 1) == ';') {
             // Lcom/xyz/Annotation; -> com.xyz.Annotation
-            annotationClassName = annotationFieldDescriptor.substring(1, annotationFieldDescriptor.length() - 1).replace('/', '.');
+            annotationClassName = annotationFieldDescriptor.substring(1,
+                    annotationFieldDescriptor.length() - 1).replace('/', '.');
         } else {
             // Should not happen
             annotationClassName = annotationFieldDescriptor;
@@ -460,8 +531,11 @@ public class ClasspathScanner {
         return annotationClassName;
     }
 
-    /** Read annotation element value from classfile. */
-    private void readAnnotationElementValue(final DataInputStream inp, Object[] constantPool) throws IOException {
+    /**
+     * Read annotation element value from classfile.
+     */
+    private void readAnnotationElementValue(final DataInputStream inp, Object[] constantPool)
+            throws IOException {
         int tag = inp.readUnsignedByte();
         switch (tag) {
         case 'B':
@@ -501,11 +575,14 @@ public class ClasspathScanner {
         }
     }
 
-    /** Read a string reference from a classfile, then look up the string in the constant pool. */
+    /**
+     * Read a string reference from a classfile, then look up the string in the constant pool.
+     */
     private static String readRefdString(DataInputStream inp, Object[] constantPool) throws IOException {
         int constantPoolIdx = inp.readUnsignedShort();
         Object constantPoolObj = constantPool[constantPoolIdx];
-        return (constantPoolObj instanceof Integer ? (String) constantPool[(Integer) constantPoolObj] : (String) constantPoolObj);
+        return (constantPoolObj instanceof Integer ? (String) constantPool[(Integer) constantPoolObj]
+                : (String) constantPoolObj);
     }
 
     /**
@@ -634,9 +711,11 @@ public class ClasspathScanner {
             InterfaceInfo thisInterfaceInfo = interfaceNameToInterfaceInfo.get(className);
             if (thisInterfaceInfo == null) {
                 // This interface has not been encountered before on the classpath 
-                interfaceNameToInterfaceInfo.put(className, thisInterfaceInfo = new InterfaceInfo(interfaces));
+                interfaceNameToInterfaceInfo
+                        .put(className, thisInterfaceInfo = new InterfaceInfo(interfaces));
             } else {
-                // An interface of this fully-qualified name has been encountered already earlier on the classpath, so this interface is shadowed, ignore it 
+                // An interface of this fully-qualified name has been encountered already earlier on
+                // the classpath, so this interface is shadowed, ignore it 
                 return;
             }
 
@@ -647,26 +726,30 @@ public class ClasspathScanner {
             ClassInfo thisClassInfo = classNameToClassInfo.get(className);
             if (thisClassInfo == null) {
                 // This class has not been encountered before on the classpath 
-                classNameToClassInfo.put(className, thisClassInfo = new ClassInfo(className, interfaces, annotations));
+                classNameToClassInfo.put(className, thisClassInfo = new ClassInfo(className, interfaces,
+                        annotations));
             } else if (thisClassInfo.encountered) {
-                // A class of this fully-qualified name has been encountered already earlier on the classpath, so this class is shadowed, ignore it 
+                // A class of this fully-qualified name has been encountered already earlier on
+                // the classpath, so this class is shadowed, ignore it 
                 return;
             } else {
-                // This is the first time this class has been encountered on the classpath, but it was previously cited as a superclass of another class
+                // This is the first time this class has been encountered on the classpath, but
+                // it was previously cited as a superclass of another class
                 thisClassInfo.encounter(interfaces, annotations);
             }
 
             // Look up ClassInfo object for superclass, and connect it to this class
             ClassInfo superclassInfo = classNameToClassInfo.get(superclassName);
             if (superclassInfo == null) {
-                classNameToClassInfo.put(superclassName, superclassInfo = new ClassInfo(superclassName, thisClassInfo));
+                classNameToClassInfo.put(superclassName, superclassInfo = new ClassInfo(superclassName,
+                        thisClassInfo));
             } else {
                 superclassInfo.addSubclass(thisClassInfo);
             }
         }
     }
 
-    // --------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------------------------    
 
     /**
      * Scan a file.
@@ -764,9 +847,12 @@ public class ClasspathScanner {
         }
     }
 
-    // --------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------------------------    
 
-    /** Scan classpath for matching files. This should be called once only, after all match processors have been added. */
+    /**
+     * Scan classpath for matching files. This should be called once only, after all match processors have
+     * been added.
+     */
     public void scan() {
         long scanStart = System.currentTimeMillis();
 
