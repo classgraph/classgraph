@@ -7,7 +7,7 @@ This classpath scanner is able to scan directories and jar/zip files on the clas
 * classes that subclass a given class or one of its subclasses
 * classes that implement an interface or one of its subinterfaces
 * classes that have a given annotation
-* files (even non-classfiles) anywhere on the classpath that match a given regexp.
+* file paths (even for non-classfiles) anywhere on the classpath that match a given regexp.
 
 Usage example (uses Java 8 lambda expressions):
 
