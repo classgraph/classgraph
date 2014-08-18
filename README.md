@@ -12,7 +12,7 @@ Usage example (uses Java 8 lambda expressions):
 
 ```java
     new ClasspathScanner(new String[]
-          { "com.xyz.widget", "com.xyz.gizmo" })  // Whitelisted packages to scan
+          { "com.xyz.widget", "com.xyz.gizmo" })  // Whitelisted package prefixes to scan
           
       .matchSubclassesOf(DBModel.class,
           // c is a subclass of DBModel
