@@ -72,8 +72,8 @@ import java.util.zip.ZipFile;
  *       .scan();  // Actually perform the scan
  * </code>
  * 
- * Note that you need to pass a whitelist of package prefixes to scan into the constructor, and the ability to
- * detect that a class or interface extends another depends upon the entire ancestral path between the two
+ * Note that you need to pass a whitelist of package prefixes to scan into the constructor, and the ability
+ * to detect that a class or interface extends another depends upon the entire ancestral path between the two
  * classes or interfaces having one of the whitelisted package prefixes.
  * 
  * Hosted at: https://github.com/lukehutch/fast-classpath-scanner
@@ -104,8 +104,8 @@ import java.util.zip.ZipFile;
  *          THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT
  *          NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
  *          NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
- *          DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT
- *          OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ *          DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *          OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  * 
  */
 public class FastClasspathScanner {
@@ -149,7 +149,8 @@ public class FastClasspathScanner {
             final SubclassMatchProcessor<T> classMatchProcessor) {
         if (superclass.isInterface()) {
             // No support yet for scanning for interfaces that extend other interfaces
-            throw new IllegalArgumentException(superclass.getName() + " is an interface, not a regular class");
+            throw new IllegalArgumentException(superclass.getName()
+                    + " is an interface, not a regular class");
         }
         if (superclass.isAnnotation()) {
             // No support yet for scanning for interfaces that extend other interfaces
@@ -531,6 +532,21 @@ public class FastClasspathScanner {
                 classList.add(classInfo.name);
             }
         }
+
+        // Classes that subclass another class that implements an interface also implement that interface
+        for (String iface : interfaceToClasses.keySet()) {
+            ArrayList<String> classes = interfaceToClasses.get(iface);
+            HashSet<String> subClasses = new HashSet<String>(classes);
+            for (String klass : classes) {
+                ClassInfo ci = classNameToClassInfo.get(klass);
+                if (ci != null) {
+                    for (ClassInfo subci : ci.allSubclasses) {
+                        subClasses.add(subci.name);
+                    }
+                }
+            }
+            interfaceToClasses.put(iface, new ArrayList<>(subClasses));
+        }
     }
 
     // ------------------------------------------------------------------------------------------------------    
@@ -738,8 +754,8 @@ public class FastClasspathScanner {
             InterfaceInfo thisInterfaceInfo = interfaceNameToInterfaceInfo.get(className);
             if (thisInterfaceInfo == null) {
                 // This interface has not been encountered before on the classpath 
-                interfaceNameToInterfaceInfo
-                        .put(className, thisInterfaceInfo = new InterfaceInfo(interfaces));
+                interfaceNameToInterfaceInfo.put(className,
+                        thisInterfaceInfo = new InterfaceInfo(interfaces));
             } else {
                 // An interface of this fully-qualified name has been encountered already earlier on
                 // the classpath, so this interface is shadowed, ignore it 
