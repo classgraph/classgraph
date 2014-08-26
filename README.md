@@ -60,7 +60,7 @@ You can also find the latest last-modified timestamp on any directory, file or z
             .classpathContentsLastModified();
 ```
 
-You can re-use FastClasspathScanner instances across multiple scans. The scanner is stateless (other than storing the white-listed package prefixes to scan), and is therefore threadsafe.
+You can re-use FastClasspathScanner instances across multiple scans. The scanner is stateless (other than storing the white-listed package prefixes to scan).
 
 Inspired by: https://github.com/rmuller/infomas-asl/tree/master/annotation-detector
 
