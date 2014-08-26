@@ -51,7 +51,7 @@ import java.util.zip.ZipFile;
  * 
  *       .matchFilenamePattern("^template/.*\\.html",
  *           // templatePath is a path on the classpath that matches the above pattern;
- *           // inputStream is a stream opened on the file or zipfile entry
+ *           // inputStream is a stream opened on the file or zipfile entry
  *           // No need to close inputStream before exiting, it is closed by caller.
  *           (templatePath, inputStream) -> {
  *              try {
@@ -88,7 +88,7 @@ import java.util.zip.ZipFile;
  * </code>
  *
  * You can re-use FastClasspathScanner instances across multiple scans. The scanner is stateless (other
- * than storing the white-listed package prefixes to scan), and is therefore threadsafe.
+ * than storing the white-listed package prefixes to scan).
  *
  * Hosted at: https://github.com/lukehutch/fast-classpath-scanner
  * 
