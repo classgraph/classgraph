@@ -78,7 +78,8 @@ import java.util.zip.ZipFile;
  * 
  * You can also find the latest last-modified timestamp on any directory, file or zip/jarfile in the
  * classpath, in order to enable dynamic class-reloading if something is recompiled (e.g. for a web server
- * that allows for hot-replace of route handler classes):
+ * that allows for hot-replace of route handler classes). The resulting timestamp is in milliseconds since
+ * the Unix epoch.
  *  
  * <code>
  *     long lastModified = new FastClasspathScanner(
@@ -946,7 +947,8 @@ public class FastClasspathScanner {
      * Return most recent modification date of any toplevel classpath resource (directory or zipfile). This
      * date can be checked to determine when something on the classpath has changed, so that classpath can
      * be re-scanned. N.B. this limits the scan to the white-listed path components passed into the
-     * constructor, the same as the regular classpath scanner.
+     * constructor, the same as the regular classpath scanner. The resulting timestamp is in milliseconds
+     * since the Unix epoch.
      */
     public long classpathContentsLastModified() {
         long scanStart = System.currentTimeMillis();
