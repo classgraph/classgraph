@@ -77,23 +77,16 @@ import java.util.zip.ZipFile;
  * classes or interfaces having one of the whitelisted package prefixes.
  * 
  * The scanner also records the latest last-modified timestamp of any file or directory encountered, and you
- * can see if that latest last-modified timestamp increases by calling
+ * can see if that latest last-modified timestamp has increased (indicating that something on the classpath
+ * has been updated) by calling:
  * 
  * <code>
  *     boolean classpathContentsModified = fastClassPathScanner.classpathContentsModifiedSinceScan();
  * </code>
  * 
  * This can be used to enable dynamic class-reloading if something on the classpath is updated, for example
- * to support hot-replace of route handler classes in a webserver. This is several times faster than the
- * original call to scan(), since only modification timestamps need to be checked.
- * 
- * <code>
- *     long lastModified = new FastClasspathScanner(
- *           new String[] { "com.xyz.widget", "com.xyz.gizmo" })  // Whitelisted package prefixes to scan
- *               .classpathContentsLastModified();
- * </code>
- *
- * You can re-use FastClasspathScanner instances across multiple scans.
+ * to support hot-replace of route handler classes in a webserver. The above call is several times faster
+ * than the original call to scan(), since only modification timestamps need to be checked.
  *
  * Hosted at: https://github.com/lukehutch/fast-classpath-scanner
  * 
