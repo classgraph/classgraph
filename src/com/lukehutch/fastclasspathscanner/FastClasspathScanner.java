@@ -825,7 +825,8 @@ public class FastClasspathScanner {
         String path = ignorePrefixLen > rawPath.length() ? "" : rawPath.substring(ignorePrefixLen);
         boolean scanDirs = false, scanFiles = false;
         for (String pathToScan : pathsToScan) {
-            if (path.startsWith(pathToScan)) {
+            if (path.startsWith(pathToScan) || //
+                    (path.length() == pathToScan.length() - 1 && pathToScan.startsWith(path))) {
                 // In a path that has a whitelisted path as a prefix -- can start scanning files
                 scanDirs = scanFiles = true;
                 break;
@@ -893,13 +894,77 @@ public class FastClasspathScanner {
     // ------------------------------------------------------------------------------------------------------    
 
     /**
+     * Recursively scan a directory for the most recent last modified timestamp.
+     */
+    private long dirLastModified(File dir, int ignorePrefixLen) throws IOException {
+        long lastModified = dir.lastModified();
+        String rawPath = dir.getPath();
+        String path = ignorePrefixLen > rawPath.length() ? "" : rawPath.substring(ignorePrefixLen);
+        boolean scanDirs = false, scanFiles = false;
+        for (String pathToScan : pathsToScan) {
+            if (path.startsWith(pathToScan) || //
+                    (path.length() == pathToScan.length() - 1 && pathToScan.startsWith(path))) {
+                // In a path that has a whitelisted path as a prefix -- can start scanning files
+                scanDirs = scanFiles = true;
+                break;
+            }
+            if (pathToScan.startsWith(path)) {
+                // In a path that is a prefix of a whitelisted path -- keep recursively scanning dirs
+                scanDirs = true;
+            }
+        }
+        
+        if (scanDirs || scanFiles) {
+            File[] subFiles = dir.listFiles();
+            for (final File subFile : subFiles) {
+                if (subFile.isDirectory()) {
+                    // Recurse into subdirectory
+                    lastModified = Math.max(lastModified, dirLastModified(subFile, ignorePrefixLen));
+                } else if (scanFiles && subFile.isFile()) {
+                    // Scan file
+                    lastModified = Math.max(lastModified, subFile.lastModified());
+                }
+            }
+        }
+        return lastModified;
+    }
+
+    /**
+     * Return most recent modification date of any toplevel classpath resource (directory or zipfile). This
+     * date can be checked to determine when something on the classpath has changed, so that classpath can
+     * be re-scanned. N.B. this scans the same white-listed path components as the regular classpath scanner.
+     */
+    public long classpathContentsLastModified() {
+        long scanStart = System.currentTimeMillis();
+        long lastModified = 0;
+        try {
+            String[] pathElements = System.getProperty("java.class.path").split(File.pathSeparator);
+            for (String pathElement : pathElements) {
+                File file = new File(pathElement);
+                if (file.isDirectory()) {
+                    // Scan within dir path element
+                    lastModified = Math.max(lastModified, dirLastModified(file, file.getPath().length() + 1));
+                } else if (file.isFile()) {
+                    lastModified = Math.max(lastModified, file.lastModified());
+                } else {
+                    Log.info("Skipping non-file/non-dir on classpath: " + file.getCanonicalPath());
+                }
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        Log.info("Classpath timestamp scanning took: " + (System.currentTimeMillis() - scanStart) + " ms");
+        return lastModified;
+    }
+    
+    // ------------------------------------------------------------------------------------------------------    
+
+    /**
      * Scan classpath for matching files. This should be called once only, after all match processors have
      * been added.
      */
     public void scan() {
         long scanStart = System.currentTimeMillis();
-
-        // Scan classpath components
         try {
             String[] pathElements = System.getProperty("java.class.path").split(File.pathSeparator);
             for (String pathElement : pathElements) {
@@ -929,7 +994,6 @@ public class FastClasspathScanner {
         for (ClassMatcher classMatcher : classMatchers) {
             classMatcher.lookForMatches();
         }
-
         Log.info("Classpath scanning took: " + (System.currentTimeMillis() - scanStart) + " ms");
     }
 }
