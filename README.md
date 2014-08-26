@@ -55,7 +55,8 @@ Note that you need to pass a whitelist of package prefixes to scan into the cons
 The scanner also records the latest last-modified timestamp of any file or directory encountered, and you can see if that latest last-modified timestamp has increased (indicating that something on the classpath has been updated) by calling
 
 ```java
-    boolean classpathContentsModified = fastClassPathScanner.classpathContentsModifiedSinceScan();
+    boolean classpathContentsModified =
+        fastClassPathScanner.classpathContentsModifiedSinceScan();
 ```
 
 This can be used to enable dynamic class-reloading if something on the classpath is updated, for example to support hot-replace of route handler classes in a webserver. This is several times faster than the original call to scan(), since only modification timestamps need to be checked.
