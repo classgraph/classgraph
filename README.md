@@ -52,6 +52,16 @@ Usage example (with Java 8 lambda expressions):
 
 Note that you need to pass a whitelist of package prefixes to scan into the constructor, and the ability to detect that a class or interface extends another depends upon the entire ancestral path between the two classes or interfaces having one of the whitelisted package prefixes.
 
+You can also find the latest last-modified timestamp on any directory, file or zip/jarfile in the classpath, in order to enable dynamic class-reloading if something is recompiled (e.g. for a web server that allows for hot-replace of route handler classes):
+
+```java
+    long lastModified = new FastClasspathScanner(
+        new String[] { "com.xyz.widget", "com.xyz.gizmo" })  // Whitelisted package prefixes to scan
+            .classpathContentsLastModified();
+```
+
+You can re-use FastClasspathScanner instances across multiple scans. The scanner is stateless (other than storing the white-listed package prefixes to scan), and is therefore threadsafe.
+
 Inspired by: https://github.com/rmuller/infomas-asl/tree/master/annotation-detector
 
 See also: http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.4
