@@ -59,7 +59,7 @@ The scanner also records the latest last-modified timestamp of any file or direc
         fastClassPathScanner.classpathContentsModifiedSinceScan();
 ```
 
-This can be used to enable dynamic class-reloading if something on the classpath is updated, for example to support hot-replace of route handler classes in a webserver. This is several times faster than the original call to scan(), since only modification timestamps need to be checked.
+This can be used to enable dynamic class-reloading if something on the classpath is updated, for example to support hot-replace of route handler classes in a webserver. The above call is several times faster than the original call to scan(), since only modification timestamps need to be checked.
 
 Inspired by: https://github.com/rmuller/infomas-asl/tree/master/annotation-detector
 
