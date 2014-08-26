@@ -33,8 +33,8 @@ import java.util.zip.ZipFile;
  * Usage example (with Java 8 lambda expressions):
  * 
  * <code>
- *     new FastClasspathScanner(new String[]
- *           { "com.xyz.widget", "com.xyz.gizmo" })  // Whitelisted package prefixes to scan
+ *     new FastClasspathScanner(
+ *           new String[] { "com.xyz.widget", "com.xyz.gizmo" })  // Whitelisted package prefixes to scan
  * 
  *       .matchSubclassesOf(DBModel.class,
  *           // c is a subclass of DBModel
@@ -76,6 +76,19 @@ import java.util.zip.ZipFile;
  * to detect that a class or interface extends another depends upon the entire ancestral path between the two
  * classes or interfaces having one of the whitelisted package prefixes.
  * 
+ * You can also find the latest last-modified timestamp on any directory, file or zip/jarfile in the
+ * classpath, in order to enable dynamic class-reloading if something is recompiled (e.g. for a web server
+ * that allows for hot-replace of route handler classes):
+ *  
+ * <code>
+ *     long lastModified = new FastClasspathScanner(
+ *           new String[] { "com.xyz.widget", "com.xyz.gizmo" })  // Whitelisted package prefixes to scan
+ *               .classpathContentsLastModified();
+ * </code>
+ *
+ * You can re-use FastClasspathScanner instances across multiple scans. The scanner is stateless (other
+ * than storing the white-listed package prefixes to scan), and is therefore threadsafe.
+ *
  * Hosted at: https://github.com/lukehutch/fast-classpath-scanner
  * 
  * Inspired by: https://github.com/rmuller/infomas-asl/tree/master/annotation-detector
@@ -932,7 +945,8 @@ public class FastClasspathScanner {
     /**
      * Return most recent modification date of any toplevel classpath resource (directory or zipfile). This
      * date can be checked to determine when something on the classpath has changed, so that classpath can
-     * be re-scanned. N.B. this scans the same white-listed path components as the regular classpath scanner.
+     * be re-scanned. N.B. this limits the scan to the white-listed path components passed into the
+     * constructor, the same as the regular classpath scanner.
      */
     public long classpathContentsLastModified() {
         long scanStart = System.currentTimeMillis();
