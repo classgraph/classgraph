@@ -933,7 +933,7 @@ public class FastClasspathScanner {
     /**
      * Scan classpath for matching files. Call this after all match processors have been added.
      */
-    public void scan(boolean scanTimestampsOnly) {
+    private void scan(boolean scanTimestampsOnly) {
         long scanStart = System.currentTimeMillis();
 
         if (!scanTimestampsOnly) {
