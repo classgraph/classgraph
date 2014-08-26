@@ -1,8 +1,5 @@
 package com.lukehutch.fastclasspathscanner;
 
-//NB requires the import of some Log class if you want logging.
-import gribbit.util.Log;
-
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
 import java.io.File;
@@ -217,7 +214,7 @@ public class FastClasspathScanner {
                 }
             }
             if (!foundMatches) {
-                Log.info("No classes found with superclass " + superclass.getName());
+                // Log.info("No classes found with superclass " + superclass.getName());
             }
         });
         return this;
@@ -261,7 +258,7 @@ public class FastClasspathScanner {
                     }
                 }
             } else {
-                Log.info("No classes found implementing interface " + iface.getName());
+                // Log.info("No classes found implementing interface " + iface.getName());
             }
         });
         return this;
@@ -304,7 +301,7 @@ public class FastClasspathScanner {
                     }
                 }
             } else {
-                Log.info("No classes found with annotation " + annotation.getName());
+                // Log.info("No classes found with annotation " + annotation.getName());
             }
         });
         return this;
@@ -901,7 +898,9 @@ public class FastClasspathScanner {
                     long entryTime = entry.getTime();
                     lastModified = Math.max(lastModified, entryTime);
                     if (entryTime > System.currentTimeMillis() && !timestampWarning) {
-                        Log.warning(zipfilePath + " contains modification timestamps after the current time");
+                        String msg = zipfilePath + " contains modification timestamps after the current time";
+                        // Log.warning(msg);
+                        System.err.println(msg);
                         // Only warn once
                         timestampWarning = true;
                     }
@@ -934,7 +933,7 @@ public class FastClasspathScanner {
      * Scan classpath for matching files. Call this after all match processors have been added.
      */
     private void scan(boolean scanTimestampsOnly) {
-        long scanStart = System.currentTimeMillis();
+        // long scanStart = System.currentTimeMillis();
 
         if (!scanTimestampsOnly) {
             classNameToClassInfo.clear();
@@ -960,7 +959,7 @@ public class FastClasspathScanner {
                         scanFile(file, "", scanTimestampsOnly);
                     }
                 } else {
-                    Log.info("Skipping non-file/non-dir on classpath: " + file.getCanonicalPath());
+                    // Log.info("Skipping non-file/non-dir on classpath: " + file.getCanonicalPath());
                 }
             }
         } catch (IOException e) {
@@ -974,8 +973,8 @@ public class FastClasspathScanner {
                 classMatcher.lookForMatches();
             }
         }
-        Log.info("Classpath " + (scanTimestampsOnly ? "timestamp " : "") + "scanning took: "
-                + (System.currentTimeMillis() - scanStart) + " ms");
+        // Log.info("Classpath " + (scanTimestampsOnly ? "timestamp " : "") + "scanning took: "
+        //      + (System.currentTimeMillis() - scanStart) + " ms");
     }
 
     /**
