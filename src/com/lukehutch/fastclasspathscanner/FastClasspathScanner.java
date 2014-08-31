@@ -943,8 +943,17 @@ public class FastClasspathScanner {
         }
 
         try {
+            // Split path elements and uniquify while preserving order
             String[] pathElements = System.getProperty("java.class.path").split(File.pathSeparator);
+            HashSet<String> pathElementsSet = new HashSet<>();
+            ArrayList<String> pathElementsList = new ArrayList<>();
             for (String pathElement : pathElements) {
+                if (pathElementsSet.add(pathElement)) {
+                    pathElementsList.add(pathElement);
+                }
+            }
+            // Iterate through path elements and recursively scan within each directory and zipfile
+            for (String pathElement : pathElementsList) {
                 File file = new File(pathElement);
                 String pathElementLower = pathElement.toLowerCase();
                 if (file.isDirectory()) {
