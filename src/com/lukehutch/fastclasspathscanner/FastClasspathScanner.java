@@ -970,6 +970,14 @@ public class FastClasspathScanner {
                 } else {
                     // Log.info("Skipping non-file/non-dir on classpath: " + file.getCanonicalPath());
                 }
+                for (FilePathMatcher fileMatcher : filePathMatchers) {
+                    if (fileMatcher.pattern.matcher(pathElement).matches()) {
+                        // If there's a match, open the file as a stream and call the match processor
+                        try (InputStream inputStream = new FileInputStream(file)) {
+                            fileMatcher.fileMatchProcessor.processMatch(pathElement, inputStream);
+                        }
+                    }
+                }
             }
         } catch (IOException e) {
             throw new RuntimeException(e);
