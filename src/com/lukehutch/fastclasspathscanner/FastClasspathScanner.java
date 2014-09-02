@@ -50,7 +50,7 @@ import java.util.zip.ZipFile;
  *           // templatePath is a path on the classpath that matches the above pattern;
  *           // inputStream is a stream opened on the file or zipfile entry
  *           // No need to close inputStream before exiting, it is closed by caller.
- *           (templatePath, inputStream) -> {
+ *           (absolutePath, relativePath, inputStream) -> {
  *              try {
  *                  BufferedReader reader = new BufferedReader(
  *                          new InputStreamReader(inputStream, "UTF-8"));
@@ -59,7 +59,7 @@ import java.util.zip.ZipFile;
  *                      buf.append(line);
  *                      buf.append('\n');
  *                  }
- *                  System.out.println("Found template: " + templatePath
+ *                  System.out.println("Found template: " + absolutePath
  *                          + " (size " + buf.length() + ")");
  *              } catch (IOException e) {
  *                  throw new RuntimeException(e);
@@ -309,10 +309,23 @@ public class FastClasspathScanner {
 
     // ------------------------------------------------------------------------------------------------------    
 
-    /** The method to run when a matching file is found on the classpath. */
+    /**
+     * The method to run when a matching file is found on the classpath.
+     */
     @FunctionalInterface
     public interface FileMatchProcessor {
-        public void processMatch(String path, InputStream inputStream);
+        /**
+         * Process a matching file.
+         *  
+         * @param absolutePath
+         *              The path of the matching file on the filesystem. 
+         * @param relativePath
+         *              The path of the matching file relative to the classpath entry that contained the match.
+         * @param inputStream
+         *              An InputStream (either a FileInputStream or a ZipEntry InputStream) opened on the file.
+         *              You do not need to close this InputStream before returning, it is closed by the caller.
+         */
+        public void processMatch(String absolutePath, String relativePath, InputStream inputStream);
     }
 
     /**
@@ -813,10 +826,10 @@ public class FastClasspathScanner {
     /**
      * Scan a file.
      */
-    private void scanFile(File file, String path, boolean scanTimestampsOnly) throws IOException {
+    private void scanFile(File file, String absolutePath, String relativePath, boolean scanTimestampsOnly) throws IOException {
         lastModified = Math.max(lastModified, file.lastModified());
         if (!scanTimestampsOnly) {
-            if (path.endsWith(".class")) {
+            if (relativePath.endsWith(".class")) {
                 // Found a classfile
                 try (InputStream inputStream = new FileInputStream(file)) {
                     // Inspect header of classfile
@@ -825,10 +838,10 @@ public class FastClasspathScanner {
             } else {
                 // For non-classfiles, match file paths against path patterns
                 for (FilePathMatcher fileMatcher : filePathMatchers) {
-                    if (fileMatcher.pattern.matcher(path).matches()) {
+                    if (fileMatcher.pattern.matcher(relativePath).matches()) {
                         // If there's a match, open the file as a stream and call the match processor
                         try (InputStream inputStream = new FileInputStream(file)) {
-                            fileMatcher.fileMatchProcessor.processMatch(path, inputStream);
+                            fileMatcher.fileMatchProcessor.processMatch(absolutePath, relativePath, inputStream);
                         }
                     }
                 }
@@ -840,17 +853,17 @@ public class FastClasspathScanner {
      * Scan a directory for matching file path patterns.
      */
     private void scanDir(File dir, int ignorePrefixLen, boolean scanTimestampsOnly) throws IOException {
-        String rawPath = dir.getPath();
-        String path = ignorePrefixLen > rawPath.length() ? "" : rawPath.substring(ignorePrefixLen);
+        String absolutePath = dir.getPath();
+        String relativePath = ignorePrefixLen > absolutePath.length() ? "" : absolutePath.substring(ignorePrefixLen);
         boolean scanDirs = false, scanFiles = false;
         for (String pathToScan : pathsToScan) {
-            if (path.startsWith(pathToScan) || //
-                    (path.length() == pathToScan.length() - 1 && pathToScan.startsWith(path))) {
+            if (relativePath.startsWith(pathToScan) || //
+                    (relativePath.length() == pathToScan.length() - 1 && pathToScan.startsWith(relativePath))) {
                 // In a path that has a whitelisted path as a prefix -- can start scanning files
                 scanDirs = scanFiles = true;
                 break;
             }
-            if (pathToScan.startsWith(path)) {
+            if (pathToScan.startsWith(relativePath)) {
                 // In a path that is a prefix of a whitelisted path -- keep recursively scanning dirs
                 scanDirs = true;
             }
@@ -864,7 +877,8 @@ public class FastClasspathScanner {
                     scanDir(subFile, ignorePrefixLen, scanTimestampsOnly);
                 } else if (scanFiles && subFile.isFile()) {
                     // Scan file
-                    scanFile(subFile, path + "/" + subFile.getName(), scanTimestampsOnly);
+                    String leafSuffix = "/" + subFile.getName();
+                    scanFile(subFile, absolutePath + leafSuffix, relativePath + leafSuffix, scanTimestampsOnly);
                 }
             }
         }
@@ -916,7 +930,7 @@ public class FastClasspathScanner {
                                 if (fileMatcher.pattern.matcher(path).matches()) {
                                     // There's a match, open the file as a stream and call the match processor
                                     try (InputStream inputStream = zipFile.getInputStream(entry)) {
-                                        fileMatcher.fileMatchProcessor.processMatch(path, inputStream);
+                                        fileMatcher.fileMatchProcessor.processMatch(path, path, inputStream);
                                     }
                                 }
                             }
@@ -965,18 +979,19 @@ public class FastClasspathScanner {
                         scanZipfile(pathElement, new ZipFile(file), scanTimestampsOnly);
                     } else {
                         // File listed directly on classpath
-                        scanFile(file, "", scanTimestampsOnly);
+                        scanFile(file, file.getPath(), file.getName(), scanTimestampsOnly);
+
+                        for (FilePathMatcher fileMatcher : filePathMatchers) {
+                            if (fileMatcher.pattern.matcher(pathElement).matches()) {
+                                // If there's a match, open the file as a stream and call the match processor
+                                try (InputStream inputStream = new FileInputStream(file)) {
+                                    fileMatcher.fileMatchProcessor.processMatch(file.getPath(), file.getName(), inputStream);
+                                }
+                            }
+                        }
                     }
                 } else {
                     // Log.info("Skipping non-file/non-dir on classpath: " + file.getCanonicalPath());
-                }
-                for (FilePathMatcher fileMatcher : filePathMatchers) {
-                    if (fileMatcher.pattern.matcher(pathElement).matches()) {
-                        // If there's a match, open the file as a stream and call the match processor
-                        try (InputStream inputStream = new FileInputStream(file)) {
-                            fileMatcher.fileMatchProcessor.processMatch(pathElement, inputStream);
-                        }
-                    }
                 }
             }
         } catch (IOException e) {
