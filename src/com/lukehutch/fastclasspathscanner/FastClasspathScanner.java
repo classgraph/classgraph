@@ -944,6 +944,25 @@ public class FastClasspathScanner {
     // ------------------------------------------------------------------------------------------------------    
 
     /**
+     * Get a list of unique elements on the classpath as File objects, preserving order.
+     * Classpath elements that do not exist are not returned.
+     */
+    public ArrayList<File> getUniqueClasspathElements() {
+        String[] pathElements = System.getProperty("java.class.path").split(File.pathSeparator);
+        HashSet<String> pathElementsSet = new HashSet<>();
+        ArrayList<File> pathFiles = new ArrayList<>();
+        for (String pathElement : pathElements) {
+            if (pathElementsSet.add(pathElement)) {
+                File file = new File(pathElement);
+                if (file.exists()) {
+                    pathFiles.add(file);
+                }
+            }
+        }
+        return pathFiles;
+    }
+
+    /**
      * Scan classpath for matching files. Call this after all match processors have been added.
      */
     private void scan(boolean scanTimestampsOnly) {
@@ -957,35 +976,27 @@ public class FastClasspathScanner {
         }
 
         try {
-            // Split path elements and uniquify while preserving order
-            String[] pathElements = System.getProperty("java.class.path").split(File.pathSeparator);
-            HashSet<String> pathElementsSet = new HashSet<>();
-            ArrayList<String> pathElementsList = new ArrayList<>();
-            for (String pathElement : pathElements) {
-                if (pathElementsSet.add(pathElement)) {
-                    pathElementsList.add(pathElement);
-                }
-            }
             // Iterate through path elements and recursively scan within each directory and zipfile
-            for (String pathElement : pathElementsList) {
-                File file = new File(pathElement);
-                String pathElementLower = pathElement.toLowerCase();
-                if (file.isDirectory()) {
+            for (File pathElt : getUniqueClasspathElements()) {
+                String path = pathElt.getPath();
+                if (pathElt.isDirectory()) {
                     // Scan within dir path element
-                    scanDir(file, file.getPath().length() + 1, scanTimestampsOnly);
-                } else if (file.isFile()) {
-                    if (pathElementLower.endsWith(".jar") || pathElementLower.endsWith(".zip")) {
+                    scanDir(pathElt, path.length() + 1, scanTimestampsOnly);
+                } else if (pathElt.isFile()) {
+                    String pathLower = path.toLowerCase();
+                    if (pathLower.endsWith(".jar") || pathLower.endsWith(".zip")) {
                         // Scan within jar/zipfile path element
-                        scanZipfile(pathElement, new ZipFile(file), scanTimestampsOnly);
+                        scanZipfile(path, new ZipFile(pathElt), scanTimestampsOnly);
                     } else {
                         // File listed directly on classpath
-                        scanFile(file, file.getPath(), file.getName(), scanTimestampsOnly);
+                        scanFile(pathElt, path, pathElt.getName(), scanTimestampsOnly);
 
                         for (FilePathMatcher fileMatcher : filePathMatchers) {
-                            if (fileMatcher.pattern.matcher(pathElement).matches()) {
+                            if (fileMatcher.pattern.matcher(path).matches()) {
                                 // If there's a match, open the file as a stream and call the match processor
-                                try (InputStream inputStream = new FileInputStream(file)) {
-                                    fileMatcher.fileMatchProcessor.processMatch(file.getPath(), file.getName(), inputStream);
+                                try (InputStream inputStream = new FileInputStream(pathElt)) {
+                                    fileMatcher.fileMatchProcessor.processMatch(path, pathElt.getName(),
+                                            inputStream);
                                 }
                             }
                         }
