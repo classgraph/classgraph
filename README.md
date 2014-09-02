@@ -31,7 +31,7 @@ Usage example (with Java 8 lambda expressions):
           // templatePath is a path on the classpath that matches the above pattern;
           // inputStream is a stream opened on the file or zipfile entry.
           // No need to close inputStream before exiting, it is closed by caller.
-          (templatePath, inputStream) -> {
+          (absolutePath, relativePath, inputStream) -> {
               try {
                   BufferedReader reader = new BufferedReader(
                           new InputStreamReader(inputStream, "UTF-8"));
@@ -40,7 +40,7 @@ Usage example (with Java 8 lambda expressions):
                       buf.append(line);
                       buf.append('\n');
                   }
-                  System.out.println("Found template: " + templatePath
+                  System.out.println("Found template: " + absolutePath
                           + " (size " + buf.length() + ")");
               } catch (IOException e) {
                   throw new RuntimeException(e);
