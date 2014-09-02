@@ -947,7 +947,7 @@ public class FastClasspathScanner {
      * Get a list of unique elements on the classpath as File objects, preserving order.
      * Classpath elements that do not exist are not returned.
      */
-    public ArrayList<File> getUniqueClasspathElements() {
+    public static ArrayList<File> getUniqueClasspathElements() {
         String[] pathElements = System.getProperty("java.class.path").split(File.pathSeparator);
         HashSet<String> pathElementsSet = new HashSet<>();
         ArrayList<File> pathFiles = new ArrayList<>();
