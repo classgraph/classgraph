@@ -33,20 +33,14 @@ Usage example (with Java 8 lambda expressions):
           // No need to close inputStream before exiting, it is closed by caller.
           (absolutePath, relativePath, inputStream) -> {
               try {
-                  BufferedReader reader = new BufferedReader(
-                          new InputStreamReader(inputStream, "UTF-8"));
-                  StringBuilder buf = new StringBuilder();
-                  for (String line; (line = reader.readLine()) != null;) {
-                      buf.append(line);
-                      buf.append('\n');
-                  }
+                  String template = IOUtils.toString(inputStream, "UTF-8");
                   System.out.println("Found template: " + absolutePath
-                          + " (size " + buf.length() + ")");
+                          + " (size " + template.length() + ")");
               } catch (IOException e) {
                   throw new RuntimeException(e);
               }
           })
-
+        
       .scan();  // Actually perform the scan
 ```
 
