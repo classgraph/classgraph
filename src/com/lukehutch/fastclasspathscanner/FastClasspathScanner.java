@@ -849,7 +849,7 @@ public class FastClasspathScanner {
     private void scanDir(File dir, int ignorePrefixLen, boolean scanTimestampsOnly) throws IOException {
         String absolutePath = dir.getPath();
         String relativePath = ignorePrefixLen > absolutePath.length() ? "" : absolutePath.substring(ignorePrefixLen);
-        if (File.separatorChar != '/')
+        if (File.separatorChar != '/') {
             // Fix scanning on Windows
             relativePath = relativePath.replace(File.separatorChar, '/');
         }
