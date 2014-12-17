@@ -751,8 +751,7 @@ public class FastClasspathScanner {
      * Read as usigned short constant pool reference, then look up the string in the constant pool.
      */
     private static String readRefdString(DataInputStream inp, Object[] constantPool) throws IOException {
-        int constantPoolIdx = inp.readUnsignedShort();
-        return (String) constantPool[constantPoolIdx];
+        return (String) constantPool[inp.readUnsignedShort()];
     }
 
     /**
