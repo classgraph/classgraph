@@ -7,6 +7,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -45,6 +46,20 @@ import java.util.zip.ZipFile;
  *           // c is a class annotated with @RestHandler
  *           c -> System.out.println("Has @RestHandler class annotation: " + c.getName()))
  * 
+ *       .matchStaticFieldNames(
+ *           Stream.of("com.package.ClassName.STATIC_FIELD_NAME", "com.package.OtherClass.OTHER_STATIC_FIELD")
+ *                   .collect(Collectors.toCollection(HashSet::new)),
+ *               // The following method is called when any static fields with names matching one of
+ *               // the above fully-qualified names are encountered, as long as those fields are
+ *               // initialized to constant values. The value returned is the value in the classfile,
+ *               // not the value that would be returned by reflection, so this can be useful in
+ *               // hot-swapping of changes to static constants in classfiles if the constant value
+ *               // is changed and the class is re-compiled while the code is running. (Eclipse
+ *               // doesn't hot-replace static constant initializer values if you change them while
+ *               // running code in the debugger, so you can pick up changes this way). 
+ *               (String className, String fieldName, Object fieldConstantValue) ->
+ *                   System.out.println("Static field " + fieldName + " of class " + className +
+ *                       " " + " has constant literal value " + fieldConstantValue)) //
  * 
  *       .matchFilenamePattern("^template/.*\\.html",
  *           // templatePath is a path on the classpath that matches the above pattern;
@@ -141,8 +156,15 @@ public class FastClasspathScanner {
     /** A map from fully-qualified class name to the corresponding InterfaceInfo object. */
     private final HashMap<String, InterfaceInfo> interfaceNameToInterfaceInfo = new HashMap<>();
 
-    /** Reverse mapping from annotation to classes that have the annotation */
+    /** Reverse mapping from annotation to classes that have the annotation. */
     private final HashMap<String, ArrayList<String>> annotationToClasses = new HashMap<>();
+
+    /**
+     * A map from fully-qualified class name, to static field name, to a StaticFieldMatchProcessor to call
+     * when the class name and static field name matches for a static field in a classfile.
+     */
+    private final HashMap<String, HashMap<String, StaticFieldMatchProcessor>> //
+    classNameToStaticFieldnameToMatchProcessor = new HashMap<>();
 
     /** Reverse mapping from interface to classes that implement the interface */
     private final HashMap<String, ArrayList<String>> interfaceToClasses = new HashMap<>();
@@ -156,8 +178,8 @@ public class FastClasspathScanner {
      *            A list of package prefixes to scan.
      */
     public FastClasspathScanner(String[] pacakagesToScan) {
-        this.pathsToScan = Stream.of(pacakagesToScan).map(p -> p.replace('.', '/') + "/")
-                .toArray(String[]::new);
+        this.pathsToScan =
+                Stream.of(pacakagesToScan).map(p -> p.replace('.', '/') + "/").toArray(String[]::new);
     }
 
     // ------------------------------------------------------------------------------------------------------    
@@ -304,20 +326,103 @@ public class FastClasspathScanner {
     // ------------------------------------------------------------------------------------------------------    
 
     /**
+     * The method to run when a class with the matching class name and matching static field name is found on
+     * the classpath. The value of the static field is passed as a parameter, as obtained from the constant
+     * pool of the classfile.
+     * 
+     * Field values are obtained from the constant pool in classfiles, *not* directly from the class using
+     * reflection. This allows you to detect changes to the classpath and then run another scan that picks up
+     * the new values of selected static constants without reloading the class. (Class reloading is fraught
+     * with issues, see: http://tutorials.jenkov.com/java-reflection/dynamic-class-loading-reloading.html )
+     * 
+     * Note: Only static fields with constant-valued literals are matched, not fields with initializer values
+     * that are the result of an expression or reference, except for cases where the compiler is able to
+     * simplify an expression into a single constant at compiletime, such as in the case of string
+     * concatenation (see https://docs.oracle.com/javase/specs/jvms/se7/html/jvms-5.html#jvms-5.1 ). So the
+     * following are examples of fields that can be matched:
+     * 
+     * <code>
+     *   public static int x = 5;
+     *   public static String x = "a";
+     *   static String y = "a" + "b";  // Referentially equal to the interned String object "ab"
+     * </code>
+     * 
+     * whereas the following fields are non-constant:
+     * 
+     * <code>
+     *   public static Integer x = 5;  // Non-constant due to autoboxing
+     *   static String y = "a" + x;    // Non-constant expression, because x is non-constant 
+     * </code>
+     * 
+     * @param className
+     *            The class name, e.g. com.package.ClassName .
+     * @param fieldName
+     *            The field name, e.g. STATIC_FIELD_NAME .
+     * @param fieldConstantValue
+     *            The field constant value read from the classfile's constant pool. Note that for the shorter
+     *            integral types byte, char, short and even boolean, an Integer object will be passed in this
+     *            parameter, because classfiles store these constant types as integers.
+     */
+    @FunctionalInterface
+    public interface StaticFieldMatchProcessor {
+        public void processMatch(String className, String fieldName, Object fieldConstantValue);
+    }
+
+    /**
+     * Call the given StaticFieldMatchProcessor if classes are found on the classpath that contain static
+     * fields that match one of a set of fully-qualified field names, e.g.
+     * com.package.ClassName.STATIC_FIELD_NAME .
+     * 
+     * Field values are obtained from the constant pool in classfiles, *not* directly from the class using
+     * reflection. This allows you to detect changes to the classpath and then run another scan that picks up
+     * the new values of selected static constants without reloading the class. (Class reloading is fraught
+     * with issues, see: http://tutorials.jenkov.com/java-reflection/dynamic-class-loading-reloading.html )
+     * 
+     * Note: Only static fields with constant-valued literals are matched, not fields with initializer values
+     * that are the result of an expression or reference, except for cases where the compiler is able to
+     * simplify an expression into a single constant at compiletime.
+     * 
+     * @param fullyQualifiedStaticFieldNames
+     *            The set of fully-qualified static field names to match.
+     * @param staticFieldMatchProcessor
+     *            the StaticFieldMatchProcessor to call when a match is found.
+     */
+    public FastClasspathScanner matchStaticFieldNames(final HashSet<String> fullyQualifiedStaticFieldNames,
+            final StaticFieldMatchProcessor staticFieldMatchProcessor) {
+        for (String fullyQualifiedFieldName : fullyQualifiedStaticFieldNames) {
+            int lastDotIdx = fullyQualifiedFieldName.lastIndexOf('.');
+            if (lastDotIdx > 0) {
+                String className = fullyQualifiedFieldName.substring(0, lastDotIdx);
+                String fieldName = fullyQualifiedFieldName.substring(lastDotIdx + 1);
+                HashMap<String, StaticFieldMatchProcessor> fieldNameToMatchProcessor = //
+                        classNameToStaticFieldnameToMatchProcessor.get(className);
+                if (fieldNameToMatchProcessor == null) {
+                    classNameToStaticFieldnameToMatchProcessor.put(className, fieldNameToMatchProcessor =
+                            new HashMap<>());
+                }
+                fieldNameToMatchProcessor.put(fieldName, staticFieldMatchProcessor);
+            }
+        }
+        return this;
+    }
+
+    // ------------------------------------------------------------------------------------------------------    
+
+    /**
      * The method to run when a matching file is found on the classpath.
      */
     @FunctionalInterface
     public interface FileMatchProcessor {
         /**
          * Process a matching file.
-         *  
+         * 
          * @param absolutePath
-         *              The path of the matching file on the filesystem. 
+         *            The path of the matching file on the filesystem.
          * @param relativePath
-         *              The path of the matching file relative to the classpath entry that contained the match.
+         *            The path of the matching file relative to the classpath entry that contained the match.
          * @param inputStream
-         *              An InputStream (either a FileInputStream or a ZipEntry InputStream) opened on the file.
-         *              You do not need to close this InputStream before returning, it is closed by the caller.
+         *            An InputStream (either a FileInputStream or a ZipEntry InputStream) opened on the file.
+         *            You do not need to close this InputStream before returning, it is closed by the caller.
          */
         public void processMatch(String absolutePath, String relativePath, InputStream inputStream);
     }
@@ -583,8 +688,9 @@ public class FastClasspathScanner {
         if (annotationFieldDescriptor.charAt(0) == 'L'
                 && annotationFieldDescriptor.charAt(annotationFieldDescriptor.length() - 1) == ';') {
             // Lcom/xyz/Annotation; -> com.xyz.Annotation
-            annotationClassName = annotationFieldDescriptor.substring(1,
-                    annotationFieldDescriptor.length() - 1).replace('/', '.');
+            annotationClassName =
+                    annotationFieldDescriptor.substring(1, annotationFieldDescriptor.length() - 1).replace(
+                            '/', '.');
         } else {
             // Should not happen
             annotationClassName = annotationFieldDescriptor;
@@ -642,13 +748,11 @@ public class FastClasspathScanner {
     }
 
     /**
-     * Read a string reference from a classfile, then look up the string in the constant pool.
+     * Read as usigned short constant pool reference, then look up the string in the constant pool.
      */
     private static String readRefdString(DataInputStream inp, Object[] constantPool) throws IOException {
         int constantPoolIdx = inp.readUnsignedShort();
-        Object constantPoolObj = constantPool[constantPoolIdx];
-        return (constantPoolObj instanceof Integer ? (String) constantPool[(Integer) constantPoolObj]
-                : (String) constantPoolObj);
+        return (String) constantPool[constantPoolIdx];
     }
 
     /**
@@ -672,6 +776,8 @@ public class FastClasspathScanner {
         int cpCount = inp.readUnsignedShort();
         // Constant pool
         Object[] constantPool = new Object[cpCount];
+        int[] indirectStringRef = new int[cpCount];
+        Arrays.fill(indirectStringRef, -1);
         for (int i = 1; i < cpCount; ++i) {
             final int tag = inp.readUnsignedByte();
             switch (tag) {
@@ -679,18 +785,23 @@ public class FastClasspathScanner {
                 constantPool[i] = inp.readUTF();
                 break;
             case 3: // int
+                constantPool[i] = inp.readInt();
+                break;
             case 4: // float
-                inp.skipBytes(4);
+                constantPool[i] = inp.readFloat();
                 break;
             case 5: // long
+                constantPool[i] = inp.readLong();
+                i++; // double slot
+                break;
             case 6: // double
-                inp.skipBytes(8);
+                constantPool[i] = inp.readDouble();
                 i++; // double slot
                 break;
             case 7: // Class
             case 8: // String
-                // Forward or backward reference a Modified UTF8 entry
-                constantPool[i] = inp.readUnsignedShort();
+                // Forward or backward indirect reference to a modified UTF8 entry
+                indirectStringRef[i] = inp.readUnsignedShort();
                 break;
             case 9: // field ref
             case 10: // method ref
@@ -708,7 +819,14 @@ public class FastClasspathScanner {
                 inp.skipBytes(4);
                 break;
             default:
-                throw new ClassFormatError("Unkown tag value for constant pool entry: " + tag);
+                System.err.println("Unkown tag value for constant pool entry: " + tag);
+            }
+        }
+        // Resolve indirection of string references now that all the strings have been read
+        // (allows forward references to strings before they have been encountered)
+        for (int i = 1; i < cpCount; i++) {
+            if (indirectStringRef[i] >= 0) {
+                constantPool[i] = constantPool[indirectStringRef[i]];
             }
         }
 
@@ -722,6 +840,10 @@ public class FastClasspathScanner {
         // Superclass name, with slashes replaced with dots
         String superclassName = readRefdString(inp, constantPool).replace('/', '.');
 
+        // Look up static field name match processors given class name 
+        HashMap<String, StaticFieldMatchProcessor> staticFieldnameToMatchProcessor =
+                classNameToStaticFieldnameToMatchProcessor.get(className);
+
         // Interfaces
         int interfaceCount = inp.readUnsignedShort();
         ArrayList<String> interfaces = new ArrayList<>();
@@ -732,12 +854,37 @@ public class FastClasspathScanner {
         // Fields
         int fieldCount = inp.readUnsignedShort();
         for (int i = 0; i < fieldCount; i++) {
-            inp.skipBytes(6); // access_flags, name_index, descriptor_index
+            int accessFlags = inp.readUnsignedShort();
+            boolean isStatic = (accessFlags & 0x0008) != 0;
+            String fieldName = readRefdString(inp, constantPool);
+            StaticFieldMatchProcessor staticFieldMatchProcessor =
+                    isStatic && staticFieldnameToMatchProcessor != null ? staticFieldnameToMatchProcessor
+                            .get(fieldName) : null;
+            inp.skipBytes(2); // descriptor_index
             int attributesCount = inp.readUnsignedShort();
-            for (int j = 0; j < attributesCount; j++) {
-                inp.skipBytes(2); // attribute_name_index
-                int attributeLength = inp.readInt();
-                inp.skipBytes(attributeLength);
+            if (staticFieldMatchProcessor == null) {
+                // Not matching on fields, skip field attributes
+                for (int j = 0; j < attributesCount; j++) {
+                    inp.skipBytes(2); // attribute_name_index
+                    int attributeLength = inp.readInt();
+                    inp.skipBytes(attributeLength);
+                }
+            } else {
+                // Look for static fields that match one of the requested names,
+                // and that are initialized with a constant value
+                for (int j = 0; j < attributesCount; j++) {
+                    String attributeName = readRefdString(inp, constantPool);
+                    int attributeLength = inp.readInt();
+                    if (staticFieldMatchProcessor != null && attributeName.equals("ConstantValue")) {
+                        // TODO http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.7.2
+                        int cpIdx = inp.readUnsignedShort();
+                        Object fieldConstantValue = constantPool[cpIdx];
+                        // Call static field match processor
+                        staticFieldMatchProcessor.processMatch(className, fieldName, fieldConstantValue);
+                    } else {
+                        inp.skipBytes(attributeLength);
+                    }
+                }
             }
         }
 
@@ -777,8 +924,8 @@ public class FastClasspathScanner {
             InterfaceInfo thisInterfaceInfo = interfaceNameToInterfaceInfo.get(className);
             if (thisInterfaceInfo == null) {
                 // This interface has not been encountered before on the classpath 
-                interfaceNameToInterfaceInfo.put(className,
-                        thisInterfaceInfo = new InterfaceInfo(interfaces));
+                interfaceNameToInterfaceInfo.put(className, thisInterfaceInfo =
+                        new InterfaceInfo(interfaces));
             } else {
                 // An interface of this fully-qualified name has been encountered already earlier on
                 // the classpath, so this interface is shadowed, ignore it 
@@ -792,8 +939,8 @@ public class FastClasspathScanner {
             ClassInfo thisClassInfo = classNameToClassInfo.get(className);
             if (thisClassInfo == null) {
                 // This class has not been encountered before on the classpath 
-                classNameToClassInfo.put(className, thisClassInfo = new ClassInfo(className, interfaces,
-                        annotations));
+                classNameToClassInfo.put(className, thisClassInfo =
+                        new ClassInfo(className, interfaces, annotations));
             } else if (thisClassInfo.encountered) {
                 // A class of this fully-qualified name has been encountered already earlier on
                 // the classpath, so this class is shadowed, ignore it 
@@ -807,8 +954,8 @@ public class FastClasspathScanner {
             // Look up ClassInfo object for superclass, and connect it to this class
             ClassInfo superclassInfo = classNameToClassInfo.get(superclassName);
             if (superclassInfo == null) {
-                classNameToClassInfo.put(superclassName, superclassInfo = new ClassInfo(superclassName,
-                        thisClassInfo));
+                classNameToClassInfo.put(superclassName, superclassInfo =
+                        new ClassInfo(superclassName, thisClassInfo));
             } else {
                 superclassInfo.addSubclass(thisClassInfo);
             }
@@ -820,7 +967,8 @@ public class FastClasspathScanner {
     /**
      * Scan a file.
      */
-    private void scanFile(File file, String absolutePath, String relativePath, boolean scanTimestampsOnly) throws IOException {
+    private void scanFile(File file, String absolutePath, String relativePath, boolean scanTimestampsOnly)
+            throws IOException {
         lastModified = Math.max(lastModified, file.lastModified());
         if (!scanTimestampsOnly) {
             if (relativePath.endsWith(".class")) {
@@ -835,7 +983,8 @@ public class FastClasspathScanner {
                     if (fileMatcher.pattern.matcher(relativePath).matches()) {
                         // If there's a match, open the file as a stream and call the match processor
                         try (InputStream inputStream = new FileInputStream(file)) {
-                            fileMatcher.fileMatchProcessor.processMatch(absolutePath, relativePath, inputStream);
+                            fileMatcher.fileMatchProcessor.processMatch(absolutePath, relativePath,
+                                    inputStream);
                         }
                     }
                 }
@@ -848,7 +997,8 @@ public class FastClasspathScanner {
      */
     private void scanDir(File dir, int ignorePrefixLen, boolean scanTimestampsOnly) throws IOException {
         String absolutePath = dir.getPath();
-        String relativePath = ignorePrefixLen > absolutePath.length() ? "" : absolutePath.substring(ignorePrefixLen);
+        String relativePath =
+                ignorePrefixLen > absolutePath.length() ? "" : absolutePath.substring(ignorePrefixLen);
         if (File.separatorChar != '/') {
             // Fix scanning on Windows
             relativePath = relativePath.replace(File.separatorChar, '/');
@@ -876,7 +1026,8 @@ public class FastClasspathScanner {
                 } else if (scanFiles && subFile.isFile()) {
                     // Scan file
                     String leafSuffix = "/" + subFile.getName();
-                    scanFile(subFile, absolutePath + leafSuffix, relativePath + leafSuffix, scanTimestampsOnly);
+                    scanFile(subFile, absolutePath + leafSuffix, relativePath + leafSuffix,
+                            scanTimestampsOnly);
                 }
             }
         }
@@ -910,7 +1061,8 @@ public class FastClasspathScanner {
                     long entryTime = entry.getTime();
                     lastModified = Math.max(lastModified, entryTime);
                     if (entryTime > System.currentTimeMillis() && !timestampWarning) {
-                        String msg = zipfilePath + " contains modification timestamps after the current time";
+                        String msg =
+                                zipfilePath + " contains modification timestamps after the current time";
                         // Log.warning(msg);
                         System.err.println(msg);
                         // Only warn once
@@ -942,8 +1094,8 @@ public class FastClasspathScanner {
     // ------------------------------------------------------------------------------------------------------    
 
     /**
-     * Get a list of unique elements on the classpath as File objects, preserving order.
-     * Classpath elements that do not exist are not returned.
+     * Get a list of unique elements on the classpath as File objects, preserving order. Classpath elements
+     * that do not exist are not returned.
      */
     public static ArrayList<File> getUniqueClasspathElements() {
         String[] pathElements = System.getProperty("java.class.path").split(File.pathSeparator);
