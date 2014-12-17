@@ -84,7 +84,7 @@ import java.util.zip.ZipFile;
  * 
  * When matching involves classfiles (i.e. in all cases except FastClasspathScanner#matchFilenamePattern,
  * which deals with arbitrary files on the classpath), if the same fully-qualified class name is encountered
- * more than once on the classpath, the second and subsequent occurrences are ignored.
+ * more than once on the classpath, the second and subsequent definitions of the class are ignored.
  * 
  * The scanner also records the latest last-modified timestamp of any file or directory encountered, and you
  * can see if that latest last-modified timestamp has increased (indicating that something on the classpath
