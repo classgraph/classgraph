@@ -82,6 +82,10 @@ import java.util.zip.ZipFile;
  * to detect that a class or interface extends another depends upon the entire ancestral path between the two
  * classes or interfaces having one of the whitelisted package prefixes.
  * 
+ * When matching involves classfiles (i.e. in all cases except FastClasspathScanner#matchFilenamePattern,
+ * which deals with arbitrary files on the classpath), if the same fully-qualified class name is encountered
+ * more than once on the classpath, the second and subsequent occurrences are ignored.
+ * 
  * The scanner also records the latest last-modified timestamp of any file or directory encountered, and you
  * can see if that latest last-modified timestamp has increased (indicating that something on the classpath
  * has been updated) by calling:
@@ -100,7 +104,7 @@ import java.util.zip.ZipFile;
  * 
  * See also: http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.4
  * 
- * Let me know if you find this useful!
+ * Please let me know if you find this useful!
  *
  * @author Luke Hutchison <luke .dot. hutch .at. gmail .dot. com>
  * 
@@ -168,6 +172,13 @@ public class FastClasspathScanner {
 
     /** Reverse mapping from interface to classes that implement the interface */
     private final HashMap<String, ArrayList<String>> interfaceToClasses = new HashMap<>();
+
+    /**
+     * Classes encountered so far during a scan. If the same fully-qualified classname is encountered more
+     * than once, the second and subsequent instances are ignored, because they are masked by the earlier
+     * occurrence in the classpath.
+     */
+    private final HashSet<String> classesEncounteredSoFarDuringScan = new HashSet<>();
 
     // ------------------------------------------------------------------------------------------------------    
 
@@ -833,8 +844,15 @@ public class FastClasspathScanner {
         int flags = inp.readUnsignedShort();
         boolean isInterface = (flags & 0x0200) != 0;
 
-        // This class name, with slashes replaced with dots
+        // The fully-qualified class name of this class, with slashes replaced with dots
         String className = readRefdString(inp, constantPool).replace('/', '.');
+
+        // Determine if this fully-qualified class name has already been encountered during this scan
+        if (!classesEncounteredSoFarDuringScan.add(className)) {
+            // If so, skip this classfile, because the earlier class with the same name as this one
+            // occurred earlier on the classpath, so it masks this one.
+            return;
+        }
 
         // Superclass name, with slashes replaced with dots
         String superclassName = readRefdString(inp, constantPool).replace('/', '.');
@@ -875,7 +893,7 @@ public class FastClasspathScanner {
                     String attributeName = readRefdString(inp, constantPool);
                     int attributeLength = inp.readInt();
                     if (staticFieldMatchProcessor != null && attributeName.equals("ConstantValue")) {
-                        // TODO http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.7.2
+                        // http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.7.2
                         int cpIdx = inp.readUnsignedShort();
                         Object fieldConstantValue = constantPool[cpIdx];
                         // Call static field match processor
@@ -1117,6 +1135,7 @@ public class FastClasspathScanner {
     private void scan(boolean scanTimestampsOnly) {
         // long scanStart = System.currentTimeMillis();
 
+        classesEncounteredSoFarDuringScan.clear();
         if (!scanTimestampsOnly) {
             classNameToClassInfo.clear();
             interfaceNameToInterfaceInfo.clear();

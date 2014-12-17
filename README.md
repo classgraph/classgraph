@@ -61,6 +61,8 @@ Usage example (with Java 8 lambda expressions):
 
 *Important note:* you need to pass a whitelist of package prefixes to scan into the constructor, and the ability to detect that a class or interface extends another depends upon the entire ancestral path between the two classes or interfaces having one of the whitelisted package prefixes.
 
+When matching involves classfiles (i.e. in all cases except FastClasspathScanner#matchFilenamePattern, which deals with arbitrary files on the classpath), if the same fully-qualified class name is encountered more than once on the classpath, the second and subsequent occurrences are ignored.
+
 The scanner also records the latest last-modified timestamp of any file or directory encountered, and you can see if that latest last-modified timestamp has increased (indicating that something on the classpath has been updated) by calling
 
 ```java
@@ -74,7 +76,7 @@ Inspired by: https://github.com/rmuller/infomas-asl/tree/master/annotation-detec
 
 See also: http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.4
 
-Let me know if you find this useful!
+Please let me know if you find this useful!
 
 Author: Luke Hutchison (luke .dot. hutch .at. gmail .dot. com)
 
