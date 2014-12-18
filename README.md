@@ -27,17 +27,17 @@ Usage example (with Java 8 lambda expressions):
           // c is a class annotated with @RestHandler
           c -> System.out.println("Has @RestHandler class annotation: " + c.getName()))
  
-       .matchStaticFieldNames(
-           Stream.of("com.package.ClassName.STATIC_FIELD_NAME", "com.package.OtherClass.OTHER_STATIC_FIELD")
+       .matchStaticFinalFieldNames(
+           Stream.of("com.package.ClassName.CONSTANT_FIELD", "com.package.OtherClass.OTHER_FIELD")
                    .collect(Collectors.toCollection(HashSet::new)),
-               // The following method is called when any static fields with names matching one of
-               // the above fully-qualified names are encountered, as long as those fields are
+               // The following method is called when any static final fields with names matching
+               // one of the above fully-qualified names are encountered, as long as those fields are
                // initialized to constant values. The value returned is the value in the classfile,
                // not the value that would be returned by reflection, so this can be useful in
                // hot-swapping of changes to static constants in classfiles if the constant value
                // is changed and the class is re-compiled while the code is running. (Eclipse
                // doesn't hot-replace static constant initializer values if you change them while
-               // running code in the debugger, so you can pick up changes this way). 
+               // running code in the debugger, so you can pick up changes this way instead). 
                (String className, String fieldName, Object fieldConstantValue) ->
                    System.out.println("Static field " + fieldName + " of class " + className +
                        " " + " has constant literal value " + fieldConstantValue)) //

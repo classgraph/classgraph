@@ -46,17 +46,17 @@ import java.util.zip.ZipFile;
  *           // c is a class annotated with @RestHandler
  *           c -> System.out.println("Has @RestHandler class annotation: " + c.getName()))
  * 
- *       .matchStaticFieldNames(
- *           Stream.of("com.package.ClassName.STATIC_FIELD_NAME", "com.package.OtherClass.OTHER_STATIC_FIELD")
+ *       .matchStaticFinalFieldNames(
+ *           Stream.of("com.package.ClassName.CONSTANT_FIELD", "com.package.OtherClass.OTHER_FIELD")
  *                   .collect(Collectors.toCollection(HashSet::new)),
- *               // The following method is called when any static fields with names matching one of
- *               // the above fully-qualified names are encountered, as long as those fields are
+ *               // The following method is called when any static final fields with names matching
+ *               // one of the above fully-qualified names are encountered, as long as those fields are
  *               // initialized to constant values. The value returned is the value in the classfile,
  *               // not the value that would be returned by reflection, so this can be useful in
  *               // hot-swapping of changes to static constants in classfiles if the constant value
  *               // is changed and the class is re-compiled while the code is running. (Eclipse
  *               // doesn't hot-replace static constant initializer values if you change them while
- *               // running code in the debugger, so you can pick up changes this way). 
+ *               // running code in the debugger, so you can pick up changes this way instead). 
  *               (String className, String fieldName, Object fieldConstantValue) ->
  *                   System.out.println("Static field " + fieldName + " of class " + className +
  *                       " " + " has constant literal value " + fieldConstantValue)) //
@@ -167,8 +167,8 @@ public class FastClasspathScanner {
      * A map from fully-qualified class name, to static field name, to a StaticFieldMatchProcessor to call
      * when the class name and static field name matches for a static field in a classfile.
      */
-    private final HashMap<String, HashMap<String, StaticFieldMatchProcessor>> //
-    classNameToStaticFieldnameToMatchProcessor = new HashMap<>();
+    private final HashMap<String, HashMap<String, StaticFinalFieldMatchProcessor>> //
+            classNameToStaticFieldnameToMatchProcessor = new HashMap<>();
 
     /** Reverse mapping from interface to classes that implement the interface */
     private final HashMap<String, ArrayList<String>> interfaceToClasses = new HashMap<>();
@@ -337,18 +337,18 @@ public class FastClasspathScanner {
     // ------------------------------------------------------------------------------------------------------    
 
     /**
-     * The method to run when a class with the matching class name and matching static field name is found on
-     * the classpath. The value of the static field is passed as a parameter, as obtained from the constant
-     * pool of the classfile.
+     * The method to run when a class with the matching class name and with a final static field with the
+     * matching field name is found on the classpath. The value of the final static field is passed as a
+     * parameter, as obtained from the constant pool of the classfile.
      * 
-     * Field values are obtained from the constant pool in classfiles, *not* directly from the class using
+     * Field values are obtained from the constant pool in classfiles, *not* from a loaded class using
      * reflection. This allows you to detect changes to the classpath and then run another scan that picks up
      * the new values of selected static constants without reloading the class. (Class reloading is fraught
      * with issues, see: http://tutorials.jenkov.com/java-reflection/dynamic-class-loading-reloading.html )
      * 
-     * Note: Only static fields with constant-valued literals are matched, not fields with initializer values
-     * that are the result of an expression or reference, except for cases where the compiler is able to
-     * simplify an expression into a single constant at compiletime, such as in the case of string
+     * Note: Only static final fields with constant-valued literals are matched, not fields with initializer
+     * values that are the result of an expression or reference, except for cases where the compiler is able
+     * to simplify an expression into a single constant at compiletime, such as in the case of string
      * concatenation (see https://docs.oracle.com/javase/specs/jvms/se7/html/jvms-5.html#jvms-5.1 ). So the
      * following are examples of fields that can be matched:
      * 
@@ -370,48 +370,48 @@ public class FastClasspathScanner {
      * @param fieldName
      *            The field name, e.g. STATIC_FIELD_NAME .
      * @param fieldConstantValue
-     *            The field constant value read from the classfile's constant pool. Note that for the shorter
-     *            integral types byte, char, short and even boolean, an Integer object will be passed in this
-     *            parameter, because classfiles store these constant types as integers.
+     *            The field constant value read from the classfile's constant pool.
      */
     @FunctionalInterface
-    public interface StaticFieldMatchProcessor {
+    public interface StaticFinalFieldMatchProcessor {
         public void processMatch(String className, String fieldName, Object fieldConstantValue);
     }
 
     /**
      * Call the given StaticFieldMatchProcessor if classes are found on the classpath that contain static
-     * fields that match one of a set of fully-qualified field names, e.g.
+     * final fields that match one of a set of fully-qualified field names, e.g.
      * com.package.ClassName.STATIC_FIELD_NAME .
      * 
-     * Field values are obtained from the constant pool in classfiles, *not* directly from the class using
+     * Field values are obtained from the constant pool in classfiles, *not* from a loaded class using
      * reflection. This allows you to detect changes to the classpath and then run another scan that picks up
      * the new values of selected static constants without reloading the class. (Class reloading is fraught
      * with issues, see: http://tutorials.jenkov.com/java-reflection/dynamic-class-loading-reloading.html )
      * 
-     * Note: Only static fields with constant-valued literals are matched, not fields with initializer values
-     * that are the result of an expression or reference, except for cases where the compiler is able to
-     * simplify an expression into a single constant at compiletime.
+     * Note: Only static final fields with constant-valued literals are matched, not fields with initializer
+     * values that are the result of an expression or reference, except for cases where the compiler is able
+     * to simplify an expression into a single constant at compiletime, such as in the case of string
+     * concatenation.
      * 
-     * @param fullyQualifiedStaticFieldNames
+     * @param fullyQualifiedStaticFinalFieldNames
      *            The set of fully-qualified static field names to match.
-     * @param staticFieldMatchProcessor
+     * @param staticFinalFieldMatchProcessor
      *            the StaticFieldMatchProcessor to call when a match is found.
      */
-    public FastClasspathScanner matchStaticFieldNames(final HashSet<String> fullyQualifiedStaticFieldNames,
-            final StaticFieldMatchProcessor staticFieldMatchProcessor) {
-        for (String fullyQualifiedFieldName : fullyQualifiedStaticFieldNames) {
+    public FastClasspathScanner matchStaticFinalFieldNames(
+            final HashSet<String> fullyQualifiedStaticFinalFieldNames,
+            final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor) {
+        for (String fullyQualifiedFieldName : fullyQualifiedStaticFinalFieldNames) {
             int lastDotIdx = fullyQualifiedFieldName.lastIndexOf('.');
             if (lastDotIdx > 0) {
                 String className = fullyQualifiedFieldName.substring(0, lastDotIdx);
                 String fieldName = fullyQualifiedFieldName.substring(lastDotIdx + 1);
-                HashMap<String, StaticFieldMatchProcessor> fieldNameToMatchProcessor = //
+                HashMap<String, StaticFinalFieldMatchProcessor> fieldNameToMatchProcessor = //
                         classNameToStaticFieldnameToMatchProcessor.get(className);
                 if (fieldNameToMatchProcessor == null) {
                     classNameToStaticFieldnameToMatchProcessor.put(className, fieldNameToMatchProcessor =
                             new HashMap<>());
                 }
-                fieldNameToMatchProcessor.put(fieldName, staticFieldMatchProcessor);
+                fieldNameToMatchProcessor.put(fieldName, staticFinalFieldMatchProcessor);
             }
         }
         return this;
@@ -754,7 +754,8 @@ public class FastClasspathScanner {
             }
             break;
         default:
-            throw new ClassFormatError("Invalid annotation element type tag: 0x" + Integer.toHexString(tag));
+            // System.err.println("Invalid annotation element type tag: 0x" + Integer.toHexString(tag));
+            break;
         }
     }
 
@@ -794,7 +795,7 @@ public class FastClasspathScanner {
             case 1: // Modified UTF8
                 constantPool[i] = inp.readUTF();
                 break;
-            case 3: // int
+            case 3: // int, short, char, byte, boolean are all represented by Constant_INTEGER
                 constantPool[i] = inp.readInt();
                 break;
             case 4: // float
@@ -829,7 +830,8 @@ public class FastClasspathScanner {
                 inp.skipBytes(4);
                 break;
             default:
-                System.err.println("Unkown tag value for constant pool entry: " + tag);
+                // System.err.println("Unkown tag value for constant pool entry: " + tag);
+                break;
             }
         }
         // Resolve indirection of string references now that all the strings have been read
@@ -858,7 +860,7 @@ public class FastClasspathScanner {
         String superclassName = readRefdString(inp, constantPool).replace('/', '.');
 
         // Look up static field name match processors given class name 
-        HashMap<String, StaticFieldMatchProcessor> staticFieldnameToMatchProcessor =
+        HashMap<String, StaticFinalFieldMatchProcessor> staticFieldnameToMatchProcessor =
                 classNameToStaticFieldnameToMatchProcessor.get(className);
 
         // Interfaces
@@ -872,12 +874,13 @@ public class FastClasspathScanner {
         int fieldCount = inp.readUnsignedShort();
         for (int i = 0; i < fieldCount; i++) {
             int accessFlags = inp.readUnsignedShort();
-            boolean isStatic = (accessFlags & 0x0008) != 0;
+            // See http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.6
+            boolean isStaticFinal = (accessFlags & 0x0018) == 0x0018;
             String fieldName = readRefdString(inp, constantPool);
-            StaticFieldMatchProcessor staticFieldMatchProcessor =
-                    isStatic && staticFieldnameToMatchProcessor != null ? staticFieldnameToMatchProcessor
-                            .get(fieldName) : null;
-            inp.skipBytes(2); // descriptor_index
+            StaticFinalFieldMatchProcessor staticFieldMatchProcessor =
+                    staticFieldnameToMatchProcessor != null ?
+                            staticFieldnameToMatchProcessor.get(fieldName) : null;
+            String descriptor = readRefdString(inp, constantPool);
             int attributesCount = inp.readUnsignedShort();
             if (staticFieldMatchProcessor == null) {
                 // Not matching on fields, skip field attributes
@@ -887,17 +890,42 @@ public class FastClasspathScanner {
                     inp.skipBytes(attributeLength);
                 }
             } else {
-                // Look for static fields that match one of the requested names,
+                // Look for static final fields that match one of the requested names,
                 // and that are initialized with a constant value
                 for (int j = 0; j < attributesCount; j++) {
                     String attributeName = readRefdString(inp, constantPool);
                     int attributeLength = inp.readInt();
-                    if (staticFieldMatchProcessor != null && attributeName.equals("ConstantValue")) {
+                    if (attributeName.equals("ConstantValue")) {
                         // http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.7.2
-                        int cpIdx = inp.readUnsignedShort();
-                        Object fieldConstantValue = constantPool[cpIdx];
-                        // Call static field match processor
-                        staticFieldMatchProcessor.processMatch(className, fieldName, fieldConstantValue);
+                        Object constValue = constantPool[inp.readUnsignedShort()];
+                        // byte, char, short and boolean constants are all stored as 4-byte int
+                        // values -- coerce and wrap in the proper wrapper class with autoboxing
+                        switch (descriptor) {
+                        case "B":
+                            // Convert Integer -> Byte
+                            constValue = ((Integer) constValue).byteValue();
+                            break;
+                        case "C":
+                            // Convert Integer -> Character
+                            constValue = (char) ((Integer) constValue).intValue();
+                            break;
+                        case "S":
+                            // Convert Integer -> Short
+                            constValue = ((Integer) constValue).shortValue();
+                            break;
+                        case "Z":
+                            // Convert Integer -> Boolean
+                            constValue = ((Integer) constValue).intValue() != 0;
+                            break;
+                        }
+                        if (!isStaticFinal) {
+                            System.err.println(StaticFinalFieldMatchProcessor.class.getSimpleName()
+                                    + ": Ignoring requested field " + className + "." + fieldName 
+                                    + " because it is not both static and final");
+                        } else {
+                            // Call static field match processor
+                            staticFieldMatchProcessor.processMatch(className, fieldName, constValue);
+                        }
                     } else {
                         inp.skipBytes(attributeLength);
                     }
