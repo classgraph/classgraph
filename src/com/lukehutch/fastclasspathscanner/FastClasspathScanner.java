@@ -378,8 +378,8 @@ public class FastClasspathScanner {
     }
 
     /**
-     * Call the given StaticFieldMatchProcessor if classes are found on the classpath that contain static
-     * final fields that match one of a set of fully-qualified field names, e.g.
+     * Call the given StaticFinalFieldMatchProcessor if classes are found on the classpath that contain
+     * static final fields that match one of a set of fully-qualified field names, e.g.
      * com.package.ClassName.STATIC_FIELD_NAME .
      * 
      * Field values are obtained from the constant pool in classfiles, *not* from a loaded class using
@@ -395,7 +395,7 @@ public class FastClasspathScanner {
      * @param fullyQualifiedStaticFinalFieldNames
      *            The set of fully-qualified static field names to match.
      * @param staticFinalFieldMatchProcessor
-     *            the StaticFieldMatchProcessor to call when a match is found.
+     *            the StaticFinalFieldMatchProcessor to call when a match is found.
      */
     public FastClasspathScanner matchStaticFinalFieldNames(
             final HashSet<String> fullyQualifiedStaticFinalFieldNames,
@@ -877,12 +877,12 @@ public class FastClasspathScanner {
             // See http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.6
             boolean isStaticFinal = (accessFlags & 0x0018) == 0x0018;
             String fieldName = readRefdString(inp, constantPool);
-            StaticFinalFieldMatchProcessor staticFieldMatchProcessor =
+            StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor =
                     staticFieldnameToMatchProcessor != null ?
                             staticFieldnameToMatchProcessor.get(fieldName) : null;
             String descriptor = readRefdString(inp, constantPool);
             int attributesCount = inp.readUnsignedShort();
-            if (staticFieldMatchProcessor == null) {
+            if (staticFinalFieldMatchProcessor == null) {
                 // Not matching on fields, skip field attributes
                 for (int j = 0; j < attributesCount; j++) {
                     inp.skipBytes(2); // attribute_name_index
@@ -923,8 +923,9 @@ public class FastClasspathScanner {
                                     + ": Ignoring requested field " + className + "." + fieldName 
                                     + " because it is not both static and final");
                         } else {
-                            // Call static field match processor
-                            staticFieldMatchProcessor.processMatch(className, fieldName, constValue);
+                            // Call static final field match processor
+                            staticFinalFieldMatchProcessor.processMatch(
+                                    className, fieldName, constValue);
                         }
                     } else {
                         inp.skipBytes(attributeLength);
