@@ -881,12 +881,17 @@ public class FastClasspathScanner {
             // See http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.6
             boolean isStaticFinal = (accessFlags & 0x0018) == 0x0018;
             String fieldName = readRefdString(inp, constantPool);
+            if (!isStaticFinal) {
+                System.err.println(StaticFinalFieldMatchProcessor.class.getSimpleName()
+                        + ": Ignoring requested field " + className + "." + fieldName 
+                        + " because it is not both static and final");
+            }
             StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor =
                     staticFieldnameToMatchProcessor != null ?
                             staticFieldnameToMatchProcessor.get(fieldName) : null;
             String descriptor = readRefdString(inp, constantPool);
             int attributesCount = inp.readUnsignedShort();
-            if (staticFinalFieldMatchProcessor == null) {
+            if (!isStaticFinal || staticFinalFieldMatchProcessor == null) {
                 // Not matching on fields, skip field attributes
                 for (int j = 0; j < attributesCount; j++) {
                     inp.skipBytes(2); // attribute_name_index
@@ -896,6 +901,7 @@ public class FastClasspathScanner {
             } else {
                 // Look for static final fields that match one of the requested names,
                 // and that are initialized with a constant value
+                boolean foundConstantValue = false;
                 for (int j = 0; j < attributesCount; j++) {
                     String attributeName = readRefdString(inp, constantPool);
                     int attributeLength = inp.readInt();
@@ -906,32 +912,45 @@ public class FastClasspathScanner {
                         // values -- coerce and wrap in the proper wrapper class with autoboxing
                         switch (descriptor) {
                         case "B":
-                            // Convert Integer -> Byte
+                            // Convert byte store in Integer to Byte
                             constValue = ((Integer) constValue).byteValue();
                             break;
                         case "C":
-                            // Convert Integer -> Character
+                            // Convert char stored in Integer to Character
                             constValue = (char) ((Integer) constValue).intValue();
                             break;
                         case "S":
-                            // Convert Integer -> Short
+                            // Convert char stored in Integer to Short
                             constValue = ((Integer) constValue).shortValue();
                             break;
                         case "Z":
-                            // Convert Integer -> Boolean
+                            // Convert char stored in Integer to Boolean
                             constValue = ((Integer) constValue).intValue() != 0;
                             break;
+                        case "I":
+                        case "J":
+                        case "F":
+                        case "D":
+                        case "Ljava.lang.String;":
+                            // Field is int, long, float, double or String => object is already in correct
+                            // wrapper type (Integer, Long, Float, Double or String), nothing to do
+                            break;
+                        default:
+                            // Should never happen:
+                            // constant values can only be stored as an int, long, float, double or String
+                            break;
                         }
-                        if (!isStaticFinal) {
-                            System.err.println(StaticFinalFieldMatchProcessor.class.getSimpleName()
-                                    + ": Ignoring requested field " + className + "." + fieldName 
-                                    + " because it is not both static and final");
-                        } else {
-                            // Call static final field match processor
-                            staticFinalFieldMatchProcessor.processMatch(className, fieldName, constValue);
-                        }
+                        // Call static final field match processor
+                        staticFinalFieldMatchProcessor.processMatch(className, fieldName, constValue);
+                        foundConstantValue = true;
                     } else {
                         inp.skipBytes(attributeLength);
+                    }
+                    if (!foundConstantValue) {
+                        System.err.println(StaticFinalFieldMatchProcessor.class.getSimpleName()
+                                + ": Requested static final field " + className + "." + fieldName
+                                + "is not initialized with a constant literal value, so there is no "
+                                + "initializer value in the constant pool of the classfile");
                     }
                 }
             }
