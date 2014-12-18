@@ -924,8 +924,7 @@ public class FastClasspathScanner {
                                     + " because it is not both static and final");
                         } else {
                             // Call static final field match processor
-                            staticFinalFieldMatchProcessor.processMatch(
-                                    className, fieldName, constValue);
+                            staticFinalFieldMatchProcessor.processMatch(className, fieldName, constValue);
                         }
                     } else {
                         inp.skipBytes(attributeLength);
