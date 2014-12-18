@@ -353,16 +353,20 @@ public class FastClasspathScanner {
      * following are examples of fields that can be matched:
      * 
      * <code>
-     *   public static int x = 5;
-     *   public static String x = "a";
-     *   static String y = "a" + "b";  // Referentially equal to the interned String object "ab"
+     *   public static final int w = 5;
+     *   public static final String x = "a";
+     *   static final String y = "a" + "b";  // Referentially equal to the interned String object "ab"
+     *   private static final int z = 1;     // Private field values are also returned 
+     *   static final byte b = 0x7f;         // Primitive constants are autoboxed, e.g. byte -> Byte
      * </code>
      * 
-     * whereas the following fields are non-constant:
+     * whereas the following fields are non-constant assignments, so these fields cannot be matched:
      * 
      * <code>
-     *   public static Integer x = 5;  // Non-constant due to autoboxing
-     *   static String y = "a" + x;    // Non-constant expression, because x is non-constant 
+     *   public static final Integer w = 5;  // Non-constant due to autoboxing
+     *   static final String y = "a" + w;    // Non-constant expression, because x is non-constant
+     *   static final int[] arr = {1, 2, 3}; // Arrays are non-constant
+     *   static int n = 100;                 // Assignments are not constant if not both final and static 
      * </code>
      * 
      * @param className
