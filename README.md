@@ -226,11 +226,11 @@ Field values are obtained directly from the constant pool in a classfile, not fr
 
 ```java
 
-    public static final int w = 5;
-    public static final String x = "a";
-    static final String y = "a" + "b";  // Referentially equal to the interned String object "ab"
-    private static final int z = 1;     // Private field values are also returned 
-    static final byte b = 0x7f;         // Primitive constants are autoboxed, e.g. byte -> Byte
+public static final int w = 5;
+public static final String x = "a";
+static final String y = "a" + "b";  // Referentially equal to the interned String object "ab"
+private static final int z = 1;     // Private field values are also returned 
+static final byte b = 0x7f;         // Primitive constants are autoboxed, e.g. byte -> Byte
 
 ```
 
@@ -238,11 +238,11 @@ whereas the following fields are non-constant, non-static and/or non-final, so t
 
 ```java
 
-    public static final Integer w = 5;  // Non-constant due to autoboxing
-    static final String y = "a" + w;    // Non-constant expression, because x is non-constant
-    static final int[] arr = {1, 2, 3}; // Arrays are non-constant
-    static int n = 100;                 // Assignments are not constant if not both final and static
-    final int q = 5;                    // Non-static 
+public static final Integer w = 5;  // Non-constant due to autoboxing
+static final String y = "a" + w;    // Non-constant expression, because x is non-constant
+static final int[] arr = {1, 2, 3}; // Arrays are non-constant
+static int n = 100;                 // Assignments are not constant if not both final and static
+final int q = 5;                    // Non-static 
 
 ```
 
