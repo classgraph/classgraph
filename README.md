@@ -15,70 +15,70 @@ Usage examples below use lambda expressions and Stream patterns from Java 8.
 
 ```java
 
-    new FastClasspathScanner(
-          // Whitelisted package prefixes to scan
-          new String[] { "com.xyz.widget", "com.xyz.gizmo" })  
-          
-      .matchSubclassesOf(DBModel.class,
-          // c is a subclass of DBModel or a descendant subclass
-          c -> System.out.println("Subclasses DBModel: " + c.getName()))
-          
-      .matchClassesImplementing(Runnable.class,
-          // c is a class that implements the interface Runnable; more precisely,
-          // c or one of its superclasses implements the interface Runnable, or
-          // implements an interface that is a descendant of Runnable
-          c -> System.out.println("Implements Runnable: " + c.getName()))
-          
-      .matchClassesWithAnnotation(RestHandler.class,
-          // c is a class annotated with @RestHandler
-          c -> System.out.println("Has @RestHandler class annotation: " + c.getName()))
+new FastClasspathScanner(
+  // Whitelisted package prefixes to scan
+  new String[] { "com.xyz.widget", "com.xyz.gizmo" })  
+  
+  .matchSubclassesOf(DBModel.class,
+  // c is a subclass of DBModel or a descendant subclass
+  c -> System.out.println("Subclasses DBModel: " + c.getName()))
+  
+  .matchClassesImplementing(Runnable.class,
+  // c is a class that implements the interface Runnable; more precisely,
+  // c or one of its superclasses implements the interface Runnable, or
+  // implements an interface that is a descendant of Runnable
+  c -> System.out.println("Implements Runnable: " + c.getName()))
+  
+  .matchClassesWithAnnotation(RestHandler.class,
+  // c is a class annotated with @RestHandler
+  c -> System.out.println("Has @RestHandler class annotation: " + c.getName()))
  
-       .matchStaticFinalFieldNames(
-           Stream.of("com.xyz.Config.POLL_INTERVAL", "com.xyz.Config.LOG_LEVEL")
-                   .collect(Collectors.toCollection(HashSet::new)),
-               // The following method is called when any static final fields with
-               // names matching one of the above fully-qualified names are
-               // encountered, as long as those fields are initialized to constant
-               // values. The value returned is the value in the classfile, not the
-               // value that would be returned by reflection, so this can be useful
-               // in hot-swapping of changes to static constants in classfiles if
-               // the constant value is changed and the class is re-compiled while
-               // the code is running. (Eclipse doesn't hot-replace static constant
-               // initializer values if you change them while running code in the
-               // debugger, so you can pick up changes this way instead). 
-               // Note that the visibility of the fields is not checked; the value
-               // of the field in the classfile is returned whether or not it
-               // should be visible. 
-               (String className, String fieldName, Object fieldConstantValue) ->
-                   System.out.println("Static field " + fieldName + " of class "
-                       + className + " " + " has constant literal value "
-                       + fieldConstantValue + " in classfile"))
+  .matchStaticFinalFieldNames(
+  Stream.of("com.xyz.Config.POLL_INTERVAL", "com.xyz.Config.LOG_LEVEL")
+           .collect(Collectors.toCollection(HashSet::new)),
+      // The following method is called when any static final fields with
+      // names matching one of the above fully-qualified names are
+      // encountered, as long as those fields are initialized to constant
+          // values. The value returned is the value in the classfile, not the
+          // value that would be returned by reflection, so this can be useful
+          // in hot-swapping of changes to static constants in classfiles if
+          // the constant value is changed and the class is re-compiled while
+          // the code is running. (Eclipse doesn't hot-replace static constant
+          // initializer values if you change them while running code in the
+          // debugger, so you can pick up changes this way instead). 
+          // Note that the visibility of the fields is not checked; the value
+          // of the field in the classfile is returned whether or not it
+          // should be visible. 
+          (String className, String fieldName, Object fieldConstantValue) ->
+              System.out.println("Static field " + fieldName + " of class "
+                  + className + " " + " has constant literal value "
+                  + fieldConstantValue + " in classfile"))
 
-      .matchFilenamePattern("^template/.*\\.html",
-          // templatePath is a path on the classpath that matches the above pattern;
-          // inputStream is a stream opened on the file or zipfile entry.
-          // No need to close inputStream before exiting, it is closed by caller.
-          (absolutePath, relativePath, inputStream) -> {
-              try {
-                  String template = IOUtils.toString(inputStream, "UTF-8");
-                  System.out.println("Found template: " + absolutePath
-                          + " (size " + template.length() + ")");
-              } catch (IOException e) {
-                  throw new RuntimeException(e);
-              }
-          })
-        
-      .scan();  // Actually perform the scan
-
-
-    // [...Some time later...]
+  .matchFilenamePattern("^template/.*\\.html",
+      // templatePath is a path on the classpath that matches the above pattern;
+      // inputStream is a stream opened on the file or zipfile entry.
+      // No need to close inputStream before exiting, it is closed by caller.
+      (absolutePath, relativePath, inputStream) -> {
+          try {
+              String template = IOUtils.toString(inputStream, "UTF-8");
+              System.out.println("Found template: " + absolutePath
+                      + " (size " + template.length() + ")");
+          } catch (IOException e) {
+              throw new RuntimeException(e);
+          }
+      })
     
-    // See if any timestamps on the classpath are more recent than the time of the
-    // previous scan. (Even faster than classpath scanning, because classfiles
-    // don't have to be opened.)   
-    boolean classpathContentsModified =
-        fastClassPathScanner.classpathContentsModifiedSinceScan();
-    
+  .scan();  // Actually perform the scan
+
+
+// [...Some time later...]
+
+// See if any timestamps on the classpath are more recent than the time of the
+// previous scan. (Even faster than classpath scanning, because classfiles
+// don't have to be opened.)   
+boolean classpathContentsModified =
+    fastClassPathScanner.classpathContentsModifiedSinceScan();
+
 ```
 
 # API
@@ -91,7 +91,7 @@ Calling the constructor does not actually start the scan. The constructor takes 
 
 ```java
 
-    public FastClasspathScanner(String[] pacakagesToScan) { /*...*/ }
+public FastClasspathScanner(String[] pacakagesToScan) { /*...*/ }
 
 ```
 
@@ -103,23 +103,23 @@ FastClasspathScanner can find all classes on the classpath within whitelisted pa
 
 ```java
 
-    /** The method to run when a subclass of a specific class is found on the classpath. */
-    @FunctionalInterface
-    public interface SubclassMatchProcessor<T> {
-        public void processMatch(Class<? extends T> matchingClass);
-    }
+/** The method to run when a subclass of a specific class is found on the classpath. */
+@FunctionalInterface
+public interface SubclassMatchProcessor<T> {
+    public void processMatch(Class<? extends T> matchingClass);
+}
 
-    /**
-     * Call the provided SubclassMatchProcessor if classes are found on the classpath that extend the
-     * specified superclass.
-     * 
-     * @param superclass
-     *            The superclass to match (i.e. the class that subclasses need to extend to match).
-     * @param subclassMatchProcessor
-     *            the SubclassMatchProcessor to call when a match is found.
-     */
-    public <T> FastClasspathScanner matchSubclassesOf(final Class<T> superclass,
-            final SubclassMatchProcessor<T> subclassMatchProcessor) { /* ... */ }
+/**
+ * Call the provided SubclassMatchProcessor if classes are found on the classpath that extend the
+ * specified superclass.
+ * 
+ * @param superclass
+ *            The superclass to match (i.e. the class that subclasses need to extend to match).
+ * @param subclassMatchProcessor
+ *            the SubclassMatchProcessor to call when a match is found.
+ */
+public <T> FastClasspathScanner matchSubclassesOf(final Class<T> superclass,
+        final SubclassMatchProcessor<T> subclassMatchProcessor) { /* ... */ }
 
 ```
 
@@ -133,24 +133,24 @@ Note again that the ability to detect that a class or interface extends or imple
 
 ```java
 
-    /** The method to run when a class implementing a specific interface is found on the classpath. */
-    @FunctionalInterface
-    public interface InterfaceMatchProcessor<T> {
-        public void processMatch(Class<? extends T> matchingClass);
-    }
+/** The method to run when a class implementing a specific interface is found on the classpath. */
+@FunctionalInterface
+public interface InterfaceMatchProcessor<T> {
+    public void processMatch(Class<? extends T> matchingClass);
+}
 
-    /**
-     * Call the provided InterfaceMatchProcessor for classes on the classpath that implement the
-     * specified interface or a sub-interface, or whose superclasses implement the specified interface
-     * or a sub-interface.
-     * 
-     * @param iface
-     *            The interface to match (i.e. the interface that classes need to implement to match).
-     * @param interfaceMatchProcessor
-     *            the ClassMatchProcessor to call when a match is found.
-     */
-    public <T> FastClasspathScanner matchClassesImplementing(final Class<T> iface,
-            final InterfaceMatchProcessor<T> interfaceMatchProcessor) { /* ... */ }
+/**
+ * Call the provided InterfaceMatchProcessor for classes on the classpath that implement the
+ * specified interface or a sub-interface, or whose superclasses implement the specified interface
+ * or a sub-interface.
+ * 
+ * @param iface
+ *            The interface to match (i.e. the interface that classes need to implement to match).
+ * @param interfaceMatchProcessor
+ *            the ClassMatchProcessor to call when a match is found.
+ */
+public <T> FastClasspathScanner matchClassesImplementing(final Class<T> iface,
+        final InterfaceMatchProcessor<T> interfaceMatchProcessor) { /* ... */ }
 
 
 ```
@@ -161,23 +161,23 @@ FastClassPathScanner can detect classes that have a class annotation that matche
 
 ```java
 
-    /** The method to run when a class having a specified annotation is found on the classpath. */
-    @FunctionalInterface
-    public interface ClassAnnotationMatchProcessor {
-        public void processMatch(Class<?> matchingClass);
-    }
+/** The method to run when a class having a specified annotation is found on the classpath. */
+@FunctionalInterface
+public interface ClassAnnotationMatchProcessor {
+    public void processMatch(Class<?> matchingClass);
+}
 
-    /**
-     * Call the provided ClassAnnotationMatchProcessor if classes are found on the classpath
-     * that have the specified annotation.
-     * 
-     * @param annotation
-     *            The class annotation to match.
-     * @param classAnnotationMatchProcessor
-     *            the ClassAnnotationMatchProcessor to call when a match is found.
-     */
-    public FastClasspathScanner matchClassesWithAnnotation(final Class<?> annotation,
-            final ClassAnnotationMatchProcessor classAnnotationMatchProcessor) { /* ... */ }
+/**
+ * Call the provided ClassAnnotationMatchProcessor if classes are found on the classpath
+ * that have the specified annotation.
+ * 
+ * @param annotation
+ *            The class annotation to match.
+ * @param classAnnotationMatchProcessor
+ *            the ClassAnnotationMatchProcessor to call when a match is found.
+ */
+public FastClasspathScanner matchClassesWithAnnotation(final Class<?> annotation,
+        final ClassAnnotationMatchProcessor classAnnotationMatchProcessor) { /* ... */ }
 
 ```
 
@@ -189,36 +189,36 @@ Field values are obtained directly from the constant pool in a classfile, not fr
 
 ```java
 
-    /**
-     * The method to run when a class with the matching class name and with a final static field with the
-     * matching field name is found on the classpath. The constant value of the final static field is
-     * obtained directly from the constant pool of the classfile.
-     * 
-     * @param className
-     *            The class name, e.g. "com.package.ClassName".
-     * @param fieldName
-     *            The field name, e.g. "STATIC_FIELD_NAME".
-     * @param fieldConstantValue
-     *            The field's constant literal value, read directly from the classfile's constant pool.
-     */
-    @FunctionalInterface
-    public interface StaticFinalFieldMatchProcessor {
-        public void processMatch(String className, String fieldName, Object fieldConstantValue);
-    }
+/**
+ * The method to run when a class with the matching class name and with a final static field with the
+ * matching field name is found on the classpath. The constant value of the final static field is
+ * obtained directly from the constant pool of the classfile.
+ * 
+ * @param className
+ *            The class name, e.g. "com.package.ClassName".
+ * @param fieldName
+ *            The field name, e.g. "STATIC_FIELD_NAME".
+ * @param fieldConstantValue
+ *            The field's constant literal value, read directly from the classfile's constant pool.
+ */
+@FunctionalInterface
+public interface StaticFinalFieldMatchProcessor {
+    public void processMatch(String className, String fieldName, Object fieldConstantValue);
+}
 
-    /**
-     * Call the given StaticFinalFieldMatchProcessor if classes are found on the classpath that contain
-     * static final fields that match one of a set of fully-qualified field names, e.g.
-     * "com.package.ClassName.STATIC_FIELD_NAME".
-     * 
-     * @param fullyQualifiedStaticFinalFieldNames
-     *            The set of fully-qualified static field names to match.
-     * @param staticFinalFieldMatchProcessor
-     *            the StaticFinalFieldMatchProcessor to call when a match is found.
-     */
-    public FastClasspathScanner matchStaticFinalFieldNames(
-            final HashSet<String> fullyQualifiedStaticFinalFieldNames,
-            final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor) { /* ... */ }
+/**
+ * Call the given StaticFinalFieldMatchProcessor if classes are found on the classpath that contain
+ * static final fields that match one of a set of fully-qualified field names, e.g.
+ * "com.package.ClassName.STATIC_FIELD_NAME".
+ * 
+ * @param fullyQualifiedStaticFinalFieldNames
+ *            The set of fully-qualified static field names to match.
+ * @param staticFinalFieldMatchProcessor
+ *            the StaticFinalFieldMatchProcessor to call when a match is found.
+ */
+public FastClasspathScanner matchStaticFinalFieldNames(
+        final HashSet<String> fullyQualifiedStaticFinalFieldNames,
+        final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor) { /* ... */ }
 
 ```
 
@@ -252,34 +252,34 @@ This can be useful for detecting changes to non-classfile resources on the class
 
 ```java
 
-    /** The method to run when a file with a matching path is found on the classpath. */
-    @FunctionalInterface
-    public interface FileMatchProcessor {
-        /**
-         * Process a matching file.
-         * 
-         * @param absolutePath
-         *            The path of the matching file on the filesystem.
-         * @param relativePath
-         *            The path of the matching file relative to the classpath entry that contained the match.
-         * @param inputStream
-         *            An InputStream (either a FileInputStream or a ZipEntry InputStream) opened on the file.
-         *            You do not need to close this InputStream before returning, it is closed by the caller.
-         */
-        public void processMatch(String absolutePath, String relativePath, InputStream inputStream);
-    }
-
+/** The method to run when a file with a matching path is found on the classpath. */
+@FunctionalInterface
+public interface FileMatchProcessor {
     /**
-     * Call the given FileMatchProcessor if files are found on the classpath with the given regexp pattern in
-     * their path.
+     * Process a matching file.
      * 
-     * @param filenameMatchPattern
-     *            The regexp to match, e.g. "app/templates/.*\\.html"
-     * @param fileMatchProcessor
-     *            The FileMatchProcessor to call when each match is found.
+     * @param absolutePath
+     *            The path of the matching file on the filesystem.
+     * @param relativePath
+     *            The path of the matching file relative to the classpath entry that contained the match.
+     * @param inputStream
+     *            An InputStream (either a FileInputStream or a ZipEntry InputStream) opened on the file.
+     *            You do not need to close this InputStream before returning, it is closed by the caller.
      */
-    public FastClasspathScanner matchFilenamePattern(final String filenameMatchPattern,
-            final FileMatchProcessor fileMatchProcessor) { /* ... */ }
+    public void processMatch(String absolutePath, String relativePath, InputStream inputStream);
+}
+
+/**
+ * Call the given FileMatchProcessor if files are found on the classpath with the given regexp pattern in
+ * their path.
+ * 
+ * @param filenameMatchPattern
+ *            The regexp to match, e.g. "app/templates/.*\\.html"
+ * @param fileMatchProcessor
+ *            The FileMatchProcessor to call when each match is found.
+ */
+public FastClasspathScanner matchFilenamePattern(final String filenameMatchPattern,
+        final FileMatchProcessor fileMatchProcessor) { /* ... */ }
 
 ```
 
@@ -293,8 +293,8 @@ Since classpathContentsModifiedSinceScan() only checks file modification timesta
 
 ```java
 
-    /** Returns true if the classpath contents have been changed since scan() was last called. */
-    public boolean classpathContentsModifiedSinceScan() { /* ... */ }
+/** Returns true if the classpath contents have been changed since scan() was last called. */
+public boolean classpathContentsModifiedSinceScan() { /* ... */ }
 
 ```
 
@@ -304,8 +304,8 @@ The scan() method performs the actual scan. This method may be called multiple t
 
 ```java
 
-    /** Scan classpath for matching files. Call this after all match processors have been added. */
-    public void scan() { /* ... */ }
+/** Scan classpath for matching files. Call this after all match processors have been added. */
+public void scan() { /* ... */ }
 
 ```
 
