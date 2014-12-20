@@ -99,8 +99,8 @@ import java.util.zip.ZipFile;
  * </code>
  * 
  * Note that you need to pass a whitelist of package prefixes to scan into the constructor, and the ability
- * to detect that a class or interface extends another depends upon the entire ancestral path between the two
- * classes or interfaces having one of the whitelisted package prefixes.
+ * to detect that a class or interface extends another depends upon the entire ancestral path between the
+ * two classes or interfaces having one of the whitelisted package prefixes.
  * 
  * When matching involves classfiles (i.e. in all cases except FastClasspathScanner#matchFilenamePattern,
  * which deals with arbitrary files on the classpath), if the same fully-qualified class name is encountered
@@ -129,17 +129,17 @@ import java.util.zip.ZipFile;
  *
  *          Copyright (c) 2014 Luke Hutchison
  * 
- *          Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
- *          associated documentation files (the "Software"), to deal in the Software without restriction,
- *          including without limitation the rights to use, copy, modify, merge, publish, distribute,
- *          sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is
- *          furnished to do so, subject to the following conditions:
+ *          Permission is hereby granted, free of charge, to any person obtaining a copy of this software
+ *          and associated documentation files (the "Software"), to deal in the Software without
+ *          restriction, including without limitation the rights to use, copy, modify, merge, publish,
+ *          distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
+ *          Software is furnished to do so, subject to the following conditions:
  * 
  *          The above copyright notice and this permission notice shall be included in all copies or
  *          substantial portions of the Software.
  * 
- *          THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT
- *          NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *          THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
+ *          BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
  *          NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
  *          DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  *          OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -154,17 +154,17 @@ public class FastClasspathScanner {
     private String[] pathsToScan;
 
     /**
-     * The latest last-modified timestamp of any file, directory or sub-directory in the classpath, in millis
-     * since the Unix epoch. Does not consider timestamps inside zipfiles/jarfiles, but the timestamp of the
-     * zip/jarfile itself is considered.
+     * The latest last-modified timestamp of any file, directory or sub-directory in the classpath, in
+     * millis since the Unix epoch. Does not consider timestamps inside zipfiles/jarfiles, but the timestamp
+     * of the zip/jarfile itself is considered.
      */
     private long lastModified = 0;
 
     /**
      * If this is set to true, then the timestamps of zipfile entries should be used to determine when files
-     * inside a zipfile have changed; if set to false, then the timestamp of the zipfile itself is used. Itis
-     * recommended to leave this set to false, since zipfile timestamps are less trustworthy than filesystem
-     * timestamps.
+     * inside a zipfile have changed; if set to false, then the timestamp of the zipfile itself is used.
+     * Itis recommended to leave this set to false, since zipfile timestamps are less trustworthy than
+     * filesystem timestamps.
      */
     private static final boolean USE_ZIPFILE_ENTRY_MODIFICATION_TIMES = false;
 
@@ -172,8 +172,8 @@ public class FastClasspathScanner {
     private ArrayList<ClassMatcher> classMatchers = new ArrayList<>();
 
     /**
-     * A list of file path matchers to call when a directory or subdirectory on the classpath matches a given
-     * regexp.
+     * A list of file path matchers to call when a directory or subdirectory on the classpath matches a
+     * given regexp.
      */
     private ArrayList<FilePathMatcher> filePathMatchers = new ArrayList<>();
 
@@ -203,7 +203,7 @@ public class FastClasspathScanner {
      */
     private final HashSet<String> classesEncounteredSoFarDuringScan = new HashSet<>();
 
-    // ------------------------------------------------------------------------------------------------------    
+    // -----------------------------------------------------------------------------------------------------
 
     /**
      * Construct a FastClasspathScanner instance.
@@ -217,7 +217,7 @@ public class FastClasspathScanner {
                         .toArray(String[]::new);
     }
 
-    // ------------------------------------------------------------------------------------------------------    
+    // -----------------------------------------------------------------------------------------------------
 
     /** The method to run when a subclass of a specific class is found on the classpath. */
     @FunctionalInterface
@@ -271,7 +271,7 @@ public class FastClasspathScanner {
         return this;
     }
 
-    // ------------------------------------------------------------------------------------------------------    
+    // -----------------------------------------------------------------------------------------------------
 
     /** The method to run when a class implementing a specific interface is found on the classpath. */
     @FunctionalInterface
@@ -316,7 +316,7 @@ public class FastClasspathScanner {
         return this;
     }
 
-    // ------------------------------------------------------------------------------------------------------    
+    // -----------------------------------------------------------------------------------------------------
 
     /** The method to run when a class having a specified annotation is found on the classpath. */
     @FunctionalInterface
@@ -359,17 +359,18 @@ public class FastClasspathScanner {
         return this;
     }
 
-    // ------------------------------------------------------------------------------------------------------    
+    // -----------------------------------------------------------------------------------------------------
 
     /**
      * The method to run when a class with the matching class name and with a final static field with the
      * matching field name is found on the classpath. The constant value of the final static field is
      * obtained directly from the constant pool of the classfile.
      * 
-     * Field values are obtained directly from the constant pool in classfiles, not from a loaded class using
-     * reflection. This allows you to detect changes to the classpath and then run another scan that picks up
-     * the new values of selected static constants without reloading the class. (Class reloading is fraught
-     * with issues, see: http://tutorials.jenkov.com/java-reflection/dynamic-class-loading-reloading.html )
+     * Field values are obtained directly from the constant pool in classfiles, not from a loaded class
+     * using reflection. This allows you to detect changes to the classpath and then run another scan that
+     * picks up the new values of selected static constants without reloading the class. (Class reloading is
+     * fraught with issues, see:
+     * http://tutorials.jenkov.com/java-reflection/dynamic-class-loading-reloading.html )
      * 
      * Note: Only static final fields with constant-valued literals are matched, not fields with initializer
      * values that are the result of an expression or reference, except for cases where the compiler is able
@@ -413,9 +414,10 @@ public class FastClasspathScanner {
      * "com.package.ClassName.STATIC_FIELD_NAME".
      * 
      * Field values are obtained from the constant pool in classfiles, *not* from a loaded class using
-     * reflection. This allows you to detect changes to the classpath and then run another scan that picks up
-     * the new values of selected static constants without reloading the class. (Class reloading is fraught
-     * with issues, see: http://tutorials.jenkov.com/java-reflection/dynamic-class-loading-reloading.html )
+     * reflection. This allows you to detect changes to the classpath and then run another scan that picks
+     * up the new values of selected static constants without reloading the class. (Class reloading is
+     * fraught with issues, see:
+     * http://tutorials.jenkov.com/java-reflection/dynamic-class-loading-reloading.html )
      * 
      * Note: Only static final fields with constant-valued literals are matched, not fields with initializer
      * values that are the result of an expression or reference, except for cases where the compiler is able
@@ -435,7 +437,7 @@ public class FastClasspathScanner {
             if (lastDotIdx > 0) {
                 String className = fullyQualifiedFieldName.substring(0, lastDotIdx);
                 String fieldName = fullyQualifiedFieldName.substring(lastDotIdx + 1);
-                HashMap<String, StaticFinalFieldMatchProcessor> fieldNameToMatchProcessor = //
+                HashMap<String, StaticFinalFieldMatchProcessor> fieldNameToMatchProcessor =
                         classNameToStaticFieldnameToMatchProcessor.get(className);
                 if (fieldNameToMatchProcessor == null) {
                     classNameToStaticFieldnameToMatchProcessor.put(className, fieldNameToMatchProcessor =
@@ -447,7 +449,7 @@ public class FastClasspathScanner {
         return this;
     }
 
-    // ------------------------------------------------------------------------------------------------------    
+    // -----------------------------------------------------------------------------------------------------
 
     /** The method to run when a file with a matching path is found on the classpath. */
     @FunctionalInterface
@@ -458,17 +460,19 @@ public class FastClasspathScanner {
          * @param absolutePath
          *            The path of the matching file on the filesystem.
          * @param relativePath
-         *            The path of the matching file relative to the classpath entry that contained the match.
+         *            The path of the matching file relative to the classpath entry that contained the
+         *            match.
          * @param inputStream
-         *            An InputStream (either a FileInputStream or a ZipEntry InputStream) opened on the file.
-         *            You do not need to close this InputStream before returning, it is closed by the caller.
+         *            An InputStream (either a FileInputStream or a ZipEntry InputStream) opened on the
+         *            file. You do not need to close this InputStream before returning, it is closed by the
+         *            caller.
          */
         public void processMatch(String absolutePath, String relativePath, InputStream inputStream);
     }
 
     /**
-     * Call the given FileMatchProcessor if files are found on the classpath with the given regexp pattern in
-     * their path.
+     * Call the given FileMatchProcessor if files are found on the classpath with the given regexp pattern
+     * in their path.
      * 
      * @param filenameMatchPattern
      *            The regexp to match, e.g. "app/templates/.*\\.html"
@@ -477,11 +481,12 @@ public class FastClasspathScanner {
      */
     public FastClasspathScanner matchFilenamePattern(final String filenameMatchPattern,
             final FileMatchProcessor fileMatchProcessor) {
-        filePathMatchers.add(new FilePathMatcher(Pattern.compile(filenameMatchPattern), fileMatchProcessor));
+        filePathMatchers
+                .add(new FilePathMatcher(Pattern.compile(filenameMatchPattern), fileMatchProcessor));
         return this;
     }
 
-    // ------------------------------------------------------------------------------------------------------    
+    // -----------------------------------------------------------------------------------------------------
 
     /** An interface used for testing if a file path matches a specified pattern. */
     private static class FilePathMatcher {
@@ -500,7 +505,7 @@ public class FastClasspathScanner {
         public abstract void lookForMatches();
     }
 
-    // ------------------------------------------------------------------------------------------------------    
+    // -----------------------------------------------------------------------------------------------------
 
     /**
      * An object to hold class information. For speed purposes, this is reconstructed directly from the
@@ -589,7 +594,7 @@ public class FastClasspathScanner {
 
     }
 
-    // ------------------------------------------------------------------------------------------------------    
+    // -----------------------------------------------------------------------------------------------------
 
     /**
      * Recursively find all subclasses for each class; called by finalizeClassHierarchy.
@@ -716,7 +721,7 @@ public class FastClasspathScanner {
         }
     }
 
-    // ------------------------------------------------------------------------------------------------------    
+    // -----------------------------------------------------------------------------------------------------
 
     /**
      * Read annotation entry from classfile.
@@ -911,8 +916,8 @@ public class FastClasspathScanner {
                         + " because it is not both static and final");
             }
             StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor =
-                    staticFieldnameToMatchProcessor != null ? staticFieldnameToMatchProcessor.get(fieldName)
-                            : null;
+                    staticFieldnameToMatchProcessor != null ? staticFieldnameToMatchProcessor
+                            .get(fieldName) : null;
             String descriptor = readRefdString(inp, constantPool);
             int attributesCount = inp.readUnsignedShort();
             if (!isStaticFinal || staticFinalFieldMatchProcessor == null) {
@@ -1054,7 +1059,7 @@ public class FastClasspathScanner {
         }
     }
 
-    // ------------------------------------------------------------------------------------------------------    
+    // -----------------------------------------------------------------------------------------------------
 
     /**
      * Scan a file.
@@ -1179,7 +1184,8 @@ public class FastClasspathScanner {
                                     // There's a match -- open the file as a stream and
                                     // call the match processor
                                     try (InputStream inputStream = zipFile.getInputStream(entry)) {
-                                        fileMatcher.fileMatchProcessor.processMatch(path, path, inputStream);
+                                        fileMatcher.fileMatchProcessor
+                                                .processMatch(path, path, inputStream);
                                     }
                                 }
                             }
@@ -1190,7 +1196,7 @@ public class FastClasspathScanner {
         }
     }
 
-    // ------------------------------------------------------------------------------------------------------    
+    // -----------------------------------------------------------------------------------------------------
 
     /**
      * Get a list of unique elements on the classpath as File objects, preserving order. Classpath elements
@@ -1243,7 +1249,8 @@ public class FastClasspathScanner {
 
                         for (FilePathMatcher fileMatcher : filePathMatchers) {
                             if (fileMatcher.pattern.matcher(path).matches()) {
-                                // If there's a match, open the file as a stream and call the match processor
+                                // If there's a match, open the file as a stream and call the
+                                // match processor
                                 try (InputStream inputStream = new FileInputStream(pathElt)) {
                                     fileMatcher.fileMatchProcessor.processMatch(path, pathElt.getName(),
                                             inputStream);
@@ -1279,8 +1286,8 @@ public class FastClasspathScanner {
 
     /**
      * Returns true if the classpath contents have been changed since scan() was last called. Only considers
-     * classpath prefixes whitelisted in the call to the constructor. Returns true if scan() has not yet been
-     * run.
+     * classpath prefixes whitelisted in the call to the constructor. Returns true if scan() has not yet
+     * been run.
      */
     public boolean classpathContentsModifiedSinceScan() {
         long oldLastModified = this.lastModified;
