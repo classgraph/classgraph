@@ -34,8 +34,8 @@ new FastClasspathScanner(
   c -> System.out.println("Has @RestHandler class annotation: " + c.getName()))
  
   .matchStaticFinalFieldNames(
-  Stream.of("com.xyz.Config.POLL_INTERVAL", "com.xyz.Config.LOG_LEVEL")
-           .collect(Collectors.toCollection(HashSet::new)),
+          Stream.of("com.xyz.Config.POLL_INTERVAL", "com.xyz.Config.LOG_LEVEL")
+              .collect(Collectors.toCollection(HashSet::new)),
       // The following method is called when any static final fields with
       // names matching one of the above fully-qualified names are
       // encountered, as long as those fields are initialized to constant
