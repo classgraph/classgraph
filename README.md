@@ -110,11 +110,12 @@ public interface SubclassMatchProcessor<T> {
 }
 
 /**
- * Call the provided SubclassMatchProcessor if classes are found on the classpath that extend the
- * specified superclass.
+ * Call the provided SubclassMatchProcessor if classes are found on the classpath that
+ * extend the specified superclass.
  * 
  * @param superclass
- *            The superclass to match (i.e. the class that subclasses need to extend to match).
+ *            The superclass to match (i.e. the class that subclasses need to extend
+ *            in order to match).
  * @param subclassMatchProcessor
  *            the SubclassMatchProcessor to call when a match is found.
  */
@@ -133,19 +134,23 @@ Note again that the ability to detect that a class or interface extends or imple
 
 ```java
 
-/** The method to run when a class implementing a specific interface is found on the classpath. */
+/**
+ * The method to run when a class implementing a specific interface is found on the
+ * classpath.
+ */
 @FunctionalInterface
 public interface InterfaceMatchProcessor<T> {
     public void processMatch(Class<? extends T> matchingClass);
 }
 
 /**
- * Call the provided InterfaceMatchProcessor for classes on the classpath that implement the
- * specified interface or a sub-interface, or whose superclasses implement the specified interface
- * or a sub-interface.
+ * Call the provided InterfaceMatchProcessor for classes on the classpath that
+ * implement the specified interface or a sub-interface, or whose superclasses
+ * implement the specified interface or a sub-interface.
  * 
  * @param iface
- *            The interface to match (i.e. the interface that classes need to implement to match).
+ *            The interface to match (i.e. the interface that classes need to implement
+ *            to match).
  * @param interfaceMatchProcessor
  *            the ClassMatchProcessor to call when a match is found.
  */
@@ -161,15 +166,18 @@ FastClassPathScanner can detect classes that have a class annotation that matche
 
 ```java
 
-/** The method to run when a class having a specified annotation is found on the classpath. */
+/**
+ * The method to run when a class having a specified annotation is found on the
+ * classpath.
+ */
 @FunctionalInterface
 public interface ClassAnnotationMatchProcessor {
     public void processMatch(Class<?> matchingClass);
 }
 
 /**
- * Call the provided ClassAnnotationMatchProcessor if classes are found on the classpath
- * that have the specified annotation.
+ * Call the provided ClassAnnotationMatchProcessor if classes are found on the
+ * classpath that have the specified annotation.
  * 
  * @param annotation
  *            The class annotation to match.
@@ -177,7 +185,7 @@ public interface ClassAnnotationMatchProcessor {
  *            the ClassAnnotationMatchProcessor to call when a match is found.
  */
 public FastClasspathScanner matchClassesWithAnnotation(final Class<?> annotation,
-        final ClassAnnotationMatchProcessor classAnnotationMatchProcessor) { /* ... */ }
+       final ClassAnnotationMatchProcessor classAnnotationMatchProcessor) { /* ... */ }
 
 ```
 
@@ -190,26 +198,28 @@ Field values are obtained directly from the constant pool in a classfile, not fr
 ```java
 
 /**
- * The method to run when a class with the matching class name and with a final static field with the
- * matching field name is found on the classpath. The constant value of the final static field is
- * obtained directly from the constant pool of the classfile.
+ * The method to run when a class with the matching class name and with a final static
+ * field with the matching field name is found on the classpath. The constant value of
+ * the final static field is obtained directly from the constant pool of the classfile.
  * 
  * @param className
  *            The class name, e.g. "com.package.ClassName".
  * @param fieldName
  *            The field name, e.g. "STATIC_FIELD_NAME".
  * @param fieldConstantValue
- *            The field's constant literal value, read directly from the classfile's constant pool.
+ *            The field's constant literal value, read directly from the classfile's 
+ *            constant pool.
  */
 @FunctionalInterface
 public interface StaticFinalFieldMatchProcessor {
-    public void processMatch(String className, String fieldName, Object fieldConstantValue);
+    public void processMatch(String className, String fieldName,
+                             Object fieldConstantValue);
 }
 
 /**
- * Call the given StaticFinalFieldMatchProcessor if classes are found on the classpath that contain
- * static final fields that match one of a set of fully-qualified field names, e.g.
- * "com.package.ClassName.STATIC_FIELD_NAME".
+ * Call the given StaticFinalFieldMatchProcessor if classes are found on the classpath
+ * that contain static final fields that match one of a set of fully-qualified field
+ * names, e.g. "com.package.ClassName.STATIC_FIELD_NAME".
  * 
  * @param fullyQualifiedStaticFinalFieldNames
  *            The set of fully-qualified static field names to match.
@@ -218,7 +228,9 @@ public interface StaticFinalFieldMatchProcessor {
  */
 public FastClasspathScanner matchStaticFinalFieldNames(
         final HashSet<String> fullyQualifiedStaticFinalFieldNames,
-        final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor) { /* ... */ }
+        final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor) {
+    /* ... */
+}
 
 ```
 
@@ -228,9 +240,9 @@ public FastClasspathScanner matchStaticFinalFieldNames(
 
 public static final int w = 5;
 public static final String x = "a";
-static final String y = "a" + "b";  // Referentially equal to the interned String object "ab"
+static final String y = "a" + "b";  // Referentially equal to the interned String "ab"
 private static final int z = 1;     // Private field values are also returned 
-static final byte b = 0x7f;         // Primitive constants are autoboxed, e.g. byte -> Byte
+static final byte b = 0x7f;         // StaticFinalFieldMatchProcessor is passed a Byte
 
 ```
 
@@ -239,12 +251,16 @@ whereas the following fields are non-constant, non-static and/or non-final, so t
 ```java
 
 public static final Integer w = 5;  // Non-constant due to autoboxing
-static final String y = "a" + w;    // Non-constant expression, because x is non-constant
+static final String y = "a" + w;    // Non-constant expression, because x is non-const
 static final int[] arr = {1, 2, 3}; // Arrays are non-constant
-static int n = 100;                 // Assignments are not constant if not both final and static
+static int n = 100;                 // Non-final
 final int q = 5;                    // Non-static 
 
 ```
+
+Primitive types (int, long, short, float, double, boolean, char, byte) are wrapped in the corresponding wrapper class (Integer, Long etc.) before being passed to the provided StaticFinalFieldMatchProcessor.
+
+Note: Visibility modifiers of matching fields are not checked, so the constant literal initializer value of matching fields will be returned even in cases where fields are private, package-private or protected.  
 
 ### Finding files (even non-classfiles) anywhere on the classpath whose path matches a given regular expression
 
@@ -261,17 +277,20 @@ public interface FileMatchProcessor {
      * @param absolutePath
      *            The path of the matching file on the filesystem.
      * @param relativePath
-     *            The path of the matching file relative to the classpath entry that contained the match.
+     *            The path of the matching file relative to the classpath entry that
+     *            contained the match.
      * @param inputStream
-     *            An InputStream (either a FileInputStream or a ZipEntry InputStream) opened on the file.
-     *            You do not need to close this InputStream before returning, it is closed by the caller.
+     *            An InputStream (either a FileInputStream or a ZipEntry InputStream)
+     *            opened on the file. You do not need to close this InputStream before
+     *            returning, it is closed by the caller.
      */
-    public void processMatch(String absolutePath, String relativePath, InputStream inputStream);
+    public void processMatch(String absolutePath, String relativePath,
+                             InputStream inputStream);
 }
 
 /**
- * Call the given FileMatchProcessor if files are found on the classpath with the given regexp pattern in
- * their path.
+ * Call the given FileMatchProcessor if files are found on the classpath with the given
+ * regexp pattern in their path.
  * 
  * @param filenameMatchPattern
  *            The regexp to match, e.g. "app/templates/.*\\.html"
@@ -293,7 +312,10 @@ Since classpathContentsModifiedSinceScan() only checks file modification timesta
 
 ```java
 
-/** Returns true if the classpath contents have been changed since scan() was last called. */
+/**
+ * Returns true if the classpath contents have been changed since scan() was
+ * last called.
+ */
 public boolean classpathContentsModifiedSinceScan() { /* ... */ }
 
 ```
@@ -304,7 +326,10 @@ The scan() method performs the actual scan. This method may be called multiple t
 
 ```java
 
-/** Scan classpath for matching files. Call this after all match processors have been added. */
+/**
+ * Scan classpath for matching files. Call this after all match processors have been
+ * added.
+ */
 public void scan() { /* ... */ }
 
 ```

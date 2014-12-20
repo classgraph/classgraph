@@ -353,7 +353,8 @@ public class FastClasspathScanner {
      *   public static final Integer w = 5;  // Non-constant due to autoboxing
      *   static final String y = "a" + w;    // Non-constant expression, because x is non-constant
      *   static final int[] arr = {1, 2, 3}; // Arrays are non-constant
-     *   static int n = 100;                 // Assignments are not constant if not both final and static 
+     *   static int n = 100;                 // Non-final 
+     *   final int N = 100;                  // Non-static 
      * </code>
      * 
      * @param className
