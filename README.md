@@ -3,12 +3,12 @@ fast-classpath-scanner
 
 Uber-fast, ultra-lightweight Java classpath scanner. Scans the classpath by parsing the classfile binary format directly rather than by using reflection. (Reflection causes the classloader to load each class, which can take an order of magnitude more time than parsing the classfile directly.)
 
-This classpath scanner is able to scan directories and jar/zip files on the classpath to:
-* find classes that subclass a given class or one of its subclasses
-* find classes that implement an interface or one of its subinterfaces
-* find classes that have a given annotation
-* find classes that contain a specific static final field, returning the constant literal value used to initialize the field in the classfile 
-* find files (even non-classfiles) anywhere on the classpath that have a path that matches a given regular expression
+FastClasspathScanner is able to scan directories and jar/zip files on the classpath to:
+* find classes that subclass a given class or one of its subclasses;
+* find classes that implement an interface or one of its subinterfaces, or whose superclasses implement the interface or one of its subinterfaces;
+* find classes that have a given annotation;
+* find the constant literal initializer value in a classfile's constant pool for a specified static final field;
+* find files (even non-classfiles) anywhere on the classpath that have a path that matches a given regular expression; and
 * detect changes to the classpath since the first time the classpath was scanned.
 
 Usage examples below use lambda expressions and Stream patterns from Java 8.
@@ -83,7 +83,7 @@ boolean classpathContentsModified =
 
 # API
 
-Note that most of the methods in the API return **this** (of type FastClasspathScanner), so that you can use the **method chaining** calling style, as shown above.
+Note that most of the methods in the API return *this* (of type FastClasspathScanner), so that you can use the [method chaining](http://en.wikipedia.org/wiki/Method_chaining) calling style, as shown above.
 
 ### Whitelisting package prefixes in the call to the constructor
 
@@ -95,7 +95,7 @@ public FastClasspathScanner(String[] pacakagesToScan) { /*...*/ }
 
 ```
 
-### Matching subclasses of a class
+### Matching the subclasses of a class
 
 FastClasspathScanner can find all classes on the classpath within whitelisted package prefixes that extend a given superclass.
 
@@ -126,7 +126,7 @@ public <T> FastClasspathScanner matchSubclassesOf(final Class<T> superclass,
 
 Note that this method does not yet implement the detection of interfaces that extend other interfaces, only classes that extend other classes.
 
-### Matching classes that implement an interface
+### Matching the classes that implement an interface
 
 FastClasspathScanner can find all classes on the classpath within whitelisted package prefixes that that implement a given target interface. The matching logic here is trickier than it would seem, because FastClassPathScanner also has to match classes whose superclasses implement the target interface, or classes that implement a sub-interface (descendant interface) of the target interface, or classes whose superclasses implement a sub-interface of the target interface.
 
@@ -157,10 +157,9 @@ public interface InterfaceMatchProcessor<T> {
 public <T> FastClasspathScanner matchClassesImplementing(final Class<T> iface,
         final InterfaceMatchProcessor<T> interfaceMatchProcessor) { /* ... */ }
 
-
 ```
 
-### Matching classes that have a specified annotation
+### Matching classes with a specific annotation
 
 FastClassPathScanner can detect classes that have a class annotation that matches a given annotation. 
 
@@ -189,7 +188,7 @@ public FastClasspathScanner matchClassesWithAnnotation(final Class<?> annotation
 
 ```
 
-### Fetching the constant initializer values of named static final fields
+### Fetching the constant initializer values of static final fields
 
 FastClassPathScanner is able to scan the classpath for matching fully-qualified static final fields, e.g. for the fully-qualified field name "com.xyz.Config.POLL_INTERVAL", FastClassPathScanner will look in the class com.xyz.Config for the static final field POLL_INTERVAL, and if it is found, and if it has a constant literal initializer value, that value will be read directly from the classfile and passed into a provided StaticFinalFieldMatchProcessor.
 
@@ -260,7 +259,7 @@ final int q = 5;                    // Non-static
 
 Primitive types (int, long, short, float, double, boolean, char, byte) are wrapped in the corresponding wrapper class (Integer, Long etc.) before being passed to the provided StaticFinalFieldMatchProcessor.
 
-Note: Visibility modifiers of matching fields are not checked, so the constant literal initializer value of matching fields will be returned even in cases where fields are private, package-private or protected.  
+**Note:** Visibility modifiers of matching fields are not checked, so the constant literal initializer value of matching fields will be returned even in cases where fields are private, package-private or protected.  
 
 ### Finding files (even non-classfiles) anywhere on the classpath whose path matches a given regular expression
 
@@ -346,7 +345,7 @@ FastClasspathScanner was inspired by Ronald Muller's [annotation-detector](https
 
 Luke Hutchison (luke .dot. hutch .at. gmail .dot. com)
 
-Please let me know if you find this useful!
+**Please let me know if you find FastClasspathScanner useful!**
 
 ### Classfile format documentation
 
