@@ -160,6 +160,14 @@ public class FastClasspathScanner {
      */
     private long lastModified = 0;
 
+    /**
+     * If this is set to true, then the timestamps of zipfile entries should be used to determine when files
+     * inside a zipfile have changed; if set to false, then the timestamp of the zipfile itself is used. Itis
+     * recommended to leave this set to false, since zipfile timestamps are less trustworthy than filesystem
+     * timestamps.
+     */
+    private static final boolean USE_ZIPFILE_ENTRY_MODIFICATION_TIMES = false;
+
     /** A list of class matchers to call once all classes have been read in from classpath. */
     private ArrayList<ClassMatcher> classMatchers = new ArrayList<>();
 
@@ -1121,8 +1129,8 @@ public class FastClasspathScanner {
     /**
      * Scan a zipfile for matching file path patterns. (Does not recurse into zipfiles within zipfiles.)
      */
-    private void scanZipfile(final String zipfilePath, final ZipFile zipFile, boolean scanTimestampsOnly)
-            throws IOException {
+    private void scanZipfile(final String zipfilePath, final ZipFile zipFile, long zipFileLastModified,
+            boolean scanTimestampsOnly) throws IOException {
         boolean timestampWarning = false;
         for (Enumeration<? extends ZipEntry> entries = zipFile.entries(); entries.hasMoreElements();) {
             // Scan for matching filenames
@@ -1140,10 +1148,15 @@ public class FastClasspathScanner {
                     }
                 }
                 if (scanFile) {
-                    // Assumes that the clock used to timestamp zipfile entries is in sync with the
-                    // clock used to timestamp regular file and directory entries in the classpath.
-                    // Just in case, we check entry timestamps against the current time.
-                    long entryTime = entry.getTime();
+                    // If USE_ZIPFILE_ENTRY_MODIFICATION_TIMES is true, use zipfile entry timestamps,
+                    // otherwise use the modification time of the zipfile itself. Using zipfile entry
+                    // timestamps assumes that the timestamp on zipfile entries was properly added, and
+                    // that the clock of the machine adding the zipfile entries is in sync with the 
+                    // clock used to timestamp regular file and directory entries in the current
+                    // classpath. USE_ZIPFILE_ENTRY_MODIFICATION_TIMES is set to false by default,
+                    // as zipfile entry timestamps are less trustworthy than filesystem timestamps.
+                    long entryTime = USE_ZIPFILE_ENTRY_MODIFICATION_TIMES //
+                            ? entry.getTime() : zipFileLastModified;
                     lastModified = Math.max(lastModified, entryTime);
                     if (entryTime > System.currentTimeMillis() && !timestampWarning) {
                         String msg =
@@ -1223,7 +1236,7 @@ public class FastClasspathScanner {
                     String pathLower = path.toLowerCase();
                     if (pathLower.endsWith(".jar") || pathLower.endsWith(".zip")) {
                         // Scan within jar/zipfile path element
-                        scanZipfile(path, new ZipFile(pathElt), scanTimestampsOnly);
+                        scanZipfile(path, new ZipFile(pathElt), pathElt.lastModified(), scanTimestampsOnly);
                     } else {
                         // File listed directly on classpath
                         scanFile(pathElt, path, pathElt.getName(), scanTimestampsOnly);
