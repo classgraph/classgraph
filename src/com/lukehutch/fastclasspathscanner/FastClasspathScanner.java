@@ -206,10 +206,10 @@ public class FastClasspathScanner {
     // ------------------------------------------------------------------------------------------------------    
 
     /**
-     * Initialize a classpath scanner, with a list of package prefixes to scan.
+     * Construct a FastClasspathScanner instance.
      * 
-     * @param pacakagesToScan
-     *            A list of package prefixes to scan.
+     * @param packagesToScan
+     *            package prefixes to scan, e.g. new String[] { "com.xyz.widget", "com.xyz.gizmo" }
      */
     public FastClasspathScanner(String[] pacakagesToScan) {
         this.pathsToScan =

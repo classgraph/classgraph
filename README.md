@@ -91,7 +91,15 @@ Calling the constructor does not actually start the scan. The constructor takes 
 
 ```java
 
-public FastClasspathScanner(String[] pacakagesToScan) { /*...*/ }
+/**
+ * Construct a FastClasspathScanner instance.
+ * 
+ * @param packagesToScan
+ *            an array of package prefixes to scan, e.g. new String[] { "com.xyz.widget", "com.xyz.gizmo" }
+ */
+public FastClasspathScanner(String[] pacakagesToScan) {
+    /*...*/
+}
 
 ```
 
@@ -119,8 +127,11 @@ public interface SubclassMatchProcessor<T> {
  * @param subclassMatchProcessor
  *            the SubclassMatchProcessor to call when a match is found.
  */
-public <T> FastClasspathScanner matchSubclassesOf(final Class<T> superclass,
-        final SubclassMatchProcessor<T> subclassMatchProcessor) { /* ... */ }
+public <T> FastClasspathScanner matchSubclassesOf(
+        Class<T> superclass,
+        SubclassMatchProcessor<T> subclassMatchProcessor) {
+    /* ... */
+}
 
 ```
 
@@ -154,8 +165,11 @@ public interface InterfaceMatchProcessor<T> {
  * @param interfaceMatchProcessor
  *            the ClassMatchProcessor to call when a match is found.
  */
-public <T> FastClasspathScanner matchClassesImplementing(final Class<T> iface,
-        final InterfaceMatchProcessor<T> interfaceMatchProcessor) { /* ... */ }
+public <T> FastClasspathScanner matchClassesImplementing(
+        Class<T> iface,
+        InterfaceMatchProcessor<T> interfaceMatchProcessor) {
+    /* ... */
+}
 
 ```
 
@@ -183,8 +197,11 @@ public interface ClassAnnotationMatchProcessor {
  * @param classAnnotationMatchProcessor
  *            the ClassAnnotationMatchProcessor to call when a match is found.
  */
-public FastClasspathScanner matchClassesWithAnnotation(final Class<?> annotation,
-       final ClassAnnotationMatchProcessor classAnnotationMatchProcessor) { /* ... */ }
+public FastClasspathScanner matchClassesWithAnnotation(
+       Class<?> annotation,
+       ClassAnnotationMatchProcessor classAnnotationMatchProcessor) {
+    /* ... */
+}
 
 ```
 
@@ -211,7 +228,8 @@ Field values are obtained directly from the constant pool in a classfile, not fr
  */
 @FunctionalInterface
 public interface StaticFinalFieldMatchProcessor {
-    public void processMatch(String className, String fieldName,
+    public void processMatch(String className,
+                             String fieldName,
                              Object fieldConstantValue);
 }
 
@@ -226,8 +244,8 @@ public interface StaticFinalFieldMatchProcessor {
  *            the StaticFinalFieldMatchProcessor to call when a match is found.
  */
 public FastClasspathScanner matchStaticFinalFieldNames(
-        final HashSet<String> fullyQualifiedStaticFinalFieldNames,
-        final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor) {
+        HashSet<String> fullyQualifiedStaticFinalFieldNames,
+        StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor) {
     /* ... */
 }
 
@@ -283,7 +301,8 @@ public interface FileMatchProcessor {
      *            opened on the file. You do not need to close this InputStream before
      *            returning, it is closed by the caller.
      */
-    public void processMatch(String absolutePath, String relativePath,
+    public void processMatch(String absolutePath,
+                             String relativePath,
                              InputStream inputStream);
 }
 
@@ -296,8 +315,11 @@ public interface FileMatchProcessor {
  * @param fileMatchProcessor
  *            The FileMatchProcessor to call when each match is found.
  */
-public FastClasspathScanner matchFilenamePattern(final String filenameMatchPattern,
-        final FileMatchProcessor fileMatchProcessor) { /* ... */ }
+public FastClasspathScanner matchFilenamePattern(
+        String filenameMatchPattern,
+        FileMatchProcessor fileMatchProcessor) {
+    /* ... */
+}
 
 ```
 
