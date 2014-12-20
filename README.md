@@ -3,13 +3,15 @@ fast-classpath-scanner
 
 Uber-fast, ultra-lightweight Java classpath scanner. Scans the classpath by parsing the classfile binary format directly rather than by using reflection. (Reflection causes the classloader to load each class, which can take an order of magnitude more time than parsing the classfile directly.)
 
-This classpath scanner is able to scan directories and jar/zip files on the classpath to locate:
-* classes that subclass a given class or one of its subclasses
-* classes that implement an interface or one of its subinterfaces
-* classes that have a given annotation
-* file paths (even for non-classfiles) anywhere on the classpath that match a given regexp.
+This classpath scanner is able to scan directories and jar/zip files on the classpath to:
+* find classes that subclass a given class or one of its subclasses
+* find classes that implement an interface or one of its subinterfaces
+* find classes that have a given annotation
+* find classes that contain a specific static final field, returning the constant literal value used to initialize the field in the classfile 
+* find files (even non-classfiles) anywhere on the classpath that have a path that matches a given regular expression
+* detect changes to the classpath since the first time the classpath was scanned.
 
-Usage example (with Java 8 lambda expressions):
+Usage examples below use lambda expressions and Stream patterns from Java 8.
 
 ```java
 
@@ -18,11 +20,13 @@ Usage example (with Java 8 lambda expressions):
           new String[] { "com.xyz.widget", "com.xyz.gizmo" })  
           
       .matchSubclassesOf(DBModel.class,
-          // c is a subclass of DBModel
+          // c is a subclass of DBModel or a descendant subclass
           c -> System.out.println("Subclasses DBModel: " + c.getName()))
           
       .matchClassesImplementing(Runnable.class,
-          // c is a class that implements Runnable
+          // c is a class that implements the interface Runnable; more precisely,
+          // c or one of its superclasses implements the interface Runnable, or
+          // implements an interface that is a descendant of Runnable
           c -> System.out.println("Implements Runnable: " + c.getName()))
           
       .matchClassesWithAnnotation(RestHandler.class,
@@ -66,27 +70,271 @@ Usage example (with Java 8 lambda expressions):
         
       .scan();  // Actually perform the scan
 
-```
 
-*Important note:* you need to pass a whitelist of package prefixes to scan into the constructor, and the ability to detect that a class or interface extends another depends upon the entire ancestral path between the two classes or interfaces having one of the whitelisted package prefixes.
-
-When matching involves classfiles (i.e. in all cases except FastClasspathScanner#matchFilenamePattern, which deals with arbitrary files on the classpath), if the same fully-qualified class name is encountered more than once on the classpath, the second and subsequent definitions of the class are ignored.
-
-The scanner also records the latest last-modified timestamp of any file or directory encountered, and you can see if that latest last-modified timestamp has increased (indicating that something on the classpath has been updated) by calling
-
-```java
+    // [...Some time later...]
+    
+    // See if any timestamps on the classpath are more recent than the time of the
+    // previous scan. (Even faster than classpath scanning, because classfiles
+    // don't have to be opened.)   
     boolean classpathContentsModified =
         fastClassPathScanner.classpathContentsModifiedSinceScan();
+    
 ```
 
-This can be used to enable dynamic class-reloading if something on the classpath is updated, for example to support hot-replace of route handler classes in a webserver. The above call is several times faster than the original call to scan(), since only modification timestamps need to be checked.
+# API
 
-Inspired by: https://github.com/rmuller/infomas-asl/tree/master/annotation-detector
+Note that most of the methods in the API return **this** (of type FastClasspathScanner), so that you can use the **method chaining** calling style, as shown above.
 
-See also: http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.4
+### Whitelisting package prefixes in the call to the constructor
+
+Calling the constructor does not actually start the scan. The constructor takes a whitelist of package prefixes that should be scanned. Whitelisting package prefixes of interest can dramatically speed up classpath scanning, because it limits the number of classfiles that need to be opened and read.
+
+```java
+
+    public FastClasspathScanner(String[] pacakagesToScan) { /*...*/ }
+
+```
+
+### Matching subclasses of a class
+
+FastClasspathScanner can find all classes on the classpath within whitelisted package prefixes that extend a given superclass.
+
+*Important note:* the ability to detect that a class or interface extends another depends upon the entire ancestral path between the two classes or interfaces being within one of the whitelisted package prefixes.
+
+```java
+
+    /** The method to run when a subclass of a specific class is found on the classpath. */
+    @FunctionalInterface
+    public interface SubclassMatchProcessor<T> {
+        public void processMatch(Class<? extends T> matchingClass);
+    }
+
+    /**
+     * Call the provided SubclassMatchProcessor if classes are found on the classpath that extend the
+     * specified superclass.
+     * 
+     * @param superclass
+     *            The superclass to match (i.e. the class that subclasses need to extend to match).
+     * @param subclassMatchProcessor
+     *            the SubclassMatchProcessor to call when a match is found.
+     */
+    public <T> FastClasspathScanner matchSubclassesOf(final Class<T> superclass,
+            final SubclassMatchProcessor<T> subclassMatchProcessor) { /* ... */ }
+
+```
+
+Note that this method does not yet implement the detection of interfaces that extend other interfaces, only classes that extend other classes.
+
+### Matching classes that implement an interface
+
+FastClasspathScanner can find all classes on the classpath within whitelisted package prefixes that that implement a given target interface. The matching logic here is trickier than it would seem, because FastClassPathScanner also has to match classes whose superclasses implement the target interface, or classes that implement a sub-interface (descendant interface) of the target interface, or classes whose superclasses implement a sub-interface of the target interface.
+
+Note again that the ability to detect that a class or interface extends or implements another depends upon the entire ancestral path between the two classes or interfaces being within one of the whitelisted package prefixes.
+
+```java
+
+    /** The method to run when a class implementing a specific interface is found on the classpath. */
+    @FunctionalInterface
+    public interface InterfaceMatchProcessor<T> {
+        public void processMatch(Class<? extends T> matchingClass);
+    }
+
+    /**
+     * Call the provided InterfaceMatchProcessor for classes on the classpath that implement the
+     * specified interface or a sub-interface, or whose superclasses implement the specified interface
+     * or a sub-interface.
+     * 
+     * @param iface
+     *            The interface to match (i.e. the interface that classes need to implement to match).
+     * @param interfaceMatchProcessor
+     *            the ClassMatchProcessor to call when a match is found.
+     */
+    public <T> FastClasspathScanner matchClassesImplementing(final Class<T> iface,
+            final InterfaceMatchProcessor<T> interfaceMatchProcessor) { /* ... */ }
+
+
+```
+
+### Matching classes that have a specified annotation
+
+FastClassPathScanner can detect classes that have a class annotation that matches a given annotation. 
+
+```java
+
+    /** The method to run when a class having a specified annotation is found on the classpath. */
+    @FunctionalInterface
+    public interface ClassAnnotationMatchProcessor {
+        public void processMatch(Class<?> matchingClass);
+    }
+
+    /**
+     * Call the provided ClassAnnotationMatchProcessor if classes are found on the classpath
+     * that have the specified annotation.
+     * 
+     * @param annotation
+     *            The class annotation to match.
+     * @param classAnnotationMatchProcessor
+     *            the ClassAnnotationMatchProcessor to call when a match is found.
+     */
+    public FastClasspathScanner matchClassesWithAnnotation(final Class<?> annotation,
+            final ClassAnnotationMatchProcessor classAnnotationMatchProcessor) { /* ... */ }
+
+```
+
+### Fetching the constant initializer values of named static final fields
+
+FastClassPathScanner is able to scan the classpath for matching fully-qualified static final fields, e.g. for the fully-qualified field name "com.xyz.Config.POLL_INTERVAL", FastClassPathScanner will look in the class com.xyz.Config for the static final field POLL_INTERVAL, and if it is found, and if it has a constant literal initializer value, that value will be read directly from the classfile and passed into a provided StaticFinalFieldMatchProcessor.
+
+Field values are obtained directly from the constant pool in a classfile, not from a loaded class using reflection. This allows you to detect changes to the classpath and then run another scan that picks up the new values of selected static constants without reloading the class. [(Class reloading is fraught with issues.)](http://tutorials.jenkov.com/java-reflection/dynamic-class-loading-reloading.html)
+
+```java
+
+    /**
+     * The method to run when a class with the matching class name and with a final static field with the
+     * matching field name is found on the classpath. The constant value of the final static field is
+     * obtained directly from the constant pool of the classfile.
+     * 
+     * @param className
+     *            The class name, e.g. "com.package.ClassName".
+     * @param fieldName
+     *            The field name, e.g. "STATIC_FIELD_NAME".
+     * @param fieldConstantValue
+     *            The field's constant literal value, read directly from the classfile's constant pool.
+     */
+    @FunctionalInterface
+    public interface StaticFinalFieldMatchProcessor {
+        public void processMatch(String className, String fieldName, Object fieldConstantValue);
+    }
+
+    /**
+     * Call the given StaticFinalFieldMatchProcessor if classes are found on the classpath that contain
+     * static final fields that match one of a set of fully-qualified field names, e.g.
+     * "com.package.ClassName.STATIC_FIELD_NAME".
+     * 
+     * @param fullyQualifiedStaticFinalFieldNames
+     *            The set of fully-qualified static field names to match.
+     * @param staticFinalFieldMatchProcessor
+     *            the StaticFinalFieldMatchProcessor to call when a match is found.
+     */
+    public FastClasspathScanner matchStaticFinalFieldNames(
+            final HashSet<String> fullyQualifiedStaticFinalFieldNames,
+            final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor) { /* ... */ }
+
+```
+
+*Note:* Only static final fields with constant-valued literals are matched, not fields with initializer values that are the result of an expression or reference, except for cases where the compiler is able to simplify an expression into a single constant at compiletime, [such as in the case of string concatenation](https://docs.oracle.com/javase/specs/jvms/se7/html/jvms-5.html#jvms-5.1). The following are examples of constant static final fields:
+
+```java
+
+    public static final int w = 5;
+    public static final String x = "a";
+    static final String y = "a" + "b";  // Referentially equal to the interned String object "ab"
+    private static final int z = 1;     // Private field values are also returned 
+    static final byte b = 0x7f;         // Primitive constants are autoboxed, e.g. byte -> Byte
+
+```
+
+whereas the following fields are non-constant, non-static and/or non-final, so these fields cannot be matched:
+
+```java
+
+    public static final Integer w = 5;  // Non-constant due to autoboxing
+    static final String y = "a" + w;    // Non-constant expression, because x is non-constant
+    static final int[] arr = {1, 2, 3}; // Arrays are non-constant
+    static int n = 100;                 // Assignments are not constant if not both final and static
+    final int q = 5;                    // Non-static 
+
+```
+
+### Finding files (even non-classfiles) anywhere on the classpath whose path matches a given regular expression
+
+This can be useful for detecting changes to non-classfile resources on the classpath, for example a web server's template engine can hot-reload HTML templates when they change by including the template directory in the classpath and then detecting changes to files that are in the template directory and have the extension ".html".
+
+```java
+
+    /** The method to run when a file with a matching path is found on the classpath. */
+    @FunctionalInterface
+    public interface FileMatchProcessor {
+        /**
+         * Process a matching file.
+         * 
+         * @param absolutePath
+         *            The path of the matching file on the filesystem.
+         * @param relativePath
+         *            The path of the matching file relative to the classpath entry that contained the match.
+         * @param inputStream
+         *            An InputStream (either a FileInputStream or a ZipEntry InputStream) opened on the file.
+         *            You do not need to close this InputStream before returning, it is closed by the caller.
+         */
+        public void processMatch(String absolutePath, String relativePath, InputStream inputStream);
+    }
+
+    /**
+     * Call the given FileMatchProcessor if files are found on the classpath with the given regexp pattern in
+     * their path.
+     * 
+     * @param filenameMatchPattern
+     *            The regexp to match, e.g. "app/templates/.*\\.html"
+     * @param fileMatchProcessor
+     *            The FileMatchProcessor to call when each match is found.
+     */
+    public FastClasspathScanner matchFilenamePattern(final String filenameMatchPattern,
+            final FileMatchProcessor fileMatchProcessor) { /* ... */ }
+
+```
+
+### Detecting changes to classpath contents
+
+When the classpath is scanned using scan(), the "latest last modified timestamp" found anywhere on the classpath is recorded (i.e. the latest timestamp out of all last modified timestamps of all files found within the whitelisted package prefixes on the classpath).
+
+After a call to scan(), it is possible to later call classpathContentsModifiedSinceScan() at any point to check if something within the classpath has changed. This method does not look inside classfiles and does not call any match processors, but merely looks at the last modified timestamps of all files and zip/jarfiles within the whitelisted package prefixes of the classpath, updating the latest last modified timestamp if anything has changed. If the latest last modified timestamp increases, this method will return true.  
+
+Since classpathContentsModifiedSinceScan() only checks file modification timestamps, it works several times faster than the original call to scan(). It is therefore a very lightweight operation that can be called in a polling loop to detect changes to classpath contents for hot reloading of resources.
+
+```java
+
+    /** Returns true if the classpath contents have been changed since scan() was last called. */
+    public boolean classpathContentsModifiedSinceScan() { /* ... */ }
+
+```
+
+### Performing the actual scan
+
+The scan() method performs the actual scan. This method may be called multiple times after the initialization steps shown above, although there is usually no point performing additional scans unless classpathContentsModifiedSinceScan() returns true.
+
+```java
+
+    /** Scan classpath for matching files. Call this after all match processors have been added. */
+    public void scan() { /* ... */ }
+
+```
+
+As the scan proceeds, for all match processors that deal with classfiles (i.e. for all but FileMatchProcessor), if the same fully-qualified class name is encountered more than once on the classpath, the second and subsequent definitions of the class are ignored, in order to follow Java's class masking behavior.
+
+## Credits
+
+### Inspiration
+
+FastClasspathScanner was inspired by Ronald Muller's [annotation-detector](https://github.com/rmuller/infomas-asl/tree/master/annotation-detector).
+
+### Author
+
+Luke Hutchison (luke .dot. hutch .at. gmail .dot. com)
 
 Please let me know if you find this useful!
 
-Author: Luke Hutchison (luke .dot. hutch .at. gmail .dot. com)
+### Classfile format documentation
 
-License: MIT
+See Oracle's documentation on the [classfile format](http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html).
+
+### License
+
+The MIT License (MIT)
+
+Copyright (c) 2014 Luke Hutchison
+ 
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ 
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+ 
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
