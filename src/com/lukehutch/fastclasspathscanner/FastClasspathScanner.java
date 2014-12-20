@@ -32,7 +32,8 @@ import java.util.zip.ZipFile;
  * 
  * <code>
  *     new FastClasspathScanner(
- *           new String[] { "com.xyz.widget", "com.xyz.gizmo" })  // Whitelisted package prefixes to scan
+ *           // Whitelisted package prefixes to scan
+ *           new String[] { "com.xyz.widget", "com.xyz.gizmo" })
  * 
  *       .matchSubclassesOf(DBModel.class,
  *           // c is a subclass of DBModel
@@ -65,8 +66,8 @@ import java.util.zip.ZipFile;
  *                       + fieldConstantValue + " in classfile"))
  * 
  *       .matchFilenamePattern("^template/.*\\.html",
- *           // templatePath is a path on the classpath that matches the above pattern;
- *           // inputStream is a stream opened on the file or zipfile entry
+ *           // templatePath is a path on the classpath that matches the above
+ *           // pattern; inputStream is a stream opened on the file or zipfile entry
  *           // No need to close inputStream before exiting, it is closed by caller.
  *           (absolutePath, relativePath, inputStream) -> {
  *              try {
