@@ -42,6 +42,9 @@ Usage example (with Java 8 lambda expressions):
                // the code is running. (Eclipse doesn't hot-replace static constant
                // initializer values if you change them while running code in the
                // debugger, so you can pick up changes this way instead). 
+               // Note that the visibility of the fields is not checked; the value
+               // of the field in the classfile is returned whether or not it
+               // should be visible. 
                (String className, String fieldName, Object fieldConstantValue) ->
                    System.out.println("Static field " + fieldName + " of class "
                        + className + " " + " has constant literal value "
