@@ -268,7 +268,7 @@ whereas the following fields are non-constant, non-static and/or non-final, so t
 ```java
 
 public static final Integer w = 5;  // Non-constant due to autoboxing
-static final String y = "a" + w;    // Non-constant expression, because x is non-const
+static final String y = "a" + w;    // Non-constant expression, because w is non-const
 static final int[] arr = {1, 2, 3}; // Arrays are non-constant
 static int n = 100;                 // Non-final
 final int q = 5;                    // Non-static 
