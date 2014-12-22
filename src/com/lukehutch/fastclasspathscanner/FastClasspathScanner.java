@@ -18,15 +18,15 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 /**
- * Uber-fast, ultra-lightweight Java classpath scanner. Scans the classpath by parsing the classfile binary
- * format directly rather than by using reflection. (Reflection causes the classloader to load each class,
- * which can take an order of magnitude more time than parsing the classfile directly.)
+ * Uber-fast, ultra-lightweight Java classpath scanner. Scans the classpath by parsing the classfile binary format
+ * directly rather than by using reflection. (Reflection causes the classloader to load each class, which can take an
+ * order of magnitude more time than parsing the classfile directly.)
  * 
- * This classpath scanner is able to scan directories and jar/zip files on the classpath to locate: (1)
- * classes that subclass a given class or one of its subclasses; (2) classes that implement an interface or
- * one of its subinterfaces; (3) classes that have a given annotation; (4) classes that contain a specific
- * static final field, returning the constant literal value used to initialize the field in the classfile,
- * and (5) file paths (even for non-classfiles) anywhere on the classpath that match a given regexp.
+ * This classpath scanner is able to scan directories and jar/zip files on the classpath to locate: (1) classes that
+ * subclass a given class or one of its subclasses; (2) classes that implement an interface or one of its subinterfaces;
+ * (3) classes that have a given annotation; (4) classes that contain a specific static final field, returning the
+ * constant literal value used to initialize the field in the classfile, and (5) file paths (even for non-classfiles)
+ * anywhere on the classpath that match a given regexp.
  * 
  * 
  * Usage example (with Java 8 lambda expressions):
@@ -98,20 +98,20 @@ import java.util.zip.ZipFile;
  * 
  * </code>
  * 
- * Note that you need to pass a whitelist of package prefixes to scan into the constructor, and the ability
- * to detect that a class or interface extends another depends upon the entire ancestral path between the
- * two classes or interfaces having one of the whitelisted package prefixes.
+ * Note that you need to pass a whitelist of package prefixes to scan into the constructor, and the ability to detect
+ * that a class or interface extends another depends upon the entire ancestral path between the two classes or
+ * interfaces having one of the whitelisted package prefixes.
  * 
- * When matching involves classfiles (i.e. in all cases except FastClasspathScanner#matchFilenamePattern,
- * which deals with arbitrary files on the classpath), if the same fully-qualified class name is encountered
- * more than once on the classpath, the second and subsequent definitions of the class are ignored.
+ * When matching involves classfiles (i.e. in all cases except FastClasspathScanner#matchFilenamePattern, which deals
+ * with arbitrary files on the classpath), if the same fully-qualified class name is encountered more than once on the
+ * classpath, the second and subsequent definitions of the class are ignored.
  * 
- * The scanner also records the latest last-modified timestamp of any file or directory encountered, and you
- * can see if that latest last-modified timestamp has increased (indicating that something on the classpath
- * has been updated) by calling classpathContentsModifiedSinceScan(). This can be used to enable dynamic
- * class-reloading if something on the classpath is updated, for example to support hot-replace of route
- * handler classes in a webserver. classpathContentsModifiedSinceScan() is several times faster than the
- * original call to scan(), since only modification timestamps need to be checked.
+ * The scanner also records the latest last-modified timestamp of any file or directory encountered, and you can see if
+ * that latest last-modified timestamp has increased (indicating that something on the classpath has been updated) by
+ * calling classpathContentsModifiedSinceScan(). This can be used to enable dynamic class-reloading if something on the
+ * classpath is updated, for example to support hot-replace of route handler classes in a webserver.
+ * classpathContentsModifiedSinceScan() is several times faster than the original call to scan(), since only
+ * modification timestamps need to be checked.
  *
  * Hosted at: https://github.com/lukehutch/fast-classpath-scanner
  * 
@@ -129,42 +129,40 @@ import java.util.zip.ZipFile;
  *
  *          Copyright (c) 2014 Luke Hutchison
  * 
- *          Permission is hereby granted, free of charge, to any person obtaining a copy of this software
- *          and associated documentation files (the "Software"), to deal in the Software without
- *          restriction, including without limitation the rights to use, copy, modify, merge, publish,
- *          distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
- *          Software is furnished to do so, subject to the following conditions:
+ *          Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ *          documentation files (the "Software"), to deal in the Software without restriction, including without
+ *          limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ *          the Software, and to permit persons to whom the Software is furnished to do so, subject to the following
+ *          conditions:
  * 
- *          The above copyright notice and this permission notice shall be included in all copies or
- *          substantial portions of the Software.
+ *          The above copyright notice and this permission notice shall be included in all copies or substantial
+ *          portions of the Software.
  * 
- *          THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
- *          BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- *          NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
- *          DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *          OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ *          THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
+ *          LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO
+ *          EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
+ *          AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
+ *          OR OTHER DEALINGS IN THE SOFTWARE.
  * 
  */
 public class FastClasspathScanner {
 
     /**
-     * List of directory path prefixes to scan (produced from list of package prefixes passed into the
-     * constructor)
+     * List of directory path prefixes to scan (produced from list of package prefixes passed into the constructor)
      */
     private String[] pathsToScan;
 
     /**
-     * The latest last-modified timestamp of any file, directory or sub-directory in the classpath, in
-     * millis since the Unix epoch. Does not consider timestamps inside zipfiles/jarfiles, but the timestamp
-     * of the zip/jarfile itself is considered.
+     * The latest last-modified timestamp of any file, directory or sub-directory in the classpath, in millis since the
+     * Unix epoch. Does not consider timestamps inside zipfiles/jarfiles, but the timestamp of the zip/jarfile itself is
+     * considered.
      */
     private long lastModified = 0;
 
     /**
-     * If this is set to true, then the timestamps of zipfile entries should be used to determine when files
-     * inside a zipfile have changed; if set to false, then the timestamp of the zipfile itself is used.
-     * Itis recommended to leave this set to false, since zipfile timestamps are less trustworthy than
-     * filesystem timestamps.
+     * If this is set to true, then the timestamps of zipfile entries should be used to determine when files inside a
+     * zipfile have changed; if set to false, then the timestamp of the zipfile itself is used. Itis recommended to
+     * leave this set to false, since zipfile timestamps are less trustworthy than filesystem timestamps.
      */
     private static final boolean USE_ZIPFILE_ENTRY_MODIFICATION_TIMES = false;
 
@@ -172,8 +170,7 @@ public class FastClasspathScanner {
     private ArrayList<ClassMatcher> classMatchers = new ArrayList<>();
 
     /**
-     * A list of file path matchers to call when a directory or subdirectory on the classpath matches a
-     * given regexp.
+     * A list of file path matchers to call when a directory or subdirectory on the classpath matches a given regexp.
      */
     private ArrayList<FilePathMatcher> filePathMatchers = new ArrayList<>();
 
@@ -187,8 +184,8 @@ public class FastClasspathScanner {
     private final HashMap<String, ArrayList<String>> annotationToClasses = new HashMap<>();
 
     /**
-     * A map from fully-qualified class name, to static field name, to a StaticFieldMatchProcessor to call
-     * when the class name and static field name matches for a static field in a classfile.
+     * A map from fully-qualified class name, to static field name, to a StaticFieldMatchProcessor to call when the
+     * class name and static field name matches for a static field in a classfile.
      */
     private final HashMap<String, HashMap<String, StaticFinalFieldMatchProcessor>> //
     classNameToStaticFieldnameToMatchProcessor = new HashMap<>();
@@ -197,9 +194,9 @@ public class FastClasspathScanner {
     private final HashMap<String, ArrayList<String>> interfaceToClasses = new HashMap<>();
 
     /**
-     * Classes encountered so far during a scan. If the same fully-qualified classname is encountered more
-     * than once, the second and subsequent instances are ignored, because they are masked by the earlier
-     * occurrence in the classpath.
+     * Classes encountered so far during a scan. If the same fully-qualified classname is encountered more than once,
+     * the second and subsequent instances are ignored, because they are masked by the earlier occurrence in the
+     * classpath.
      */
     private final HashSet<String> classesEncounteredSoFarDuringScan = new HashSet<>();
 
@@ -213,8 +210,7 @@ public class FastClasspathScanner {
      */
     public FastClasspathScanner(String[] pacakagesToScan) {
         this.pathsToScan =
-                Stream.of(pacakagesToScan).map(p -> p.replace('.', '/') + "/").distinct()
-                        .toArray(String[]::new);
+                Stream.of(pacakagesToScan).map(p -> p.replace('.', '/') + "/").distinct().toArray(String[]::new);
     }
 
     // -----------------------------------------------------------------------------------------------------
@@ -226,8 +222,8 @@ public class FastClasspathScanner {
     }
 
     /**
-     * Call the provided SubclassMatchProcessor if classes are found on the classpath that extend the
-     * specified superclass.
+     * Call the provided SubclassMatchProcessor if classes are found on the classpath that extend the specified
+     * superclass.
      * 
      * @param superclass
      *            The superclass to match (i.e. the class that subclasses need to extend to match).
@@ -239,13 +235,11 @@ public class FastClasspathScanner {
             final SubclassMatchProcessor<T> subclassMatchProcessor) {
         if (superclass.isInterface()) {
             // No support yet for scanning for interfaces that extend other interfaces
-            throw new IllegalArgumentException(superclass.getName()
-                    + " is an interface, not a regular class");
+            throw new IllegalArgumentException(superclass.getName() + " is an interface, not a regular class");
         }
         if (superclass.isAnnotation()) {
             // Annotations can't be extended
-            throw new IllegalArgumentException(superclass.getName()
-                    + " is an annotation, not a regular class");
+            throw new IllegalArgumentException(superclass.getName() + " is an annotation, not a regular class");
         }
         classMatchers.add(() -> {
             ClassInfo superclassInfo = classNameToClassInfo.get(superclass.getName());
@@ -280,9 +274,8 @@ public class FastClasspathScanner {
     }
 
     /**
-     * Call the provided InterfaceMatchProcessor for classes on the classpath that implement the specified
-     * interface or a sub-interface, or whose superclasses implement the specified interface or a sub-
-     * interface.
+     * Call the provided InterfaceMatchProcessor for classes on the classpath that implement the specified interface or
+     * a sub-interface, or whose superclasses implement the specified interface or a sub- interface.
      * 
      * @param iface
      *            The interface to match (i.e. the interface that classes need to implement to match).
@@ -325,8 +318,7 @@ public class FastClasspathScanner {
     }
 
     /**
-     * Call the provided ClassMatchProcessor if classes are found on the classpath that have the specified
-     * annotation.
+     * Call the provided ClassMatchProcessor if classes are found on the classpath that have the specified annotation.
      * 
      * @param annotation
      *            The class annotation to match.
@@ -362,21 +354,20 @@ public class FastClasspathScanner {
     // -----------------------------------------------------------------------------------------------------
 
     /**
-     * The method to run when a class with the matching class name and with a final static field with the
-     * matching field name is found on the classpath. The constant value of the final static field is
-     * obtained directly from the constant pool of the classfile.
+     * The method to run when a class with the matching class name and with a final static field with the matching field
+     * name is found on the classpath. The constant value of the final static field is obtained directly from the
+     * constant pool of the classfile.
      * 
-     * Field values are obtained directly from the constant pool in classfiles, not from a loaded class
-     * using reflection. This allows you to detect changes to the classpath and then run another scan that
-     * picks up the new values of selected static constants without reloading the class. (Class reloading is
-     * fraught with issues, see:
+     * Field values are obtained directly from the constant pool in classfiles, not from a loaded class using
+     * reflection. This allows you to detect changes to the classpath and then run another scan that picks up the new
+     * values of selected static constants without reloading the class. (Class reloading is fraught with issues, see:
      * http://tutorials.jenkov.com/java-reflection/dynamic-class-loading-reloading.html )
      * 
-     * Note: Only static final fields with constant-valued literals are matched, not fields with initializer
-     * values that are the result of an expression or reference, except for cases where the compiler is able
-     * to simplify an expression into a single constant at compiletime, such as in the case of string
-     * concatenation (see https://docs.oracle.com/javase/specs/jvms/se7/html/jvms-5.html#jvms-5.1 ). The
-     * following are examples of constant static final fields:
+     * Note: Only static final fields with constant-valued literals are matched, not fields with initializer values that
+     * are the result of an expression or reference, except for cases where the compiler is able to simplify an
+     * expression into a single constant at compiletime, such as in the case of string concatenation (see
+     * https://docs.oracle.com/javase/specs/jvms/se7/html/jvms-5.html#jvms-5.1 ). The following are examples of constant
+     * static final fields:
      * 
      * <code>
      *   public static final int w = 5;
@@ -409,28 +400,24 @@ public class FastClasspathScanner {
     }
 
     /**
-     * Call the given StaticFinalFieldMatchProcessor if classes are found on the classpath that contain
-     * static final fields that match one of a set of fully-qualified field names, e.g.
-     * "com.package.ClassName.STATIC_FIELD_NAME".
+     * Call the given StaticFinalFieldMatchProcessor if classes are found on the classpath that contain static final
+     * fields that match one of a set of fully-qualified field names, e.g. "com.package.ClassName.STATIC_FIELD_NAME".
      * 
-     * Field values are obtained from the constant pool in classfiles, *not* from a loaded class using
-     * reflection. This allows you to detect changes to the classpath and then run another scan that picks
-     * up the new values of selected static constants without reloading the class. (Class reloading is
-     * fraught with issues, see:
+     * Field values are obtained from the constant pool in classfiles, *not* from a loaded class using reflection. This
+     * allows you to detect changes to the classpath and then run another scan that picks up the new values of selected
+     * static constants without reloading the class. (Class reloading is fraught with issues, see:
      * http://tutorials.jenkov.com/java-reflection/dynamic-class-loading-reloading.html )
      * 
-     * Note: Only static final fields with constant-valued literals are matched, not fields with initializer
-     * values that are the result of an expression or reference, except for cases where the compiler is able
-     * to simplify an expression into a single constant at compiletime, such as in the case of string
-     * concatenation.
+     * Note: Only static final fields with constant-valued literals are matched, not fields with initializer values that
+     * are the result of an expression or reference, except for cases where the compiler is able to simplify an
+     * expression into a single constant at compiletime, such as in the case of string concatenation.
      * 
      * @param fullyQualifiedStaticFinalFieldNames
      *            The set of fully-qualified static field names to match.
      * @param staticFinalFieldMatchProcessor
      *            the StaticFinalFieldMatchProcessor to call when a match is found.
      */
-    public FastClasspathScanner matchStaticFinalFieldNames(
-            final HashSet<String> fullyQualifiedStaticFinalFieldNames,
+    public FastClasspathScanner matchStaticFinalFieldNames(final HashSet<String> fullyQualifiedStaticFinalFieldNames,
             final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor) {
         for (String fullyQualifiedFieldName : fullyQualifiedStaticFinalFieldNames) {
             int lastDotIdx = fullyQualifiedFieldName.lastIndexOf('.');
@@ -460,19 +447,17 @@ public class FastClasspathScanner {
          * @param absolutePath
          *            The path of the matching file on the filesystem.
          * @param relativePath
-         *            The path of the matching file relative to the classpath entry that contained the
-         *            match.
+         *            The path of the matching file relative to the classpath entry that contained the match.
          * @param inputStream
-         *            An InputStream (either a FileInputStream or a ZipEntry InputStream) opened on the
-         *            file. You do not need to close this InputStream before returning, it is closed by the
-         *            caller.
+         *            An InputStream (either a FileInputStream or a ZipEntry InputStream) opened on the file. You do not
+         *            need to close this InputStream before returning, it is closed by the caller.
          */
         public void processMatch(String absolutePath, String relativePath, InputStream inputStream);
     }
 
     /**
-     * Call the given FileMatchProcessor if files are found on the classpath with the given regexp pattern
-     * in their path.
+     * Call the given FileMatchProcessor if files are found on the classpath with the given regexp pattern in their
+     * path.
      * 
      * @param filenameMatchPattern
      *            The regexp to match, e.g. "app/templates/.*\\.html"
@@ -481,8 +466,7 @@ public class FastClasspathScanner {
      */
     public FastClasspathScanner matchFilenamePattern(final String filenameMatchPattern,
             final FileMatchProcessor fileMatchProcessor) {
-        filePathMatchers
-                .add(new FilePathMatcher(Pattern.compile(filenameMatchPattern), fileMatchProcessor));
+        filePathMatchers.add(new FilePathMatcher(Pattern.compile(filenameMatchPattern), fileMatchProcessor));
         return this;
     }
 
@@ -508,16 +492,16 @@ public class FastClasspathScanner {
     // -----------------------------------------------------------------------------------------------------
 
     /**
-     * An object to hold class information. For speed purposes, this is reconstructed directly from the
-     * classfile header without calling the classloader.
+     * An object to hold class information. For speed purposes, this is reconstructed directly from the classfile header
+     * without calling the classloader.
      */
     private static class ClassInfo {
         /** Class name */
         String name;
 
         /**
-         * Set to true when this class is encountered in the classpath (false if the class is so far only
-         * cited as a superclass)
+         * Set to true when this class is encountered in the classpath (false if the class is so far only cited as a
+         * superclass)
          */
         boolean encountered;
 
@@ -546,8 +530,8 @@ public class FastClasspathScanner {
         }
 
         /**
-         * If called by another class, this class was previously cited as a superclass, and now has been
-         * itself encountered on the classpath.
+         * If called by another class, this class was previously cited as a superclass, and now has been itself
+         * encountered on the classpath.
          */
         public void encounter(ArrayList<String> interfaces, HashSet<String> annotations) {
             this.encountered = true;
@@ -565,8 +549,8 @@ public class FastClasspathScanner {
         /** Connect this class to a subclass. */
         public void addSubclass(ClassInfo subclass) {
             if (subclass.directSuperclass != null && subclass.directSuperclass != this) {
-                throw new RuntimeException(subclass.name + " has two superclasses: "
-                        + subclass.directSuperclass.name + ", " + this.name);
+                throw new RuntimeException(subclass.name + " has two superclasses: " + subclass.directSuperclass.name
+                        + ", " + this.name);
             }
             subclass.directSuperclass = this;
             subclass.allSuperclasses.add(this);
@@ -733,8 +717,7 @@ public class FastClasspathScanner {
                 && annotationFieldDescriptor.charAt(annotationFieldDescriptor.length() - 1) == ';') {
             // Lcom/xyz/Annotation; -> com.xyz.Annotation
             annotationClassName =
-                    annotationFieldDescriptor.substring(1, annotationFieldDescriptor.length() - 1).replace(
-                            '/', '.');
+                    annotationFieldDescriptor.substring(1, annotationFieldDescriptor.length() - 1).replace('/', '.');
         } else {
             // Should not happen
             annotationClassName = annotationFieldDescriptor;
@@ -750,8 +733,7 @@ public class FastClasspathScanner {
     /**
      * Read annotation element value from classfile.
      */
-    private void readAnnotationElementValue(final DataInputStream inp, Object[] constantPool)
-            throws IOException {
+    private void readAnnotationElementValue(final DataInputStream inp, Object[] constantPool) throws IOException {
         int tag = inp.readUnsignedByte();
         switch (tag) {
         case 'B':
@@ -910,14 +892,8 @@ public class FastClasspathScanner {
             // See http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.6
             boolean isStaticFinal = (accessFlags & 0x0018) == 0x0018;
             String fieldName = readRefdString(inp, constantPool);
-            if (!isStaticFinal) {
-                System.err.println(StaticFinalFieldMatchProcessor.class.getSimpleName()
-                        + ": Ignoring requested field " + className + "." + fieldName
-                        + " because it is not both static and final");
-            }
             StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor =
-                    staticFieldnameToMatchProcessor != null ? staticFieldnameToMatchProcessor
-                            .get(fieldName) : null;
+                    staticFieldnameToMatchProcessor != null ? staticFieldnameToMatchProcessor.get(fieldName) : null;
             String descriptor = readRefdString(inp, constantPool);
             int attributesCount = inp.readUnsignedShort();
             if (!isStaticFinal || staticFinalFieldMatchProcessor == null) {
@@ -1021,8 +997,7 @@ public class FastClasspathScanner {
             InterfaceInfo thisInterfaceInfo = interfaceNameToInterfaceInfo.get(className);
             if (thisInterfaceInfo == null) {
                 // This interface has not been encountered before on the classpath 
-                interfaceNameToInterfaceInfo.put(className, thisInterfaceInfo =
-                        new InterfaceInfo(interfaces));
+                interfaceNameToInterfaceInfo.put(className, thisInterfaceInfo = new InterfaceInfo(interfaces));
             } else {
                 // An interface of this fully-qualified name has been encountered already earlier on
                 // the classpath, so this interface is shadowed, ignore it 
@@ -1036,8 +1011,7 @@ public class FastClasspathScanner {
             ClassInfo thisClassInfo = classNameToClassInfo.get(className);
             if (thisClassInfo == null) {
                 // This class has not been encountered before on the classpath 
-                classNameToClassInfo.put(className, thisClassInfo =
-                        new ClassInfo(className, interfaces, annotations));
+                classNameToClassInfo.put(className, thisClassInfo = new ClassInfo(className, interfaces, annotations));
             } else if (thisClassInfo.encountered) {
                 // A class of this fully-qualified name has been encountered already earlier on
                 // the classpath, so this class is shadowed, ignore it 
@@ -1051,8 +1025,7 @@ public class FastClasspathScanner {
             // Look up ClassInfo object for superclass, and connect it to this class
             ClassInfo superclassInfo = classNameToClassInfo.get(superclassName);
             if (superclassInfo == null) {
-                classNameToClassInfo.put(superclassName, superclassInfo =
-                        new ClassInfo(superclassName, thisClassInfo));
+                classNameToClassInfo.put(superclassName, superclassInfo = new ClassInfo(superclassName, thisClassInfo));
             } else {
                 superclassInfo.addSubclass(thisClassInfo);
             }
@@ -1080,8 +1053,7 @@ public class FastClasspathScanner {
                     if (fileMatcher.pattern.matcher(relativePath).matches()) {
                         // If there's a match, open the file as a stream and call the match processor
                         try (InputStream inputStream = new FileInputStream(file)) {
-                            fileMatcher.fileMatchProcessor.processMatch(absolutePath, relativePath,
-                                    inputStream);
+                            fileMatcher.fileMatchProcessor.processMatch(absolutePath, relativePath, inputStream);
                         }
                     }
                 }
@@ -1094,8 +1066,7 @@ public class FastClasspathScanner {
      */
     private void scanDir(File dir, int ignorePrefixLen, boolean scanTimestampsOnly) throws IOException {
         String absolutePath = dir.getPath();
-        String relativePath =
-                ignorePrefixLen > absolutePath.length() ? "" : absolutePath.substring(ignorePrefixLen);
+        String relativePath = ignorePrefixLen > absolutePath.length() ? "" : absolutePath.substring(ignorePrefixLen);
         if (File.separatorChar != '/') {
             // Fix scanning on Windows
             relativePath = relativePath.replace(File.separatorChar, '/');
@@ -1124,8 +1095,7 @@ public class FastClasspathScanner {
                 } else if (scanFiles && subFile.isFile()) {
                     // Scan file
                     String leafSuffix = "/" + subFile.getName();
-                    scanFile(subFile, absolutePath + leafSuffix, relativePath + leafSuffix,
-                            scanTimestampsOnly);
+                    scanFile(subFile, absolutePath + leafSuffix, relativePath + leafSuffix, scanTimestampsOnly);
                 }
             }
         }
@@ -1164,8 +1134,7 @@ public class FastClasspathScanner {
                             ? entry.getTime() : zipFileLastModified;
                     lastModified = Math.max(lastModified, entryTime);
                     if (entryTime > System.currentTimeMillis() && !timestampWarning) {
-                        String msg =
-                                zipfilePath + " contains modification timestamps after the current time";
+                        String msg = zipfilePath + " contains modification timestamps after the current time";
                         // Log.warning(msg);
                         System.err.println(msg);
                         // Only warn once
@@ -1184,8 +1153,7 @@ public class FastClasspathScanner {
                                     // There's a match -- open the file as a stream and
                                     // call the match processor
                                     try (InputStream inputStream = zipFile.getInputStream(entry)) {
-                                        fileMatcher.fileMatchProcessor
-                                                .processMatch(path, path, inputStream);
+                                        fileMatcher.fileMatchProcessor.processMatch(path, path, inputStream);
                                     }
                                 }
                             }
@@ -1199,8 +1167,8 @@ public class FastClasspathScanner {
     // -----------------------------------------------------------------------------------------------------
 
     /**
-     * Get a list of unique elements on the classpath as File objects, preserving order. Classpath elements
-     * that do not exist are not returned.
+     * Get a list of unique elements on the classpath as File objects, preserving order. Classpath elements that do not
+     * exist are not returned.
      */
     public static ArrayList<File> getUniqueClasspathElements() {
         String[] pathElements = System.getProperty("java.class.path").split(File.pathSeparator);
@@ -1252,8 +1220,7 @@ public class FastClasspathScanner {
                                 // If there's a match, open the file as a stream and call the
                                 // match processor
                                 try (InputStream inputStream = new FileInputStream(pathElt)) {
-                                    fileMatcher.fileMatchProcessor.processMatch(path, pathElt.getName(),
-                                            inputStream);
+                                    fileMatcher.fileMatchProcessor.processMatch(path, pathElt.getName(), inputStream);
                                 }
                             }
                         }
@@ -1285,9 +1252,8 @@ public class FastClasspathScanner {
     }
 
     /**
-     * Returns true if the classpath contents have been changed since scan() was last called. Only considers
-     * classpath prefixes whitelisted in the call to the constructor. Returns true if scan() has not yet
-     * been run.
+     * Returns true if the classpath contents have been changed since scan() was last called. Only considers classpath
+     * prefixes whitelisted in the call to the constructor. Returns true if scan() has not yet been run.
      */
     public boolean classpathContentsModifiedSinceScan() {
         long oldLastModified = this.lastModified;
