@@ -896,8 +896,13 @@ public class FastClasspathScanner {
                     staticFieldnameToMatchProcessor != null ? staticFieldnameToMatchProcessor.get(fieldName) : null;
             String descriptor = readRefdString(inp, constantPool);
             int attributesCount = inp.readUnsignedShort();
-            if (!isStaticFinal || staticFinalFieldMatchProcessor == null) {
-                // Not matching on fields, skip field attributes
+            if (!isStaticFinal && staticFinalFieldMatchProcessor != null) {
+                // Requested to match a field that is not static or not final
+                System.err.println(StaticFinalFieldMatchProcessor.class.getSimpleName()
+                        + ": cannot match requested field " + className + "." + fieldName
+                        + " because it is either not static or not final");
+            } else if (!isStaticFinal || staticFinalFieldMatchProcessor == null) {
+                // Not matching this static final field, just skip field attributes rather than parsing them
                 for (int j = 0; j < attributesCount; j++) {
                     inp.skipBytes(2); // attribute_name_index
                     int attributeLength = inp.readInt();
