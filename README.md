@@ -5,6 +5,7 @@ Uber-fast, ultra-lightweight Java classpath scanner. Scans the classpath by pars
 
 FastClasspathScanner is able to scan directories and jar/zip files on the classpath to:
 * find classes that subclass a given class or one of its subclasses;
+* find interfaces that extend a given interface or one of its subinterfaces;
 * find classes that implement an interface or one of its subinterfaces, or whose superclasses implement the interface or one of its subinterfaces;
 * find classes that have a given annotation;
 * find the constant literal initializer value in a classfile's constant pool for a specified static final field;
@@ -16,59 +17,63 @@ Usage examples below use lambda expressions and Stream patterns from Java 8.
 ```java
 
 new FastClasspathScanner(
-  // Whitelisted package prefixes to scan
-  new String[] { "com.xyz.widget", "com.xyz.gizmo" })  
+         // Whitelisted package prefixes to scan
+         new String[] { "com.xyz.widget", "com.xyz.gizmo" })  
   
-  .matchSubclassesOf(DBModel.class,
-  // c is a subclass of DBModel or a descendant subclass
-  c -> System.out.println("Subclasses DBModel: " + c.getName()))
-  
-  .matchClassesImplementing(Runnable.class,
-  // c is a class that implements the interface Runnable; more precisely,
-  // c or one of its superclasses implements the interface Runnable, or
-  // implements an interface that is a descendant of Runnable
-  c -> System.out.println("Implements Runnable: " + c.getName()))
-  
-  .matchClassesWithAnnotation(RestHandler.class,
-  // c is a class annotated with @RestHandler
-  c -> System.out.println("Has @RestHandler class annotation: " + c.getName()))
- 
-  .matchStaticFinalFieldNames(
-          Stream.of("com.xyz.Config.POLL_INTERVAL", "com.xyz.Config.LOG_LEVEL")
-              .collect(Collectors.toCollection(HashSet::new)),
-      // The following method is called when any static final fields with
-      // names matching one of the above fully-qualified names are
-      // encountered, as long as those fields are initialized to constant
-          // values. The value returned is the value in the classfile, not the
-          // value that would be returned by reflection, so this can be useful
-          // in hot-swapping of changes to static constants in classfiles if
-          // the constant value is changed and the class is re-compiled while
-          // the code is running. (Eclipse doesn't hot-replace static constant
-          // initializer values if you change them while running code in the
-          // debugger, so you can pick up changes this way instead). 
-          // Note that the visibility of the fields is not checked; the value
-          // of the field in the classfile is returned whether or not it
-          // should be visible. 
-          (String className, String fieldName, Object fieldConstantValue) ->
-              System.out.println("Static field " + fieldName + " of class "
-                  + className + " " + " has constant literal value "
-                  + fieldConstantValue + " in classfile"))
+    .matchSubclassesOf(DBModel.class,
+        // c is a subclass of DBModel or a descendant subclass
+        c -> System.out.println("Subclasses DBModel: " + c.getName()))
 
-  .matchFilenamePattern("^template/.*\\.html",
-      // templatePath is a path on the classpath that matches the above pattern;
-      // inputStream is a stream opened on the file or zipfile entry.
-      // No need to close inputStream before exiting, it is closed by caller.
-      (absolutePath, relativePath, inputStream) -> {
-          try {
-              String template = IOUtils.toString(inputStream, "UTF-8");
-              System.out.println("Found template: " + absolutePath
-                      + " (size " + template.length() + ")");
-          } catch (IOException e) {
-              throw new RuntimeException(e);
-          }
-      })
+    .matchSubinterfacesOf(Role.class,
+        // c is an interface that extends the interface Role
+        c -> System.out.println("Subinterface of Role: " + c.getName()))
+
+    .matchClassesImplementing(Runnable.class,
+        // c is a class that implements the interface Runnable; more precisely,
+        // c or one of its superclasses implements the interface Runnable, or
+        // implements an interface that is a descendant of Runnable
+        c -> System.out.println("Implements Runnable: " + c.getName()))
+  
+    .matchClassesWithAnnotation(RestHandler.class,
+        // c is a class annotated with @RestHandler
+        c -> System.out.println("Has @RestHandler class annotation: " + c.getName()))
+ 
+    .matchStaticFinalFieldNames(
+            Stream.of("com.xyz.Config.POLL_INTERVAL", "com.xyz.Config.LOG_LEVEL")
+                  .collect(Collectors.toCollection(HashSet::new)),
+        // The following method is called when any static final fields with
+        // names matching one of the above fully-qualified names are
+        // encountered, as long as those fields are initialized to constant
+        // values. The value returned is the value in the classfile, not the
+        // value that would be returned by reflection, so this can be useful
+        // in hot-swapping of changes to static constants in classfiles if
+        // the constant value is changed and the class is re-compiled while
+        // the code is running. (Eclipse doesn't hot-replace static constant
+        // initializer values if you change them while running code in the
+        // debugger, so you can pick up changes this way instead). 
+        // Note that the visibility of the fields is not checked; the value
+        // of the field in the classfile is returned whether or not it
+        // should be visible. 
+        (String className, String fieldName, Object fieldConstantValue) ->
+            System.out.println("Static field " + fieldName + " of class "
+            + className + " " + " has constant literal value "
+            + fieldConstantValue + " in classfile"))
+
+    .matchFilenamePattern("^template/.*\\.html",
+        // templatePath is a path on the classpath that matches the above pattern;
+        // inputStream is a stream opened on the file or zipfile entry.
+        // No need to close inputStream before exiting, it is closed by caller.
+        (absolutePath, relativePath, inputStream) -> {
+            try {
+                String template = IOUtils.toString(inputStream, "UTF-8");
+                System.out.println("Found template: " + absolutePath
+                    + " (size " + template.length() + ")");
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        })
     
-  .scan();  // Actually perform the scan
+    .scan();  // Actually perform the scan
 
 
 // [...Some time later...]
@@ -139,9 +144,9 @@ Note that this method does not yet implement the detection of interfaces that ex
 
 ### Matching the classes that implement an interface
 
-FastClasspathScanner can find all classes on the classpath within whitelisted package prefixes that that implement a given target interface. The matching logic here is trickier than it would seem, because FastClassPathScanner also has to match classes whose superclasses implement the target interface, or classes that implement a sub-interface (descendant interface) of the target interface, or classes whose superclasses implement a sub-interface of the target interface.
+FastClasspathScanner can find all classes on the classpath within whitelisted package prefixes that that implement a given interface. The matching logic here is trickier than it would seem, because FastClassPathScanner also has to match classes whose superclasses implement the target interface, or classes that implement a sub-interface (descendant interface) of the target interface, or classes whose superclasses implement a sub-interface of the target interface.
 
-Note again that the ability to detect that a class or interface extends or implements another depends upon the entire ancestral path between the two classes or interfaces being within one of the whitelisted package prefixes.
+The ability to detect that a class implements an interface depends upon the entire ancestral path between the class and the interface (and any sub-interfaces or superclasses along that path) being within one of the whitelisted package prefixes.
 
 ```java
 
@@ -168,6 +173,37 @@ public interface InterfaceMatchProcessor<T> {
 public <T> FastClasspathScanner matchClassesImplementing(
         Class<T> iface,
         InterfaceMatchProcessor<T> interfaceMatchProcessor) {
+    /* ... */
+}
+
+```
+
+### Matching the interfaces that extend another interface
+
+FastClasspathScanner can find all interfaces on the classpath within whitelisted package prefixes that that extend a given interface or its subinterfaces.
+
+The ability to detect that an interface extends another interface depends upon the entire ancestral path between the two interfaces being within one of the whitelisted package prefixes.
+
+```java
+
+/** The method to run when an interface that extends another specific interface is found on the classpath. */
+@FunctionalInterface
+public interface SubInterfaceMatchProcessor<T> {
+    public void processMatch(Class<? extends T> matchingClass);
+}
+
+/**
+ * Call the provided SubInterfaceMatchProcessor if an interface that extends a given superinterface is found on the
+ * classpath.
+ * 
+ * @param superInterface
+ *            The superinterface to match (i.e. the interface that subinterfaces need to extend to match).
+ * @param subInterfaceMatchProcessor
+ *            the SubinterfaceMatchProcessor to call when a match is found.
+ */
+@SuppressWarnings("unchecked")
+public <T> FastClasspathScanner matchSubinterfacesOf(final Class<T> superInterface,
+        final SubinterfaceMatchProcessor<T> subInterfaceMatchProcessor) {
     /* ... */
 }
 

@@ -8,10 +8,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedList;
+import java.util.Map.Entry;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
@@ -24,9 +25,9 @@ import java.util.zip.ZipFile;
  * 
  * This classpath scanner is able to scan directories and jar/zip files on the classpath to locate: (1) classes that
  * subclass a given class or one of its subclasses; (2) classes that implement an interface or one of its subinterfaces;
- * (3) classes that have a given annotation; (4) classes that contain a specific static final field, returning the
- * constant literal value used to initialize the field in the classfile, and (5) file paths (even for non-classfiles)
- * anywhere on the classpath that match a given regexp.
+ * (3) interfaces that extend another given interface; (4) classes that have a given annotation; (5) classes that
+ * contain a specific static final field, returning the constant literal value used to initialize the field in the
+ * classfile, and (6) file paths (even for non-classfiles) anywhere on the classpath that match a given regexp.
  * 
  * 
  * Usage example (with Java 8 lambda expressions):
@@ -39,6 +40,10 @@ import java.util.zip.ZipFile;
  *       .matchSubclassesOf(DBModel.class,
  *           // c is a subclass of DBModel or a descendant subclass
  *           c -> System.out.println("Subclasses DBModel: " + c.getName()))
+ * 
+ *       .matchSubinterfacesOf(Role.class,
+ *           // c is an interface that extends the interface Role
+ *           c -> System.out.println("Subinterface of Role: " + c.getName()))
  * 
  *       .matchClassesImplementing(Runnable.class,
  *           // c is a class that implements the interface Runnable; more precisely,
@@ -174,14 +179,11 @@ public class FastClasspathScanner {
      */
     private ArrayList<FilePathMatcher> filePathMatchers = new ArrayList<>();
 
-    /** A map from fully-qualified class name to the corresponding ClassInfo object. */
-    private final HashMap<String, ClassInfo> classNameToClassInfo = new HashMap<>();
+    /** A map from fully-qualified class name to the corresponding ClassNode object. */
+    private final HashMap<String, ClassNode> classNameToClassNode = new HashMap<>();
 
-    /** A map from fully-qualified class name to the corresponding InterfaceInfo object. */
-    private final HashMap<String, InterfaceInfo> interfaceNameToInterfaceInfo = new HashMap<>();
-
-    /** Reverse mapping from annotation to classes that have the annotation. */
-    private final HashMap<String, ArrayList<String>> annotationToClasses = new HashMap<>();
+    /** A map from fully-qualified class name to the corresponding InterfaceNode object. */
+    private final HashMap<String, InterfaceNode> interfaceNameToInterfaceNode = new HashMap<>();
 
     /**
      * A map from fully-qualified class name, to static field name, to a StaticFieldMatchProcessor to call when the
@@ -189,6 +191,9 @@ public class FastClasspathScanner {
      */
     private final HashMap<String, HashMap<String, StaticFinalFieldMatchProcessor>> //
     classNameToStaticFieldnameToMatchProcessor = new HashMap<>();
+
+    /** Reverse mapping from annotation to classes that have the annotation. */
+    private final HashMap<String, ArrayList<String>> annotationToClasses = new HashMap<>();
 
     /** Reverse mapping from interface to classes that implement the interface */
     private final HashMap<String, ArrayList<String>> interfaceToClasses = new HashMap<>();
@@ -234,19 +239,14 @@ public class FastClasspathScanner {
     public <T> FastClasspathScanner matchSubclassesOf(final Class<T> superclass,
             final SubclassMatchProcessor<T> subclassMatchProcessor) {
         if (superclass.isInterface()) {
-            // No support yet for scanning for interfaces that extend other interfaces
             throw new IllegalArgumentException(superclass.getName() + " is an interface, not a regular class");
         }
-        if (superclass.isAnnotation()) {
-            // Annotations can't be extended
-            throw new IllegalArgumentException(superclass.getName() + " is an annotation, not a regular class");
-        }
         classMatchers.add(() -> {
-            ClassInfo superclassInfo = classNameToClassInfo.get(superclass.getName());
+            DAGNode superclassInfo = classNameToClassNode.get(superclass.getName());
             boolean foundMatches = false;
             if (superclassInfo != null) {
                 // For all subclasses of the given superclass
-                for (ClassInfo subclassInfo : superclassInfo.allSubclasses) {
+                for (DAGNode subclassInfo : superclassInfo.allSubNodes) {
                     try {
                         // Load class
                         Class<? extends T> klass = (Class<? extends T>) Class.forName(subclassInfo.name);
@@ -267,6 +267,53 @@ public class FastClasspathScanner {
 
     // -----------------------------------------------------------------------------------------------------
 
+    /** The method to run when an interface that extends another specific interface is found on the classpath. */
+    @FunctionalInterface
+    public interface SubinterfaceMatchProcessor<T> {
+        public void processMatch(Class<? extends T> matchingClass);
+    }
+
+    /**
+     * Call the provided SubInterfaceMatchProcessor if an interface that extends a given superinterface is found on the
+     * classpath.
+     * 
+     * @param superInterface
+     *            The superinterface to match (i.e. the interface that subinterfaces need to extend to match).
+     * @param subInterfaceMatchProcessor
+     *            the SubinterfaceMatchProcessor to call when a match is found.
+     */
+    @SuppressWarnings("unchecked")
+    public <T> FastClasspathScanner matchSubinterfacesOf(final Class<T> superInterface,
+            final SubinterfaceMatchProcessor<T> subInterfaceMatchProcessor) {
+        if (!superInterface.isInterface()) {
+            throw new IllegalArgumentException(superInterface.getName() + " is not an interface");
+        }
+        classMatchers.add(() -> {
+            InterfaceNode interfaceInfo = interfaceNameToInterfaceNode.get(superInterface.getName());
+            boolean foundMatches = false;
+            if (interfaceInfo != null) {
+                // For all subinterfaces of the given superinterface
+                for (DAGNode subInterfaceInfo : interfaceInfo.allSubNodes) {
+                    try {
+                        // Load interface
+                        Class<? extends T> klass = (Class<? extends T>) Class.forName(subInterfaceInfo.name);
+                        // Process match
+                        subInterfaceMatchProcessor.processMatch(klass);
+                        foundMatches = true;
+                    } catch (ClassNotFoundException | NoClassDefFoundError e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            }
+            if (!foundMatches) {
+                // Log.info("No subinterfaces found for interface " + superinterface.getName());
+            }
+        });
+        return this;
+    }
+
+    // -----------------------------------------------------------------------------------------------------
+
     /** The method to run when a class implementing a specific interface is found on the classpath. */
     @FunctionalInterface
     public interface InterfaceMatchProcessor<T> {
@@ -275,21 +322,21 @@ public class FastClasspathScanner {
 
     /**
      * Call the provided InterfaceMatchProcessor for classes on the classpath that implement the specified interface or
-     * a sub-interface, or whose superclasses implement the specified interface or a sub- interface.
+     * a subinterface, or whose superclasses implement the specified interface or a sub- interface.
      * 
-     * @param iface
+     * @param implementedInterface
      *            The interface to match (i.e. the interface that classes need to implement to match).
      * @param interfaceMatchProcessor
      *            the ClassMatchProcessor to call when a match is found.
      */
     @SuppressWarnings("unchecked")
-    public <T> FastClasspathScanner matchClassesImplementing(final Class<T> iface,
+    public <T> FastClasspathScanner matchClassesImplementing(final Class<T> implementedInterface,
             final InterfaceMatchProcessor<T> interfaceMatchProcessor) {
-        if (!iface.isInterface()) {
-            throw new IllegalArgumentException(iface.getName() + " is not an interface");
+        if (!implementedInterface.isInterface()) {
+            throw new IllegalArgumentException(implementedInterface.getName() + " is not an interface");
         }
         classMatchers.add(() -> {
-            ArrayList<String> classesImplementingIface = interfaceToClasses.get(iface.getName());
+            ArrayList<String> classesImplementingIface = interfaceToClasses.get(implementedInterface.getName());
             if (classesImplementingIface != null) {
                 // For all classes implementing the given interface
                 for (String implClass : classesImplementingIface) {
@@ -491,71 +538,76 @@ public class FastClasspathScanner {
 
     // -----------------------------------------------------------------------------------------------------
 
-    /**
-     * An object to hold class information. For speed purposes, this is reconstructed directly from the classfile header
-     * without calling the classloader.
-     */
-    private static class ClassInfo {
-        /** Class name */
+    /** An object to hold class or interface information in a tree or DAG structure. */
+    private static class DAGNode {
+        /** Class or interface name. */
         String name;
 
-        /**
-         * Set to true when this class is encountered in the classpath (false if the class is so far only cited as a
-         * superclass)
-         */
-        boolean encountered;
+        /** Direct superclass (there can be only one) / direct superinterface(s). */
+        ArrayList<DAGNode> directSuperNodes = new ArrayList<>();
 
-        /** Direct superclass */
-        ClassInfo directSuperclass;
+        /** Direct subclass(es) / superinterface(s). */
+        ArrayList<DAGNode> directSubNodes = new ArrayList<>();
 
-        /** Direct subclasses */
-        ArrayList<ClassInfo> directSubclasses = new ArrayList<>();
+        /** All superclasses, including java.lang.Object / all superinterfaces. */
+        HashSet<DAGNode> allSuperNodes = new HashSet<>();
 
-        /** All superclasses, including java.lang.Object. */
-        HashSet<ClassInfo> allSuperclasses = new HashSet<>();
+        /** All subclasses / subinterfaces. */
+        HashSet<DAGNode> allSubNodes = new HashSet<>();
 
-        /** All subclasses */
-        HashSet<ClassInfo> allSubclasses = new HashSet<>();
-
-        /** All interfaces */
-        HashSet<String> interfaces = new HashSet<>();
-
-        /** All annotations */
-        HashSet<String> annotations = new HashSet<>();
-
-        /** This class was encountered on the classpath. */
-        public ClassInfo(String name, ArrayList<String> interfaces, HashSet<String> annotations) {
+        /** This class or interface was encountered on the classpath. */
+        public DAGNode(String name) {
             this.name = name;
-            this.encounter(interfaces, annotations);
         }
 
         /**
-         * If called by another class, this class was previously cited as a superclass, and now has been itself
-         * encountered on the classpath.
+         * This class or interface was previously cited as a superclass or superinterface respectively, and now has
+         * itself been encountered on the classpath.
          */
-        public void encounter(ArrayList<String> interfaces, HashSet<String> annotations) {
-            this.encountered = true;
-            this.interfaces.addAll(interfaces);
-            this.annotations.addAll(annotations);
+        public void encounter() {
         }
 
-        /** This class was referenced as a superclass of the given subclass. */
-        public ClassInfo(String name, ClassInfo subclass) {
+        /** This class/interface was referenced as a superclass/superinterface of the given subclass/subinterface. */
+        public DAGNode(String name, DAGNode subNode) {
             this.name = name;
-            this.encountered = false;
-            addSubclass(subclass);
+            addSubNode(subNode);
         }
 
-        /** Connect this class to a subclass. */
-        public void addSubclass(ClassInfo subclass) {
-            if (subclass.directSuperclass != null && subclass.directSuperclass != this) {
-                throw new RuntimeException(subclass.name + " has two superclasses: " + subclass.directSuperclass.name
-                        + ", " + this.name);
+        /** Connect this node to a subnode. */
+        public void addSubNode(DAGNode subNode) {
+            subNode.directSuperNodes.add(this);
+            subNode.allSuperNodes.add(this);
+            this.directSubNodes.add(subNode);
+            this.allSubNodes.add(subNode);
+        }
+
+        // Topological sort DFS
+        protected void topoSortRec(HashSet<DAGNode> visited, ArrayList<DAGNode> topoOrder) {
+            if (visited.add(this)) {
+                for (DAGNode subNode : directSubNodes) {
+                    subNode.topoSortRec(visited, topoOrder);
+                }
+                topoOrder.add(this);
             }
-            subclass.directSuperclass = this;
-            subclass.allSuperclasses.add(this);
-            this.directSubclasses.add(subclass);
-            this.allSubclasses.add(subclass);
+        }
+
+        /** Perform topological sort on DAG. */
+        public static ArrayList<DAGNode> topoSort(Collection<? extends DAGNode> nodes) {
+            ArrayList<DAGNode> topoOrder = new ArrayList<>(nodes.size());
+            HashSet<DAGNode> visited = new HashSet<>();
+            for (DAGNode node : nodes) {
+                if (node.directSuperNodes.isEmpty()) {
+                    // Start the topo sort at each least upper bound
+                    node.topoSortRec(visited, topoOrder);
+                }
+            }
+            // Reverse the postorder traversal node ordering to get the topological ordering
+            for (int i = 0, n = topoOrder.size(), n2 = n / 2; i < n2; i++) {
+                DAGNode tmp = topoOrder.get(i);
+                topoOrder.set(i, topoOrder.get(n - 1 - i));
+                topoOrder.set(n - 1 - i, tmp);
+            }
+            return topoOrder;
         }
 
         @Override
@@ -564,144 +616,202 @@ public class FastClasspathScanner {
         }
     }
 
-    /**
-     * Direct and ancestral interfaces of a given interface.
-     */
-    private static class InterfaceInfo {
-        ArrayList<String> superInterfaces = new ArrayList<>();
+    /** The tree structure of scanned classes. */
+    private static class ClassNode extends DAGNode {
+        /** All interfaces */
+        ArrayList<String> interfaceNames = new ArrayList<>();
 
-        HashSet<String> allSuperInterfaces = new HashSet<>();
+        /** All annotations */
+        HashSet<String> annotationNames = new HashSet<>();
 
-        public InterfaceInfo(ArrayList<String> superInterfaces) {
-            this.superInterfaces.addAll(superInterfaces);
+        /** This class was encountered on the classpath. */
+        public ClassNode(String name, ArrayList<String> interfaceNames, HashSet<String> annotations) {
+            super(name);
+            this.name = name;
+            this.encounter(interfaceNames, annotations);
         }
 
+        /** A subclass of this class was encountered on the classpath, but this class has not yet been encountered. */
+        public ClassNode(String name, ClassNode subclass) {
+            super(name, subclass);
+        }
+
+        /** This class was previously cited as a superclass, and now has itself been encountered on the classpath. */
+        public void encounter(ArrayList<String> interfaceNames, HashSet<String> annotations) {
+            super.encounter();
+            this.interfaceNames = interfaceNames;
+            this.annotationNames = annotations;
+        }
+
+        /** Connect this class to a subclass. */
+        public void addSubNode(ClassNode subclass) {
+            super.addSubNode(subclass);
+            if (subclass.directSuperNodes.size() > 1) {
+                throw new RuntimeException(subclass.name + " has two superclasses: "
+                        + subclass.directSuperNodes.get(0).name + ", " + subclass.directSuperNodes.get(1).name);
+            }
+        }
+    }
+
+    /** The DAG structure of scanned interfaces. */
+    private static class InterfaceNode extends DAGNode {
+        /** This interface was encountered on the classpath. */
+        public InterfaceNode(String name) {
+            super(name);
+        }
+
+        /**
+         * A subinterface of this interface was encountered on the classpath, but this interface has not yet been
+         * encountered.
+         */
+        public InterfaceNode(String name, InterfaceNode subinterface) {
+            super(name, subinterface);
+        }
     }
 
     // -----------------------------------------------------------------------------------------------------
 
     /**
-     * Recursively find all subclasses for each class; called by finalizeClassHierarchy.
+     * Find all superclasses and subclasses for each class and superinterfaces and subinterfaces of each interface.
+     * Called once all classes have been read.
      */
-    private static void finalizeClassHierarchyRec(ClassInfo curr) {
-        // DFS through subclasses
-        for (ClassInfo subclass : curr.directSubclasses) {
-            finalizeClassHierarchyRec(subclass);
-        }
-        // Postorder traversal of curr node to accumulate subclasses
-        for (ClassInfo subclass : curr.directSubclasses) {
-            curr.allSubclasses.addAll(subclass.allSubclasses);
-        }
-    }
-
-    /**
-     * Recursively find all superinterfaces of each interface; called by finalizeClassHierarchy.
-     */
-    private void finalizeInterfaceHierarchyRec(InterfaceInfo interfaceInfo) {
-        // Interface inheritance is a DAG; don't double-visit nodes
-        if (interfaceInfo.allSuperInterfaces.isEmpty() && !interfaceInfo.superInterfaces.isEmpty()) {
-            interfaceInfo.allSuperInterfaces.addAll(interfaceInfo.superInterfaces);
-            for (String iface : interfaceInfo.superInterfaces) {
-                InterfaceInfo superinterfaceInfo = interfaceNameToInterfaceInfo.get(iface);
-                if (superinterfaceInfo != null) {
-                    finalizeInterfaceHierarchyRec(superinterfaceInfo);
-                    // Merge all ancestral interfaces into list of all superinterfaces for this interface
-                    interfaceInfo.allSuperInterfaces.addAll(superinterfaceInfo.allSuperInterfaces);
-                }
-            }
-        }
-    }
-
-    /**
-     * Find all superclasses and subclasses for each class once all classes have been read.
-     */
-    private void finalizeClassHierarchy() {
-        if (classNameToClassInfo.isEmpty() && interfaceNameToInterfaceInfo.isEmpty()) {
+    private void finalizeNodes() {
+        if (classNameToClassNode.isEmpty() && interfaceNameToInterfaceNode.isEmpty()) {
             // If no classes or interfaces were matched, there is no hierarchy to build
             return;
         }
 
-        // Find all root nodes (most classes and interfaces have java.lang.Object as a superclass)
-        ArrayList<ClassInfo> roots = new ArrayList<>();
-        for (ClassInfo classInfo : classNameToClassInfo.values()) {
-            if (classInfo.directSuperclass == null) {
-                roots.add(classInfo);
+        // Perform topological sort on class tree
+        ArrayList<DAGNode> classNodeTopoOrder = DAGNode.topoSort(classNameToClassNode.values());
+
+        // Accumulate all superclasses of each class by traversing from highest to lowest class
+        for (int i = 0, n = classNodeTopoOrder.size(); i < n; i++) {
+            DAGNode classNode = classNodeTopoOrder.get(i);
+            HashSet<DAGNode> allSuperNodes = new HashSet<>(classNode.allSuperNodes);
+            for (DAGNode superclassNode : classNode.allSuperNodes) {
+                allSuperNodes.addAll(superclassNode.allSuperNodes);
             }
+            classNode.allSuperNodes = allSuperNodes;
         }
 
-        // Accumulate all superclasses and interfaces along each branch of class hierarchy.
-        // Traverse top down / breadth first from roots.
-        LinkedList<ClassInfo> nodes = new LinkedList<>();
-        nodes.addAll(roots);
-        while (!nodes.isEmpty()) {
-            ClassInfo head = nodes.removeFirst();
-
-            if (head.directSuperclass != null) {
-                // Accumulate superclasses from ancestral classes
-                head.allSuperclasses.addAll(head.directSuperclass.allSuperclasses);
+        // Accumulate all subclasses of each class by traversing from lowest to highest class
+        for (int i = classNodeTopoOrder.size() - 1; i >= 0; --i) {
+            DAGNode classNode = classNodeTopoOrder.get(i);
+            HashSet<DAGNode> allSubNodes = new HashSet<>(classNode.allSubNodes);
+            for (DAGNode subclassNode : classNode.allSubNodes) {
+                allSubNodes.addAll(subclassNode.allSubNodes);
             }
-
-            // Add subclasses to queue for BFS
-            for (ClassInfo subclass : head.directSubclasses) {
-                nodes.add(subclass);
-            }
+            classNode.allSubNodes = allSubNodes;
         }
 
-        // Accumulate all subclasses along each branch of class hierarchy.
-        // Traverse depth first, postorder from roots.
-        for (ClassInfo root : roots) {
-            finalizeClassHierarchyRec(root);
+        // Perform topological sort on interface DAG
+        ArrayList<DAGNode> interfaceNodeTopoOrder = DAGNode.topoSort(interfaceNameToInterfaceNode.values());
+
+        // Accumulate all superinterfaces of each interface by traversing from highest to lowest interface
+        for (int i = 0, n = interfaceNodeTopoOrder.size(); i < n; i++) {
+            DAGNode interfaceNode = interfaceNodeTopoOrder.get(i);
+            HashSet<DAGNode> allSuperNodes = new HashSet<>(interfaceNode.allSuperNodes);
+            for (DAGNode superinterfaceNode : interfaceNode.allSuperNodes) {
+                allSuperNodes.addAll(superinterfaceNode.allSuperNodes);
+            }
+            interfaceNode.allSuperNodes = allSuperNodes;
         }
 
-        // Create reverse mapping from annotation to classes that have the annotation
-        for (ClassInfo classInfo : classNameToClassInfo.values()) {
-            for (String annotation : classInfo.annotations) {
-                ArrayList<String> classList = annotationToClasses.get(annotation);
-                if (classList == null) {
-                    annotationToClasses.put(annotation, classList = new ArrayList<String>());
+        // Accumulate all subinterfaces of each interface by traversing from lowest to highest interface
+        for (int i = interfaceNodeTopoOrder.size() - 1; i >= 0; --i) {
+            DAGNode interfaceNode = interfaceNodeTopoOrder.get(i);
+            HashSet<DAGNode> allSubNodes = new HashSet<>(interfaceNode.allSubNodes);
+            for (DAGNode subinterfaceNode : interfaceNode.allSubNodes) {
+                allSubNodes.addAll(subinterfaceNode.allSubNodes);
+            }
+            interfaceNode.allSubNodes = allSubNodes;
+        }
+
+        // Reverse mapping from annotation to classes that have the annotation.
+        HashMap<String, HashSet<DAGNode>> annotationToClassNodes = new HashMap<>();
+
+        // Reverse mapping from interface to classes that implement the interface.
+        HashMap<String, HashSet<DAGNode>> interfaceToClassNodes = new HashMap<>();
+
+        // Create reverse mapping from annotation to the names of classes that have the annotation,
+        // and from interface names to the names of classes that implement the interface.
+        for (DAGNode classDAGNode : classNodeTopoOrder) {
+            ClassNode classNode = (ClassNode) classDAGNode;
+            if (classNode.annotationNames != null) {
+                // Map from annotation back to classes that have the annotation
+                for (String annotation : classNode.annotationNames) {
+                    HashSet<DAGNode> classList = annotationToClassNodes.get(annotation);
+                    if (classList == null) {
+                        annotationToClassNodes.put(annotation, classList = new HashSet<>());
+                    }
+                    classList.add(classDAGNode);
                 }
-                classList.add(classInfo.name);
             }
-        }
 
-        for (InterfaceInfo ii : interfaceNameToInterfaceInfo.values()) {
-            finalizeInterfaceHierarchyRec(ii);
-        }
-
-        // Create reverse mapping from interface to classes that implement the interface
-        for (ClassInfo classInfo : classNameToClassInfo.values()) {
-            // Find all interfaces and superinterfaces of a class
-            HashSet<String> interfaceAndSuperinterfaces = new HashSet<>();
-            for (String iface : classInfo.interfaces) {
-                interfaceAndSuperinterfaces.add(iface);
-                InterfaceInfo ii = interfaceNameToInterfaceInfo.get(iface);
-                if (ii != null) {
-                    interfaceAndSuperinterfaces.addAll(ii.allSuperInterfaces);
-                }
-            }
-            // Add a mapping from the interface or super-interface back to the class
-            for (String iface : interfaceAndSuperinterfaces) {
-                ArrayList<String> classList = interfaceToClasses.get(iface);
-                if (classList == null) {
-                    interfaceToClasses.put(iface, classList = new ArrayList<String>());
-                }
-                classList.add(classInfo.name);
-            }
-        }
-
-        // Classes that subclass another class that implements an interface also implement that interface
-        for (String iface : interfaceToClasses.keySet()) {
-            ArrayList<String> classes = interfaceToClasses.get(iface);
-            HashSet<String> subClasses = new HashSet<String>(classes);
-            for (String klass : classes) {
-                ClassInfo ci = classNameToClassInfo.get(klass);
-                if (ci != null) {
-                    for (ClassInfo subci : ci.allSubclasses) {
-                        subClasses.add(subci.name);
+            if (classNode.interfaceNames != null) {
+                // Map from interface back to classes that implement the interface
+                HashSet<String> interfacesAndSuperinterfaces = new HashSet<>();
+                for (String interfaceName : classNode.interfaceNames) {
+                    // Any class that implements an interface also implements all its superinterfaces
+                    interfacesAndSuperinterfaces.add(interfaceName);
+                    InterfaceNode interfaceNode = interfaceNameToInterfaceNode.get(interfaceName);
+                    if (interfaceNode != null) {
+                        for (DAGNode superinterfaceNode : interfaceNode.allSuperNodes) {
+                            interfacesAndSuperinterfaces.add(superinterfaceNode.name);
+                        }
                     }
                 }
+                for (String interfaceName : interfacesAndSuperinterfaces) {
+                    // Add mapping from interface back to implementing class
+                    HashSet<DAGNode> classList = interfaceToClassNodes.get(interfaceName);
+                    if (classList == null) {
+                        interfaceToClassNodes.put(interfaceName, classList = new HashSet<>());
+                    }
+                    classList.add(classDAGNode);
+                }
             }
-            interfaceToClasses.put(iface, new ArrayList<>(subClasses));
+        }
+
+        // Classes that subclass another class that implements an interface also implement the same interface.
+        // Add these to the mapping from interface back to the classes that implement the interface.
+        for (DAGNode interfaceNode : interfaceNodeTopoOrder) {
+            // Get all classes that implement this interface
+            HashSet<DAGNode> implementingClasses = interfaceToClassNodes.get(interfaceNode.name);
+            if (implementingClasses != null) {
+                // Get the union of all subclasses of all classes that implement this interface
+                HashSet<DAGNode> allSubClasses = new HashSet<DAGNode>(implementingClasses);
+                for (DAGNode implementingClass : implementingClasses) {
+                    allSubClasses.addAll(implementingClass.allSubNodes);
+                }
+                // Add to the mapping from the interface to each subclass of a class that implements the interface
+                HashSet<DAGNode> classList = interfaceToClassNodes.get(interfaceNode.name);
+                if (classList == null) {
+                    interfaceToClassNodes.put(interfaceNode.name, classList = new HashSet<>());
+                }
+                classList.addAll(allSubClasses);
+            }
+        }
+
+        // Convert annotation and interface mappings to String->String 
+        for (Entry<String, HashSet<DAGNode>> ent : annotationToClassNodes.entrySet()) {
+            ArrayList<String> classNameList = new ArrayList<>();
+            annotationToClasses.put(ent.getKey(), classNameList);
+            HashSet<DAGNode> classNodes = ent.getValue();
+            if (classNodes != null) {
+                for (DAGNode classNode : classNodes) {
+                    classNameList.add(classNode.name);
+                }
+            }
+        }
+        for (Entry<String, HashSet<DAGNode>> ent : interfaceToClassNodes.entrySet()) {
+            ArrayList<String> classNameList = new ArrayList<>();
+            interfaceToClasses.put(ent.getKey(), classNameList);
+            HashSet<DAGNode> classNodes = ent.getValue();
+            if (classNodes != null) {
+                for (DAGNode classNode : classNodes) {
+                    classNameList.add(classNode.name);
+                }
+            }
         }
     }
 
@@ -880,7 +990,7 @@ public class FastClasspathScanner {
 
         // Interfaces
         int interfaceCount = inp.readUnsignedShort();
-        ArrayList<String> interfaces = new ArrayList<>();
+        ArrayList<String> interfaces = interfaceCount > 0 ? new ArrayList<>() : null;
         for (int i = 0; i < interfaceCount; i++) {
             interfaces.add(readRefdString(inp, constantPool).replace('/', '.'));
         }
@@ -979,7 +1089,7 @@ public class FastClasspathScanner {
         }
 
         // Attributes (including class annotations)
-        HashSet<String> annotations = new HashSet<>();
+        HashSet<String> annotations = null;
         int attributesCount = inp.readUnsignedShort();
         for (int i = 0; i < attributesCount; i++) {
             String attributeName = readRefdString(inp, constantPool);
@@ -988,6 +1098,9 @@ public class FastClasspathScanner {
                 int annotationCount = inp.readUnsignedShort();
                 for (int m = 0; m < annotationCount; m++) {
                     String annotationName = readAnnotation(inp, constantPool);
+                    if (annotations == null) {
+                        annotations = new HashSet<>();
+                    }
                     annotations.add(annotationName);
                 }
             } else {
@@ -998,41 +1111,52 @@ public class FastClasspathScanner {
         if (isInterface) {
             // Save the info recovered from the classfile for an interface
 
-            // Look up InterfaceInfo object for this interface
-            InterfaceInfo thisInterfaceInfo = interfaceNameToInterfaceInfo.get(className);
+            // Look up InterfaceNode for this interface
+            InterfaceNode thisInterfaceInfo = interfaceNameToInterfaceNode.get(className);
             if (thisInterfaceInfo == null) {
                 // This interface has not been encountered before on the classpath 
-                interfaceNameToInterfaceInfo.put(className, thisInterfaceInfo = new InterfaceInfo(interfaces));
+                interfaceNameToInterfaceNode.put(className, thisInterfaceInfo = new InterfaceNode(className));
             } else {
-                // An interface of this fully-qualified name has been encountered already earlier on
-                // the classpath, so this interface is shadowed, ignore it 
-                return;
+                // This is the first time this interface has been encountered on the classpath, but
+                // it was previously cited as a superinterface of another interface
+                thisInterfaceInfo.encounter();
+            }
+
+            if (interfaces != null) {
+                for (String superInterfaceName : interfaces) {
+                    // Look up InterfaceNode objects for superinterfaces, and connect them to this interface
+                    InterfaceNode superInterfaceNode = interfaceNameToInterfaceNode.get(superInterfaceName);
+                    if (superInterfaceNode == null) {
+                        // The superinterface of this interface has not yet been encountered on the classpath
+                        interfaceNameToInterfaceNode.put(superInterfaceName, superInterfaceNode =
+                                new InterfaceNode(superInterfaceName, thisInterfaceInfo));
+                    } else {
+                        superInterfaceNode.addSubNode(thisInterfaceInfo);
+                    }
+                }
             }
 
         } else {
             // Save the info recovered from the classfile for a class
 
-            // Look up ClassInfo object for this class
-            ClassInfo thisClassInfo = classNameToClassInfo.get(className);
-            if (thisClassInfo == null) {
+            // Look up ClassNode object for this class
+            ClassNode thisClassNode = classNameToClassNode.get(className);
+            if (thisClassNode == null) {
                 // This class has not been encountered before on the classpath 
-                classNameToClassInfo.put(className, thisClassInfo = new ClassInfo(className, interfaces, annotations));
-            } else if (thisClassInfo.encountered) {
-                // A class of this fully-qualified name has been encountered already earlier on
-                // the classpath, so this class is shadowed, ignore it 
-                return;
+                classNameToClassNode.put(className, thisClassNode = new ClassNode(className, interfaces, annotations));
             } else {
                 // This is the first time this class has been encountered on the classpath, but
                 // it was previously cited as a superclass of another class
-                thisClassInfo.encounter(interfaces, annotations);
+                thisClassNode.encounter(interfaces, annotations);
             }
 
-            // Look up ClassInfo object for superclass, and connect it to this class
-            ClassInfo superclassInfo = classNameToClassInfo.get(superclassName);
-            if (superclassInfo == null) {
-                classNameToClassInfo.put(superclassName, superclassInfo = new ClassInfo(superclassName, thisClassInfo));
+            // Look up ClassNode object for superclass, and connect it to this class
+            ClassNode superclassNode = classNameToClassNode.get(superclassName);
+            if (superclassNode == null) {
+                // The superclass of this class has not yet been encountered on the classpath
+                classNameToClassNode.put(superclassName, superclassNode = new ClassNode(superclassName, thisClassNode));
             } else {
-                superclassInfo.addSubclass(thisClassInfo);
+                superclassNode.addSubNode(thisClassNode);
             }
         }
     }
@@ -1198,8 +1322,8 @@ public class FastClasspathScanner {
 
         classesEncounteredSoFarDuringScan.clear();
         if (!scanTimestampsOnly) {
-            classNameToClassInfo.clear();
-            interfaceNameToInterfaceInfo.clear();
+            classNameToClassNode.clear();
+            interfaceNameToInterfaceNode.clear();
             annotationToClasses.clear();
             interfaceToClasses.clear();
         }
@@ -1239,8 +1363,9 @@ public class FastClasspathScanner {
         }
 
         if (!scanTimestampsOnly) {
-            // Finalize class hierarchy, then look for class matches
-            finalizeClassHierarchy();
+            // Finalize class and interface DAGs
+            finalizeNodes();
+            // Look for class and interface matches
             for (ClassMatcher classMatcher : classMatchers) {
                 classMatcher.lookForMatches();
             }
