@@ -156,7 +156,7 @@ The ability to detect that a class implements an interface depends upon the enti
  */
 @FunctionalInterface
 public interface InterfaceMatchProcessor<T> {
-    public void processMatch(Class<? extends T> matchingClass);
+    public void processMatch(Class<? extends T> implementingClass);
 }
 
 /**
@@ -164,14 +164,13 @@ public interface InterfaceMatchProcessor<T> {
  * implement the specified interface or a sub-interface, or whose superclasses
  * implement the specified interface or a sub-interface.
  * 
- * @param iface
- *            The interface to match (i.e. the interface that classes need to implement
- *            to match).
+ * @param implementedInterface
+ *            The interface that classes need to implement to match.
  * @param interfaceMatchProcessor
  *            the ClassMatchProcessor to call when a match is found.
  */
 public <T> FastClasspathScanner matchClassesImplementing(
-        Class<T> iface,
+        Class<T> implementedInterface,
         InterfaceMatchProcessor<T> interfaceMatchProcessor) {
     /* ... */
 }
@@ -186,24 +185,27 @@ The ability to detect that an interface extends another interface depends upon t
 
 ```java
 
-/** The method to run when an interface that extends another specific interface is found on the classpath. */
+/**
+ * The method to run when an interface that extends another specific interface
+ * is found on the classpath.
+ */
 @FunctionalInterface
-public interface SubInterfaceMatchProcessor<T> {
-    public void processMatch(Class<? extends T> matchingClass);
+public interface SubinterfaceMatchProcessor<T> {
+    public void processMatch(Class<? extends T> matchingInterface);
 }
 
 /**
- * Call the provided SubInterfaceMatchProcessor if an interface that extends a given superinterface is found on the
- * classpath.
+ * Call the provided SubInterfaceMatchProcessor if an interface that extends a
+ * given superinterface is found on the classpath.
  * 
  * @param superInterface
  *            The superinterface to match (i.e. the interface that subinterfaces need to extend to match).
- * @param subInterfaceMatchProcessor
+ * @param subinterfaceMatchProcessor
  *            the SubinterfaceMatchProcessor to call when a match is found.
  */
 @SuppressWarnings("unchecked")
 public <T> FastClasspathScanner matchSubinterfacesOf(final Class<T> superInterface,
-        final SubinterfaceMatchProcessor<T> subInterfaceMatchProcessor) {
+        final SubinterfaceMatchProcessor<T> subinterfaceMatchProcessor) {
     /* ... */
 }
 

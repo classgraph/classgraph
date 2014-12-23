@@ -270,7 +270,7 @@ public class FastClasspathScanner {
     /** The method to run when an interface that extends another specific interface is found on the classpath. */
     @FunctionalInterface
     public interface SubinterfaceMatchProcessor<T> {
-        public void processMatch(Class<? extends T> matchingClass);
+        public void processMatch(Class<? extends T> matchingInterface);
     }
 
     /**
@@ -279,12 +279,12 @@ public class FastClasspathScanner {
      * 
      * @param superInterface
      *            The superinterface to match (i.e. the interface that subinterfaces need to extend to match).
-     * @param subInterfaceMatchProcessor
+     * @param subinterfaceMatchProcessor
      *            the SubinterfaceMatchProcessor to call when a match is found.
      */
     @SuppressWarnings("unchecked")
     public <T> FastClasspathScanner matchSubinterfacesOf(final Class<T> superInterface,
-            final SubinterfaceMatchProcessor<T> subInterfaceMatchProcessor) {
+            final SubinterfaceMatchProcessor<T> subinterfaceMatchProcessor) {
         if (!superInterface.isInterface()) {
             throw new IllegalArgumentException(superInterface.getName() + " is not an interface");
         }
@@ -298,7 +298,7 @@ public class FastClasspathScanner {
                         // Load interface
                         Class<? extends T> klass = (Class<? extends T>) Class.forName(subInterfaceInfo.name);
                         // Process match
-                        subInterfaceMatchProcessor.processMatch(klass);
+                        subinterfaceMatchProcessor.processMatch(klass);
                         foundMatches = true;
                     } catch (ClassNotFoundException | NoClassDefFoundError e) {
                         throw new RuntimeException(e);
@@ -317,7 +317,7 @@ public class FastClasspathScanner {
     /** The method to run when a class implementing a specific interface is found on the classpath. */
     @FunctionalInterface
     public interface InterfaceMatchProcessor<T> {
-        public void processMatch(Class<? extends T> matchingClass);
+        public void processMatch(Class<? extends T> implementingClass);
     }
 
     /**
@@ -325,7 +325,7 @@ public class FastClasspathScanner {
      * a subinterface, or whose superclasses implement the specified interface or a sub- interface.
      * 
      * @param implementedInterface
-     *            The interface to match (i.e. the interface that classes need to implement to match).
+ *            The interface that classes need to implement to match.
      * @param interfaceMatchProcessor
      *            the ClassMatchProcessor to call when a match is found.
      */
