@@ -22,7 +22,7 @@ new FastClasspathScanner(
   
     .matchSubclassesOf(DBModel.class,
         // c is a subclass of DBModel or a descendant subclass
-        c -> System.out.println("Subclasses DBModel: " + c.getName()))
+        c -> System.out.println("Subclass of DBModel: " + c.getName()))
 
     .matchSubinterfacesOf(Role.class,
         // c is an interface that extends the interface Role
