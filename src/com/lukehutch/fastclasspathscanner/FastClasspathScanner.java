@@ -52,8 +52,8 @@ import java.util.zip.ZipFile;
  *           c -> System.out.println("Implements Runnable: " + c.getName()))
  * 
  *       .matchClassesWithAnnotation(RestHandler.class,
- *           // c is a class annotated with @RestHandler
- *           c -> System.out.println("Has @RestHandler class annotation: " + c.getName()))
+ *           // c is a class annotated with RestHandler
+ *           c -> System.out.println("Has a RestHandler class annotation: " + c.getName()))
  * 
  *       .matchStaticFinalFieldNames(
  *           Stream.of("com.xyz.Config.POLL_INTERVAL", "com.xyz.Config.LOG_LEVEL")
