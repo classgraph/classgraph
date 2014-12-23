@@ -142,6 +142,40 @@ public <T> FastClasspathScanner matchSubclassesOf(
 
 Note that this method does not yet implement the detection of interfaces that extend other interfaces, only classes that extend other classes.
 
+### Matching the interfaces that extend another interface
+
+FastClasspathScanner can find all interfaces on the classpath within whitelisted package prefixes that that extend a given interface or its subinterfaces.
+
+The ability to detect that an interface extends another interface depends upon the entire ancestral path between the two interfaces being within one of the whitelisted package prefixes.
+
+```java
+
+/**
+ * The method to run when an interface that extends another specific interface
+ * is found on the classpath.
+ */
+@FunctionalInterface
+public interface SubinterfaceMatchProcessor<T> {
+    public void processMatch(Class<? extends T> matchingInterface);
+}
+
+/**
+ * Call the provided SubInterfaceMatchProcessor if an interface that extends a
+ * given superinterface is found on the classpath.
+ * 
+ * @param superInterface
+ *            The superinterface to match (i.e. the interface that subinterfaces need to extend to match).
+ * @param subinterfaceMatchProcessor
+ *            the SubinterfaceMatchProcessor to call when a match is found.
+ */
+@SuppressWarnings("unchecked")
+public <T> FastClasspathScanner matchSubinterfacesOf(final Class<T> superInterface,
+        final SubinterfaceMatchProcessor<T> subinterfaceMatchProcessor) {
+    /* ... */
+}
+
+```
+
 ### Matching the classes that implement an interface
 
 FastClasspathScanner can find all classes on the classpath within whitelisted package prefixes that that implement a given interface. The matching logic here is trickier than it would seem, because FastClassPathScanner also has to match classes whose superclasses implement the target interface, or classes that implement a sub-interface (descendant interface) of the target interface, or classes whose superclasses implement a sub-interface of the target interface.
@@ -172,40 +206,6 @@ public interface InterfaceMatchProcessor<T> {
 public <T> FastClasspathScanner matchClassesImplementing(
         Class<T> implementedInterface,
         InterfaceMatchProcessor<T> interfaceMatchProcessor) {
-    /* ... */
-}
-
-```
-
-### Matching the interfaces that extend another interface
-
-FastClasspathScanner can find all interfaces on the classpath within whitelisted package prefixes that that extend a given interface or its subinterfaces.
-
-The ability to detect that an interface extends another interface depends upon the entire ancestral path between the two interfaces being within one of the whitelisted package prefixes.
-
-```java
-
-/**
- * The method to run when an interface that extends another specific interface
- * is found on the classpath.
- */
-@FunctionalInterface
-public interface SubinterfaceMatchProcessor<T> {
-    public void processMatch(Class<? extends T> matchingInterface);
-}
-
-/**
- * Call the provided SubInterfaceMatchProcessor if an interface that extends a
- * given superinterface is found on the classpath.
- * 
- * @param superInterface
- *            The superinterface to match (i.e. the interface that subinterfaces need to extend to match).
- * @param subinterfaceMatchProcessor
- *            the SubinterfaceMatchProcessor to call when a match is found.
- */
-@SuppressWarnings("unchecked")
-public <T> FastClasspathScanner matchSubinterfacesOf(final Class<T> superInterface,
-        final SubinterfaceMatchProcessor<T> subinterfaceMatchProcessor) {
     /* ... */
 }
 
