@@ -14,7 +14,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map.Entry;
 import java.util.regex.Pattern;
-import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
@@ -213,9 +212,16 @@ public class FastClasspathScanner {
      * @param packagesToScan
      *            package prefixes to scan, e.g. new String[] { "com.xyz.widget", "com.xyz.gizmo" }
      */
-    public FastClasspathScanner(String[] pacakagesToScan) {
-        this.pathsToScan =
-                Stream.of(pacakagesToScan).map(p -> p.replace('.', '/') + "/").distinct().toArray(String[]::new);
+    public FastClasspathScanner(String[] packagesToScan) {
+        HashSet<String> uniquePathsToScan = new HashSet<>();
+        for (String packageToScan : packagesToScan) {
+            uniquePathsToScan.add(packageToScan.replace('.', '/') + "/");
+        }
+        this.pathsToScan = new String[uniquePathsToScan.size()];
+        int i = 0;
+        for (String uniquePathToScan : uniquePathsToScan) {
+            this.pathsToScan[i++] = uniquePathToScan;
+        }
     }
 
     // -----------------------------------------------------------------------------------------------------
