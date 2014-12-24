@@ -29,7 +29,8 @@ import java.util.zip.ZipFile;
  * classfile, and (6) file paths (even for non-classfiles) anywhere on the classpath that match a given regexp.
  * 
  * 
- * Usage example (with Java 8 lambda expressions):
+ * Usage example: (Note that these examples use Java 8 lambda expressions, which at least as of JDK 1.8.0 r20 incur a
+ * one-time startup cost of 30-40ms):
  * 
  * <code>
  *     new FastClasspathScanner(
@@ -247,25 +248,28 @@ public class FastClasspathScanner {
         if (superclass.isInterface()) {
             throw new IllegalArgumentException(superclass.getName() + " is an interface, not a regular class");
         }
-        classMatchers.add(() -> {
-            DAGNode superclassInfo = classNameToClassNode.get(superclass.getName());
-            boolean foundMatches = false;
-            if (superclassInfo != null) {
-                // For all subclasses of the given superclass
-                for (DAGNode subclassInfo : superclassInfo.allSubNodes) {
-                    try {
-                        // Load class
-                        Class<? extends T> klass = (Class<? extends T>) Class.forName(subclassInfo.name);
-                        // Process match
-                        subclassMatchProcessor.processMatch(klass);
-                        foundMatches = true;
-                    } catch (ClassNotFoundException | NoClassDefFoundError e) {
-                        throw new RuntimeException(e);
+        classMatchers.add(new ClassMatcher() {
+            @Override
+            public void lookForMatches() {
+                DAGNode superclassInfo = classNameToClassNode.get(superclass.getName());
+                boolean foundMatches = false;
+                if (superclassInfo != null) {
+                    // For all subclasses of the given superclass
+                    for (DAGNode subclassInfo : superclassInfo.allSubNodes) {
+                        try {
+                            // Load class
+                            Class<? extends T> klass = (Class<? extends T>) Class.forName(subclassInfo.name);
+                            // Process match
+                            subclassMatchProcessor.processMatch(klass);
+                            foundMatches = true;
+                        } catch (ClassNotFoundException | NoClassDefFoundError e) {
+                            throw new RuntimeException(e);
+                        }
                     }
                 }
-            }
-            if (!foundMatches) {
-                // Log.info("No classes found with superclass " + superclass.getName());
+                if (!foundMatches) {
+                    // Log.info("No classes found with superclass " + superclass.getName());
+                }
             }
         });
         return this;
@@ -294,25 +298,28 @@ public class FastClasspathScanner {
         if (!superInterface.isInterface()) {
             throw new IllegalArgumentException(superInterface.getName() + " is not an interface");
         }
-        classMatchers.add(() -> {
-            InterfaceNode interfaceInfo = interfaceNameToInterfaceNode.get(superInterface.getName());
-            boolean foundMatches = false;
-            if (interfaceInfo != null) {
-                // For all subinterfaces of the given superinterface
-                for (DAGNode subInterfaceInfo : interfaceInfo.allSubNodes) {
-                    try {
-                        // Load interface
-                        Class<? extends T> klass = (Class<? extends T>) Class.forName(subInterfaceInfo.name);
-                        // Process match
-                        subinterfaceMatchProcessor.processMatch(klass);
-                        foundMatches = true;
-                    } catch (ClassNotFoundException | NoClassDefFoundError e) {
-                        throw new RuntimeException(e);
+        classMatchers.add(new ClassMatcher() {
+            @Override
+            public void lookForMatches() {
+                InterfaceNode interfaceInfo = interfaceNameToInterfaceNode.get(superInterface.getName());
+                boolean foundMatches = false;
+                if (interfaceInfo != null) {
+                    // For all subinterfaces of the given superinterface
+                    for (DAGNode subInterfaceInfo : interfaceInfo.allSubNodes) {
+                        try {
+                            // Load interface
+                            Class<? extends T> klass = (Class<? extends T>) Class.forName(subInterfaceInfo.name);
+                            // Process match
+                            subinterfaceMatchProcessor.processMatch(klass);
+                            foundMatches = true;
+                        } catch (ClassNotFoundException | NoClassDefFoundError e) {
+                            throw new RuntimeException(e);
+                        }
                     }
                 }
-            }
-            if (!foundMatches) {
-                // Log.info("No subinterfaces found for interface " + superinterface.getName());
+                if (!foundMatches) {
+                    // Log.info("No subinterfaces found for interface " + superinterface.getName());
+                }
             }
         });
         return this;
@@ -331,7 +338,7 @@ public class FastClasspathScanner {
      * a subinterface, or whose superclasses implement the specified interface or a sub- interface.
      * 
      * @param implementedInterface
- *            The interface that classes need to implement to match.
+     *            The interface that classes need to implement to match.
      * @param interfaceMatchProcessor
      *            the ClassMatchProcessor to call when a match is found.
      */
@@ -341,22 +348,25 @@ public class FastClasspathScanner {
         if (!implementedInterface.isInterface()) {
             throw new IllegalArgumentException(implementedInterface.getName() + " is not an interface");
         }
-        classMatchers.add(() -> {
-            ArrayList<String> classesImplementingIface = interfaceToClasses.get(implementedInterface.getName());
-            if (classesImplementingIface != null) {
-                // For all classes implementing the given interface
-                for (String implClass : classesImplementingIface) {
-                    try {
-                        // Load class
-                        Class<? extends T> klass = (Class<? extends T>) Class.forName(implClass);
-                        // Process match
-                        interfaceMatchProcessor.processMatch(klass);
-                    } catch (ClassNotFoundException | NoClassDefFoundError e) {
-                        throw new RuntimeException(e);
+        classMatchers.add(new ClassMatcher() {
+            @Override
+            public void lookForMatches() {
+                ArrayList<String> classesImplementingIface = interfaceToClasses.get(implementedInterface.getName());
+                if (classesImplementingIface != null) {
+                    // For all classes implementing the given interface
+                    for (String implClass : classesImplementingIface) {
+                        try {
+                            // Load class
+                            Class<? extends T> klass = (Class<? extends T>) Class.forName(implClass);
+                            // Process match
+                            interfaceMatchProcessor.processMatch(klass);
+                        } catch (ClassNotFoundException | NoClassDefFoundError e) {
+                            throw new RuntimeException(e);
+                        }
                     }
+                } else {
+                    // Log.info("No classes found implementing interface " + iface.getName());
                 }
-            } else {
-                // Log.info("No classes found implementing interface " + iface.getName());
             }
         });
         return this;
@@ -383,22 +393,25 @@ public class FastClasspathScanner {
         if (!annotation.isAnnotation()) {
             throw new IllegalArgumentException("Class " + annotation.getName() + " is not an annotation");
         }
-        classMatchers.add(() -> {
-            ArrayList<String> classesWithAnnotation = annotationToClasses.get(annotation.getName());
-            if (classesWithAnnotation != null) {
-                // For all classes with the given annotation
-                for (String classWithAnnotation : classesWithAnnotation) {
-                    try {
-                        // Load class
-                        Class<?> klass = Class.forName(classWithAnnotation);
-                        // Process match
-                        classAnnotationMatchProcessor.processMatch(klass);
-                    } catch (ClassNotFoundException | NoClassDefFoundError e) {
-                        throw new RuntimeException(e);
+        classMatchers.add(new ClassMatcher() {
+            @Override
+            public void lookForMatches() {
+                ArrayList<String> classesWithAnnotation = annotationToClasses.get(annotation.getName());
+                if (classesWithAnnotation != null) {
+                    // For all classes with the given annotation
+                    for (String classWithAnnotation : classesWithAnnotation) {
+                        try {
+                            // Load class
+                            Class<?> klass = Class.forName(classWithAnnotation);
+                            // Process match
+                            classAnnotationMatchProcessor.processMatch(klass);
+                        } catch (ClassNotFoundException | NoClassDefFoundError e) {
+                            throw new RuntimeException(e);
+                        }
                     }
+                } else {
+                    // Log.info("No classes found with annotation " + annotation.getName());
                 }
-            } else {
-                // Log.info("No classes found with annotation " + annotation.getName());
             }
         });
         return this;

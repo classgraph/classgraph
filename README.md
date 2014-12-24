@@ -12,8 +12,6 @@ FastClasspathScanner is able to scan directories and jar/zip files on the classp
 * find files (even non-classfiles) anywhere on the classpath that have a path that matches a given regular expression; and
 * detect changes to the files within the classpath since the first time the classpath was scanned.
 
-Usage examples below use lambda expressions and Stream patterns from Java 8.
-
 ```java
 
 new FastClasspathScanner(
@@ -83,6 +81,24 @@ new FastClasspathScanner(
 // don't have to be opened.)   
 boolean classpathContentsModified =
     fastClassPathScanner.classpathContentsModifiedSinceScan();
+
+```
+
+*NOTE: Usage examples above use lambda expressions and Stream patterns from Java 8. As of JDK 1.8.0 r20, lambda expressions and Streams each incur a one-time startup penalty of 30-40ms.* If this overhead is prohibitive, the corresponding usage of FastClasspathScanner without lambda expressions is of the form:
+
+```java
+
+new FastClasspathScanner(
+         new String[] { "com.xyz.widget", "com.xyz.gizmo" })  
+
+    .matchSubclassesOf(DBModel.class, new FastClasspathScanner.SubclassMatchProcessor<DBModel>() {
+        @Override
+        public void processMatch(Class<? extends DBModel> matchingClass) {
+            System.out.println("Subclass of DBModel: " + matchingClass))
+        }
+    })
+        
+    .scan();
 
 ```
 
