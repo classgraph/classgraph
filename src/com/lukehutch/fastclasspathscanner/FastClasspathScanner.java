@@ -1,3 +1,32 @@
+/*
+ * This file is part of FastClasspathScanner.
+ * 
+ * Author: Luke Hutchison <luke .dot. hutch .at. gmail .dot. com>
+ * 
+ * Hosted at: https://github.com/lukehutch/fast-classpath-scanner
+ * 
+ * --
+ *
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2014 Luke Hutchison
+ * 
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without
+ * limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so, subject to the following
+ * conditions:
+ * 
+ * The above copyright notice and this permission notice shall be included in all copies or substantial
+ * portions of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
+ * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO
+ * EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
+ * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
+ * OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+
 package com.lukehutch.fastclasspathscanner;
 
 import java.io.BufferedInputStream;
@@ -16,6 +45,13 @@ import java.util.Map.Entry;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
+
+import com.lukehutch.fastclasspathscanner.matchprocessor.ClassAnnotationMatchProcessor;
+import com.lukehutch.fastclasspathscanner.matchprocessor.FileMatchProcessor;
+import com.lukehutch.fastclasspathscanner.matchprocessor.InterfaceMatchProcessor;
+import com.lukehutch.fastclasspathscanner.matchprocessor.StaticFinalFieldMatchProcessor;
+import com.lukehutch.fastclasspathscanner.matchprocessor.SubclassMatchProcessor;
+import com.lukehutch.fastclasspathscanner.matchprocessor.SubinterfaceMatchProcessor;
 
 /**
  * Uber-fast, ultra-lightweight Java classpath scanner. Scans the classpath by parsing the classfile binary format
@@ -117,38 +153,12 @@ import java.util.zip.ZipFile;
  * classpath is updated, for example to support hot-replace of route handler classes in a webserver.
  * classpathContentsModifiedSinceScan() is several times faster than the original call to scan(), since only
  * modification timestamps need to be checked.
- *
- * Hosted at: https://github.com/lukehutch/fast-classpath-scanner
  * 
  * Inspired by: https://github.com/rmuller/infomas-asl/tree/master/annotation-detector
  * 
  * See also: http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.4
  * 
  * Please let me know if you find this useful!
- *
- * @author Luke Hutchison <luke .dot. hutch .at. gmail .dot. com>
- * 
- * @license MIT
- *
- *          The MIT License (MIT)
- *
- *          Copyright (c) 2014 Luke Hutchison
- * 
- *          Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
- *          documentation files (the "Software"), to deal in the Software without restriction, including without
- *          limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
- *          the Software, and to permit persons to whom the Software is furnished to do so, subject to the following
- *          conditions:
- * 
- *          The above copyright notice and this permission notice shall be included in all copies or substantial
- *          portions of the Software.
- * 
- *          THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
- *          LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO
- *          EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
- *          AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
- *          OR OTHER DEALINGS IN THE SOFTWARE.
- * 
  */
 public class FastClasspathScanner {
 
@@ -227,12 +237,6 @@ public class FastClasspathScanner {
 
     // -----------------------------------------------------------------------------------------------------
 
-    /** The method to run when a subclass of a specific class is found on the classpath. */
-    @FunctionalInterface
-    public interface SubclassMatchProcessor<T> {
-        public void processMatch(Class<? extends T> matchingClass);
-    }
-
     /**
      * Call the provided SubclassMatchProcessor if classes are found on the classpath that extend the specified
      * superclass.
@@ -276,12 +280,6 @@ public class FastClasspathScanner {
     }
 
     // -----------------------------------------------------------------------------------------------------
-
-    /** The method to run when an interface that extends another specific interface is found on the classpath. */
-    @FunctionalInterface
-    public interface SubinterfaceMatchProcessor<T> {
-        public void processMatch(Class<? extends T> matchingInterface);
-    }
 
     /**
      * Call the provided SubInterfaceMatchProcessor if an interface that extends a given superinterface is found on the
@@ -327,12 +325,6 @@ public class FastClasspathScanner {
 
     // -----------------------------------------------------------------------------------------------------
 
-    /** The method to run when a class implementing a specific interface is found on the classpath. */
-    @FunctionalInterface
-    public interface InterfaceMatchProcessor<T> {
-        public void processMatch(Class<? extends T> implementingClass);
-    }
-
     /**
      * Call the provided InterfaceMatchProcessor for classes on the classpath that implement the specified interface or
      * a subinterface, or whose superclasses implement the specified interface or a sub- interface.
@@ -374,12 +366,6 @@ public class FastClasspathScanner {
 
     // -----------------------------------------------------------------------------------------------------
 
-    /** The method to run when a class having a specified annotation is found on the classpath. */
-    @FunctionalInterface
-    public interface ClassAnnotationMatchProcessor {
-        public void processMatch(Class<?> matchingClass);
-    }
-
     /**
      * Call the provided ClassMatchProcessor if classes are found on the classpath that have the specified annotation.
      * 
@@ -420,52 +406,6 @@ public class FastClasspathScanner {
     // -----------------------------------------------------------------------------------------------------
 
     /**
-     * The method to run when a class with the matching class name and with a final static field with the matching field
-     * name is found on the classpath. The constant value of the final static field is obtained directly from the
-     * constant pool of the classfile.
-     * 
-     * Field values are obtained directly from the constant pool in classfiles, not from a loaded class using
-     * reflection. This allows you to detect changes to the classpath and then run another scan that picks up the new
-     * values of selected static constants without reloading the class. (Class reloading is fraught with issues, see:
-     * http://tutorials.jenkov.com/java-reflection/dynamic-class-loading-reloading.html )
-     * 
-     * Note: Only static final fields with constant-valued literals are matched, not fields with initializer values that
-     * are the result of an expression or reference, except for cases where the compiler is able to simplify an
-     * expression into a single constant at compiletime, such as in the case of string concatenation (see
-     * https://docs.oracle.com/javase/specs/jvms/se7/html/jvms-5.html#jvms-5.1 ). The following are examples of constant
-     * static final fields:
-     * 
-     * <code>
-     *   public static final int w = 5;
-     *   public static final String x = "a";
-     *   static final String y = "a" + "b";  // Referentially equal to the interned String object "ab"
-     *   private static final int z = 1;     // Private field values are also returned 
-     *   static final byte b = 0x7f;         // Primitive constants are autoboxed, e.g. byte -> Byte
-     * </code>
-     * 
-     * whereas the following fields are non-constant assignments, so these fields cannot be matched:
-     * 
-     * <code>
-     *   public static final Integer w = 5;  // Non-constant due to autoboxing
-     *   static final String y = "a" + w;    // Non-constant expression, because x is non-constant
-     *   static final int[] arr = {1, 2, 3}; // Arrays are non-constant
-     *   static int n = 100;                 // Non-final 
-     *   final int N = 100;                  // Non-static 
-     * </code>
-     * 
-     * @param className
-     *            The class name, e.g. "com.package.ClassName".
-     * @param fieldName
-     *            The field name, e.g. "STATIC_FIELD_NAME".
-     * @param fieldConstantValue
-     *            The field's constant literal value, read directly from the classfile's constant pool.
-     */
-    @FunctionalInterface
-    public interface StaticFinalFieldMatchProcessor {
-        public void processMatch(String className, String fieldName, Object fieldConstantValue);
-    }
-
-    /**
      * Call the given StaticFinalFieldMatchProcessor if classes are found on the classpath that contain static final
      * fields that match one of a set of fully-qualified field names, e.g. "com.package.ClassName.STATIC_FIELD_NAME".
      * 
@@ -504,23 +444,6 @@ public class FastClasspathScanner {
 
     // -----------------------------------------------------------------------------------------------------
 
-    /** The method to run when a file with a matching path is found on the classpath. */
-    @FunctionalInterface
-    public interface FileMatchProcessor {
-        /**
-         * Process a matching file.
-         * 
-         * @param absolutePath
-         *            The path of the matching file on the filesystem.
-         * @param relativePath
-         *            The path of the matching file relative to the classpath entry that contained the match.
-         * @param inputStream
-         *            An InputStream (either a FileInputStream or a ZipEntry InputStream) opened on the file. You do not
-         *            need to close this InputStream before returning, it is closed by the caller.
-         */
-        public void processMatch(String absolutePath, String relativePath, InputStream inputStream);
-    }
-
     /**
      * Call the given FileMatchProcessor if files are found on the classpath with the given regexp pattern in their
      * path.
@@ -549,8 +472,7 @@ public class FastClasspathScanner {
         }
     }
 
-    /** A functional interface used for testing if a class matches specified criteria. */
-    @FunctionalInterface
+    /** An interface used for testing if a class matches specified criteria. */
     private static interface ClassMatcher {
         public abstract void lookForMatches();
     }
