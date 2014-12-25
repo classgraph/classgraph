@@ -84,23 +84,7 @@ boolean classpathContentsModified =
 
 ```
 
-*NOTE: Usage examples above use lambda expressions and Stream patterns from Java 8. As of JDK 1.8.0 r20, lambda expressions and Streams each incur a one-time startup penalty of 30-40ms.* If this overhead is prohibitive, the corresponding usage of FastClasspathScanner without lambda expressions is of the form:
-
-```java
-
-new FastClasspathScanner(
-         new String[] { "com.xyz.widget", "com.xyz.gizmo" })  
-
-    .matchSubclassesOf(DBModel.class, new FastClasspathScanner.SubclassMatchProcessor<DBModel>() {
-        @Override
-        public void processMatch(Class<? extends DBModel> matchingClass) {
-            System.out.println("Subclass of DBModel: " + matchingClass))
-        }
-    })
-        
-    .scan();
-
-```
+**Note:** See section "Usage caveats" below for important usage points.
 
 # API
 
@@ -410,6 +394,104 @@ public void scan() { /* ... */ }
 ```
 
 As the scan proceeds, for all match processors that deal with classfiles (i.e. for all but FileMatchProcessor), if the same fully-qualified class name is encountered more than once on the classpath, the second and subsequent definitions of the class are ignored, in order to follow Java's class masking behavior.
+
+## Usage caveats
+
+### (1) Startup overhead of Java 8 Streams and lambda expressions
+
+The usage examples above use lambda expressions (functional interfaces) and Stream patterns from Java 8 for simplicity. However, at least as of JDK 1.8.0 r20, lambda expressions and Streams each incur a one-time startup penalty of 30-40ms the first time they are used. If this overhead is prohibitive, the corresponding usage of FastClasspathScanner without lambda expressions is of the form:
+
+```java
+
+new FastClasspathScanner(
+         new String[] { "com.xyz.widget", "com.xyz.gizmo" })  
+
+    .matchSubclassesOf(DBModel.class, new SubclassMatchProcessor<DBModel>() {
+        @Override
+        public void processMatch(Class<? extends DBModel> matchingClass) {
+            System.out.println("Subclass of DBModel: " + matchingClass))
+        }
+    })
+        
+    .scan();
+
+```
+
+### (2) Getting generic class references for parameterized classes
+
+A problem arises when using class-based matchers with parameterized classes, e.g. `Widget<K>`. Because of type erasure, The expression `Widget<K>.class` is not defined, and therefore it is impossible to cast `Class<Widget>` to `Class<Widget<K>>`. More specifically:
+
+* `Widget.class` has the type `Class<Widget>`, not `Class<Widget<?>>` 
+* `new Widget<Integer>().getClass()` has the type `Class<? extends Widget>`, not `Class<? extends Widget<?>>`. The type `Class<? extends Widget>` can be cast to `Class<Widget<?>>` without warning.
+
+ The following code compiles and runs fine, but `SubclassMatchProcessor` must be parameterized with the bare type `Widget` in order to match the reference `Widget.class`. This causes the warning `Test.Widget is a raw type. References to generic type Test.Widget<K> should be parameterized` on `SubclassMatchProcessor<Widget>` and `Type safety: Unchecked cast from Class<capture#1-of ? extends Test.Widget> to Class<Test.Widget<?>>` on `(Class<Widget<?>>)`. 
+
+```java
+
+public class Test {
+    public static class Widget<K> {
+        K id;
+    }
+
+    public static class WidgetSubclass<K> extends Widget<K> {
+    }  
+
+    public static void registerWidgetSubclass(Class<? extends Widget<?>> widgetClass) {
+        System.out.println("Found widget subclass " + widgetClass.getName());
+    }
+    
+    public static void main(String[] args) {
+        new FastClasspathScanner(new String[] { "com.widgets" }) //
+                .matchSubclassesOf(Widget.class, new SubclassMatchProcessor<Widget>() {
+                    @Override
+                    public void processMatch(Class<? extends Widget> widgetClass) {
+                        registerWidget((Class<Widget<?>>) widgetClass);
+                    }
+                }).scan();
+    }
+}
+
+``` 
+
+**Solution 1:** Create an object of the desired type, call getClass(), and cast the result to the generic parameterized class type.
+
+```java
+
+    public static void main(String[] args) {
+        @SuppressWarnings("unchecked")
+        Class<Widget<?>> widgetClass = (Class<Widget<?>>) new Widget<Object>().getClass();
+        
+        new FastClasspathScanner(new String[] { "com.widgets" }) //
+                .matchSubclassesOf(widgetClass, new SubclassMatchProcessor<Widget<?>>() {
+                    @Override
+                    public void processMatch(Class<? extends Widget<?>> widgetClass) {
+                        registerWidgetSubclass(widgetClass);
+                    }
+                }).scan();
+    }
+
+``` 
+
+**Solution 2:** Get a class reference for a subclass of the desired class, then get the generic type of its superclass:
+
+```java
+
+    public static void main(String[] args) {
+        @SuppressWarnings("unchecked")
+        Class<Widget<?>> widgetClass =
+                (Class<Widget<?>>) ((ParameterizedType) WidgetSubclass.class
+                    .getGenericSuperclass()).getRawType();
+        
+        new FastClasspathScanner(new String[] { "com.widgets" }) //
+                .matchSubclassesOf(widgetClass, new SubclassMatchProcessor<Widget<?>>() {
+                    @Override
+                    public void processMatch(Class<? extends Widget<?>> widgetClass) {
+                        registerWidgetSubclass(widgetClass);
+                    }
+                }).scan();
+    }
+
+``` 
 
 ## Credits
 
