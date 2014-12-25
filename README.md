@@ -422,7 +422,7 @@ new FastClasspathScanner(
 A problem arises when using class-based matchers with parameterized classes, e.g. `Widget<K>`. Because of type erasure, The expression `Widget<K>.class` is not defined, and therefore it is impossible to cast `Class<Widget>` to `Class<Widget<K>>`. More specifically:
 
 * `Widget.class` has the type `Class<Widget>`, not `Class<Widget<?>>` 
-* `new Widget<Integer>().getClass()` has the type `Class<? extends Widget>`, not `Class<? extends Widget<?>>`. The type `Class<? extends Widget>` can be cast to `Class<Widget<?>>` without warning.
+* `new Widget<Integer>().getClass()` has the type `Class<? extends Widget>`, not `Class<? extends Widget<?>>`. The type `Class<? extends Widget>` can be cast to `Class<Widget<?>>` with an unchecked conversion warning.
 
  The following code compiles and runs fine, but `SubclassMatchProcessor` must be parameterized with the bare type `Widget` in order to match the reference `Widget.class`. This causes the warning `Test.Widget is a raw type. References to generic type Test.Widget<K> should be parameterized` on `SubclassMatchProcessor<Widget>` and `Type safety: Unchecked cast from Class<capture#1-of ? extends Test.Widget> to Class<Test.Widget<?>>` on `(Class<Widget<?>>)`. 
 
@@ -445,7 +445,7 @@ public class Test {
                 .matchSubclassesOf(Widget.class, new SubclassMatchProcessor<Widget>() {
                     @Override
                     public void processMatch(Class<? extends Widget> widgetClass) {
-                        registerWidget((Class<Widget<?>>) widgetClass);
+                        registerWidgetSubclass((Class<? extends Widget<?>>) widgetClass);
                     }
                 }).scan();
     }
@@ -453,7 +453,7 @@ public class Test {
 
 ``` 
 
-**Solution 1:** Create an object of the desired type, call getClass(), and cast the result to the generic parameterized class type.
+**Solution 1:** Create an object of the desired type, call getClass(), and cast the result to the generic parameterized class type. (Note that `SubclassMatchProcessor<Widget<?>>` is now properly parameterized, and no cast is needed in the function call `registerWidgetSubclass(widgetClass)`.
 
 ```java
 
