@@ -361,7 +361,23 @@ public FastClasspathScanner matchFilenamePattern(
 
 ```
 
-### Detecting changes to classpath contents
+### Performing the actual scan
+
+The scan() method performs the actual scan. This method may be called multiple times after the initialization steps shown above, although there is usually no point performing additional scans unless classpathContentsModifiedSinceScan() returns true.
+
+```java
+
+/**
+ * Scan classpath for matching files. Call this after all match processors have been
+ * added.
+ */
+public void scan() { /* ... */ }
+
+```
+
+As the scan proceeds, for all match processors that deal with classfiles (i.e. for all but FileMatchProcessor), if the same fully-qualified class name is encountered more than once on the classpath, the second and subsequent definitions of the class are ignored, in order to follow Java's class masking behavior.
+
+### Detecting changes to classpath contents after the scan
 
 When the classpath is scanned using scan(), the "latest last modified timestamp" found anywhere on the classpath is recorded (i.e. the latest timestamp out of all last modified timestamps of all files found within the whitelisted package prefixes on the classpath).
 
@@ -378,22 +394,6 @@ Since classpathContentsModifiedSinceScan() only checks file modification timesta
 public boolean classpathContentsModifiedSinceScan() { /* ... */ }
 
 ```
-
-### Performing the actual scan
-
-The scan() method performs the actual scan. This method may be called multiple times after the initialization steps shown above, although there is usually no point performing additional scans unless classpathContentsModifiedSinceScan() returns true.
-
-```java
-
-/**
- * Scan classpath for matching files. Call this after all match processors have been
- * added.
- */
-public void scan() { /* ... */ }
-
-```
-
-As the scan proceeds, for all match processors that deal with classfiles (i.e. for all but FileMatchProcessor), if the same fully-qualified class name is encountered more than once on the classpath, the second and subsequent definitions of the class are ignored, in order to follow Java's class masking behavior.
 
 ## Usage caveats
 
@@ -424,7 +424,7 @@ A problem arises when using class-based matchers with parameterized classes, e.g
 * `Widget.class` has the type `Class<Widget>`, not `Class<Widget<?>>` 
 * `new Widget<Integer>().getClass()` has the type `Class<? extends Widget>`, not `Class<? extends Widget<?>>`. The type `Class<? extends Widget>` can be cast to `Class<Widget<?>>` with an unchecked conversion warning.
 
-The following code compiles and runs fine, but `SubclassMatchProcessor` must be parameterized with the bare type `Widget` in order to match the reference `Widget.class`. This causes the warning `Test.Widget is a raw type. References to generic type Test.Widget<K> should be parameterized` on `SubclassMatchProcessor<Widget>` and `Type safety: Unchecked cast from Class<capture#1-of ? extends Test.Widget> to Class<Test.Widget<?>>` on `(Class<Widget<?>>)`. 
+The following code compiles and runs fine, but `SubclassMatchProcessor` must be parameterized with the bare type `Widget` in order to match the reference `Widget.class`. This causes the warning `Test.Widget is a raw type. References to generic type Test.Widget<K> should be parameterized` on `SubclassMatchProcessor<Widget>` and `Type safety: Unchecked cast from Class<capture#1-of ? extends Test.Widget> to Class<Test.Widget<?>>` on `(Class<? extends Widget<?>>)`. 
 
 ```java
 
@@ -501,9 +501,7 @@ FastClasspathScanner was inspired by Ronald Muller's [annotation-detector](https
 
 ### Author
 
-Luke Hutchison (luke .dot. hutch .at. gmail .dot. com)
-
-**Please let me know if you find FastClasspathScanner useful!**
+Luke Hutchison (luke .dot. hutch .at. gmail .dot. com). *Please let me know if you find FastClasspathScanner useful!*
 
 ### Classfile format documentation
 
