@@ -453,7 +453,7 @@ public class Test {
 
 ``` 
 
-**Solution 1:** Create an object of the desired type, call getClass(), and cast the result to the generic parameterized class type. (Note that `SubclassMatchProcessor<Widget<?>>` is now properly parameterized, and no cast is needed in the function call `registerWidgetSubclass(widgetClass)`.
+**Solution 1:** Create an object of the desired type, call getClass(), and cast the result to the generic parameterized class type. (Note that `SubclassMatchProcessor<Widget<?>>` is now properly parameterized, and no cast is needed in the function call `registerWidgetSubclass(widgetClass)`.)
 
 ```java
 
