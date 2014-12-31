@@ -9,8 +9,9 @@ FastClasspathScanner is able to scan directories and jar/zip files on the classp
 * find classes that implement an interface or one of its subinterfaces, or whose superclasses implement the interface or one of its subinterfaces;
 * find classes that have a given annotation;
 * find the constant literal initializer value in a classfile's constant pool for a specified static final field;
-* find files (even non-classfiles) anywhere on the classpath that have a path that matches a given regular expression; and
-* detect changes to the files within the classpath since the first time the classpath was scanned.
+* find files (even non-classfiles) anywhere on the classpath that have a path that matches a given regular expression;
+* detect changes to the files within the classpath since the first time the classpath was scanned; and
+* return a list of all directories and files on the classpath as a list of File objects, with the list deduplicated and filtered to include only classpath directories and files that actually exist (saving you the trouble of parsing and filtering the classpath).
 
 ```java
 
@@ -392,6 +393,21 @@ Since classpathContentsModifiedSinceScan() only checks file modification timesta
  * last called.
  */
 public boolean classpathContentsModifiedSinceScan() { /* ... */ }
+
+```
+
+### Get all unique directories and files on the classpath
+
+The list of all directories and files on the classpath is returned by the following method. The list is filtered to include only unique classpath elements (duplicates are eliminated), and to include only directories and files that actually exist. The elements in the list are in classpath order.
+
+```java
+
+/**
+ * Get a list of unique elements on the classpath (files and directories)
+ * as File objects, preserving order. Classpath elements that do not exist
+ * are not included in the list.
+ */
+public static ArrayList<File> getUniqueClasspathElements() { /* ... */ }
 
 ```
 

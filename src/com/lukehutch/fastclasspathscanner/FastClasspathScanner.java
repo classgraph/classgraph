@@ -57,12 +57,25 @@ import com.lukehutch.fastclasspathscanner.matchprocessor.SubinterfaceMatchProces
  * directly rather than by using reflection. (Reflection causes the classloader to load each class, which can take an
  * order of magnitude more time than parsing the classfile directly.)
  * 
- * This classpath scanner is able to scan directories and jar/zip files on the classpath to locate: (1) classes that
- * subclass a given class or one of its subclasses; (2) classes that implement an interface or one of its subinterfaces;
- * (3) interfaces that extend another given interface; (4) classes that have a given annotation; (5) classes that
- * contain a specific static final field, returning the constant literal value used to initialize the field in the
- * classfile, and (6) file paths (even for non-classfiles) anywhere on the classpath that match a given regexp.
+ * This classpath scanner is able to scan directories and jar/zip files on the classpath to:
  * 
+ * (1) find classes that subclass a given class or one of its subclasses;
+ * 
+ * (2) find classes that implement an interface or one of its subinterfaces;
+ * 
+ * (3) find interfaces that extend another given interface;
+ * 
+ * (4) find classes that have a given annotation;
+ * 
+ * (5) find classes that contain a specific static final field, returning the constant literal value used to initialize
+ * the field in the classfile;
+ * 
+ * (6) find file paths (even for non-classfiles) anywhere on the classpath that match a given regexp;
+ * 
+ * (7) detect changes to the contents of the classpath after the initial scan; and
+ * 
+ * (8) return a list of all directories and files on the classpath as a list of File objects, with the list deduplicated
+ * and filtered to include only classpath directories and files that actually exist.
  * 
  * Usage example: (Note that these examples use Java 8 lambda expressions, which at least as of JDK 1.8.0 r20 incur a
  * one-time startup cost of 30-40ms):
@@ -883,8 +896,8 @@ public class FastClasspathScanner {
     // -----------------------------------------------------------------------------------------------------
 
     /**
-     * Get a list of unique elements on the classpath as File objects, preserving order. Classpath elements that do not
-     * exist are not returned.
+     * Get a list of unique elements on the classpath (directories and files) as File objects, preserving order.
+     * Classpath elements that do not exist are not included in the list.
      */
     public static ArrayList<File> getUniqueClasspathElements() {
         String[] pathElements = System.getProperty("java.class.path").split(File.pathSeparator);
