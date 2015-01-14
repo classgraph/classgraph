@@ -411,6 +411,10 @@ public static ArrayList<File> getUniqueClasspathElements() { /* ... */ }
 
 ```
 
+## Downloading
+
+You can get a pre-built JAR from [Sonatype](https://oss.sonatype.org/#nexus-search;quick~fast-classpath-scanner), or add a Maven dependency with groupId `io.github.lukehutch` and artifactId `fast-classpath-scanner`. 
+
 ## Usage caveats
 
 ### (1) Startup overhead of Java 8 Streams and lambda expressions
