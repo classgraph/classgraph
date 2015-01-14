@@ -509,6 +509,10 @@ public static void main(String[] args) {
 
 ``` 
 
+## Downloading
+
+You can get a pre-built JAR from [Sonatype](https://oss.sonatype.org/#nexus-search;quick~fast-classpath-scanner), or add a Maven dependency with groupId `io.github.lukehutch` and artifactId `fast-classpath-scanner`. 
+
 ## Credits
 
 ### Inspiration
@@ -517,7 +521,9 @@ FastClasspathScanner was inspired by Ronald Muller's [annotation-detector](https
 
 ### Author
 
-Luke Hutchison (luke .dot. hutch .at. gmail .dot. com). *Please let me know if you find FastClasspathScanner useful!*
+Luke Hutchison -- https://github.com/lukehutch
+
+*Please let me know if you find FastClasspathScanner useful!*
 
 ### Classfile format documentation
 
@@ -527,7 +533,7 @@ See Oracle's documentation on the [classfile format](http://docs.oracle.com/java
 
 The MIT License (MIT)
 
-Copyright (c) 2014 Luke Hutchison
+Copyright (c) 2015 Luke Hutchison
  
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
  

@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2014 Luke Hutchison
+ * Copyright (c) 2015 Luke Hutchison
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -27,7 +27,7 @@
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package com.lukehutch.fastclasspathscanner.classgraph;
+package io.github.lukehutch.fastclasspathscanner.classgraph;
 
 import java.util.ArrayList;
 import java.util.HashMap;

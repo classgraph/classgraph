@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2014 Luke Hutchison
+ * Copyright (c) 2015 Luke Hutchison
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -27,7 +27,15 @@
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package com.lukehutch.fastclasspathscanner;
+package io.github.lukehutch.fastclasspathscanner;
+
+import io.github.lukehutch.fastclasspathscanner.classgraph.ClassGraphBuilder;
+import io.github.lukehutch.fastclasspathscanner.matchprocessor.ClassAnnotationMatchProcessor;
+import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchProcessor;
+import io.github.lukehutch.fastclasspathscanner.matchprocessor.InterfaceMatchProcessor;
+import io.github.lukehutch.fastclasspathscanner.matchprocessor.StaticFinalFieldMatchProcessor;
+import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubclassMatchProcessor;
+import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubinterfaceMatchProcessor;
 
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
@@ -43,14 +51,6 @@ import java.util.HashSet;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
-
-import com.lukehutch.fastclasspathscanner.classgraph.ClassGraphBuilder;
-import com.lukehutch.fastclasspathscanner.matchprocessor.ClassAnnotationMatchProcessor;
-import com.lukehutch.fastclasspathscanner.matchprocessor.FileMatchProcessor;
-import com.lukehutch.fastclasspathscanner.matchprocessor.InterfaceMatchProcessor;
-import com.lukehutch.fastclasspathscanner.matchprocessor.StaticFinalFieldMatchProcessor;
-import com.lukehutch.fastclasspathscanner.matchprocessor.SubclassMatchProcessor;
-import com.lukehutch.fastclasspathscanner.matchprocessor.SubinterfaceMatchProcessor;
 
 /**
  * Uber-fast, ultra-lightweight Java classpath scanner. Scans the classpath by parsing the classfile binary format
