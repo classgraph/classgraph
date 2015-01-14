@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2014 Luke Hutchison
+ * Copyright (c) 2015 Luke Hutchison
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -27,22 +27,10 @@
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package com.lukehutch.fastclasspathscanner.classgraph;
+package io.github.lukehutch.fastclasspathscanner.matchprocessor;
 
-/** The DAG node representing an interface. */
-class InterfaceNode extends DAGNode {
-
-    /** The named interface was encountered on the classpath. */
-    public InterfaceNode(String interfaceName) {
-        super(interfaceName);
-    }
-
-    /**
-     * A subinterface of this interface was encountered on the classpath, but this interface has not yet been
-     * encountered itself on the classpath (so this node is a placeholder until it is itself encountered).
-     */
-    public InterfaceNode(String interfaceName, InterfaceNode subinterfaceName) {
-        super(interfaceName, subinterfaceName);
-    }
-    
+/** The method to run when a subclass of a specific class is found on the classpath. */
+@FunctionalInterface
+public interface SubclassMatchProcessor<T> {
+    public void processMatch(Class<? extends T> matchingClass);
 }

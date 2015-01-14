@@ -1,0 +1,98 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<groupId>io.github.lukehutch</groupId>
+	<artifactId>fast-classpath-scanner</artifactId>
+	<version>1.0.0-SNAPSHOT</version>
+	<name>Fast Classpath Scanner</name>
+
+	<description>
+	Uber-fast, ultra-lightweight Java classpath scanner. Scans the classpath by parsing the classfile  binary format directly rather than by using reflection.
+	See https://github.com/lukehutch/fast-classpath-scanner
+	</description>
+
+	<issueManagement>
+		<url>https://github.com/lukehutch/fast-classpath-scanner/issues</url>
+	</issueManagement>
+
+	<parent>
+		<groupId>org.sonatype.oss</groupId>
+		<artifactId>oss-parent</artifactId>
+		<version>9</version>
+	</parent>
+
+	<licenses>
+		<license>
+			<name>The MIT License (MIT)</name>
+			<url>http://opensource.org/licenses/MIT</url>
+			<distribution>repo</distribution>
+		</license>
+	</licenses>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>3.1</version>
+				<configuration>
+					<source>1.8</source>
+					<target>1.8</target>
+				</configuration>
+			</plugin>
+		</plugins>
+
+		<pluginManagement>
+			<plugins>
+				<!-- remove M2E warning complaining about usage of maven-enforcer-plugin 
+					in parent: see https://github.com/lkrnac/patere/blob/master/pom.xml and http://java.dzone.com/articles/deploy-maven-central -->
+				<plugin>
+					<groupId>org.eclipse.m2e</groupId>
+					<artifactId>lifecycle-mapping</artifactId>
+					<version>1.0.0</version>
+					<configuration>
+						<lifecycleMappingMetadata>
+							<pluginExecutions>
+								<pluginExecution>
+									<pluginExecutionFilter>
+										<groupId>org.apache.maven.plugins</groupId>
+										<artifactId>maven-enforcer-plugin</artifactId>
+										<versionRange>[1.0.0,)</versionRange>
+										<goals>
+											<goal>enforce</goal>
+										</goals>
+									</pluginExecutionFilter>
+									<action>
+										<ignore />
+									</action>
+								</pluginExecution>
+							</pluginExecutions>
+						</lifecycleMappingMetadata>
+					</configuration>
+				</plugin>
+
+				<!-- override version of GPG plugin to use new GPG signing features -->
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-gpg-plugin</artifactId>
+					<version>1.5</version>
+				</plugin>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-release-plugin</artifactId>
+					<version>2.4.2</version>
+				</plugin>
+			</plugins>
+		</pluginManagement>
+
+	</build>
+
+	<scm>
+		<connection>scm:git:git@github.com:lukehutch/fast-classpath-scanner.git</connection>
+		<developerConnection>scm:git:git@github.com:lukehutch/fast-classpath-scanner.git</developerConnection>
+		<url>https://github.com/lukehutch/fast-classpath-scanner</url>
+	  <tag>fast-classpath-scanner-1.0.0</tag>
+  </scm>
+	<url>https://github.com/lukehutch/fast-classpath-scanner</url>
+
+</project>

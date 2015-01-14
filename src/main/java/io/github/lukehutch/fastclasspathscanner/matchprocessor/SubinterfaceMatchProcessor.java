@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2014 Luke Hutchison
+ * Copyright (c) 2015 Luke Hutchison
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -27,23 +27,10 @@
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package com.lukehutch.fastclasspathscanner.matchprocessor;
+package io.github.lukehutch.fastclasspathscanner.matchprocessor;
 
-import java.io.InputStream;
-
-/** The method to run when a file with a matching path is found on the classpath. */
+/** The method to run when an interface that extends another specific interface is found on the classpath. */
 @FunctionalInterface
-public interface FileMatchProcessor {
-    /**
-     * Process a matching file.
-     * 
-     * @param absolutePath
-     *            The path of the matching file on the filesystem.
-     * @param relativePath
-     *            The path of the matching file relative to the classpath entry that contained the match.
-     * @param inputStream
-     *            An InputStream (either a FileInputStream or a ZipEntry InputStream) opened on the file. You do not
-     *            need to close this InputStream before returning, it is closed by the caller.
-     */
-    public void processMatch(String absolutePath, String relativePath, InputStream inputStream);
+public interface SubinterfaceMatchProcessor<T> {
+    public void processMatch(Class<? extends T> matchingInterface);
 }
