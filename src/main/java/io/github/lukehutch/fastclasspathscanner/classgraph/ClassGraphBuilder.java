@@ -30,8 +30,10 @@
 package io.github.lukehutch.fastclasspathscanner.classgraph;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map.Entry;
 
 public class ClassGraphBuilder {
@@ -50,12 +52,20 @@ public class ClassGraphBuilder {
 
     // -----------------------------------------------------------------------------------------------------------------
 
-    public ArrayList<String> getClassesWithAnnotation(String annotationName) {
-        return annotationNameToClassName.get(annotationName);
+    public List<String> getClassesWithAnnotation(String annotationName) {
+        ArrayList<String> classes = annotationNameToClassName.get(annotationName);
+        if (classes == null) {
+            return Collections.emptyList();
+        }
+        return classes;
     }
 
-    public ArrayList<String> getClassesImplementing(String interfaceName) {
-        return interfaceNameToClassNames.get(interfaceName);
+    public List<String> getClassesImplementing(String interfaceName) {
+        ArrayList<String> classes = interfaceNameToClassNames.get(interfaceName);
+        if (classes == null) {
+            return Collections.emptyList();
+        }
+        return classes;
     }
 
     public ArrayList<String> getSubclassesOf(String className) {
