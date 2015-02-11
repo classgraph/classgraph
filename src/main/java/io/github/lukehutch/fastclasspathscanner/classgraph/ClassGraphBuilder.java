@@ -68,7 +68,7 @@ public class ClassGraphBuilder {
         return classes;
     }
 
-    public ArrayList<String> getSubclassesOf(String className) {
+    public List<String> getSubclassesOf(String className) {
         ArrayList<String> subclasses = new ArrayList<>();
         ClassNode classNode = classNameToClassNode.get(className);
         if (classNode != null) {
@@ -79,7 +79,7 @@ public class ClassGraphBuilder {
         return subclasses;
     }
 
-    public ArrayList<String> getSuperclassesOf(String className) {
+    public List<String> getSuperclassesOf(String className) {
         ArrayList<String> superclasses = new ArrayList<>();
         ClassNode classNode = classNameToClassNode.get(className);
         if (classNode != null) {
@@ -90,7 +90,7 @@ public class ClassGraphBuilder {
         return superclasses;
     }
 
-    public ArrayList<String> getSubinterfacesOf(String interfaceName) {
+    public List<String> getSubinterfacesOf(String interfaceName) {
         ArrayList<String> subinterfaces = new ArrayList<>();
         InterfaceNode interfaceNode = interfaceNameToInterfaceNode.get(interfaceName);
         if (interfaceNode != null) {
@@ -101,7 +101,7 @@ public class ClassGraphBuilder {
         return subinterfaces;
     }
 
-    public ArrayList<String> getSuperinterfacesOf(String interfaceName) {
+    public List<String> getSuperinterfacesOf(String interfaceName) {
         ArrayList<String> superinterfaces = new ArrayList<>();
         InterfaceNode interfaceNode = interfaceNameToInterfaceNode.get(interfaceName);
         if (interfaceNode != null) {
