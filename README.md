@@ -40,26 +40,17 @@ new FastClasspathScanner("com.xyz.widget", "com.xyz.gizmo")
         // c is a class annotated with RestHandler
         c -> System.out.println("Has a RestHandler class annotation: " + c.getName()))
  
-    .matchStaticFinalFieldNames(
-            Stream.of("com.xyz.Config.POLL_INTERVAL", "com.xyz.Config.LOG_LEVEL")
-                  .collect(Collectors.toCollection(HashSet::new)),
+    .matchStaticFinalFieldNames("com.xyz.Config.LOG_LEVEL",
         // The following method is called when any static final fields with
         // names matching one of the above fully-qualified names are
         // encountered, as long as those fields are initialized to constant
         // values. The value returned is the value in the classfile, not the
         // value that would be returned by reflection, so this can be useful
-        // in hot-swapping of changes to static constants in classfiles if
-        // the constant value is changed and the class is re-compiled while
-        // the code is running. (Eclipse doesn't hot-replace static constant
-        // initializer values if you change them while running code in the
-        // debugger, so you can pick up changes this way instead). 
-        // Note that the visibility of the fields is not checked; the value
-        // of the field in the classfile is returned whether or not it
-        // should be visible. 
+        // in hot-swapping of changes.
         (String className, String fieldName, Object fieldConstantValue) ->
-            System.out.println("Static field " + fieldName + " of class "
-            + className + " " + " has constant literal value "
-            + fieldConstantValue + " in classfile"))
+            System.out.println("Static field " + fieldName + " in class "
+            + className + " " + " currently has constant literal value "
+            + fieldConstantValue + " in the classfile"))
 
     .matchFilenamePattern("^template/.*\\.html",
         // templatePath is a path on the classpath that matches the above pattern;
@@ -283,6 +274,10 @@ FastClassPathScanner is able to scan the classpath for matching fully-qualified 
 
 Field values are obtained directly from the constant pool in a classfile, not from a loaded class using reflection. This allows you to detect changes to the classpath and then run another scan that picks up the new values of selected static constants without reloading the class. [(Class reloading is fraught with issues.)](http://tutorials.jenkov.com/java-reflection/dynamic-class-loading-reloading.html)
 
+This can be useful in hot-swapping of changes to static constants in classfiles if the constant value is changed and the class is re-compiled while the code is running. (Neither the JVM nor the Eclipse debugger will hot-replace static constant initializer values if you change them while running code, so you can pick up changes this way instead). 
+
+Note that the visibility of the fields is not checked; the value of the field in the classfile is returned whether or not it should be visible to the caller. 
+
 ```java
 
 /**
@@ -320,6 +315,27 @@ public FastClasspathScanner matchStaticFinalFieldNames(
         StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor) {
     /* ... */
 }
+
+/**
+ * (Convenience method if you're only looking to match a single field name)
+ */
+public FastClasspathScanner matchStaticFinalFieldNames(
+        final String fullyQualifiedStaticFinalFieldName,
+        final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor) {
+    /* ... */
+}
+
+/**
+ * (Convenience method that allows you to list static field names in a varargs
+ * parameter list. The parameters are reversed in this method, because the
+ * varargs parameter must come last.)
+ */
+public FastClasspathScanner matchStaticFinalFieldNames(
+        final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor,
+        final String... fullyQualifiedStaticFinalFieldNames) {
+    /* ... */
+}
+
 
 ```
 
