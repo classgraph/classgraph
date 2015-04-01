@@ -132,7 +132,7 @@
 		<connection>scm:git:git@github.com:lukehutch/fast-classpath-scanner.git</connection>
 		<developerConnection>scm:git:git@github.com:lukehutch/fast-classpath-scanner.git</developerConnection>
 		<url>https://github.com/lukehutch/fast-classpath-scanner</url>
-		<tag>fast-classpath-scanner-1.0.0</tag>
+		<tag>fast-classpath-scanner-1.2.1</tag>
 	</scm>
 	<url>https://github.com/lukehutch/fast-classpath-scanner</url>
 
