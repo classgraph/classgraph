@@ -144,8 +144,7 @@ public interface SubclassMatchProcessor<T> {
  * extend the specified superclass.
  * 
  * @param superclass
- *            The superclass to match (i.e. the class that subclasses need to extend
- *            in order to match).
+ *            The superclass to match (i.e. the class that subclasses need to extend)
  * @param subclassMatchProcessor
  *            the SubclassMatchProcessor to call when a match is found.
  */
@@ -183,7 +182,8 @@ public interface SubinterfaceMatchProcessor<T> {
  * given superinterface is found on the classpath.
  * 
  * @param superInterface
- *            The superinterface to match (i.e. the interface that subinterfaces need to extend to match).
+ *            The superinterface to match (i.e. the interface that subinterfaces
+ *            need to extend).
  * @param subinterfaceMatchProcessor
  *            the SubinterfaceMatchProcessor to call when a match is found.
  */
@@ -220,7 +220,7 @@ public interface InterfaceMatchProcessor<T> {
  * implement the specified interface or a sub-interface.
  * 
  * @param implementedInterface
- *            The interface that classes need to implement to match.
+ *            The interface that classes need to implement.
  * @param interfaceMatchProcessor
  *            the ClassMatchProcessor to call when a match is found.
  */
@@ -254,7 +254,7 @@ public interface ClassAnnotationMatchProcessor {
  * classpath that have the specified annotation.
  * 
  * @param annotation
- *            The class annotation to match.
+ *            The class annotation that classes need to have in order to match.
  * @param classAnnotationMatchProcessor
  *            the ClassAnnotationMatchProcessor to call when a match is found.
  */
@@ -276,7 +276,7 @@ Field values are obtained directly from the constant pool in a classfile, not fr
 
 This can be useful in hot-swapping of changes to static constants in classfiles if the constant value is changed and the class is re-compiled while the code is running. (Neither the JVM nor the Eclipse debugger will hot-replace static constant initializer values if you change them while running code, so you can pick up changes this way instead). 
 
-Note that the visibility of the fields is not checked; the value of the field in the classfile is returned whether or not it should be visible to the caller. 
+**Note:** The visibility of the fields is not checked; the value of the field in the classfile is returned whether or not it should be visible to the caller. Therefore you should probably only use this method with public static final fields (not just static final fields) to coincide with Java's own semantics.
 
 ```java
 
@@ -364,8 +364,6 @@ final int q = 5;                    // Non-static
 ```
 
 Primitive types (int, long, short, float, double, boolean, char, byte) are wrapped in the corresponding wrapper class (Integer, Long etc.) before being passed to the provided StaticFinalFieldMatchProcessor.
-
-**Note:** Visibility modifiers of matching fields are not checked, so the constant literal initializer value of matching fields will be returned even in cases where fields are private, package-private or protected.  
 
 ### Finding files (even non-classfiles) anywhere on the classpath whose path matches a given regular expression
 
