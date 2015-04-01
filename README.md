@@ -85,6 +85,24 @@ boolean classpathContentsModified =
 
 ```
 
+You can also get a list of matching fully-qualified classnames for interfaces and classes matching required criteria
+without ever calling the classloader for the matching classes, e.g.:
+
+```
+    FastClasspathScanner scanner = new FastClasspathScanner(
+          // Whitelisted package prefixes to scan:
+          new String[] { "com.xyz.widget" });
+          
+    // Parse the class hierarchy of all classfiles on the classpath
+    // without calling the classloader on any of them
+    scanner.scan();
+
+    // Get the names of all subclasses of Widget on the classpath,
+    // again without calling the classloader:
+    List<String> subclassesOfWidget =
+        scanner.getSubclassesOf("com.xyz.widget.Widget");
+```
+
 **Note:** See section "Usage caveats" below for important usage points.
 
 # API

@@ -48,6 +48,7 @@ import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
@@ -148,7 +149,21 @@ import java.util.zip.ZipFile;
  *    // don't have to be opened.)   
  *    boolean classpathContentsModified =
  *        fastClassPathScanner.classpathContentsModifiedSinceScan();
+ * </code>
  * 
+ * You can also get a list of matching fully-qualified classnames for interfaces and classes matching required criteria
+ * without ever calling the classloader for the matching classes, e.g.:
+ * 
+ * <code>
+ *     FastClasspathScanner scanner = new FastClasspathScanner(
+ *           // Whitelisted package prefixes to scan:
+ *           new String[] { "com.xyz.widget" });
+ *           
+ *     // Parse the class hierarchy of all classfiles on the classpath without calling the classloader for any of them
+ *     scanner.scan();
+ * 
+ *     // Get the names of all subclasses of Widget on the classpath 
+ *     List<String> subclassesOfWidget = scanner.getSubclassesOf("com.xyz.widget.Widget");
  * </code>
  * 
  * Note that you need to pass a whitelist of package prefixes to scan into the constructor, and the ability to detect
@@ -221,7 +236,7 @@ public class FastClasspathScanner {
     // -----------------------------------------------------------------------------------------------------
 
     /**
-     * Construct a FastClasspathScanner instance.
+     * Constructs a FastClasspathScanner instance.
      * 
      * @param packagesToScan
      *            package prefixes to scan, e.g. new String[] { "com.xyz.widget", "com.xyz.gizmo" }
@@ -241,8 +256,9 @@ public class FastClasspathScanner {
     // -----------------------------------------------------------------------------------------------------
 
     /**
-     * Call the provided SubclassMatchProcessor if classes are found on the classpath that extend the specified
-     * superclass.
+     * Calls the provided SubclassMatchProcessor if classes are found on the classpath that extend the specified
+     * superclass. Will call the class loader on each matching class (using Class.forName()) before calling the
+     * SubclassMatchProcessor. Does not call the classloader on non-matching classes or interfaces.
      * 
      * @param superclass
      *            The superclass to match (i.e. the class that subclasses need to extend to match).
@@ -275,11 +291,26 @@ public class FastClasspathScanner {
         return this;
     }
 
+    /**
+     * Returns the list of classes on the classpath that extend the specified superclass. Should be called after scan().
+     * Does not call the classloader on the matching classes, just returns their names.
+     * 
+     * @param superclass
+     *            The superclass to match (i.e. the class that subclasses need to extend to match).
+     */
+    public <T> List<String> getSubclassesOf(final Class<T> superclass) {
+        if (superclass.isInterface()) {
+            throw new IllegalArgumentException(superclass.getName() + " is an interface, not a regular class");
+        }
+        return classGraphBuilder.getSubclassesOf(superclass.getName());
+    }
+
     // -----------------------------------------------------------------------------------------------------
 
     /**
-     * Call the provided SubInterfaceMatchProcessor if an interface that extends a given superinterface is found on the
-     * classpath.
+     * Calls the provided SubInterfaceMatchProcessor if an interface that extends a given superinterface is found on the
+     * classpath. Will call the class loader on each matching interface (using Class.forName()) before calling the
+     * SubinterfaceMatchProcessor. Does not call the classloader on non-matching classes or interfaces.
      * 
      * @param superInterface
      *            The superinterface to match (i.e. the interface that subinterfaces need to extend to match).
@@ -312,11 +343,27 @@ public class FastClasspathScanner {
         return this;
     }
 
+    /**
+     * Returns the list of interfaces on the classpath that extend a given superinterface. Should be called after
+     * scan(). Does not call the classloader on the matching interfaces, just returns their names.
+     * 
+     * @param superInterface
+     *            The superinterface to match (i.e. the interface that subinterfaces need to extend to match).
+     */
+    public <T> List<String> getSubinterfacesOf(final Class<T> superInterface) {
+        if (!superInterface.isInterface()) {
+            throw new IllegalArgumentException(superInterface.getName() + " is not an interface");
+        }
+        return classGraphBuilder.getSubinterfacesOf(superInterface.getName());
+    }
+
     // -----------------------------------------------------------------------------------------------------
 
     /**
-     * Call the provided InterfaceMatchProcessor for classes on the classpath that implement the specified interface or
-     * a subinterface, or whose superclasses implement the specified interface or a sub- interface.
+     * Calls the provided InterfaceMatchProcessor for classes on the classpath that implement the specified interface or
+     * a subinterface, or whose superclasses implement the specified interface or a sub-interface. Will call the class
+     * loader on each matching interface (using Class.forName()) before calling the InterfaceMatchProcessor. Does not
+     * call the classloader on non-matching classes or interfaces.
      * 
      * @param implementedInterface
      *            The interface that classes need to implement to match.
@@ -350,10 +397,25 @@ public class FastClasspathScanner {
         return this;
     }
 
+    /**
+     * Returns a list of classes on the classpath that implement the specified interface or a subinterface, or whose
+     * superclasses implement the specified interface or a sub-interface. Does not call the classloader on the matching
+     * classes, just returns their names.
+     * 
+     * @param implementedInterface
+     *            The interface that classes need to implement to match.
+     */
+    public <T> List<String> getClassesImplementing(final Class<T> implementedInterface) {
+        if (!implementedInterface.isInterface()) {
+            throw new IllegalArgumentException(implementedInterface.getName() + " is not an interface");
+        }
+        return classGraphBuilder.getClassesImplementing(implementedInterface.getName());
+    }
+
     // -----------------------------------------------------------------------------------------------------
 
     /**
-     * Call the provided ClassMatchProcessor if classes are found on the classpath that have the specified annotation.
+     * Calls the provided ClassMatchProcessor if classes are found on the classpath that have the specified annotation.
      * 
      * @param annotation
      *            The class annotation to match.
@@ -386,10 +448,25 @@ public class FastClasspathScanner {
         return this;
     }
 
+    /**
+     * Returns a list of classes on the classpath that have the specified annotation. Does not call the classloader on
+     * the matching classes, just returns their names.
+     * 
+     * @param annotation
+     *            The class annotation to match.
+     */
+    public <T> List<String> getClassesWithAnnotation(final Class<?> annotation,
+            final ClassAnnotationMatchProcessor classAnnotationMatchProcessor) {
+        if (!annotation.isAnnotation()) {
+            throw new IllegalArgumentException("Class " + annotation.getName() + " is not an annotation");
+        }
+        return classGraphBuilder.getClassesWithAnnotation(annotation.getName());
+    }
+
     // -----------------------------------------------------------------------------------------------------
 
     /**
-     * Call the given StaticFinalFieldMatchProcessor if classes are found on the classpath that contain static final
+     * Calls the given StaticFinalFieldMatchProcessor if classes are found on the classpath that contain static final
      * fields that match one of a set of fully-qualified field names, e.g. "com.package.ClassName.STATIC_FIELD_NAME".
      * 
      * Field values are obtained from the constant pool in classfiles, *not* from a loaded class using reflection. This
@@ -413,11 +490,11 @@ public class FastClasspathScanner {
             if (lastDotIdx > 0) {
                 String className = fullyQualifiedFieldName.substring(0, lastDotIdx);
                 String fieldName = fullyQualifiedFieldName.substring(lastDotIdx + 1);
-                HashMap<String, StaticFinalFieldMatchProcessor> fieldNameToMatchProcessor =
-                        classNameToStaticFieldnameToMatchProcessor.get(className);
+                HashMap<String, StaticFinalFieldMatchProcessor> fieldNameToMatchProcessor = classNameToStaticFieldnameToMatchProcessor
+                        .get(className);
                 if (fieldNameToMatchProcessor == null) {
-                    classNameToStaticFieldnameToMatchProcessor.put(className, fieldNameToMatchProcessor =
-                            new HashMap<>());
+                    classNameToStaticFieldnameToMatchProcessor.put(className,
+                            fieldNameToMatchProcessor = new HashMap<>());
                 }
                 fieldNameToMatchProcessor.put(fieldName, staticFinalFieldMatchProcessor);
             }
@@ -428,7 +505,7 @@ public class FastClasspathScanner {
     // -----------------------------------------------------------------------------------------------------
 
     /**
-     * Call the given FileMatchProcessor if files are found on the classpath with the given regexp pattern in their
+     * Calls the given FileMatchProcessor if files are found on the classpath with the given regexp pattern in their
      * path.
      * 
      * @param filenameMatchPattern
@@ -471,8 +548,8 @@ public class FastClasspathScanner {
         if (annotationFieldDescriptor.charAt(0) == 'L'
                 && annotationFieldDescriptor.charAt(annotationFieldDescriptor.length() - 1) == ';') {
             // Lcom/xyz/Annotation; -> com.xyz.Annotation
-            annotationClassName =
-                    annotationFieldDescriptor.substring(1, annotationFieldDescriptor.length() - 1).replace('/', '.');
+            annotationClassName = annotationFieldDescriptor.substring(1, annotationFieldDescriptor.length() - 1)
+                    .replace('/', '.');
         } else {
             // Should not happen
             annotationClassName = annotationFieldDescriptor;
@@ -630,8 +707,8 @@ public class FastClasspathScanner {
         String superclassName = readRefdString(inp, constantPool).replace('/', '.');
 
         // Look up static field name match processors given class name 
-        HashMap<String, StaticFinalFieldMatchProcessor> staticFieldnameToMatchProcessor =
-                classNameToStaticFieldnameToMatchProcessor.get(className);
+        HashMap<String, StaticFinalFieldMatchProcessor> staticFieldnameToMatchProcessor = classNameToStaticFieldnameToMatchProcessor
+                .get(className);
 
         // Interfaces
         int interfaceCount = inp.readUnsignedShort();
@@ -647,8 +724,8 @@ public class FastClasspathScanner {
             // See http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.6
             boolean isStaticFinal = (accessFlags & 0x0018) == 0x0018;
             String fieldName = readRefdString(inp, constantPool);
-            StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor =
-                    staticFieldnameToMatchProcessor != null ? staticFieldnameToMatchProcessor.get(fieldName) : null;
+            StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor = staticFieldnameToMatchProcessor != null ? staticFieldnameToMatchProcessor
+                    .get(fieldName) : null;
             String descriptor = readRefdString(inp, constantPool);
             int attributesCount = inp.readUnsignedShort();
             if (!isStaticFinal && staticFinalFieldMatchProcessor != null) {
@@ -754,7 +831,8 @@ public class FastClasspathScanner {
         }
 
         if (isInterface) {
-            classGraphBuilder.linkToSuperinterfaces(/* interfaceName = */className, /* superInterfaces = */interfaces);
+            classGraphBuilder
+                    .linkToSuperinterfaces(/* interfaceName = */className, /* superInterfaces = */interfaces);
 
         } else {
             classGraphBuilder.linkToSuperclassAndInterfaces(className, superclassName, interfaces, annotations);
@@ -860,7 +938,8 @@ public class FastClasspathScanner {
                     // classpath. USE_ZIPFILE_ENTRY_MODIFICATION_TIMES is set to false by default,
                     // as zipfile entry timestamps are less trustworthy than filesystem timestamps.
                     long entryTime = USE_ZIPFILE_ENTRY_MODIFICATION_TIMES //
-                            ? entry.getTime() : zipFileLastModified;
+                    ? entry.getTime()
+                            : zipFileLastModified;
                     lastModified = Math.max(lastModified, entryTime);
                     if (entryTime > System.currentTimeMillis() && !timestampWarning) {
                         String msg = zipfilePath + " contains modification timestamps after the current time";
@@ -915,7 +994,11 @@ public class FastClasspathScanner {
     }
 
     /**
-     * Scan classpath for matching files. Call this after all match processors have been added.
+     * Scans the classpath for matching files, and calls any match processors if a match is identified.
+     * 
+     * This method should be called after all required match processors have been added.
+     * 
+     * This method should be called before any "get" methods (e.g. getSubclassesOf()).
      */
     private void scan(boolean scanTimestampsOnly) {
         // long scanStart = System.currentTimeMillis();
@@ -972,7 +1055,11 @@ public class FastClasspathScanner {
     }
 
     /**
-     * Scan classpath for matching files. Call this after all match processors have been added.
+     * Scans the classpath for matching files, and calls any match processors if a match is identified.
+     * 
+     * This method should be called after all required match processors have been added.
+     * 
+     * This method should be called before any "get" methods (e.g. getSubclassesOf()).
      */
     public void scan() {
         scan(/* scanTimestampsOnly = */false);
