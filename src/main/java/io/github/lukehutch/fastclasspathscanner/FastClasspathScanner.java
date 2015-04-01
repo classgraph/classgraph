@@ -82,7 +82,8 @@ import java.util.zip.ZipFile;
  * one-time startup cost of 30-40ms):
  * 
  * <code>
- *     // The constructor specifies whitelisted package prefixes to scan, or "" to scan all packages in classpath.
+ *     // The constructor specifies whitelisted package prefixes to scan.
+ *     // If no arguments are provided, all classfiles in the classpath are scanned.
  *     new FastClasspathScanner("com.xyz.widget", "com.xyz.gizmo")
  * 
  *       .matchSubclassesOf(DBModel.class,
@@ -236,13 +237,18 @@ public class FastClasspathScanner {
      * Constructs a FastClasspathScanner instance.
      * 
      * @param packagesToScan
-     *            the whitelist of package prefixes to scan, e.g. "com.xyz.widget", "com.xyz.gizmo". If you use a single
-     *            empty string "", all packages on the classpath will be scanned.
+     *            the whitelist of package prefixes to scan, e.g. "com.xyz.widget", "com.xyz.gizmo". If no whitelisted
+     *            packages are given (i.e. if the constructor is called with zero arguments), then all packages on the
+     *            classpath will be scanned.
      */
     public FastClasspathScanner(String... packagesToScan) {
         HashSet<String> uniquePathsToScan = new HashSet<>();
-        for (String packageToScan : packagesToScan) {
-            uniquePathsToScan.add(packageToScan.replace('.', '/') + "/");
+        if (packagesToScan.length == 0) {
+            uniquePathsToScan.add("/");
+        } else {
+            for (String packageToScan : packagesToScan) {
+                uniquePathsToScan.add(packageToScan.replace('.', '/') + "/");
+            }
         }
         this.pathsToScan = new String[uniquePathsToScan.size()];
         int i = 0;

@@ -15,7 +15,11 @@ FastClasspathScanner is able to scan directories and jar/zip files on the classp
 
 ```java
 
-// The constructor specifies whitelisted package prefixes to scan, or "" to scan all packages in classpath.
+// The constructor specifies whitelisted package prefixes to scan. If no
+// whitelisted packages are specified (i.e. if the constructor is called
+// without arguments), all classfiles in the classpath will be scanned.
+// (Either way, the classloader is not called during a scan, the classfiles
+// are parsed directly.)
 new FastClasspathScanner("com.xyz.widget", "com.xyz.gizmo")  
   
     .matchSubclassesOf(DBModel.class,
@@ -113,10 +117,14 @@ Calling the constructor does not actually start the scan. The constructor takes 
 ```java
 
 /**
- * Construct a FastClasspathScanner instance.
+ * Constructs a FastClasspathScanner instance.
  * 
  * @param packagesToScan
- *            an array of package prefixes to scan, e.g. new String[] { "com.xyz.widget", "com.xyz.gizmo" }
+ *            the whitelist of package prefixes to scan, e.g.
+ *            "com.xyz.widget", "com.xyz.gizmo". If no whitelisted
+ *            packages are given (i.e. if the constructor is called
+ *            with zero arguments), then all packages on the
+ *            classpath will be scanned.
  */
 public FastClasspathScanner(String... pacakagesToScan) {
     /*...*/
@@ -124,7 +132,7 @@ public FastClasspathScanner(String... pacakagesToScan) {
 
 ```
 
-Note that if you use a single empty string as a whitelisted package, i.e. `new FastClasspathScanner(new String[] { "" })`, all packages on the classpath will be scanned.
+Note that if you don't specify any whitelisted package prefixes, i.e. `new FastClasspathScanner()`, all packages on the classpath will be scanned. ("Scanning" involves parsing the classfile binary format to determine class and interface relationships.)
 
 ### Matching the subclasses of a class
 
@@ -160,6 +168,8 @@ public <T> FastClasspathScanner matchSubclassesOf(
 
 Note that this method does not yet implement the detection of interfaces that extend other interfaces, only classes that extend other classes.
 
+There are also methods `List<String> getSubclassesOf(String superclassName)` and `List<String> getSubclassesOf(Class<T> superclass)` that can be called after `scan()` to find the names of the subclasses of a given class (whether or not a corresponding match processor was added to detect this). These methods will return the matching classes without calling the classloader, whereas if a match processor is used, the classloader is called first (using Class.forName()) so that a class reference can be passed into the match processor.
+
 ### Matching the interfaces that extend another interface
 
 FastClasspathScanner can find all interfaces on the classpath within whitelisted package prefixes that that extend a given interface or its subinterfaces.
@@ -193,6 +203,8 @@ public <T> FastClasspathScanner matchSubinterfacesOf(final Class<T> superInterfa
 }
 
 ```
+
+There are also methods `List<String> getSubinterfacesOf(String ifaceName)` and `List<String> getSubinterfacesOf(Class<T> iface)` that can be called after `scan()` to find the names of the subinterfaces of a given interface (whether or not a corresponding match processor was added to detect this). These methods will return the matching interfaces without calling the classloader, whereas if a match processor is used, the classloader is called first (using Class.forName()) so that a class reference for the matching interface can be passed into the match processor.
 
 ### Matching the classes that implement an interface
 
@@ -229,6 +241,8 @@ public <T> FastClasspathScanner matchClassesImplementing(
 
 ```
 
+There are also methods `List<String> getClassesImplementing(String ifaceName)` and `List<String> getClassesImplementing(Class<T> iface)` that can be called after `scan()` to find the names of the classes implementing a given interface (whether or not a corresponding match processor was added to detect this). These methods will return the matching classes without calling the classloader, whereas if a match processor is used, the classloader is called first (using Class.forName()) so that a class reference can be passed into the match processor.
+
 ### Matching classes with a specific annotation
 
 FastClassPathScanner can detect classes that have a class annotation that matches a given annotation. 
@@ -260,6 +274,8 @@ public FastClasspathScanner matchClassesWithAnnotation(
 }
 
 ```
+
+There are also methods `List<String> getClassesWithAnnotation(String annotationClassName)` and `List<String> getClassesWithAnnotation(Class<T> annotationClass)` that can be called after `scan()` to find the names of the classes that have a given annotation (whether or not a corresponding match processor was added to detect this). These methods will return the matching classes without calling the classloader, whereas if a match processor is used, the classloader is called first (using Class.forName()) so that a class reference can be passed into the match processor.
 
 ### Fetching the constant initializer values of static final fields
 
@@ -381,7 +397,7 @@ public FastClasspathScanner matchFilenamePattern(
 
 ### Performing the actual scan
 
-The scan() method performs the actual scan. This method may be called multiple times after the initialization steps shown above, although there is usually no point performing additional scans unless classpathContentsModifiedSinceScan() returns true.
+The `scan()` method performs the actual scan. This method may be called multiple times after the initialization steps shown above, although there is usually no point performing additional scans unless `classpathContentsModifiedSinceScan()` returns true.
 
 ```java
 
@@ -397,11 +413,11 @@ As the scan proceeds, for all match processors that deal with classfiles (i.e. f
 
 ### Detecting changes to classpath contents after the scan
 
-When the classpath is scanned using scan(), the "latest last modified timestamp" found anywhere on the classpath is recorded (i.e. the latest timestamp out of all last modified timestamps of all files found within the whitelisted package prefixes on the classpath).
+When the classpath is scanned using `scan()`, the "latest last modified timestamp" found anywhere on the classpath is recorded (i.e. the latest timestamp out of all last modified timestamps of all files found within the whitelisted package prefixes on the classpath).
 
-After a call to scan(), it is possible to later call classpathContentsModifiedSinceScan() at any point to check if something within the classpath has changed. This method does not look inside classfiles and does not call any match processors, but merely looks at the last modified timestamps of all files and zip/jarfiles within the whitelisted package prefixes of the classpath, updating the latest last modified timestamp if anything has changed. If the latest last modified timestamp increases, this method will return true.  
+After a call to `scan()`, it is possible to later call `classpathContentsModifiedSinceScan()` at any point to check if something within the classpath has changed. This method does not look inside classfiles and does not call any match processors, but merely looks at the last modified timestamps of all files and zip/jarfiles within the whitelisted package prefixes of the classpath, updating the latest last modified timestamp if anything has changed. If the latest last modified timestamp increases, this method will return true.  
 
-Since classpathContentsModifiedSinceScan() only checks file modification timestamps, it works several times faster than the original call to scan(). It is therefore a very lightweight operation that can be called in a polling loop to detect changes to classpath contents for hot reloading of resources.
+Since `classpathContentsModifiedSinceScan()` only checks file modification timestamps, it works several times faster than the original call to `scan()`. It is therefore a very lightweight operation that can be called in a polling loop to detect changes to classpath contents for hot reloading of resources.
 
 ```java
 
