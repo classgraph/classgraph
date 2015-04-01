@@ -239,7 +239,8 @@ public class FastClasspathScanner {
      * Constructs a FastClasspathScanner instance.
      * 
      * @param packagesToScan
-     *            package prefixes to scan, e.g. new String[] { "com.xyz.widget", "com.xyz.gizmo" }
+     *            package prefixes to scan, e.g. new String[] { "com.xyz.widget", "com.xyz.gizmo" }. If you use a single
+     *            empty string "", i.e. new String[] { "" }, all packages on the classpath will be scanned.
      */
     public FastClasspathScanner(String[] packagesToScan) {
         HashSet<String> uniquePathsToScan = new HashSet<>();
@@ -935,7 +936,8 @@ public class FastClasspathScanner {
         for (String pathToScan : pathsToScan) {
             if (relativePath.startsWith(pathToScan) || //
                     (relativePath.length() == pathToScan.length() - 1 && //
-                    pathToScan.startsWith(relativePath))) {
+                    pathToScan.startsWith(relativePath)) //
+                    || pathToScan.equals("/")) {
                 // In a path that has a whitelisted path as a prefix -- can start scanning files
                 scanDirs = scanFiles = true;
                 break;
@@ -976,7 +978,8 @@ public class FastClasspathScanner {
                 String path = entry.getName();
                 boolean scanFile = false;
                 for (String pathToScan : pathsToScan) {
-                    if (path.startsWith(pathToScan)) {
+                    if (path.startsWith(pathToScan) //
+                            || pathToScan.equals("/")) {
                         // File path has a whitelisted path as a prefix -- can scan file
                         scanFile = true;
                         break;

@@ -127,6 +127,8 @@ public FastClasspathScanner(String[] pacakagesToScan) {
 
 ```
 
+Note that if you use a single empty string as a whitelisted package, i.e. `new FastClasspathScanner(new String[] { "" })`, all packages on the classpath will be scanned.
+
 ### Matching the subclasses of a class
 
 FastClasspathScanner can find all classes on the classpath within whitelisted package prefixes that extend a given superclass.
