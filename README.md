@@ -15,9 +15,8 @@ FastClasspathScanner is able to scan directories and jar/zip files on the classp
 
 ```java
 
-new FastClasspathScanner(
-         // Whitelisted package prefixes to scan
-         new String[] { "com.xyz.widget", "com.xyz.gizmo" })  
+// The constructor specifies whitelisted package prefixes to scan, or "" to scan all packages in classpath.
+new FastClasspathScanner("com.xyz.widget", "com.xyz.gizmo")  
   
     .matchSubclassesOf(DBModel.class,
         // c is a subclass of DBModel or a descendant subclass
@@ -89,9 +88,7 @@ You can also get a list of matching fully-qualified classnames for interfaces an
 without ever calling the classloader for the matching classes, e.g.:
 
 ```
-    FastClasspathScanner scanner = new FastClasspathScanner(
-          // Whitelisted package prefixes to scan:
-          new String[] { "com.xyz.widget" });
+    FastClasspathScanner scanner = new FastClasspathScanner("com.xyz.widget");
           
     // Parse the class hierarchy of all classfiles on the classpath
     // without calling the classloader on any of them
@@ -121,7 +118,7 @@ Calling the constructor does not actually start the scan. The constructor takes 
  * @param packagesToScan
  *            an array of package prefixes to scan, e.g. new String[] { "com.xyz.widget", "com.xyz.gizmo" }
  */
-public FastClasspathScanner(String[] pacakagesToScan) {
+public FastClasspathScanner(String... pacakagesToScan) {
     /*...*/
 }
 

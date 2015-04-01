@@ -82,9 +82,8 @@ import java.util.zip.ZipFile;
  * one-time startup cost of 30-40ms):
  * 
  * <code>
- *     new FastClasspathScanner(
- *           // Whitelisted package prefixes to scan:
- *           new String[] { "com.xyz.widget", "com.xyz.gizmo" })
+ *     // The constructor specifies whitelisted package prefixes to scan, or "" to scan all packages in classpath.
+ *     new FastClasspathScanner("com.xyz.widget", "com.xyz.gizmo")
  * 
  *       .matchSubclassesOf(DBModel.class,
  *           // c is a subclass of DBModel or a descendant subclass
@@ -155,9 +154,7 @@ import java.util.zip.ZipFile;
  * without ever calling the classloader for the matching classes, e.g.:
  * 
  * <code>
- *     FastClasspathScanner scanner = new FastClasspathScanner(
- *           // Whitelisted package prefixes to scan:
- *           new String[] { "com.xyz.widget" });
+ *     FastClasspathScanner scanner = new FastClasspathScanner("com.xyz.widget");
  *           
  *     // Parse the class hierarchy of all classfiles on the classpath without calling the classloader for any of them
  *     scanner.scan();
@@ -239,10 +236,10 @@ public class FastClasspathScanner {
      * Constructs a FastClasspathScanner instance.
      * 
      * @param packagesToScan
-     *            package prefixes to scan, e.g. new String[] { "com.xyz.widget", "com.xyz.gizmo" }. If you use a single
-     *            empty string "", i.e. new String[] { "" }, all packages on the classpath will be scanned.
+     *            the whitelist of package prefixes to scan, e.g. "com.xyz.widget", "com.xyz.gizmo". If you use a single
+     *            empty string "", all packages on the classpath will be scanned.
      */
-    public FastClasspathScanner(String[] packagesToScan) {
+    public FastClasspathScanner(String... packagesToScan) {
         HashSet<String> uniquePathsToScan = new HashSet<>();
         for (String packageToScan : packagesToScan) {
             uniquePathsToScan.add(packageToScan.replace('.', '/') + "/");
