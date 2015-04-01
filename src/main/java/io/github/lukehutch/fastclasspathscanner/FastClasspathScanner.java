@@ -765,7 +765,7 @@ public class FastClasspathScanner {
 
         // Interfaces
         int interfaceCount = inp.readUnsignedShort();
-        ArrayList<String> interfaces = interfaceCount > 0 ? new ArrayList<>() : null;
+        ArrayList<String> interfaces = interfaceCount > 0 ? new ArrayList<String>() : null;
         for (int i = 0; i < interfaceCount; i++) {
             interfaces.add(readRefdString(inp, constantPool).replace('/', '.'));
         }
