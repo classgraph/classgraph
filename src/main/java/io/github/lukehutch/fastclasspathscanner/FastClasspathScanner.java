@@ -318,7 +318,7 @@ public class FastClasspathScanner {
      *            The name of the superclass to match (i.e. the name of the class that subclasses need to extend).
      * @return A list of matching classes, or the empty list if none.
      */
-    public <T> List<String> getSubclassesOf(String superclassName) {
+    public List<String> getSubclassesOf(String superclassName) {
         return classGraphBuilder.getSubclassesOf(superclassName);
     }
 
@@ -384,7 +384,7 @@ public class FastClasspathScanner {
      *            extend).
      * @return A list of matching interfaces, or the empty list if none.
      */
-    public <T> List<String> getSubinterfacesOf(final String superInterfaceName) {
+    public List<String> getSubinterfacesOf(final String superInterfaceName) {
         return classGraphBuilder.getSubinterfacesOf(superInterfaceName);
     }
 
@@ -453,7 +453,7 @@ public class FastClasspathScanner {
      *            The name of the interface that classes need to implement.
      * @return A list of matching classes, or the empty list if none.
      */
-    public <T> List<String> getClassesImplementing(final String implementedInterfaceName) {
+    public List<String> getClassesImplementing(final String implementedInterfaceName) {
         return classGraphBuilder.getClassesImplementing(implementedInterfaceName);
     }
 
@@ -516,7 +516,7 @@ public class FastClasspathScanner {
      *            The name of the class annotation.
      * @return A list of classes that have the named annotation, or the empty list if none.
      */
-    public <T> List<String> getClassesWithAnnotation(final String annotationName) {
+    public List<String> getClassesWithAnnotation(final String annotationName) {
         return classGraphBuilder.getClassesWithAnnotation(annotationName);
     }
 
@@ -550,8 +550,8 @@ public class FastClasspathScanner {
             if (lastDotIdx > 0) {
                 String className = fullyQualifiedFieldName.substring(0, lastDotIdx);
                 String fieldName = fullyQualifiedFieldName.substring(lastDotIdx + 1);
-                HashMap<String, StaticFinalFieldMatchProcessor> fieldNameToMatchProcessor = classNameToStaticFieldnameToMatchProcessor
-                        .get(className);
+                HashMap<String, StaticFinalFieldMatchProcessor> fieldNameToMatchProcessor = //
+                classNameToStaticFieldnameToMatchProcessor.get(className);
                 if (fieldNameToMatchProcessor == null) {
                     classNameToStaticFieldnameToMatchProcessor.put(className,
                             fieldNameToMatchProcessor = new HashMap<>());
