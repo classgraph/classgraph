@@ -154,6 +154,27 @@ public <T> FastClasspathScanner matchSubclassesOf(
     /* ... */
 }
 
+/**
+ * Returns the list of classes on the classpath that extend the specified superclass.
+ * Should be called after scan(), and returns matching classes whether or not a
+ * SubclassMatchProcessor was added to the scanner before the call to scan().
+ * Does not call the classloader on the matching classes, just returns their names.
+ * 
+ * @param superclass
+ *            The superclass to match (i.e. the class that subclasses need to extend
+ *            to match).
+ * @return A list of matching classes, or the empty list if none.
+ */
+public <T> List<String> getSubclassesOf(final Class<T> superclass) {
+    /* ... */
+}
+
+// Alternatively:
+public List<String> getSubclassesOf(String superclassName) {
+    /* ... */
+}
+
+
 ```
 
 Note that this method does not yet implement the detection of interfaces that extend other interfaces, only classes that extend other classes.
@@ -190,6 +211,27 @@ public interface SubinterfaceMatchProcessor<T> {
 @SuppressWarnings("unchecked")
 public <T> FastClasspathScanner matchSubinterfacesOf(final Class<T> superInterface,
         final SubinterfaceMatchProcessor<T> subinterfaceMatchProcessor) {
+    /* ... */
+}
+
+/**
+ * Returns the list of interfaces on the classpath that extend a given
+ * superinterface. Should be called after scan(), and returns matching interfaces
+ * whether or not a SubinterfaceMatchProcessor was added to the scanner before the
+ * call to scan(). Does not call the classloader the matching interfaces, just
+ * returns their names.
+ * 
+ * @param superInterface
+ *            The superinterface to match (i.e. the interface that subinterfaces
+ *            need to extend to match).
+ * @return A list of matching interfaces, or the empty list if none.
+ */
+public <T> List<String> getSubinterfacesOf(final Class<T> superInterface) {
+    /* ... */
+}
+
+// Alternatively:
+public List<String> getSubinterfacesOf(final String superInterfaceName) {
     /* ... */
 }
 
@@ -230,6 +272,27 @@ public <T> FastClasspathScanner matchClassesImplementing(
     /* ... */
 }
 
+/**
+ * Returns a list of classes on the classpath that implement the specified
+ * interface or a subinterface, or whose superclasses implement the specified
+ * interface or a sub-interface. Should be called after scan(), and returns
+ * matching interfaces whether or not an InterfaceMatchProcessor was added
+ * to the scanner before the call to scan(). Does not call the classloader on
+ * the matching classes, just returns their names.
+ * 
+ * @param implementedInterface
+ *            The interface that classes need to implement to match.
+ * @return A list of matching classes, or the empty list if none.
+ */
+public <T> List<String> getClassesImplementing(final Class<T> implementedInterface) {
+    /* ... */
+}
+
+// Alternatively:
+public List<String> getClassesImplementing(final String implementedInterfaceName) {
+    /* ... */
+}
+
 ```
 
 There are also methods `List<String> getClassesImplementing(String ifaceName)` and `List<String> getClassesImplementing(Class<T> iface)` that can be called after `scan()` to find the names of the classes implementing a given interface (whether or not a corresponding match processor was added to detect this). These methods will return the matching classes without calling the classloader, whereas if a match processor is used, the classloader is called first (using Class.forName()) so that a class reference can be passed into the match processor.
@@ -261,6 +324,26 @@ public interface ClassAnnotationMatchProcessor {
 public FastClasspathScanner matchClassesWithAnnotation(
        Class<?> annotation,
        ClassAnnotationMatchProcessor classAnnotationMatchProcessor) {
+    /* ... */
+}
+
+/**
+ * Returns a list of classes on the classpath that have the specified
+ * annotation. Should be called after scan(), and returns matching classes
+ * whether or not a ClassAnnotationMatchProcessor was added to the scanner
+ * before the call to scan(). Does not call the classloader on the matching
+ * classes, just returns their names.
+ * 
+ * @param annotation
+ *            The class annotation.
+ * @return A list of classes with the class annotation, or the empty list if none.
+ */
+public <T> List<String> getClassesWithAnnotation(final Class<?> annotation) {
+    /* ... */
+}
+
+// Alternatively:
+public List<String> getClassesWithAnnotation(final String annotationName) {
     /* ... */
 }
 
