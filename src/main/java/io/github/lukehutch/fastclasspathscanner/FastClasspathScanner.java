@@ -296,8 +296,9 @@ public class FastClasspathScanner {
     }
 
     /**
-     * Returns the list of classes on the classpath that extend the specified superclass. Should be called after scan().
-     * Does not call the classloader on the matching classes, just returns their names.
+     * Returns the list of classes on the classpath that extend the specified superclass. Should be called after scan(),
+     * and returns matching classes whether or not a SubclassMatchProcessor was added to the scanner before the call to
+     * scan(). Does not call the classloader on the matching classes, just returns their names.
      * 
      * @param superclass
      *            The superclass to match (i.e. the class that subclasses need to extend to match).
@@ -311,8 +312,9 @@ public class FastClasspathScanner {
     }
 
     /**
-     * Returns the list of classes on the classpath that extend the specified superclass. Should be called after scan().
-     * Does not call the classloader on the matching classes, just returns their names.
+     * Returns the list of classes on the classpath that extend the specified superclass. Should be called after scan(),
+     * and returns matching classes whether or not a SubclassMatchProcessor was added to the scanner before the call to
+     * scan(). Does not call the classloader on the matching classes, just returns their names.
      * 
      * @param superclassName
      *            The name of the superclass to match (i.e. the name of the class that subclasses need to extend).
@@ -362,7 +364,8 @@ public class FastClasspathScanner {
 
     /**
      * Returns the list of interfaces on the classpath that extend a given superinterface. Should be called after
-     * scan(). Does not call the classloader on the matching interfaces, just returns their names.
+     * scan(), and returns matching interfaces whether or not a SubinterfaceMatchProcessor was added to the scanner
+     * before the call to scan(). Does not call the classloader on the matching interfaces, just returns their names.
      * 
      * @param superInterface
      *            The superinterface to match (i.e. the interface that subinterfaces need to extend to match).
@@ -377,7 +380,8 @@ public class FastClasspathScanner {
 
     /**
      * Returns the list of interfaces on the classpath that extend a given superinterface. Should be called after
-     * scan(). Does not call the classloader on the matching interfaces, just returns their names.
+     * scan(), and returns matching interfaces whether or not a SubinterfaceMatchProcessor was added to the scanner
+     * before the call to scan(). Does not call the classloader on the matching interfaces, just returns their names.
      * 
      * @param superInterfaceName
      *            The name of the superinterface to match (i.e. the name of the interface that subinterfaces need to
@@ -430,8 +434,9 @@ public class FastClasspathScanner {
 
     /**
      * Returns a list of classes on the classpath that implement the specified interface or a subinterface, or whose
-     * superclasses implement the specified interface or a sub-interface. Does not call the classloader on the matching
-     * classes, just returns their names.
+     * superclasses implement the specified interface or a sub-interface. Should be called after scan(), and returns
+     * matching interfaces whether or not an InterfaceMatchProcessor was added to the scanner before the call to scan().
+     * Does not call the classloader on the matching classes, just returns their names.
      * 
      * @param implementedInterface
      *            The interface that classes need to implement to match.
@@ -446,8 +451,9 @@ public class FastClasspathScanner {
 
     /**
      * Returns a list of classes on the classpath that implement the specified interface or a subinterface, or whose
-     * superclasses implement the specified interface or a sub-interface. Does not call the classloader on the matching
-     * classes, just returns their names.
+     * superclasses implement the specified interface or a sub-interface. Should be called after scan(), and returns
+     * matching interfaces whether or not an InterfaceMatchProcessor was added to the scanner before the call to scan().
+     * Does not call the classloader on the matching classes, just returns their names.
      * 
      * @param implementedInterfaceName
      *            The name of the interface that classes need to implement.
@@ -494,8 +500,9 @@ public class FastClasspathScanner {
     }
 
     /**
-     * Returns a list of classes on the classpath that have the specified annotation. Does not call the classloader on
-     * the matching classes, just returns their names.
+     * Returns a list of classes on the classpath that have the specified annotation. Should be called after scan(), and
+     * returns matching classes whether or not a ClassAnnotationMatchProcessor was added to the scanner before the call
+     * to scan(). Does not call the classloader on the matching classes, just returns their names.
      * 
      * @param annotation
      *            The class annotation.
@@ -509,8 +516,9 @@ public class FastClasspathScanner {
     }
 
     /**
-     * Returns a list of classes on the classpath that have the specified annotation. Does not call the classloader on
-     * the matching classes, just returns their names.
+     * Returns a list of classes on the classpath that have the specified annotation. Should be called after scan(), and
+     * returns matching classes whether or not a ClassAnnotationMatchProcessor was added to the scanner before the call
+     * to scan(). Does not call the classloader on the matching classes, just returns their names.
      * 
      * @param annotationName
      *            The name of the class annotation.
@@ -828,8 +836,8 @@ public class FastClasspathScanner {
         String superclassName = readRefdString(inp, constantPool).replace('/', '.');
 
         // Look up static field name match processors given class name 
-        HashMap<String, StaticFinalFieldMatchProcessor> staticFieldnameToMatchProcessor = classNameToStaticFieldnameToMatchProcessor
-                .get(className);
+        HashMap<String, StaticFinalFieldMatchProcessor> staticFieldnameToMatchProcessor = //
+        classNameToStaticFieldnameToMatchProcessor.get(className);
 
         // Interfaces
         int interfaceCount = inp.readUnsignedShort();
@@ -845,8 +853,9 @@ public class FastClasspathScanner {
             // See http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.6
             boolean isStaticFinal = (accessFlags & 0x0018) == 0x0018;
             String fieldName = readRefdString(inp, constantPool);
-            StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor = staticFieldnameToMatchProcessor != null ? staticFieldnameToMatchProcessor
-                    .get(fieldName) : null;
+            StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor = staticFieldnameToMatchProcessor != null //
+            ? staticFieldnameToMatchProcessor.get(fieldName)
+                    : null;
             String descriptor = readRefdString(inp, constantPool);
             int attributesCount = inp.readUnsignedShort();
             if (!isStaticFinal && staticFinalFieldMatchProcessor != null) {
