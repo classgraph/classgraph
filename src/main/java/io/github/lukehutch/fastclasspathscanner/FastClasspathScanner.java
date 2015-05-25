@@ -849,6 +849,10 @@ public class FastClasspathScanner {
 
         // The fully-qualified class name of this class, with slashes replaced with dots
         String className = readRefdString(inp, constantPool).replace('/', '.');
+        if (className.equals("java.lang.Object")) {
+            // java.lang.Object doesn't have a superclass to be linked to, can simply return
+            return;
+        }
 
         // Determine if this fully-qualified class name has already been encountered during this scan
         if (!classesEncounteredSoFarDuringScan.add(className)) {
