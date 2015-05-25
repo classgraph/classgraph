@@ -83,7 +83,10 @@ import java.util.zip.ZipFile;
  * 
  * <code>
  *     // The constructor specifies whitelisted package prefixes to scan.
- *     // If no arguments are provided, all classfiles in the classpath are scanned.
+ *     // If no arguments are provided, or if one argument is "", all classfiles in the classpath are scanned.
+ *     // If a package name is prefixed with "-", e.g. "-com.xyz.otherthing", then that package is blacklisted,
+ *     // rather than whitelisted. The final list of packages scanned is the set of whitelisted packages minus
+ *     // the set of blacklisted packages.
  *     new FastClasspathScanner("com.xyz.widget", "com.xyz.gizmo")
  * 
  *       .matchSubclassesOf(DBModel.class,
@@ -190,7 +193,7 @@ public class FastClasspathScanner {
     /**
      * List of directory path prefixes to scan (produced from list of package prefixes passed into the constructor)
      */
-    private final String[] pathsToScan;
+    private final String[] whitelistedPathsToScan, blacklistedPathsToScan;
 
     /**
      * The latest last-modified timestamp of any file, directory or sub-directory in the classpath, in millis since the
@@ -238,22 +241,44 @@ public class FastClasspathScanner {
      * 
      * @param packagesToScan
      *            the whitelist of package prefixes to scan, e.g. "com.xyz.widget", "com.xyz.gizmo". If no whitelisted
-     *            packages are given (i.e. if the constructor is called with zero arguments), then all packages on the
-     *            classpath will be scanned.
+     *            packages are given (i.e. if the constructor is called with zero arguments), or a whitelisted package
+     *            is "", then all packages on the classpath are whitelisted. If a package name is prefixed with "-",
+     *            e.g. "-com.xyz.otherthing", then that package is blacklisted, rather than whitelisted. The final list
+     *            of packages scanned is the set of whitelisted packages minus the set of blacklisted packages.
      */
     public FastClasspathScanner(String... packagesToScan) {
-        HashSet<String> uniquePathsToScan = new HashSet<>();
+        HashSet<String> uniqueWhitelistedPathsToScan = new HashSet<>();
+        HashSet<String> uniqueBlacklistedPathsToScan = new HashSet<>();
+        boolean scanAll = false;
         if (packagesToScan.length == 0) {
-            uniquePathsToScan.add("/");
+            scanAll = true;
         } else {
             for (String packageToScan : packagesToScan) {
-                uniquePathsToScan.add(packageToScan.replace('.', '/') + "/");
+                if (packageToScan.isEmpty()) {
+                    scanAll = true;
+                    break;
+                }
+                String pkg = packageToScan.replace('.', '/') + "/";
+                boolean blacklisted = pkg.startsWith("-");
+                if (blacklisted) {
+                    pkg = pkg.substring(1);
+                }
+                (blacklisted ? uniqueBlacklistedPathsToScan : uniqueWhitelistedPathsToScan).add(pkg);
             }
         }
-        this.pathsToScan = new String[uniquePathsToScan.size()];
+        if (scanAll) {
+            this.whitelistedPathsToScan = new String[] { "/" };
+        } else {
+            this.whitelistedPathsToScan = new String[uniqueWhitelistedPathsToScan.size()];
+            int i = 0;
+            for (String path : uniqueWhitelistedPathsToScan) {
+                this.whitelistedPathsToScan[i++] = path;
+            }
+        }
+        this.blacklistedPathsToScan = new String[uniqueBlacklistedPathsToScan.size()];
         int i = 0;
-        for (String uniquePathToScan : uniquePathsToScan) {
-            this.pathsToScan[i++] = uniquePathToScan;
+        for (String path : uniqueBlacklistedPathsToScan) {
+            this.blacklistedPathsToScan[i++] = path;
         }
     }
 
@@ -1002,25 +1027,29 @@ public class FastClasspathScanner {
      * Scan a directory for matching file path patterns.
      */
     private void scanDir(File dir, int ignorePrefixLen, boolean scanTimestampsOnly) throws IOException {
-        String absolutePath = dir.getPath();
-        String relativePath = ignorePrefixLen > absolutePath.length() ? "" : absolutePath.substring(ignorePrefixLen);
+        String relativePath = (ignorePrefixLen > dir.getPath().length() ? "" : dir.getPath().substring(ignorePrefixLen))
+                + "/";
         if (File.separatorChar != '/') {
             // Fix scanning on Windows
             relativePath = relativePath.replace(File.separatorChar, '/');
         }
         boolean scanDirs = false, scanFiles = false;
-        for (String pathToScan : pathsToScan) {
-            if (relativePath.startsWith(pathToScan) || //
-                    (relativePath.length() == pathToScan.length() - 1 && //
-                    pathToScan.startsWith(relativePath)) //
-                    || pathToScan.equals("/")) {
-                // In a path that has a whitelisted path as a prefix -- can start scanning files
+        for (String whitelistedPath : whitelistedPathsToScan) {
+            if (relativePath.equals(whitelistedPath)) {
+                // Reached a whitelisted path -- can start scanning directories and files from this point
                 scanDirs = scanFiles = true;
                 break;
-            }
-            if (pathToScan.startsWith(relativePath)) {
+            } else if (whitelistedPath.startsWith(relativePath)) {
                 // In a path that is a prefix of a whitelisted path -- keep recursively scanning dirs
+                // in case we can reach a whitelisted path.
                 scanDirs = true;
+            }
+        }
+        for (String blacklistedPath : blacklistedPathsToScan) {
+            if (relativePath.equals(blacklistedPath)) {
+                // Reached a blacklisted path -- stop scanning files and dirs
+                scanDirs = scanFiles = false;
+                break;
             }
         }
         if (scanDirs || scanFiles) {
@@ -1032,8 +1061,8 @@ public class FastClasspathScanner {
                     scanDir(subFile, ignorePrefixLen, scanTimestampsOnly);
                 } else if (scanFiles && subFile.isFile()) {
                     // Scan file
-                    String leafSuffix = "/" + subFile.getName();
-                    scanFile(subFile, absolutePath + leafSuffix, relativePath + leafSuffix, scanTimestampsOnly);
+                    scanFile(subFile, dir.getPath() + "/" + subFile.getName(), relativePath + subFile.getName(),
+                            scanTimestampsOnly);
                 }
             }
         }
@@ -1053,11 +1082,18 @@ public class FastClasspathScanner {
                 // separate file entries for files within each directory, in lexicographic order)
                 String path = entry.getName();
                 boolean scanFile = false;
-                for (String pathToScan : pathsToScan) {
-                    if (path.startsWith(pathToScan) //
-                            || pathToScan.equals("/")) {
+                for (String whitelistedPath : whitelistedPathsToScan) {
+                    if (path.startsWith(whitelistedPath) //
+                            || whitelistedPath.equals("/")) {
                         // File path has a whitelisted path as a prefix -- can scan file
                         scanFile = true;
+                        break;
+                    }
+                }
+                for (String blacklistedPath : blacklistedPathsToScan) {
+                    if (path.startsWith(blacklistedPath)) {
+                        // File path has a blacklisted path as a prefix -- don't scan it
+                        scanFile = false;
                         break;
                     }
                 }

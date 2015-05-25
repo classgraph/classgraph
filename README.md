@@ -17,9 +17,12 @@ FastClasspathScanner is able to scan directories and jar/zip files on the classp
 
 // The constructor specifies whitelisted package prefixes to scan. If no
 // whitelisted packages are specified (i.e. if the constructor is called
-// without arguments), all classfiles in the classpath will be scanned.
-// (Either way, the classloader is not called during a scan, the classfiles
-// are parsed directly.)
+// without arguments), or if one of the package names is "", all classfiles
+// in the classpath will be scanned. If a package name is prefixed with
+// "-", e.g. "-com.xyz.otherthing", then that package is blacklisted,
+// rather than whitelisted. The final list of packages scanned is the set
+// of whitelisted packages minus the set of blacklisted packages. The
+// classloader is not called during a scan, classfiles are parsed directly.
 new FastClasspathScanner("com.xyz.widget", "com.xyz.gizmo")  
   
     .matchSubclassesOf(DBModel.class,
