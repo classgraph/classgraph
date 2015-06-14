@@ -1052,7 +1052,6 @@ public class FastClasspathScanner {
                 if (relativePath.equals(whitelistedPath)) {
                     // Reached a whitelisted path -- can start scanning directories and files from this point
                     inWhitelistedPath = true;
-                    keepRecursing = true;
                     break;
                 } else if (whitelistedPath.startsWith(relativePath)) {
                     // In a path that is a prefix of a whitelisted path -- keep recursively scanning dirs
