@@ -1030,40 +1030,45 @@ public class FastClasspathScanner {
     /**
      * Scan a directory for matching file path patterns.
      */
-    private void scanDir(File dir, int ignorePrefixLen, boolean scanTimestampsOnly) throws IOException {
+    private void scanDir(File dir, int ignorePrefixLen, boolean inWhitelistedPath, boolean scanTimestampsOnly)
+            throws IOException {
         String relativePath = (ignorePrefixLen > dir.getPath().length() ? "" : dir.getPath().substring(ignorePrefixLen))
                 + "/";
         if (File.separatorChar != '/') {
             // Fix scanning on Windows
             relativePath = relativePath.replace(File.separatorChar, '/');
         }
-        boolean scanDirs = false, scanFiles = false;
-        for (String whitelistedPath : whitelistedPathsToScan) {
-            if (relativePath.equals(whitelistedPath)) {
-                // Reached a whitelisted path -- can start scanning directories and files from this point
-                scanDirs = scanFiles = true;
-                break;
-            } else if (whitelistedPath.startsWith(relativePath)) {
-                // In a path that is a prefix of a whitelisted path -- keep recursively scanning dirs
-                // in case we can reach a whitelisted path.
-                scanDirs = true;
-            }
-        }
         for (String blacklistedPath : blacklistedPathsToScan) {
             if (relativePath.equals(blacklistedPath)) {
                 // Reached a blacklisted path -- stop scanning files and dirs
-                scanDirs = scanFiles = false;
-                break;
+                return;
             }
         }
-        if (scanDirs || scanFiles) {
+        boolean keepRecursing = false;
+        if (!inWhitelistedPath) {
+            // If not yet within a subtree of a whitelisted path, see if the current path is at least a prefix of
+            // a whitelisted path, and if so, keep recursing until we hit a whitelisted path.
+            for (String whitelistedPath : whitelistedPathsToScan) {
+                if (relativePath.equals(whitelistedPath)) {
+                    // Reached a whitelisted path -- can start scanning directories and files from this point
+                    inWhitelistedPath = true;
+                    keepRecursing = true;
+                    break;
+                } else if (whitelistedPath.startsWith(relativePath)) {
+                    // In a path that is a prefix of a whitelisted path -- keep recursively scanning dirs
+                    // in case we can reach a whitelisted path.
+                    keepRecursing = true;
+                }
+            }
+        }
+        if (keepRecursing || inWhitelistedPath) {
             lastModified = Math.max(lastModified, dir.lastModified());
             File[] subFiles = dir.listFiles();
             for (final File subFile : subFiles) {
                 if (subFile.isDirectory()) {
                     // Recurse into subdirectory
-                    scanDir(subFile, ignorePrefixLen, scanTimestampsOnly);
-                } else if (scanFiles && subFile.isFile()) {
+                    scanDir(subFile, ignorePrefixLen, inWhitelistedPath, scanTimestampsOnly);
+                } else if (inWhitelistedPath && subFile.isFile()) {
                     // Scan file
                     scanFile(subFile, dir.getPath() + "/" + subFile.getName(), relativePath + subFile.getName(),
                             scanTimestampsOnly);
@@ -1186,7 +1191,7 @@ public class FastClasspathScanner {
                 String path = pathElt.getPath();
                 if (pathElt.isDirectory()) {
                     // Scan within dir path element
-                    scanDir(pathElt, path.length() + 1, scanTimestampsOnly);
+                    scanDir(pathElt, path.length() + 1, false, scanTimestampsOnly);
                 } else if (pathElt.isFile()) {
                     String pathLower = path.toLowerCase();
                     if (pathLower.endsWith(".jar") || pathLower.endsWith(".zip")) {
