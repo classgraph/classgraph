@@ -234,7 +234,7 @@ public class FastClasspathScanner {
     /** The class and interface graph builder. */
     private final ClassGraphBuilder classGraphBuilder = new ClassGraphBuilder();
 
-    // -----------------------------------------------------------------------------------------------------
+    // -----------------------------------------------------------------------------------------------------------------
 
     /**
      * Constructs a FastClasspathScanner instance.
@@ -282,7 +282,7 @@ public class FastClasspathScanner {
         }
     }
 
-    // -----------------------------------------------------------------------------------------------------
+    // -----------------------------------------------------------------------------------------------------------------
 
     /** Call the classloader using Class.forName(className). Re-throws classloading exceptions as RuntimeException. */
     public <T> Class<? extends T> loadClass(String className) {
@@ -295,7 +295,7 @@ public class FastClasspathScanner {
         }
     }
 
-    // -----------------------------------------------------------------------------------------------------
+    // -----------------------------------------------------------------------------------------------------------------
 
     /**
      * Calls the provided SubclassMatchProcessor if classes are found on the classpath that extend the specified
@@ -355,7 +355,7 @@ public class FastClasspathScanner {
         return classGraphBuilder.getSubclassesOf(superclassName);
     }
 
-    // -----------------------------------------------------------------------------------------------------
+    // -----------------------------------------------------------------------------------------------------------------
 
     /**
      * Calls the provided SubInterfaceMatchProcessor if an interface that extends a given superinterface is found on the
@@ -416,7 +416,7 @@ public class FastClasspathScanner {
         return classGraphBuilder.getSubinterfacesOf(superInterfaceName);
     }
 
-    // -----------------------------------------------------------------------------------------------------
+    // -----------------------------------------------------------------------------------------------------------------
 
     /**
      * Calls the provided InterfaceMatchProcessor for classes on the classpath that implement the specified interface or
@@ -480,7 +480,7 @@ public class FastClasspathScanner {
         return classGraphBuilder.getClassesImplementing(implementedInterfaceName);
     }
 
-    // -----------------------------------------------------------------------------------------------------
+    // -----------------------------------------------------------------------------------------------------------------
 
     /**
      * Calls the provided ClassMatchProcessor if classes are found on the classpath that have the specified annotation.
@@ -539,7 +539,7 @@ public class FastClasspathScanner {
         return classGraphBuilder.getClassesWithAnnotation(annotationName);
     }
 
-    // -----------------------------------------------------------------------------------------------------
+    // -----------------------------------------------------------------------------------------------------------------
 
     /**
      * Calls the given StaticFinalFieldMatchProcessor if classes are found on the classpath that contain static final
@@ -642,7 +642,7 @@ public class FastClasspathScanner {
         return matchStaticFinalFieldNames(fullyQualifiedStaticFinalFieldNamesSet, staticFinalFieldMatchProcessor);
     }
 
-    // -----------------------------------------------------------------------------------------------------
+    // -----------------------------------------------------------------------------------------------------------------
 
     /**
      * Calls the given FileMatchProcessor if files are found on the classpath with the given regexp pattern in their
@@ -659,7 +659,7 @@ public class FastClasspathScanner {
         return this;
     }
 
-    // -----------------------------------------------------------------------------------------------------
+    // -----------------------------------------------------------------------------------------------------------------
 
     /** An interface used for testing if a file path matches a specified pattern. */
     private static class FilePathMatcher {
@@ -677,7 +677,7 @@ public class FastClasspathScanner {
         public abstract void lookForMatches();
     }
 
-    // -----------------------------------------------------------------------------------------------------
+    // -----------------------------------------------------------------------------------------------------------------
 
     /**
      * Read annotation entry from classfile.
@@ -984,7 +984,7 @@ public class FastClasspathScanner {
         }
     }
 
-    // -----------------------------------------------------------------------------------------------------
+    // -----------------------------------------------------------------------------------------------------------------
 
     /**
      * Scan a file.
@@ -1134,7 +1134,7 @@ public class FastClasspathScanner {
         }
     }
 
-    // -----------------------------------------------------------------------------------------------------
+    // -----------------------------------------------------------------------------------------------------------------
 
     /**
      * Get a list of unique elements on the classpath (directories and files) as File objects, preserving order.
