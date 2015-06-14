@@ -284,6 +284,19 @@ public class FastClasspathScanner {
 
     // -----------------------------------------------------------------------------------------------------
 
+    /** Call the classloader using Class.forName(className). Re-throws classloading exceptions as RuntimeException. */
+    public <T> Class<? extends T> loadClass(String className) {
+        try {
+            @SuppressWarnings("unchecked")
+            Class<? extends T> klass = (Class<? extends T>) Class.forName(className);
+            return klass;
+        } catch (ClassNotFoundException | NoClassDefFoundError | ExceptionInInitializerError e) {
+            throw new RuntimeException("Exception while loading or initializing class " + className, e);
+        }
+    }
+
+    // -----------------------------------------------------------------------------------------------------
+
     /**
      * Calls the provided SubclassMatchProcessor if classes are found on the classpath that extend the specified
      * superclass. Will call the class loader on each matching class (using Class.forName()) before calling the
@@ -294,7 +307,6 @@ public class FastClasspathScanner {
      * @param subclassMatchProcessor
      *            the SubclassMatchProcessor to call when a match is found.
      */
-    @SuppressWarnings("unchecked")
     public <T> FastClasspathScanner matchSubclassesOf(final Class<T> superclass,
             final SubclassMatchProcessor<T> subclassMatchProcessor) {
         if (superclass.isInterface()) {
@@ -304,16 +316,10 @@ public class FastClasspathScanner {
             @Override
             public void lookForMatches() {
                 for (String subclass : classGraphBuilder.getSubclassesOf(superclass.getName())) {
-                    try {
-                        // Load class
-                        Class<? extends T> klass = (Class<? extends T>) Class.forName(subclass);
-
-                        // Process match
-                        subclassMatchProcessor.processMatch(klass);
-
-                    } catch (ClassNotFoundException | NoClassDefFoundError e) {
-                        throw new RuntimeException(e);
-                    }
+                    // Call classloader
+                    Class<? extends T> klass = loadClass(subclass);
+                    // Process match
+                    subclassMatchProcessor.processMatch(klass);
                 }
             }
         });
@@ -361,7 +367,6 @@ public class FastClasspathScanner {
      * @param subinterfaceMatchProcessor
      *            the SubinterfaceMatchProcessor to call when a match is found.
      */
-    @SuppressWarnings("unchecked")
     public <T> FastClasspathScanner matchSubinterfacesOf(final Class<T> superInterface,
             final SubinterfaceMatchProcessor<T> subinterfaceMatchProcessor) {
         if (!superInterface.isInterface()) {
@@ -371,16 +376,10 @@ public class FastClasspathScanner {
             @Override
             public void lookForMatches() {
                 for (String subInterface : classGraphBuilder.getSubinterfacesOf(superInterface.getName())) {
-                    try {
-                        // Load interface
-                        Class<? extends T> klass = (Class<? extends T>) Class.forName(subInterface);
-
-                        // Process match
-                        subinterfaceMatchProcessor.processMatch(klass);
-
-                    } catch (ClassNotFoundException | NoClassDefFoundError e) {
-                        throw new RuntimeException(e);
-                    }
+                    // Call classloader
+                    Class<? extends T> klass = loadClass(subInterface);
+                    // Process match
+                    subinterfaceMatchProcessor.processMatch(klass);
                 }
             }
         });
@@ -430,7 +429,6 @@ public class FastClasspathScanner {
      * @param interfaceMatchProcessor
      *            the ClassMatchProcessor to call when a match is found.
      */
-    @SuppressWarnings("unchecked")
     public <T> FastClasspathScanner matchClassesImplementing(final Class<T> implementedInterface,
             final InterfaceMatchProcessor<T> interfaceMatchProcessor) {
         if (!implementedInterface.isInterface()) {
@@ -441,16 +439,10 @@ public class FastClasspathScanner {
             public void lookForMatches() {
                 // For all classes implementing the given interface
                 for (String implClass : classGraphBuilder.getClassesImplementing(implementedInterface.getName())) {
-                    try {
-                        // Load class
-                        Class<? extends T> klass = (Class<? extends T>) Class.forName(implClass);
-
-                        // Process match
-                        interfaceMatchProcessor.processMatch(klass);
-
-                    } catch (ClassNotFoundException | NoClassDefFoundError e) {
-                        throw new RuntimeException(e);
-                    }
+                    // Call classloader
+                    Class<? extends T> klass = loadClass(implClass);
+                    // Process match
+                    interfaceMatchProcessor.processMatch(klass);
                 }
             }
         });
@@ -508,16 +500,10 @@ public class FastClasspathScanner {
             public void lookForMatches() {
                 // For all classes with the given annotation
                 for (String classWithAnnotation : classGraphBuilder.getClassesWithAnnotation(annotation.getName())) {
-                    try {
-                        // Load class
-                        Class<?> klass = Class.forName(classWithAnnotation);
-
-                        // Process match
-                        classAnnotationMatchProcessor.processMatch(klass);
-
-                    } catch (ClassNotFoundException | NoClassDefFoundError e) {
-                        throw new RuntimeException(e);
-                    }
+                    // Call classloader
+                    Class<?> klass = loadClass(classWithAnnotation);
+                    // Process match
+                    classAnnotationMatchProcessor.processMatch(klass);
                 }
             }
         });
