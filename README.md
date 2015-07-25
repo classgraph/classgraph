@@ -297,6 +297,11 @@ Primitive types (int, long, short, float, double, boolean, char, byte) are wrapp
 This can be useful for detecting changes to non-classfile resources on the classpath, for example a web server's template engine can hot-reload HTML templates when they change by including the template directory in the classpath and then detecting changes to files that are in the template directory and have the extension ".html".
 
 #### MatchProcessor:
+
+A `FileMatchProcessor` is passed the `InputStream` for either the `File` object corresponding to any matching path, or for the `ZipFileEntry` with a matching path. You do not need to close this `InputStream`, it is closed by the caller.
+
+The value of `relativePath` is relative to the classpath entry that contained the matching file.
+
 ```java
 /** The method to run when a file with a matching path is found on the classpath. */
 @FunctionalInterface
