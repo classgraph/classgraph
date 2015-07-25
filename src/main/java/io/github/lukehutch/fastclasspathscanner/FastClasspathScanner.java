@@ -282,7 +282,7 @@ public class FastClasspathScanner {
      * after scan(), and returns matching classes whether or not a SubclassMatchProcessor was added to the scanner
      * before the call to scan(). Does not call the classloader on the matching classes, just returns their names.
      * 
-     * @param subclass
+     * @param subclassName
      *            The subclass to match (i.e. the class that needs to extend a superclass for the superclass to match).
      * @return A list of the names of matching classes, or the empty list if none.
      */
