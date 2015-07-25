@@ -73,7 +73,7 @@ boolean classpathContentsModified =
     fastClassPathScanner.classpathContentsModifiedSinceScan();
 ```
 
-**Method 2:** Create a FastClasspathScanner instance, potentially without adding any MatchProcessors, call scan() to scan the classpath, then call `.getNamesOf...()` methods to find classes and interfaces of interest without actually calling the classloader on any matching classes. The `.getNamesOf...()` methods return lists of strings, rather than lists of `Class<?>` references, and scanning is done by reading the classfile directly, so the classloader does not need to be called for these methods to return their results. This can be useful if the static initializer code for matching classes would trigger unwanted side effects if run during a classpath scan. An example of this usage pattern is:
+**Method 2:** Create a FastClasspathScanner instance, potentially without adding any MatchProcessors, then call scan() to scan the classpath, then call `.getNamesOf...()` methods to find classes and interfaces of interest without actually calling the classloader on any matching classes. The `.getNamesOf...()` methods return lists of strings, rather than lists of `Class<?>` references, and scanning is done by reading the classfile directly, so the classloader does not need to be called for these methods to return their results. This can be useful if the static initializer code for matching classes would trigger unwanted side effects if run during a classpath scan. An example of this usage pattern is:
 
 ```java
 List<String> subclassesOfWidget = new FastClasspathScanner("com.xyz.widget")
@@ -84,6 +84,8 @@ List<String> subclassesOfWidget = new FastClasspathScanner("com.xyz.widget")
     // again without calling the classloader:
     .getNamesOfSubclassesOf("com.xyz.widget.Widget");
 ```
+
+(Note that Method 2 only works with class and interface matches, there are no corresponding `.getNamesOf...()` methods for filename pattern or static field matches.)
 
 ### Tips
 
