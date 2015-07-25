@@ -5,16 +5,16 @@ Uber-fast, ultra-lightweight Java classpath scanner. Scans the classpath by pars
 
 FastClasspathScanner is able to scan directories and jar/zip files on the classpath to:
 
-1. find classes that subclass a given class or one of its subclasses;
-2. find interfaces that extend a given interface or one of its subinterfaces;
-3. find classes that implement an interface or one of its subinterfaces, or whose superclasses implement the interface or one of its subinterfaces;
-4. find classes that have a given annotation;
-5. find the constant literal initializer value in a classfile's constant pool for a specified static final field;
-6. find files (even non-classfiles) anywhere on the classpath that have a path that matches a given regular expression;
-7. perform the actual classpath scan;
-8. detect changes to the files within the classpath since the first time the classpath was scanned;
-9. return a list of all directories and files on the classpath (i.e. all classpath elements) as a list of File objects, with the list deduplicated and filtered to include only classpath directories and files that actually exist, saving you the trouble of parsing and filtering the classpath; and
-10. return a list of the names of all classes and interfaces on the classpath (after whitelist and blacklist filtering).
+1. [find classes that subclass a given class](#1-matching-the-subclasses-or-finding-the-superclasses-of-a-class) or one of its subclasses;
+2. [find interfaces that extend a given interface](#2-matching-the-subinterfaces-or-finding-the-superinterfaces-of-an-interface) or one of its subinterfaces;
+3. [find classes that implement an interface](#3-matching-the-classes-that-implement-an-interface) or one of its subinterfaces, or whose superclasses implement the interface or one of its subinterfaces;
+4. [find classes that have a specific class annotation](#4-matching-classes-with-a-specific-annotation);
+5. find the constant literal initializer value in a classfile's constant pool for a [specified static final field](#5-fetching-the-constant-initializer-values-of-static-final-fields);
+6. find files (even non-classfiles) anywhere on the classpath that have a [path that matches a given regular expression](#6-finding-files-even-non-classfiles-anywhere-on-the-classpath-whose-path-matches-a-given-regular-expression);
+7. perform the actual [classpath scan](#7-performing-the-actual-scan);
+8. [detect changes](#8-detecting-changes-to-classpath-contents-after-the-scan) to the files within the classpath since the first time the classpath was scanned;
+9. return a list of [all directories and files on the classpath](#9-get-a-list-of-all-whitelisted-and-non-blacklisted-classes-and-interfaces-on-the-classpath) (i.e. all classpath elements) as a list of File objects, with the list deduplicated and filtered to include only classpath directories and files that actually exist, saving you the trouble of parsing and filtering the classpath; and
+10. return a list of the [names of all classes and interfaces on the classpath](#10-get-all-unique-directories-and-files-on-the-classpath) (after whitelist and blacklist filtering).
 
 ### Usage
 
@@ -115,7 +115,7 @@ See also [Usage Caveats](#usage-caveats) below.
 
 Note that most of the methods in the API return *this* (of type FastClasspathScanner), so that you can use the [method chaining](http://en.wikipedia.org/wiki/Method_chaining) calling style, as shown in the example above.
 
-### Constructor
+## Constructor
 
 Calling the constructor does not actually start the scan. The constructor takes a whitelist and/or a blacklist of package prefixes that should be scanned.
 
@@ -129,6 +129,8 @@ public FastClasspathScanner(String... pacakagesToScan)
 ```
 
 Note that if you don't specify any whitelisted package prefixes, i.e. `new FastClasspathScanner()`, all packages on the classpath will be scanned. ("Scanning" involves parsing the classfile binary format to determine class and interface relationships.)
+
+## API calls for each use case
 
 ### 1. Matching the subclasses (or finding the superclasses) of a class
 
