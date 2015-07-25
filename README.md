@@ -283,11 +283,11 @@ public FastClasspathScanner matchStaticFinalFieldNames(
 *Note:* Only static final fields with constant-valued literals are matched, not fields with initializer values that are the result of an expression or reference, except for cases where the compiler is able to simplify an expression into a single constant at compiletime, [such as in the case of string concatenation](https://docs.oracle.com/javase/specs/jvms/se7/html/jvms-5.html#jvms-5.1). The following are examples of constant static final fields:
 
 ```java
-static final int w = 5;            // Literal ints, shorts, chars etc. are constant
-static final String x = "a";       // Literal Strings are constant
-static final String y = "a" + "b"; // Referentially equal to interned String "ab"
-static final byte b = 0x7f;        // StaticFinalFieldMatchProcessor is passed a Byte
-private static final int z = 1;    // Visibility is ignored; non-public also returned 
+static final int w = 5;          // Literal ints, shorts, chars etc. are constant
+static final String x = "a";     // Literal Strings are constant
+static final String y = "a" + "b";  // Referentially equal to interned String "ab"
+static final byte b = 0x7f;      // StaticFinalFieldMatchProcessor is passed a Byte
+private static final int z = 1;  // Visibility is ignored; non-public also returned 
 ```
 
 whereas the following fields are non-constant, non-static and/or non-final, so these fields cannot be matched:
@@ -426,7 +426,8 @@ public class Test {
 ```java
 public static void main(String[] args) {
     @SuppressWarnings("unchecked")
-    Class<Widget<?>> widgetClass = (Class<Widget<?>>) new Widget<Object>().getClass();
+    Class<Widget<?>> widgetClass =
+        (Class<Widget<?>>) new Widget<Object>().getClass();
         
     new FastClasspathScanner("com.xyz.widget") //
         .matchSubclassesOf(widgetClass, new SubclassMatchProcessor<Widget<?>>() {
