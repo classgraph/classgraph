@@ -54,8 +54,8 @@ public class ClassGraphBuilder {
     // -----------------------------------------------------------------------------------------------------------------
 
     /** Return the names of all classes with the named class annotation. */
-    public List<String> getNamesOfClassesWithAnnotation(String annotationName) {
-        ArrayList<String> classes = annotationNameToClassName.get(annotationName);
+    public List<String> getNamesOfClassesWithAnnotation(final String annotationName) {
+        final ArrayList<String> classes = annotationNameToClassName.get(annotationName);
         if (classes == null) {
             return Collections.emptyList();
         }
@@ -63,8 +63,8 @@ public class ClassGraphBuilder {
     }
 
     /** Return the names of all classes implementing the named interface. */
-    public List<String> getNamesOfClassesImplementing(String interfaceName) {
-        ArrayList<String> classes = interfaceNameToClassNames.get(interfaceName);
+    public List<String> getNamesOfClassesImplementing(final String interfaceName) {
+        final ArrayList<String> classes = interfaceNameToClassNames.get(interfaceName);
         if (classes == null) {
             return Collections.emptyList();
         }
@@ -72,11 +72,11 @@ public class ClassGraphBuilder {
     }
 
     /** Return the names of all subclasses of the named class. */
-    public List<String> getNamesOfSubclassesOf(String className) {
-        ArrayList<String> subclasses = new ArrayList<>();
-        ClassNode classNode = classNameToClassNode.get(className);
+    public List<String> getNamesOfSubclassesOf(final String className) {
+        final ArrayList<String> subclasses = new ArrayList<>();
+        final ClassNode classNode = classNameToClassNode.get(className);
         if (classNode != null) {
-            for (DAGNode subNode : classNode.allSubNodes) {
+            for (final DAGNode subNode : classNode.allSubNodes) {
                 subclasses.add(subNode.name);
             }
         }
@@ -84,11 +84,11 @@ public class ClassGraphBuilder {
     }
 
     /** Return the names of all superclasses of the named class. */
-    public List<String> getNamesOfSuperclassesOf(String className) {
-        ArrayList<String> superclasses = new ArrayList<>();
-        ClassNode classNode = classNameToClassNode.get(className);
+    public List<String> getNamesOfSuperclassesOf(final String className) {
+        final ArrayList<String> superclasses = new ArrayList<>();
+        final ClassNode classNode = classNameToClassNode.get(className);
         if (classNode != null) {
-            for (DAGNode subNode : classNode.allSuperNodes) {
+            for (final DAGNode subNode : classNode.allSuperNodes) {
                 superclasses.add(subNode.name);
             }
         }
@@ -96,11 +96,11 @@ public class ClassGraphBuilder {
     }
 
     /** Return the names of all subinterfaces of the named interface. */
-    public List<String> getNamesOfSubinterfacesOf(String interfaceName) {
-        ArrayList<String> subinterfaces = new ArrayList<>();
-        InterfaceNode interfaceNode = interfaceNameToInterfaceNode.get(interfaceName);
+    public List<String> getNamesOfSubinterfacesOf(final String interfaceName) {
+        final ArrayList<String> subinterfaces = new ArrayList<>();
+        final InterfaceNode interfaceNode = interfaceNameToInterfaceNode.get(interfaceName);
         if (interfaceNode != null) {
-            for (DAGNode subNode : interfaceNode.allSubNodes) {
+            for (final DAGNode subNode : interfaceNode.allSubNodes) {
                 subinterfaces.add(subNode.name);
             }
         }
@@ -108,11 +108,11 @@ public class ClassGraphBuilder {
     }
 
     /** Return the names of all superinterfaces of the named interface. */
-    public List<String> getNamesOfSuperinterfacesOf(String interfaceName) {
-        ArrayList<String> superinterfaces = new ArrayList<>();
-        InterfaceNode interfaceNode = interfaceNameToInterfaceNode.get(interfaceName);
+    public List<String> getNamesOfSuperinterfacesOf(final String interfaceName) {
+        final ArrayList<String> superinterfaces = new ArrayList<>();
+        final InterfaceNode interfaceNode = interfaceNameToInterfaceNode.get(interfaceName);
         if (interfaceNode != null) {
-            for (DAGNode superNode : interfaceNode.allSuperNodes) {
+            for (final DAGNode superNode : interfaceNode.allSuperNodes) {
                 superinterfaces.add(superNode.name);
             }
         }
@@ -127,8 +127,8 @@ public class ClassGraphBuilder {
     // -----------------------------------------------------------------------------------------------------------------
 
     /** Link a class to its superclass and to the interfaces it implements, and save the class annotations. */
-    public void linkToSuperclassAndInterfaces(String className, String superclassName, ArrayList<String> interfaces,
-            HashSet<String> annotations) {
+    public void linkToSuperclassAndInterfaces(final String className, final String superclassName,
+            final ArrayList<String> interfaces, final HashSet<String> annotations) {
         // Save the info recovered from the classfile for a class
 
         // Look up ClassNode object for this class
@@ -153,7 +153,7 @@ public class ClassGraphBuilder {
     }
 
     /** Save the mapping from an interface to its superinterfaces. */
-    public void linkToSuperinterfaces(String interfaceName, ArrayList<String> superInterfaces) {
+    public void linkToSuperinterfaces(final String interfaceName, final ArrayList<String> superInterfaces) {
 
         // Look up InterfaceNode for this interface
         InterfaceNode thisInterfaceInfo = interfaceNameToInterfaceNode.get(interfaceName);
@@ -167,7 +167,7 @@ public class ClassGraphBuilder {
         }
 
         if (superInterfaces != null) {
-            for (String superInterfaceName : superInterfaces) {
+            for (final String superInterfaceName : superInterfaces) {
                 // Look up InterfaceNode objects for superinterfaces, and connect them to this interface
                 InterfaceNode superInterfaceNode = interfaceNameToInterfaceNode.get(superInterfaceName);
                 if (superInterfaceNode == null) {
@@ -194,13 +194,13 @@ public class ClassGraphBuilder {
         }
 
         // Perform topological sort on class tree
-        ArrayList<DAGNode> classNodeTopoOrder = DAGNode.topoSort(classNameToClassNode.values());
+        final ArrayList<DAGNode> classNodeTopoOrder = DAGNode.topoSort(classNameToClassNode.values());
 
         // Accumulate all superclasses of each class by traversing from highest to lowest class
         for (int i = 0, n = classNodeTopoOrder.size(); i < n; i++) {
-            DAGNode classNode = classNodeTopoOrder.get(i);
-            HashSet<DAGNode> allSuperNodes = new HashSet<>(classNode.allSuperNodes);
-            for (DAGNode superclassNode : classNode.allSuperNodes) {
+            final DAGNode classNode = classNodeTopoOrder.get(i);
+            final HashSet<DAGNode> allSuperNodes = new HashSet<>(classNode.allSuperNodes);
+            for (final DAGNode superclassNode : classNode.allSuperNodes) {
                 allSuperNodes.addAll(superclassNode.allSuperNodes);
             }
             classNode.allSuperNodes = allSuperNodes;
@@ -208,22 +208,22 @@ public class ClassGraphBuilder {
 
         // Accumulate all subclasses of each class by traversing from lowest to highest class
         for (int i = classNodeTopoOrder.size() - 1; i >= 0; --i) {
-            DAGNode classNode = classNodeTopoOrder.get(i);
-            HashSet<DAGNode> allSubNodes = new HashSet<>(classNode.allSubNodes);
-            for (DAGNode subclassNode : classNode.allSubNodes) {
+            final DAGNode classNode = classNodeTopoOrder.get(i);
+            final HashSet<DAGNode> allSubNodes = new HashSet<>(classNode.allSubNodes);
+            for (final DAGNode subclassNode : classNode.allSubNodes) {
                 allSubNodes.addAll(subclassNode.allSubNodes);
             }
             classNode.allSubNodes = allSubNodes;
         }
 
         // Perform topological sort on interface DAG
-        ArrayList<DAGNode> interfaceNodeTopoOrder = DAGNode.topoSort(interfaceNameToInterfaceNode.values());
+        final ArrayList<DAGNode> interfaceNodeTopoOrder = DAGNode.topoSort(interfaceNameToInterfaceNode.values());
 
         // Accumulate all superinterfaces of each interface by traversing from highest to lowest interface
         for (int i = 0, n = interfaceNodeTopoOrder.size(); i < n; i++) {
-            DAGNode interfaceNode = interfaceNodeTopoOrder.get(i);
-            HashSet<DAGNode> allSuperNodes = new HashSet<>(interfaceNode.allSuperNodes);
-            for (DAGNode superinterfaceNode : interfaceNode.allSuperNodes) {
+            final DAGNode interfaceNode = interfaceNodeTopoOrder.get(i);
+            final HashSet<DAGNode> allSuperNodes = new HashSet<>(interfaceNode.allSuperNodes);
+            for (final DAGNode superinterfaceNode : interfaceNode.allSuperNodes) {
                 allSuperNodes.addAll(superinterfaceNode.allSuperNodes);
             }
             interfaceNode.allSuperNodes = allSuperNodes;
@@ -231,27 +231,27 @@ public class ClassGraphBuilder {
 
         // Accumulate all subinterfaces of each interface by traversing from lowest to highest interface
         for (int i = interfaceNodeTopoOrder.size() - 1; i >= 0; --i) {
-            DAGNode interfaceNode = interfaceNodeTopoOrder.get(i);
-            HashSet<DAGNode> allSubNodes = new HashSet<>(interfaceNode.allSubNodes);
-            for (DAGNode subinterfaceNode : interfaceNode.allSubNodes) {
+            final DAGNode interfaceNode = interfaceNodeTopoOrder.get(i);
+            final HashSet<DAGNode> allSubNodes = new HashSet<>(interfaceNode.allSubNodes);
+            for (final DAGNode subinterfaceNode : interfaceNode.allSubNodes) {
                 allSubNodes.addAll(subinterfaceNode.allSubNodes);
             }
             interfaceNode.allSubNodes = allSubNodes;
         }
 
         // Reverse mapping from annotation to classes that have the annotation.
-        HashMap<String, HashSet<DAGNode>> annotationToClassNodes = new HashMap<>();
+        final HashMap<String, HashSet<DAGNode>> annotationToClassNodes = new HashMap<>();
 
         // Reverse mapping from interface to classes that implement the interface.
-        HashMap<String, HashSet<DAGNode>> interfaceToClassNodes = new HashMap<>();
+        final HashMap<String, HashSet<DAGNode>> interfaceToClassNodes = new HashMap<>();
 
         // Create reverse mapping from annotation to the names of classes that have the annotation,
         // and from interface names to the names of classes that implement the interface.
-        for (DAGNode classDAGNode : classNodeTopoOrder) {
-            ClassNode classNode = (ClassNode) classDAGNode;
+        for (final DAGNode classDAGNode : classNodeTopoOrder) {
+            final ClassNode classNode = (ClassNode) classDAGNode;
             if (classNode.annotationNames != null) {
                 // Map from annotation back to classes that have the annotation
-                for (String annotation : classNode.annotationNames) {
+                for (final String annotation : classNode.annotationNames) {
                     HashSet<DAGNode> classList = annotationToClassNodes.get(annotation);
                     if (classList == null) {
                         annotationToClassNodes.put(annotation, classList = new HashSet<>());
@@ -262,18 +262,18 @@ public class ClassGraphBuilder {
 
             if (classNode.interfaceNames != null) {
                 // Map from interface back to classes that implement the interface
-                HashSet<String> interfacesAndSuperinterfaces = new HashSet<>();
-                for (String interfaceName : classNode.interfaceNames) {
+                final HashSet<String> interfacesAndSuperinterfaces = new HashSet<>();
+                for (final String interfaceName : classNode.interfaceNames) {
                     // Any class that implements an interface also implements all its superinterfaces
                     interfacesAndSuperinterfaces.add(interfaceName);
-                    InterfaceNode interfaceNode = interfaceNameToInterfaceNode.get(interfaceName);
+                    final InterfaceNode interfaceNode = interfaceNameToInterfaceNode.get(interfaceName);
                     if (interfaceNode != null) {
-                        for (DAGNode superinterfaceNode : interfaceNode.allSuperNodes) {
+                        for (final DAGNode superinterfaceNode : interfaceNode.allSuperNodes) {
                             interfacesAndSuperinterfaces.add(superinterfaceNode.name);
                         }
                     }
                 }
-                for (String interfaceName : interfacesAndSuperinterfaces) {
+                for (final String interfaceName : interfacesAndSuperinterfaces) {
                     // Add mapping from interface back to implementing class
                     HashSet<DAGNode> classList = interfaceToClassNodes.get(interfaceName);
                     if (classList == null) {
@@ -286,13 +286,13 @@ public class ClassGraphBuilder {
 
         // Classes that subclass another class that implements an interface also implement the same interface.
         // Add these to the mapping from interface back to the classes that implement the interface.
-        for (DAGNode interfaceNode : interfaceNodeTopoOrder) {
+        for (final DAGNode interfaceNode : interfaceNodeTopoOrder) {
             // Get all classes that implement this interface
-            HashSet<DAGNode> implementingClasses = interfaceToClassNodes.get(interfaceNode.name);
+            final HashSet<DAGNode> implementingClasses = interfaceToClassNodes.get(interfaceNode.name);
             if (implementingClasses != null) {
                 // Get the union of all subclasses of all classes that implement this interface
-                HashSet<DAGNode> allSubClasses = new HashSet<DAGNode>(implementingClasses);
-                for (DAGNode implementingClass : implementingClasses) {
+                final HashSet<DAGNode> allSubClasses = new HashSet<DAGNode>(implementingClasses);
+                for (final DAGNode implementingClass : implementingClasses) {
                     allSubClasses.addAll(implementingClass.allSubNodes);
                 }
                 // Add to the mapping from the interface to each subclass of a class that implements the interface
@@ -305,22 +305,22 @@ public class ClassGraphBuilder {
         }
 
         // Convert annotation and interface mappings to String->String 
-        for (Entry<String, HashSet<DAGNode>> ent : annotationToClassNodes.entrySet()) {
-            ArrayList<String> classNameList = new ArrayList<>();
+        for (final Entry<String, HashSet<DAGNode>> ent : annotationToClassNodes.entrySet()) {
+            final ArrayList<String> classNameList = new ArrayList<>();
             annotationNameToClassName.put(ent.getKey(), classNameList);
-            HashSet<DAGNode> classNodes = ent.getValue();
+            final HashSet<DAGNode> classNodes = ent.getValue();
             if (classNodes != null) {
-                for (DAGNode classNode : classNodes) {
+                for (final DAGNode classNode : classNodes) {
                     classNameList.add(classNode.name);
                 }
             }
         }
-        for (Entry<String, HashSet<DAGNode>> ent : interfaceToClassNodes.entrySet()) {
-            ArrayList<String> classNameList = new ArrayList<>();
+        for (final Entry<String, HashSet<DAGNode>> ent : interfaceToClassNodes.entrySet()) {
+            final ArrayList<String> classNameList = new ArrayList<>();
             interfaceNameToClassNames.put(ent.getKey(), classNameList);
-            HashSet<DAGNode> classNodes = ent.getValue();
+            final HashSet<DAGNode> classNodes = ent.getValue();
             if (classNodes != null) {
-                for (DAGNode classNode : classNodes) {
+                for (final DAGNode classNode : classNodes) {
                     classNameList.add(classNode.name);
                 }
             }

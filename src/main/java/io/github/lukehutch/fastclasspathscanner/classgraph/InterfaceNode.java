@@ -33,7 +33,7 @@ package io.github.lukehutch.fastclasspathscanner.classgraph;
 class InterfaceNode extends DAGNode {
 
     /** The named interface was encountered on the classpath. */
-    public InterfaceNode(String interfaceName) {
+    public InterfaceNode(final String interfaceName) {
         super(interfaceName);
     }
 
@@ -41,8 +41,8 @@ class InterfaceNode extends DAGNode {
      * A subinterface of this interface was encountered on the classpath, but this interface has not yet been
      * encountered itself on the classpath (so this node is a placeholder until it is itself encountered).
      */
-    public InterfaceNode(String interfaceName, InterfaceNode subinterfaceName) {
+    public InterfaceNode(final String interfaceName, final InterfaceNode subinterfaceName) {
         super(interfaceName, subinterfaceName);
     }
-    
+
 }

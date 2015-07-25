@@ -139,20 +139,20 @@ public class FastClasspathScanner {
      *            e.g. "-com.xyz.otherthing", then that package is blacklisted, rather than whitelisted. The final list
      *            of packages scanned is the set of whitelisted packages minus the set of blacklisted packages.
      */
-    public FastClasspathScanner(String... packagesToScan) {
-        HashSet<String> uniqueWhitelistedPathsToScan = new HashSet<>();
-        HashSet<String> uniqueBlacklistedPathsToScan = new HashSet<>();
+    public FastClasspathScanner(final String... packagesToScan) {
+        final HashSet<String> uniqueWhitelistedPathsToScan = new HashSet<>();
+        final HashSet<String> uniqueBlacklistedPathsToScan = new HashSet<>();
         boolean scanAll = false;
         if (packagesToScan.length == 0) {
             scanAll = true;
         } else {
-            for (String packageToScan : packagesToScan) {
+            for (final String packageToScan : packagesToScan) {
                 if (packageToScan.isEmpty()) {
                     scanAll = true;
                     break;
                 }
                 String pkg = packageToScan.replace('.', '/') + "/";
-                boolean blacklisted = pkg.startsWith("-");
+                final boolean blacklisted = pkg.startsWith("-");
                 if (blacklisted) {
                     pkg = pkg.substring(1);
                 }
@@ -164,13 +164,13 @@ public class FastClasspathScanner {
         } else {
             this.whitelistedPathsToScan = new String[uniqueWhitelistedPathsToScan.size()];
             int i = 0;
-            for (String path : uniqueWhitelistedPathsToScan) {
+            for (final String path : uniqueWhitelistedPathsToScan) {
                 this.whitelistedPathsToScan[i++] = path;
             }
         }
         this.blacklistedPathsToScan = new String[uniqueBlacklistedPathsToScan.size()];
         int i = 0;
-        for (String path : uniqueBlacklistedPathsToScan) {
+        for (final String path : uniqueBlacklistedPathsToScan) {
             this.blacklistedPathsToScan[i++] = path;
         }
     }
@@ -178,10 +178,10 @@ public class FastClasspathScanner {
     // -----------------------------------------------------------------------------------------------------------------
 
     /** Call the classloader using Class.forName(className). Re-throws classloading exceptions as RuntimeException. */
-    public <T> Class<? extends T> loadClass(String className) {
+    public <T> Class<? extends T> loadClass(final String className) {
         try {
             @SuppressWarnings("unchecked")
-            Class<? extends T> klass = (Class<? extends T>) Class.forName(className);
+            final Class<? extends T> klass = (Class<? extends T>) Class.forName(className);
             return klass;
         } catch (ClassNotFoundException | NoClassDefFoundError | ExceptionInInitializerError e) {
             throw new RuntimeException("Exception while loading or initializing class " + className, e);
@@ -208,9 +208,9 @@ public class FastClasspathScanner {
         classMatchers.add(new ClassMatcher() {
             @Override
             public void lookForMatches() {
-                for (String subclass : classGraphBuilder.getNamesOfSubclassesOf(superclass.getName())) {
+                for (final String subclass : classGraphBuilder.getNamesOfSubclassesOf(superclass.getName())) {
                     // Call classloader
-                    Class<? extends T> klass = loadClass(subclass);
+                    final Class<? extends T> klass = loadClass(subclass);
                     // Process match
                     subclassMatchProcessor.processMatch(klass);
                 }
@@ -244,7 +244,7 @@ public class FastClasspathScanner {
      *            The name of the superclass to match (i.e. the name of the class that subclasses need to extend).
      * @return A list of the names of matching classes, or the empty list if none.
      */
-    public List<String> getNamesOfSubclassesOf(String superclassName) {
+    public List<String> getNamesOfSubclassesOf(final String superclassName) {
         return classGraphBuilder.getNamesOfSubclassesOf(superclassName);
     }
 
@@ -273,7 +273,7 @@ public class FastClasspathScanner {
      *            The subclass to match (i.e. the class that needs to extend a superclass for the superclass to match).
      * @return A list of the names of matching classes, or the empty list if none.
      */
-    public List<String> getNamesOfSuperclassesOf(String subclassName) {
+    public List<String> getNamesOfSuperclassesOf(final String subclassName) {
         return classGraphBuilder.getNamesOfSuperclassesOf(subclassName);
     }
 
@@ -297,9 +297,9 @@ public class FastClasspathScanner {
         classMatchers.add(new ClassMatcher() {
             @Override
             public void lookForMatches() {
-                for (String subInterface : classGraphBuilder.getNamesOfSubinterfacesOf(superInterface.getName())) {
+                for (final String subInterface : classGraphBuilder.getNamesOfSubinterfacesOf(superInterface.getName())) {
                     // Call classloader
-                    Class<? extends T> klass = loadClass(subInterface);
+                    final Class<? extends T> klass = loadClass(subInterface);
                     // Process match
                     subinterfaceMatchProcessor.processMatch(klass);
                 }
@@ -391,9 +391,10 @@ public class FastClasspathScanner {
             @Override
             public void lookForMatches() {
                 // For all classes implementing the given interface
-                for (String implClass : classGraphBuilder.getNamesOfClassesImplementing(implementedInterface.getName())) {
+                for (final String implClass : classGraphBuilder.getNamesOfClassesImplementing(implementedInterface
+                        .getName())) {
                     // Call classloader
-                    Class<? extends T> klass = loadClass(implClass);
+                    final Class<? extends T> klass = loadClass(implClass);
                     // Process match
                     interfaceMatchProcessor.processMatch(klass);
                 }
@@ -452,10 +453,10 @@ public class FastClasspathScanner {
             @Override
             public void lookForMatches() {
                 // For all classes with the given annotation
-                for (String classWithAnnotation : classGraphBuilder.getNamesOfClassesWithAnnotation(annotation
+                for (final String classWithAnnotation : classGraphBuilder.getNamesOfClassesWithAnnotation(annotation
                         .getName())) {
                     // Call classloader
-                    Class<?> klass = loadClass(classWithAnnotation);
+                    final Class<?> klass = loadClass(classWithAnnotation);
                     // Process match
                     classAnnotationMatchProcessor.processMatch(klass);
                 }
@@ -518,11 +519,11 @@ public class FastClasspathScanner {
      */
     public FastClasspathScanner matchStaticFinalFieldNames(final HashSet<String> fullyQualifiedStaticFinalFieldNames,
             final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor) {
-        for (String fullyQualifiedFieldName : fullyQualifiedStaticFinalFieldNames) {
-            int lastDotIdx = fullyQualifiedFieldName.lastIndexOf('.');
+        for (final String fullyQualifiedFieldName : fullyQualifiedStaticFinalFieldNames) {
+            final int lastDotIdx = fullyQualifiedFieldName.lastIndexOf('.');
             if (lastDotIdx > 0) {
-                String className = fullyQualifiedFieldName.substring(0, lastDotIdx);
-                String fieldName = fullyQualifiedFieldName.substring(lastDotIdx + 1);
+                final String className = fullyQualifiedFieldName.substring(0, lastDotIdx);
+                final String fieldName = fullyQualifiedFieldName.substring(lastDotIdx + 1);
                 HashMap<String, StaticFinalFieldMatchProcessor> fieldNameToMatchProcessor = //
                 classNameToStaticFieldnameToMatchProcessor.get(className);
                 if (fieldNameToMatchProcessor == null) {
@@ -561,8 +562,8 @@ public class FastClasspathScanner {
     public FastClasspathScanner matchStaticFinalFieldNames(
             final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor,
             final String... fullyQualifiedStaticFinalFieldNames) {
-        HashSet<String> fullyQualifiedStaticFinalFieldNamesSet = new HashSet<>();
-        for (String fullyQualifiedFieldName : fullyQualifiedStaticFinalFieldNames) {
+        final HashSet<String> fullyQualifiedStaticFinalFieldNamesSet = new HashSet<>();
+        for (final String fullyQualifiedFieldName : fullyQualifiedStaticFinalFieldNames) {
             fullyQualifiedStaticFinalFieldNamesSet.add(fullyQualifiedFieldName);
         }
         return matchStaticFinalFieldNames(fullyQualifiedStaticFinalFieldNamesSet, staticFinalFieldMatchProcessor);
@@ -591,7 +592,7 @@ public class FastClasspathScanner {
      */
     public FastClasspathScanner matchStaticFinalFieldNames(final String fullyQualifiedStaticFinalFieldName,
             final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor) {
-        HashSet<String> fullyQualifiedStaticFinalFieldNamesSet = new HashSet<>();
+        final HashSet<String> fullyQualifiedStaticFinalFieldNamesSet = new HashSet<>();
         fullyQualifiedStaticFinalFieldNamesSet.add(fullyQualifiedStaticFinalFieldName);
         return matchStaticFinalFieldNames(fullyQualifiedStaticFinalFieldNamesSet, staticFinalFieldMatchProcessor);
     }
@@ -620,7 +621,7 @@ public class FastClasspathScanner {
         Pattern pattern;
         FileMatchProcessor fileMatchProcessor;
 
-        public FilePathMatcher(Pattern pattern, FileMatchProcessor fileMatchProcessor) {
+        public FilePathMatcher(final Pattern pattern, final FileMatchProcessor fileMatchProcessor) {
             this.pattern = pattern;
             this.fileMatchProcessor = fileMatchProcessor;
         }
@@ -646,8 +647,8 @@ public class FastClasspathScanner {
     /**
      * Read annotation entry from classfile.
      */
-    private String readAnnotation(final DataInputStream inp, Object[] constantPool) throws IOException {
-        String annotationFieldDescriptor = readRefdString(inp, constantPool);
+    private String readAnnotation(final DataInputStream inp, final Object[] constantPool) throws IOException {
+        final String annotationFieldDescriptor = readRefdString(inp, constantPool);
         String annotationClassName;
         if (annotationFieldDescriptor.charAt(0) == 'L'
                 && annotationFieldDescriptor.charAt(annotationFieldDescriptor.length() - 1) == ';') {
@@ -658,7 +659,7 @@ public class FastClasspathScanner {
             // Should not happen
             annotationClassName = annotationFieldDescriptor;
         }
-        int numElementValuePairs = inp.readUnsignedShort();
+        final int numElementValuePairs = inp.readUnsignedShort();
         for (int i = 0; i < numElementValuePairs; i++) {
             inp.skipBytes(2); // element_name_index
             readAnnotationElementValue(inp, constantPool);
@@ -669,8 +670,8 @@ public class FastClasspathScanner {
     /**
      * Read annotation element value from classfile.
      */
-    private void readAnnotationElementValue(final DataInputStream inp, Object[] constantPool) throws IOException {
-        int tag = inp.readUnsignedByte();
+    private void readAnnotationElementValue(final DataInputStream inp, final Object[] constantPool) throws IOException {
+        final int tag = inp.readUnsignedByte();
         switch (tag) {
         case 'B':
         case 'C':
@@ -713,7 +714,7 @@ public class FastClasspathScanner {
     /**
      * Read as usigned short constant pool reference, then look up the string in the constant pool.
      */
-    private static String readRefdString(DataInputStream inp, Object[] constantPool) throws IOException {
+    private static String readRefdString(final DataInputStream inp, final Object[] constantPool) throws IOException {
         return (String) constantPool[inp.readUnsignedShort()];
     }
 
@@ -721,7 +722,7 @@ public class FastClasspathScanner {
      * Directly examine contents of classfile binary header.
      */
     private void readClassInfoFromClassfileHeader(final InputStream inputStream) throws IOException {
-        DataInputStream inp = new DataInputStream(new BufferedInputStream(inputStream, 1024));
+        final DataInputStream inp = new DataInputStream(new BufferedInputStream(inputStream, 1024));
 
         // Magic
         if (inp.readInt() != 0xCAFEBABE) {
@@ -735,10 +736,10 @@ public class FastClasspathScanner {
         inp.readUnsignedShort();
 
         // Constant pool count (1-indexed, zeroth entry not used)
-        int cpCount = inp.readUnsignedShort();
+        final int cpCount = inp.readUnsignedShort();
         // Constant pool
-        Object[] constantPool = new Object[cpCount];
-        int[] indirectStringRef = new int[cpCount];
+        final Object[] constantPool = new Object[cpCount];
+        final int[] indirectStringRef = new int[cpCount];
         Arrays.fill(indirectStringRef, -1);
         for (int i = 1; i < cpCount; ++i) {
             final int tag = inp.readUnsignedByte();
@@ -794,11 +795,11 @@ public class FastClasspathScanner {
         }
 
         // Access flags
-        int flags = inp.readUnsignedShort();
-        boolean isInterface = (flags & 0x0200) != 0;
+        final int flags = inp.readUnsignedShort();
+        final boolean isInterface = (flags & 0x0200) != 0;
 
         // The fully-qualified class name of this class, with slashes replaced with dots
-        String className = readRefdString(inp, constantPool).replace('/', '.');
+        final String className = readRefdString(inp, constantPool).replace('/', '.');
         if (className.equals("java.lang.Object")) {
             // java.lang.Object doesn't have a superclass to be linked to, can simply return
             return;
@@ -812,31 +813,31 @@ public class FastClasspathScanner {
         }
 
         // Superclass name, with slashes replaced with dots
-        String superclassName = readRefdString(inp, constantPool).replace('/', '.');
+        final String superclassName = readRefdString(inp, constantPool).replace('/', '.');
 
         // Look up static field name match processors given class name 
-        HashMap<String, StaticFinalFieldMatchProcessor> staticFieldnameToMatchProcessor = //
+        final HashMap<String, StaticFinalFieldMatchProcessor> staticFieldnameToMatchProcessor = //
         classNameToStaticFieldnameToMatchProcessor.get(className);
 
         // Interfaces
-        int interfaceCount = inp.readUnsignedShort();
-        ArrayList<String> interfaces = interfaceCount > 0 ? new ArrayList<String>() : null;
+        final int interfaceCount = inp.readUnsignedShort();
+        final ArrayList<String> interfaces = interfaceCount > 0 ? new ArrayList<String>() : null;
         for (int i = 0; i < interfaceCount; i++) {
             interfaces.add(readRefdString(inp, constantPool).replace('/', '.'));
         }
 
         // Fields
-        int fieldCount = inp.readUnsignedShort();
+        final int fieldCount = inp.readUnsignedShort();
         for (int i = 0; i < fieldCount; i++) {
-            int accessFlags = inp.readUnsignedShort();
+            final int accessFlags = inp.readUnsignedShort();
             // See http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.6
-            boolean isStaticFinal = (accessFlags & 0x0018) == 0x0018;
-            String fieldName = readRefdString(inp, constantPool);
-            StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor = staticFieldnameToMatchProcessor != null //
+            final boolean isStaticFinal = (accessFlags & 0x0018) == 0x0018;
+            final String fieldName = readRefdString(inp, constantPool);
+            final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor = staticFieldnameToMatchProcessor != null //
             ? staticFieldnameToMatchProcessor.get(fieldName)
                     : null;
-            String descriptor = readRefdString(inp, constantPool);
-            int attributesCount = inp.readUnsignedShort();
+            final String descriptor = readRefdString(inp, constantPool);
+            final int attributesCount = inp.readUnsignedShort();
             if (!isStaticFinal && staticFinalFieldMatchProcessor != null) {
                 // Requested to match a field that is not static or not final
                 System.err.println(StaticFinalFieldMatchProcessor.class.getSimpleName()
@@ -846,7 +847,7 @@ public class FastClasspathScanner {
                 // Not matching this static final field, just skip field attributes rather than parsing them
                 for (int j = 0; j < attributesCount; j++) {
                     inp.skipBytes(2); // attribute_name_index
-                    int attributeLength = inp.readInt();
+                    final int attributeLength = inp.readInt();
                     inp.skipBytes(attributeLength);
                 }
             } else {
@@ -854,8 +855,8 @@ public class FastClasspathScanner {
                 // and that are initialized with a constant value
                 boolean foundConstantValue = false;
                 for (int j = 0; j < attributesCount; j++) {
-                    String attributeName = readRefdString(inp, constantPool);
-                    int attributeLength = inp.readInt();
+                    final String attributeName = readRefdString(inp, constantPool);
+                    final int attributeLength = inp.readInt();
                     if (attributeName.equals("ConstantValue")) {
                         // http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.7.2
                         Object constValue = constantPool[inp.readUnsignedShort()];
@@ -908,27 +909,27 @@ public class FastClasspathScanner {
         }
 
         // Methods
-        int methodCount = inp.readUnsignedShort();
+        final int methodCount = inp.readUnsignedShort();
         for (int i = 0; i < methodCount; i++) {
             inp.skipBytes(6); // access_flags, name_index, descriptor_index
-            int attributesCount = inp.readUnsignedShort();
+            final int attributesCount = inp.readUnsignedShort();
             for (int j = 0; j < attributesCount; j++) {
                 inp.skipBytes(2); // attribute_name_index
-                int attributeLength = inp.readInt();
+                final int attributeLength = inp.readInt();
                 inp.skipBytes(attributeLength);
             }
         }
 
         // Attributes (including class annotations)
         HashSet<String> annotations = null;
-        int attributesCount = inp.readUnsignedShort();
+        final int attributesCount = inp.readUnsignedShort();
         for (int i = 0; i < attributesCount; i++) {
-            String attributeName = readRefdString(inp, constantPool);
-            int attributeLength = inp.readInt();
+            final String attributeName = readRefdString(inp, constantPool);
+            final int attributeLength = inp.readInt();
             if ("RuntimeVisibleAnnotations".equals(attributeName)) {
-                int annotationCount = inp.readUnsignedShort();
+                final int annotationCount = inp.readUnsignedShort();
                 for (int m = 0; m < annotationCount; m++) {
-                    String annotationName = readAnnotation(inp, constantPool);
+                    final String annotationName = readAnnotation(inp, constantPool);
                     if (annotations == null) {
                         annotations = new HashSet<>();
                     }
@@ -953,8 +954,8 @@ public class FastClasspathScanner {
     /**
      * Scan a file.
      */
-    private void scanFile(File file, String absolutePath, String relativePath, boolean scanTimestampsOnly)
-            throws IOException {
+    private void scanFile(final File file, final String absolutePath, final String relativePath,
+            final boolean scanTimestampsOnly) throws IOException {
         lastModified = Math.max(lastModified, file.lastModified());
         if (!scanTimestampsOnly) {
             if (relativePath.endsWith(".class")) {
@@ -965,7 +966,7 @@ public class FastClasspathScanner {
                 }
             } else {
                 // For non-classfiles, match file paths against path patterns
-                for (FilePathMatcher fileMatcher : filePathMatchers) {
+                for (final FilePathMatcher fileMatcher : filePathMatchers) {
                     if (fileMatcher.pattern.matcher(relativePath).matches()) {
                         // If there's a match, open the file as a stream and call the match processor
                         try (InputStream inputStream = new FileInputStream(file)) {
@@ -980,15 +981,15 @@ public class FastClasspathScanner {
     /**
      * Scan a directory for matching file path patterns.
      */
-    private void scanDir(File dir, int ignorePrefixLen, boolean inWhitelistedPath, boolean scanTimestampsOnly)
-            throws IOException {
+    private void scanDir(final File dir, final int ignorePrefixLen, boolean inWhitelistedPath,
+            final boolean scanTimestampsOnly) throws IOException {
         String relativePath = (ignorePrefixLen > dir.getPath().length() ? "" : dir.getPath().substring(ignorePrefixLen))
                 + "/";
         if (File.separatorChar != '/') {
             // Fix scanning on Windows
             relativePath = relativePath.replace(File.separatorChar, '/');
         }
-        for (String blacklistedPath : blacklistedPathsToScan) {
+        for (final String blacklistedPath : blacklistedPathsToScan) {
             if (relativePath.equals(blacklistedPath)) {
                 // Reached a blacklisted path -- stop scanning files and dirs
                 return;
@@ -998,7 +999,7 @@ public class FastClasspathScanner {
         if (!inWhitelistedPath) {
             // If not yet within a subtree of a whitelisted path, see if the current path is at least a prefix of
             // a whitelisted path, and if so, keep recursing until we hit a whitelisted path.
-            for (String whitelistedPath : whitelistedPathsToScan) {
+            for (final String whitelistedPath : whitelistedPathsToScan) {
                 if (relativePath.equals(whitelistedPath)) {
                     // Reached a whitelisted path -- can start scanning directories and files from this point
                     inWhitelistedPath = true;
@@ -1012,7 +1013,7 @@ public class FastClasspathScanner {
         }
         if (keepRecursing || inWhitelistedPath) {
             lastModified = Math.max(lastModified, dir.lastModified());
-            File[] subFiles = dir.listFiles();
+            final File[] subFiles = dir.listFiles();
             for (final File subFile : subFiles) {
                 if (subFile.isDirectory()) {
                     // Recurse into subdirectory
@@ -1029,18 +1030,18 @@ public class FastClasspathScanner {
     /**
      * Scan a zipfile for matching file path patterns. (Does not recurse into zipfiles within zipfiles.)
      */
-    private void scanZipfile(final String zipfilePath, final ZipFile zipFile, long zipFileLastModified,
-            boolean scanTimestampsOnly) throws IOException {
+    private void scanZipfile(final String zipfilePath, final ZipFile zipFile, final long zipFileLastModified,
+            final boolean scanTimestampsOnly) throws IOException {
         boolean timestampWarning = false;
-        for (Enumeration<? extends ZipEntry> entries = zipFile.entries(); entries.hasMoreElements();) {
+        for (final Enumeration<? extends ZipEntry> entries = zipFile.entries(); entries.hasMoreElements();) {
             // Scan for matching filenames
             final ZipEntry entry = entries.nextElement();
             if (!entry.isDirectory()) {
                 // Only process file entries (zipfile indices contain both directory entries and
                 // separate file entries for files within each directory, in lexicographic order)
-                String path = entry.getName();
+                final String path = entry.getName();
                 boolean scanFile = false;
-                for (String whitelistedPath : whitelistedPathsToScan) {
+                for (final String whitelistedPath : whitelistedPathsToScan) {
                     if (path.startsWith(whitelistedPath) //
                             || whitelistedPath.equals("/")) {
                         // File path has a whitelisted path as a prefix -- can scan file
@@ -1048,7 +1049,7 @@ public class FastClasspathScanner {
                         break;
                     }
                 }
-                for (String blacklistedPath : blacklistedPathsToScan) {
+                for (final String blacklistedPath : blacklistedPathsToScan) {
                     if (path.startsWith(blacklistedPath)) {
                         // File path has a blacklisted path as a prefix -- don't scan it
                         scanFile = false;
@@ -1063,12 +1064,12 @@ public class FastClasspathScanner {
                     // clock used to timestamp regular file and directory entries in the current
                     // classpath. USE_ZIPFILE_ENTRY_MODIFICATION_TIMES is set to false by default,
                     // as zipfile entry timestamps are less trustworthy than filesystem timestamps.
-                    long entryTime = USE_ZIPFILE_ENTRY_MODIFICATION_TIMES //
+                    final long entryTime = USE_ZIPFILE_ENTRY_MODIFICATION_TIMES //
                     ? entry.getTime()
                             : zipFileLastModified;
                     lastModified = Math.max(lastModified, entryTime);
                     if (entryTime > System.currentTimeMillis() && !timestampWarning) {
-                        String msg = zipfilePath + " contains modification timestamps after the current time";
+                        final String msg = zipfilePath + " contains modification timestamps after the current time";
                         // Log.warning(msg);
                         System.err.println(msg);
                         // Only warn once
@@ -1082,7 +1083,7 @@ public class FastClasspathScanner {
                             }
                         } else {
                             // For non-classfiles, match file paths against path patterns
-                            for (FilePathMatcher fileMatcher : filePathMatchers) {
+                            for (final FilePathMatcher fileMatcher : filePathMatchers) {
                                 if (fileMatcher.pattern.matcher(path).matches()) {
                                     // There's a match -- open the file as a stream and
                                     // call the match processor
@@ -1105,12 +1106,12 @@ public class FastClasspathScanner {
      * Classpath elements that do not exist are not included in the list.
      */
     public static ArrayList<File> getUniqueClasspathElements() {
-        String[] pathElements = System.getProperty("java.class.path").split(File.pathSeparator);
-        HashSet<String> pathElementsSet = new HashSet<>();
-        ArrayList<File> pathFiles = new ArrayList<>();
-        for (String pathElement : pathElements) {
+        final String[] pathElements = System.getProperty("java.class.path").split(File.pathSeparator);
+        final HashSet<String> pathElementsSet = new HashSet<>();
+        final ArrayList<File> pathFiles = new ArrayList<>();
+        for (final String pathElement : pathElements) {
             if (pathElementsSet.add(pathElement)) {
-                File file = new File(pathElement);
+                final File file = new File(pathElement);
                 if (file.exists()) {
                     pathFiles.add(file);
                 }
@@ -1126,7 +1127,7 @@ public class FastClasspathScanner {
      * 
      * This method should be called before any "get" methods (e.g. getSubclassesOf()).
      */
-    private FastClasspathScanner scan(boolean scanTimestampsOnly) {
+    private FastClasspathScanner scan(final boolean scanTimestampsOnly) {
         // long scanStart = System.currentTimeMillis();
 
         classesEncounteredSoFarDuringScan.clear();
@@ -1136,13 +1137,13 @@ public class FastClasspathScanner {
 
         try {
             // Iterate through path elements and recursively scan within each directory and zipfile
-            for (File pathElt : getUniqueClasspathElements()) {
-                String path = pathElt.getPath();
+            for (final File pathElt : getUniqueClasspathElements()) {
+                final String path = pathElt.getPath();
                 if (pathElt.isDirectory()) {
                     // Scan within dir path element
                     scanDir(pathElt, path.length() + 1, false, scanTimestampsOnly);
                 } else if (pathElt.isFile()) {
-                    String pathLower = path.toLowerCase();
+                    final String pathLower = path.toLowerCase();
                     if (pathLower.endsWith(".jar") || pathLower.endsWith(".zip")) {
                         // Scan within jar/zipfile path element
                         scanZipfile(path, new ZipFile(pathElt), pathElt.lastModified(), scanTimestampsOnly);
@@ -1150,7 +1151,7 @@ public class FastClasspathScanner {
                         // File listed directly on classpath
                         scanFile(pathElt, path, pathElt.getName(), scanTimestampsOnly);
 
-                        for (FilePathMatcher fileMatcher : filePathMatchers) {
+                        for (final FilePathMatcher fileMatcher : filePathMatchers) {
                             if (fileMatcher.pattern.matcher(path).matches()) {
                                 // If there's a match, open the file as a stream and call the
                                 // match processor
@@ -1164,7 +1165,7 @@ public class FastClasspathScanner {
                     // Log.info("Skipping non-file/non-dir on classpath: " + file.getCanonicalPath());
                 }
             }
-        } catch (IOException e) {
+        } catch (final IOException e) {
             throw new RuntimeException(e);
         }
 
@@ -1172,7 +1173,7 @@ public class FastClasspathScanner {
             // Finalize class and interface DAGs
             classGraphBuilder.finalizeNodes();
             // Look for class and interface matches
-            for (ClassMatcher classMatcher : classMatchers) {
+            for (final ClassMatcher classMatcher : classMatchers) {
                 classMatcher.lookForMatches();
             }
         }
@@ -1197,12 +1198,12 @@ public class FastClasspathScanner {
      * prefixes whitelisted in the call to the constructor. Returns true if scan() has not yet been run.
      */
     public boolean classpathContentsModifiedSinceScan() {
-        long oldLastModified = this.lastModified;
+        final long oldLastModified = this.lastModified;
         if (oldLastModified == 0) {
             return true;
         } else {
             scan(/* scanTimestampsOnly = */true);
-            long newLastModified = this.lastModified;
+            final long newLastModified = this.lastModified;
             return newLastModified > oldLastModified;
         }
     }

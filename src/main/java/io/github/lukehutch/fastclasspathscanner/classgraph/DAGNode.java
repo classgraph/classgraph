@@ -53,7 +53,7 @@ class DAGNode {
     HashSet<DAGNode> allSubNodes = new HashSet<>();
 
     /** This class or interface was encountered on the classpath. */
-    public DAGNode(String name) {
+    public DAGNode(final String name) {
         this.name = name;
     }
 
@@ -65,13 +65,13 @@ class DAGNode {
     }
 
     /** This class/interface was referenced as a superclass/superinterface of the given subclass/subinterface. */
-    public DAGNode(String name, DAGNode subNode) {
+    public DAGNode(final String name, final DAGNode subNode) {
         this.name = name;
         addSubNode(subNode);
     }
 
     /** Connect this node to a subnode. */
-    public void addSubNode(DAGNode subNode) {
+    public void addSubNode(final DAGNode subNode) {
         subNode.directSuperNodes.add(this);
         subNode.allSuperNodes.add(this);
         this.directSubNodes.add(subNode);
@@ -79,9 +79,9 @@ class DAGNode {
     }
 
     /** Topological sort DFS recursion */
-    protected void topoSortRec(HashSet<DAGNode> visited, ArrayList<DAGNode> topoOrder) {
+    protected void topoSortRec(final HashSet<DAGNode> visited, final ArrayList<DAGNode> topoOrder) {
         if (visited.add(this)) {
-            for (DAGNode subNode : directSubNodes) {
+            for (final DAGNode subNode : directSubNodes) {
                 subNode.topoSortRec(visited, topoOrder);
             }
             topoOrder.add(this);
@@ -89,10 +89,10 @@ class DAGNode {
     }
 
     /** Perform topological sort on DAG. */
-    public static ArrayList<DAGNode> topoSort(Collection<? extends DAGNode> nodes) {
-        ArrayList<DAGNode> topoOrder = new ArrayList<>(nodes.size());
-        HashSet<DAGNode> visited = new HashSet<>();
-        for (DAGNode node : nodes) {
+    public static ArrayList<DAGNode> topoSort(final Collection<? extends DAGNode> nodes) {
+        final ArrayList<DAGNode> topoOrder = new ArrayList<>(nodes.size());
+        final HashSet<DAGNode> visited = new HashSet<>();
+        for (final DAGNode node : nodes) {
             if (node.directSuperNodes.isEmpty()) {
                 // Start the topo sort at each least upper bound
                 node.topoSortRec(visited, topoOrder);
@@ -100,7 +100,7 @@ class DAGNode {
         }
         // Reverse the postorder traversal node ordering to get the topological ordering
         for (int i = 0, n = topoOrder.size(), n2 = n / 2; i < n2; i++) {
-            DAGNode tmp = topoOrder.get(i);
+            final DAGNode tmp = topoOrder.get(i);
             topoOrder.set(i, topoOrder.get(n - 1 - i));
             topoOrder.set(n - 1 - i, tmp);
         }

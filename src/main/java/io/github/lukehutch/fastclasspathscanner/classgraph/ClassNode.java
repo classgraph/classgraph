@@ -43,26 +43,27 @@ class ClassNode extends DAGNode {
     HashSet<String> annotationNames = new HashSet<>();
 
     /** This class was encountered on the classpath. */
-    public ClassNode(String className, ArrayList<String> interfaceNames, HashSet<String> annotationNames) {
+    public ClassNode(final String className, final ArrayList<String> interfaceNames,
+            final HashSet<String> annotationNames) {
         super(className);
         this.name = className;
         this.encounter(interfaceNames, annotationNames);
     }
 
     /** A subclass of this class was encountered on the classpath, but this class has not yet been encountered. */
-    public ClassNode(String className, ClassNode subclass) {
+    public ClassNode(final String className, final ClassNode subclass) {
         super(className, subclass);
     }
 
     /** This class was previously cited as a superclass, and now has itself been encountered on the classpath. */
-    public void encounter(ArrayList<String> interfaceNames, HashSet<String> annotationNames) {
+    public void encounter(final ArrayList<String> interfaceNames, final HashSet<String> annotationNames) {
         super.encounter();
         this.interfaceNames = interfaceNames;
         this.annotationNames = annotationNames;
     }
 
     /** Connect this class to a subclass. */
-    public void addSubNode(ClassNode subclass) {
+    public void addSubNode(final ClassNode subclass) {
         super.addSubNode(subclass);
         if (subclass.directSuperNodes.size() > 1) {
             throw new RuntimeException(subclass.name + " has two superclasses: "

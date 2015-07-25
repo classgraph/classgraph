@@ -31,17 +31,17 @@ package io.github.lukehutch.fastclasspathscanner.matchprocessor;
 
 /**
  * The method to run when a class with the matching class name and with a final static field with the matching field
- * name is found on the classpath. The constant value of the final static field is obtained directly from the
- * constant pool of the classfile.
+ * name is found on the classpath. The constant value of the final static field is obtained directly from the constant
+ * pool of the classfile.
  * 
- * Field values are obtained directly from the constant pool in classfiles, not from a loaded class using
- * reflection. This allows you to detect changes to the classpath and then run another scan that picks up the new
- * values of selected static constants without reloading the class. (Class reloading is fraught with issues, see:
+ * Field values are obtained directly from the constant pool in classfiles, not from a loaded class using reflection.
+ * This allows you to detect changes to the classpath and then run another scan that picks up the new values of selected
+ * static constants without reloading the class. (Class reloading is fraught with issues, see:
  * http://tutorials.jenkov.com/java-reflection/dynamic-class-loading-reloading.html )
  * 
- * Note: Only static final fields with constant-valued literals are matched, not fields with initializer values that
- * are the result of an expression or reference, except for cases where the compiler is able to simplify an
- * expression into a single constant at compiletime, such as in the case of string concatenation (see
+ * Note: Only static final fields with constant-valued literals are matched, not fields with initializer values that are
+ * the result of an expression or reference, except for cases where the compiler is able to simplify an expression into
+ * a single constant at compiletime, such as in the case of string concatenation (see
  * https://docs.oracle.com/javase/specs/jvms/se7/html/jvms-5.html#jvms-5.1 ). The following are examples of constant
  * static final fields:
  * 
