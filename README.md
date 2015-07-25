@@ -20,25 +20,25 @@ Usage is as follows:
 // Whitelisted package prefixes to scan are listed in the constructor
 new FastClasspathScanner("com.xyz.widget", "com.xyz.gizmo")  
   
-    .matchSubclassesOf(DBModel.class,
-        // c is a subclass of DBModel or a descendant subclass
-        c -> System.out.println("Subclass of DBModel: " + c.getName()))
+    .matchSubclassesOf(Widget.class,
+        // c is a subclass of Widget or a descendant subclass
+        c -> System.out.println("Subclass of Widget: " + c.getName()))
 
-    .matchSubinterfacesOf(Role.class,
-        // c is an interface that extends the interface Role
-        c -> System.out.println("Subinterface of Role: " + c.getName()))
+    .matchSubinterfacesOf(Tweakable.class,
+        // c is an interface that extends the interface Tweakable
+        c -> System.out.println("Subinterface of Tweakable: " + c.getName()))
 
-    .matchClassesImplementing(Runnable.class,
-        // c is a class that implements the interface Runnable; more precisely,
-        // c or one of its superclasses implements the interface Runnable, or
-        // implements an interface that is a descendant of Runnable
-        c -> System.out.println("Implements Runnable: " + c.getName()))
+    .matchClassesImplementing(Changeable.class,
+        // c is a class that implements the interface Changeable; more precisely,
+        // c or one of its superclasses implements the interface Changeable, or
+        // implements an interface that is a descendant of Changeable
+        c -> System.out.println("Implements Changeable: " + c.getName()))
   
-    .matchClassesWithAnnotation(RestHandler.class,
-        // c is a class annotated with RestHandler
-        c -> System.out.println("Has a RestHandler class annotation: " + c.getName()))
+    .matchClassesWithAnnotation(BindTo.class,
+        // c is a class annotated with BindTo
+        c -> System.out.println("Has a BindTo class annotation: " + c.getName()))
  
-    .matchStaticFinalFieldNames("com.xyz.Config.LOG_LEVEL",
+    .matchStaticFinalFieldNames("com.xyz.widget.Widget.LOG_LEVEL",
         // The following method is called when any static final fields with
         // names matching one of the above fully-qualified names are
         // encountered, as long as those fields are initialized to constant
@@ -51,17 +51,16 @@ new FastClasspathScanner("com.xyz.widget", "com.xyz.gizmo")
             + fieldConstantValue + " in the classfile"))
 
     .matchFilenamePattern("^template/.*\\.html",
-        // templatePath is a path on the classpath that matches the above pattern;
-        // inputStream is a stream opened on the file or zipfile entry.
-        // No need to close inputStream before exiting, it is closed by caller.
+        // absolutePath is a path on the classpath that matches the above pattern;
+        // relativePath is just the section of the matching path relative to the
+        // classpath element it is contained in; inputStream is a stream opened
+        // on the file or zipfile entry that matched the requested filename pattern.
+        // No need to close inputStream before exiting, it is closed by the caller.
+        // The passed method can throw IOException.
         (absolutePath, relativePath, inputStream) -> {
-            try {
-                String template = IOUtils.toString(inputStream, "UTF-8");
-                System.out.println("Found template: " + absolutePath
-                    + " (size " + template.length() + ")");
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
+            String template = IOUtils.toString(inputStream, "UTF-8");
+            System.out.println("Found template: " + absolutePath
+                + " (size " + template.length() + ")");
         })
     
     .scan();  // Actually perform the scan
@@ -83,9 +82,9 @@ boolean classpathContentsModified =
 **Using Java 8 method references:** The `.match...()` methods (e.g. .matchSubclassesOf()) take [MatchProcessors](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) as one of their arguments, which are single-method classes (i.e. FunctionalInterfaces). Java 8 method references may also be used as FunctionalInterfaces, e.g. List::add:
 
 ```java
-List<Class<? extends Node>> collector = new ArrayList<>();
+List<Class<? extends Widget>> collector = new ArrayList<>();
 new FastClasspathScanner("com.xyz.widget")
-    .matchSubclassesOf(Node.class, collector::add)
+    .matchSubclassesOf(Widget.class, collector::add)
     .scan();
 ```
 
@@ -93,10 +92,10 @@ new FastClasspathScanner("com.xyz.widget")
 
 ```java
 new FastClasspathScanner("com.xyz.widget")  
-    .matchSubclassesOf(DBModel.class, new SubclassMatchProcessor<DBModel>() {
+    .matchSubclassesOf(Widget.class, new SubclassMatchProcessor<Widget>() {
         @Override
-        public void processMatch(Class<? extends DBModel> matchingClass) {
-            System.out.println("Subclass of DBModel: " + matchingClass))
+        public void processMatch(Class<? extends Widget> matchingClass) {
+            System.out.println("Subclass of Widget: " + matchingClass))
         }
     })
     .scan();
