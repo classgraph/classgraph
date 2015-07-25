@@ -92,7 +92,7 @@ FastClasspathScanner scanner = new FastClasspathScanner("com.xyz.widget")
 The pre-Java-8 mechanism for adding a MatchProcessor is as follows (note that there is a different [MatchProcessor class](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) corresponding to each .match*() method):
 
 ```java
-new FastClasspathScanner(new String[] { "com.xyz.widget", "com.xyz.gizmo" })  
+new FastClasspathScanner("com.xyz.widget")  
     .matchSubclassesOf(DBModel.class, new SubclassMatchProcessor<DBModel>() {
         @Override
         public void processMatch(Class<? extends DBModel> matchingClass) {
@@ -129,7 +129,6 @@ Note that most of the methods in the API return *this* (of type FastClasspathSca
 Calling the constructor does not actually start the scan. The constructor takes a whitelist of package prefixes that should be scanned. Whitelisting package prefixes of interest can dramatically speed up classpath scanning, because it limits the number of classfiles that need to be opened and read.
 
 ```java
-
 /**
  * Constructs a FastClasspathScanner instance.
  * 
@@ -143,7 +142,6 @@ Calling the constructor does not actually start the scan. The constructor takes 
 public FastClasspathScanner(String... pacakagesToScan) {
     /*...*/
 }
-
 ```
 
 Note that if you don't specify any whitelisted package prefixes, i.e. `new FastClasspathScanner()`, all packages on the classpath will be scanned. ("Scanning" involves parsing the classfile binary format to determine class and interface relationships.)
@@ -155,7 +153,6 @@ FastClasspathScanner can find all classes on the classpath within whitelisted pa
 *Important note:* the ability to detect that a class or interface extends another depends upon the entire ancestral path between the two classes or interfaces being within one of the whitelisted package prefixes.
 
 ```java
-
 /** The method to run when a subclass of a specific class is found on the classpath. */
 @FunctionalInterface
 public interface SubclassMatchProcessor<T> {
@@ -196,8 +193,6 @@ public <T> List<String> getSubclassesOf(final Class<T> superclass) {
 public List<String> getSubclassesOf(String superclassName) {
     /* ... */
 }
-
-
 ```
 
 Note that this method does not yet implement the detection of interfaces that extend other interfaces, only classes that extend other classes.
@@ -211,7 +206,6 @@ FastClasspathScanner can find all interfaces on the classpath within whitelisted
 The ability to detect that an interface extends another interface depends upon the entire ancestral path between the two interfaces being within one of the whitelisted package prefixes.
 
 ```java
-
 /**
  * The method to run when an interface that extends another specific interface
  * is found on the classpath.
@@ -257,7 +251,6 @@ public <T> List<String> getSubinterfacesOf(final Class<T> superInterface) {
 public List<String> getSubinterfacesOf(final String superInterfaceName) {
     /* ... */
 }
-
 ```
 
 There are also methods `List<String> getSubinterfacesOf(String ifaceName)` and `List<String> getSubinterfacesOf(Class<T> iface)` that can be called after `scan()` to find the names of the subinterfaces of a given interface (whether or not a corresponding match processor was added to detect this). These methods will return the matching interfaces without calling the classloader, whereas if a match processor is used, the classloader is called first (using Class.forName()) so that a class reference for the matching interface can be passed into the match processor.
@@ -269,7 +262,6 @@ FastClasspathScanner can find all classes on the classpath within whitelisted pa
 The ability to detect that a class implements an interface depends upon the entire ancestral path between the class and the interface (and any sub-interfaces or superclasses along that path) being within one of the whitelisted package prefixes.
 
 ```java
-
 /**
  * The method to run when a class implementing a specific interface is found on the
  * classpath.
@@ -315,7 +307,6 @@ public <T> List<String> getClassesImplementing(final Class<T> implementedInterfa
 public List<String> getClassesImplementing(final String implementedInterfaceName) {
     /* ... */
 }
-
 ```
 
 There are also methods `List<String> getClassesImplementing(String ifaceName)` and `List<String> getClassesImplementing(Class<T> iface)` that can be called after `scan()` to find the names of the classes implementing a given interface (whether or not a corresponding match processor was added to detect this). These methods will return the matching classes without calling the classloader, whereas if a match processor is used, the classloader is called first (using Class.forName()) so that a class reference can be passed into the match processor.
@@ -325,7 +316,6 @@ There are also methods `List<String> getClassesImplementing(String ifaceName)` a
 FastClassPathScanner can detect classes that have a class annotation that matches a given annotation. 
 
 ```java
-
 /**
  * The method to run when a class having a specified annotation is found on the
  * classpath.
@@ -369,7 +359,6 @@ public <T> List<String> getClassesWithAnnotation(final Class<?> annotation) {
 public List<String> getClassesWithAnnotation(final String annotationName) {
     /* ... */
 }
-
 ```
 
 There are also methods `List<String> getClassesWithAnnotation(String annotationClassName)` and `List<String> getClassesWithAnnotation(Class<T> annotationClass)` that can be called after `scan()` to find the names of the classes that have a given annotation (whether or not a corresponding match processor was added to detect this). These methods will return the matching classes without calling the classloader, whereas if a match processor is used, the classloader is called first (using Class.forName()) so that a class reference can be passed into the match processor.
@@ -385,7 +374,6 @@ This can be useful in hot-swapping of changes to static constants in classfiles 
 **Note:** The visibility of the fields is not checked; the value of the field in the classfile is returned whether or not it should be visible to the caller. Therefore you should probably only use this method with public static final fields (not just static final fields) to coincide with Java's own semantics.
 
 ```java
-
 /**
  * The method to run when a class with the matching class name and with a final static
  * field with the matching field name is found on the classpath. The constant value of
@@ -441,32 +429,26 @@ public FastClasspathScanner matchStaticFinalFieldNames(
         final String... fullyQualifiedStaticFinalFieldNames) {
     /* ... */
 }
-
-
 ```
 
 *Note:* Only static final fields with constant-valued literals are matched, not fields with initializer values that are the result of an expression or reference, except for cases where the compiler is able to simplify an expression into a single constant at compiletime, [such as in the case of string concatenation](https://docs.oracle.com/javase/specs/jvms/se7/html/jvms-5.html#jvms-5.1). The following are examples of constant static final fields:
 
 ```java
-
 public static final int w = 5;
 public static final String x = "a";
 static final String y = "a" + "b";  // Referentially equal to the interned String "ab"
 private static final int z = 1;     // Private field values are also returned 
 static final byte b = 0x7f;         // StaticFinalFieldMatchProcessor is passed a Byte
-
 ```
 
 whereas the following fields are non-constant, non-static and/or non-final, so these fields cannot be matched:
 
 ```java
-
 public static final Integer w = 5;  // Non-constant due to autoboxing
 static final String y = "a" + w;    // Non-constant expression, because w is non-const
 static final int[] arr = {1, 2, 3}; // Arrays are non-constant
 static int n = 100;                 // Non-final
 final int q = 5;                    // Non-static 
-
 ```
 
 Primitive types (int, long, short, float, double, boolean, char, byte) are wrapped in the corresponding wrapper class (Integer, Long etc.) before being passed to the provided StaticFinalFieldMatchProcessor.
@@ -476,7 +458,6 @@ Primitive types (int, long, short, float, double, boolean, char, byte) are wrapp
 This can be useful for detecting changes to non-classfile resources on the classpath, for example a web server's template engine can hot-reload HTML templates when they change by including the template directory in the classpath and then detecting changes to files that are in the template directory and have the extension ".html".
 
 ```java
-
 /** The method to run when a file with a matching path is found on the classpath. */
 @FunctionalInterface
 public interface FileMatchProcessor {
@@ -512,7 +493,6 @@ public FastClasspathScanner matchFilenamePattern(
         FileMatchProcessor fileMatchProcessor) {
     /* ... */
 }
-
 ```
 
 ### Performing the actual scan
@@ -520,13 +500,11 @@ public FastClasspathScanner matchFilenamePattern(
 The `scan()` method performs the actual scan. This method may be called multiple times after the initialization steps shown above, although there is usually no point performing additional scans unless `classpathContentsModifiedSinceScan()` returns true.
 
 ```java
-
 /**
  * Scan classpath for matching files. Call this after all match processors have been
  * added.
  */
 public void scan() { /* ... */ }
-
 ```
 
 As the scan proceeds, for all match processors that deal with classfiles (i.e. for all but FileMatchProcessor), if the same fully-qualified class name is encountered more than once on the classpath, the second and subsequent definitions of the class are ignored, in order to follow Java's class masking behavior.
@@ -540,13 +518,11 @@ After a call to `scan()`, it is possible to later call `classpathContentsModifie
 Since `classpathContentsModifiedSinceScan()` only checks file modification timestamps, it works several times faster than the original call to `scan()`. It is therefore a very lightweight operation that can be called in a polling loop to detect changes to classpath contents for hot reloading of resources.
 
 ```java
-
 /**
  * Returns true if the classpath contents have been changed since scan() was
  * last called.
  */
 public boolean classpathContentsModifiedSinceScan() { /* ... */ }
-
 ```
 
 ### Get all unique directories and files on the classpath
@@ -554,21 +530,19 @@ public boolean classpathContentsModifiedSinceScan() { /* ... */ }
 The list of all directories and files on the classpath is returned by the following method. The list is filtered to include only unique classpath elements (duplicates are eliminated), and to include only directories and files that actually exist. The elements in the list are in classpath order.
 
 ```java
-
 /**
  * Get a list of unique elements on the classpath (files and directories)
  * as File objects, preserving order. Classpath elements that do not exist
  * are not included in the list.
  */
 public static ArrayList<File> getUniqueClasspathElements() { /* ... */ }
-
 ```
 
 ## Usage Caveats
 
 ### (1) Startup overhead of Java 8 Streams and lambda expressions
 
-The usage examples above use lambda expressions (functional interfaces) and Stream patterns from Java 8 for simplicity. However, at least as of JDK 1.8.0 r20, lambda expressions and Streams each incur a one-time startup penalty of 30-40ms the first time they are used. If this overhead is prohibitive, use the pre-Java 8 form (without lambda expressions), as shown in the introduction above.
+The usage examples above use lambda expressions (functional interfaces) and Stream patterns from Java 8 for simplicity. However, at least as of JDK 1.8.0 r20, lambda expressions and Streams each incur a one-time startup penalty of 30-40ms the first time they are used. If this overhead is prohibitive, use the pre-Java-8 form (explicitly creating a MatchProcessor, potentially using an inner class, but without lambda expressions, as shown in the introduction above).
 
 ### (2) Getting generic class references for parameterized classes
 
@@ -580,7 +554,6 @@ A problem arises when using class-based matchers with parameterized classes, e.g
 The following code compiles and runs fine, but `SubclassMatchProcessor` must be parameterized with the bare type `Widget` in order to match the reference `Widget.class`. This causes the warning `Test.Widget is a raw type. References to generic type Test.Widget<K> should be parameterized` on `SubclassMatchProcessor<Widget>` and `Type safety: Unchecked cast from Class<capture#1-of ? extends Test.Widget> to Class<Test.Widget<?>>` on `(Class<? extends Widget<?>>)`. 
 
 ```java
-
 public class Test {
     public static class Widget<K> {
         K id;
@@ -594,7 +567,7 @@ public class Test {
     }
     
     public static void main(String[] args) {
-        new FastClasspathScanner(new String[] { "com.widgets" }) //
+        new FastClasspathScanner("com.xyz.widget") //
             .matchSubclassesOf(Widget.class, new SubclassMatchProcessor<Widget>() {
                 @Override
                 public void processMatch(Class<? extends Widget> widgetClass) {
@@ -603,18 +576,16 @@ public class Test {
             }).scan();
     }
 }
-
 ``` 
 
 **Solution 1:** Create an object of the desired type, call getClass(), and cast the result to the generic parameterized class type. (Note that `SubclassMatchProcessor<Widget<?>>` is now properly parameterized, and no cast is needed in the function call `registerWidgetSubclass(widgetClass)`.)
 
 ```java
-
 public static void main(String[] args) {
     @SuppressWarnings("unchecked")
     Class<Widget<?>> widgetClass = (Class<Widget<?>>) new Widget<Object>().getClass();
         
-    new FastClasspathScanner(new String[] { "com.widgets" }) //
+    new FastClasspathScanner("com.xyz.widget") //
         .matchSubclassesOf(widgetClass, new SubclassMatchProcessor<Widget<?>>() {
             @Override
             public void processMatch(Class<? extends Widget<?>> widgetClass) {
@@ -622,20 +593,18 @@ public static void main(String[] args) {
             }
         }).scan();
 }
-u
 ``` 
 
 **Solution 2:** Get a class reference for a subclass of the desired class, then get the generic type of its superclass:
 
 ```java
-
 public static void main(String[] args) {
     @SuppressWarnings("unchecked")
     Class<Widget<?>> widgetClass =
             (Class<Widget<?>>) ((ParameterizedType) WidgetSubclass.class
                 .getGenericSuperclass()).getRawType();
     
-    new FastClasspathScanner(new String[] { "com.widgets" }) //
+    new FastClasspathScanner("com.xyz.widget") //
         .matchSubclassesOf(widgetClass, new SubclassMatchProcessor<Widget<?>>() {
             @Override
             public void processMatch(Class<? extends Widget<?>> widgetClass) {
@@ -643,7 +612,6 @@ public static void main(String[] args) {
             }
         }).scan();
 }
-
 ``` 
 
 ## License
