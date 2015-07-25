@@ -268,6 +268,7 @@ public FastClasspathScanner matchStaticFinalFieldNames(
     HashSet<String> fullyQualifiedStaticFinalFieldNames,
     StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor)
 
+// N.B. the parameter order is reversed in this call, because varargs must come last in java
 public FastClasspathScanner matchStaticFinalFieldNames(
     final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor,
     final String... fullyQualifiedStaticFinalFieldNames)
