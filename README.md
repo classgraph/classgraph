@@ -85,9 +85,9 @@ boolean classpathContentsModified =
 Java 8 @FunctionalInterface direct method references may also be useful:
 
 ```java
-    List<Class> collector = new ArrayList<>();
+    List<Class<? extends Node>> collector = new ArrayList<>();
     FastClasspathScanner scanner = new FastClasspathScanner("com.xyz.widget")
-        .matchSubclassesOf(FastClasspathScanner.class, collector::add);
+        .matchSubclassesOf(Node.class, collector::add);
 ```
 
 You can also get a list of matching fully-qualified classnames for interfaces and classes matching required criteria without ever calling the classloader for the matching classes, e.g.:
@@ -106,7 +106,7 @@ You can also get a list of matching fully-qualified classnames for interfaces an
         scanner.getSubclassesOf("com.xyz.widget.Widget");
 ```
 
-**Note:** See section "Usage caveats" below for important usage points.
+**Note:** See [Usage Caveats](#usage-caveats) below for important usage points.
 
 # API
 
@@ -552,7 +552,7 @@ public static ArrayList<File> getUniqueClasspathElements() { /* ... */ }
 
 ```
 
-## Usage caveats
+## Usage Caveats
 
 ### (1) Startup overhead of Java 8 Streams and lambda expressions
 
@@ -626,7 +626,7 @@ public static void main(String[] args) {
             }
         }).scan();
 }
-
+u
 ``` 
 
 **Solution 2:** Get a class reference for a subclass of the desired class, then get the generic type of its superclass:
