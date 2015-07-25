@@ -102,7 +102,9 @@ new FastClasspathScanner("com.xyz.widget")
     .scan();
 ```
 
-You can also get a list of matching fully-qualified classnames for interfaces and classes matching required criteria without adding any MatchProcessors (i.e. without calling any .match*() methods on the FastClasspathScanner instance), which means that the classloader will never be called on the matching classes, and the static initializer blocks of the matching classes will never be executed. (The class hierarchy is parsed and stored during the scan() call whether or not there are any MatchProcessors added to the FastClasspathScanner instance.) As a result of not calling the classloader, you get a list of matching classnames as Strings, rather than Class<?> references:
+You can also get a list of matching fully-qualified classnames for interfaces and classes matching required criteria without adding any MatchProcessors (i.e. without calling any .match*() methods on the FastClasspathScanner instance), which means that the classloader will never be called on the matching classes, and the static initializer blocks of the matching classes will never be executed. (The class hierarchy is parsed and stored during the scan() call whether or not there are any MatchProcessors added to the FastClasspathScanner instance, but the classloader is only called on a class if there is a MatchProcessor that matches the class, because it needs to be passed a Class<?> reference.)
+
+As a result of not calling the classloader, you get a List<String> list of matching classnames, rather than a list of Class<?> references:
 
 ```java
 List<String> subclassesOfWidget = new FastClasspathScanner("com.xyz.widget")
