@@ -159,6 +159,7 @@ public class FastClasspathScanner {
                 (blacklisted ? uniqueBlacklistedPathsToScan : uniqueWhitelistedPathsToScan).add(pkg);
             }
         }
+        uniqueWhitelistedPathsToScan.removeAll(uniqueBlacklistedPathsToScan);
         if (scanAll) {
             this.whitelistedPathsToScan = new String[] { "/" };
         } else {
