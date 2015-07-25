@@ -29,6 +29,7 @@
 
 package io.github.lukehutch.fastclasspathscanner.matchprocessor;
 
+import java.io.IOException;
 import java.io.InputStream;
 
 /** The method to run when a file with a matching path is found on the classpath. */
@@ -45,5 +46,5 @@ public interface FileMatchProcessor {
      *            An InputStream (either a FileInputStream or a ZipEntry InputStream) opened on the file. You do not
      *            need to close this InputStream before returning, it is closed by the caller.
      */
-    public void processMatch(String absolutePath, String relativePath, InputStream inputStream);
+    public void processMatch(String absolutePath, String relativePath, InputStream inputStream) throws IOException;
 }
