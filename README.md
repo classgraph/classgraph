@@ -4,6 +4,7 @@ fast-classpath-scanner
 Uber-fast, ultra-lightweight Java classpath scanner. Scans the classpath by parsing the classfile binary format directly rather than by using reflection. (Reflection causes the classloader to load each class, which can take an order of magnitude more time than parsing the classfile directly, and can lead to unexpected behavior due to static initializer blocks of classes being called on class load.)
 
 FastClasspathScanner is able to scan directories and jar/zip files on the classpath to:
+
 1. find classes that subclass a given class or one of its subclasses;
 2. find interfaces that extend a given interface or one of its subinterfaces;
 3. find classes that implement an interface or one of its subinterfaces, or whose superclasses implement the interface or one of its subinterfaces;
@@ -25,25 +26,20 @@ There are two different ways to use the FastClasspathScanner to match classes an
 // Whitelisted package prefixes are listed in the constructor
 // (can also blacklist packages by prefixing with "-")
 new FastClasspathScanner("com.xyz.widget", "com.xyz.gizmo")  
-  
     .matchSubclassesOf(Widget.class,
         // c is a subclass of Widget or a descendant subclass
         c -> System.out.println("Subclass of Widget: " + c.getName()))
-
     .matchSubinterfacesOf(Tweakable.class,
         // c is an interface that extends the interface Tweakable
         c -> System.out.println("Subinterface of Tweakable: " + c.getName()))
-
     .matchClassesImplementing(Changeable.class,
         // c is a class that implements the interface Changeable; more precisely,
         // c or one of its superclasses implements the interface Changeable, or
         // implements an interface that is a descendant of Changeable
         c -> System.out.println("Implements Changeable: " + c.getName()))
-  
     .matchClassesWithAnnotation(BindTo.class,
         // c is a class annotated with BindTo
         c -> System.out.println("Has a BindTo class annotation: " + c.getName()))
- 
     .matchStaticFinalFieldNames("com.xyz.widget.Widget.LOG_LEVEL",
         // The following method is called when any static final fields with
         // names matching one of the above fully-qualified names are
@@ -55,7 +51,6 @@ new FastClasspathScanner("com.xyz.widget", "com.xyz.gizmo")
             System.out.println("Static field " + fieldName + " in class "
             + className + " " + " currently has constant literal value "
             + fieldConstantValue + " in the classfile"))
-
     .matchFilenamePattern("^template/.*\\.html",
         // absolutePath is a path on the classpath that matches the above pattern;
         // relativePath is just the section of the matching path relative to the
@@ -68,12 +63,9 @@ new FastClasspathScanner("com.xyz.widget", "com.xyz.gizmo")
             System.out.println("Found template: " + absolutePath
                 + " (size " + template.length() + ")");
         })
-    
     .scan();  // Actually perform the scan
 
-
 // [...Some time later...]
-
 // See if any timestamps on the classpath are more recent than the time of the
 // previous scan. (Even faster than classpath scanning, because classfiles
 // don't have to be opened.)   
