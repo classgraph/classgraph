@@ -90,9 +90,9 @@ List<String> subclassesOfWidget = new FastClasspathScanner("com.xyz.widget")
 **Using Java 8 method references:** The `.match...()` methods (e.g. `.matchSubclassesOf()`) take a [`MatchProcessor`](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) as one of their arguments, which are single-method classes (i.e. FunctionalInterfaces). Java 8 method references may also be used as FunctionalInterfaces, e.g. `list::add`:
 
 ```java
-List<Class<? extends Widget>> collector = new ArrayList<>();
+List<Class<? extends Widget>> matchingClasses = new ArrayList<>();
 new FastClasspathScanner("com.xyz.widget")
-    .matchSubclassesOf(Widget.class, collector::add)
+    .matchSubclassesOf(Widget.class, matchingClasses::add)
     .scan();
 ```
 
