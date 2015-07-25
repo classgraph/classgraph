@@ -35,6 +35,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.Set;
 
 public class ClassGraphBuilder {
 
@@ -52,7 +53,8 @@ public class ClassGraphBuilder {
 
     // -----------------------------------------------------------------------------------------------------------------
 
-    public List<String> getClassesWithAnnotation(String annotationName) {
+    /** Return the names of all classes with the named class annotation. */
+    public List<String> getNamesOfClassesWithAnnotation(String annotationName) {
         ArrayList<String> classes = annotationNameToClassName.get(annotationName);
         if (classes == null) {
             return Collections.emptyList();
@@ -60,7 +62,8 @@ public class ClassGraphBuilder {
         return classes;
     }
 
-    public List<String> getClassesImplementing(String interfaceName) {
+    /** Return the names of all classes implementing the named interface. */
+    public List<String> getNamesOfClassesImplementing(String interfaceName) {
         ArrayList<String> classes = interfaceNameToClassNames.get(interfaceName);
         if (classes == null) {
             return Collections.emptyList();
@@ -68,7 +71,8 @@ public class ClassGraphBuilder {
         return classes;
     }
 
-    public List<String> getSubclassesOf(String className) {
+    /** Return the names of all subclasses of the named class. */
+    public List<String> getNamesOfSubclassesOf(String className) {
         ArrayList<String> subclasses = new ArrayList<>();
         ClassNode classNode = classNameToClassNode.get(className);
         if (classNode != null) {
@@ -79,7 +83,8 @@ public class ClassGraphBuilder {
         return subclasses;
     }
 
-    public List<String> getSuperclassesOf(String className) {
+    /** Return the names of all superclasses of the named class. */
+    public List<String> getNamesOfSuperclassesOf(String className) {
         ArrayList<String> superclasses = new ArrayList<>();
         ClassNode classNode = classNameToClassNode.get(className);
         if (classNode != null) {
@@ -90,7 +95,8 @@ public class ClassGraphBuilder {
         return superclasses;
     }
 
-    public List<String> getSubinterfacesOf(String interfaceName) {
+    /** Return the names of all subinterfaces of the named interface. */
+    public List<String> getNamesOfSubinterfacesOf(String interfaceName) {
         ArrayList<String> subinterfaces = new ArrayList<>();
         InterfaceNode interfaceNode = interfaceNameToInterfaceNode.get(interfaceName);
         if (interfaceNode != null) {
@@ -101,7 +107,8 @@ public class ClassGraphBuilder {
         return subinterfaces;
     }
 
-    public List<String> getSuperinterfacesOf(String interfaceName) {
+    /** Return the names of all superinterfaces of the named interface. */
+    public List<String> getNamesOfSuperinterfacesOf(String interfaceName) {
         ArrayList<String> superinterfaces = new ArrayList<>();
         InterfaceNode interfaceNode = interfaceNameToInterfaceNode.get(interfaceName);
         if (interfaceNode != null) {
@@ -110,6 +117,11 @@ public class ClassGraphBuilder {
             }
         }
         return superinterfaces;
+    }
+
+    /** Return all class names reached during the scan. */
+    public Set<String> getNamesOfAllClasses() {
+        return classNameToClassNode.keySet();
     }
 
     // -----------------------------------------------------------------------------------------------------------------
@@ -160,8 +172,8 @@ public class ClassGraphBuilder {
                 InterfaceNode superInterfaceNode = interfaceNameToInterfaceNode.get(superInterfaceName);
                 if (superInterfaceNode == null) {
                     // The superinterface of this interface has not yet been encountered on the classpath
-                    interfaceNameToInterfaceNode.put(superInterfaceName, superInterfaceNode =
-                            new InterfaceNode(superInterfaceName, thisInterfaceInfo));
+                    interfaceNameToInterfaceNode.put(superInterfaceName, superInterfaceNode = new InterfaceNode(
+                            superInterfaceName, thisInterfaceInfo));
                 } else {
                     superInterfaceNode.addSubNode(thisInterfaceInfo);
                 }

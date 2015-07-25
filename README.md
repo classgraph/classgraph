@@ -80,7 +80,7 @@ boolean classpathContentsModified =
     fastClassPathScanner.classpathContentsModifiedSinceScan();
 ```
 
-The .match*() methods (e.g. .matchSubclassesOf()) take [MatchProcessors](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) as one of their arguments, which are single-method classes (i.e. FunctionalInterfaces). Java 8 method references may also be used as FunctionalInterfaces, e.g. List::add:
+The `.match...()` methods (e.g. .matchSubclassesOf()) take [MatchProcessors](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) as one of their arguments, which are single-method classes (i.e. FunctionalInterfaces). Java 8 method references may also be used as FunctionalInterfaces, e.g. List::add:
 
 ```java
 List<Class<? extends Node>> collector = new ArrayList<>();
@@ -102,7 +102,7 @@ new FastClasspathScanner("com.xyz.widget")
     .scan();
 ```
 
-You can also get a list of matching fully-qualified classnames for interfaces and classes matching required criteria without adding any MatchProcessors (i.e. without calling any .match*() methods on the FastClasspathScanner instance), which means that the classloader will never be called on the matching classes, and the static initializer blocks of the matching classes will never be executed. (The class hierarchy is parsed and stored during the `.scan()` call whether or not there are any MatchProcessors added to the FastClasspathScanner instance, but the classloader is only called on a class if there is a MatchProcessor that matches the class, because it needs to be passed a `Class<?>` reference.)
+You can also get a list of matching fully-qualified names of interfaces and classes matching required criteria without adding any MatchProcessors (i.e. without calling any `.match...()` methods on the FastClasspathScanner instance) by calling a `.getNamesOf...()` method. These methods return lists of strings, rather than lists of `Class<?>` references, which means that the classloader does not need to be called on the matching classes, and the static initializer blocks of the matching classes will never be executed. This can be useful if the static initializer blocks of classes trigger unwanted side effects if run before the expected time. (i.e. the class hierarchy is parsed and stored during the `.scan()` call whether or not there are any MatchProcessors added to the FastClasspathScanner instance, but the classloader is only called on a class if there is a MatchProcessor that matches the class, in order to be able to pass a `Class<?>` reference to the MatchProcessor.)
 
 As a result of not calling the classloader, you get a `List<String>` list of matching classnames, rather than a list of `Class<?>` references:
 
@@ -113,7 +113,7 @@ List<String> subclassesOfWidget = new FastClasspathScanner("com.xyz.widget")
     .scan()
     // Get the names of all subclasses of Widget on the classpath,
     // again without calling the classloader:
-    .getSubclassesOf("com.xyz.widget.Widget");
+    .getNamesOfSubclassesOf("com.xyz.widget.Widget");
 ```
 
 **Note:** See [Usage Caveats](#usage-caveats) below for important usage points.
@@ -144,11 +144,15 @@ public FastClasspathScanner(String... pacakagesToScan) {
 
 Note that if you don't specify any whitelisted package prefixes, i.e. `new FastClasspathScanner()`, all packages on the classpath will be scanned. ("Scanning" involves parsing the classfile binary format to determine class and interface relationships.)
 
-### Matching the subclasses of a class
+### Matching the subclasses (or finding the superclasses) of a class
 
 FastClasspathScanner can find all classes on the classpath within whitelisted package prefixes that extend a given superclass.
 
-*Important note:* the ability to detect that a class or interface extends another depends upon the entire ancestral path between the two classes or interfaces being within one of the whitelisted package prefixes.
+*Important note:* the ability to detect that a class extends another depends upon the entire ancestral path between the two classes being within one of the whitelisted package prefixes.
+
+There are also methods `List<String> getNamesOfSubclassesOf(String superclassName)` and `List<String> getNamesOfSubclassesOf(Class<T> superclass)` that can be called after `.scan()` to find the names of the subclasses of a given class (whether or not a corresponding match processor was added to detect this). These methods will return the matching classes without calling the classloader, whereas if a match processor is used, the classloader is called first (using Class.forName()) so that a class reference can be passed into the match processor.
+
+Furthermore, the methods `List<String> getNamesOfSuperclassesOf(String subclassName)` and `List<String> getNamesOfSuperclassesOf(Class<T> subclass)` are able to return all superclasses of a given class after a call to `.scan()`. (Note that there is not currently a SuperclassMatchProcessor or .matchSuperclassesOf().)
 
 ```java
 /** The method to run when a subclass of a specific class is found on the classpath. */
@@ -183,26 +187,37 @@ public <T> FastClasspathScanner matchSubclassesOf(
  *            to match).
  * @return A list of matching classes, or the empty list if none.
  */
-public <T> List<String> getSubclassesOf(final Class<T> superclass) {
+public <T> List<String> getNamesOfSubclassesOf(final Class<T> superclass) {
     /* ... */
 }
 
 // Alternatively:
-public List<String> getSubclassesOf(String superclassName) {
+public List<String> getNamesOfSubclassesOf(String superclassName) {
+    /* ... */
+}
+
+// Note that there are also methods for finding the names of all superclasses of a
+// given class (even though there is no corresponding SuperclassMatchProcessor):
+public <T> List<String> getNamesOfSuperclassesOf(final Class<T> subclass) {
+    /* ... */
+}
+
+// Alternatively:
+public List<String> getNamesOfSuperclassesOf(String subclassName) {
     /* ... */
 }
 ```
 
-Note that this method does not yet implement the detection of interfaces that extend other interfaces, only classes that extend other classes.
-
-There are also methods `List<String> getSubclassesOf(String superclassName)` and `List<String> getSubclassesOf(Class<T> superclass)` that can be called after `.scan()` to find the names of the subclasses of a given class (whether or not a corresponding match processor was added to detect this). These methods will return the matching classes without calling the classloader, whereas if a match processor is used, the classloader is called first (using Class.forName()) so that a class reference can be passed into the match processor.
-
-### Matching the interfaces that extend another interface
+### Matching the subinterfaces (or finding the superinterfaces) of an interface
 
 FastClasspathScanner can find all interfaces on the classpath within whitelisted package prefixes that that extend a given interface or its subinterfaces.
 
-The ability to detect that an interface extends another interface depends upon the entire ancestral path between the two interfaces being within one of the whitelisted package prefixes.
+*Important note:* The ability to detect that an interface extends another interface depends upon the entire ancestral path between the two interfaces being within one of the whitelisted package prefixes.
 
+There are also methods `List<String> getNamesOfSubinterfacesOf(String ifaceName)` and `List<String> getNamesOfSubinterfacesOf(Class<T> iface)` that can be called after `.scan()` to find the names of the subinterfaces of a given interface (whether or not a corresponding match processor was added to detect this). These methods will return the matching interfaces without calling the classloader, whereas if a match processor is used, the classloader is called first (using Class.forName()) so that a class reference for the matching interface can be passed into the match processor.
+
+Furthermore, the methods `List<String> getNamesOfSuperinterfacesOf(String ifaceName)` and `List<String> getNamesOfSuperinterfacesOf(Class<T> iface)` are able to return all superinterfaces of a given interface after a call to `.scan()`. (Note that there is not currently a SuperinterfaceMatchProcessor or .matchSuperinterfacesOf().)
+ 
 ```java
 /**
  * The method to run when an interface that extends another specific interface
@@ -214,7 +229,7 @@ public interface SubinterfaceMatchProcessor<T> {
 }
 
 /**
- * Call the provided SubInterfaceMatchProcessor if an interface that extends a
+ * Call the provided SubinterfaceMatchProcessor if an interface that extends a
  * given superinterface is found on the classpath.
  * 
  * @param superInterface
@@ -241,23 +256,34 @@ public <T> FastClasspathScanner matchSubinterfacesOf(final Class<T> superInterfa
  *            need to extend to match).
  * @return A list of matching interfaces, or the empty list if none.
  */
-public <T> List<String> getSubinterfacesOf(final Class<T> superInterface) {
+public <T> List<String> getNamesOfSubinterfacesOf(final Class<T> superInterface) {
     /* ... */
 }
 
 // Alternatively:
-public List<String> getSubinterfacesOf(final String superInterfaceName) {
+public List<String> getNamesOfSubinterfacesOf(final String superInterfaceName) {
+    /* ... */
+}
+
+// Note that there are also methods for finding the names of all superinterfaces of a
+// given class (even though there is no corresponding SuperinterfaceMatchProcessor):
+public <T> List<String> getNamesOfSuperinterfacesOf(final Class<T> subinterface) {
+    /* ... */
+}
+
+// Alternatively:
+public List<String> getNamesOfSuperinterfacesOf(String subinterfaceName) {
     /* ... */
 }
 ```
-
-There are also methods `List<String> getSubinterfacesOf(String ifaceName)` and `List<String> getSubinterfacesOf(Class<T> iface)` that can be called after `.scan()` to find the names of the subinterfaces of a given interface (whether or not a corresponding match processor was added to detect this). These methods will return the matching interfaces without calling the classloader, whereas if a match processor is used, the classloader is called first (using Class.forName()) so that a class reference for the matching interface can be passed into the match processor.
 
 ### Matching the classes that implement an interface
 
 FastClasspathScanner can find all classes on the classpath within whitelisted package prefixes that that implement a given interface. The matching logic here is trickier than it would seem, because FastClassPathScanner also has to match classes whose superclasses implement the target interface, or classes that implement a sub-interface (descendant interface) of the target interface, or classes whose superclasses implement a sub-interface of the target interface.
 
-The ability to detect that a class implements an interface depends upon the entire ancestral path between the class and the interface (and any sub-interfaces or superclasses along that path) being within one of the whitelisted package prefixes.
+*Important note:* The ability to detect that a class implements an interface depends upon the entire ancestral path between the class and the interface (and any relevant sub-interfaces or superclasses along the path between the two) being within one of the whitelisted package prefixes.
+
+There are also methods `List<String> getNamesOfClassesImplementing(String ifaceName)` and `List<String> getNamesOfClassesImplementing(Class<T> iface)` that can be called after `.scan()` to find the names of the classes implementing a given interface (whether or not a corresponding match processor was added to detect this). These methods will return the matching classes without calling the classloader, whereas if a match processor is used, the classloader is called first (using Class.forName()) so that a class reference can be passed into the match processor.
 
 ```java
 /**
@@ -297,21 +323,21 @@ public <T> FastClasspathScanner matchClassesImplementing(
  *            The interface that classes need to implement to match.
  * @return A list of matching classes, or the empty list if none.
  */
-public <T> List<String> getClassesImplementing(final Class<T> implementedInterface) {
+public <T> List<String> getNamesOfClassesImplementing(final Class<T> implementedInterface) {
     /* ... */
 }
 
 // Alternatively:
-public List<String> getClassesImplementing(final String implementedInterfaceName) {
+public List<String> getNamesOfClassesImplementing(final String implementedInterfaceName) {
     /* ... */
 }
 ```
 
-There are also methods `List<String> getClassesImplementing(String ifaceName)` and `List<String> getClassesImplementing(Class<T> iface)` that can be called after `.scan()` to find the names of the classes implementing a given interface (whether or not a corresponding match processor was added to detect this). These methods will return the matching classes without calling the classloader, whereas if a match processor is used, the classloader is called first (using Class.forName()) so that a class reference can be passed into the match processor.
-
 ### Matching classes with a specific annotation
 
 FastClassPathScanner can detect classes that have a class annotation that matches a given annotation. 
+
+There are also methods `List<String> getNamesOfClassesWithAnnotation(String annotationClassName)` and `List<String> getNamesOfClassesWithAnnotation(Class<T> annotationClass)` that can be called after `.scan()` to find the names of the classes that have a given annotation (whether or not a corresponding match processor was added to detect this). These methods will return the matching classes without calling the classloader, whereas if a match processor is used, the classloader is called first (using Class.forName()) so that a class reference can be passed into the match processor.
 
 ```java
 /**
@@ -349,17 +375,15 @@ public FastClasspathScanner matchClassesWithAnnotation(
  *            The class annotation.
  * @return A list of classes with the class annotation, or the empty list if none.
  */
-public <T> List<String> getClassesWithAnnotation(final Class<?> annotation) {
+public <T> List<String> getNamesOfClassesWithAnnotation(final Class<?> annotation) {
     /* ... */
 }
 
 // Alternatively:
-public List<String> getClassesWithAnnotation(final String annotationName) {
+public List<String> getNamesOfClassesWithAnnotation(final String annotationName) {
     /* ... */
 }
 ```
-
-There are also methods `List<String> getClassesWithAnnotation(String annotationClassName)` and `List<String> getClassesWithAnnotation(Class<T> annotationClass)` that can be called after `.scan()` to find the names of the classes that have a given annotation (whether or not a corresponding match processor was added to detect this). These methods will return the matching classes without calling the classloader, whereas if a match processor is used, the classloader is called first (using Class.forName()) so that a class reference can be passed into the match processor.
 
 ### Fetching the constant initializer values of static final fields
 
@@ -521,6 +545,18 @@ Since `.classpathContentsModifiedSinceScan()` only checks file modification time
  * last called.
  */
 public boolean classpathContentsModifiedSinceScan() { /* ... */ }
+```
+
+### Get a list of all classes and interfaces on the classpath
+
+The names of all classes and interfaces reached during the scan, after taking into account whitelist and blacklist criteria, can be returned by calling the method `.getAllScannedClasses()` after calling `.scan()`. This can be helpful for debugging purposes.
+
+```java
+/**
+ * Returns the names of all classes and interfaces processed during the scan, i.e. all classes
+ * reachable after taking into account the package whitelist and blacklist criteria.
+ */
+public <T> Set<String> getAllScannedClasses() { /* ... */ }
 ```
 
 ### Get all unique directories and files on the classpath

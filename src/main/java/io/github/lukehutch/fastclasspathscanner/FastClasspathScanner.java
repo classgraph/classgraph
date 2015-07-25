@@ -49,6 +49,7 @@ import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
@@ -78,115 +79,7 @@ import java.util.zip.ZipFile;
  * (8) return a list of all directories and files on the classpath as a list of File objects, with the list deduplicated
  * and filtered to include only classpath directories and files that actually exist.
  * 
- * Usage example: (Note that these examples use Java 8 lambda expressions, which at least as of JDK 1.8.0 r20 incur a
- * one-time startup cost of 30-40ms):
- * 
- * <code>
- *     // The constructor specifies whitelisted package prefixes to scan.
- *     // If no arguments are provided, or if one argument is "", all classfiles in the classpath are scanned.
- *     // If a package name is prefixed with "-", e.g. "-com.xyz.otherthing", then that package is blacklisted,
- *     // rather than whitelisted. The final list of packages scanned is the set of whitelisted packages minus
- *     // the set of blacklisted packages.
- *     new FastClasspathScanner("com.xyz.widget", "com.xyz.gizmo")
- * 
- *       .matchSubclassesOf(DBModel.class,
- *           // c is a subclass of DBModel or a descendant subclass
- *           c -> System.out.println("Subclass of DBModel: " + c.getName()))
- * 
- *       .matchSubinterfacesOf(Role.class,
- *           // c is an interface that extends the interface Role
- *           c -> System.out.println("Subinterface of Role: " + c.getName()))
- * 
- *       .matchClassesImplementing(Runnable.class,
- *           // c is a class that implements the interface Runnable; more precisely,
- *           // c or one of its superclasses implements the interface Runnable, or
- *           // implements an interface that is a descendant of Runnable
- *           c -> System.out.println("Implements Runnable: " + c.getName()))
- * 
- *       .matchClassesWithAnnotation(RestHandler.class,
- *           // c is a class annotated with RestHandler
- *           c -> System.out.println("Has a RestHandler class annotation: " + c.getName()))
- * 
- *       .matchStaticFinalFieldNames(
- *           Stream.of("com.xyz.Config.POLL_INTERVAL", "com.xyz.Config.LOG_LEVEL")
- *                   .collect(Collectors.toCollection(HashSet::new)),
- *               // The following method is called when any static final fields with
- *               // names matching one of the above fully-qualified names are
- *               // encountered, as long as those fields are initialized to constant
- *               // values. The value returned is the value in the classfile, not the
- *               // value that would be returned by reflection, so this can be useful
- *               // in hot-swapping of changes to static constants in classfiles if
- *               // the constant value is changed and the class is re-compiled while
- *               // the code is running. (Eclipse doesn't hot-replace static constant
- *               // initializer values if you change them while running code in the
- *               // debugger, so you can pick up changes this way instead). 
- *               // Note that the visibility of the fields is not checked; the value
- *               // of the field in the classfile is returned whether or not it
- *               // should be visible. 
- *               (String className, String fieldName, Object fieldConstantValue) ->
- *                   System.out.println("Static field " + fieldName + " of class "
- *                       + className + " " + " has constant literal value "
- *                       + fieldConstantValue + " in classfile"))
- * 
- *       .matchFilenamePattern("^template/.*\\.html",
- *           // templatePath is a path on the classpath that matches the above
- *           // pattern; inputStream is a stream opened on the file or zipfile entry
- *           // No need to close inputStream before exiting, it is closed by caller.
- *           (absolutePath, relativePath, inputStream) -> {
- *              try {
- *                  String template = IOUtils.toString(inputStream, "UTF-8");
- *                  System.out.println("Found template: " + absolutePath
- *                          + " (size " + template.length() + ")");
- *              } catch (IOException e) {
- *                  throw new RuntimeException(e);
- *              }
- *          })
- * 
- *       .scan();  // Actually perform the scan
- *       
- *       
- *    // [...Some time later...]
- *    
- *    // See if any timestamps on the classpath are more recent than the time of the
- *    // previous scan. (Even faster than classpath scanning, because classfiles
- *    // don't have to be opened.)   
- *    boolean classpathContentsModified =
- *        fastClassPathScanner.classpathContentsModifiedSinceScan();
- * </code>
- * 
- * You can also get a list of matching fully-qualified classnames for interfaces and classes matching required criteria
- * without ever calling the classloader for the matching classes, e.g.:
- * 
- * <code>
- *     FastClasspathScanner scanner = new FastClasspathScanner("com.xyz.widget");
- *           
- *     // Parse the class hierarchy of all classfiles on the classpath without calling the classloader for any of them
- *     scanner.scan();
- * 
- *     // Get the names of all subclasses of Widget on the classpath 
- *     List<String> subclassesOfWidget = scanner.getSubclassesOf("com.xyz.widget.Widget");
- * </code>
- * 
- * Note that you need to pass a whitelist of package prefixes to scan into the constructor, and the ability to detect
- * that a class or interface extends another depends upon the entire ancestral path between the two classes or
- * interfaces having one of the whitelisted package prefixes.
- * 
- * When matching involves classfiles (i.e. in all cases except FastClasspathScanner#matchFilenamePattern, which deals
- * with arbitrary files on the classpath), if the same fully-qualified class name is encountered more than once on the
- * classpath, the second and subsequent definitions of the class are ignored.
- * 
- * The scanner also records the latest last-modified timestamp of any file or directory encountered, and you can see if
- * that latest last-modified timestamp has increased (indicating that something on the classpath has been updated) by
- * calling classpathContentsModifiedSinceScan(). This can be used to enable dynamic class-reloading if something on the
- * classpath is updated, for example to support hot-replace of route handler classes in a webserver.
- * classpathContentsModifiedSinceScan() is several times faster than the original call to scan(), since only
- * modification timestamps need to be checked.
- * 
- * Inspired by: https://github.com/rmuller/infomas-asl/tree/master/annotation-detector
- * 
- * See also: http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.4
- * 
- * Please let me know if you find this useful!
+ * See the accompanying README.md file for documentation.
  */
 public class FastClasspathScanner {
 
@@ -315,7 +208,7 @@ public class FastClasspathScanner {
         classMatchers.add(new ClassMatcher() {
             @Override
             public void lookForMatches() {
-                for (String subclass : classGraphBuilder.getSubclassesOf(superclass.getName())) {
+                for (String subclass : classGraphBuilder.getNamesOfSubclassesOf(superclass.getName())) {
                     // Call classloader
                     Class<? extends T> klass = loadClass(subclass);
                     // Process match
@@ -327,38 +220,67 @@ public class FastClasspathScanner {
     }
 
     /**
-     * Returns the list of classes on the classpath that extend the specified superclass. Should be called after scan(),
-     * and returns matching classes whether or not a SubclassMatchProcessor was added to the scanner before the call to
-     * scan(). Does not call the classloader on the matching classes, just returns their names.
+     * Returns the names of classes on the classpath that extend the specified superclass. Should be called after
+     * scan(), and returns matching classes whether or not a SubclassMatchProcessor was added to the scanner before the
+     * call to scan(). Does not call the classloader on the matching classes, just returns their names.
      * 
      * @param superclass
      *            The superclass to match (i.e. the class that subclasses need to extend to match).
-     * @return A list of matching classes, or the empty list if none.
+     * @return A list of the names of matching classes, or the empty list if none.
      */
-    public <T> List<String> getSubclassesOf(final Class<T> superclass) {
+    public <T> List<String> getNamesOfSubclassesOf(final Class<T> superclass) {
         if (superclass.isInterface()) {
             throw new IllegalArgumentException(superclass.getName() + " is an interface, not a regular class");
         }
-        return classGraphBuilder.getSubclassesOf(superclass.getName());
+        return classGraphBuilder.getNamesOfSubclassesOf(superclass.getName());
     }
 
     /**
-     * Returns the list of classes on the classpath that extend the specified superclass. Should be called after scan(),
-     * and returns matching classes whether or not a SubclassMatchProcessor was added to the scanner before the call to
-     * scan(). Does not call the classloader on the matching classes, just returns their names.
+     * Returns the names of classes on the classpath that extend the specified superclass. Should be called after
+     * scan(), and returns matching classes whether or not a SubclassMatchProcessor was added to the scanner before the
+     * call to scan(). Does not call the classloader on the matching classes, just returns their names.
      * 
      * @param superclassName
      *            The name of the superclass to match (i.e. the name of the class that subclasses need to extend).
-     * @return A list of matching classes, or the empty list if none.
+     * @return A list of the names of matching classes, or the empty list if none.
      */
-    public List<String> getSubclassesOf(String superclassName) {
-        return classGraphBuilder.getSubclassesOf(superclassName);
+    public List<String> getNamesOfSubclassesOf(String superclassName) {
+        return classGraphBuilder.getNamesOfSubclassesOf(superclassName);
+    }
+
+    /**
+     * Returns the names of classes on the classpath that are superclasses of the specified subclass. Should be called
+     * after scan(), and returns matching classes whether or not a SubclassMatchProcessor was added to the scanner
+     * before the call to scan(). Does not call the classloader on the matching classes, just returns their names.
+     * 
+     * @param subclass
+     *            The subclass to match (i.e. the class that needs to extend a superclass for the superclass to match).
+     * @return A list of the names of matching classes, or the empty list if none.
+     */
+    public <T> List<String> getNamesOfSuperclassesOf(final Class<T> subclass) {
+        if (subclass.isInterface()) {
+            throw new IllegalArgumentException(subclass.getName() + " is an interface, not a regular class");
+        }
+        return classGraphBuilder.getNamesOfSuperclassesOf(subclass.getName());
+    }
+
+    /**
+     * Returns the names of classes on the classpath that are superclasses of the specified subclass. Should be called
+     * after scan(), and returns matching classes whether or not a SubclassMatchProcessor was added to the scanner
+     * before the call to scan(). Does not call the classloader on the matching classes, just returns their names.
+     * 
+     * @param subclass
+     *            The subclass to match (i.e. the class that needs to extend a superclass for the superclass to match).
+     * @return A list of the names of matching classes, or the empty list if none.
+     */
+    public List<String> getNamesOfSuperclassesOf(String subclassName) {
+        return classGraphBuilder.getNamesOfSuperclassesOf(subclassName);
     }
 
     // -----------------------------------------------------------------------------------------------------------------
 
     /**
-     * Calls the provided SubInterfaceMatchProcessor if an interface that extends a given superinterface is found on the
+     * Calls the provided SubinterfaceMatchProcessor if an interface that extends a given superinterface is found on the
      * classpath. Will call the class loader on each matching interface (using Class.forName()) before calling the
      * SubinterfaceMatchProcessor. Does not call the classloader on non-matching classes or interfaces.
      * 
@@ -375,7 +297,7 @@ public class FastClasspathScanner {
         classMatchers.add(new ClassMatcher() {
             @Override
             public void lookForMatches() {
-                for (String subInterface : classGraphBuilder.getSubinterfacesOf(superInterface.getName())) {
+                for (String subInterface : classGraphBuilder.getNamesOfSubinterfacesOf(superInterface.getName())) {
                     // Call classloader
                     Class<? extends T> klass = loadClass(subInterface);
                     // Process match
@@ -387,33 +309,64 @@ public class FastClasspathScanner {
     }
 
     /**
-     * Returns the list of interfaces on the classpath that extend a given superinterface. Should be called after
+     * Returns the names of interfaces on the classpath that extend a given superinterface. Should be called after
      * scan(), and returns matching interfaces whether or not a SubinterfaceMatchProcessor was added to the scanner
      * before the call to scan(). Does not call the classloader on the matching interfaces, just returns their names.
      * 
      * @param superInterface
      *            The superinterface to match (i.e. the interface that subinterfaces need to extend to match).
-     * @return A list of matching interfaces, or the empty list if none.
+     * @return A list of the names of matching interfaces, or the empty list if none.
      */
-    public <T> List<String> getSubinterfacesOf(final Class<T> superInterface) {
+    public <T> List<String> getNamesOfSubinterfacesOf(final Class<T> superInterface) {
         if (!superInterface.isInterface()) {
             throw new IllegalArgumentException(superInterface.getName() + " is not an interface");
         }
-        return classGraphBuilder.getSubinterfacesOf(superInterface.getName());
+        return classGraphBuilder.getNamesOfSubinterfacesOf(superInterface.getName());
     }
 
     /**
-     * Returns the list of interfaces on the classpath that extend a given superinterface. Should be called after
+     * Returns the names of interfaces on the classpath that extend a given superinterface. Should be called after
      * scan(), and returns matching interfaces whether or not a SubinterfaceMatchProcessor was added to the scanner
      * before the call to scan(). Does not call the classloader on the matching interfaces, just returns their names.
      * 
      * @param superInterfaceName
      *            The name of the superinterface to match (i.e. the name of the interface that subinterfaces need to
      *            extend).
-     * @return A list of matching interfaces, or the empty list if none.
+     * @return A list of the names of matching interfaces, or the empty list if none.
      */
-    public List<String> getSubinterfacesOf(final String superInterfaceName) {
-        return classGraphBuilder.getSubinterfacesOf(superInterfaceName);
+    public List<String> getNamesOfSubinterfacesOf(final String superInterfaceName) {
+        return classGraphBuilder.getNamesOfSubinterfacesOf(superInterfaceName);
+    }
+
+    /**
+     * Returns the names of interfaces on the classpath that are superinterfaces of a given subinterface. Should be
+     * called after scan(), and returns matching interfaces whether or not a SubinterfaceMatchProcessor was added to the
+     * scanner before the call to scan(). Does not call the classloader on the matching interfaces, just returns their
+     * names.
+     * 
+     * @param subInterface
+     *            The superinterface to match (i.e. the interface that subinterfaces need to extend to match).
+     * @return A list of the names of matching interfaces, or the empty list if none.
+     */
+    public <T> List<String> getNamesOfSuperinterfacesOf(final Class<T> subInterface) {
+        if (!subInterface.isInterface()) {
+            throw new IllegalArgumentException(subInterface.getName() + " is not an interface");
+        }
+        return classGraphBuilder.getNamesOfSuperinterfacesOf(subInterface.getName());
+    }
+
+    /**
+     * Returns the names of interfaces on the classpath that are superinterfaces of a given subinterface. Should be
+     * called after scan(), and returns matching interfaces whether or not a SubinterfaceMatchProcessor was added to the
+     * scanner before the call to scan(). Does not call the classloader on the matching interfaces, just returns their
+     * 
+     * @param subInterfaceName
+     *            The name of the superinterface to match (i.e. the name of the interface that subinterfaces need to
+     *            extend).
+     * @return A list of the names of matching interfaces, or the empty list if none.
+     */
+    public List<String> getNamesOfSuperinterfacesOf(final String subInterfaceName) {
+        return classGraphBuilder.getNamesOfSuperinterfacesOf(subInterfaceName);
     }
 
     // -----------------------------------------------------------------------------------------------------------------
@@ -438,7 +391,7 @@ public class FastClasspathScanner {
             @Override
             public void lookForMatches() {
                 // For all classes implementing the given interface
-                for (String implClass : classGraphBuilder.getClassesImplementing(implementedInterface.getName())) {
+                for (String implClass : classGraphBuilder.getNamesOfClassesImplementing(implementedInterface.getName())) {
                     // Call classloader
                     Class<? extends T> klass = loadClass(implClass);
                     // Process match
@@ -450,34 +403,34 @@ public class FastClasspathScanner {
     }
 
     /**
-     * Returns a list of classes on the classpath that implement the specified interface or a subinterface, or whose
+     * Returns the names of classes on the classpath that implement the specified interface or a subinterface, or whose
      * superclasses implement the specified interface or a sub-interface. Should be called after scan(), and returns
      * matching interfaces whether or not an InterfaceMatchProcessor was added to the scanner before the call to scan().
      * Does not call the classloader on the matching classes, just returns their names.
      * 
      * @param implementedInterface
      *            The interface that classes need to implement to match.
-     * @return A list of matching classes, or the empty list if none.
+     * @return A list of the names of matching classes, or the empty list if none.
      */
-    public <T> List<String> getClassesImplementing(final Class<T> implementedInterface) {
+    public <T> List<String> getNamesOfClassesImplementing(final Class<T> implementedInterface) {
         if (!implementedInterface.isInterface()) {
             throw new IllegalArgumentException(implementedInterface.getName() + " is not an interface");
         }
-        return classGraphBuilder.getClassesImplementing(implementedInterface.getName());
+        return classGraphBuilder.getNamesOfClassesImplementing(implementedInterface.getName());
     }
 
     /**
-     * Returns a list of classes on the classpath that implement the specified interface or a subinterface, or whose
+     * Returns the names of classes on the classpath that implement the specified interface or a subinterface, or whose
      * superclasses implement the specified interface or a sub-interface. Should be called after scan(), and returns
      * matching interfaces whether or not an InterfaceMatchProcessor was added to the scanner before the call to scan().
      * Does not call the classloader on the matching classes, just returns their names.
      * 
      * @param implementedInterfaceName
      *            The name of the interface that classes need to implement.
-     * @return A list of matching classes, or the empty list if none.
+     * @return A list of the names of matching classes, or the empty list if none.
      */
-    public List<String> getClassesImplementing(final String implementedInterfaceName) {
-        return classGraphBuilder.getClassesImplementing(implementedInterfaceName);
+    public List<String> getNamesOfClassesImplementing(final String implementedInterfaceName) {
+        return classGraphBuilder.getNamesOfClassesImplementing(implementedInterfaceName);
     }
 
     // -----------------------------------------------------------------------------------------------------------------
@@ -499,7 +452,8 @@ public class FastClasspathScanner {
             @Override
             public void lookForMatches() {
                 // For all classes with the given annotation
-                for (String classWithAnnotation : classGraphBuilder.getClassesWithAnnotation(annotation.getName())) {
+                for (String classWithAnnotation : classGraphBuilder.getNamesOfClassesWithAnnotation(annotation
+                        .getName())) {
                     // Call classloader
                     Class<?> klass = loadClass(classWithAnnotation);
                     // Process match
@@ -511,32 +465,32 @@ public class FastClasspathScanner {
     }
 
     /**
-     * Returns a list of classes on the classpath that have the specified annotation. Should be called after scan(), and
-     * returns matching classes whether or not a ClassAnnotationMatchProcessor was added to the scanner before the call
-     * to scan(). Does not call the classloader on the matching classes, just returns their names.
+     * Returns the names of classes on the classpath that have the specified annotation. Should be called after scan(),
+     * and returns matching classes whether or not a ClassAnnotationMatchProcessor was added to the scanner before the
+     * call to scan(). Does not call the classloader on the matching classes, just returns their names.
      * 
      * @param annotation
      *            The class annotation.
-     * @return A list of classes with the class annotation, or the empty list if none.
+     * @return A list of the names of classes with the class annotation, or the empty list if none.
      */
-    public <T> List<String> getClassesWithAnnotation(final Class<?> annotation) {
+    public <T> List<String> getNamesOfClassesWithAnnotation(final Class<?> annotation) {
         if (!annotation.isAnnotation()) {
             throw new IllegalArgumentException("Class " + annotation.getName() + " is not an annotation");
         }
-        return classGraphBuilder.getClassesWithAnnotation(annotation.getName());
+        return classGraphBuilder.getNamesOfClassesWithAnnotation(annotation.getName());
     }
 
     /**
-     * Returns a list of classes on the classpath that have the specified annotation. Should be called after scan(), and
-     * returns matching classes whether or not a ClassAnnotationMatchProcessor was added to the scanner before the call
-     * to scan(). Does not call the classloader on the matching classes, just returns their names.
+     * Returns the names of classes on the classpath that have the specified annotation. Should be called after scan(),
+     * and returns matching classes whether or not a ClassAnnotationMatchProcessor was added to the scanner before the
+     * call to scan(). Does not call the classloader on the matching classes, just returns their names.
      * 
      * @param annotationName
      *            The name of the class annotation.
-     * @return A list of classes that have the named annotation, or the empty list if none.
+     * @return A list of the names of classes that have the named annotation, or the empty list if none.
      */
-    public List<String> getClassesWithAnnotation(final String annotationName) {
-        return classGraphBuilder.getClassesWithAnnotation(annotationName);
+    public List<String> getNamesOfClassesWithAnnotation(final String annotationName) {
+        return classGraphBuilder.getNamesOfClassesWithAnnotation(annotationName);
     }
 
     // -----------------------------------------------------------------------------------------------------------------
@@ -675,6 +629,16 @@ public class FastClasspathScanner {
     /** An interface used for testing if a class matches specified criteria. */
     private static interface ClassMatcher {
         public abstract void lookForMatches();
+    }
+
+    // -----------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Returns the names of all classes and interfaces processed during the scan, i.e. all classes reachable after
+     * taking into account the package whitelist and blacklist criteria.
+     */
+    public <T> Set<String> getNamesOfAllClasses() {
+        return classGraphBuilder.getNamesOfAllClasses();
     }
 
     // -----------------------------------------------------------------------------------------------------------------
