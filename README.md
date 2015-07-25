@@ -17,7 +17,8 @@ FastClasspathScanner is able to scan directories and jar/zip files on the classp
 Usage is as follows:
  
 ```java
-// Whitelisted package prefixes to scan are listed in the constructor
+// Whitelisted package prefixes are listed in the constructor
+// (can also blacklist packages by prefixing with "-")
 new FastClasspathScanner("com.xyz.widget", "com.xyz.gizmo")  
   
     .matchSubclassesOf(Widget.class,
@@ -75,10 +76,6 @@ boolean classpathContentsModified =
     fastClassPathScanner.classpathContentsModifiedSinceScan();
 ```
 
-**Whitelisting package prefixes in the constructor:** The constructor specifies whitelisted package prefixes to scan, e.g. `new FastClasspathScanner("com.xyz.widget")` will scan inside package `com.xyz.widget` as well as any child packages like `com.xyz.widget.button`. If no whitelisted packages are specified (i.e. if the constructor is called without arguments), or if one of the whitelisted package names is "" or "/", all classfiles in the classpath will be scanned.
-
-**Blacklisting package prefixes:** If a package name is passed to the constructor prefixed with "-", e.g. `-com.xyz.widget.slider`, then the package name (without the leading "-") is blacklisted, rather than whitelisted. The final list of packages scanned is the set of whitelisted packages minus the set of blacklisted packages. This is useful for excluding an entire sub-tree of a whitelisted package.
-
 **Using Java 8 method references:** The `.match...()` methods (e.g. `.matchSubclassesOf()`) take a [`MatchProcessor`](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) as one of their arguments, which are single-method classes (i.e. FunctionalInterfaces). Java 8 method references may also be used as FunctionalInterfaces, e.g. `list::add`:
 
 ```java
@@ -121,24 +118,17 @@ See also [Usage Caveats](#usage-caveats) below.
 
 Note that most of the methods in the API return *this* (of type FastClasspathScanner), so that you can use the [method chaining](http://en.wikipedia.org/wiki/Method_chaining) calling style, as shown above.
 
-### Whitelisting package prefixes in the call to the constructor
+### Constructor
 
-Calling the constructor does not actually start the scan. The constructor takes a whitelist of package prefixes that should be scanned. Whitelisting package prefixes of interest can dramatically speed up classpath scanning, because it limits the number of classfiles that need to be opened and read.
+Calling the constructor does not actually start the scan. The constructor takes a whitelist and/or a blacklist of package prefixes that should be scanned.
+
+**Whitelisting package prefixes:** Whitelisted package prefixes can dramatically speed up classpath scanning, because it limits the number of classfiles that need to be opened and read, e.g. `new FastClasspathScanner("com.xyz.widget")` will scan inside package `com.xyz.widget` as well as any child packages like `com.xyz.widget.button`. If no whitelisted packages are specified (i.e. if the constructor is called without arguments), or if one of the whitelisted package names is "" or "/", all classfiles in the classpath will be scanned.
+
+**Blacklisting package prefixes:** If a package name is listed in the constructor prefixed with the `'-'` character, e.g. `"-com.xyz.widget.slider"`, then the package name (without the leading `'-'`) will be blacklisted, rather than whitelisted. The final list of packages scanned is the set of whitelisted packages minus the set of blacklisted packages. Blacklisting is useful for excluding an entire sub-tree of a whitelisted package.
 
 ```java
-/**
- * Constructs a FastClasspathScanner instance.
- * 
- * @param packagesToScan
- *            the whitelist of package prefixes to scan, e.g.
- *            "com.xyz.widget", "com.xyz.gizmo". If no whitelisted
- *            packages are given (i.e. if the constructor is called
- *            with zero arguments), then all packages on the
- *            classpath will be scanned.
- */
-public FastClasspathScanner(String... pacakagesToScan) {
-    /*...*/
-}
+// Constructor for FastClasspathScanner
+public FastClasspathScanner(String... pacakagesToScan)
 ```
 
 Note that if you don't specify any whitelisted package prefixes, i.e. `new FastClasspathScanner()`, all packages on the classpath will be scanned. ("Scanning" involves parsing the classfile binary format to determine class and interface relationships.)
@@ -153,58 +143,25 @@ There are also methods `List<String> getNamesOfSubclassesOf(String superclassNam
 
 Furthermore, the methods `List<String> getNamesOfSuperclassesOf(String subclassName)` and `List<String> getNamesOfSuperclassesOf(Class<T> subclass)` are able to return all superclasses of a given class after a call to `.scan()`. (Note that there is not currently a SuperclassMatchProcessor or .matchSuperclassesOf().)
 
+#### MatchProcessor:
 ```java
-/** The method to run when a subclass of a specific class is found on the classpath. */
 @FunctionalInterface
 public interface SubclassMatchProcessor<T> {
     public void processMatch(Class<? extends T> matchingClass);
 }
+```
+#### Methods:
+```java
+public <T> FastClasspathScanner matchSubclassesOf(Class<T> superclass,
+    SubclassMatchProcessor<T> subclassMatchProcessor)
 
-/**
- * Call the provided SubclassMatchProcessor if classes are found on the classpath that
- * extend the specified superclass.
- * 
- * @param superclass
- *            The superclass to match (i.e. the class that subclasses need to extend)
- * @param subclassMatchProcessor
- *            the SubclassMatchProcessor to call when a match is found.
- */
-public <T> FastClasspathScanner matchSubclassesOf(
-        Class<T> superclass,
-        SubclassMatchProcessor<T> subclassMatchProcessor) {
-    /* ... */
-}
+public <T> List<String> getNamesOfSubclassesOf(final Class<T> superclass) 
 
-/**
- * Returns the list of classes on the classpath that extend the specified superclass.
- * Should be called after .scan(), and returns matching classes whether or not a
- * SubclassMatchProcessor was added to the scanner before the call to .scan().
- * Does not call the classloader on the matching classes, just returns their names.
- * 
- * @param superclass
- *            The superclass to match (i.e. the class that subclasses need to extend
- *            to match).
- * @return A list of matching classes, or the empty list if none.
- */
-public <T> List<String> getNamesOfSubclassesOf(final Class<T> superclass) {
-    /* ... */
-}
+public List<String> getNamesOfSubclassesOf(String superclassName)
 
-// Alternatively:
-public List<String> getNamesOfSubclassesOf(String superclassName) {
-    /* ... */
-}
+public <T> List<String> getNamesOfSuperclassesOf(final Class<T> subclass)
 
-// Note that there are also methods for finding the names of all superclasses of a
-// given class (even though there is no corresponding SuperclassMatchProcessor):
-public <T> List<String> getNamesOfSuperclassesOf(final Class<T> subclass) {
-    /* ... */
-}
-
-// Alternatively:
-public List<String> getNamesOfSuperclassesOf(String subclassName) {
-    /* ... */
-}
+public List<String> getNamesOfSuperclassesOf(String subclassName)
 ```
 
 ### Matching the subinterfaces (or finding the superinterfaces) of an interface
@@ -216,64 +173,26 @@ FastClasspathScanner can find all interfaces on the classpath within whitelisted
 There are also methods `List<String> getNamesOfSubinterfacesOf(String ifaceName)` and `List<String> getNamesOfSubinterfacesOf(Class<T> iface)` that can be called after `.scan()` to find the names of the subinterfaces of a given interface (whether or not a corresponding match processor was added to detect this). These methods will return the matching interfaces without calling the classloader, whereas if a match processor is used, the classloader is called first (using Class.forName()) so that a class reference for the matching interface can be passed into the match processor.
 
 Furthermore, the methods `List<String> getNamesOfSuperinterfacesOf(String ifaceName)` and `List<String> getNamesOfSuperinterfacesOf(Class<T> iface)` are able to return all superinterfaces of a given interface after a call to `.scan()`. (Note that there is not currently a SuperinterfaceMatchProcessor or .matchSuperinterfacesOf().)
- 
+
+#### MatchProcessor:
 ```java
-/**
- * The method to run when an interface that extends another specific interface
- * is found on the classpath.
- */
 @FunctionalInterface
 public interface SubinterfaceMatchProcessor<T> {
     public void processMatch(Class<? extends T> matchingInterface);
 }
-
-/**
- * Call the provided SubinterfaceMatchProcessor if an interface that extends a
- * given superinterface is found on the classpath.
- * 
- * @param superInterface
- *            The superinterface to match (i.e. the interface that subinterfaces
- *            need to extend).
- * @param subinterfaceMatchProcessor
- *            the SubinterfaceMatchProcessor to call when a match is found.
- */
-@SuppressWarnings("unchecked")
+```
+#### Methods:
+```java
 public <T> FastClasspathScanner matchSubinterfacesOf(final Class<T> superInterface,
-        final SubinterfaceMatchProcessor<T> subinterfaceMatchProcessor) {
-    /* ... */
-}
+    final SubinterfaceMatchProcessor<T> subinterfaceMatchProcessor)
 
-/**
- * Returns the list of interfaces on the classpath that extend a given
- * superinterface. Should be called after .scan(), and returns matching interfaces
- * whether or not a SubinterfaceMatchProcessor was added to the scanner before the
- * call to .scan(). Does not call the classloader the matching interfaces, just
- * returns their names.
- * 
- * @param superInterface
- *            The superinterface to match (i.e. the interface that subinterfaces
- *            need to extend to match).
- * @return A list of matching interfaces, or the empty list if none.
- */
-public <T> List<String> getNamesOfSubinterfacesOf(final Class<T> superInterface) {
-    /* ... */
-}
+public <T> List<String> getNamesOfSubinterfacesOf(final Class<T> superInterface)
 
-// Alternatively:
-public List<String> getNamesOfSubinterfacesOf(final String superInterfaceName) {
-    /* ... */
-}
+public List<String> getNamesOfSubinterfacesOf(final String superInterfaceName)
 
-// Note that there are also methods for finding the names of all superinterfaces of a
-// given class (even though there is no corresponding SuperinterfaceMatchProcessor):
-public <T> List<String> getNamesOfSuperinterfacesOf(final Class<T> subinterface) {
-    /* ... */
-}
+public <T> List<String> getNamesOfSuperinterfacesOf(final Class<T> subinterface)
 
-// Alternatively:
-public List<String> getNamesOfSuperinterfacesOf(String subinterfaceName) {
-    /* ... */
-}
+public List<String> getNamesOfSuperinterfacesOf(String subinterfaceName)
 ```
 
 ### Matching the classes that implement an interface
@@ -284,52 +203,21 @@ FastClasspathScanner can find all classes on the classpath within whitelisted pa
 
 There are also methods `List<String> getNamesOfClassesImplementing(String ifaceName)` and `List<String> getNamesOfClassesImplementing(Class<T> iface)` that can be called after `.scan()` to find the names of the classes implementing a given interface (whether or not a corresponding match processor was added to detect this). These methods will return the matching classes without calling the classloader, whereas if a match processor is used, the classloader is called first (using Class.forName()) so that a class reference can be passed into the match processor.
 
+#### MatchProcessor:
 ```java
-/**
- * The method to run when a class implementing a specific interface is found on the
- * classpath.
- */
 @FunctionalInterface
 public interface InterfaceMatchProcessor<T> {
     public void processMatch(Class<? extends T> implementingClass);
 }
+```
+#### Methods:
+```java
+public <T> FastClasspathScanner matchClassesImplementing(Class<T> implementedInterface,
+    InterfaceMatchProcessor<T> interfaceMatchProcessor)
 
-/**
- * Call the provided InterfaceMatchProcessor for classes on the classpath that
- * implement the specified interface or a sub-interface, or whose superclasses
- * implement the specified interface or a sub-interface.
- * 
- * @param implementedInterface
- *            The interface that classes need to implement.
- * @param interfaceMatchProcessor
- *            the ClassMatchProcessor to call when a match is found.
- */
-public <T> FastClasspathScanner matchClassesImplementing(
-        Class<T> implementedInterface,
-        InterfaceMatchProcessor<T> interfaceMatchProcessor) {
-    /* ... */
-}
+public <T> List<String> getNamesOfClassesImplementing(final Class<T> implementedInterface)
 
-/**
- * Returns a list of classes on the classpath that implement the specified
- * interface or a subinterface, or whose superclasses implement the specified
- * interface or a sub-interface. Should be called after .scan(), and returns
- * matching interfaces whether or not an InterfaceMatchProcessor was added
- * to the scanner before the call to .scan(). Does not call the classloader on
- * the matching classes, just returns their names.
- * 
- * @param implementedInterface
- *            The interface that classes need to implement to match.
- * @return A list of matching classes, or the empty list if none.
- */
-public <T> List<String> getNamesOfClassesImplementing(final Class<T> implementedInterface) {
-    /* ... */
-}
-
-// Alternatively:
-public List<String> getNamesOfClassesImplementing(final String implementedInterfaceName) {
-    /* ... */
-}
+public List<String> getNamesOfClassesImplementing(final String implementedInterfaceName)
 ```
 
 ### Matching classes with a specific annotation
@@ -338,50 +226,21 @@ FastClassPathScanner can detect classes that have a class annotation that matche
 
 There are also methods `List<String> getNamesOfClassesWithAnnotation(String annotationClassName)` and `List<String> getNamesOfClassesWithAnnotation(Class<T> annotationClass)` that can be called after `.scan()` to find the names of the classes that have a given annotation (whether or not a corresponding match processor was added to detect this). These methods will return the matching classes without calling the classloader, whereas if a match processor is used, the classloader is called first (using Class.forName()) so that a class reference can be passed into the match processor.
 
+#### MatchProcessor:
 ```java
-/**
- * The method to run when a class having a specified annotation is found on the
- * classpath.
- */
 @FunctionalInterface
 public interface ClassAnnotationMatchProcessor {
     public void processMatch(Class<?> matchingClass);
 }
+```
+#### Methods:
+```java
+public FastClasspathScanner matchClassesWithAnnotation(Class<?> annotation,
+    ClassAnnotationMatchProcessor classAnnotationMatchProcessor)
 
-/**
- * Call the provided ClassAnnotationMatchProcessor if classes are found on the
- * classpath that have the specified annotation.
- * 
- * @param annotation
- *            The class annotation that classes need to have in order to match.
- * @param classAnnotationMatchProcessor
- *            the ClassAnnotationMatchProcessor to call when a match is found.
- */
-public FastClasspathScanner matchClassesWithAnnotation(
-       Class<?> annotation,
-       ClassAnnotationMatchProcessor classAnnotationMatchProcessor) {
-    /* ... */
-}
+public <T> List<String> getNamesOfClassesWithAnnotation(final Class<?> annotation)
 
-/**
- * Returns a list of classes on the classpath that have the specified
- * annotation. Should be called after .scan(), and returns matching classes
- * whether or not a ClassAnnotationMatchProcessor was added to the scanner
- * before the call to .scan(). Does not call the classloader on the matching
- * classes, just returns their names.
- * 
- * @param annotation
- *            The class annotation.
- * @return A list of classes with the class annotation, or the empty list if none.
- */
-public <T> List<String> getNamesOfClassesWithAnnotation(final Class<?> annotation) {
-    /* ... */
-}
-
-// Alternatively:
-public List<String> getNamesOfClassesWithAnnotation(final String annotationName) {
-    /* ... */
-}
+public List<String> getNamesOfClassesWithAnnotation(final String annotationName)
 ```
 
 ### Fetching the constant initializer values of static final fields
@@ -394,62 +253,24 @@ This can be useful in hot-swapping of changes to static constants in classfiles 
 
 **Note:** The visibility of the fields is not checked; the value of the field in the classfile is returned whether or not it should be visible to the caller. Therefore you should probably only use this method with public static final fields (not just static final fields) to coincide with Java's own semantics.
 
+#### MatchProcessor:
 ```java
-/**
- * The method to run when a class with the matching class name and with a final static
- * field with the matching field name is found on the classpath. The constant value of
- * the final static field is obtained directly from the constant pool of the classfile.
- * 
- * @param className
- *            The class name, e.g. "com.package.ClassName".
- * @param fieldName
- *            The field name, e.g. "STATIC_FIELD_NAME".
- * @param fieldConstantValue
- *            The field's constant literal value, read directly from the classfile's 
- *            constant pool.
- */
 @FunctionalInterface
 public interface StaticFinalFieldMatchProcessor {
     public void processMatch(String className,
                              String fieldName,
                              Object fieldConstantValue);
 }
-
-/**
- * Call the given StaticFinalFieldMatchProcessor if classes are found on the classpath
- * that contain static final fields that match one of a set of fully-qualified field
- * names, e.g. "com.package.ClassName.STATIC_FIELD_NAME".
- * 
- * @param fullyQualifiedStaticFinalFieldNames
- *            The set of fully-qualified static field names to match.
- * @param staticFinalFieldMatchProcessor
- *            the StaticFinalFieldMatchProcessor to call when a match is found.
- */
+```
+#### Methods:
+```java
 public FastClasspathScanner matchStaticFinalFieldNames(
-        HashSet<String> fullyQualifiedStaticFinalFieldNames,
-        StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor) {
-    /* ... */
-}
+    HashSet<String> fullyQualifiedStaticFinalFieldNames,
+    StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor)
 
-/**
- * (Convenience method if you're only looking to match a single field name)
- */
 public FastClasspathScanner matchStaticFinalFieldNames(
-        final String fullyQualifiedStaticFinalFieldName,
-        final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor) {
-    /* ... */
-}
-
-/**
- * (Convenience method that allows you to list static field names in a varargs
- * parameter list. The parameters are reversed in this method, because the
- * varargs parameter must come last.)
- */
-public FastClasspathScanner matchStaticFinalFieldNames(
-        final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor,
-        final String... fullyQualifiedStaticFinalFieldNames) {
-    /* ... */
-}
+    final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor,
+    final String... fullyQualifiedStaticFinalFieldNames)
 ```
 
 *Note:* Only static final fields with constant-valued literals are matched, not fields with initializer values that are the result of an expression or reference, except for cases where the compiler is able to simplify an expression into a single constant at compiletime, [such as in the case of string concatenation](https://docs.oracle.com/javase/specs/jvms/se7/html/jvms-5.html#jvms-5.1). The following are examples of constant static final fields:
@@ -478,42 +299,20 @@ Primitive types (int, long, short, float, double, boolean, char, byte) are wrapp
 
 This can be useful for detecting changes to non-classfile resources on the classpath, for example a web server's template engine can hot-reload HTML templates when they change by including the template directory in the classpath and then detecting changes to files that are in the template directory and have the extension ".html".
 
+#### MatchProcessor:
 ```java
 /** The method to run when a file with a matching path is found on the classpath. */
 @FunctionalInterface
 public interface FileMatchProcessor {
-    /**
-     * Process a matching file.
-     * 
-     * @param absolutePath
-     *            The path of the matching file on the filesystem.
-     * @param relativePath
-     *            The path of the matching file relative to the classpath entry that
-     *            contained the match.
-     * @param inputStream
-     *            An InputStream (either a FileInputStream or a ZipEntry InputStream)
-     *            opened on the file. You do not need to close this InputStream before
-     *            returning, it is closed by the caller.
-     */
     public void processMatch(String absolutePath,
                              String relativePath,
                              InputStream inputStream);
 }
-
-/**
- * Call the given FileMatchProcessor if files are found on the classpath with the given
- * regexp pattern in their path.
- * 
- * @param filenameMatchPattern
- *            The regexp to match, e.g. "app/templates/.*\\.html"
- * @param fileMatchProcessor
- *            The FileMatchProcessor to call when each match is found.
- */
-public FastClasspathScanner matchFilenamePattern(
-        String filenameMatchPattern,
-        FileMatchProcessor fileMatchProcessor) {
-    /* ... */
-}
+```
+#### Methods:
+```java
+public FastClasspathScanner matchFilenamePattern(String filenameMatchPattern,
+        FileMatchProcessor fileMatchProcessor)
 ```
 
 ### Performing the actual scan
@@ -521,11 +320,7 @@ public FastClasspathScanner matchFilenamePattern(
 The `.scan()` method performs the actual scan. This method may be called multiple times after the initialization steps shown above, although there is usually no point performing additional scans unless `classpathContentsModifiedSinceScan()` returns true.
 
 ```java
-/**
- * Scan classpath for matching files. Call this after all match processors have been
- * added.
- */
-public void scan() { /* ... */ }
+public void scan()
 ```
 
 As the scan proceeds, for all match processors that deal with classfiles (i.e. for all but FileMatchProcessor), if the same fully-qualified class name is encountered more than once on the classpath, the second and subsequent definitions of the class are ignored, in order to follow Java's class masking behavior.
@@ -539,11 +334,7 @@ After a call to `.scan()`, it is possible to later call `.classpathContentsModif
 Since `.classpathContentsModifiedSinceScan()` only checks file modification timestamps, it works several times faster than the original call to `.scan()`. It is therefore a very lightweight operation that can be called in a polling loop to detect changes to classpath contents for hot reloading of resources.
 
 ```java
-/**
- * Returns true if the classpath contents have been changed since .scan() was
- * last called.
- */
-public boolean classpathContentsModifiedSinceScan() { /* ... */ }
+public boolean classpathContentsModifiedSinceScan()
 ```
 
 ### Get a list of all whitelisted (and non-blacklisted) classes and interfaces on the classpath
@@ -553,11 +344,7 @@ The names of all classes and interfaces reached during the scan, after taking in
 Note that system classes (e.g. java.lang.String) do not need to be explicitly included on the classpath, so they are not typically returned in this list. However, any classes *referenced by* classes on the classpath (and, more specifically, any classes referenced by whitelisted classes), will be returned in this list. For example, any classes encountered that do not extend another class will reference java.lang.Object, so java.lang.Object will be returned in this list. 
 
 ```java
-/**
- * Returns the names of all classes and interfaces processed during the scan, i.e. all classes
- * reachable after taking into account the package whitelist and blacklist criteria.
- */
-public <T> Set<String> getNamesOfAllClasses() { /* ... */ }
+public <T> Set<String> getNamesOfAllClasses()
 ```
 
 ### Get all unique directories and files on the classpath
@@ -565,12 +352,7 @@ public <T> Set<String> getNamesOfAllClasses() { /* ... */ }
 The list of all directories and files on the classpath is returned by the following method. The list is filtered to include only unique classpath elements (duplicates are eliminated), and to include only directories and files that actually exist. The elements in the list are in classpath order.
 
 ```java
-/**
- * Get a list of unique elements on the classpath (files and directories)
- * as File objects, preserving order. Classpath elements that do not exist
- * are not included in the list.
- */
-public static ArrayList<File> getUniqueClasspathElements() { /* ... */ }
+public static ArrayList<File> getUniqueClasspathElements()
 ```
 
 ## Usage Caveats
