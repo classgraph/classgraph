@@ -52,6 +52,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.Test;
 
@@ -152,23 +154,21 @@ public class FastClasspathScannerTest {
         assertTrue(scanner.getNamesOfClassesImplementing(IfaceSubSub.class).contains(Impl2SubSub.class.getName()));
     }
 
-    private boolean readFileContents = false;
-
     @Test
     public void scanFilePattern() throws Exception {
+        AtomicBoolean readFileContents = new AtomicBoolean(false);
         new FastClasspathScanner().matchFilenamePattern(
                 "[[^/]*/]*file-content-test\\.txt",
                 (absolutePath, relativePath, inputStream) -> {
-                    readFileContents = "File contents".equals(new BufferedReader(new InputStreamReader(inputStream))
-                            .readLine());
+                    readFileContents.set("File contents".equals(new BufferedReader(new InputStreamReader(inputStream))
+                            .readLine()));
                 }).scan();
-        assertTrue(readFileContents);
+        assertTrue(readFileContents.get());
     }
-
-    private int readStaticFieldCount = 0;
 
     @Test
     public void scanStaticFinalFieldName() throws Exception {
+        AtomicInteger readStaticFieldCount = new AtomicInteger(0);
         HashSet<String> fieldNames = new HashSet<String>();
         for (String fieldName : new String[] { "stringField", "intField", "boolField", "charField", "integerField",
                 "booleanField" }) {
@@ -195,9 +195,9 @@ public class FastClasspathScannerTest {
                     default:
                         throw new RuntimeException("Unknown field");
                     }
-                    readStaticFieldCount++;
+                    readStaticFieldCount.incrementAndGet();
                 }).scan();
-        assertTrue(readStaticFieldCount == 4);
+        assertTrue(readStaticFieldCount.get() == 4);
     }
 
     @Test
