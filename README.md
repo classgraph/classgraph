@@ -82,7 +82,7 @@ boolean classpathContentsModified =
 
 ```
 
-Java 8 @FunctionalInterface direct method references may also be useful:
+Java 8 @FunctionalInterface-compatible method references may also be useful, e.g. List::add:
 
 ```java
     List<Class<? extends Node>> collector = new ArrayList<>();
