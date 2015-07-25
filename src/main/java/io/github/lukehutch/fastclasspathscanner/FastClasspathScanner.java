@@ -945,7 +945,7 @@ public class FastClasspathScanner {
         if (!scanTimestampsOnly) {
             if (relativePath.endsWith(".class")) {
                 // Found a classfile
-                try (InputStream inputStream = new FileInputStream(file)) {
+                try (final InputStream inputStream = new FileInputStream(file)) {
                     // Inspect header of classfile
                     readClassInfoFromClassfileHeader(inputStream);
                 }
@@ -961,7 +961,7 @@ public class FastClasspathScanner {
                 for (final FilePathMatcher fileMatcher : filePathMatchers) {
                     if (fileMatcher.pattern.matcher(relativePath).matches()) {
                         // If there's a match, open the file as a stream and call the match processor
-                        try (InputStream inputStream = new FileInputStream(file)) {
+                        try (final InputStream inputStream = new FileInputStream(file)) {
                             fileMatcher.fileMatchProcessor.processMatch(absolutePath, relativePath, inputStream);
                         }
                     }
@@ -1195,7 +1195,7 @@ public class FastClasspathScanner {
                             if (fileMatcher.pattern.matcher(path).matches()) {
                                 // If there's a match, open the file as a stream and call the
                                 // match processor
-                                try (InputStream inputStream = new FileInputStream(pathElt)) {
+                                try (final InputStream inputStream = new FileInputStream(pathElt)) {
                                     fileMatcher.fileMatchProcessor.processMatch(path, pathElt.getName(), inputStream);
                                 }
                             }
