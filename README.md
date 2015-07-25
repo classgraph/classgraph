@@ -84,7 +84,7 @@ The .match*() methods (e.g. .matchSubclassesOf()) take [MatchProcessors](https:/
 
 ```java
 List<Class<? extends Node>> collector = new ArrayList<>();
-FastClasspathScanner scanner = new FastClasspathScanner("com.xyz.widget")
+new FastClasspathScanner("com.xyz.widget")
     .matchSubclassesOf(Node.class, collector::add)
     .scan();
 ```
