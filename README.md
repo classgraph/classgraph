@@ -157,11 +157,11 @@ public <T> FastClasspathScanner matchSubclassesOf(Class<T> superclass,
 
 // Method 2: Call one of the following after calling .scan():
 
-public <T> List<String> getNamesOfSubclassesOf(final Class<T> superclass) 
+public <T> List<String> getNamesOfSubclassesOf(Class<T> superclass) 
 
 public List<String> getNamesOfSubclassesOf(String superclassName)
 
-public <T> List<String> getNamesOfSuperclassesOf(final Class<T> subclass)
+public <T> List<String> getNamesOfSuperclassesOf(Class<T> subclass)
 
 public List<String> getNamesOfSuperclassesOf(String subclassName)
 ```
@@ -184,16 +184,16 @@ public interface SubinterfaceMatchProcessor<T> {
     public void processMatch(Class<? extends T> matchingInterface);
 }
 
-public <T> FastClasspathScanner matchSubinterfacesOf(final Class<T> superInterface,
-    final SubinterfaceMatchProcessor<T> subinterfaceMatchProcessor)
+public <T> FastClasspathScanner matchSubinterfacesOf(Class<T> superInterface,
+    SubinterfaceMatchProcessor<T> subinterfaceMatchProcessor)
 
 // Method 2: Call one of the following after calling .scan():
 
-public <T> List<String> getNamesOfSubinterfacesOf(final Class<T> superInterface)
+public <T> List<String> getNamesOfSubinterfacesOf(Class<T> superInterface)
 
-public List<String> getNamesOfSubinterfacesOf(final String superInterfaceName)
+public List<String> getNamesOfSubinterfacesOf(String superInterfaceName)
 
-public <T> List<String> getNamesOfSuperinterfacesOf(final Class<T> subinterface)
+public <T> List<String> getNamesOfSuperinterfacesOf(Class<T> subinterface)
 
 public List<String> getNamesOfSuperinterfacesOf(String subinterfaceName)
 ```
@@ -214,14 +214,17 @@ public interface InterfaceMatchProcessor<T> {
     public void processMatch(Class<? extends T> implementingClass);
 }
 
-public <T> FastClasspathScanner matchClassesImplementing(Class<T> implementedInterface,
+public <T> FastClasspathScanner matchClassesImplementing(
+    Class<T> implementedInterface,
     InterfaceMatchProcessor<T> interfaceMatchProcessor)
 
 // Method 2: Call one of the following after calling .scan():
 
-public <T> List<String> getNamesOfClassesImplementing(final Class<T> implementedInterface)
+public <T> List<String> getNamesOfClassesImplementing(
+    Class<T> implementedInterface)
 
-public List<String> getNamesOfClassesImplementing(final String implementedInterfaceName)
+public List<String> getNamesOfClassesImplementing(
+    String implementedInterfaceName)
 ```
 
 ### 4. Matching classes with a specific annotation
@@ -243,9 +246,9 @@ public FastClasspathScanner matchClassesWithAnnotation(Class<?> annotation,
 
 // Method 2: Call one of the following after calling .scan():
 
-public <T> List<String> getNamesOfClassesWithAnnotation(final Class<?> annotation)
+public <T> List<String> getNamesOfClassesWithAnnotation(Class<?> annotation)
 
-public List<String> getNamesOfClassesWithAnnotation(final String annotationName)
+public List<String> getNamesOfClassesWithAnnotation(String annotationName)
 ```
 
 ### 5. Fetching the constant initializer values of static final fields
@@ -263,14 +266,15 @@ This can be useful in hot-swapping of changes to static constants in classfiles 
 
 @FunctionalInterface
 public interface StaticFinalFieldMatchProcessor {
-    public void processMatch(String className, String fieldName, Object fieldConstantValue);
+    public void processMatch(String className, String fieldName,
+    Object fieldConstantValue);
 }
 
 public FastClasspathScanner matchStaticFinalFieldNames(
     HashSet<String> fullyQualifiedStaticFinalFieldNames,
     StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor)
 
-// N.B. the parameter order is reversed in this call, because varargs must come last in java
+// N.B. the parameter order is reversed in this call (varargs must come last)
 public FastClasspathScanner matchStaticFinalFieldNames(
     final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor,
     final String... fullyQualifiedStaticFinalFieldNames)
@@ -279,18 +283,18 @@ public FastClasspathScanner matchStaticFinalFieldNames(
 *Note:* Only static final fields with constant-valued literals are matched, not fields with initializer values that are the result of an expression or reference, except for cases where the compiler is able to simplify an expression into a single constant at compiletime, [such as in the case of string concatenation](https://docs.oracle.com/javase/specs/jvms/se7/html/jvms-5.html#jvms-5.1). The following are examples of constant static final fields:
 
 ```java
-static final int w = 5;
-static final String x = "a";
-static final String y = "a" + "b";  // Referentially equal to the interned String "ab"
-static final byte b = 0x7f;         // StaticFinalFieldMatchProcessor is passed a Byte
-private static final int z = 1;     // Visibility is ignored; non-public field values are also returned 
+static final int w = 5;          // Literal ints, shorts, chars etc. are constant
+static final String x = "a";     // Literal Strings are constant
+static final String y = "a" + "b";  // Referentially equal to interned String "ab"
+static final byte b = 0x7f;      // StaticFinalFieldMatchProcessor is passed a Byte
+private static final int z = 1;  // Visibility is ignored; non-public also returned 
 ```
 
 whereas the following fields are non-constant, non-static and/or non-final, so these fields cannot be matched:
 
 ```java
-static final Integer w = 5;  // Non-constant due to autoboxing
-static final String y = "a" + w;    // Non-constant expression, because w is non-const
+static final Integer w = 5;         // Non-constant due to autoboxing
+static final String y = "a" + w;    // Non-constant because w is non-const
 static final int[] arr = {1, 2, 3}; // Arrays are non-constant
 static int n = 100;                 // Non-final
 final int q = 5;                    // Non-static 
@@ -311,8 +315,8 @@ The value of `relativePath` is relative to the classpath entry that contained th
 
 @FunctionalInterface
 public interface FileMatchProcessor {
-    public void processMatch(String absolutePath, String relativePath, InputStream inputStream)
-        throws IOException;
+    public void processMatch(String absolutePath, String relativePath,
+        InputStream inputStream) throws IOException;
 }
 
 public FastClasspathScanner matchFilenamePattern(String filenameMatchPattern,
@@ -400,7 +404,7 @@ public class Test {
     public static class WidgetSubclass<K> extends Widget<K> {
     }  
 
-    public static void registerWidgetSubclass(Class<? extends Widget<?>> widgetClass) {
+    public static void registerSubclass(Class<? extends Widget<?>> widgetClass) {
         System.out.println("Found widget subclass " + widgetClass.getName());
     }
     
@@ -409,7 +413,7 @@ public class Test {
             .matchSubclassesOf(Widget.class, new SubclassMatchProcessor<Widget>() {
                 @Override
                 public void processMatch(Class<? extends Widget> widgetClass) {
-                    registerWidgetSubclass((Class<? extends Widget<?>>) widgetClass);
+                    registerSubclass((Class<? extends Widget<?>>) widgetClass);
                 }
             })
             .scan();
@@ -417,18 +421,19 @@ public class Test {
 }
 ``` 
 
-**Solution 1:** Create an object of the desired type, call getClass(), and cast the result to the generic parameterized class type. (Note that `SubclassMatchProcessor<Widget<?>>` is now properly parameterized, and no cast is needed in the function call `registerWidgetSubclass(widgetClass)`.)
+**Solution 1:** Create an object of the desired type, call getClass(), and cast the result to the generic parameterized class type. (Note that `SubclassMatchProcessor<Widget<?>>` is now properly parameterized, and no cast is needed in the function call `registerSubclass(widgetClass)`.)
 
 ```java
 public static void main(String[] args) {
     @SuppressWarnings("unchecked")
-    Class<Widget<?>> widgetClass = (Class<Widget<?>>) new Widget<Object>().getClass();
+    Class<Widget<?>> widgetClass =
+        (Class<Widget<?>>) new Widget<Object>().getClass();
         
     new FastClasspathScanner("com.xyz.widget") //
         .matchSubclassesOf(widgetClass, new SubclassMatchProcessor<Widget<?>>() {
             @Override
             public void processMatch(Class<? extends Widget<?>> widgetClass) {
-                registerWidgetSubclass(widgetClass);
+                registerSubclass(widgetClass);
             }
         })
         .scan();
@@ -448,7 +453,7 @@ public static void main(String[] args) {
         .matchSubclassesOf(widgetClass, new SubclassMatchProcessor<Widget<?>>() {
             @Override
             public void processMatch(Class<? extends Widget<?>> widgetClass) {
-                registerWidgetSubclass(widgetClass);
+                registerSubclass(widgetClass);
             }
         })
         .scan();
