@@ -76,7 +76,9 @@ boolean classpathContentsModified =
     fastClassPathScanner.classpathContentsModifiedSinceScan();
 ```
 
-**Blacklisting and whitelisting package prefixes in the constructor:** The constructor specifies whitelisted package prefixes to scan, e.g. `new FastClasspathScanner("com.xyz.widget")` will scan inside package `com.xyz.widget` as well as any child packages like `com.xyz.widget.button`. If no whitelisted packages are specified (i.e. if the constructor is called without arguments), or if one of the whitelisted package names is "" or "/", all classfiles in the classpath will be scanned. If a package name is prefixed with "-", e.g. "-com.xyz.otherthing", then that package is blacklisted, rather than whitelisted. The final list of packages scanned is the set of whitelisted packages minus the set of blacklisted packages.
+**Whitelisting package prefixes in the constructor:** The constructor specifies whitelisted package prefixes to scan, e.g. `new FastClasspathScanner("com.xyz.widget")` will scan inside package `com.xyz.widget` as well as any child packages like `com.xyz.widget.button`. If no whitelisted packages are specified (i.e. if the constructor is called without arguments), or if one of the whitelisted package names is "" or "/", all classfiles in the classpath will be scanned.
+
+**Blacklisting package prefixes:** If a package name is passed to the constructor prefixed with "-", e.g. `-com.xyz.widget.slider`, then the package name (without the leading "-") is blacklisted, rather than whitelisted. The final list of packages scanned is the set of whitelisted packages minus the set of blacklisted packages. This is useful for excluding an entire sub-tree of a whitelisted package.
 
 **Using Java 8 method references:** The `.match...()` methods (e.g. .matchSubclassesOf()) take [MatchProcessors](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) as one of their arguments, which are single-method classes (i.e. FunctionalInterfaces). Java 8 method references may also be used as FunctionalInterfaces, e.g. List::add:
 
