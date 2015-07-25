@@ -82,10 +82,18 @@ boolean classpathContentsModified =
 
 ```
 
-You can also get a list of matching fully-qualified classnames for interfaces and classes matching required criteria
-without ever calling the classloader for the matching classes, e.g.:
+Java 8 @FunctionalInterface direct method references may also be useful:
 
+```java
+    List<Class> collector = new ArrayList<>();
+    FastClasspathScanner scanner = new FastClasspathScanner("com.xyz.widget")
+        .matchSubclassesOf(FastClasspathScanner.class, collector::add);
 ```
+
+You can also get a list of matching fully-qualified classnames for interfaces and classes matching required criteria without ever calling the classloader for the matching classes, e.g.:
+
+```java
+    // No need to add any MatchProcessors, just create a new scanner
     FastClasspathScanner scanner = new FastClasspathScanner("com.xyz.widget");
           
     // Parse the class hierarchy of all classfiles on the classpath
