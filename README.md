@@ -301,7 +301,8 @@ This can be useful for detecting changes to non-classfile resources on the class
 /** The method to run when a file with a matching path is found on the classpath. */
 @FunctionalInterface
 public interface FileMatchProcessor {
-    public void processMatch(String absolutePath, String relativePath, InputStream inputStream);
+    public void processMatch(String absolutePath, String relativePath, InputStream inputStream)
+        throws IOException;
 }
 ```
 #### Methods:
