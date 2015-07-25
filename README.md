@@ -121,7 +121,7 @@ Calling the constructor does not actually start the scan. The constructor takes 
 
 **Whitelisting package prefixes:** Whitelisted package prefixes can dramatically speed up classpath scanning, because it limits the number of classfiles that need to be opened and read, e.g. `new FastClasspathScanner("com.xyz.widget")` will scan inside package `com.xyz.widget` as well as any child packages like `com.xyz.widget.button`. If no whitelisted packages are specified (i.e. if the constructor is called without arguments), or if one of the whitelisted package names is "" or "/", all classfiles in the classpath will be scanned.
 
-**Blacklisting package prefixes:** If a package name is listed in the constructor prefixed with the `'-'` character, e.g. `"-com.xyz.widget.slider"`, then the package name (without the leading `'-'`) will be blacklisted, rather than whitelisted. The final list of packages scanned is the set of whitelisted packages minus the set of blacklisted packages. Blacklisting is useful for excluding an entire sub-tree of a whitelisted package.
+**Blacklisting package prefixes:** If a package name is listed in the constructor prefixed with the hyphen (`-`) character, e.g. `"-com.xyz.widget.slider"`, then the package name (without the leading hyphen) will be blacklisted, rather than whitelisted. The final list of packages scanned is the set of whitelisted packages minus the set of blacklisted packages. Blacklisting is useful for excluding an entire sub-tree of a whitelisted package.
 
 ```java
 // Constructor for FastClasspathScanner
