@@ -1184,4 +1184,15 @@ public class FastClasspathScanner {
             return newLastModified > oldLastModified;
         }
     }
+
+    /**
+     * Returns the maximum "last modified" timestamp in the classpath (in epoch millis), or zero if scan() has not yet
+     * been called (or if nothing was found on the classpath).
+     * 
+     * The returned timestamp should be less than the current system time if the timestamps of files on the classpath
+     * and the system time are accurate. Therefore, if anything changes on the classpath, this value should increase.
+     */
+    public long classpathContentsLastModifiedTime() {
+        return this.lastModified;
+    }
 }

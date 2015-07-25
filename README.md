@@ -337,8 +337,12 @@ After a call to `.scan()`, it is possible to later call `.classpathContentsModif
 
 Since `.classpathContentsModifiedSinceScan()` only checks file modification timestamps, it works several times faster than the original call to `.scan()`. It is therefore a very lightweight operation that can be called in a polling loop to detect changes to classpath contents for hot reloading of resources.
 
+The function `.classpathContentsLastModifiedTime()` can also be called after `.scan()` to find the maximum timestamp of all files in the classpath, in epoch millis. This should be less than the system time, and if anything on the classpath changes, this value should increase, assuming the timestamps and the system time are trustworthy and accurate. 
+
 ```java
 public boolean classpathContentsModifiedSinceScan()
+
+public long classpathContentsLastModifiedTime()
 ```
 
 ### 9. Get a list of all whitelisted (and non-blacklisted) classes and interfaces on the classpath
