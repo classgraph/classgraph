@@ -48,6 +48,7 @@ import io.github.lukehutch.fastclasspathscanner.whitelisted.blacklisted.Blacklis
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -197,5 +198,18 @@ public class FastClasspathScannerTest {
                     readStaticFieldCount++;
                 }).scan();
         assertTrue(readStaticFieldCount == 4);
+    }
+
+    @Test
+    public void hashContents() throws Exception {
+        HashMap<String, String> classNameToClassfileHash = new FastClasspathScanner(WHITELIST_PACKAGE)
+                .enableHashingClassfileContents().scan().getClassNameToClassfileHash();
+        String hash = classNameToClassfileHash.get(Cls.class.getName());
+        assertTrue(hash != null && hash.length() == 32);
+        //        for (Entry<String, String> ent : classNameToClassfileHash.entrySet()) {
+        //            String k = ent.getKey();
+        //            String v = ent.getValue();
+        //            System.out.println(k + " -> " + v);
+        //        }
     }
 }

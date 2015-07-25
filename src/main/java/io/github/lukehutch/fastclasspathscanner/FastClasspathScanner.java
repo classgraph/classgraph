@@ -43,6 +43,9 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.math.BigInteger;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Enumeration;
@@ -98,6 +101,11 @@ public class FastClasspathScanner {
      * considered.
      */
     private long lastModified = 0;
+
+    /**
+     * If non-null, the contents of each encountered classfile is hashed (for careful change detection).
+     */
+    private HashMap<String, String> classNameToClassfileHash;
 
     /**
      * If this is set to true, then the timestamps of zipfile entries should be used to determine when files inside a
@@ -941,6 +949,13 @@ public class FastClasspathScanner {
                     // Inspect header of classfile
                     readClassInfoFromClassfileHeader(inputStream);
                 }
+                if (classNameToClassfileHash != null) {
+                    // Hash the contents of the classfile, if requested
+                    try (final InputStream inputStream = new FileInputStream(file)) {
+                        hashInputStream(relativePath.substring(0, relativePath.length() - 6).replace('/', '.'),
+                                inputStream);
+                    }
+                }
             } else {
                 // For non-classfiles, match file paths against path patterns
                 for (final FilePathMatcher fileMatcher : filePathMatchers) {
@@ -1055,8 +1070,14 @@ public class FastClasspathScanner {
                     if (!scanTimestampsOnly) {
                         if (path.endsWith(".class")) {
                             // Found a classfile, open it as a stream and inspect header
-                            try (InputStream inputStream = zipFile.getInputStream(entry)) {
+                            try (final InputStream inputStream = zipFile.getInputStream(entry)) {
                                 readClassInfoFromClassfileHeader(inputStream);
+                            }
+                            if (classNameToClassfileHash != null) {
+                                // Hash the contents of the classfile, if requested
+                                try (final InputStream inputStream = zipFile.getInputStream(entry)) {
+                                    hashInputStream(path.substring(0, path.length() - 6).replace('/', '.'), inputStream);
+                                }
                             }
                         } else {
                             // For non-classfiles, match file paths against path patterns
@@ -1064,7 +1085,7 @@ public class FastClasspathScanner {
                                 if (fileMatcher.pattern.matcher(path).matches()) {
                                     // There's a match -- open the file as a stream and
                                     // call the match processor
-                                    try (InputStream inputStream = zipFile.getInputStream(entry)) {
+                                    try (final InputStream inputStream = zipFile.getInputStream(entry)) {
                                         fileMatcher.fileMatchProcessor.processMatch(path, path, inputStream);
                                     }
                                 }
@@ -1074,6 +1095,44 @@ public class FastClasspathScanner {
                 }
             }
         }
+    }
+
+    // -----------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Hash the classfile InputStream, and store in the classNameToClassfileHash map.
+     */
+    private void hashInputStream(final String className, final InputStream inputStream) throws IOException {
+        final MessageDigest digest;
+        try {
+            digest = MessageDigest.getInstance("MD5");
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
+        final byte[] buffer = new byte[8192];
+        for (int read; (read = inputStream.read(buffer)) > 0;) {
+            digest.update(buffer, 0, read);
+        }
+        String hash = "0000000000000000000000000000000" + new BigInteger(1, digest.digest()).toString(16);
+        classNameToClassfileHash.put(className, hash.substring(hash.length() - 32));
+    }
+
+    /**
+     * Enable the hashing of classfile contents for all classfiles in whitelisted package prefixes. This will
+     * dramatically slow down scanning, but allows for the implementation of more careful change detection than just
+     * checking timestamps.
+     */
+    public FastClasspathScanner enableHashingClassfileContents() {
+        this.classNameToClassfileHash = new HashMap<>();
+        return this;
+    }
+
+    /**
+     * Get the mapping from class name to hash of classfile contents, assuming enableHashingClassfileContents() has been
+     * called.
+     */
+    public HashMap<String, String> getClassNameToClassfileHash() {
+        return this.classNameToClassfileHash;
     }
 
     // -----------------------------------------------------------------------------------------------------------------
@@ -1110,6 +1169,9 @@ public class FastClasspathScanner {
         classesEncounteredSoFarDuringScan.clear();
         if (!scanTimestampsOnly) {
             classGraphBuilder.reset();
+        }
+        if (classNameToClassfileHash != null) {
+            classNameToClassfileHash.clear();
         }
 
         try {
