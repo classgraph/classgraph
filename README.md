@@ -87,7 +87,8 @@ Java 8 @FunctionalInterface direct method references may also be useful:
 ```java
     List<Class<? extends Node>> collector = new ArrayList<>();
     FastClasspathScanner scanner = new FastClasspathScanner("com.xyz.widget")
-        .matchSubclassesOf(Node.class, collector::add);
+        .matchSubclassesOf(Node.class, collector::add)
+        .scan();
 ```
 
 You can also get a list of matching fully-qualified classnames for interfaces and classes matching required criteria without adding any MatchProcessors (i.e. without calling any .match*() methods on the FastClasspathScanner instance), which means that the classloader for the matching classes will never be loaded. (The class hierarchy is parsed and stored whether or not there are any MatchProcessors added to the FastClasspathScanner instance.) Being able to return a list of matching classes/interfaces is important when you don't want to call the static initialization code for the class at the time of the classpath scan. This is accomplished as follows:
