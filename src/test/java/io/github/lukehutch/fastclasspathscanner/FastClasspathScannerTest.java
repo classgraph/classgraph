@@ -42,11 +42,13 @@ import io.github.lukehutch.fastclasspathscanner.whitelisted.Impl1SubSub;
 import io.github.lukehutch.fastclasspathscanner.whitelisted.Impl2;
 import io.github.lukehutch.fastclasspathscanner.whitelisted.Impl2Sub;
 import io.github.lukehutch.fastclasspathscanner.whitelisted.Impl2SubSub;
+import io.github.lukehutch.fastclasspathscanner.whitelisted.StaticField;
 import io.github.lukehutch.fastclasspathscanner.whitelisted.blacklisted.Blacklisted;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -149,14 +151,51 @@ public class FastClasspathScannerTest {
         assertTrue(scanner.getNamesOfClassesImplementing(IfaceSubSub.class).contains(Impl2SubSub.class.getName()));
     }
 
+    private boolean readFileContents = false;
+
     @Test
     public void scanFilePattern() throws Exception {
-        new FastClasspathScanner(WHITELIST_PACKAGE)
-                .matchFilenamePattern(
-                        ".*\\.txt",
-                        (absolutePath, relativePath, inputStream) -> {
-                            assertTrue(new BufferedReader(new InputStreamReader(inputStream)).readLine().equals(
-                                    "Hello world"));
-                        }).scan();
+        new FastClasspathScanner(WHITELIST_PACKAGE).matchFilenamePattern(
+                ".*\\.txt",
+                (absolutePath, relativePath, inputStream) -> {
+                    readFileContents = "File contents".equals(new BufferedReader(new InputStreamReader(inputStream))
+                            .readLine());
+                }).scan();
+        assertTrue(readFileContents);
+    }
+
+    private int readStaticFieldCount = 0;
+
+    @Test
+    public void scanStaticFinalFieldName() throws Exception {
+        HashSet<String> fieldNames = new HashSet<String>();
+        for (String fieldName : new String[] { "stringField", "intField", "boolField", "charField", "integerField",
+                "booleanField" }) {
+            fieldNames.add(StaticField.class.getName() + "." + fieldName);
+        }
+        new FastClasspathScanner(WHITELIST_PACKAGE).matchStaticFinalFieldNames(fieldNames,
+                (String className, String fieldName, Object fieldConstantValue) -> {
+                    switch (fieldName) {
+                    case "stringField":
+                        assertTrue("Static field contents".equals(fieldConstantValue));
+                        break;
+                    case "intField":
+                        assertTrue(new Integer(3).equals(fieldConstantValue));
+                        break;
+                    case "boolField":
+                        assertTrue(new Boolean(true).equals(fieldConstantValue));
+                        break;
+                    case "charField":
+                        assertTrue(new Character('y').equals(fieldConstantValue));
+                        break;
+                    case "integerField":
+                    case "booleanField":
+                        throw new RuntimeException("Non-constant field should not be matched");
+                    default:
+                        throw new RuntimeException("Unknown field");
+                    }
+                    readStaticFieldCount++;
+                }).scan();
+        assertTrue(readStaticFieldCount == 4);
     }
 }
