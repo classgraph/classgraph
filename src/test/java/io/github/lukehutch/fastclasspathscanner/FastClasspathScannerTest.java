@@ -29,6 +29,7 @@
 
 package io.github.lukehutch.fastclasspathscanner;
 
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import io.github.lukehutch.fastclasspathscanner.whitelisted.Cls;
 import io.github.lukehutch.fastclasspathscanner.whitelisted.ClsSub;
@@ -49,6 +50,7 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.junit.Test;
 
@@ -151,12 +153,15 @@ public class FastClasspathScannerTest {
 
     @Test
     public void scanFilePattern() throws Exception {
+        final AtomicBoolean found = new AtomicBoolean( false ) ;
         new FastClasspathScanner(WHITELIST_PACKAGE)
-                .matchFilenamePattern(
-                        ".*\\.txt",
-                        (absolutePath, relativePath, inputStream) -> {
-                            assertTrue(new BufferedReader(new InputStreamReader(inputStream)).readLine().equals(
-                                    "Hello world"));
-                        }).scan();
+            .matchFilenamePattern(
+                ".*\\.txt",
+                (absolutePath, relativePath, inputStream) -> {
+                    assertTrue(new BufferedReader(new InputStreamReader(inputStream)).readLine().equals(
+                        "Hello world"));
+                    found.set( true ) ;
+                }).scan();
+        assertTrue( "No file found.", found.get() ) ;
     }
 }
