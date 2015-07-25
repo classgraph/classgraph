@@ -574,34 +574,6 @@ public class FastClasspathScanner {
         return matchStaticFinalFieldNames(fullyQualifiedStaticFinalFieldNamesSet, staticFinalFieldMatchProcessor);
     }
 
-    /**
-     * Calls the given StaticFinalFieldMatchProcessor if classes are found on the classpath that contain static final
-     * fields that match the specified fully-qualified field name, e.g. "com.package.ClassName.STATIC_FIELD_NAME".
-     * 
-     * Field values are obtained from the constant pool in classfiles, *not* from a loaded class using reflection. This
-     * allows you to detect changes to the classpath and then run another scan that picks up the new values of selected
-     * static constants without reloading the class. (Class reloading is fraught with issues, see:
-     * http://tutorials.jenkov.com/java-reflection/dynamic-class-loading-reloading.html )
-     * 
-     * Note: Only static final fields with constant-valued literals are matched, not fields with initializer values that
-     * are the result of an expression or reference, except for cases where the compiler is able to simplify an
-     * expression into a single constant at compiletime, such as in the case of string concatenation.
-     * 
-     * Note that the visibility of the fields is not checked; the value of the field in the classfile is returned
-     * whether or not it should be visible to the caller.
-     * 
-     * @param staticFinalFieldMatchProcessor
-     *            the StaticFinalFieldMatchProcessor to call when a match is found.
-     * @param fullyQualifiedStaticFinalFieldNames
-     *            The list of fully-qualified static field names to match.
-     */
-    public FastClasspathScanner matchStaticFinalFieldNames(final String fullyQualifiedStaticFinalFieldName,
-            final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor) {
-        final HashSet<String> fullyQualifiedStaticFinalFieldNamesSet = new HashSet<>();
-        fullyQualifiedStaticFinalFieldNamesSet.add(fullyQualifiedStaticFinalFieldName);
-        return matchStaticFinalFieldNames(fullyQualifiedStaticFinalFieldNamesSet, staticFinalFieldMatchProcessor);
-    }
-
     // -----------------------------------------------------------------------------------------------------------------
 
     /**
