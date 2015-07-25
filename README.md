@@ -551,6 +551,8 @@ public boolean classpathContentsModifiedSinceScan() { /* ... */ }
 
 The names of all classes and interfaces reached during the scan, after taking into account whitelist and blacklist criteria, can be returned by calling the method `.getAllScannedClasses()` after calling `.scan()`. This can be helpful for debugging purposes.
 
+Note that system classes (e.g. java.lang.String) do not need to be explicitly included on the classpath, so they are not typically returned in this list. However, any classes *referenced by* classes on the classpath (and, more specifically, any classes referenced by whitelisted classes), will be returned in this list. For example, any classes encountered that do not extend another class will reference java.lang.Object, so java.lang.Object will be returned in this list. 
+
 ```java
 /**
  * Returns the names of all classes and interfaces processed during the scan, i.e. all classes
