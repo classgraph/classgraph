@@ -156,8 +156,8 @@ public class FastClasspathScannerTest {
 
     @Test
     public void scanFilePattern() throws Exception {
-        new FastClasspathScanner(WHITELIST_PACKAGE).matchFilenamePattern(
-                ".*\\.txt",
+        new FastClasspathScanner().matchFilenamePattern(
+                "[[^/]*/]*file-content-test\\.txt",
                 (absolutePath, relativePath, inputStream) -> {
                     readFileContents = "File contents".equals(new BufferedReader(new InputStreamReader(inputStream))
                             .readLine());

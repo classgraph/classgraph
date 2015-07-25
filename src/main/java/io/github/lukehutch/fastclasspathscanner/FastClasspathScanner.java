@@ -1012,7 +1012,8 @@ public class FastClasspathScanner {
                     scanDir(subFile, ignorePrefixLen, inWhitelistedPath, scanTimestampsOnly);
                 } else if (inWhitelistedPath && subFile.isFile()) {
                     // Scan file
-                    scanFile(subFile, dir.getPath() + "/" + subFile.getName(), relativePath + subFile.getName(),
+                    scanFile(subFile, dir.getPath() + "/" + subFile.getName(),
+                            relativePath.equals("/") ? subFile.getName() : relativePath + subFile.getName(),
                             scanTimestampsOnly);
                 }
             }
