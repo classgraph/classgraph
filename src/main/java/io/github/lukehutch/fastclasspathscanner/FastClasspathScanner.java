@@ -1162,7 +1162,7 @@ public class FastClasspathScanner {
      * 
      * This method should be called before any "get" methods (e.g. getSubclassesOf()).
      */
-    private void scan(boolean scanTimestampsOnly) {
+    private FastClasspathScanner scan(boolean scanTimestampsOnly) {
         // long scanStart = System.currentTimeMillis();
 
         classesEncounteredSoFarDuringScan.clear();
@@ -1214,6 +1214,7 @@ public class FastClasspathScanner {
         }
         // Log.info("Classpath " + (scanTimestampsOnly ? "timestamp " : "") + "scanning took: "
         //      + (System.currentTimeMillis() - scanStart) + " ms");
+        return this;
     }
 
     /**
@@ -1223,8 +1224,8 @@ public class FastClasspathScanner {
      * 
      * This method should be called before any "get" methods (e.g. getSubclassesOf()).
      */
-    public void scan() {
-        scan(/* scanTimestampsOnly = */false);
+    public FastClasspathScanner scan() {
+        return scan(/* scanTimestampsOnly = */false);
     }
 
     /**
