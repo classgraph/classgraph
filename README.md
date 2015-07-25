@@ -1,7 +1,7 @@
 FastClasspathScanner
 ====================
 
-Uber-fast, ultra-lightweight Java classpath scanner. Scans the classpath by parsing the classfile binary format directly rather than by using reflection. (Reflection causes the classloader to load each class, which can take an order of magnitude more time than parsing the classfile directly, and can lead to unexpected behavior due to static initializer blocks of classes being called on class load.) Does not have any external dependencies, other than JUnit for unit tests -- in particular, FastClasspathScanner does not depend upon a classfile/bytecode parsing library such as Javassist; all the classfile parsing is done directly, and is therefore very lightweight.
+Uber-fast, ultra-lightweight Java classpath scanner. Scans the classpath by parsing the classfile binary format directly rather than by using reflection. (Reflection causes the classloader to load each class, which can take an order of magnitude more time than parsing the classfile directly, and can lead to unexpected behavior due to static initializer blocks of classes being called on class load.) Does not have any external dependencies, other than JUnit for unit tests -- in particular, FastClasspathScanner does not depend upon a classfile/bytecode parsing library such as Javassist; all the classfile parsing is done directly.
 
 FastClasspathScanner scans directories and jar/zip files on the classpath, and is able to:
 
