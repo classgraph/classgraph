@@ -74,12 +74,16 @@ import java.util.zip.ZipFile;
  * 
  * (6) find file paths (even for non-classfiles) anywhere on the classpath that match a given regexp;
  * 
- * (7) detect changes to the contents of the classpath after the initial scan; and
+ * (7) detect changes to the contents of the classpath after the initial scan;
  * 
- * (8) return a list of all directories and files on the classpath as a list of File objects, with the list deduplicated
- * and filtered to include only classpath directories and files that actually exist.
+ * (8) return a list of all directories and files on the classpath (i.e. all classpath elements) as a list of File
+ * objects, with the list deduplicated and filtered to include only classpath directories and files that actually exist;
+ * and
  * 
- * See the accompanying README.md file for documentation.
+ * (9) return a list of the names of all classes and interfaces on the classpath (after whitelist and blacklist
+ * filtering).
+ * 
+ * See the accompanying README.md file for complete documentation.
  */
 public class FastClasspathScanner {
 
