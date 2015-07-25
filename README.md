@@ -14,15 +14,10 @@ FastClasspathScanner is able to scan directories and jar/zip files on the classp
 * return a list of all directories and files on the classpath (i.e. all classpath elements) as a list of File objects, with the list deduplicated and filtered to include only classpath directories and files that actually exist, saving you the trouble of parsing and filtering the classpath; and
 * return a list of the names of all classes and interfaces on the classpath (after whitelist and blacklist filtering).
 
+Usage is as follows:
+ 
 ```java
-// The constructor specifies whitelisted package prefixes to scan. If no
-// whitelisted packages are specified (i.e. if the constructor is called
-// without arguments), or if one of the package names is "", all classfiles
-// in the classpath will be scanned. If a package name is prefixed with
-// "-", e.g. "-com.xyz.otherthing", then that package is blacklisted,
-// rather than whitelisted. The final list of packages scanned is the set
-// of whitelisted packages minus the set of blacklisted packages. The
-// classloader is not called during a scan, classfiles are parsed directly.
+// Whitelisted package prefixes to scan are listed in the constructor
 new FastClasspathScanner("com.xyz.widget", "com.xyz.gizmo")  
   
     .matchSubclassesOf(DBModel.class,
@@ -81,7 +76,9 @@ boolean classpathContentsModified =
     fastClassPathScanner.classpathContentsModifiedSinceScan();
 ```
 
-The `.match...()` methods (e.g. .matchSubclassesOf()) take [MatchProcessors](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) as one of their arguments, which are single-method classes (i.e. FunctionalInterfaces). Java 8 method references may also be used as FunctionalInterfaces, e.g. List::add:
+**Blacklisting and whitelisting package prefixes in the constructor:** The constructor specifies whitelisted package prefixes to scan, e.g. `new FastClasspathScanner("com.xyz.widget")` will scan inside package `com.xyz.widget` as well as any child packages like `com.xyz.widget.button`. If no whitelisted packages are specified (i.e. if the constructor is called without arguments), or if one of the whitelisted package names is "" or "/", all classfiles in the classpath will be scanned. If a package name is prefixed with "-", e.g. "-com.xyz.otherthing", then that package is blacklisted, rather than whitelisted. The final list of packages scanned is the set of whitelisted packages minus the set of blacklisted packages.
+
+**Using Java 8 method references:** The `.match...()` methods (e.g. .matchSubclassesOf()) take [MatchProcessors](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) as one of their arguments, which are single-method classes (i.e. FunctionalInterfaces). Java 8 method references may also be used as FunctionalInterfaces, e.g. List::add:
 
 ```java
 List<Class<? extends Node>> collector = new ArrayList<>();
@@ -90,7 +87,7 @@ new FastClasspathScanner("com.xyz.widget")
     .scan();
 ```
 
-The pre-Java-8 mechanism for adding a MatchProcessor is as follows (note that there is a different [MatchProcessor class](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) corresponding to each .match*() method):
+**Calling from Java 7 and below:** The pre-Java-8 mechanism for adding a MatchProcessor is as follows (note that there is a different [MatchProcessor class](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) corresponding to each .match*() method):
 
 ```java
 new FastClasspathScanner("com.xyz.widget")  
@@ -103,7 +100,7 @@ new FastClasspathScanner("com.xyz.widget")
     .scan();
 ```
 
-You can also get a list of matching fully-qualified names of interfaces and classes matching required criteria without adding any MatchProcessors (i.e. without calling any `.match...()` methods on the FastClasspathScanner instance) by calling a `.getNamesOf...()` method. These methods return lists of strings, rather than lists of `Class<?>` references, which means that the classloader does not need to be called on the matching classes, and the static initializer blocks of the matching classes will never be executed. This can be useful if the static initializer blocks of classes trigger unwanted side effects if run before the expected time. (i.e. the class hierarchy is parsed and stored during the `.scan()` call whether or not there are any MatchProcessors added to the FastClasspathScanner instance, but the classloader is only called on a class if there is a MatchProcessor that matches the class, in order to be able to pass a `Class<?>` reference to the MatchProcessor.)
+**Avoiding calling the classloader on matching classes:** You can also get a list of matching fully-qualified names of interfaces and classes matching required criteria without adding any MatchProcessors (i.e. without calling any `.match...()` methods on the FastClasspathScanner instance) by calling a `.getNamesOf...()` method. These methods return lists of strings, rather than lists of `Class<?>` references, which means that the classloader does not need to be called on the matching classes, and the static initializer blocks of the matching classes will never be executed. This can be useful if the static initializer blocks of classes trigger unwanted side effects if run before the expected time. (i.e. the class hierarchy is parsed and stored during the `.scan()` call whether or not there are any MatchProcessors added to the FastClasspathScanner instance, but the classloader is only called on a class if there is a MatchProcessor that matches the class, in order to be able to pass a `Class<?>` reference to the MatchProcessor.)
 
 As a result of not calling the classloader, you get a `List<String>` list of matching classnames, rather than a list of `Class<?>` references:
 
@@ -117,7 +114,7 @@ List<String> subclassesOfWidget = new FastClasspathScanner("com.xyz.widget")
     .getNamesOfSubclassesOf("com.xyz.widget.Widget");
 ```
 
-**Note:** See [Usage Caveats](#usage-caveats) below for important usage points.
+See also [Usage Caveats](#usage-caveats) below.
 
 # API
 
