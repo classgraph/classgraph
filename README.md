@@ -79,7 +79,7 @@ boolean classpathContentsModified =
 
 **Blacklisting package prefixes:** If a package name is passed to the constructor prefixed with "-", e.g. `-com.xyz.widget.slider`, then the package name (without the leading "-") is blacklisted, rather than whitelisted. The final list of packages scanned is the set of whitelisted packages minus the set of blacklisted packages. This is useful for excluding an entire sub-tree of a whitelisted package.
 
-**Using Java 8 method references:** The `.match...()` methods (e.g. .matchSubclassesOf()) take [MatchProcessors](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) as one of their arguments, which are single-method classes (i.e. FunctionalInterfaces). Java 8 method references may also be used as FunctionalInterfaces, e.g. List::add:
+**Using Java 8 method references:** The `.match...()` methods (e.g. `.matchSubclassesOf()`) take [`MatchProcessor`s](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) as one of their arguments, which are single-method classes (i.e. FunctionalInterfaces). Java 8 method references may also be used as FunctionalInterfaces, e.g. List::add:
 
 ```java
 List<Class<? extends Widget>> collector = new ArrayList<>();
@@ -88,7 +88,7 @@ new FastClasspathScanner("com.xyz.widget")
     .scan();
 ```
 
-**Calling from Java 7 and below:** The pre-Java-8 mechanism for adding a MatchProcessor is as follows (note that there is a different [MatchProcessor class](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) corresponding to each .match*() method):
+**Calling from Java 7 and below:** The pre-Java-8 mechanism for adding a MatchProcessor is as follows (note that there is a different [`MatchProcessor` class](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) corresponding to each .match*() method):
 
 ```java
 new FastClasspathScanner("com.xyz.widget")  
