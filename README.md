@@ -352,11 +352,11 @@ public static ArrayList<File> getUniqueClasspathElements()
 
 ## Usage Caveats
 
-### (1) Startup overhead of Java 8 Streams and lambda expressions
+### (i) Startup overhead of Java 8 Streams and lambda expressions
 
 The usage examples above use lambda expressions (functional interfaces) and Stream patterns from Java 8 for simplicity. However, at least as of JDK 1.8.0 r20, lambda expressions and Streams each incur a one-time startup penalty of 30-40ms the first time they are used. If this overhead is prohibitive, use the pre-Java-8 form (explicitly creating a MatchProcessor, potentially using an inner class, but without lambda expressions, as shown in the introduction above).
 
-### (2) Getting generic class references for parameterized classes
+### (ii) Getting generic class references for parameterized classes
 
 A problem arises when using class-based matchers with parameterized classes, e.g. `Widget<K>`. Because of type erasure, The expression `Widget<K>.class` is not defined, and therefore it is impossible to cast `Class<Widget>` to `Class<Widget<K>>`. More specifically:
 
