@@ -298,7 +298,7 @@ This can be useful for detecting changes to non-classfile resources on the class
 
 #### MatchProcessor:
 
-A `FileMatchProcessor` is passed the `InputStream` for either the `File` object corresponding to any matching path, or for the `ZipFileEntry` with a matching path. You do not need to close this `InputStream`, it is closed by the caller.
+A `FileMatchProcessor` is passed the `InputStream` for any `File` or `ZipFileEntry` in the classpath that has a path matching the pattern provided in the `.matchFilenamePattern()` method. You do not need to close the passed `InputStream` if you choose to read the stream contents; the stream is closed by the caller.
 
 The value of `relativePath` is relative to the classpath entry that contained the matching file.
 
