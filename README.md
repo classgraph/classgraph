@@ -83,17 +83,16 @@ boolean classpathContentsModified =
 The .match*() methods (e.g. .matchSubclassesOf()) take [MatchProcessors](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) as one of their arguments, which are single-method classes (i.e. FunctionalInterfaces). Java 8 method references may also be used as FunctionalInterfaces, e.g. List::add:
 
 ```java
-    List<Class<? extends Node>> collector = new ArrayList<>();
-    FastClasspathScanner scanner = new FastClasspathScanner("com.xyz.widget")
-        .matchSubclassesOf(Node.class, collector::add)
-        .scan();
+List<Class<? extends Node>> collector = new ArrayList<>();
+FastClasspathScanner scanner = new FastClasspathScanner("com.xyz.widget")
+    .matchSubclassesOf(Node.class, collector::add)
+    .scan();
 ```
 
 The pre-Java-8 mechanism for adding a MatchProcessor is as follows (note that there is a different [MatchProcessor class](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) corresponding to each .match*() method):
 
 ```java
-new FastClasspathScanner(
-         new String[] { "com.xyz.widget", "com.xyz.gizmo" })  
+new FastClasspathScanner(new String[] { "com.xyz.widget", "com.xyz.gizmo" })  
     .matchSubclassesOf(DBModel.class, new SubclassMatchProcessor<DBModel>() {
         @Override
         public void processMatch(Class<? extends DBModel> matchingClass) {
@@ -106,17 +105,17 @@ new FastClasspathScanner(
 You can also get a list of matching fully-qualified classnames for interfaces and classes matching required criteria without adding any MatchProcessors (i.e. without calling any .match*() methods on the FastClasspathScanner instance), which means that the classloader will never be called on the matching classes, and the static initializer blocks of the matching classes will never be executed. (The class hierarchy is parsed and stored during the scan() call whether or not there are any MatchProcessors added to the FastClasspathScanner instance.) As a result of not calling the classloader, you get a list of matching classnames as Strings, rather than Class<?> references:
 
 ```java
-    // No need to add any MatchProcessors, just create a new scanner
-    FastClasspathScanner scanner = new FastClasspathScanner("com.xyz.widget");
-          
-    // Parse the class hierarchy of all classfiles on the classpath directly,
-    // without calling the classloader on any of them.
-    scanner.scan();
+// No need to add any MatchProcessors, just create a new scanner
+FastClasspathScanner scanner = new FastClasspathScanner("com.xyz.widget");
 
-    // Get the names of all subclasses of Widget on the classpath,
-    // again without calling the classloader:
-    List<String> subclassesOfWidget =
-        scanner.getSubclassesOf("com.xyz.widget.Widget");
+// Parse the class hierarchy of all classfiles on the classpath directly,
+// without calling the classloader on any of them.
+scanner.scan();
+
+// Get the names of all subclasses of Widget on the classpath,
+// again without calling the classloader:
+List<String> subclassesOfWidget =
+    scanner.getSubclassesOf("com.xyz.widget.Widget");
 ```
 
 **Note:** See [Usage Caveats](#usage-caveats) below for important usage points.
