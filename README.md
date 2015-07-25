@@ -370,7 +370,10 @@ A problem arises when using class-based matchers with parameterized classes, e.g
 * `Widget.class` has the type `Class<Widget>`, not `Class<Widget<?>>` 
 * `new Widget<Integer>().getClass()` has the type `Class<? extends Widget>`, not `Class<? extends Widget<?>>`. The type `Class<? extends Widget>` can be cast to `Class<Widget<?>>` with an unchecked conversion warning.
 
-The following code compiles and runs fine, but `SubclassMatchProcessor` must be parameterized with the bare type `Widget` in order to match the reference `Widget.class`. This causes the warning `Test.Widget is a raw type. References to generic type Test.Widget<K> should be parameterized` on `SubclassMatchProcessor<Widget>` and `Type safety: Unchecked cast from Class<capture#1-of ? extends Test.Widget> to Class<Test.Widget<?>>` on `(Class<? extends Widget<?>>)`. 
+The code below compiles and runs fine, but `SubclassMatchProcessor` must be parameterized with the bare type `Widget` in order to match the reference `Widget.class`. This gives rise to two type safety warnings:
+
+1. `Test.Widget is a raw type. References to generic type Test.Widget<K> should be parameterized` on the type `SubclassMatchProcessor<Widget>`
+2. `Type safety: Unchecked cast from Class<capture#1-of ? extends Test.Widget> to Class<Test.Widget<?>>` on the type cast `(Class<? extends Widget<?>>)`
 
 ```java
 public class Test {
