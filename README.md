@@ -547,7 +547,7 @@ Since `.classpathContentsModifiedSinceScan()` only checks file modification time
 public boolean classpathContentsModifiedSinceScan() { /* ... */ }
 ```
 
-### Get a list of all classes and interfaces on the classpath
+### Get a list of all whitelisted (and non-blacklisted) classes and interfaces on the classpath
 
 The names of all classes and interfaces reached during the scan, after taking into account whitelist and blacklist criteria, can be returned by calling the method `.getAllScannedClasses()` after calling `.scan()`. This can be helpful for debugging purposes.
 
@@ -556,7 +556,7 @@ The names of all classes and interfaces reached during the scan, after taking in
  * Returns the names of all classes and interfaces processed during the scan, i.e. all classes
  * reachable after taking into account the package whitelist and blacklist criteria.
  */
-public <T> Set<String> getAllScannedClasses() { /* ... */ }
+public <T> Set<String> getNamesOfAllClasses() { /* ... */ }
 ```
 
 ### Get all unique directories and files on the classpath
