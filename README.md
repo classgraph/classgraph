@@ -15,7 +15,11 @@ FastClasspathScanner is able to scan directories and jar/zip files on the classp
 9. return a list of all directories and files on the classpath (i.e. all classpath elements) as a list of File objects, with the list deduplicated and filtered to include only classpath directories and files that actually exist, saving you the trouble of parsing and filtering the classpath; and
 10. return a list of the names of all classes and interfaces on the classpath (after whitelist and blacklist filtering).
 
-Usage is as follows:
+### Usage
+
+There are two different ways to use the FastClasspathScanner to match classes and interfaces. (Both mechanisms can be combined.)
+
+**Method 1:** Create a FastClasspathScanner instance, listing package prefixes to scan within, then add one or more [`MatchProcessor`](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) instances to the FastClasspathScanner by calling the FastClasspathScanner's `.match...()` methods, followed by calling `.scan()` to start the scan. This is the pattern shown in the following example, where Java 8 lambda expressions are used to implicitly create the appropriate type of MatchProcessor corresponding to each `.match...()` method:
  
 ```java
 // Whitelisted package prefixes are listed in the constructor
@@ -77,6 +81,20 @@ boolean classpathContentsModified =
     fastClassPathScanner.classpathContentsModifiedSinceScan();
 ```
 
+**Method 2:** Create a FastClasspathScanner instance, potentially without adding any MatchProcessors, call scan() to scan the classpath, then call `.getNamesOf...()` methods to find classes and interfaces of interest without actually calling the classloader on any matching classes. The `.getNamesOf...()` methods return lists of strings, rather than lists of `Class<?>` references, and scanning is done by reading the classfile directly, so the classloader does not need to be called for these methods to return their results. This can be useful if the static initializer code for matching classes would trigger unwanted side effects if run during a classpath scan. An example of this usage pattern is:
+
+```java
+List<String> subclassesOfWidget = new FastClasspathScanner("com.xyz.widget")
+    // No need to add any MatchProcessors, just create a new scanner and then call
+    // .scan() to parse the class hierarchy of all classfiles on the classpath.
+    .scan()
+    // Get the names of all subclasses of Widget on the classpath,
+    // again without calling the classloader:
+    .getNamesOfSubclassesOf("com.xyz.widget.Widget");
+```
+
+### Tips
+
 **Using Java 8 method references:** The `.match...()` methods (e.g. `.matchSubclassesOf()`) take a [`MatchProcessor`](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) as one of their arguments, which are single-method classes (i.e. FunctionalInterfaces). Java 8 method references may also be used as FunctionalInterfaces, e.g. `list::add`:
 
 ```java
@@ -119,24 +137,6 @@ public FastClasspathScanner(String... pacakagesToScan)
 ```
 
 Note that if you don't specify any whitelisted package prefixes, i.e. `new FastClasspathScanner()`, all packages on the classpath will be scanned. ("Scanning" involves parsing the classfile binary format to determine class and interface relationships.)
-
-### Important distinction: the two class/interface matching methods
-
-There are two main ways to use the FastClasspathScanner. (Both mechanisms can be combined.)
-
-(1) Create a FastClasspathScanner instance, then add one or more [`MatchProcessor`](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) instances to the FastClasspathScanner by calling the FastClasspathScanner's `.match...()` methods, followed by calling `.scan()` to start the scan. This is the pattern shown in the example above, where Java 8 lambda expressions are used to implicitly create the appropriate type of MatchProcessor corresponding to each `.match...()` method.
-
-(2) Create a FastClasspathScanner instance, potentially without adding any MatchProcessors, then call scan() to scan the classpath, then call `.getNamesOf...()` methods to find classes and interfaces of interest without actually calling the classloader on any matching classes. The `.getNamesOf...()` methods return lists of strings, rather than lists of `Class<?>` references, and scanning is done by reading the classfile directly, so the classloader does not need to be called for these methods to return their results. This can be useful if the static initializer code for matching classes would trigger unwanted side effects if run during a classpath scan. An example of this usage pattern is:
-
-```java
-List<String> subclassesOfWidget = new FastClasspathScanner("com.xyz.widget")
-    // No need to add any MatchProcessors, just create a new scanner and then call
-    // .scan() to parse the class hierarchy of all classfiles on the classpath.
-    .scan()
-    // Get the names of all subclasses of Widget on the classpath,
-    // again without calling the classloader:
-    .getNamesOfSubclassesOf("com.xyz.widget.Widget");
-```
 
 ### 1. Matching the subclasses (or finding the superclasses) of a class
 
@@ -262,9 +262,7 @@ This can be useful in hot-swapping of changes to static constants in classfiles 
 ```java
 @FunctionalInterface
 public interface StaticFinalFieldMatchProcessor {
-    public void processMatch(String className,
-                             String fieldName,
-                             Object fieldConstantValue);
+    public void processMatch(String className, String fieldName, Object fieldConstantValue);
 }
 ```
 #### Methods:
@@ -309,9 +307,7 @@ This can be useful for detecting changes to non-classfile resources on the class
 /** The method to run when a file with a matching path is found on the classpath. */
 @FunctionalInterface
 public interface FileMatchProcessor {
-    public void processMatch(String absolutePath,
-                             String relativePath,
-                             InputStream inputStream);
+    public void processMatch(String absolutePath, String relativePath, InputStream inputStream);
 }
 ```
 #### Methods:
