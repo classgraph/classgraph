@@ -14,7 +14,6 @@ FastClasspathScanner is able to scan directories and jar/zip files on the classp
 * return a list of all directories and files on the classpath as a list of File objects, with the list deduplicated and filtered to include only classpath directories and files that actually exist (saving you the trouble of parsing and filtering the classpath).
 
 ```java
-
 // The constructor specifies whitelisted package prefixes to scan. If no
 // whitelisted packages are specified (i.e. if the constructor is called
 // without arguments), or if one of the package names is "", all classfiles
@@ -79,16 +78,29 @@ new FastClasspathScanner("com.xyz.widget", "com.xyz.gizmo")
 // don't have to be opened.)   
 boolean classpathContentsModified =
     fastClassPathScanner.classpathContentsModifiedSinceScan();
-
 ```
 
-Java 8 @FunctionalInterface-compatible method references may also be useful, e.g. List::add:
+The .match*() methods (e.g. .matchSubclassesOf()) take [MatchProcessors](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) as one of their arguments, which are single-method classes (i.e. FunctionalInterfaces). Java 8 method references may also be used as FunctionalInterfaces, e.g. List::add:
 
 ```java
     List<Class<? extends Node>> collector = new ArrayList<>();
     FastClasspathScanner scanner = new FastClasspathScanner("com.xyz.widget")
         .matchSubclassesOf(Node.class, collector::add)
         .scan();
+```
+
+The pre-Java-8 mechanism for adding a MatchProcessor is as follows (note that there is a different [MatchProcessor class](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) corresponding to each .match*() method):
+
+```java
+new FastClasspathScanner(
+         new String[] { "com.xyz.widget", "com.xyz.gizmo" })  
+    .matchSubclassesOf(DBModel.class, new SubclassMatchProcessor<DBModel>() {
+        @Override
+        public void processMatch(Class<? extends DBModel> matchingClass) {
+            System.out.println("Subclass of DBModel: " + matchingClass))
+        }
+    })
+    .scan();
 ```
 
 You can also get a list of matching fully-qualified classnames for interfaces and classes matching required criteria without adding any MatchProcessors (i.e. without calling any .match*() methods on the FastClasspathScanner instance), which means that the classloader will never be called on the matching classes, and the static initializer blocks of the matching classes will never be executed. (The class hierarchy is parsed and stored during the scan() call whether or not there are any MatchProcessors added to the FastClasspathScanner instance.) As a result of not calling the classloader, you get a list of matching classnames as Strings, rather than Class<?> references:
@@ -557,23 +569,7 @@ public static ArrayList<File> getUniqueClasspathElements() { /* ... */ }
 
 ### (1) Startup overhead of Java 8 Streams and lambda expressions
 
-The usage examples above use lambda expressions (functional interfaces) and Stream patterns from Java 8 for simplicity. However, at least as of JDK 1.8.0 r20, lambda expressions and Streams each incur a one-time startup penalty of 30-40ms the first time they are used. If this overhead is prohibitive, the corresponding usage of FastClasspathScanner without lambda expressions is of the form:
-
-```java
-
-new FastClasspathScanner(
-         new String[] { "com.xyz.widget", "com.xyz.gizmo" })  
-
-    .matchSubclassesOf(DBModel.class, new SubclassMatchProcessor<DBModel>() {
-        @Override
-        public void processMatch(Class<? extends DBModel> matchingClass) {
-            System.out.println("Subclass of DBModel: " + matchingClass))
-        }
-    })
-        
-    .scan();
-
-```
+The usage examples above use lambda expressions (functional interfaces) and Stream patterns from Java 8 for simplicity. However, at least as of JDK 1.8.0 r20, lambda expressions and Streams each incur a one-time startup penalty of 30-40ms the first time they are used. If this overhead is prohibitive, use the pre-Java 8 form (without lambda expressions), as shown in the introduction above.
 
 ### (2) Getting generic class references for parameterized classes
 
