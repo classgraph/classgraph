@@ -274,10 +274,13 @@ public FastClasspathScanner matchStaticFinalFieldNames(
     HashSet<String> fullyQualifiedStaticFinalFieldNames,
     StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor)
 
-// N.B. the parameter order is reversed in this call (varargs must come last)
 public FastClasspathScanner matchStaticFinalFieldNames(
-    final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor,
-    final String... fullyQualifiedStaticFinalFieldNames)
+    final String fullyQualifiedStaticFinalFieldName,
+    final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor)
+
+public FastClasspathScanner matchStaticFinalFieldNames(
+    final String[] fullyQualifiedStaticFinalFieldNames,
+    final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor)
 ```
 
 *Note:* Only static final fields with constant-valued literals are matched, not fields with initializer values that are the result of an expression or reference, except for cases where the compiler is able to simplify an expression into a single constant at compiletime, [such as in the case of string concatenation](https://docs.oracle.com/javase/specs/jvms/se7/html/jvms-5.html#jvms-5.1). The following are examples of constant static final fields:
