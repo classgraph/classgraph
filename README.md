@@ -347,6 +347,12 @@ public FastClasspathScanner matchFilenameLeaf(String leafToMatch,
         FileMatchProcessor fileMatchProcessor)
 public FastClasspathScanner matchFilenameLeaf(String leafToMatch,
         FileMatchContentsProcessor fileMatchContentsProcessor)
+        
+// Match a file extension, e.g. "html" matches "WidgetTemplate.html"
+public FastClasspathScanner matchFilenameExtension(String extensionToMatch,
+        FileMatchProcessor fileMatchProcessor)
+public FastClasspathScanner matchFilenameExtension(String extensionToMatch,
+        FileMatchContentsProcessor fileMatchContentsProcessor)
 ```
 
 ### 7. Performing the actual scan

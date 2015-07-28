@@ -188,6 +188,14 @@ public class FastClasspathScanner {
         for (final String path : uniqueBlacklistedPathsToScan) {
             this.blacklistedPathsToScan[i++] = path;
         }
+
+        // Read classfile headers for all filenames ending in ".class" on classpath
+        this.matchFilenameExtension("class", new FileMatchProcessor() {
+			@Override
+			public void processMatch(String relativePath, InputStream inputStream, int lengthBytes) throws IOException {
+		        readClassInfoFromClassfileHeader(inputStream);
+			}
+		});
     }
 
     // -----------------------------------------------------------------------------------------------------------------
@@ -730,6 +738,39 @@ public class FastClasspathScanner {
 			final FileMatchContentsProcessor fileMatchContentsProcessor) {
 		return matchFilenamePathLeaf(pathLeafToMatch, wrapFileContentReader(fileMatchContentsProcessor));
 	}
+
+	/**
+	 * Calls the given FileMatchProcessor if files are found on the classpath that have the given file extension.
+	 * 
+	 * @param extensionToMatch
+	 *            The extension to match, e.g. "html" matches "WidgetTemplate.html".
+	 * @param fileMatchProcessor
+	 *            The FileMatchProcessor to call when each match is found.
+	 */
+	public FastClasspathScanner matchFilenameExtension(final String extensionToMatch,
+			final FileMatchProcessor fileMatchProcessor) {
+		filePathMatchers.add(new FilePathMatcher(new FilePathTester() {
+			private String suffixToMatch = "." + extensionToMatch;
+			@Override
+			public boolean filePathMatches(String relativePath) {
+				return relativePath.endsWith(suffixToMatch);
+			}
+		}, fileMatchProcessor));
+		return this;
+	}
+
+	/**
+	 * Calls the given FileMatchProcessor if files are found on the classpath that have the given file extension.
+	 * 
+	 * @param extensionToMatch
+	 *            The extension to match, e.g. "html" matches "WidgetTemplate.html".
+	 * @param fileMatchContentsProcessor
+	 *            The FileMatchContentsProcessor to call when each match is found.
+	 */
+	public FastClasspathScanner matchFilenameExtension(final String extensionToMatch,
+			final FileMatchContentsProcessor fileMatchContentsProcessor) {
+		return matchFilenameExtension(extensionToMatch, wrapFileContentReader(fileMatchContentsProcessor));
+	}
 	
     // -----------------------------------------------------------------------------------------------------------------
 
@@ -1088,13 +1129,6 @@ public class FastClasspathScanner {
             final boolean scanTimestampsOnly) throws IOException {
         lastModified = Math.max(lastModified, file.lastModified());
         if (!scanTimestampsOnly) {
-            if (relativePath.endsWith(".class")) {
-                // Found a classfile
-                try (final InputStream inputStream = new FileInputStream(file)) {
-                    // Inspect header of classfile
-                    readClassInfoFromClassfileHeader(inputStream);
-                }
-            }
             // Match file paths against path patterns
             for (final FilePathMatcher fileMatcher : filePathMatchers) {
                 if (fileMatcher.filePathMatches(relativePath)) {
@@ -1206,12 +1240,6 @@ public class FastClasspathScanner {
                         timestampWarning = true;
                     }
                     if (!scanTimestampsOnly) {
-                        if (path.endsWith(".class")) {
-                            // Found a classfile, open it as a stream and inspect header
-                            try (final InputStream inputStream = zipFile.getInputStream(entry)) {
-                                readClassInfoFromClassfileHeader(inputStream);
-                            }
-                        }
                         // Match file paths against path patterns
                         for (final FilePathMatcher fileMatcher : filePathMatchers) {
                             if (fileMatcher.filePathMatches(path)) {
@@ -1238,7 +1266,7 @@ public class FastClasspathScanner {
     public FastClasspathScanner enableHashingClassfileContents() {
     	if (this.classNameToClassfileHash == null) {
 	        this.classNameToClassfileHash = new HashMap<>();
-	        this.matchFilenamePattern(".*\\.class", new FileMatchProcessor() {
+	        this.matchFilenameExtension("class", new FileMatchProcessor() {
 				@Override
 				public void processMatch(String relativePath, InputStream inputStream, int length)
 						throws IOException {
