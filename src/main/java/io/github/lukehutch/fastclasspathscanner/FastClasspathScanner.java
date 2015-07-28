@@ -981,14 +981,13 @@ public class FastClasspathScanner {
                                 inputStream);
                     }
                 }
-            } else {
-                // For non-classfiles, match file paths against path patterns
-                for (final FilePathMatcher fileMatcher : filePathMatchers) {
-                    if (fileMatcher.pattern.matcher(relativePath).matches()) {
-                        // If there's a match, open the file as a stream and call the match processor
-                        try (final InputStream inputStream = new FileInputStream(file)) {
-                            fileMatcher.fileMatchProcessor.processMatch(absolutePath, relativePath, inputStream);
-                        }
+            }
+            // Match file paths against path patterns
+            for (final FilePathMatcher fileMatcher : filePathMatchers) {
+                if (fileMatcher.pattern.matcher(relativePath).matches()) {
+                    // If there's a match, open the file as a stream and call the match processor
+                    try (final InputStream inputStream = new FileInputStream(file)) {
+                        fileMatcher.fileMatchProcessor.processMatch(absolutePath, relativePath, inputStream);
                     }
                 }
             }
@@ -1105,15 +1104,14 @@ public class FastClasspathScanner {
                                     hashInputStream(path.substring(0, path.length() - 6).replace('/', '.'), inputStream);
                                 }
                             }
-                        } else {
-                            // For non-classfiles, match file paths against path patterns
-                            for (final FilePathMatcher fileMatcher : filePathMatchers) {
-                                if (fileMatcher.pattern.matcher(path).matches()) {
-                                    // There's a match -- open the file as a stream and
-                                    // call the match processor
-                                    try (final InputStream inputStream = zipFile.getInputStream(entry)) {
-                                        fileMatcher.fileMatchProcessor.processMatch(path, path, inputStream);
-                                    }
+                        }
+                        // Match file paths against path patterns
+                        for (final FilePathMatcher fileMatcher : filePathMatchers) {
+                            if (fileMatcher.pattern.matcher(path).matches()) {
+                                // There's a match -- open the file as a stream and
+                                // call the match processor
+                                try (final InputStream inputStream = zipFile.getInputStream(entry)) {
+                                    fileMatcher.fileMatchProcessor.processMatch(path, path, inputStream);
                                 }
                             }
                         }
