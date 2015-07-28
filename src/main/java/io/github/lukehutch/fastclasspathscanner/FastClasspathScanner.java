@@ -1032,13 +1032,6 @@ public class FastClasspathScanner {
                     // Inspect header of classfile
                     readClassInfoFromClassfileHeader(inputStream);
                 }
-                if (classNameToClassfileHash != null) {
-                    // Hash the contents of the classfile, if requested
-                    try (final InputStream inputStream = new FileInputStream(file)) {
-                        hashInputStream(relativePath.substring(0, relativePath.length() - 6).replace('/', '.'),
-                                inputStream);
-                    }
-                }
             }
             // Match file paths against path patterns
             for (final FilePathMatcher fileMatcher : filePathMatchers) {
@@ -1156,12 +1149,6 @@ public class FastClasspathScanner {
                             try (final InputStream inputStream = zipFile.getInputStream(entry)) {
                                 readClassInfoFromClassfileHeader(inputStream);
                             }
-                            if (classNameToClassfileHash != null) {
-                                // Hash the contents of the classfile, if requested
-                                try (final InputStream inputStream = zipFile.getInputStream(entry)) {
-                                    hashInputStream(path.substring(0, path.length() - 6).replace('/', '.'), inputStream);
-                                }
-                            }
                         }
                         // Match file paths against path patterns
                         for (final FilePathMatcher fileMatcher : filePathMatchers) {
@@ -1182,31 +1169,34 @@ public class FastClasspathScanner {
     // -----------------------------------------------------------------------------------------------------------------
 
     /**
-     * Hash the classfile InputStream, and store in the classNameToClassfileHash map.
-     */
-    private void hashInputStream(final String className, final InputStream inputStream) throws IOException {
-        final MessageDigest digest;
-        try {
-            digest = MessageDigest.getInstance("MD5");
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
-        }
-        final byte[] buffer = new byte[8192];
-        for (int read; (read = inputStream.read(buffer)) > 0;) {
-            digest.update(buffer, 0, read);
-        }
-        String hash = "0000000000000000000000000000000" + new BigInteger(1, digest.digest()).toString(16);
-        classNameToClassfileHash.put(className, hash.substring(hash.length() - 32));
-    }
-
-    /**
      * Enable the hashing of classfile contents for all classfiles in whitelisted package prefixes. This will
      * dramatically slow down scanning, but allows for the implementation of more careful change detection than just
      * checking timestamps.
      */
     public FastClasspathScanner enableHashingClassfileContents() {
-        this.classNameToClassfileHash = new HashMap<>();
-        return this;
+    	if (this.classNameToClassfileHash == null) {
+	        this.classNameToClassfileHash = new HashMap<>();
+	        this.matchFilenamePattern(".*\\.class", new FileMatchProcessor() {
+				@Override
+				public void processMatch(String absolutePath, String relativePath, InputStream inputStream)
+						throws IOException {
+				    // Hash the classfile InputStream, and store in the classNameToClassfileHash map.
+					final MessageDigest digest;
+			        try {
+			            digest = MessageDigest.getInstance("MD5");
+			        } catch (NoSuchAlgorithmException e) {
+			            throw new RuntimeException(e);
+			        }
+			        final byte[] buffer = new byte[8192];
+			        for (int read; (read = inputStream.read(buffer)) > 0;) {
+			            digest.update(buffer, 0, read);
+			        }
+			        String hash = "0000000000000000000000000000000" + new BigInteger(1, digest.digest()).toString(16);
+			        String className = relativePath.substring(0, relativePath.length() - 6).replace('/', '.');
+			        classNameToClassfileHash.put(className, hash.substring(hash.length() - 32));
+				}});
+    	}
+    	return this;
     }
 
     /**
