@@ -613,28 +613,86 @@ public class FastClasspathScanner {
      * Calls the given FileMatchProcessor if files are found on the classpath with the given regexp pattern in their
      * path.
      * 
-     * @param filenameMatchPattern
+     * @param pathRegexp
      *            The regexp to match, e.g. "app/templates/.*\\.html"
      * @param fileMatchProcessor
      *            The FileMatchProcessor to call when each match is found.
      */
-    public FastClasspathScanner matchFilenamePattern(final String filenameMatchPattern,
+    public FastClasspathScanner matchFilenamePattern(final String pathRegexp,
             final FileMatchProcessor fileMatchProcessor) {
-        filePathMatchers.add(new FilePathMatcher(Pattern.compile(filenameMatchPattern), fileMatchProcessor));
+        filePathMatchers.add(new FilePathMatcher(new FilePathTester() {
+        	private Pattern pattern = Pattern.compile(pathRegexp);
+			@Override
+			public boolean filePathMatches(String relativePath) {
+				return pattern.matcher(relativePath).matches();
+			}}, fileMatchProcessor));
         return this;
     }
 
+	/**
+	 * Calls the given FileMatchProcessor if files are found on the classpath that exactly match the given relative path.
+	 * 
+	 * @param relativePathToMatch
+	 *            The complete path to match relative to the classpath entry, e.g. "app/templates/WidgetTemplate.html"
+	 * @param fileMatchProcessor
+	 *            The FileMatchProcessor to call when each match is found.
+	 */
+	public FastClasspathScanner matchFilenamePath(final String relativePathToMatch,
+			final FileMatchProcessor fileMatchProcessor) {
+		filePathMatchers.add(new FilePathMatcher(new FilePathTester() {
+			@Override
+			public boolean filePathMatches(String relativePath) {
+				return relativePath.equals(relativePathToMatch);
+			}
+		}, fileMatchProcessor));
+		return this;
+	}
+
+	/**
+	 * Calls the given FileMatchProcessor if files are found on the classpath that exactly match the given path leafname.
+	 * 
+	 * @param pathLeafToMatch
+	 *            The complete path leaf to match, e.g. "WidgetTemplate.html"
+	 * @param fileMatchProcessor
+	 *            The FileMatchProcessor to call when each match is found.
+	 */
+	public FastClasspathScanner matchFilenamePathLeaf(final String pathLeafToMatch,
+			final FileMatchProcessor fileMatchProcessor) {
+		filePathMatchers.add(new FilePathMatcher(new FilePathTester() {
+			private String leafToMatch = pathLeafToMatch.substring(pathLeafToMatch.lastIndexOf('/') + 1);
+			@Override
+			public boolean filePathMatches(String relativePath) {
+				String relativePathLeaf = relativePath.substring(relativePath.lastIndexOf('/') + 1);
+				return relativePathLeaf.equals(leafToMatch);
+			}
+		}, fileMatchProcessor));
+		return this;
+	}
+
     // -----------------------------------------------------------------------------------------------------------------
 
-    /** An interface used for testing if a file path matches a specified pattern. */
+	/** An interface used to test whether a file's relative path matches a given specification. */
+    private static interface FilePathTester {
+    	public boolean filePathMatches(final String relativePath);
+    }
+    
+    /** A class used for associating a FilePathTester with a FileMatchProcessor. */
     private static class FilePathMatcher {
-        Pattern pattern;
-        FileMatchProcessor fileMatchProcessor;
+        private FilePathTester filePathTester;
+        private FileMatchProcessor fileMatchProcessor;
 
-        public FilePathMatcher(final Pattern pattern, final FileMatchProcessor fileMatchProcessor) {
-            this.pattern = pattern;
+        public FilePathMatcher(final FilePathTester filePathTester, final FileMatchProcessor fileMatchProcessor) {
+            this.filePathTester = filePathTester;
             this.fileMatchProcessor = fileMatchProcessor;
         }
+
+    	public boolean filePathMatches(final String relativePath) {
+    		return filePathTester.filePathMatches(relativePath);
+    	}
+    	
+    	public void processMatch(String absolutePath, String relativePath, InputStream inputStream) throws IOException {
+    		fileMatchProcessor.processMatch(absolutePath, relativePath, inputStream);
+    	}
     }
 
     /** An interface used for testing if a class matches specified criteria. */
@@ -984,10 +1042,10 @@ public class FastClasspathScanner {
             }
             // Match file paths against path patterns
             for (final FilePathMatcher fileMatcher : filePathMatchers) {
-                if (fileMatcher.pattern.matcher(relativePath).matches()) {
+                if (fileMatcher.filePathMatches(relativePath)) {
                     // If there's a match, open the file as a stream and call the match processor
                     try (final InputStream inputStream = new FileInputStream(file)) {
-                        fileMatcher.fileMatchProcessor.processMatch(absolutePath, relativePath, inputStream);
+                        fileMatcher.processMatch(absolutePath, relativePath, inputStream);
                     }
                 }
             }
@@ -1107,11 +1165,11 @@ public class FastClasspathScanner {
                         }
                         // Match file paths against path patterns
                         for (final FilePathMatcher fileMatcher : filePathMatchers) {
-                            if (fileMatcher.pattern.matcher(path).matches()) {
+                            if (fileMatcher.filePathMatches(path)) {
                                 // There's a match -- open the file as a stream and
                                 // call the match processor
                                 try (final InputStream inputStream = zipFile.getInputStream(entry)) {
-                                    fileMatcher.fileMatchProcessor.processMatch(path, path, inputStream);
+                                    fileMatcher.processMatch(path, path, inputStream);
                                 }
                             }
                         }
@@ -1213,16 +1271,6 @@ public class FastClasspathScanner {
                     } else {
                         // File listed directly on classpath
                         scanFile(pathElt, path, pathElt.getName(), scanTimestampsOnly);
-
-                        for (final FilePathMatcher fileMatcher : filePathMatchers) {
-                            if (fileMatcher.pattern.matcher(path).matches()) {
-                                // If there's a match, open the file as a stream and call the
-                                // match processor
-                                try (final InputStream inputStream = new FileInputStream(pathElt)) {
-                                    fileMatcher.fileMatchProcessor.processMatch(path, pathElt.getName(), inputStream);
-                                }
-                            }
-                        }
                     }
                 } else {
                     // Log.info("Skipping non-file/non-dir on classpath: " + file.getCanonicalPath());

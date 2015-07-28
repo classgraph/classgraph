@@ -10,7 +10,7 @@ FastClasspathScanner scans directories and jar/zip files on the classpath, and i
 3. [find classes that implement an interface](#3-matching-the-classes-that-implement-an-interface) or one of its subinterfaces, or whose superclasses implement the interface or one of its subinterfaces;
 4. [find classes that have a specific class annotation](#4-matching-classes-with-a-specific-annotation);
 5. find the constant literal initializer value in a classfile's constant pool for a [specified static final field](#5-fetching-the-constant-initializer-values-of-static-final-fields);
-6. find files (even non-classfiles) anywhere on the classpath that have a [path that matches a given regular expression](#6-finding-files-even-non-classfiles-anywhere-on-the-classpath-whose-path-matches-a-given-regular-expression);
+6. find files (even non-classfiles) anywhere on the classpath that have a [path that matches a given string or regular expression](#6-finding-files-even-non-classfiles-anywhere-on-the-classpath-whose-path-matches-a-given-string-or-regular-expression);
 7. perform the actual [classpath scan](#7-performing-the-actual-scan);
 8. [detect changes](#8-detecting-changes-to-classpath-contents-after-the-scan) to the files within the classpath since the first time the classpath was scanned, or alternatively, calculate the MD5 hash of classfiles while scanning, in case using timestamps is insufficiently rigorous for change detection;
 9. return a list of [all directories and files on the classpath](#9-get-a-list-of-all-whitelisted-and-non-blacklisted-classes-and-interfaces-on-the-classpath) (i.e. all classpath elements) as a list of File objects, with the list deduplicated and filtered to include only classpath directories and files that actually exist, saving you the trouble of parsing and filtering the classpath; and
@@ -305,7 +305,7 @@ final int q = 5;                    // Non-static
 
 Primitive types (int, long, short, float, double, boolean, char, byte) are wrapped in the corresponding wrapper class (Integer, Long etc.) before being passed to the provided StaticFinalFieldMatchProcessor.
 
-### 6. Finding files (even non-classfiles) anywhere on the classpath whose path matches a given regular expression
+### 6. Finding files (even non-classfiles) anywhere on the classpath whose path matches a given string or regular expression
 
 This can be useful for detecting changes to non-classfile resources on the classpath, for example a web server's template engine can hot-reload HTML templates when they change by including the template directory in the classpath and then detecting changes to files that are in the template directory and have the extension ".html".
 
@@ -322,8 +322,19 @@ public interface FileMatchProcessor {
         InputStream inputStream) throws IOException;
 }
 
-public FastClasspathScanner matchFilenamePattern(String filenameMatchPattern,
+// Match a pattern, such as "^com/pkg/.*\\.html$"
+public FastClasspathScanner matchFilenamePattern(String pathRegexp,
         FileMatchProcessor fileMatchProcessor)
+        
+// Match a (non-regexp) relative path, such as "com/pkg/templates/WidgetTemplate.html"
+public FastClasspathScanner matchFilenamePath(final String relativePathToMatch,
+        FileMatchProcessor fileMatchProcessor)
+        
+// Match a leafname, such as "WidgetTemplate.html"
+public FastClasspathScanner matchFilenameLeaf(final String leafToMatch,
+        FileMatchProcessor fileMatchProcessor)
+
+
 ```
 
 ### 7. Performing the actual scan
