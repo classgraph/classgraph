@@ -30,6 +30,19 @@
 package io.github.lukehutch.fastclasspathscanner;
 
 import static org.junit.Assert.assertTrue;
+
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import org.junit.Test;
+
 import io.github.lukehutch.fastclasspathscanner.whitelisted.Cls;
 import io.github.lukehutch.fastclasspathscanner.whitelisted.ClsSub;
 import io.github.lukehutch.fastclasspathscanner.whitelisted.ClsSubSub;
@@ -44,18 +57,6 @@ import io.github.lukehutch.fastclasspathscanner.whitelisted.Impl2Sub;
 import io.github.lukehutch.fastclasspathscanner.whitelisted.Impl2SubSub;
 import io.github.lukehutch.fastclasspathscanner.whitelisted.StaticField;
 import io.github.lukehutch.fastclasspathscanner.whitelisted.blacklisted.Blacklisted;
-
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
-
-import org.junit.Test;
 
 public class FastClasspathScannerTest {
     private static final String WHITELIST_PACKAGE = Cls.class.getPackage().getName();
@@ -155,13 +156,24 @@ public class FastClasspathScannerTest {
     }
 
     @Test
-    public void scanFilePattern() throws Exception {
+    public void scanFilePattern1() throws Exception {
         AtomicBoolean readFileContents = new AtomicBoolean(false);
         new FastClasspathScanner().matchFilenamePattern(
                 "[[^/]*/]*file-content-test\\.txt",
-                (absolutePath, relativePath, inputStream) -> {
+                (relativePath, inputStream, length) -> {
                     readFileContents.set("File contents".equals(new BufferedReader(new InputStreamReader(inputStream))
                             .readLine()));
+                }).scan();
+        assertTrue(readFileContents.get());
+    }
+
+    @Test
+    public void scanFilePattern2() throws Exception {
+        AtomicBoolean readFileContents = new AtomicBoolean(false);
+        new FastClasspathScanner().matchFilenamePattern(
+                "[[^/]*/]*file-content-test\\.txt",
+                (relativePath, contents) -> {
+                    readFileContents.set("File contents".equals(new String(contents, "UTF-8")));
                 }).scan();
         assertTrue(readFileContents.get());
     }

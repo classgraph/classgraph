@@ -316,25 +316,37 @@ The value of `relativePath` is relative to the classpath entry that contained th
 ```java
 // Only Method 1 is applicable -- attach a MatchProcessor before calling .scan():
 
+// Use this interface if you want to be passed an InputStream
 @FunctionalInterface
 public interface FileMatchProcessor {
-    public void processMatch(String absolutePath, String relativePath,
-        InputStream inputStream) throws IOException;
+    public void processMatch(String relativePath, InputStream inputStream,
+        int inputStreamLengthBytes) throws IOException;
+}
+
+// Use this interface if you want to be passed a byte array with the file contents
+@FunctionalInterface
+public interface FileMatchContentsProcessor {
+    public void processMatch(String relativePath, byte[] fileContents)
+        throws IOException;
 }
 
 // Match a pattern, such as "^com/pkg/.*\\.html$"
 public FastClasspathScanner matchFilenamePattern(String pathRegexp,
         FileMatchProcessor fileMatchProcessor)
+public FastClasspathScanner matchFilenamePattern(String pathRegexp,
+        FileMatchContentsProcessor fileMatchContentsProcessor)
         
-// Match a (non-regexp) relative path, such as "com/pkg/templates/WidgetTemplate.html"
-public FastClasspathScanner matchFilenamePath(final String relativePathToMatch,
+// Match a (non-regexp) relative path, such as "com/pkg/WidgetTemplate.html"
+public FastClasspathScanner matchFilenamePath(String relativePathToMatch,
         FileMatchProcessor fileMatchProcessor)
+public FastClasspathScanner matchFilenamePath(String relativePathToMatch,
+        FileMatchContentsProcessor fileMatchContentsProcessor)
         
 // Match a leafname, such as "WidgetTemplate.html"
-public FastClasspathScanner matchFilenameLeaf(final String leafToMatch,
+public FastClasspathScanner matchFilenameLeaf(String leafToMatch,
         FileMatchProcessor fileMatchProcessor)
-
-
+public FastClasspathScanner matchFilenameLeaf(String leafToMatch,
+        FileMatchContentsProcessor fileMatchContentsProcessor)
 ```
 
 ### 7. Performing the actual scan
