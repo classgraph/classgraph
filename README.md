@@ -52,17 +52,11 @@ new FastClasspathScanner("com.xyz.widget", "com.xyz.gizmo")
             + className + " " + " currently has constant literal value "
             + fieldConstantValue + " in the classfile"))
     .matchFilenamePattern("^template/.*\\.html",
-        // absolutePath is a path on the classpath that matches the above pattern;
-        // relativePath is just the section of the matching path relative to the
-        // classpath element it is contained in; inputStream is a stream opened
-        // on the file or zipfile entry that matched the requested filename pattern.
-        // No need to close inputStream before exiting, it is closed by the caller.
-        // The passed method can throw IOException.
-        (absolutePath, relativePath, inputStream) -> {
-            String template = IOUtils.toString(inputStream, "UTF-8");
-            System.out.println("Found template: " + absolutePath
-                + " (size " + template.length() + ")");
-        })
+        // relativePath is the section of the matching path relative to the
+        // classpath element it is contained in; fileContentBytes is the content
+        // of the file
+        (relativePath, fileContentBytes) ->
+            registerTemplate(relativePath, new String(fileContentBytes, "UTF-8")))
     .scan();  // Actually perform the scan
 
 // [...Some time later...]
@@ -316,7 +310,8 @@ The value of `relativePath` is relative to the classpath entry that contained th
 ```java
 // Only Method 1 is applicable -- attach a MatchProcessor before calling .scan():
 
-// Use this interface if you want to be passed an InputStream
+// Use this interface if you want to be passed an InputStream.
+// N.B. you do not need to close inputStream before exiting, it is closed by the caller.
 @FunctionalInterface
 public interface FileMatchProcessor {
     public void processMatch(String relativePath, InputStream inputStream,
