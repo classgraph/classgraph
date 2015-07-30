@@ -696,7 +696,7 @@ public class FastClasspathScanner {
 	 * 
 	 * @param relativePathToMatch
 	 *            The complete path to match relative to the classpath entry, e.g. "app/templates/WidgetTemplate.html"
-	 * @param fileMatchContentnsProcessor
+	 * @param fileMatchContentsProcessor
 	 *            The FileMatchContentsProcessor to call when each match is found.
 	 */
 	public FastClasspathScanner matchFilenamePath(final String relativePathToMatch,
