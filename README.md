@@ -18,9 +18,9 @@ FastClasspathScanner scans directories and jar/zip files on the classpath, and i
 
 ### Usage
 
-There are two different ways to use the FastClasspathScanner to match classes and interfaces. (The two mechanisms can be used together.)
+There are two different mechanisms for using FastClasspathScanner. (The two mechanisms can be used together.)
 
-**Method 1:** Create a FastClasspathScanner instance, listing package prefixes to scan within, then add one or more [`MatchProcessor`](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) instances to the FastClasspathScanner by calling the FastClasspathScanner's `.match...()` methods, followed by calling `.scan()` to start the scan. This is the pattern shown in the following example, where Java 8 lambda expressions are used to implicitly create the appropriate type of MatchProcessor corresponding to each `.match...()` method:
+**Mechanism 1:** Create a FastClasspathScanner instance, listing package prefixes to scan within, then add one or more [`MatchProcessor`](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) instances to the FastClasspathScanner by calling the FastClasspathScanner's `.match...()` methods, followed by calling `.scan()` to start the scan. This is the pattern shown in the following example: (Note: Java 8 lambda expressions are used below to implicitly create the appropriate type of MatchProcessor corresponding to each `.match...()` method, but see [Tips](#tips) below for the Java 7 equivalent of Mechanism 1)
  
 ```java
 // Whitelisted package prefixes are listed in the constructor
@@ -67,7 +67,7 @@ boolean classpathContentsModified =
     fastClassPathScanner.classpathContentsModifiedSinceScan();
 ```
 
-**Method 2:** Create a FastClasspathScanner instance, potentially without adding any MatchProcessors, then call scan() to scan the classpath, then call `.getNamesOf...()` methods to find classes and interfaces of interest without actually calling the classloader on any matching classes. The `.getNamesOf...()` methods return lists of strings, rather than lists of `Class<?>` references, and scanning is done by reading the classfile directly, so the classloader does not need to be called for these methods to return their results. This can be useful if the static initializer code for matching classes would trigger unwanted side effects if run during a classpath scan. An example of this usage pattern is:
+**Mechanism 2:** Create a FastClasspathScanner instance, potentially without adding any MatchProcessors, then call scan() to scan the classpath, then call `.getNamesOf...()` methods to find classes and interfaces of interest without actually calling the classloader on any matching classes. The `.getNamesOf...()` methods return lists of strings, rather than lists of `Class<?>` references, and scanning is done by reading the classfile directly, so the classloader does not need to be called for these methods to return their results. This can be useful if the static initializer code for matching classes would trigger unwanted side effects if run during a classpath scan. An example of this usage pattern is:
 
 ```java
 List<String> subclassesOfWidget = new FastClasspathScanner("com.xyz.widget")
@@ -79,20 +79,11 @@ List<String> subclassesOfWidget = new FastClasspathScanner("com.xyz.widget")
     .getNamesOfSubclassesOf("com.xyz.widget.Widget");
 ```
 
-(Note that Method 2 only works with class and interface matches, there are no corresponding `.getNamesOf...()` methods for filename pattern or static field matches.)
+Note that Mechanism 2 only works with class and interface matches; there are no corresponding `.getNamesOf...()` methods for filename pattern or static field matches, since these methods are only looking at the DAG of whitelisted classes and interfaces encountered during the scan.
 
 ### Tips
 
-**Using Java 8 method references:** The `.match...()` methods (e.g. `.matchSubclassesOf()`) take a [`MatchProcessor`](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) as one of their arguments, which are single-method classes (i.e. FunctionalInterfaces). Java 8 method references may also be used as FunctionalInterfaces, e.g. `list::add`:
-
-```java
-List<Class<? extends Widget>> matchingClasses = new ArrayList<>();
-new FastClasspathScanner("com.xyz.widget")
-    .matchSubclassesOf(Widget.class, matchingClasses::add)
-    .scan();
-```
-
-**Calling from Java 7 and below:** The pre-Java-8 mechanism is as follows (note that there is a different [`MatchProcessor`](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) class corresponding to each `.match...()` method, e.g. `.matchSubclassesOf()` takes a `SubclassMatchProcessor`):
+**Calling from Java 7:** The usage examples above use lambda expressions (functional interfaces) from Java 8 for simplicity. However, at least as of JDK 1.8.0 r20, Java 8 features like lambda expressions and Streams incur a one-time startup penalty of 30-40ms the first time they are used. If this overhead is prohibitive, you can use the Java 7 version of Mechanism 1 (note that there is a different [`MatchProcessor`](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) class corresponding to each `.match...()` method, e.g. `.matchSubclassesOf()` takes a `SubclassMatchProcessor`):
 
 ```java
 new FastClasspathScanner("com.xyz.widget")  
@@ -105,7 +96,14 @@ new FastClasspathScanner("com.xyz.widget")
     .scan();
 ```
 
-See also [Usage Caveats](#usage-caveats) below.
+**Protip: using Java 8 method references:** The `.match...()` methods (e.g. `.matchSubclassesOf()`) take a [`MatchProcessor`](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) as one of their arguments, which are single-method classes (i.e. FunctionalInterfaces). If you are using Java 8, you may find it useful to use Java 8 method references as FunctionalInterfaces in the place of MatchProcessors (assuming the number and types of arguments match), e.g. `list::add`:
+
+```java
+List<Class<? extends Widget>> matchingClasses = new ArrayList<>();
+new FastClasspathScanner("com.xyz.widget")
+    .matchSubclassesOf(Widget.class, matchingClasses::add)
+    .scan();
+```
 
 # API
 
@@ -139,7 +137,7 @@ There are also methods `List<String> getNamesOfSubclassesOf(String superclassNam
 Furthermore, the methods `List<String> getNamesOfSuperclassesOf(String subclassName)` and `List<String> getNamesOfSuperclassesOf(Class<T> subclass)` are able to return all superclasses of a given class after a call to `.scan()`. (Note that there is not currently a SuperclassMatchProcessor or .matchSuperclassesOf().)
 
 ```java
-// Method 1: Attach a MatchProcessor before calling .scan():
+// Mechanism 1: Attach a MatchProcessor before calling .scan():
 
 @FunctionalInterface
 public interface SubclassMatchProcessor<T> {
@@ -149,7 +147,7 @@ public interface SubclassMatchProcessor<T> {
 public <T> FastClasspathScanner matchSubclassesOf(Class<T> superclass,
     SubclassMatchProcessor<T> subclassMatchProcessor)
 
-// Method 2: Call one of the following after calling .scan():
+// Mechanism 2: Call one of the following after calling .scan():
 
 public <T> List<String> getNamesOfSubclassesOf(Class<T> superclass) 
 
@@ -171,7 +169,7 @@ There are also methods `List<String> getNamesOfSubinterfacesOf(String ifaceName)
 Furthermore, the methods `List<String> getNamesOfSuperinterfacesOf(String ifaceName)` and `List<String> getNamesOfSuperinterfacesOf(Class<T> iface)` are able to return all superinterfaces of a given interface after a call to `.scan()`. (Note that there is not currently a SuperinterfaceMatchProcessor or .matchSuperinterfacesOf().)
 
 ```java
-// Method 1: Attach a MatchProcessor before calling .scan():
+// Mechanism 1: Attach a MatchProcessor before calling .scan():
 
 @FunctionalInterface
 public interface SubinterfaceMatchProcessor<T> {
@@ -181,7 +179,7 @@ public interface SubinterfaceMatchProcessor<T> {
 public <T> FastClasspathScanner matchSubinterfacesOf(Class<T> superInterface,
     SubinterfaceMatchProcessor<T> subinterfaceMatchProcessor)
 
-// Method 2: Call one of the following after calling .scan():
+// Mechanism 2: Call one of the following after calling .scan():
 
 public <T> List<String> getNamesOfSubinterfacesOf(Class<T> superInterface)
 
@@ -201,7 +199,7 @@ FastClasspathScanner can find all classes on the classpath within whitelisted pa
 There are also methods `List<String> getNamesOfClassesImplementing(String ifaceName)` and `List<String> getNamesOfClassesImplementing(Class<T> iface)` that can be called after `.scan()` to find the names of the classes implementing a given interface (whether or not a corresponding match processor was added to detect this). These methods will return the matching classes without calling the classloader, whereas if a match processor is used, the classloader is called first (using Class.forName()) so that a class reference can be passed into the match processor.
 
 ```java
-// Method 1: Attach a MatchProcessor before calling .scan():
+// Mechanism 1: Attach a MatchProcessor before calling .scan():
 
 @FunctionalInterface
 public interface InterfaceMatchProcessor<T> {
@@ -212,7 +210,7 @@ public <T> FastClasspathScanner matchClassesImplementing(
     Class<T> implementedInterface,
     InterfaceMatchProcessor<T> interfaceMatchProcessor)
 
-// Method 2: Call one of the following after calling .scan():
+// Mechanism 2: Call one of the following after calling .scan():
 
 public <T> List<String> getNamesOfClassesImplementing(
     Class<T> implementedInterface)
@@ -228,7 +226,7 @@ FastClassPathScanner can detect classes that have a class annotation that matche
 There are also methods `List<String> getNamesOfClassesWithAnnotation(String annotationClassName)` and `List<String> getNamesOfClassesWithAnnotation(Class<T> annotationClass)` that can be called after `.scan()` to find the names of the classes that have a given annotation (whether or not a corresponding match processor was added to detect this). These methods will return the matching classes without calling the classloader, whereas if a match processor is used, the classloader is called first (using Class.forName()) so that a class reference can be passed into the match processor.
 
 ```java
-// Method 1: Attach a MatchProcessor before calling .scan():
+// Mechanism 1: Attach a MatchProcessor before calling .scan():
 
 @FunctionalInterface
 public interface ClassAnnotationMatchProcessor {
@@ -238,7 +236,7 @@ public interface ClassAnnotationMatchProcessor {
 public FastClasspathScanner matchClassesWithAnnotation(Class<?> annotation,
     ClassAnnotationMatchProcessor classAnnotationMatchProcessor)
 
-// Method 2: Call one of the following after calling .scan():
+// Mechanism 2: Call one of the following after calling .scan():
 
 public <T> List<String> getNamesOfClassesWithAnnotation(Class<?> annotation)
 
@@ -256,7 +254,7 @@ This can be useful in hot-swapping of changes to static constants in classfiles 
 **Note:** The visibility of the fields is not checked; the value of the field in the classfile is returned whether or not it should be visible to the caller. Therefore you should probably only use this method with public static final fields (not just static final fields) to coincide with Java's own semantics.
 
 ```java
-// Only Method 1 is applicable -- attach a MatchProcessor before calling .scan():
+// Only Mechanism 1 is applicable -- attach a MatchProcessor before calling .scan():
 
 @FunctionalInterface
 public interface StaticFinalFieldMatchProcessor {
@@ -308,7 +306,7 @@ A `FileMatchProcessor` is passed the `InputStream` for any `File` or `ZipFileEnt
 The value of `relativePath` is relative to the classpath entry that contained the matching file.
 
 ```java
-// Only Method 1 is applicable -- attach a MatchProcessor before calling .scan():
+// Only Mechanism 1 is applicable -- attach a MatchProcessor before calling .scan():
 
 // Use this interface if you want to be passed an InputStream.
 // N.B. you do not need to close the InputStream before exiting, it is closed
@@ -405,13 +403,7 @@ The list of all directories and files on the classpath is returned by the follow
 public static ArrayList<File> getUniqueClasspathElements()
 ```
 
-## Usage Caveats
-
-### (i) Startup overhead of Java 8 Streams and lambda expressions
-
-The usage examples above use lambda expressions (functional interfaces) and Stream patterns from Java 8 for simplicity. However, at least as of JDK 1.8.0 r20, lambda expressions and Streams each incur a one-time startup penalty of 30-40ms the first time they are used. If this overhead is prohibitive, use the pre-Java-8 form (explicitly creating a MatchProcessor, potentially using an inner class, but without lambda expressions, as shown in the introduction above).
-
-### (ii) Getting generic class references for parameterized classes
+## Getting generic class references for parameterized classes
 
 A problem arises when using class-based matchers with parameterized classes, e.g. `Widget<K>`. Because of type erasure, The expression `Widget<K>.class` is not defined, and therefore it is impossible to cast `Class<Widget>` to `Class<Widget<K>>`. More specifically:
 
