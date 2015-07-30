@@ -1271,8 +1271,8 @@ public class FastClasspathScanner {
     }
 
     /**
-     * Get the mapping from class name to hash of classfile contents, assuming enableHashingClassfileContents() has been
-     * called.
+     * Returns the mapping from class name to hash of classfile contents, after the call to .scan(), assuming that
+     * enableHashingClassfileContents() has been called.
      */
     public HashMap<String, String> getClassNameToClassfileHash() {
         return this.classNameToClassfileHash;
@@ -1359,7 +1359,7 @@ public class FastClasspathScanner {
      * 
      * This method should be called after all required match processors have been added.
      * 
-     * This method should be called before any "get" methods (e.g. getSubclassesOf()).
+     * This method should be called before any "getNamesOf" methods (e.g. getNamesOfSubclassesOf()).
      */
     public FastClasspathScanner scan() {
         return scan(/* scanTimestampsOnly = */false);
