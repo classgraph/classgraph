@@ -605,6 +605,7 @@ public class FastClasspathScanner {
                     for (int read; (read = inputStream.read(buffer)) != -1;) {
                         fileContents.write(buffer, 0, read);
                     }
+                    fileContents.flush();
                     fileMatchContentsProcessor.processMatch(relativePath, fileContents.toByteArray());
                 }
             }
