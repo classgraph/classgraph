@@ -18,7 +18,7 @@ FastClasspathScanner scans directories and jar/zip files on the classpath, and i
 
 ### Usage
 
-There are two different mechanisms that can be employed to use the FastClasspathScanner to match classes and interfaces. (The two mechanisms can be used together.)
+There are two different mechanisms for using FastClasspathScanner. (The two mechanisms can be used together.)
 
 **Mechanism 1:** Create a FastClasspathScanner instance, listing package prefixes to scan within, then add one or more [`MatchProcessor`](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) instances to the FastClasspathScanner by calling the FastClasspathScanner's `.match...()` methods, followed by calling `.scan()` to start the scan. This is the pattern shown in the following example: (Note: Java 8 lambda expressions are used below to implicitly create the appropriate type of MatchProcessor corresponding to each `.match...()` method, but see [Tips](#tips) below for the Java 7 equivalent of Mechanism 1)
  
@@ -79,7 +79,7 @@ List<String> subclassesOfWidget = new FastClasspathScanner("com.xyz.widget")
     .getNamesOfSubclassesOf("com.xyz.widget.Widget");
 ```
 
-(Note that Mechanism 2 only works with class and interface matches; there are no corresponding `.getNamesOf...()` methods for filename pattern or static field matches.)
+Note that Mechanism 2 only works with class and interface matches; there are no corresponding `.getNamesOf...()` methods for filename pattern or static field matches, since these methods are only looking at the DAG of whitelisted classes and interfaces encountered during the scan.
 
 ### Tips
 
