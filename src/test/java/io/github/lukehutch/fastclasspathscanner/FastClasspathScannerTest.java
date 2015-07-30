@@ -29,7 +29,22 @@
 
 package io.github.lukehutch.fastclasspathscanner;
 
-import static org.junit.Assert.assertTrue;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+import org.junit.Test;
+
+import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchProcessor;
+import io.github.lukehutch.fastclasspathscanner.matchprocessor.StaticFinalFieldMatchProcessor;
+import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubclassMatchProcessor;
+import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubinterfaceMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.whitelisted.Cls;
 import io.github.lukehutch.fastclasspathscanner.whitelisted.ClsSub;
 import io.github.lukehutch.fastclasspathscanner.whitelisted.ClsSubSub;
@@ -44,16 +59,7 @@ import io.github.lukehutch.fastclasspathscanner.whitelisted.Impl2Sub;
 import io.github.lukehutch.fastclasspathscanner.whitelisted.Impl2SubSub;
 import io.github.lukehutch.fastclasspathscanner.whitelisted.StaticField;
 import io.github.lukehutch.fastclasspathscanner.whitelisted.blacklisted.Blacklisted;
-
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-
-import org.junit.Test;
+import static org.junit.Assert.assertTrue;
 
 public class FastClasspathScannerTest {
     private static final String WHITELIST_PACKAGE = Cls.class.getPackage().getName();
@@ -97,7 +103,11 @@ public class FastClasspathScannerTest {
     public void scanSubAndSuperclass() throws Exception {
         final List<Class<? extends Cls>> collector = new ArrayList<>();
         final FastClasspathScanner scanner = new FastClasspathScanner(WHITELIST_PACKAGE).matchSubclassesOf(Cls.class,
-                collector::add).scan();
+                new SubclassMatchProcessor<Cls>() {
+                    @Override public void processMatch(final Class<? extends Cls> matchingClass) {
+                        collector.add(matchingClass);
+                    }
+                }).scan();
         assertTrue(!collector.contains(Cls.class));
         assertTrue(collector.contains(ClsSub.class));
         assertTrue(collector.contains(ClsSubSub.class));
@@ -113,7 +123,11 @@ public class FastClasspathScannerTest {
     public void scanSubAndSuperinterface() throws Exception {
         final List<Class<? extends Iface>> collector = new ArrayList<>();
         final FastClasspathScanner scanner = new FastClasspathScanner(WHITELIST_PACKAGE).matchSubinterfacesOf(
-                Iface.class, collector::add).scan();
+                Iface.class, new SubinterfaceMatchProcessor<Iface>() {
+                    @Override public void processMatch(final Class<? extends Iface> matchingInterface) {
+                        collector.add(matchingInterface);
+                    }
+                }).scan();
         assertTrue(!collector.contains(Iface.class));
         assertTrue(collector.contains(IfaceSub.class));
         assertTrue(collector.contains(IfaceSubSub.class));
@@ -158,9 +172,11 @@ public class FastClasspathScannerTest {
     public void scanFilePattern() throws Exception {
         new FastClasspathScanner().matchFilenamePattern(
                 "[[^/]*/]*file-content-test\\.txt",
-                (absolutePath, relativePath, inputStream) -> {
-                    readFileContents = "File contents".equals(new BufferedReader(new InputStreamReader(inputStream))
-                            .readLine());
+                new FileMatchProcessor() {
+                    @Override public void processMatch(final String absolutePath, final String relativePath, final InputStream inputStream) throws IOException {
+                        readFileContents = "File contents".equals(new BufferedReader(new InputStreamReader(inputStream))
+                                .readLine());
+                    }
                 }).scan();
         assertTrue(readFileContents);
     }
@@ -175,27 +191,29 @@ public class FastClasspathScannerTest {
             fieldNames.add(StaticField.class.getName() + "." + fieldName);
         }
         new FastClasspathScanner(WHITELIST_PACKAGE).matchStaticFinalFieldNames(fieldNames,
-                (String className, String fieldName, Object fieldConstantValue) -> {
-                    switch (fieldName) {
-                    case "stringField":
-                        assertTrue("Static field contents".equals(fieldConstantValue));
-                        break;
-                    case "intField":
-                        assertTrue(new Integer(3).equals(fieldConstantValue));
-                        break;
-                    case "boolField":
-                        assertTrue(new Boolean(true).equals(fieldConstantValue));
-                        break;
-                    case "charField":
-                        assertTrue(new Character('y').equals(fieldConstantValue));
-                        break;
-                    case "integerField":
-                    case "booleanField":
-                        throw new RuntimeException("Non-constant field should not be matched");
-                    default:
-                        throw new RuntimeException("Unknown field");
+                new StaticFinalFieldMatchProcessor() {
+                    @Override public void processMatch(final String className, final String fieldName, final Object fieldConstantValue) {
+                        switch (fieldName) {
+                        case "stringField":
+                            assertTrue("Static field contents".equals(fieldConstantValue));
+                            break;
+                        case "intField":
+                            assertTrue(new Integer(3).equals(fieldConstantValue));
+                            break;
+                        case "boolField":
+                            assertTrue(new Boolean(true).equals(fieldConstantValue));
+                            break;
+                        case "charField":
+                            assertTrue(new Character('y').equals(fieldConstantValue));
+                            break;
+                        case "integerField":
+                        case "booleanField":
+                            throw new RuntimeException("Non-constant field should not be matched");
+                        default:
+                            throw new RuntimeException("Unknown field");
+                        }
+                        readStaticFieldCount++;
                     }
-                    readStaticFieldCount++;
                 }).scan();
         assertTrue(readStaticFieldCount == 4);
     }

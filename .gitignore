@@ -9,6 +9,7 @@ lib/
 *~
 hs_err_pid*
 
+*.iml
 .project
 .metadata
 .classpath
