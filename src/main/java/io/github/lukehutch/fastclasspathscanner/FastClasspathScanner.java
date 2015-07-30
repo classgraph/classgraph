@@ -595,7 +595,8 @@ public class FastClasspathScanner {
     // -----------------------------------------------------------------------------------------------------------------
 
     /** Wrap a FileMatchContentsProcessor in a FileMatchProcessor that reads the file content from the stream. */
-    private static FileMatchProcessor wrapFileContentReader(final FileMatchContentsProcessor fileMatchContentsProcessor) {
+    private static FileMatchProcessor wrapFileMatchContentsProcessor(
+            final FileMatchContentsProcessor fileMatchContentsProcessor) {
         return new FileMatchProcessor() {
             @Override
             public void processMatch(final String relativePath, final InputStream inputStream, final int lengthBytes)
@@ -645,7 +646,7 @@ public class FastClasspathScanner {
      */
     public FastClasspathScanner matchFilenamePattern(final String pathRegexp,
             final FileMatchContentsProcessor fileMatchContentsProcessor) {
-        return matchFilenamePattern(pathRegexp, wrapFileContentReader(fileMatchContentsProcessor));
+        return matchFilenamePattern(pathRegexp, wrapFileMatchContentsProcessor(fileMatchContentsProcessor));
     }
 
     /**
@@ -679,7 +680,7 @@ public class FastClasspathScanner {
      */
     public FastClasspathScanner matchFilenamePath(final String relativePathToMatch,
             final FileMatchContentsProcessor fileMatchContentsProcessor) {
-        return matchFilenamePath(relativePathToMatch, wrapFileContentReader(fileMatchContentsProcessor));
+        return matchFilenamePath(relativePathToMatch, wrapFileMatchContentsProcessor(fileMatchContentsProcessor));
     }
 
     /**
@@ -716,7 +717,7 @@ public class FastClasspathScanner {
      */
     public FastClasspathScanner matchFilenamePathLeaf(final String pathLeafToMatch,
             final FileMatchContentsProcessor fileMatchContentsProcessor) {
-        return matchFilenamePathLeaf(pathLeafToMatch, wrapFileContentReader(fileMatchContentsProcessor));
+        return matchFilenamePathLeaf(pathLeafToMatch, wrapFileMatchContentsProcessor(fileMatchContentsProcessor));
     }
 
     /**
@@ -750,7 +751,7 @@ public class FastClasspathScanner {
      */
     public FastClasspathScanner matchFilenameExtension(final String extensionToMatch,
             final FileMatchContentsProcessor fileMatchContentsProcessor) {
-        return matchFilenameExtension(extensionToMatch, wrapFileContentReader(fileMatchContentsProcessor));
+        return matchFilenameExtension(extensionToMatch, wrapFileMatchContentsProcessor(fileMatchContentsProcessor));
     }
 
     // -----------------------------------------------------------------------------------------------------------------
