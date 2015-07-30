@@ -29,15 +29,8 @@
 
 package io.github.lukehutch.fastclasspathscanner;
 
-import io.github.lukehutch.fastclasspathscanner.classgraph.ClassGraphBuilder;
-import io.github.lukehutch.fastclasspathscanner.matchprocessor.ClassAnnotationMatchProcessor;
-import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchProcessor;
-import io.github.lukehutch.fastclasspathscanner.matchprocessor.InterfaceMatchProcessor;
-import io.github.lukehutch.fastclasspathscanner.matchprocessor.StaticFinalFieldMatchProcessor;
-import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubclassMatchProcessor;
-import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubinterfaceMatchProcessor;
-
 import java.io.BufferedInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -56,6 +49,15 @@ import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
+
+import io.github.lukehutch.fastclasspathscanner.classgraph.ClassGraphBuilder;
+import io.github.lukehutch.fastclasspathscanner.matchprocessor.ClassAnnotationMatchProcessor;
+import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchContentsProcessor;
+import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchProcessor;
+import io.github.lukehutch.fastclasspathscanner.matchprocessor.InterfaceMatchProcessor;
+import io.github.lukehutch.fastclasspathscanner.matchprocessor.StaticFinalFieldMatchProcessor;
+import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubclassMatchProcessor;
+import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubinterfaceMatchProcessor;
 
 /**
  * Uber-fast, ultra-lightweight Java classpath scanner. Scans the classpath by parsing the classfile binary format
@@ -186,6 +188,14 @@ public class FastClasspathScanner {
         for (final String path : uniqueBlacklistedPathsToScan) {
             this.blacklistedPathsToScan[i++] = path;
         }
+
+        // Read classfile headers for all filenames ending in ".class" on classpath
+        this.matchFilenameExtension("class", new FileMatchProcessor() {
+			@Override
+			public void processMatch(String relativePath, InputStream inputStream, int lengthBytes) throws IOException {
+		        readClassInfoFromClassfileHeader(inputStream);
+			}
+		});
     }
 
     // -----------------------------------------------------------------------------------------------------------------
@@ -609,32 +619,183 @@ public class FastClasspathScanner {
 
     // -----------------------------------------------------------------------------------------------------------------
 
+    /** Wrap a FileMatchContentsProcessor in a FileMatchProcessor that reads the file content from the stream. */ 
+	private static FileMatchProcessor wrapFileContentReader(
+			final FileMatchContentsProcessor fileMatchContentsProcessor) {
+		return new FileMatchProcessor() {
+			@Override
+			public void processMatch(final String relativePath, final InputStream inputStream, final int lengthBytes)
+					throws IOException {
+				try (ByteArrayOutputStream fileContents = new ByteArrayOutputStream(lengthBytes)){
+				    byte[] buffer = new byte[8192];
+				    for (int read; (read = inputStream.read(buffer)) != -1;) {
+				        fileContents.write(buffer, 0, read);
+				    }
+				    fileMatchContentsProcessor.processMatch(relativePath, fileContents.toByteArray());
+				}
+			}
+		};
+	}
+
     /**
      * Calls the given FileMatchProcessor if files are found on the classpath with the given regexp pattern in their
      * path.
      * 
-     * @param filenameMatchPattern
+     * @param pathRegexp
      *            The regexp to match, e.g. "app/templates/.*\\.html"
      * @param fileMatchProcessor
      *            The FileMatchProcessor to call when each match is found.
      */
-    public FastClasspathScanner matchFilenamePattern(final String filenameMatchPattern,
+    public FastClasspathScanner matchFilenamePattern(final String pathRegexp,
             final FileMatchProcessor fileMatchProcessor) {
-        filePathMatchers.add(new FilePathMatcher(Pattern.compile(filenameMatchPattern), fileMatchProcessor));
+        filePathMatchers.add(new FilePathMatcher(new FilePathTester() {
+        	private Pattern pattern = Pattern.compile(pathRegexp);
+			@Override
+			public boolean filePathMatches(String relativePath) {
+				return pattern.matcher(relativePath).matches();
+			}}, fileMatchProcessor));
         return this;
     }
 
+    /**
+     * Calls the given FileMatchContentsProcessor if files are found on the classpath with the given regexp pattern in their
+     * path.
+     * 
+     * @param pathRegexp
+     *            The regexp to match, e.g. "app/templates/.*\\.html"
+     * @param fileMatchContentsProcessor
+     *            The FileMatchContentsProcessor to call when each match is found.
+     */
+    public FastClasspathScanner matchFilenamePattern(final String pathRegexp,
+            final FileMatchContentsProcessor fileMatchContentsProcessor) {
+        return matchFilenamePattern(pathRegexp, wrapFileContentReader(fileMatchContentsProcessor));
+    }
+
+	/**
+	 * Calls the given FileMatchProcessor if files are found on the classpath that exactly match the given relative path.
+	 * 
+	 * @param relativePathToMatch
+	 *            The complete path to match relative to the classpath entry, e.g. "app/templates/WidgetTemplate.html"
+	 * @param fileMatchProcessor
+	 *            The FileMatchProcessor to call when each match is found.
+	 */
+	public FastClasspathScanner matchFilenamePath(final String relativePathToMatch,
+			final FileMatchProcessor fileMatchProcessor) {
+		filePathMatchers.add(new FilePathMatcher(new FilePathTester() {
+			@Override
+			public boolean filePathMatches(String relativePath) {
+				return relativePath.equals(relativePathToMatch);
+			}
+		}, fileMatchProcessor));
+		return this;
+	}
+
+	/**
+	 * Calls the given FileMatchContentsProcessor if files are found on the classpath that exactly match the given
+	 * relative path.
+	 * 
+	 * @param relativePathToMatch
+	 *            The complete path to match relative to the classpath entry, e.g. "app/templates/WidgetTemplate.html"
+	 * @param fileMatchContentnsProcessor
+	 *            The FileMatchContentsProcessor to call when each match is found.
+	 */
+	public FastClasspathScanner matchFilenamePath(final String relativePathToMatch,
+			final FileMatchContentsProcessor fileMatchContentsProcessor) {
+		return matchFilenamePath(relativePathToMatch, wrapFileContentReader(fileMatchContentsProcessor));
+	}
+
+	/**
+	 * Calls the given FileMatchProcessor if files are found on the classpath that exactly match the given path leafname.
+	 * 
+	 * @param pathLeafToMatch
+	 *            The complete path leaf to match, e.g. "WidgetTemplate.html"
+	 * @param fileMatchProcessor
+	 *            The FileMatchProcessor to call when each match is found.
+	 */
+	public FastClasspathScanner matchFilenamePathLeaf(final String pathLeafToMatch,
+			final FileMatchProcessor fileMatchProcessor) {
+		filePathMatchers.add(new FilePathMatcher(new FilePathTester() {
+			private String leafToMatch = pathLeafToMatch.substring(pathLeafToMatch.lastIndexOf('/') + 1);
+			@Override
+			public boolean filePathMatches(String relativePath) {
+				String relativePathLeaf = relativePath.substring(relativePath.lastIndexOf('/') + 1);
+				return relativePathLeaf.equals(leafToMatch);
+			}
+		}, fileMatchProcessor));
+		return this;
+	}
+
+	/**
+	 * Calls the given FileMatchContentsProcessor if files are found on the classpath that exactly match the given path 
+	 * leafname.
+	 * 
+	 * @param pathLeafToMatch
+	 *            The complete path leaf to match, e.g. "WidgetTemplate.html"
+	 * @param fileMatchContentsProcessor
+	 *            The FileMatchContentsProcessor to call when each match is found.
+	 */
+	public FastClasspathScanner matchFilenamePathLeaf(final String pathLeafToMatch,
+			final FileMatchContentsProcessor fileMatchContentsProcessor) {
+		return matchFilenamePathLeaf(pathLeafToMatch, wrapFileContentReader(fileMatchContentsProcessor));
+	}
+
+	/**
+	 * Calls the given FileMatchProcessor if files are found on the classpath that have the given file extension.
+	 * 
+	 * @param extensionToMatch
+	 *            The extension to match, e.g. "html" matches "WidgetTemplate.html".
+	 * @param fileMatchProcessor
+	 *            The FileMatchProcessor to call when each match is found.
+	 */
+	public FastClasspathScanner matchFilenameExtension(final String extensionToMatch,
+			final FileMatchProcessor fileMatchProcessor) {
+		filePathMatchers.add(new FilePathMatcher(new FilePathTester() {
+			private String suffixToMatch = "." + extensionToMatch;
+			@Override
+			public boolean filePathMatches(String relativePath) {
+				return relativePath.endsWith(suffixToMatch);
+			}
+		}, fileMatchProcessor));
+		return this;
+	}
+
+	/**
+	 * Calls the given FileMatchProcessor if files are found on the classpath that have the given file extension.
+	 * 
+	 * @param extensionToMatch
+	 *            The extension to match, e.g. "html" matches "WidgetTemplate.html".
+	 * @param fileMatchContentsProcessor
+	 *            The FileMatchContentsProcessor to call when each match is found.
+	 */
+	public FastClasspathScanner matchFilenameExtension(final String extensionToMatch,
+			final FileMatchContentsProcessor fileMatchContentsProcessor) {
+		return matchFilenameExtension(extensionToMatch, wrapFileContentReader(fileMatchContentsProcessor));
+	}
+	
     // -----------------------------------------------------------------------------------------------------------------
 
-    /** An interface used for testing if a file path matches a specified pattern. */
+	/** An interface used to test whether a file's relative path matches a given specification. */
+    private static interface FilePathTester {
+    	public boolean filePathMatches(final String relativePath);
+    }
+    
+    /** A class used for associating a FilePathTester with a FileMatchProcessor. */
     private static class FilePathMatcher {
-        Pattern pattern;
-        FileMatchProcessor fileMatchProcessor;
+        private FilePathTester filePathTester;
+        private FileMatchProcessor fileMatchProcessor;
 
-        public FilePathMatcher(final Pattern pattern, final FileMatchProcessor fileMatchProcessor) {
-            this.pattern = pattern;
+        public FilePathMatcher(final FilePathTester filePathTester, final FileMatchProcessor fileMatchProcessor) {
+            this.filePathTester = filePathTester;
             this.fileMatchProcessor = fileMatchProcessor;
         }
+
+    	public boolean filePathMatches(final String relativePath) {
+    		return filePathTester.filePathMatches(relativePath);
+    	}
+    	
+    	public void processMatch(String relativePath, InputStream inputStream, int inputStreamLengthBytes) throws IOException {
+    		fileMatchProcessor.processMatch(relativePath, inputStream, inputStreamLengthBytes);
+    	}
     }
 
     /** An interface used for testing if a class matches specified criteria. */
@@ -968,27 +1129,12 @@ public class FastClasspathScanner {
             final boolean scanTimestampsOnly) throws IOException {
         lastModified = Math.max(lastModified, file.lastModified());
         if (!scanTimestampsOnly) {
-            if (relativePath.endsWith(".class")) {
-                // Found a classfile
-                try (final InputStream inputStream = new FileInputStream(file)) {
-                    // Inspect header of classfile
-                    readClassInfoFromClassfileHeader(inputStream);
-                }
-                if (classNameToClassfileHash != null) {
-                    // Hash the contents of the classfile, if requested
+            // Match file paths against path patterns
+            for (final FilePathMatcher fileMatcher : filePathMatchers) {
+                if (fileMatcher.filePathMatches(relativePath)) {
+                    // If there's a match, open the file as a stream and call the match processor
                     try (final InputStream inputStream = new FileInputStream(file)) {
-                        hashInputStream(relativePath.substring(0, relativePath.length() - 6).replace('/', '.'),
-                                inputStream);
-                    }
-                }
-            } else {
-                // For non-classfiles, match file paths against path patterns
-                for (final FilePathMatcher fileMatcher : filePathMatchers) {
-                    if (fileMatcher.pattern.matcher(relativePath).matches()) {
-                        // If there's a match, open the file as a stream and call the match processor
-                        try (final InputStream inputStream = new FileInputStream(file)) {
-                            fileMatcher.fileMatchProcessor.processMatch(absolutePath, relativePath, inputStream);
-                        }
+                        fileMatcher.processMatch(relativePath, inputStream, (int) file.length());
                     }
                 }
             }
@@ -1094,26 +1240,13 @@ public class FastClasspathScanner {
                         timestampWarning = true;
                     }
                     if (!scanTimestampsOnly) {
-                        if (path.endsWith(".class")) {
-                            // Found a classfile, open it as a stream and inspect header
-                            try (final InputStream inputStream = zipFile.getInputStream(entry)) {
-                                readClassInfoFromClassfileHeader(inputStream);
-                            }
-                            if (classNameToClassfileHash != null) {
-                                // Hash the contents of the classfile, if requested
+                        // Match file paths against path patterns
+                        for (final FilePathMatcher fileMatcher : filePathMatchers) {
+                            if (fileMatcher.filePathMatches(path)) {
+                                // There's a match -- open the file as a stream and
+                                // call the match processor
                                 try (final InputStream inputStream = zipFile.getInputStream(entry)) {
-                                    hashInputStream(path.substring(0, path.length() - 6).replace('/', '.'), inputStream);
-                                }
-                            }
-                        } else {
-                            // For non-classfiles, match file paths against path patterns
-                            for (final FilePathMatcher fileMatcher : filePathMatchers) {
-                                if (fileMatcher.pattern.matcher(path).matches()) {
-                                    // There's a match -- open the file as a stream and
-                                    // call the match processor
-                                    try (final InputStream inputStream = zipFile.getInputStream(entry)) {
-                                        fileMatcher.fileMatchProcessor.processMatch(path, path, inputStream);
-                                    }
+                                    fileMatcher.processMatch(path, inputStream, (int) entry.getSize());
                                 }
                             }
                         }
@@ -1126,31 +1259,34 @@ public class FastClasspathScanner {
     // -----------------------------------------------------------------------------------------------------------------
 
     /**
-     * Hash the classfile InputStream, and store in the classNameToClassfileHash map.
-     */
-    private void hashInputStream(final String className, final InputStream inputStream) throws IOException {
-        final MessageDigest digest;
-        try {
-            digest = MessageDigest.getInstance("MD5");
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
-        }
-        final byte[] buffer = new byte[8192];
-        for (int read; (read = inputStream.read(buffer)) > 0;) {
-            digest.update(buffer, 0, read);
-        }
-        String hash = "0000000000000000000000000000000" + new BigInteger(1, digest.digest()).toString(16);
-        classNameToClassfileHash.put(className, hash.substring(hash.length() - 32));
-    }
-
-    /**
      * Enable the hashing of classfile contents for all classfiles in whitelisted package prefixes. This will
      * dramatically slow down scanning, but allows for the implementation of more careful change detection than just
      * checking timestamps.
      */
     public FastClasspathScanner enableHashingClassfileContents() {
-        this.classNameToClassfileHash = new HashMap<>();
-        return this;
+    	if (this.classNameToClassfileHash == null) {
+	        this.classNameToClassfileHash = new HashMap<>();
+	        this.matchFilenameExtension("class", new FileMatchProcessor() {
+				@Override
+				public void processMatch(String relativePath, InputStream inputStream, int length)
+						throws IOException {
+				    // Hash the classfile InputStream, and store in the classNameToClassfileHash map.
+					final MessageDigest digest;
+			        try {
+			            digest = MessageDigest.getInstance("MD5");
+			        } catch (NoSuchAlgorithmException e) {
+			            throw new RuntimeException(e);
+			        }
+			        final byte[] buffer = new byte[8192];
+			        for (int read; (read = inputStream.read(buffer)) > 0;) {
+			            digest.update(buffer, 0, read);
+			        }
+			        String hash = "0000000000000000000000000000000" + new BigInteger(1, digest.digest()).toString(16);
+			        String className = relativePath.substring(0, relativePath.length() - 6).replace('/', '.');
+			        classNameToClassfileHash.put(className, hash.substring(hash.length() - 32));
+				}});
+    	}
+    	return this;
     }
 
     /**
@@ -1215,16 +1351,6 @@ public class FastClasspathScanner {
                     } else {
                         // File listed directly on classpath
                         scanFile(pathElt, path, pathElt.getName(), scanTimestampsOnly);
-
-                        for (final FilePathMatcher fileMatcher : filePathMatchers) {
-                            if (fileMatcher.pattern.matcher(path).matches()) {
-                                // If there's a match, open the file as a stream and call the
-                                // match processor
-                                try (final InputStream inputStream = new FileInputStream(pathElt)) {
-                                    fileMatcher.fileMatchProcessor.processMatch(path, pathElt.getName(), inputStream);
-                                }
-                            }
-                        }
                     }
                 } else {
                     // Log.info("Skipping non-file/non-dir on classpath: " + file.getCanonicalPath());

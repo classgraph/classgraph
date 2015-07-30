@@ -30,7 +30,7 @@
 package io.github.lukehutch.fastclasspathscanner;
 
 import static org.junit.Assert.assertTrue;
-import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchProcessor;
+import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchContentsProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.StaticFinalFieldMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubclassMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubinterfaceMatchProcessor;
@@ -49,10 +49,7 @@ import io.github.lukehutch.fastclasspathscanner.whitelisted.Impl2SubSub;
 import io.github.lukehutch.fastclasspathscanner.whitelisted.StaticField;
 import io.github.lukehutch.fastclasspathscanner.whitelisted.blacklisted.Blacklisted;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
@@ -171,12 +168,11 @@ public class FastClasspathScannerTest {
     @Test
     public void scanFilePattern() throws Exception {
         final AtomicBoolean readFileContents = new AtomicBoolean(false);
-        new FastClasspathScanner().matchFilenamePattern("[[^/]*/]*file-content-test\\.txt", new FileMatchProcessor() {
+        new FastClasspathScanner().matchFilenamePattern("[[^/]*/]*file-content-test\\.txt", new FileMatchContentsProcessor() {
             @Override
-            public void processMatch(final String absolutePath, final String relativePath, final InputStream inputStream)
+            public void processMatch(final String relativePath, final byte[] contents)
                     throws IOException {
-                readFileContents.set("File contents".equals(new BufferedReader(new InputStreamReader(inputStream))
-                        .readLine()));
+                readFileContents.set("File contents".equals(new String(contents, "UTF-8")));
             }
         }).scan();
         assertTrue(readFileContents.get());
