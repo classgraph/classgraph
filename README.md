@@ -83,16 +83,7 @@ List<String> subclassesOfWidget = new FastClasspathScanner("com.xyz.widget")
 
 ### Tips
 
-**Using Java 8 method references:** The `.match...()` methods (e.g. `.matchSubclassesOf()`) take a [`MatchProcessor`](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) as one of their arguments, which are single-method classes (i.e. FunctionalInterfaces). Java 8 method references may also be used as FunctionalInterfaces, e.g. `list::add`:
-
-```java
-List<Class<? extends Widget>> matchingClasses = new ArrayList<>();
-new FastClasspathScanner("com.xyz.widget")
-    .matchSubclassesOf(Widget.class, matchingClasses::add)
-    .scan();
-```
-
-**Calling from Java 7 and below:** The pre-Java-8 mechanism is as follows (note that there is a different [`MatchProcessor`](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) class corresponding to each `.match...()` method, e.g. `.matchSubclassesOf()` takes a `SubclassMatchProcessor`):
+**Calling from Java 7 and below:** The usage examples above use lambda expressions (functional interfaces) from Java 8 for simplicity. However, at least as of JDK 1.8.0 r20, Java 8 features like lambda expressions and Streams incur a one-time startup penalty of 30-40ms the first time they are used. If this overhead is prohibitive, you can use the Java 7 version of Method 1 (note that there is a different [`MatchProcessor`](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) class corresponding to each `.match...()` method, e.g. `.matchSubclassesOf()` takes a `SubclassMatchProcessor`):
 
 ```java
 new FastClasspathScanner("com.xyz.widget")  
@@ -105,7 +96,14 @@ new FastClasspathScanner("com.xyz.widget")
     .scan();
 ```
 
-See also [Usage Caveats](#usage-caveats) below.
+**Protip: using Java 8 method references:** The `.match...()` methods (e.g. `.matchSubclassesOf()`) take a [`MatchProcessor`](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) as one of their arguments, which are single-method classes (i.e. FunctionalInterfaces). If you are using Java 8, you may find it useful to use Java 8 method references as FunctionalInterfaces in the place of MatchProcessors (assuming the number and types of arguments match), e.g. `list::add`:
+
+```java
+List<Class<? extends Widget>> matchingClasses = new ArrayList<>();
+new FastClasspathScanner("com.xyz.widget")
+    .matchSubclassesOf(Widget.class, matchingClasses::add)
+    .scan();
+```
 
 # API
 
@@ -405,13 +403,7 @@ The list of all directories and files on the classpath is returned by the follow
 public static ArrayList<File> getUniqueClasspathElements()
 ```
 
-## Usage Caveats
-
-### (i) Startup overhead of Java 8 Streams and lambda expressions
-
-The usage examples above use lambda expressions (functional interfaces) and Stream patterns from Java 8 for simplicity. However, at least as of JDK 1.8.0 r20, lambda expressions and Streams each incur a one-time startup penalty of 30-40ms the first time they are used. If this overhead is prohibitive, use the pre-Java-8 form (explicitly creating a MatchProcessor, potentially using an inner class, but without lambda expressions, as shown in the introduction above).
-
-### (ii) Getting generic class references for parameterized classes
+## Getting generic class references for parameterized classes
 
 A problem arises when using class-based matchers with parameterized classes, e.g. `Widget<K>`. Because of type erasure, The expression `Widget<K>.class` is not defined, and therefore it is impossible to cast `Class<Widget>` to `Class<Widget<K>>`. More specifically:
 
