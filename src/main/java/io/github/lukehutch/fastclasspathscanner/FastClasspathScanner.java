@@ -601,14 +601,13 @@ public class FastClasspathScanner {
             @Override
             public void processMatch(final String relativePath, final InputStream inputStream, final int lengthBytes)
                     throws IOException {
-                try (ByteArrayOutputStream fileContents = new ByteArrayOutputStream(lengthBytes)) {
-                    byte[] buffer = new byte[8192];
-                    for (int read; (read = inputStream.read(buffer)) != -1;) {
-                        fileContents.write(buffer, 0, read);
-                    }
-                    fileContents.flush();
-                    fileMatchContentsProcessor.processMatch(relativePath, fileContents.toByteArray());
-                }
+                // Read the file contents into a byte[] array
+                final byte[] contents = new byte[lengthBytes];
+                final int bytesRead = Math.max(0, inputStream.read(contents));
+                // For safety, truncate the array if the file was truncated before we finish reading it
+                final byte[] contentsRead = bytesRead == lengthBytes ? contents : Arrays.copyOf(contents, bytesRead);
+                // Pass file contents to the wrapped FileMatchContentsProcessor
+                fileMatchContentsProcessor.processMatch(relativePath, contentsRead);
             }
         };
     }
