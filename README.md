@@ -20,7 +20,7 @@ FastClasspathScanner scans directories and jar/zip files on the classpath, and i
 
 There are two different ways to use the FastClasspathScanner to match classes and interfaces. (The two mechanisms can be used together.)
 
-**Method 1:** Create a FastClasspathScanner instance, listing package prefixes to scan within, then add one or more [`MatchProcessor`](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) instances to the FastClasspathScanner by calling the FastClasspathScanner's `.match...()` methods, followed by calling `.scan()` to start the scan. This is the pattern shown in the following example, where Java 8 lambda expressions are used to implicitly create the appropriate type of MatchProcessor corresponding to each `.match...()` method:
+**Method 1:** Create a FastClasspathScanner instance, listing package prefixes to scan within, then add one or more [`MatchProcessor`](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) instances to the FastClasspathScanner by calling the FastClasspathScanner's `.match...()` methods, followed by calling `.scan()` to start the scan. This is the pattern shown in the following example: (Note: Java 8 lambda expressions are used below to implicitly create the appropriate type of MatchProcessor corresponding to each `.match...()` method, but see [Tips](#tips) below for the Java 7 equivalent of Method 1)
  
 ```java
 // Whitelisted package prefixes are listed in the constructor
