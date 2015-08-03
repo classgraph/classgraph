@@ -1291,11 +1291,40 @@ public class FastClasspathScanner {
 
     /** Parse the system classpath. */
     private void parseSystemClasspath() {
+        // Look for all unique classloaders
+        ArrayList<ClassLoader> classLoaders = new ArrayList<>();
+        HashSet<ClassLoader> classLoadersSet = new HashSet<>();
+        classLoadersSet.add(ClassLoader.getSystemClassLoader());
+        classLoaders.add(ClassLoader.getSystemClassLoader());
+        if (classLoadersSet.add(Thread.currentThread().getContextClassLoader())) {
+            classLoaders.add(Thread.currentThread().getContextClassLoader());
+        }
+        // Dirty method for looking for any other classloaders on the call stack
+        try {
+            // Generate stacktrace
+            throw new Exception();
+        } catch (Exception e) {
+            StackTraceElement[] stacktrace = e.getStackTrace();
+            for (StackTraceElement elt : stacktrace) {
+                try {
+                    ClassLoader cl = Class.forName(elt.getClassName()).getClassLoader();
+                    if (classLoadersSet.add(cl)) {
+                        classLoaders.add(cl);
+                    }
+                } catch (ClassNotFoundException e1) {
+                }
+            }
+        }
+
+        // Get file paths for URLs of each classloader.
         clearClasspath();
-        ClassLoader cl = ClassLoader.getSystemClassLoader();
-        for (URL url : ((URLClassLoader) cl).getURLs()) {
-            if ("file".equals(url.getProtocol())) {
-                addClasspathElement(url.getFile());
+        for (ClassLoader cl : classLoaders) {
+            if (cl != null) {
+                for (URL url : ((URLClassLoader) cl).getURLs()) {
+                    if ("file".equals(url.getProtocol())) {
+                        addClasspathElement(url.getFile());
+                    }
+                }
             }
         }
     }
