@@ -1291,7 +1291,8 @@ public class FastClasspathScanner {
 
     /** Parse the system classpath. */
     private void parseSystemClasspath() {
-        // Look for all unique classloaders
+        // Look for all unique classloaders.
+        // Keep them in an order that (hopefully) reflects the order in which class resolution occurs.
         ArrayList<ClassLoader> classLoaders = new ArrayList<>();
         HashSet<ClassLoader> classLoadersSet = new HashSet<>();
         classLoadersSet.add(ClassLoader.getSystemClassLoader());
