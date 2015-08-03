@@ -400,8 +400,19 @@ public <T> Set<String> getNamesOfAllClasses()
 The list of all directories and files on the classpath is returned by the following method. The list is filtered to include only unique classpath elements (duplicates are eliminated), and to include only directories and files that actually exist. The elements in the list are in classpath order.
 
 ```java
-public static ArrayList<File> getUniqueClasspathElements()
+public ArrayList<File> getUniqueClasspathElements()
 ```
+
+### Running in Maven, Tomcat etc.
+
+Some Java application launching platforms do not properly set java.class.path, i.e. do not use the system classpath. [Maven](https://github.com/sonatype/plexus-classworlds) and [Tomcat](https://www.mulesoft.com/tcat/tomcat-classpath) are examples of this, and their custom classpath handling mechanisms are not yet supported by FastClasspathScanner. Patches to support these systems would be appreciated.
+
+Meanwhile, you can override the system classpath with your own path using the following call after calling the constructor, and before calling .scan():
+
+```java
+public FastClasspathScanner overrideClasspath(String classpath)
+```
+
 
 ## Getting generic class references for parameterized classes
 

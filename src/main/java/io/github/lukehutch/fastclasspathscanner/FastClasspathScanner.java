@@ -45,6 +45,8 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigInteger;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
@@ -65,6 +67,11 @@ import java.util.zip.ZipFile;
  * documentation.
  */
 public class FastClasspathScanner {
+    /** The unique elements of the classpath, as an ordered list. */
+    private final ArrayList<File> classpathElements = new ArrayList<>();
+
+    /** The unique elements of the classpath, as a set. */
+    private final HashSet<String> classpathElementsSet = new HashSet<>();
 
     /**
      * List of directory path prefixes to scan (produced from list of package prefixes passed into the constructor)
@@ -128,6 +135,8 @@ public class FastClasspathScanner {
      *            of packages scanned is the set of whitelisted packages minus the set of blacklisted packages.
      */
     public FastClasspathScanner(final String... packagesToScan) {
+        parseSystemClasspath();
+
         final HashSet<String> uniqueWhitelistedPathsToScan = new HashSet<>();
         final HashSet<String> uniqueBlacklistedPathsToScan = new HashSet<>();
         boolean scanAll = false;
@@ -1280,24 +1289,51 @@ public class FastClasspathScanner {
 
     // -----------------------------------------------------------------------------------------------------------------
 
+    /** Parse the system classpath. */
+    private void parseSystemClasspath() {
+        clearClasspath();
+        ClassLoader cl = ClassLoader.getSystemClassLoader();
+        for (URL url : ((URLClassLoader) cl).getURLs()) {
+            if ("file".equals(url.getProtocol())) {
+                addClasspathElement(url.getFile());
+            }
+        }
+    }
+
+    /** Clear the classpath. */
+    private void clearClasspath() {
+        classpathElements.clear();
+        classpathElementsSet.clear();
+    }
+
+    /** Override the system classpath with a custom classpath to search. */
+    public FastClasspathScanner overrideClasspath(String classpath) {
+        clearClasspath();
+        for (String pathElement : classpath.split(File.pathSeparator)) {
+            addClasspathElement(pathElement);
+        }
+        return this;
+    }
+
+    /** Add a classpath element. */
+    private void addClasspathElement(String pathElement) {
+        if (classpathElementsSet.add(pathElement)) {
+            final File file = new File(pathElement);
+            if (file.exists()) {
+                classpathElements.add(file);
+            }
+        }
+    }
+
     /**
      * Get a list of unique elements on the classpath (directories and files) as File objects, preserving order.
      * Classpath elements that do not exist are not included in the list.
      */
-    public static ArrayList<File> getUniqueClasspathElements() {
-        final String[] pathElements = System.getProperty("java.class.path").split(File.pathSeparator);
-        final HashSet<String> pathElementsSet = new HashSet<>();
-        final ArrayList<File> pathFiles = new ArrayList<>();
-        for (final String pathElement : pathElements) {
-            if (pathElementsSet.add(pathElement)) {
-                final File file = new File(pathElement);
-                if (file.exists()) {
-                    pathFiles.add(file);
-                }
-            }
-        }
-        return pathFiles;
+    public ArrayList<File> getUniqueClasspathElements() {
+        return classpathElements;
     }
+
+    // -----------------------------------------------------------------------------------------------------------------
 
     /**
      * Scans the classpath for matching files, and calls any match processors if a match is identified.
