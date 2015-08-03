@@ -403,7 +403,9 @@ The list of all directories and files on the classpath is returned by the follow
 public ArrayList<File> getUniqueClasspathElements()
 ```
 
-### Running in Maven, Tomcat etc.
+## More complex usage
+
+### Scanning the classpath under Maven, Tomcat etc.
 
 Some Java application launching platforms do not properly set java.class.path, i.e. do not use the system classpath. [Maven](https://github.com/sonatype/plexus-classworlds) and [Tomcat](https://www.mulesoft.com/tcat/tomcat-classpath) are examples of this, and their custom classpath handling mechanisms are not yet supported by FastClasspathScanner. Patches to support these systems would be appreciated.
 
@@ -413,8 +415,7 @@ Meanwhile, you can override the system classpath with your own path using the fo
 public FastClasspathScanner overrideClasspath(String classpath)
 ```
 
-
-## Getting generic class references for parameterized classes
+### Getting generic class references for parameterized classes
 
 A problem arises when using class-based matchers with parameterized classes, e.g. `Widget<K>`. Because of type erasure, The expression `Widget<K>.class` is not defined, and therefore it is impossible to cast `Class<Widget>` to `Class<Widget<K>>`. More specifically:
 

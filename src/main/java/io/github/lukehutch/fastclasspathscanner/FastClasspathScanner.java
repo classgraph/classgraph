@@ -1289,6 +1289,22 @@ public class FastClasspathScanner {
 
     // -----------------------------------------------------------------------------------------------------------------
 
+    /** Clear the classpath. */
+    private void clearClasspath() {
+        classpathElements.clear();
+        classpathElementsSet.clear();
+    }
+
+    /** Add a classpath element. */
+    private void addClasspathElement(String pathElement) {
+        if (classpathElementsSet.add(pathElement)) {
+            final File file = new File(pathElement);
+            if (file.exists()) {
+                classpathElements.add(file);
+            }
+        }
+    }
+
     /** Parse the system classpath. */
     private void parseSystemClasspath() {
         // Look for all unique classloaders.
@@ -1330,12 +1346,6 @@ public class FastClasspathScanner {
         }
     }
 
-    /** Clear the classpath. */
-    private void clearClasspath() {
-        classpathElements.clear();
-        classpathElementsSet.clear();
-    }
-
     /** Override the system classpath with a custom classpath to search. */
     public FastClasspathScanner overrideClasspath(String classpath) {
         clearClasspath();
@@ -1343,16 +1353,6 @@ public class FastClasspathScanner {
             addClasspathElement(pathElement);
         }
         return this;
-    }
-
-    /** Add a classpath element. */
-    private void addClasspathElement(String pathElement) {
-        if (classpathElementsSet.add(pathElement)) {
-            final File file = new File(pathElement);
-            if (file.exists()) {
-                classpathElements.add(file);
-            }
-        }
     }
 
     /**
