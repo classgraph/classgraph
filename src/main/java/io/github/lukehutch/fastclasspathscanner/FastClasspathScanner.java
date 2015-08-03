@@ -1311,10 +1311,10 @@ public class FastClasspathScanner {
         // Keep them in an order that (hopefully) reflects the order in which class resolution occurs.
         ArrayList<ClassLoader> classLoaders = new ArrayList<>();
         HashSet<ClassLoader> classLoadersSet = new HashSet<>();
-        classLoadersSet.add(ClassLoader.getSystemClassLoader());
-        classLoaders.add(ClassLoader.getSystemClassLoader());
-        if (classLoadersSet.add(Thread.currentThread().getContextClassLoader())) {
-            classLoaders.add(Thread.currentThread().getContextClassLoader());
+        classLoadersSet.add(Thread.currentThread().getContextClassLoader());
+        classLoaders.add(Thread.currentThread().getContextClassLoader());
+        if (classLoadersSet.add(ClassLoader.getSystemClassLoader())) {
+            classLoaders.add(ClassLoader.getSystemClassLoader());
         }
         // Dirty method for looking for any other classloaders on the call stack
         try {
