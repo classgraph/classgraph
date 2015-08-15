@@ -34,6 +34,7 @@ import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchContents
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.StaticFinalFieldMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubclassMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubinterfaceMatchProcessor;
+import io.github.lukehutch.fastclasspathscanner.utils.HashClassfileContents;
 import io.github.lukehutch.fastclasspathscanner.whitelisted.Cls;
 import io.github.lukehutch.fastclasspathscanner.whitelisted.ClsSub;
 import io.github.lukehutch.fastclasspathscanner.whitelisted.ClsSubSub;
@@ -168,13 +169,13 @@ public class FastClasspathScannerTest {
     @Test
     public void scanFilePattern() throws Exception {
         final AtomicBoolean readFileContents = new AtomicBoolean(false);
-        new FastClasspathScanner().matchFilenamePattern("[[^/]*/]*file-content-test\\.txt", new FileMatchContentsProcessor() {
-            @Override
-            public void processMatch(final String relativePath, final byte[] contents)
-                    throws IOException {
-                readFileContents.set("File contents".equals(new String(contents, "UTF-8")));
-            }
-        }).scan();
+        new FastClasspathScanner().matchFilenamePattern("[[^/]*/]*file-content-test\\.txt",
+                new FileMatchContentsProcessor() {
+                    @Override
+                    public void processMatch(final String relativePath, final byte[] contents) throws IOException {
+                        readFileContents.set("File contents".equals(new String(contents, "UTF-8")));
+                    }
+                }).scan();
         assertTrue(readFileContents.get());
     }
 
@@ -218,8 +219,8 @@ public class FastClasspathScannerTest {
 
     @Test
     public void hashContents() throws Exception {
-        HashMap<String, String> classNameToClassfileHash = new FastClasspathScanner(WHITELIST_PACKAGE)
-                .enableHashingClassfileContents().scan().getClassNameToClassfileHash();
+        HashMap<String, String> classNameToClassfileHash = new HashClassfileContents(WHITELIST_PACKAGE).scan()
+                .getClassNameToClassfileHash();
         String hash = classNameToClassfileHash.get(Cls.class.getName());
         assertTrue(hash != null && hash.length() == 32);
     }

@@ -375,15 +375,7 @@ public boolean classpathContentsModifiedSinceScan()
 public long classpathContentsLastModifiedTime()
 ```
 
-If you need more careful change detection than is afforded by checking timestamps, you can also cause the contents of each classfile in a whitelisted package to be MD5-hashed:
-
-```java
-// Call the following before .scan() (this will slow down scanning!)
-public FastClasspathScanner enableHashingClassfileContents()
-
-// Call after scanning, to get a map from classname to MD5 hash of classfile:
-public HashMap<String, String> getClassNameToClassfileHash()
-```  
+If you need more careful change detection than is afforded by checking timestamps, you can also cause the contents of each classfile in a whitelisted package [to be MD5-hashed](https://github.com/lukehutch/fast-classpath-scanner/blob/master/src/main/java/io/github/lukehutch/fastclasspathscanner/utils/HashClassfileContents.java), and you can compare the HashMaps returned across different scans.
 
 ### 9. Get a list of all whitelisted (and non-blacklisted) classes and interfaces on the classpath
 

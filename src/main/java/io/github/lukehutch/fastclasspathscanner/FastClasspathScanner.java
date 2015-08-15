@@ -44,11 +44,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.math.BigInteger;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Enumeration;
@@ -84,11 +81,6 @@ public class FastClasspathScanner {
      * considered.
      */
     private long lastModified = 0;
-
-    /**
-     * If non-null, the contents of each encountered classfile is hashed (for careful change detection).
-     */
-    private HashMap<String, String> classNameToClassfileHash;
 
     /**
      * If this is set to true, then the timestamps of zipfile entries should be used to determine when files inside a
@@ -1248,47 +1240,6 @@ public class FastClasspathScanner {
 
     // -----------------------------------------------------------------------------------------------------------------
 
-    /**
-     * Enable the hashing of classfile contents for all classfiles in whitelisted package prefixes. This will
-     * dramatically slow down scanning, but allows for the implementation of more careful change detection than just
-     * checking timestamps.
-     */
-    public FastClasspathScanner enableHashingClassfileContents() {
-        if (this.classNameToClassfileHash == null) {
-            this.classNameToClassfileHash = new HashMap<>();
-            this.matchFilenameExtension("class", new FileMatchProcessor() {
-                @Override
-                public void processMatch(String relativePath, InputStream inputStream, int length) throws IOException {
-                    // Hash the classfile InputStream, and store in the classNameToClassfileHash map.
-                    final MessageDigest digest;
-                    try {
-                        digest = MessageDigest.getInstance("MD5");
-                    } catch (NoSuchAlgorithmException e) {
-                        throw new RuntimeException(e);
-                    }
-                    final byte[] buffer = new byte[8192];
-                    for (int read; (read = inputStream.read(buffer)) > 0;) {
-                        digest.update(buffer, 0, read);
-                    }
-                    String hash = "0000000000000000000000000000000" + new BigInteger(1, digest.digest()).toString(16);
-                    String className = relativePath.substring(0, relativePath.length() - 6).replace('/', '.');
-                    classNameToClassfileHash.put(className, hash.substring(hash.length() - 32));
-                }
-            });
-        }
-        return this;
-    }
-
-    /**
-     * Returns the mapping from class name to hash of classfile contents, after the call to .scan(), assuming that
-     * enableHashingClassfileContents() has been called.
-     */
-    public HashMap<String, String> getClassNameToClassfileHash() {
-        return this.classNameToClassfileHash;
-    }
-
-    // -----------------------------------------------------------------------------------------------------------------
-
     /** Clear the classpath. */
     private void clearClasspath() {
         classpathElements.clear();
@@ -1378,9 +1329,6 @@ public class FastClasspathScanner {
         classesEncounteredSoFarDuringScan.clear();
         if (!scanTimestampsOnly) {
             classGraphBuilder.reset();
-        }
-        if (classNameToClassfileHash != null) {
-            classNameToClassfileHash.clear();
         }
 
         try {
