@@ -956,15 +956,22 @@ public class FastClasspathScanner {
     /** Add a classpath element. */
     private void addClasspathElement(String pathElement) {
         if (!pathElement.isEmpty()) {
-            if (!classpathElementsSet.contains(pathElement)) {
-                final File file = new File(pathElement);
-                if (file.exists()) {
-                    classpathElementsSet.add(pathElement);
+            final File file = new File(pathElement);
+            if (file.exists()) {
+                // Canonicalize path so that we don't get stuck in a redirect loop due to softlinks
+                String canonicalPath;
+                try {
+                    canonicalPath = file.getCanonicalPath();
+                } catch (IOException | SecurityException e) {
+                    canonicalPath = pathElement;
+                }
+                if (!classpathElementsSet.add(canonicalPath)) {
+                    // This is the first time this classpath element has been encountered
                     classpathElements.add(file);
 
-                    // Look for manifest files in jar and zipfiles on the classpath.
-                    // OpenJDK scans manifest-defined classpath elements after the jar that listed them,
-                    // so we recursively call addClasspathElement if needed each time a jar is encountered. 
+                    // If this classpath element is a jar or zipfile, look for Class-Path entries in the manifest file.
+                    // OpenJDK scans manifest-defined classpath elements after the jar that listed them, so we
+                    // recursively call addClasspathElement if needed each time a jar is encountered. 
                     String pathLower = pathElement.toLowerCase();
                     if (pathLower.endsWith(".jar") || pathLower.endsWith(".zip")) {
                         String manifestUrlStr = "jar:file:" + pathElement + "!/META-INF/MANIFEST.MF";
