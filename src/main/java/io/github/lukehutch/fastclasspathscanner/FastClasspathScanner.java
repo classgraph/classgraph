@@ -166,7 +166,9 @@ public class FastClasspathScanner {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Call the classloader using Class.forName(className). Re-throws classloading exceptions as RuntimeException. */
+    /**
+     * Call the classloader using Class.forName(className). Re-throws classloading exceptions as RuntimeException.
+     */
     public <T> Class<? extends T> loadClass(final String className) {
         try {
             @SuppressWarnings("unchecked")
