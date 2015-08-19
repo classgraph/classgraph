@@ -50,6 +50,7 @@ import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.jar.Manifest;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
@@ -829,15 +830,17 @@ public class FastClasspathScanner {
         if (keepRecursing || inWhitelistedPath) {
             lastModified = Math.max(lastModified, dir.lastModified());
             final File[] subFiles = dir.listFiles();
-            for (final File subFile : subFiles) {
-                if (subFile.isDirectory()) {
-                    // Recurse into subdirectory
-                    scanDir(subFile, ignorePrefixLen, inWhitelistedPath, scanTimestampsOnly);
-                } else if (inWhitelistedPath && subFile.isFile()) {
-                    // Scan file
-                    scanFile(subFile, dir.getPath() + "/" + subFile.getName(),
-                            relativePath.equals("/") ? subFile.getName() : relativePath + subFile.getName(),
-                            scanTimestampsOnly);
+            if (subFiles != null) {
+                for (final File subFile : subFiles) {
+                    if (subFile.isDirectory()) {
+                        // Recurse into subdirectory
+                        scanDir(subFile, ignorePrefixLen, inWhitelistedPath, scanTimestampsOnly);
+                    } else if (inWhitelistedPath && subFile.isFile()) {
+                        // Scan file
+                        scanFile(subFile, dir.getPath() + "/" + subFile.getName(),
+                                relativePath.equals("/") ? subFile.getName() : relativePath + subFile.getName(),
+                                scanTimestampsOnly);
+                    }
                 }
             }
         }
@@ -918,16 +921,20 @@ public class FastClasspathScanner {
 
     /** Add a classpath element. */
     private void addClasspathElement(String pathElement) {
-        if (classpathElementsSet.add(pathElement)) {
-            final File file = new File(pathElement);
-            if (file.exists()) {
-                classpathElements.add(file);
+        if (!pathElement.isEmpty()) {
+            if (classpathElementsSet.add(pathElement)) {
+                final File file = new File(pathElement);
+                if (file.exists()) {
+                    classpathElements.add(file);
+                }
             }
         }
     }
 
     /** Parse the system classpath. */
     private void parseSystemClasspath() {
+        clearClasspath();
+
         // Look for all unique classloaders.
         // Keep them in an order that (hopefully) reflects the order in which class resolution occurs.
         ArrayList<ClassLoader> classLoaders = new ArrayList<>();
@@ -937,30 +944,54 @@ public class FastClasspathScanner {
         if (classLoadersSet.add(ClassLoader.getSystemClassLoader())) {
             classLoaders.add(ClassLoader.getSystemClassLoader());
         }
-        // Dirty method for looking for any other classloaders on the call stack
+        // Dirty method for looking for other classloaders on the call stack
         try {
             // Generate stacktrace
             throw new Exception();
         } catch (Exception e) {
             StackTraceElement[] stacktrace = e.getStackTrace();
-            for (StackTraceElement elt : stacktrace) {
-                try {
-                    ClassLoader cl = Class.forName(elt.getClassName()).getClassLoader();
+            if (stacktrace.length >= 3) {
+                StackTraceElement caller = stacktrace[2];
+                ArrayList<ClassLoader> callerClassLoaders = new ArrayList<>();
+                for (ClassLoader cl = caller.getClass().getClassLoader(); cl != null; cl = cl.getParent()) {
+                    callerClassLoaders.add(cl);
+                }
+                // OpenJDK calls classloaders in a top-down order
+                for (int i = callerClassLoaders.size() - 1; i >= 0; --i) {
+                    ClassLoader cl = callerClassLoaders.get(i);
                     if (classLoadersSet.add(cl)) {
                         classLoaders.add(cl);
                     }
-                } catch (ClassNotFoundException e1) {
                 }
             }
         }
 
         // Get file paths for URLs of each classloader.
-        clearClasspath();
         for (ClassLoader cl : classLoaders) {
             if (cl != null) {
                 for (URL url : ((URLClassLoader) cl).getURLs()) {
                     if ("file".equals(url.getProtocol())) {
+                        // "file:" URL found in classpath
                         addClasspathElement(url.getFile());
+
+                        // Look for manifest files in jar and zipfiles on the classpath.
+                        // OpenJDK scans manifest-defined classpath elements after the jar that listed them.
+                        String pathLower = url.getPath().toLowerCase();
+                        if (pathLower.endsWith(".jar") || pathLower.endsWith(".zip")) {
+                            String manifestUrlStr = "jar:" + url.toString() + "!/META-INF/MANIFEST.MF";
+                            try (InputStream stream = new URL(manifestUrlStr).openStream()) {
+                                // Look for Class-Path keys within manifest files
+                                Manifest manifest = new Manifest(stream);
+                                String manifestClassPath = manifest.getMainAttributes().getValue("Class-Path");
+                                if (manifestClassPath != null) {
+                                    // Class-Path elements are space-delimited
+                                    for (String manifestClassPathElement : manifestClassPath.split(" ")) {
+                                        addClasspathElement(manifestClassPathElement);
+                                    }
+                                }
+                            } catch (IOException e) {
+                            }
+                        }
                     }
                 }
             }
