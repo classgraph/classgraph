@@ -37,6 +37,7 @@ import io.github.lukehutch.fastclasspathscanner.matchprocessor.InterfaceMatchPro
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.StaticFinalFieldMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubclassMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubinterfaceMatchProcessor;
+import io.github.lukehutch.fastclasspathscanner.utils.Log;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -98,6 +99,9 @@ public class FastClasspathScanner {
     /** The class and interface graph builder. */
     private final ClassGraphBuilder classGraphBuilder = new ClassGraphBuilder();
 
+    /** If set to true, print info while scanning */
+    private boolean verbose = false;
+
     // -----------------------------------------------------------------------------------------------------------------
 
     /**
@@ -152,7 +156,7 @@ public class FastClasspathScanner {
         this.matchFilenameExtension("class", new FileMatchProcessor() {
             @Override
             public void processMatch(String relativePath, InputStream inputStream, int lengthBytes) throws IOException {
-                classGraphBuilder.readClassInfoFromClassfileHeader(inputStream);
+                classGraphBuilder.readClassInfoFromClassfileHeader(inputStream, verbose);
             }
         });
     }
@@ -191,6 +195,9 @@ public class FastClasspathScanner {
             @Override
             public void lookForMatches() {
                 for (final String subclass : classGraphBuilder.getNamesOfSubclassesOf(superclass.getName())) {
+                    if (verbose) {
+                        Log.log("Found subclass of " + superclass.getName() + ": " + subclass);
+                    }
                     // Call classloader
                     final Class<? extends T> klass = loadClass(subclass);
                     // Process match
@@ -266,22 +273,25 @@ public class FastClasspathScanner {
      * classpath. Will call the class loader on each matching interface (using Class.forName()) before calling the
      * SubinterfaceMatchProcessor. Does not call the classloader on non-matching classes or interfaces.
      * 
-     * @param superInterface
+     * @param superinterface
      *            The superinterface to match (i.e. the interface that subinterfaces need to extend to match).
      * @param subinterfaceMatchProcessor
      *            the SubinterfaceMatchProcessor to call when a match is found.
      */
-    public <T> FastClasspathScanner matchSubinterfacesOf(final Class<T> superInterface,
+    public <T> FastClasspathScanner matchSubinterfacesOf(final Class<T> superinterface,
             final SubinterfaceMatchProcessor<T> subinterfaceMatchProcessor) {
-        if (!superInterface.isInterface()) {
-            throw new IllegalArgumentException(superInterface.getName() + " is not an interface");
+        if (!superinterface.isInterface()) {
+            throw new IllegalArgumentException(superinterface.getName() + " is not an interface");
         }
         classMatchers.add(new ClassMatcher() {
             @Override
             public void lookForMatches() {
-                for (final String subInterface : classGraphBuilder.getNamesOfSubinterfacesOf(superInterface.getName())) {
+                for (final String subinterface : classGraphBuilder.getNamesOfSubinterfacesOf(superinterface.getName())) {
+                    if (verbose) {
+                        Log.log("Found subinterface of " + superinterface.getName() + ": " + subinterface);
+                    }
                     // Call classloader
-                    final Class<? extends T> klass = loadClass(subInterface);
+                    final Class<? extends T> klass = loadClass(subinterface);
                     // Process match
                     subinterfaceMatchProcessor.processMatch(klass);
                 }
@@ -375,6 +385,10 @@ public class FastClasspathScanner {
                 // For all classes implementing the given interface
                 for (final String implClass : classGraphBuilder.getNamesOfClassesImplementing(implementedInterface
                         .getName())) {
+                    if (verbose) {
+                        Log.log("Found class implementing interface " + implementedInterface.getName() + ": "
+                                + implClass);
+                    }
                     // Call classloader
                     final Class<? extends T> klass = loadClass(implClass);
                     // Process match
@@ -437,6 +451,9 @@ public class FastClasspathScanner {
                 // For all classes with the given annotation
                 for (final String classWithAnnotation : classGraphBuilder.getNamesOfClassesWithAnnotation(annotation
                         .getName())) {
+                    if (verbose) {
+                        Log.log("Found class with annotation " + annotation.getName() + ": " + classWithAnnotation);
+                    }
                     // Call classloader
                     final Class<?> klass = loadClass(classWithAnnotation);
                     // Process match
@@ -783,13 +800,18 @@ public class FastClasspathScanner {
         lastModified = Math.max(lastModified, file.lastModified());
         if (!scanTimestampsOnly) {
             // Match file paths against path patterns
+            boolean filePathMatches = false;
             for (final FilePathMatcher fileMatcher : filePathMatchers) {
                 if (fileMatcher.filePathMatches(relativePath)) {
                     // If there's a match, open the file as a stream and call the match processor
                     try (final InputStream inputStream = new FileInputStream(file)) {
                         fileMatcher.processMatch(relativePath, inputStream, (int) file.length());
                     }
+                    filePathMatches = true;
                 }
+            }
+            if (verbose && filePathMatches) {
+                Log.log("Found file on classpath: " + relativePath);
             }
         }
     }
@@ -1025,7 +1047,14 @@ public class FastClasspathScanner {
      * This method should be called before any "get" methods (e.g. getSubclassesOf()).
      */
     private FastClasspathScanner scan(final boolean scanTimestampsOnly) {
-        // long scanStart = System.currentTimeMillis();
+        if (verbose) {
+            Log.log("*** Starting scan" + (scanTimestampsOnly ? " (scanning classpath timestamps only)" : "") + " ***");
+            Log.log("Classpath elements: " + getUniqueClasspathElements());
+            Log.log("Whitelisted paths: " + Arrays.toString(whitelistedPathsToScan));
+            Log.log("Blacklisted paths: " + Arrays.toString(blacklistedPathsToScan));
+        }
+
+        long scanStart = System.currentTimeMillis();
 
         if (!scanTimestampsOnly) {
             classGraphBuilder.reset();
@@ -1063,8 +1092,9 @@ public class FastClasspathScanner {
                 classMatcher.lookForMatches();
             }
         }
-        // Log.info("Classpath " + (scanTimestampsOnly ? "timestamp " : "") + "scanning took: "
-        //      + (System.currentTimeMillis() - scanStart) + " ms");
+        if (verbose) {
+            Log.log("Scanning took: " + (System.currentTimeMillis() - scanStart) + " ms");
+        }
         return this;
     }
 
@@ -1103,5 +1133,11 @@ public class FastClasspathScanner {
      */
     public long classpathContentsLastModifiedTime() {
         return this.lastModified;
+    }
+
+    /** Switch on verbose mode (prints debug info to System.out). */
+    public FastClasspathScanner verbose() {
+        this.verbose = true;
+        return this;
     }
 }

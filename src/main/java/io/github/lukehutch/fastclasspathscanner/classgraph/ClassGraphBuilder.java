@@ -30,6 +30,7 @@
 package io.github.lukehutch.fastclasspathscanner.classgraph;
 
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.StaticFinalFieldMatchProcessor;
+import io.github.lukehutch.fastclasspathscanner.utils.Log;
 
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
@@ -452,8 +453,10 @@ public class ClassGraphBuilder {
 
     /**
      * Directly examine contents of classfile binary header.
+     * 
+     * @param verbose
      */
-    public void readClassInfoFromClassfileHeader(final InputStream inputStream) throws IOException {
+    public void readClassInfoFromClassfileHeader(final InputStream inputStream, boolean verbose) throws IOException {
         final DataInputStream inp = new DataInputStream(new BufferedInputStream(inputStream, 1024));
 
         // Magic
@@ -627,6 +630,9 @@ public class ClassGraphBuilder {
                         // Call static final field match processor
                         staticFinalFieldMatchProcessor.processMatch(className, fieldName, constValue);
                         foundConstantValue = true;
+                        if (verbose) {
+                            Log.log("Found static final field " + className + "." + fieldName + " = " + constValue);
+                        }
                     } else {
                         inp.skipBytes(attributeLength);
                     }

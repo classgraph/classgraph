@@ -399,6 +399,14 @@ public ArrayList<File> getUniqueClasspathElements()
 
 ## More complex usage
 
+### Debugging ###
+
+If FastClasspathScanner is not matching what you think it should be matching, you can debug its behavior by calling `.verbose()` before `.scan()`:
+
+```java
+public FastClasspathScanner verbose()
+```
+
 ### Scanning the classpath under Maven, Tomcat etc.
 
 Some Java application launching platforms do not properly set java.class.path, i.e. do not use the system classpath. [Maven](https://github.com/sonatype/plexus-classworlds) and [Tomcat](https://www.mulesoft.com/tcat/tomcat-classpath) are examples of this, and their custom classpath handling mechanisms are not yet supported by FastClasspathScanner. Patches to support these systems would be appreciated.
