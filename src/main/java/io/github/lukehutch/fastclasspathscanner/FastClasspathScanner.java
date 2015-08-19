@@ -811,7 +811,7 @@ public class FastClasspathScanner {
                 }
             }
             if (verbose && filePathMatches) {
-                Log.log("Found file on classpath: " + relativePath);
+                Log.log("Found file:    " + relativePath);
             }
         }
     }
@@ -827,8 +827,14 @@ public class FastClasspathScanner {
             // Fix scanning on Windows
             relativePath = relativePath.replace(File.separatorChar, '/');
         }
+        if (verbose) {
+            Log.log("Scanning path: " + relativePath);
+        }
         for (final String blacklistedPath : blacklistedPaths) {
             if (relativePath.equals(blacklistedPath)) {
+                if (verbose) {
+                    Log.log("Reached blacklisted path: " + relativePath);
+                }
                 // Reached a blacklisted path -- stop scanning files and dirs
                 return;
             }
@@ -840,6 +846,9 @@ public class FastClasspathScanner {
             for (final String whitelistedPath : whitelistedPaths) {
                 if (relativePath.equals(whitelistedPath)) {
                     // Reached a whitelisted path -- can start scanning directories and files from this point
+                    if (verbose) {
+                        Log.log("Reached whitelisted path: " + relativePath);
+                    }
                     inWhitelistedPath = true;
                     break;
                 } else if (whitelistedPath.startsWith(relativePath) || relativePath.equals("/")) {
@@ -873,6 +882,9 @@ public class FastClasspathScanner {
      */
     private void scanZipfile(final String zipfilePath, final ZipFile zipFile, final long zipFileLastModified,
             final boolean scanTimestampsOnly) throws IOException {
+        if (verbose) {
+            Log.log("Scanning jar:  " + zipfilePath);
+        }
         boolean timestampWarning = false;
         for (final Enumeration<? extends ZipEntry> entries = zipFile.entries(); entries.hasMoreElements();) {
             // Scan for matching filenames
@@ -1050,8 +1062,8 @@ public class FastClasspathScanner {
         if (verbose) {
             Log.log("*** Starting scan" + (scanTimestampsOnly ? " (scanning classpath timestamps only)" : "") + " ***");
             Log.log("Classpath elements: " + getUniqueClasspathElements());
-            Log.log("Whitelisted paths: " + Arrays.toString(whitelistedPaths));
-            Log.log("Blacklisted paths: " + Arrays.toString(blacklistedPaths));
+            Log.log("Whitelisted paths:  " + Arrays.toString(whitelistedPaths));
+            Log.log("Blacklisted paths:  " + Arrays.toString(blacklistedPaths));
         }
 
         long scanStart = System.currentTimeMillis();
@@ -1064,6 +1076,9 @@ public class FastClasspathScanner {
             // Iterate through path elements and recursively scan within each directory and zipfile
             for (final File pathElt : getUniqueClasspathElements()) {
                 final String path = pathElt.getPath();
+                if (verbose) {
+                    Log.log("=> Scanning classpath element: " + path);
+                }
                 if (pathElt.isDirectory()) {
                     // Scan within dir path element
                     scanDir(pathElt, path.length() + 1, false, scanTimestampsOnly);
@@ -1093,7 +1108,7 @@ public class FastClasspathScanner {
             }
         }
         if (verbose) {
-            Log.log("Scanning took: " + (System.currentTimeMillis() - scanStart) + " ms");
+            Log.log("*** Scanning took: " + (System.currentTimeMillis() - scanStart) + " ms ***");
         }
         return this;
     }

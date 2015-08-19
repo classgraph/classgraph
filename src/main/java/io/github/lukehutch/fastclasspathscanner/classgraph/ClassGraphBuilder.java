@@ -628,11 +628,11 @@ public class ClassGraphBuilder {
                             break;
                         }
                         // Call static final field match processor
-                        staticFinalFieldMatchProcessor.processMatch(className, fieldName, constValue);
-                        foundConstantValue = true;
                         if (verbose) {
                             Log.log("Found static final field " + className + "." + fieldName + " = " + constValue);
                         }
+                        staticFinalFieldMatchProcessor.processMatch(className, fieldName, constValue);
+                        foundConstantValue = true;
                     } else {
                         inp.skipBytes(attributeLength);
                     }
