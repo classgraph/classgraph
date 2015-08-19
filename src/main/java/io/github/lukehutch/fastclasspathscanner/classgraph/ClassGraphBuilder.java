@@ -60,13 +60,13 @@ public class ClassGraphBuilder {
     private final HashMap<String, ArrayList<String>> interfaceNameToClassNames = new HashMap<>();
 
     /**
-     * Classes encountered so far during a scan. If the same fully-qualified classname is encountered more than once,
-     * the second and subsequent instances are ignored, because they are masked by the earlier occurrence in the
-     * classpath.
+     * Classes encountered so far during a scan. If the same fully-qualified classname is encountered more than
+     * once, the second and subsequent instances are ignored, because they are masked by the earlier occurrence in
+     * the classpath.
      */
     private final HashSet<String> classesEncounteredSoFarDuringScan = new HashSet<>();
 
-    // ---------------------------------------------------------------------------------------------------------------
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * A map from fully-qualified classname, to static final field name, to a StaticFinalFieldMatchProcessor that
@@ -89,7 +89,7 @@ public class ClassGraphBuilder {
         fieldNameToMatchProcessor.put(fieldName, staticFinalFieldMatchProcessor);
     }
 
-    // ---------------------------------------------------------------------------------------------------------------
+    // -------------------------------------------------------------------------------------------------------------
 
     /** Return the names of all classes with the named class annotation. */
     public List<String> getNamesOfClassesWithAnnotation(final String annotationName) {
@@ -162,7 +162,7 @@ public class ClassGraphBuilder {
         return classNameToClassNode.keySet();
     }
 
-    // ---------------------------------------------------------------------------------------------------------------
+    // -------------------------------------------------------------------------------------------------------------
 
     /** Link a class to its superclass and to the interfaces it implements, and save the class annotations. */
     private void linkToSuperclassAndInterfaces(final String className, final String superclassName,
@@ -219,7 +219,7 @@ public class ClassGraphBuilder {
         }
     }
 
-    // ---------------------------------------------------------------------------------------------------------------
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Find all superclasses and subclasses for each class and superinterfaces and subinterfaces of each interface.
@@ -365,7 +365,7 @@ public class ClassGraphBuilder {
         }
     }
 
-    // ---------------------------------------------------------------------------------------------------------------
+    // -------------------------------------------------------------------------------------------------------------
 
     public void reset() {
         classNameToClassNode.clear();
@@ -375,7 +375,7 @@ public class ClassGraphBuilder {
         classesEncounteredSoFarDuringScan.clear();
     }
 
-    // ---------------------------------------------------------------------------------------------------------------
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Read annotation entry from classfile.

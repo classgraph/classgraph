@@ -58,8 +58,8 @@ import java.util.zip.ZipFile;
 
 /**
  * Uber-fast, ultra-lightweight Java classpath scanner. Scans the classpath by parsing the classfile binary format
- * directly rather than by using reflection. (Reflection causes the classloader to load each class, which can take an
- * order of magnitude more time than parsing the classfile directly.) See the accompanying README.md file for
+ * directly rather than by using reflection. (Reflection causes the classloader to load each class, which can take
+ * an order of magnitude more time than parsing the classfile directly.) See the accompanying README.md file for
  * documentation.
  */
 public class FastClasspathScanner {
@@ -82,9 +82,9 @@ public class FastClasspathScanner {
     private long lastModified = 0;
 
     /**
-     * If this is set to true, then the timestamps of zipfile entries should be used to determine when files inside a
-     * zipfile have changed; if set to false, then the timestamp of the zipfile itself is used. Itis recommended to
-     * leave this set to false, since zipfile timestamps are less trustworthy than filesystem timestamps.
+     * If this is set to true, then the timestamps of zipfile entries should be used to determine when files inside
+     * a zipfile have changed; if set to false, then the timestamp of the zipfile itself is used. Itis recommended
+     * to leave this set to false, since zipfile timestamps are less trustworthy than filesystem timestamps.
      */
     private static final boolean USE_ZIPFILE_ENTRY_MODIFICATION_TIMES = false;
 
@@ -92,7 +92,8 @@ public class FastClasspathScanner {
     private final ArrayList<ClassMatcher> classMatchers = new ArrayList<>();
 
     /**
-     * A list of file path matchers to call when a directory or subdirectory on the classpath matches a given regexp.
+     * A list of file path matchers to call when a directory or subdirectory on the classpath matches a given
+     * regexp.
      */
     private final ArrayList<FilePathMatcher> filePathMatchers = new ArrayList<>();
 
@@ -102,17 +103,18 @@ public class FastClasspathScanner {
     /** If set to true, print info while scanning */
     private boolean verbose = false;
 
-    // ---------------------------------------------------------------------------------------------------------------
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Constructs a FastClasspathScanner instance.
      * 
      * @param packagesToScan
-     *            the whitelist of package prefixes to scan, e.g. "com.xyz.widget", "com.xyz.gizmo". If no whitelisted
-     *            packages are given (i.e. if the constructor is called with zero arguments), or a whitelisted package
-     *            is "", then all packages on the classpath are whitelisted. If a package name is prefixed with "-",
-     *            e.g. "-com.xyz.otherthing", then that package is blacklisted, rather than whitelisted. The final
-     *            list of packages scanned is the set of whitelisted packages minus the set of blacklisted packages.
+     *            the whitelist of package prefixes to scan, e.g. "com.xyz.widget", "com.xyz.gizmo". If no
+     *            whitelisted packages are given (i.e. if the constructor is called with zero arguments), or a
+     *            whitelisted package is "", then all packages on the classpath are whitelisted. If a package name
+     *            is prefixed with "-", e.g. "-com.xyz.otherthing", then that package is blacklisted, rather than
+     *            whitelisted. The final list of packages scanned is the set of whitelisted packages minus the set
+     *            of blacklisted packages.
      */
     public FastClasspathScanner(final String... packagesToScan) {
         parseSystemClasspath();
@@ -162,7 +164,7 @@ public class FastClasspathScanner {
         });
     }
 
-    // ---------------------------------------------------------------------------------------------------------------
+    // -------------------------------------------------------------------------------------------------------------
 
     /** Call the classloader using Class.forName(className). Re-throws classloading exceptions as RuntimeException. */
     public <T> Class<? extends T> loadClass(final String className) {
@@ -175,7 +177,7 @@ public class FastClasspathScanner {
         }
     }
 
-    // ---------------------------------------------------------------------------------------------------------------
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Calls the provided SubclassMatchProcessor if classes are found on the classpath that extend the specified
@@ -239,9 +241,10 @@ public class FastClasspathScanner {
     }
 
     /**
-     * Returns the names of classes on the classpath that are superclasses of the specified subclass. Should be called
-     * after scan(), and returns matching classes whether or not a SubclassMatchProcessor was added to the scanner
-     * before the call to scan(). Does not call the classloader on the matching classes, just returns their names.
+     * Returns the names of classes on the classpath that are superclasses of the specified subclass. Should be
+     * called after scan(), and returns matching classes whether or not a SubclassMatchProcessor was added to the
+     * scanner before the call to scan(). Does not call the classloader on the matching classes, just returns their
+     * names.
      * 
      * @param subclass
      *            The subclass to match (i.e. the class that needs to extend a superclass for the superclass to
@@ -256,9 +259,10 @@ public class FastClasspathScanner {
     }
 
     /**
-     * Returns the names of classes on the classpath that are superclasses of the specified subclass. Should be called
-     * after scan(), and returns matching classes whether or not a SubclassMatchProcessor was added to the scanner
-     * before the call to scan(). Does not call the classloader on the matching classes, just returns their names.
+     * Returns the names of classes on the classpath that are superclasses of the specified subclass. Should be
+     * called after scan(), and returns matching classes whether or not a SubclassMatchProcessor was added to the
+     * scanner before the call to scan(). Does not call the classloader on the matching classes, just returns their
+     * names.
      * 
      * @param subclassName
      *            The subclass to match (i.e. the class that needs to extend a superclass for the superclass to
@@ -269,12 +273,12 @@ public class FastClasspathScanner {
         return classGraphBuilder.getNamesOfSuperclassesOf(subclassName);
     }
 
-    // ---------------------------------------------------------------------------------------------------------------
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Calls the provided SubinterfaceMatchProcessor if an interface that extends a given superinterface is found on
-     * the classpath. Will call the class loader on each matching interface (using Class.forName()) before calling the
-     * SubinterfaceMatchProcessor. Does not call the classloader on non-matching classes or interfaces.
+     * the classpath. Will call the class loader on each matching interface (using Class.forName()) before calling
+     * the SubinterfaceMatchProcessor. Does not call the classloader on non-matching classes or interfaces.
      * 
      * @param superinterface
      *            The superinterface to match (i.e. the interface that subinterfaces need to extend to match).
@@ -307,7 +311,8 @@ public class FastClasspathScanner {
     /**
      * Returns the names of interfaces on the classpath that extend a given superinterface. Should be called after
      * scan(), and returns matching interfaces whether or not a SubinterfaceMatchProcessor was added to the scanner
-     * before the call to scan(). Does not call the classloader on the matching interfaces, just returns their names.
+     * before the call to scan(). Does not call the classloader on the matching interfaces, just returns their
+     * names.
      * 
      * @param superInterface
      *            The superinterface to match (i.e. the interface that subinterfaces need to extend to match).
@@ -323,7 +328,8 @@ public class FastClasspathScanner {
     /**
      * Returns the names of interfaces on the classpath that extend a given superinterface. Should be called after
      * scan(), and returns matching interfaces whether or not a SubinterfaceMatchProcessor was added to the scanner
-     * before the call to scan(). Does not call the classloader on the matching interfaces, just returns their names.
+     * before the call to scan(). Does not call the classloader on the matching interfaces, just returns their
+     * names.
      * 
      * @param superInterfaceName
      *            The name of the superinterface to match (i.e. the name of the interface that subinterfaces need to
@@ -366,13 +372,13 @@ public class FastClasspathScanner {
         return classGraphBuilder.getNamesOfSuperinterfacesOf(subInterfaceName);
     }
 
-    // ---------------------------------------------------------------------------------------------------------------
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Calls the provided InterfaceMatchProcessor for classes on the classpath that implement the specified interface
-     * or a subinterface, or whose superclasses implement the specified interface or a sub-interface. Will call the
-     * class loader on each matching interface (using Class.forName()) before calling the InterfaceMatchProcessor.
-     * Does not call the classloader on non-matching classes or interfaces.
+     * Calls the provided InterfaceMatchProcessor for classes on the classpath that implement the specified
+     * interface or a subinterface, or whose superclasses implement the specified interface or a sub-interface. Will
+     * call the class loader on each matching interface (using Class.forName()) before calling the
+     * InterfaceMatchProcessor. Does not call the classloader on non-matching classes or interfaces.
      * 
      * @param implementedInterface
      *            The interface that classes need to implement.
@@ -407,8 +413,8 @@ public class FastClasspathScanner {
     /**
      * Returns the names of classes on the classpath that implement the specified interface or a subinterface, or
      * whose superclasses implement the specified interface or a sub-interface. Should be called after scan(), and
-     * returns matching interfaces whether or not an InterfaceMatchProcessor was added to the scanner before the call
-     * to scan(). Does not call the classloader on the matching classes, just returns their names.
+     * returns matching interfaces whether or not an InterfaceMatchProcessor was added to the scanner before the
+     * call to scan(). Does not call the classloader on the matching classes, just returns their names.
      * 
      * @param implementedInterface
      *            The interface that classes need to implement to match.
@@ -424,8 +430,8 @@ public class FastClasspathScanner {
     /**
      * Returns the names of classes on the classpath that implement the specified interface or a subinterface, or
      * whose superclasses implement the specified interface or a sub-interface. Should be called after scan(), and
-     * returns matching interfaces whether or not an InterfaceMatchProcessor was added to the scanner before the call
-     * to scan(). Does not call the classloader on the matching classes, just returns their names.
+     * returns matching interfaces whether or not an InterfaceMatchProcessor was added to the scanner before the
+     * call to scan(). Does not call the classloader on the matching classes, just returns their names.
      * 
      * @param implementedInterfaceName
      *            The name of the interface that classes need to implement.
@@ -435,7 +441,7 @@ public class FastClasspathScanner {
         return classGraphBuilder.getNamesOfClassesImplementing(implementedInterfaceName);
     }
 
-    // ---------------------------------------------------------------------------------------------------------------
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Calls the provided ClassMatchProcessor if classes are found on the classpath that have the specified
@@ -455,8 +461,8 @@ public class FastClasspathScanner {
             @Override
             public void lookForMatches() {
                 // For all classes with the given annotation
-                for (final String classWithAnnotation : classGraphBuilder.getNamesOfClassesWithAnnotation(annotation
-                        .getName())) {
+                for (final String classWithAnnotation : classGraphBuilder
+                        .getNamesOfClassesWithAnnotation(annotation.getName())) {
                     if (verbose) {
                         Log.log("Found class with annotation " + annotation.getName() + ": " + classWithAnnotation);
                     }
@@ -499,11 +505,12 @@ public class FastClasspathScanner {
         return classGraphBuilder.getNamesOfClassesWithAnnotation(annotationName);
     }
 
-    // ---------------------------------------------------------------------------------------------------------------
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Calls the given StaticFinalFieldMatchProcessor if classes are found on the classpath that contain static final
-     * fields that match one of a set of fully-qualified field names, e.g. "com.package.ClassName.STATIC_FIELD_NAME".
+     * Calls the given StaticFinalFieldMatchProcessor if classes are found on the classpath that contain static
+     * final fields that match one of a set of fully-qualified field names, e.g.
+     * "com.package.ClassName.STATIC_FIELD_NAME".
      * 
      * Field values are obtained from the constant pool in classfiles, *not* from a loaded class using reflection.
      * This allows you to detect changes to the classpath and then run another scan that picks up the new values of
@@ -522,22 +529,24 @@ public class FastClasspathScanner {
      * @param staticFinalFieldMatchProcessor
      *            the StaticFinalFieldMatchProcessor to call when a match is found.
      */
-    public FastClasspathScanner matchStaticFinalFieldNames(final HashSet<String> fullyQualifiedStaticFinalFieldNames,
+    public FastClasspathScanner matchStaticFinalFieldNames(
+            final HashSet<String> fullyQualifiedStaticFinalFieldNames,
             final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor) {
         for (final String fullyQualifiedFieldName : fullyQualifiedStaticFinalFieldNames) {
             final int lastDotIdx = fullyQualifiedFieldName.lastIndexOf('.');
             if (lastDotIdx > 0) {
                 final String className = fullyQualifiedFieldName.substring(0, lastDotIdx);
                 final String fieldName = fullyQualifiedFieldName.substring(lastDotIdx + 1);
-                classGraphBuilder.addStaticFinalFieldProcessor(className, fieldName, staticFinalFieldMatchProcessor);
+                classGraphBuilder
+                        .addStaticFinalFieldProcessor(className, fieldName, staticFinalFieldMatchProcessor);
             }
         }
         return this;
     }
 
     /**
-     * Calls the given StaticFinalFieldMatchProcessor if classes are found on the classpath that contain static final
-     * fields that match a fully-qualified field name, e.g. "com.package.ClassName.STATIC_FIELD_NAME".
+     * Calls the given StaticFinalFieldMatchProcessor if classes are found on the classpath that contain static
+     * final fields that match a fully-qualified field name, e.g. "com.package.ClassName.STATIC_FIELD_NAME".
      * 
      * Field values are obtained from the constant pool in classfiles, *not* from a loaded class using reflection.
      * This allows you to detect changes to the classpath and then run another scan that picks up the new values of
@@ -564,8 +573,9 @@ public class FastClasspathScanner {
     }
 
     /**
-     * Calls the given StaticFinalFieldMatchProcessor if classes are found on the classpath that contain static final
-     * fields that match one of a list of fully-qualified field names, e.g. "com.package.ClassName.STATIC_FIELD_NAME".
+     * Calls the given StaticFinalFieldMatchProcessor if classes are found on the classpath that contain static
+     * final fields that match one of a list of fully-qualified field names, e.g.
+     * "com.package.ClassName.STATIC_FIELD_NAME".
      * 
      * Field values are obtained from the constant pool in classfiles, *not* from a loaded class using reflection.
      * This allows you to detect changes to the classpath and then run another scan that picks up the new values of
@@ -593,7 +603,7 @@ public class FastClasspathScanner {
         return matchStaticFinalFieldNames(fullyQualifiedStaticFinalFieldNamesSet, staticFinalFieldMatchProcessor);
     }
 
-    // ---------------------------------------------------------------------------------------------------------------
+    // -------------------------------------------------------------------------------------------------------------
 
     /** Wrap a FileMatchContentsProcessor in a FileMatchProcessor that reads the file content from the stream. */
     private static FileMatchProcessor wrapFileMatchContentsProcessor(
@@ -606,7 +616,8 @@ public class FastClasspathScanner {
                 final byte[] contents = new byte[lengthBytes];
                 final int bytesRead = Math.max(0, inputStream.read(contents));
                 // For safety, truncate the array if the file was truncated before we finish reading it
-                final byte[] contentsRead = bytesRead == lengthBytes ? contents : Arrays.copyOf(contents, bytesRead);
+                final byte[] contentsRead = bytesRead == lengthBytes ? contents : Arrays
+                        .copyOf(contents, bytesRead);
                 // Pass file contents to the wrapped FileMatchContentsProcessor
                 fileMatchContentsProcessor.processMatch(relativePath, contentsRead);
             }
@@ -636,8 +647,8 @@ public class FastClasspathScanner {
     }
 
     /**
-     * Calls the given FileMatchContentsProcessor if files are found on the classpath with the given regexp pattern in
-     * their path.
+     * Calls the given FileMatchContentsProcessor if files are found on the classpath with the given regexp pattern
+     * in their path.
      * 
      * @param pathRegexp
      *            The regexp to match, e.g. "app/templates/.*\\.html"
@@ -654,7 +665,8 @@ public class FastClasspathScanner {
      * path.
      * 
      * @param relativePathToMatch
-     *            The complete path to match relative to the classpath entry, e.g. "app/templates/WidgetTemplate.html"
+     *            The complete path to match relative to the classpath entry, e.g.
+     *            "app/templates/WidgetTemplate.html"
      * @param fileMatchProcessor
      *            The FileMatchProcessor to call when each match is found.
      */
@@ -674,7 +686,8 @@ public class FastClasspathScanner {
      * relative path.
      * 
      * @param relativePathToMatch
-     *            The complete path to match relative to the classpath entry, e.g. "app/templates/WidgetTemplate.html"
+     *            The complete path to match relative to the classpath entry, e.g.
+     *            "app/templates/WidgetTemplate.html"
      * @param fileMatchContentsProcessor
      *            The FileMatchContentsProcessor to call when each match is found.
      */
@@ -754,7 +767,7 @@ public class FastClasspathScanner {
         return matchFilenameExtension(extensionToMatch, wrapFileMatchContentsProcessor(fileMatchContentsProcessor));
     }
 
-    // ---------------------------------------------------------------------------------------------------------------
+    // -------------------------------------------------------------------------------------------------------------
 
     /** An interface used to test whether a file's relative path matches a given specification. */
     private static interface FilePathTester {
@@ -786,7 +799,7 @@ public class FastClasspathScanner {
         public abstract void lookForMatches();
     }
 
-    // ---------------------------------------------------------------------------------------------------------------
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Returns the names of all classes and interfaces processed during the scan, i.e. all classes reachable after
@@ -796,7 +809,7 @@ public class FastClasspathScanner {
         return classGraphBuilder.getNamesOfAllClasses();
     }
 
-    // ---------------------------------------------------------------------------------------------------------------
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Scan a file.
@@ -951,7 +964,7 @@ public class FastClasspathScanner {
         }
     }
 
-    // ---------------------------------------------------------------------------------------------------------------
+    // -------------------------------------------------------------------------------------------------------------
 
     /** Clear the classpath. */
     private void clearClasspath() {
@@ -1067,7 +1080,7 @@ public class FastClasspathScanner {
         return classpathElements;
     }
 
-    // ---------------------------------------------------------------------------------------------------------------
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Scans the classpath for matching files, and calls any match processors if a match is identified.
@@ -1144,8 +1157,8 @@ public class FastClasspathScanner {
     }
 
     /**
-     * Returns true if the classpath contents have been changed since scan() was last called. Only considers classpath
-     * prefixes whitelisted in the call to the constructor. Returns true if scan() has not yet been run.
+     * Returns true if the classpath contents have been changed since scan() was last called. Only considers
+     * classpath prefixes whitelisted in the call to the constructor. Returns true if scan() has not yet been run.
      */
     public boolean classpathContentsModifiedSinceScan() {
         final long oldLastModified = this.lastModified;
@@ -1159,11 +1172,12 @@ public class FastClasspathScanner {
     }
 
     /**
-     * Returns the maximum "last modified" timestamp in the classpath (in epoch millis), or zero if scan() has not yet
-     * been called (or if nothing was found on the classpath).
+     * Returns the maximum "last modified" timestamp in the classpath (in epoch millis), or zero if scan() has not
+     * yet been called (or if nothing was found on the classpath).
      * 
-     * The returned timestamp should be less than the current system time if the timestamps of files on the classpath
-     * and the system time are accurate. Therefore, if anything changes on the classpath, this value should increase.
+     * The returned timestamp should be less than the current system time if the timestamps of files on the
+     * classpath and the system time are accurate. Therefore, if anything changes on the classpath, this value
+     * should increase.
      */
     public long classpathContentsLastModifiedTime() {
         return this.lastModified;

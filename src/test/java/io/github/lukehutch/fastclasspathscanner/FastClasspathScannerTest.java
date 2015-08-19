@@ -100,8 +100,8 @@ public class FastClasspathScannerTest {
     @Test
     public void scanSubAndSuperclass() throws Exception {
         final HashSet<Class<? extends Cls>> subclasses = new HashSet<>();
-        final FastClasspathScanner scanner = new FastClasspathScanner(WHITELIST_PACKAGE).matchSubclassesOf(Cls.class,
-                new SubclassMatchProcessor<Cls>() {
+        final FastClasspathScanner scanner = new FastClasspathScanner(WHITELIST_PACKAGE).matchSubclassesOf(
+                Cls.class, new SubclassMatchProcessor<Cls>() {
                     @Override
                     public void processMatch(final Class<? extends Cls> matchingClass) {
                         subclasses.add(matchingClass);
