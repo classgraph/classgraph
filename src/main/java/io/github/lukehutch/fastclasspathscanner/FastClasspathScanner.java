@@ -956,10 +956,31 @@ public class FastClasspathScanner {
     /** Add a classpath element. */
     private void addClasspathElement(String pathElement) {
         if (!pathElement.isEmpty()) {
-            if (classpathElementsSet.add(pathElement)) {
+            if (!classpathElementsSet.contains(pathElement)) {
                 final File file = new File(pathElement);
                 if (file.exists()) {
+                    classpathElementsSet.add(pathElement);
                     classpathElements.add(file);
+                    
+                    // Look for manifest files in jar and zipfiles on the classpath.
+                    // OpenJDK scans manifest-defined classpath elements after the jar that listed them,
+                    // so we recursively call addClasspathElement if needed each time a jar is encountered. 
+                    String pathLower = pathElement.toLowerCase();
+                    if (pathLower.endsWith(".jar") || pathLower.endsWith(".zip")) {
+                        String manifestUrlStr = "jar:file:" + pathElement + "!/META-INF/MANIFEST.MF";
+                        try (InputStream stream = new URL(manifestUrlStr).openStream()) {
+                            // Look for Class-Path keys within manifest files
+                            Manifest manifest = new Manifest(stream);
+                            String manifestClassPath = manifest.getMainAttributes().getValue("Class-Path");
+                            if (manifestClassPath != null) {
+                                // Class-Path elements are space-delimited
+                                for (String manifestClassPathElement : manifestClassPath.split(" ")) {
+                                    addClasspathElement(manifestClassPathElement);
+                                }
+                            }
+                        } catch (IOException e) {
+                        }
+                    }
                 }
             }
         }
@@ -1004,28 +1025,10 @@ public class FastClasspathScanner {
         for (ClassLoader cl : classLoaders) {
             if (cl != null) {
                 for (URL url : ((URLClassLoader) cl).getURLs()) {
-                    if ("file".equals(url.getProtocol())) {
+                    String protocol = url.getProtocol();
+                    if (protocol == null || protocol.equals("file")) {
                         // "file:" URL found in classpath
                         addClasspathElement(url.getFile());
-
-                        // Look for manifest files in jar and zipfiles on the classpath.
-                        // OpenJDK scans manifest-defined classpath elements after the jar that listed them.
-                        String pathLower = url.getPath().toLowerCase();
-                        if (pathLower.endsWith(".jar") || pathLower.endsWith(".zip")) {
-                            String manifestUrlStr = "jar:" + url.toString() + "!/META-INF/MANIFEST.MF";
-                            try (InputStream stream = new URL(manifestUrlStr).openStream()) {
-                                // Look for Class-Path keys within manifest files
-                                Manifest manifest = new Manifest(stream);
-                                String manifestClassPath = manifest.getMainAttributes().getValue("Class-Path");
-                                if (manifestClassPath != null) {
-                                    // Class-Path elements are space-delimited
-                                    for (String manifestClassPathElement : manifestClassPath.split(" ")) {
-                                        addClasspathElement(manifestClassPathElement);
-                                    }
-                                }
-                            } catch (IOException e) {
-                            }
-                        }
                     }
                 }
             }
