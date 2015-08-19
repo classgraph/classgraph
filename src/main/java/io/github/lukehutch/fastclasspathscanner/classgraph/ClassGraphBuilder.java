@@ -66,11 +66,11 @@ public class ClassGraphBuilder {
      */
     private final HashSet<String> classesEncounteredSoFarDuringScan = new HashSet<>();
 
-    // -----------------------------------------------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------------------------------------------
 
     /**
-     * A map from fully-qualified classname, to static final field name, to a StaticFinalFieldMatchProcessor that should
-     * be called if that class name and static final field name is encountered during scan.
+     * A map from fully-qualified classname, to static final field name, to a StaticFinalFieldMatchProcessor that
+     * should be called if that class name and static final field name is encountered during scan.
      */
     private final HashMap<String, HashMap<String, StaticFinalFieldMatchProcessor>> //
     classNameToStaticFieldnameToMatchProcessor = new HashMap<>();
@@ -89,7 +89,7 @@ public class ClassGraphBuilder {
         fieldNameToMatchProcessor.put(fieldName, staticFinalFieldMatchProcessor);
     }
 
-    // -----------------------------------------------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------------------------------------------
 
     /** Return the names of all classes with the named class annotation. */
     public List<String> getNamesOfClassesWithAnnotation(final String annotationName) {
@@ -162,7 +162,7 @@ public class ClassGraphBuilder {
         return classNameToClassNode.keySet();
     }
 
-    // -----------------------------------------------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------------------------------------------
 
     /** Link a class to its superclass and to the interfaces it implements, and save the class annotations. */
     private void linkToSuperclassAndInterfaces(final String className, final String superclassName,
@@ -219,7 +219,7 @@ public class ClassGraphBuilder {
         }
     }
 
-    // -----------------------------------------------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------------------------------------------
 
     /**
      * Find all superclasses and subclasses for each class and superinterfaces and subinterfaces of each interface.
@@ -365,7 +365,7 @@ public class ClassGraphBuilder {
         }
     }
 
-    // -----------------------------------------------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------------------------------------------
 
     public void reset() {
         classNameToClassNode.clear();
@@ -375,7 +375,7 @@ public class ClassGraphBuilder {
         classesEncounteredSoFarDuringScan.clear();
     }
 
-    // -----------------------------------------------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------------------------------------------
 
     /**
      * Read annotation entry from classfile.
@@ -403,7 +403,8 @@ public class ClassGraphBuilder {
     /**
      * Read annotation element value from classfile.
      */
-    private void readAnnotationElementValue(final DataInputStream inp, final Object[] constantPool) throws IOException {
+    private void readAnnotationElementValue(final DataInputStream inp, final Object[] constantPool)
+            throws IOException {
         final int tag = inp.readUnsignedByte();
         switch (tag) {
         case 'B':
@@ -551,8 +552,8 @@ public class ClassGraphBuilder {
         final String superclassName = readRefdString(inp, constantPool).replace('/', '.');
 
         // Look up static field name match processors given class name 
-        final HashMap<String, StaticFinalFieldMatchProcessor> staticFieldnameToMatchProcessor = //
-        classNameToStaticFieldnameToMatchProcessor.get(className);
+        final HashMap<String, StaticFinalFieldMatchProcessor> staticFieldnameToMatchProcessor //
+        = classNameToStaticFieldnameToMatchProcessor.get(className);
 
         // Interfaces
         final int interfaceCount = inp.readUnsignedShort();
@@ -568,9 +569,8 @@ public class ClassGraphBuilder {
             // See http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.6
             final boolean isStaticFinal = (accessFlags & 0x0018) == 0x0018;
             final String fieldName = readRefdString(inp, constantPool);
-            final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor = staticFieldnameToMatchProcessor != null //
-            ? staticFieldnameToMatchProcessor.get(fieldName)
-                    : null;
+            final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor //
+            = staticFieldnameToMatchProcessor != null ? staticFieldnameToMatchProcessor.get(fieldName) : null;
             final String descriptor = readRefdString(inp, constantPool);
             final int attributesCount = inp.readUnsignedShort();
             if (!isStaticFinal && staticFinalFieldMatchProcessor != null) {

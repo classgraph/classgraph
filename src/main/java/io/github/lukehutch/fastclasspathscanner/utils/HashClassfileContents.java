@@ -76,7 +76,6 @@ public class HashClassfileContents {
 
     /**
      * Scans the classpath, and updates the mapping from class name to hash of classfile contents.
-     * @return 
      */
     public HashClassfileContents scan() {
         classNameToClassfileHash.clear();

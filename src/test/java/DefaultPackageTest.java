@@ -48,7 +48,7 @@ public class DefaultPackageTest {
         assertTrue(!allClasses.contains(String.class.getName()));
         assertTrue(allClasses.contains(Object.class.getName()));
         assertTrue(allClasses.contains(Blacklisted.class.getName()));
-        assertTrue(allClasses.contains(ClassInDefaultPackage.class.getName()));        
+        assertTrue(allClasses.contains(ClassInDefaultPackage.class.getName()));
     }
 
     @Test
@@ -60,6 +60,6 @@ public class DefaultPackageTest {
         assertTrue(!allClasses.contains(String.class.getName()));
         assertTrue(allClasses.contains(Object.class.getName()));
         assertTrue(allClasses.contains(Blacklisted.class.getName()));
-        assertTrue(!allClasses.contains(ClassInDefaultPackage.class.getName()));        
+        assertTrue(!allClasses.contains(ClassInDefaultPackage.class.getName()));
     }
 }
