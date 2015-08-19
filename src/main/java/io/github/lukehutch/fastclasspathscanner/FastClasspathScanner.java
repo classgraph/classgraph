@@ -961,7 +961,7 @@ public class FastClasspathScanner {
                 if (file.exists()) {
                     classpathElementsSet.add(pathElement);
                     classpathElements.add(file);
-                    
+
                     // Look for manifest files in jar and zipfiles on the classpath.
                     // OpenJDK scans manifest-defined classpath elements after the jar that listed them,
                     // so we recursively call addClasspathElement if needed each time a jar is encountered. 
@@ -981,6 +981,8 @@ public class FastClasspathScanner {
                         } catch (IOException e) {
                         }
                     }
+                } else if (verbose) {
+                    Log.log("Classpath element does not exist: " + pathElement);
                 }
             }
         }
@@ -1094,8 +1096,8 @@ public class FastClasspathScanner {
                         // File listed directly on classpath
                         scanFile(pathElt, path, pathElt.getName(), scanTimestampsOnly);
                     }
-                } else {
-                    // Log.info("Skipping non-file/non-dir on classpath: " + file.getCanonicalPath());
+                } else if (verbose) {
+                    Log.log("Skipping non-file/non-dir on classpath: " + pathElt.getPath());
                 }
             }
         } catch (final IOException e) {
