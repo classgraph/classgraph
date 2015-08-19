@@ -965,7 +965,7 @@ public class FastClasspathScanner {
                 } catch (IOException | SecurityException e) {
                     canonicalPath = pathElement;
                 }
-                if (!classpathElementsSet.add(canonicalPath)) {
+                if (classpathElementsSet.add(canonicalPath)) {
                     // This is the first time this classpath element has been encountered
                     classpathElements.add(file);
 
