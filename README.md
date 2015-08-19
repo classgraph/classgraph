@@ -18,6 +18,8 @@ FastClasspathScanner scans directories and jar/zip files on the classpath, and i
 
 Because FastClasspathScanner parses the classfile binary format directly, it is particularly lightweight. In particular, FastClasspathScanner does not depend on a classfile/bytecode parsing and manipulation library such as Javassist or ObjectWeb ASM.
 
+FastClasspathScanner is able to transitively follow [Class-Path references](https://docs.oracle.com/javase/tutorial/deployment/jar/downman.html) in a jarfile's `META-INF/MANIFEST.MF` (these are not added to the system property `java.class.path` for some reason).
+
 ### Usage
 
 There are two different mechanisms for using FastClasspathScanner. (The two mechanisms can be used together.)
