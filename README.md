@@ -1,7 +1,7 @@
 FastClasspathScanner
 ====================
 
-Uber-fast, ultra-lightweight Java classpath scanner. Scans the classpath by parsing the classfile binary format directly rather than by using reflection. (Reflection causes the classloader to load each class, which can take an order of magnitude more time than parsing the classfile directly, and can lead to unexpected behavior due to static initializer blocks of classes being called on class load.) Does not have any external dependencies -- in particular, FastClasspathScanner does not depend upon a classfile/bytecode parsing library such as Javassist or ObjectWeb ASM; with FastClasspathScanner, all the classfile parsing is done directly.
+Uber-fast, ultra-lightweight Java classpath scanner. Scans the classpath by parsing the classfile binary format directly rather than by using reflection. (Reflection causes the classloader to load each class, which can take an order of magnitude more time than parsing the classfile directly, and can lead to unexpected behavior due to static initializer blocks of classes being called on class load.)
 
 FastClasspathScanner scans directories and jar/zip files on the classpath, and is able to:
 
@@ -15,6 +15,8 @@ FastClasspathScanner scans directories and jar/zip files on the classpath, and i
 8. [detect changes](#8-detecting-changes-to-classpath-contents-after-the-scan) to the files within the classpath since the first time the classpath was scanned, or alternatively, calculate the MD5 hash of classfiles while scanning, in case using timestamps is insufficiently rigorous for change detection;
 9. return a list of the [names of all classes and interfaces on the classpath](#9-get-a-list-of-all-whitelisted-and-non-blacklisted-classes-and-interfaces-on-the-classpath) (after whitelist and blacklist filtering).
 10. return a list of [all directories and files on the classpath](#10-get-all-unique-directories-and-files-on-the-classpath) (i.e. all classpath elements) as a list of File objects, with the list deduplicated and filtered to include only classpath directories and files that actually exist, saving you the trouble of parsing and filtering the classpath; and
+
+Because FastClasspathScanner parses the classfile binary format directly, it is particularly lightweight. In particular, FastClasspathScanner does not depend on a classfile/bytecode parsing and manipulation library such as Javassist or ObjectWeb ASM.
 
 ### Usage
 
