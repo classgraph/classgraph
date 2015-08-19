@@ -16,9 +16,9 @@ FastClasspathScanner scans directories and jar/zip files on the classpath, and i
 9. return a list of the [names of all classes and interfaces on the classpath](#9-get-a-list-of-all-whitelisted-and-non-blacklisted-classes-and-interfaces-on-the-classpath) (after whitelist and blacklist filtering).
 10. return a list of [all directories and files on the classpath](#10-get-all-unique-directories-and-files-on-the-classpath) (i.e. all classpath elements) as a list of File objects, with the list deduplicated and filtered to include only classpath directories and files that actually exist, saving you the trouble of parsing and filtering the classpath; and
 
-Because FastClasspathScanner parses the classfile binary format directly, it is particularly lightweight. In particular, FastClasspathScanner does not depend on a classfile/bytecode parsing and manipulation library such as Javassist or ObjectWeb ASM.
+Because FastClasspathScanner parses the classfile binary format directly, it is particularly lightweight. In particular, FastClasspathScanner does not depend on any classfile/bytecode parsing or manipulation libraries like [Javassist](http://jboss-javassist.github.io/javassist/) or [ObjectWeb ASM](http://asm.ow2.org/), which are overkill for classpath scanning.
 
-FastClasspathScanner is able to transitively follow [Class-Path references](https://docs.oracle.com/javase/tutorial/deployment/jar/downman.html) in a jarfile's `META-INF/MANIFEST.MF` (these are not added to the system property `java.class.path` for some reason).
+FastClasspathScanner is able to transitively follow [Class-Path references](https://docs.oracle.com/javase/tutorial/deployment/jar/downman.html) in a jarfile's `META-INF/MANIFEST.MF` (these are not added to the [system property](https://docs.oracle.com/javase/tutorial/essential/environment/sysprop.html) `java.class.path` for some reason).
 
 ### Usage
 
