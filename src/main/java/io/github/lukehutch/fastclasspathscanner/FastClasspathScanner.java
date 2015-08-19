@@ -43,11 +43,14 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Field;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -1049,6 +1052,38 @@ public class FastClasspathScanner {
                     }
                 }
             }
+        }
+        clearClasspath();
+        
+        // Another dirty method for looking for JAR "Class-Path" attribute jars within URLClassLoader
+        // https://stackoverflow.com/questions/25729319/how-does-a-classloader-load-classes-reference-in-the-manifest-classpath
+        try {
+        	Field secretClasspathField;
+        	Object secretClasspathObject;
+        	HashMap<String, Object> secretLoaderMap;
+        	
+        	secretClasspathField = URLClassLoader.class.getDeclaredField("ucp");
+        	secretClasspathField.setAccessible(true);
+        	secretClasspathObject = secretClasspathField.get((URLClassLoader) ClassLoader.getSystemClassLoader());
+        	
+        	secretClasspathField = secretClasspathObject.getClass().getDeclaredField("lmap");
+        	secretClasspathField.setAccessible(true);
+        	secretLoaderMap = (HashMap<String, Object>) secretClasspathField.get(secretClasspathObject);
+
+        	// secretLoaderMap is of Hashmap<String, URLClassPath.Jarloader>, String is a file url.
+        	for(Object secretJar : secretLoaderMap.keySet()) {
+        		URL jarURL = new URL((String) secretJar);
+        		if("file".equals(jarURL.getProtocol())) {
+        			addClasspathElement(jarURL.getFile());
+        		}
+        	}        	
+
+        } catch (NoSuchFieldError | 
+        		SecurityException | 
+        		NoSuchFieldException | 
+        		IllegalAccessException |
+        		MalformedURLException e) {
+        	// A lot can go wrong with this method. Should be stable for JDK6->8 (current)
         }
 
         // Get file paths for URLs of each classloader.
