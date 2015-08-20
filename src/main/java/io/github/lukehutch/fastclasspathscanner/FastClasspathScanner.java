@@ -1097,7 +1097,7 @@ public class FastClasspathScanner {
             if (cl != null) {
                 for (URL url : ((URLClassLoader) cl).getURLs()) {
                     String protocol = url.getProtocol();
-                    if (protocol == null || protocol.equals("file")) {
+                    if (protocol == null || protocol.equalsIgnoreCase("file")) {
                         // "file:" URL found in classpath
                         addClasspathElement(url.getFile());
                     }
