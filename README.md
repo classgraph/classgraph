@@ -474,20 +474,20 @@ Note that `SubclassMatchProcessor<Widget<?>>` can now be properly parameterized 
 (Also note that it is valid to replace all occurrences of the generic type parameter <?> with a concrete type parameer, e.g. <Integer>.) 
 
 ```java
-    public static void main(String[] args) {
-        // Declare the type as a variable so you can suppress the warnings
-        @SuppressWarnings("unchecked")
-        Class<? extends Widget<?>> widgetClassRef =
-            (Class<? extends Widget<?>>) Widget.class;
-        new FastClasspathScanner("com.xyz.widget").matchSubclassesOf(widgetClassRef,
-                    new SubclassMatchProcessor<Widget<?>>() {
-                @Override
-                public void processMatch(Class<? extends Widget<?>> widgetClass) {
-                    registerSubclass(widgetClass);
-                }
-            })
-            .scan();
-    }
+public static void main(String[] args) {
+    // Declare the type as a variable so you can suppress the warnings
+    @SuppressWarnings("unchecked")
+    Class<? extends Widget<?>> widgetClassRef =
+        (Class<? extends Widget<?>>) Widget.class;
+    new FastClasspathScanner("com.xyz.widget").matchSubclassesOf(widgetClassRef,
+                new SubclassMatchProcessor<Widget<?>>() {
+            @Override
+            public void processMatch(Class<? extends Widget<?>> widgetClass) {
+                registerSubclass(widgetClass);
+            }
+        })
+        .scan();
+}
 ```
 
 **Alternative solution 1:** Create an object of the desired type, call getClass(), and cast the result to the generic parameterized class type.
