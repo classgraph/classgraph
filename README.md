@@ -469,6 +469,10 @@ public class Test {
 
 **Solution:** You can't cast from `Class<Widget>` to `Class<Widget<?>>`, but you can cast from `Class<Widget>` to `Class<? extends Widget<?>>` with only an `unchecked conversion` warning, which can be suppressed.
 
+Note that `SubclassMatchProcessor<Widget<?>>` can now be properly parameterized to match the type of widgetClassRef, and no cast is needed in the function call `registerSubclass(widgetClass)`.
+
+(Also note that it is valid to replace all occurrences of the generic type parameter <?> with a concrete type parameer, e.g. <Integer>.) 
+
 ```java
     public static void main(String[] args) {
         // Declare the type as a variable so you can suppress the warnings
@@ -486,7 +490,44 @@ public class Test {
     }
 ```
 
-Note that `SubclassMatchProcessor<Widget<?>>` can now be properly parameterized to match the type of widgetClassRef, and no cast is needed in the function call `registerSubclass(widgetClass)`. Also note that it is valid to replace all occurrences of the generic type parameter <?> above with a concrete type parameer, e.g. <Integer>. 
+**Alternative solution 1:** Create an object of the desired type, call getClass(), and cast the result to the generic parameterized class type.
+
+```java
+public static void main(String[] args) {
+    @SuppressWarnings("unchecked")
+    Class<Widget<?>> widgetClass =
+        (Class<Widget<?>>) new Widget<Object>().getClass();
+        
+    new FastClasspathScanner("com.xyz.widget") //
+        .matchSubclassesOf(widgetClass, new SubclassMatchProcessor<Widget<?>>() {
+            @Override
+            public void processMatch(Class<? extends Widget<?>> widgetClass) {
+                registerSubclass(widgetClass);
+            }
+        })
+        .scan();
+}
+``` 
+
+**Alternative solution 2:** Get a class reference for a subclass of the desired class, then get the generic type of its superclass:
+
+```java
+public static void main(String[] args) {
+    @SuppressWarnings("unchecked")
+    Class<Widget<?>> widgetClass =
+            (Class<Widget<?>>) ((ParameterizedType) WidgetSubclass.class
+                .getGenericSuperclass()).getRawType();
+    
+    new FastClasspathScanner("com.xyz.widget") //
+        .matchSubclassesOf(widgetClass, new SubclassMatchProcessor<Widget<?>>() {
+            @Override
+            public void processMatch(Class<? extends Widget<?>> widgetClass) {
+                registerSubclass(widgetClass);
+            }
+        })
+        .scan();
+}
+``` 
 
 ## License
 
