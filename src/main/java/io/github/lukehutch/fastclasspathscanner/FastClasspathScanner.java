@@ -1003,7 +1003,7 @@ public class FastClasspathScanner {
                             // Look for Class-Path keys within manifest files
                             Manifest manifest = new Manifest(stream);
                             String manifestClassPath = manifest.getMainAttributes().getValue("Class-Path");
-                            if (manifestClassPath != null) {
+                            if (manifestClassPath != null && !manifestClassPath.isEmpty()) {
                                 if (verbose) {
                                     Log.log("Found Class-Path entry in " + manifestUrlStr + ": "
                                             + manifestClassPath);
@@ -1014,10 +1014,7 @@ public class FastClasspathScanner {
                                 }
                             }
                         } catch (IOException e) {
-                            if (verbose) {
-                                Log.log(e.getMessage() + " while trying to read manifest file from "
-                                        + manifestUrlStr);
-                            }
+                            // Jar does not contain a manifest
                         }
                     }
                 }
