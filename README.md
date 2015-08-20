@@ -453,7 +453,9 @@ public class Test {
     }
     
     public static void main(String[] args) {
-        new FastClasspathScanner("com.xyz.widget") //
+        new FastClasspathScanner("com.xyz.widget")
+            // Have to use Widget.class and not Widget<?>.class as type parameter,
+            // which constrains all the other types to bare class references
             .matchSubclassesOf(Widget.class, new SubclassMatchProcessor<Widget>() {
                 @Override
                 public void processMatch(Class<? extends Widget> widgetClass) {
@@ -465,14 +467,16 @@ public class Test {
 }
 ``` 
 
-**Solution:** The type `Class<? extends Widget>` can be cast to `Class<Widget<?>>` with an `unchecked conversion` warning, which can be suppressed. (Note that `SubclassMatchProcessor<Widget<?>>` can now be properly parameterized to match the type of widgetClassRef, and no cast is needed in the function call `registerSubclass(widgetClass)`.)
+**Solution:** You can't cast from `Class<Widget>` to `Class<Widget<?>>`, but you can cast from `Class<Widget>` to `Class<? extends Widget<?>>` with only an `unchecked conversion` warning, which can be suppressed.
 
 ```java
     public static void main(String[] args) {
+        // Declare the type as a variable so you can suppress the warnings
         @SuppressWarnings("unchecked")
-        Class<? extends Widget<?>> widgetClassRef = (Class<? extends Widget<?>>)Widget.class;
-        new FastClasspathScanner("com.xyz.widget") //
-            .matchSubclassesOf(widgetClassRef, new SubclassMatchProcessor<Widget<?>>() {
+        Class<? extends Widget<?>> widgetClassRef =
+            (Class<? extends Widget<?>>) Widget.class;
+        new FastClasspathScanner("com.xyz.widget").matchSubclassesOf(widgetClassRef,
+                    new SubclassMatchProcessor<Widget<?>>() {
                 @Override
                 public void processMatch(Class<? extends Widget<?>> widgetClass) {
                     registerSubclass(widgetClass);
@@ -481,6 +485,8 @@ public class Test {
             .scan();
     }
 ```
+
+Note that `SubclassMatchProcessor<Widget<?>>` can now be properly parameterized to match the type of widgetClassRef, and no cast is needed in the function call `registerSubclass(widgetClass)`. Also note that all occurrences of the generic type parameter <?> above could have been validly replaced a concrete type parameer, e.g. <Integer>. 
 
 ## License
 
