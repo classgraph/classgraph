@@ -435,12 +435,9 @@ public FastClasspathScanner overrideClasspath(String classpath)
 A problem arises when using class-based matchers with parameterized classes, e.g. `Widget<K>`. Because of type erasure, The expression `Widget<K>.class` is not defined, and therefore it is impossible to cast `Class<Widget>` to `Class<Widget<K>>`. More specifically:
 
 * `Widget.class` has the type `Class<Widget>`, not `Class<Widget<?>>` 
-* `new Widget<Integer>().getClass()` has the type `Class<? extends Widget>`, not `Class<? extends Widget<?>>`. The type `Class<? extends Widget>` can be cast to `Class<Widget<?>>` with an unchecked conversion warning.
+* `new Widget<Integer>().getClass()` has the type `Class<? extends Widget>`, not `Class<? extends Widget<?>>`.
 
-The code below compiles and runs fine, but `SubclassMatchProcessor` must be parameterized with the bare type `Widget` in order to match the reference `Widget.class`. This gives rise to two type safety warnings:
-
-1. `Test.Widget is a raw type. References to generic type Test.Widget<K> should be parameterized` on the type `SubclassMatchProcessor<Widget>`
-2. `Type safety: Unchecked cast from Class<capture#1-of ? extends Test.Widget> to Class<Test.Widget<?>>` on the type cast `(Class<? extends Widget<?>>)`
+The code below compiles and runs fine, but `SubclassMatchProcessor` must be parameterized with the bare type `Widget` in order to match the reference `Widget.class`. This gives rise to three type safety warnings: `Test.Widget is a raw type. References to generic type Test.Widget<K> should be parameterized` on `new SubclassMatchProcessor<Widget>()` and `Class<? extends Widget> widgetClass`; and `Type safety: Unchecked cast from Class<capture#1-of ? extends Test.Widget> to Class<Test.Widget<?>>` on the type cast `(Class<? extends Widget<?>>)`.
 
 ```java
 public class Test {
@@ -468,44 +465,22 @@ public class Test {
 }
 ``` 
 
-**Solution 1:** Create an object of the desired type, call getClass(), and cast the result to the generic parameterized class type. (Note that `SubclassMatchProcessor<Widget<?>>` is now properly parameterized, and no cast is needed in the function call `registerSubclass(widgetClass)`.)
+**Solution:** The type `Class<? extends Widget>` can be cast to `Class<Widget<?>>` with an `unchecked conversion` warning, which can be suppressed. (Note that `SubclassMatchProcessor<Widget<?>>` can now be properly parameterized to match the type of widgetClassRef, and no cast is needed in the function call `registerSubclass(widgetClass)`.)
 
 ```java
-public static void main(String[] args) {
-    @SuppressWarnings("unchecked")
-    Class<Widget<?>> widgetClass =
-        (Class<Widget<?>>) new Widget<Object>().getClass();
-        
-    new FastClasspathScanner("com.xyz.widget") //
-        .matchSubclassesOf(widgetClass, new SubclassMatchProcessor<Widget<?>>() {
-            @Override
-            public void processMatch(Class<? extends Widget<?>> widgetClass) {
-                registerSubclass(widgetClass);
-            }
-        })
-        .scan();
-}
-``` 
-
-**Solution 2:** Get a class reference for a subclass of the desired class, then get the generic type of its superclass:
-
-```java
-public static void main(String[] args) {
-    @SuppressWarnings("unchecked")
-    Class<Widget<?>> widgetClass =
-            (Class<Widget<?>>) ((ParameterizedType) WidgetSubclass.class
-                .getGenericSuperclass()).getRawType();
-    
-    new FastClasspathScanner("com.xyz.widget") //
-        .matchSubclassesOf(widgetClass, new SubclassMatchProcessor<Widget<?>>() {
-            @Override
-            public void processMatch(Class<? extends Widget<?>> widgetClass) {
-                registerSubclass(widgetClass);
-            }
-        })
-        .scan();
-}
-``` 
+    public static void main(String[] args) {
+        @SuppressWarnings("unchecked")
+        Class<? extends Widget<?>> widgetClassRef = (Class<? extends Widget<?>>)Widget.class;
+        new FastClasspathScanner("com.xyz.widget") //
+            .matchSubclassesOf(widgetClassRef, new SubclassMatchProcessor<Widget<?>>() {
+                @Override
+                public void processMatch(Class<? extends Widget<?>> widgetClass) {
+                    registerSubclass(widgetClass);
+                }
+            })
+            .scan();
+    }
+```
 
 ## License
 
