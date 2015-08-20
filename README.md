@@ -72,8 +72,8 @@ new FastClasspathScanner("com.xyz.widget", "com.xyz.gizmo")
 
 // [...Some time later...]
 // See if any timestamps on the classpath are more recent than the time of the
-// previous scan. (Even faster than classpath scanning, because classfiles
-// don't have to be opened.)   
+// previous scan. Much faster than standard classpath scanning, because
+// only timestamps are checked, and jarfiles don't have to be opened.
 boolean classpathContentsModified =
     fastClassPathScanner.classpathContentsModifiedSinceScan();
 ```

@@ -1207,6 +1207,8 @@ public class FastClasspathScanner {
     /**
      * Returns true if the classpath contents have been changed since scan() was last called. Only considers
      * classpath prefixes whitelisted in the call to the constructor. Returns true if scan() has not yet been run.
+     * Much faster than standard classpath scanning, because only timestamps are checked, and jarfiles don't have to
+     * be opened.
      */
     public boolean classpathContentsModifiedSinceScan() {
         final long oldLastModified = this.lastModified;
