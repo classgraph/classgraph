@@ -1128,34 +1128,30 @@ public class FastClasspathScanner {
             classGraphBuilder.reset();
         }
 
-        try {
-            // Iterate through path elements and recursively scan within each directory and zipfile
-            for (final File pathElt : getUniqueClasspathElements()) {
-                final String path = pathElt.getPath();
-                if (verbose) {
-                    Log.log("=> Scanning classpath element: " + path);
-                }
-                if (pathElt.isDirectory()) {
-                    // Scan within dir path element
-                    scanDir(pathElt, path.length() + 1, false, scanTimestampsOnly);
-                } else if (pathElt.isFile()) {
-                    if (isJar(path)) {
-                        // Scan within jar/zipfile path element
-                        try {
-                            ZipFile zipfile = new ZipFile(pathElt);
-                            scanZipfile(path, zipfile, pathElt.lastModified(), scanTimestampsOnly);
-                        } catch (IOException e) {
-                        }
-                    } else {
-                        // File listed directly on classpath
-                        scanFile(pathElt, path, pathElt.getName(), scanTimestampsOnly);
-                    }
-                } else if (verbose) {
-                    Log.log("Skipping non-file/non-dir on classpath: " + pathElt.getPath());
-                }
+        // Iterate through path elements and recursively scan within each directory and zipfile
+        for (final File pathElt : getUniqueClasspathElements()) {
+            final String path = pathElt.getPath();
+            if (verbose) {
+                Log.log("=> Scanning classpath element: " + path);
             }
-        } catch (final IOException e) {
-            throw new RuntimeException(e);
+            if (pathElt.isDirectory()) {
+                // Scan within dir path element
+                scanDir(pathElt, path.length() + 1, false, scanTimestampsOnly);
+            } else if (pathElt.isFile()) {
+                if (isJar(path)) {
+                    // Scan within jar/zipfile path element
+                    try {
+                        ZipFile zipfile = new ZipFile(pathElt);
+                        scanZipfile(path, zipfile, pathElt.lastModified(), scanTimestampsOnly);
+                    } catch (IOException e) {
+                    }
+                } else {
+                    // File listed directly on classpath
+                    scanFile(pathElt, path, pathElt.getName(), scanTimestampsOnly);
+                }
+            } else if (verbose) {
+                Log.log("Skipping non-file/non-dir on classpath: " + pathElt.getPath());
+            }
         }
 
         if (!scanTimestampsOnly) {
