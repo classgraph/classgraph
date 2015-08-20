@@ -397,6 +397,8 @@ The list of all directories and files on the classpath is returned by `.getUniqu
 
 This method is useful if you want to see what's actually on the classpath -- note that `System.getProperty("java.class.path")` does not always return the complete classpath. [Classloading is a very complicated process.](https://docs.oracle.com/javase/8/docs/technotes/tools/findingclasses.html)
 
+Note that FastClasspathScanner does not scan [bootstrap or extension classes](https://docs.oracle.com/javase/8/docs/technotes/tools/findingclasses.html), so these will not be listed in the classpath.
+
 ```java
 public ArrayList<File> getUniqueClasspathElements()
 ```
