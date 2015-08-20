@@ -988,6 +988,9 @@ public class FastClasspathScanner {
                 }
                 if (classpathElementsSet.add(canonicalPath)) {
                     // This is the first time this classpath element has been encountered
+                    if (verbose) {
+                        Log.log("Found classpath element: " + pathElement);
+                    }
                     classpathElements.add(file);
 
                     // If this classpath element is a jar or zipfile, look for Class-Path entries in the manifest
@@ -1001,17 +1004,25 @@ public class FastClasspathScanner {
                             Manifest manifest = new Manifest(stream);
                             String manifestClassPath = manifest.getMainAttributes().getValue("Class-Path");
                             if (manifestClassPath != null) {
+                                if (verbose) {
+                                    Log.log("Found Class-Path entry in " + manifestUrlStr + ": "
+                                            + manifestClassPath);
+                                }
                                 // Class-Path elements are space-delimited
                                 for (String manifestClassPathElement : manifestClassPath.split(" ")) {
                                     addClasspathElement(manifestClassPathElement);
                                 }
                             }
                         } catch (IOException e) {
+                            if (verbose) {
+                                Log.log(e.getMessage() + " while trying to read manifest file from "
+                                        + manifestUrlStr);
+                            }
                         }
                     }
-                } else if (verbose) {
-                    Log.log("Classpath element does not exist: " + pathElement);
                 }
+            } else if (verbose) {
+                Log.log("Classpath element does not exist: " + pathElement);
             }
         }
     }
