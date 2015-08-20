@@ -1057,18 +1057,29 @@ public class FastClasspathScanner {
         } catch (Exception e) {
             StackTraceElement[] stacktrace = e.getStackTrace();
             if (stacktrace.length >= 3) {
+                // Add the classloader from the calling class
                 StackTraceElement caller = stacktrace[2];
-                ArrayList<ClassLoader> callerClassLoaders = new ArrayList<>();
-                for (ClassLoader cl = caller.getClass().getClassLoader(); cl != null; cl = cl.getParent()) {
-                    callerClassLoaders.add(cl);
+                ClassLoader cl = caller.getClass().getClassLoader();
+                if (classLoadersSet.add(cl)) {
+                    classLoaders.add(cl);
                 }
-                // OpenJDK calls classloaders in a top-down order
-                for (int i = callerClassLoaders.size() - 1; i >= 0; --i) {
-                    ClassLoader cl = callerClassLoaders.get(i);
-                    if (classLoadersSet.add(cl)) {
-                        classLoaders.add(cl);
-                    }
-                }
+
+                // The following is for reference only: it adds the classloader for the Java extension classes
+                // (which is at caller.getClass().getClassLoader().getParent()). Under most circumstances,
+                // the user should not need to scan extension classes. See:
+                // https://docs.oracle.com/javase/8/docs/technotes/tools/findingclasses.html
+
+                //    ArrayList<ClassLoader> callerClassLoaders = new ArrayList<>();
+                //    for (ClassLoader cl = caller.getClass().getClassLoader(); cl != null; cl = cl.getParent()) {
+                //        callerClassLoaders.add(cl);
+                //    }
+                //    // OpenJDK calls classloaders in a top-down order
+                //    for (int i = callerClassLoaders.size() - 1; i >= 0; --i) {
+                //        ClassLoader cl = callerClassLoaders.get(i);
+                //        if (classLoadersSet.add(cl)) {
+                //            classLoaders.add(cl);
+                //        }
+                //    }
             }
         }
         if (classLoadersSet.add(Thread.currentThread().getContextClassLoader())) {
