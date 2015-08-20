@@ -403,7 +403,7 @@ public ArrayList<File> getUniqueClasspathElements()
 
 ### Debugging ###
 
-If FastClasspathScanner is not matching what you think it should be matching, you can debug its behavior by calling `.verbose()` before `.scan()`:
+If FastClasspathScanner is not finding the classes, interfaces or files you think it should be finding, you can debug the scanning behavior by calling `.verbose()` before `.scan()`:
 
 ```java
 public FastClasspathScanner verbose()
