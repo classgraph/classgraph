@@ -1042,7 +1042,8 @@ public class FastClasspathScanner {
 
     /** Parse the system classpath. */
     private void parseSystemClasspath() {
-        clearClasspath();
+        // Start with java.class.path (Maven sets this, but doesn't seem to add all classpath URLs to class loaders) 
+        overrideClasspath(System.getProperty("java.class.path"));
 
         // Look for all unique classloaders.
         // Keep them in an order that (hopefully) reflects the order in which the JDK calls classloaders.
