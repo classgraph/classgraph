@@ -469,7 +469,7 @@ public class Test {
 
 **Solution:** You can't cast from `Class<Widget>` to `Class<Widget<?>>`, but you can cast from `Class<Widget>` to `Class<? extends Widget<?>>` with only an `unchecked conversion` warning, which can be suppressed. The type `Class<? extends Widget<?>>` is unifiable with the type `Class<Widget<?>>`, so for the method `matchSubclassesOf(Class<T> superclass, SubclassMatchProcessor<T> subclassMatchProcessor)`, you can use `<? extends Widget<?>>` for the type parameter `<T>` of `superclass`, and type  `<Widget<?>>` for the type parameter `<T>` of `subclassMatchProcessor`.
 
-Note that `SubclassMatchProcessor<Widget<?>>` can now be properly parameterized to match the type of widgetClassRef, and no cast is needed in the function call `registerSubclass(widgetClass)`.
+Note that `SubclassMatchProcessor<Widget<?>>` can now be properly parameterized to match the type of `widgetClassRef`, and no cast is needed in the function call `registerSubclass(widgetClass)`.
 
 (Also note that it is valid to replace all occurrences of the generic type parameter `<?>` with a concrete type parameer, e.g. `<Integer>`.) 
 
