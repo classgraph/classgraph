@@ -1139,10 +1139,16 @@ public class FastClasspathScanner {
             } else if (pathElt.isFile()) {
                 if (isJar(path)) {
                     // Scan within jar/zipfile path element
+                    ZipFile zipfile = null;
                     try {
-                        ZipFile zipfile = new ZipFile(pathElt);
-                        scanZipfile(path, zipfile, pathElt.lastModified(), scanTimestampsOnly);
+                        zipfile = new ZipFile(pathElt);
                     } catch (IOException e) {
+                        if (verbose) {
+                            Log.log(e.getMessage() + " while opening zipfile " + pathElt);
+                        }
+                    }
+                    if (zipfile != null) {
+                        scanZipfile(path, zipfile, pathElt.lastModified(), scanTimestampsOnly);
                     }
                 } else {
                     // File listed directly on classpath
