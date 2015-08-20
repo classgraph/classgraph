@@ -67,7 +67,8 @@ new FastClasspathScanner("com.xyz.widget", "com.xyz.gizmo")
         // This lambda expression is of type FileMatchContentProcessor.
         (relativePath, fileContentBytes) ->
             registerTemplate(relativePath, new String(fileContentBytes, "UTF-8")))
-    .scan();  // Actually perform the scan
+    .verbose()  // Optional, in case you want to debug any issues with scanning
+    .scan();    // Actually perform the scan
 
 // [...Some time later...]
 // See if any timestamps on the classpath are more recent than the time of the
