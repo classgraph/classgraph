@@ -991,12 +991,12 @@ public class FastClasspathScanner {
     /** Add a classpath element. */
     private void addClasspathElement(String pathElement) {
         if (!pathElement.isEmpty()) {
-            final File file = new File(pathElement);
-            if (file.exists()) {
+            final File pathElementFile = new File(pathElement);
+            if (pathElementFile.exists()) {
                 // Canonicalize path so that we don't get stuck in a redirect loop due to softlinks
                 String canonicalPath;
                 try {
-                    canonicalPath = file.getCanonicalPath();
+                    canonicalPath = pathElementFile.getCanonicalPath();
                 } catch (IOException | SecurityException e) {
                     canonicalPath = pathElement;
                 }
@@ -1005,12 +1005,12 @@ public class FastClasspathScanner {
                     if (verbose) {
                         Log.log("Found classpath element: " + pathElement);
                     }
-                    classpathElements.add(file);
+                    classpathElements.add(pathElementFile);
 
                     // If this classpath element is a jar or zipfile, look for Class-Path entries in the manifest
                     // file. OpenJDK scans manifest-defined classpath elements after the jar that listed them, so
                     // we recursively call addClasspathElement if needed each time a jar is encountered. 
-                    if (isJar(pathElement)) {
+                    if (pathElementFile.isFile() && isJar(pathElement)) {
                         String manifestUrlStr = "jar:file:" + pathElement + "!/META-INF/MANIFEST.MF";
                         try (InputStream stream = new URL(manifestUrlStr).openStream()) {
                             // Look for Class-Path keys within manifest files
@@ -1023,7 +1023,10 @@ public class FastClasspathScanner {
                                 }
                                 // Class-Path elements are space-delimited
                                 for (String manifestClassPathElement : manifestClassPath.split(" ")) {
-                                    addClasspathElement(manifestClassPathElement);
+                                    // Resolve Class-Path elements relative to the parent jar's containing directory
+                                    String manifestClassPathElementAbsolute = new File(pathElementFile.getParent(),
+                                            manifestClassPathElement).getPath();
+                                    addClasspathElement(manifestClassPathElementAbsolute);
                                 }
                             }
                         } catch (IOException e) {
