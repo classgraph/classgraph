@@ -54,6 +54,7 @@ import java.util.Set;
 import java.util.jar.Manifest;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
+import java.util.zip.ZipException;
 import java.util.zip.ZipFile;
 
 /**
@@ -817,7 +818,7 @@ public class FastClasspathScanner {
      * Scan a file.
      */
     private void scanFile(final File file, final String absolutePath, final String relativePath,
-            final boolean scanTimestampsOnly) throws IOException {
+            final boolean scanTimestampsOnly) {
         lastModified = Math.max(lastModified, file.lastModified());
         if (!scanTimestampsOnly) {
             // Match file paths against path patterns
@@ -827,6 +828,10 @@ public class FastClasspathScanner {
                     // If there's a match, open the file as a stream and call the match processor
                     try (final InputStream inputStream = new FileInputStream(file)) {
                         fileMatcher.processMatch(relativePath, inputStream, (int) file.length());
+                    } catch (IOException e) {
+                        if (verbose) {
+                            Log.log(e.getMessage() + " while processing file " + file.getPath());
+                        }
                     }
                     filePathMatches = true;
                 }
@@ -841,7 +846,7 @@ public class FastClasspathScanner {
      * Scan a directory for matching file path patterns.
      */
     private void scanDir(final File dir, final int ignorePrefixLen, boolean inWhitelistedPath,
-            final boolean scanTimestampsOnly) throws IOException {
+            final boolean scanTimestampsOnly) {
         String relativePath = (ignorePrefixLen > dir.getPath().length() ? "" : dir.getPath() //
                 .substring(ignorePrefixLen)) + "/";
         if (File.separatorChar != '/') {
@@ -902,7 +907,7 @@ public class FastClasspathScanner {
      * Scan a zipfile for matching file path patterns. (Does not recurse into zipfiles within zipfiles.)
      */
     private void scanZipfile(final String zipfilePath, final ZipFile zipFile, final long zipFileLastModified,
-            final boolean scanTimestampsOnly) throws IOException {
+            final boolean scanTimestampsOnly) {
         if (verbose) {
             Log.log("Scanning jar:  " + zipfilePath);
         }
@@ -957,6 +962,10 @@ public class FastClasspathScanner {
                                 // call the match processor
                                 try (final InputStream inputStream = zipFile.getInputStream(entry)) {
                                     fileMatcher.processMatch(path, inputStream, (int) entry.getSize());
+                                } catch (IOException e) {
+                                    if (verbose) {
+                                        Log.log(e.getMessage() + " while processing file " + entry.getName());
+                                    }
                                 }
                             }
                         }
@@ -972,6 +981,12 @@ public class FastClasspathScanner {
     private void clearClasspath() {
         classpathElements.clear();
         classpathElementsSet.clear();
+    }
+
+    /** Returns true if the path ends with a JAR extension */
+    private static boolean isJar(String path) {
+        String pathLower = path.toLowerCase();
+        return pathLower.endsWith(".jar") || pathLower.endsWith(".zip") || pathLower.endsWith(".war");
     }
 
     /** Add a classpath element. */
@@ -996,8 +1011,7 @@ public class FastClasspathScanner {
                     // If this classpath element is a jar or zipfile, look for Class-Path entries in the manifest
                     // file. OpenJDK scans manifest-defined classpath elements after the jar that listed them, so
                     // we recursively call addClasspathElement if needed each time a jar is encountered. 
-                    String pathLower = pathElement.toLowerCase();
-                    if (pathLower.endsWith(".jar") || pathLower.endsWith(".zip")) {
+                    if (isJar(pathElement)) {
                         String manifestUrlStr = "jar:file:" + pathElement + "!/META-INF/MANIFEST.MF";
                         try (InputStream stream = new URL(manifestUrlStr).openStream()) {
                             // Look for Class-Path keys within manifest files
@@ -1125,10 +1139,13 @@ public class FastClasspathScanner {
                     // Scan within dir path element
                     scanDir(pathElt, path.length() + 1, false, scanTimestampsOnly);
                 } else if (pathElt.isFile()) {
-                    final String pathLower = path.toLowerCase();
-                    if (pathLower.endsWith(".jar") || pathLower.endsWith(".zip")) {
+                    if (isJar(path)) {
                         // Scan within jar/zipfile path element
-                        scanZipfile(path, new ZipFile(pathElt), pathElt.lastModified(), scanTimestampsOnly);
+                        try {
+                            ZipFile zipfile = new ZipFile(pathElt);
+                            scanZipfile(path, zipfile, pathElt.lastModified(), scanTimestampsOnly);
+                        } catch (IOException e) {
+                        }
                     } else {
                         // File listed directly on classpath
                         scanFile(pathElt, path, pathElt.getName(), scanTimestampsOnly);
