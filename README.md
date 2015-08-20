@@ -31,18 +31,22 @@ There are two different mechanisms for using FastClasspathScanner. (The two mech
 // (can also blacklist packages by prefixing with "-")
 new FastClasspathScanner("com.xyz.widget", "com.xyz.gizmo")  
     .matchSubclassesOf(Widget.class,
-        // c is a subclass of Widget or a descendant subclass
+        // c is a subclass of Widget or a descendant subclass.
+        // This lambda expression is of type SubclassMatchProcessor.
         c -> System.out.println("Subclass of Widget: " + c.getName()))
     .matchSubinterfacesOf(Tweakable.class,
-        // c is an interface that extends the interface Tweakable
+        // c is an interface that extends the interface Tweakable.
+        // This lambda expression is of type SubinterfaceMatchProcessor.
         c -> System.out.println("Subinterface of Tweakable: " + c.getName()))
     .matchClassesImplementing(Changeable.class,
         // c is a class that implements the interface Changeable; more precisely,
         // c or one of its superclasses implements the interface Changeable, or
-        // implements an interface that is a descendant of Changeable
+        // implements an interface that is a descendant of Changeable.
+        // This lambda expression is of type InterfaceMatchProcessor.
         c -> System.out.println("Implements Changeable: " + c.getName()))
     .matchClassesWithAnnotation(BindTo.class,
-        // c is a class annotated with BindTo
+        // c is a class annotated with BindTo.
+        // This lambda expression is of type AnnotationMatchProcessor.
         c -> System.out.println("Has a BindTo class annotation: " + c.getName()))
     .matchStaticFinalFieldNames("com.xyz.widget.Widget.LOG_LEVEL",
         // The following method is called when any static final fields with
@@ -51,6 +55,7 @@ new FastClasspathScanner("com.xyz.widget", "com.xyz.gizmo")
         // values. The value returned is the value in the classfile, not the
         // value that would be returned by reflection, so this can be useful
         // in hot-swapping of changes.
+        // This lambda expression is of type StaticFinalFieldMatchProcessor.
         (String className, String fieldName, Object fieldConstantValue) ->
             System.out.println("Static field " + fieldName + " in class "
             + className + " " + " currently has constant literal value "
@@ -58,7 +63,8 @@ new FastClasspathScanner("com.xyz.widget", "com.xyz.gizmo")
     .matchFilenamePattern("^template/.*\\.html",
         // relativePath is the section of the matching path relative to the
         // classpath element it is contained in; fileContentBytes is the content
-        // of the file
+        // of the file.
+        // This lambda expression is of type FileMatchContentProcessor.
         (relativePath, fileContentBytes) ->
             registerTemplate(relativePath, new String(fileContentBytes, "UTF-8")))
     .scan();  // Actually perform the scan
