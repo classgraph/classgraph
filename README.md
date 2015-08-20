@@ -486,7 +486,7 @@ public class Test {
     }
 ```
 
-Note that `SubclassMatchProcessor<Widget<?>>` can now be properly parameterized to match the type of widgetClassRef, and no cast is needed in the function call `registerSubclass(widgetClass)`. Also note that all occurrences of the generic type parameter <?> above could have been validly replaced a concrete type parameer, e.g. <Integer>. 
+Note that `SubclassMatchProcessor<Widget<?>>` can now be properly parameterized to match the type of widgetClassRef, and no cast is needed in the function call `registerSubclass(widgetClass)`. Also note that it is valid to replace all occurrences of the generic type parameter <?> above with a concrete type parameer, e.g. <Integer>. 
 
 ## License
 
