@@ -59,6 +59,9 @@ public class ClassGraphBuilder {
     /** Reverse mapping from interface to classes that implement the interface */
     private final HashMap<String, ArrayList<String>> interfaceNameToClassNames = new HashMap<>();
 
+    /** Mapping of meta annotations to those so annotated */
+    private final HashMap<String, ArrayList<String>> metaAnnotationToAnnotated = new HashMap<>();
+
     /**
      * Classes encountered so far during a scan. If the same fully-qualified classname is encountered more than
      * once, the second and subsequent instances are ignored, because they are masked by the earlier occurrence in
@@ -98,6 +101,32 @@ public class ClassGraphBuilder {
             return Collections.emptyList();
         }
         return classes;
+    }
+
+    /** Return the names of all classes with the named class annotation. */
+    public List<String> getNamesOfClassesWithAnnotation(final String... annotationName) {
+      final ArrayList<String> classes = new ArrayList<>();
+      for (String name : annotationName) {
+        List<String> moreClasses = annotationNameToClassName.get(name);
+        if (moreClasses != null)
+          classes.addAll(moreClasses);
+      }
+      return classes;
+    }
+
+    public List<String> getNamesOfClassesWithMetaAnnotation(final String... metaAnnotations) {
+      final List<String> classes = new ArrayList<>();
+      classes.addAll(getNamesOfClassesWithAnnotation(metaAnnotations));
+
+      for (String meta : metaAnnotations) {
+        ArrayList<String> metaAnnotated = metaAnnotationToAnnotated.get(meta);
+        if (metaAnnotated != null) {
+          for (String string : metaAnnotated) {
+            classes.addAll(getNamesOfClassesWithAnnotation(string));
+          }
+        }
+      }
+      return classes;
     }
 
     /** Return the names of all classes implementing the named interface. */
@@ -217,6 +246,23 @@ public class ClassGraphBuilder {
                 }
             }
         }
+    }
+
+    private void linkToMetaAnnotations(String className, HashSet<String> annotations) {
+        if (annotations == null)
+          return;
+
+        for (String meta : annotations) {
+            ArrayList<String> annotated = metaAnnotationToAnnotated(meta);
+            annotated.add(className);
+        }
+    }
+
+    private ArrayList<String> metaAnnotationToAnnotated(String meta) {
+        if (!metaAnnotationToAnnotated.containsKey(meta))
+          metaAnnotationToAnnotated.put(meta, new ArrayList<String>(4));
+
+        return metaAnnotationToAnnotated.get(meta);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -533,6 +579,7 @@ public class ClassGraphBuilder {
         // Access flags
         final int flags = inp.readUnsignedShort();
         final boolean isInterface = (flags & 0x0200) != 0;
+        final boolean isAnnotation = (flags & 0x2000) != 0;
 
         // The fully-qualified class name of this class, with slashes replaced with dots
         final String className = readRefdString(inp, constantPool).replace('/', '.');
@@ -678,7 +725,10 @@ public class ClassGraphBuilder {
             }
         }
 
-        if (isInterface) {
+        if (isAnnotation) {
+            linkToMetaAnnotations(/* annotation */ className, /* Meta annotations */ annotations);
+
+        } else if (isInterface) {
             linkToSuperinterfaces(/* interfaceName = */className, /* superInterfaces = */interfaces);
 
         } else {

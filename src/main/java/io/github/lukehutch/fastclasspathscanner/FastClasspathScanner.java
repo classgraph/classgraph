@@ -507,6 +507,22 @@ public class FastClasspathScanner {
         return classGraphBuilder.getNamesOfClassesWithAnnotation(annotationName);
     }
 
+    public List<String> getNamesOfClassesWithMetaAnnotation(final Class<?>... annotations) {
+        String[] names = new String[annotations.length];
+        for (int i = 0; i < annotations.length; i++) {
+            Class<?> annotation = annotations[i];
+            if (!annotation.isAnnotation())
+              throw new IllegalArgumentException("Class " + annotation.getName() + " is not an annotation");
+
+            names[i] = annotation.getName();
+        }
+
+        return classGraphBuilder.getNamesOfClassesWithMetaAnnotation(names);
+      }
+
+    public List<String> getNamesOfClassesWithMetaAnnotation(String... metaAnnotation) {
+        return classGraphBuilder.getNamesOfClassesWithMetaAnnotation(metaAnnotation);
+    }
     // -------------------------------------------------------------------------------------------------------------
 
     /**
