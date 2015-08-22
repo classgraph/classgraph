@@ -50,7 +50,7 @@ public class MetaAnnotationTest {
     }
 
     @Test
-    public void varArgsByClass() {
+    public void varArgsAnyOfByClass() {
         assertThat(
                 sort(scanner.getNamesOfClassesWithMetaAnnotationsAnyOf(MetaAnnotation.class,
                         NonMetaAnnotation.class))) //
@@ -59,12 +59,26 @@ public class MetaAnnotationTest {
     }
 
     @Test
-    public void varArgsByName() {
+    public void varArgsAnyOfByName() {
         assertThat(
                 sort(scanner.getNamesOfClassesWithMetaAnnotationsAnyOf(MetaAnnotation.class.getName(),
                         NonMetaAnnotation.class.getName()))) //
                 .containsExactly(MetaAndNonMetaAnnotatedClass.class.getName(), MetaAnnotatedClass.class.getName(),
                         NonMetaClass.class.getName());
+    }
+
+    @Test
+    public void varArgsAllOfByClass() {
+        assertThat(scanner.getNamesOfClassesWithMetaAnnotationsAllOf(MetaAnnotation.class, NonMetaAnnotation.class)) //
+                .containsExactly(MetaAndNonMetaAnnotatedClass.class.getName());
+    }
+
+    @Test
+    public void varArgsAllOfByName() {
+        assertThat(
+                scanner.getNamesOfClassesWithMetaAnnotationsAllOf(MetaAnnotation.class.getName(),
+                        NonMetaAnnotation.class.getName())) //
+                .containsExactly(MetaAndNonMetaAnnotatedClass.class.getName());
     }
 
     @Test
