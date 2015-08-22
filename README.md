@@ -228,6 +228,12 @@ public List<String> getNamesOfClassesImplementing(
 
 public List<String> getNamesOfClassesImplementing(
     String implementedInterfaceName)
+
+public List<String> getNamesOfClassesImplementingAllOf(
+    final Class<?>... implementedInterfaces)
+
+public List<String> getNamesOfClassesImplementingAllOf(
+    final String... implementedInterfaceNames)
 ```
 
 ### 4. Matching classes with a specific annotation
@@ -244,14 +250,53 @@ public interface ClassAnnotationMatchProcessor {
     public void processMatch(Class<?> matchingClass);
 }
 
-public FastClasspathScanner matchClassesWithAnnotation(Class<?> annotation,
+public FastClasspathScanner matchClassesWithAnnotation(
+    Class<?> annotation,
     ClassAnnotationMatchProcessor classAnnotationMatchProcessor)
 
 // Mechanism 2: Call one of the following after calling .scan():
 
-public List<String> getNamesOfClassesWithAnnotation(Class<?> annotation)
+public List<String> getNamesOfClassesWithAnnotation(
+    Class<?> annotation)
 
-public List<String> getNamesOfClassesWithAnnotation(String annotationName)
+public List<String> getNamesOfClassesWithAnnotation(
+    String annotationName)
+
+public List<String> getNamesOfClassesWithAnnotationsAllOf(
+    final Class<?>... annotations)
+
+public List<String> getNamesOfClassesWithAnnotationsAllOf(
+    final String... annotationNames)
+
+public List<String> getNamesOfClassesWithAnnotationsAnyOf(
+    final Class<?>... annotations)
+
+public List<String> getNamesOfClassesWithAnnotationsAnyOf(
+    final String... annotationNames)
+```
+
+FastClasspathScanner also supports scanning for classes with meta-annotations. A meta-annotation annotates an annotation that annotates a class.
+
+```java
+// Mechanism 2: Call one of the following after calling .scan():
+
+public List<String> getNamesOfClassesWithMetaAnnotation(
+    final Class<?> metaAnnotation)
+
+public List<String> getNamesOfClassesWithMetaAnnotation(
+    String metaAnnotationName)
+
+public List<String> getNamesOfClassesWithMetaAnnotationsAllOf(
+    final Class<?>... metaAnnotations)
+
+public List<String> getNamesOfClassesWithMetaAnnotationsAllOf(
+    final String... metaAnnotationNames)
+
+public List<String> getNamesOfClassesWithMetaAnnotationsAnyOf(
+    final Class<?>... metaAnnotations)
+
+public List<String> getNamesOfClassesWithMetaAnnotationsAnyOf(
+    final String... metaAnnotationNames)
 ```
 
 ### 5. Fetching the constant initializer values of static final fields

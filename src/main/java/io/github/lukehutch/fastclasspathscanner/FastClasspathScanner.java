@@ -492,18 +492,8 @@ public class FastClasspathScanner {
      *            The name of the interfaces that classes need to implement.
      * @return A list of the names of matching classes, or the empty list if none.
      */
-    public List<String> getNamesOfClassesImplementingAllOf(final String... implementedInterfaceNames) {
-        HashSet<String> classNames = new HashSet<>();
-        for (int i = 0; i < implementedInterfaceNames.length; i++) {
-            String implementedInterfaceName = implementedInterfaceNames[i];
-            List<String> namesOfImplementingClasses = getNamesOfClassesImplementing(implementedInterfaceName);
-            if (i == 0) {
-                classNames.addAll(namesOfImplementingClasses);
-            } else {
-                classNames.retainAll(namesOfImplementingClasses);
-            }
-        }
-        return new ArrayList<>(classNames);
+    public List<String> getNamesOfClassesImplementingAllOf(final Class<?>... implementedInterfaces) {
+        return getNamesOfClassesImplementingAllOf(interfaceNames(implementedInterfaces));
     }
 
     /**
@@ -516,8 +506,18 @@ public class FastClasspathScanner {
      *            The name of the interfaces that classes need to implement.
      * @return A list of the names of matching classes, or the empty list if none.
      */
-    public List<String> getNamesOfClassesImplementingAllOf(final Class<?>... implementedInterfaces) {
-        return getNamesOfClassesImplementingAllOf(interfaceNames(implementedInterfaces));
+    public List<String> getNamesOfClassesImplementingAllOf(final String... implementedInterfaceNames) {
+        HashSet<String> classNames = new HashSet<>();
+        for (int i = 0; i < implementedInterfaceNames.length; i++) {
+            String implementedInterfaceName = implementedInterfaceNames[i];
+            List<String> namesOfImplementingClasses = getNamesOfClassesImplementing(implementedInterfaceName);
+            if (i == 0) {
+                classNames.addAll(namesOfImplementingClasses);
+            } else {
+                classNames.retainAll(namesOfImplementingClasses);
+            }
+        }
+        return new ArrayList<>(classNames);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -585,6 +585,20 @@ public class FastClasspathScanner {
      * scanner before the call to scan(). Does not call the classloader on the matching classes, just returns their
      * names.
      * 
+     * @param annotations
+     *            The annotations.
+     * @return A list of the names of classes that have all of the annotations, or the empty list if none.
+     */
+    public List<String> getNamesOfClassesWithAnnotationsAllOf(final Class<?>... annotations) {
+        return getNamesOfClassesWithAnnotationsAllOf(annotationNames(annotations));
+    }
+
+    /**
+     * Returns the names of classes on the classpath that have all of the specified annotations. Should be called
+     * after scan(), and returns matching classes whether or not a ClassAnnotationMatchProcessor was added to the
+     * scanner before the call to scan(). Does not call the classloader on the matching classes, just returns their
+     * names.
+     * 
      * @param annotationNames
      *            The annotation names.
      * @return A list of the names of classes that have all of the annotations, or the empty list if none.
@@ -604,17 +618,17 @@ public class FastClasspathScanner {
     }
 
     /**
-     * Returns the names of classes on the classpath that have all of the specified annotations. Should be called
+     * Returns the names of classes on the classpath that have any of the specified annotations. Should be called
      * after scan(), and returns matching classes whether or not a ClassAnnotationMatchProcessor was added to the
      * scanner before the call to scan(). Does not call the classloader on the matching classes, just returns their
      * names.
      * 
      * @param annotations
      *            The annotations.
-     * @return A list of the names of classes that have all of the annotations, or the empty list if none.
+     * @return A list of the names of classes that have one or more of the annotations, or the empty list if none.
      */
-    public List<String> getNamesOfClassesWithAnnotationsAllOf(final Class<?>... annotations) {
-        return getNamesOfClassesWithAnnotationsAllOf(annotationNames(annotations));
+    public List<String> getNamesOfClassesWithAnnotationsAnyOf(final Class<?>... annotations) {
+        return getNamesOfClassesWithAnnotationsAnyOf(annotationNames(annotations));
     }
 
     /**
@@ -633,20 +647,6 @@ public class FastClasspathScanner {
             classNames.addAll(getNamesOfClassesWithAnnotation(annotationName));
         }
         return new ArrayList<>(classNames);
-    }
-
-    /**
-     * Returns the names of classes on the classpath that have any of the specified annotations. Should be called
-     * after scan(), and returns matching classes whether or not a ClassAnnotationMatchProcessor was added to the
-     * scanner before the call to scan(). Does not call the classloader on the matching classes, just returns their
-     * names.
-     * 
-     * @param annotations
-     *            The annotations.
-     * @return A list of the names of classes that have one or more of the annotations, or the empty list if none.
-     */
-    public List<String> getNamesOfClassesWithAnnotationsAnyOf(final Class<?>... annotations) {
-        return getNamesOfClassesWithAnnotationsAnyOf(annotationNames(annotations));
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -688,6 +688,21 @@ public class FastClasspathScanner {
      * ClassAnnotationMatchProcessor was added to the scanner before the call to scan(). Does not call the
      * classloader on the matching classes, just returns their names.
      * 
+     * @param metaAnnotations
+     *            The meta-annotations.
+     * @return A list of the names of classes that have all of the meta-annotations, or the empty list if none.
+     */
+    public List<String> getNamesOfClassesWithMetaAnnotationsAllOf(final Class<?>... metaAnnotations) {
+        return getNamesOfClassesWithMetaAnnotationsAllOf(annotationNames(metaAnnotations));
+    }
+
+    /**
+     * Returns the names of classes on the classpath that have all of the specified meta-annotations (i.e. classes
+     * that are annotated with all of the requested meta-annotations, or with an annotation that is annotated with
+     * each of the meta-annotations). Should be called after scan(), and returns matching classes whether or not a
+     * ClassAnnotationMatchProcessor was added to the scanner before the call to scan(). Does not call the
+     * classloader on the matching classes, just returns their names.
+     * 
      * @param metaAnnotationNames
      *            The meta-annotation names.
      * @return A list of the names of classes that have all of the meta-annotations, or the empty list if none.
@@ -707,18 +722,19 @@ public class FastClasspathScanner {
     }
 
     /**
-     * Returns the names of classes on the classpath that have all of the specified meta-annotations (i.e. classes
-     * that are annotated with all of the requested meta-annotations, or with an annotation that is annotated with
-     * each of the meta-annotations). Should be called after scan(), and returns matching classes whether or not a
-     * ClassAnnotationMatchProcessor was added to the scanner before the call to scan(). Does not call the
+     * Returns the names of classes on the classpath that have any of the specified meta-annotations (i.e. classes
+     * that are annotated with one or more of the meta-annotations, or with an annotation that is annotated with one
+     * or more of the meta-annotations). Should be called after scan(), and returns matching classes whether or not
+     * a ClassAnnotationMatchProcessor was added to the scanner before the call to scan(). Does not call the
      * classloader on the matching classes, just returns their names.
      * 
      * @param metaAnnotations
      *            The meta-annotations.
-     * @return A list of the names of classes that have all of the meta-annotations, or the empty list if none.
+     * @return A list of the names of classes that have one or more of the meta-annotations, or the empty list if
+     *         none.
      */
-    public List<String> getNamesOfClassesWithMetaAnnotationsAllOf(final Class<?>... metaAnnotations) {
-        return getNamesOfClassesWithMetaAnnotationsAllOf(annotationNames(metaAnnotations));
+    public List<String> getNamesOfClassesWithMetaAnnotationsAnyOf(final Class<?>... metaAnnotations) {
+        return getNamesOfClassesWithMetaAnnotationsAnyOf(annotationNames(metaAnnotations));
     }
 
     /**
@@ -739,22 +755,6 @@ public class FastClasspathScanner {
             classNames.addAll(getNamesOfClassesWithMetaAnnotation(metaAnnotationName));
         }
         return new ArrayList<>(classNames);
-    }
-
-    /**
-     * Returns the names of classes on the classpath that have any of the specified meta-annotations (i.e. classes
-     * that are annotated with one or more of the meta-annotations, or with an annotation that is annotated with one
-     * or more of the meta-annotations). Should be called after scan(), and returns matching classes whether or not
-     * a ClassAnnotationMatchProcessor was added to the scanner before the call to scan(). Does not call the
-     * classloader on the matching classes, just returns their names.
-     * 
-     * @param metaAnnotations
-     *            The meta-annotations.
-     * @return A list of the names of classes that have one or more of the meta-annotations, or the empty list if
-     *         none.
-     */
-    public List<String> getNamesOfClassesWithMetaAnnotationsAnyOf(final Class<?>... metaAnnotations) {
-        return getNamesOfClassesWithMetaAnnotationsAnyOf(annotationNames(metaAnnotations));
     }
 
     // -------------------------------------------------------------------------------------------------------------
