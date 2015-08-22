@@ -275,7 +275,7 @@ public List<String> getNamesOfClassesWithAnnotationsAnyOf(
     final String... annotationNames)
 ```
 
-FastClasspathScanner also supports scanning for classes with meta-annotations. A meta-annotation annotates an annotation that annotates a class. Class names are returned for classes that are annotated with an annotation that is itself annotated with the meta-annotation, and classes that are directly annotated with the meta-annotation.
+FastClasspathScanner also supports scanning for classes with meta-annotations. A meta-annotation annotates an annotation that annotates a class. Class names are returned for classes that are either (i) annotated with an annotation that is annotated with the meta-annotation, or (ii) directly annotated with the meta-annotation. (Due to (ii), for a given annotation, the results returned by the meta-annotation methods below will be a superset of the results returned by the annotation methods above.)
 
 ```java
 // Mechanism 2: Call one of the following after calling .scan():
