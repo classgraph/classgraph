@@ -53,19 +53,27 @@ public class ClassGraphBuilder {
     /** A map from fully-qualified class name to the corresponding InterfaceNode object. */
     private final HashMap<String, InterfaceNode> interfaceNameToInterfaceNode = new HashMap<>();
 
-    /** Reverse mapping from annotation to classes that have the annotation. */
-    private final HashMap<String, ArrayList<String>> annotationNameToClassName = new HashMap<>();
+    /** Reverse mapping from fully-qualified annotation names to the names of classes that have the annotation. */
+    private final HashMap<String, ArrayList<String>> annotationNameToClassNames = new HashMap<>();
 
-    /** Reverse mapping from interface to classes that implement the interface */
+    /** Reverse mapping from fully-qualified interface names to the names of classes that implement the interface */
     private final HashMap<String, ArrayList<String>> interfaceNameToClassNames = new HashMap<>();
 
-    /** Mapping of meta annotations to those so annotated */
-    private final HashMap<String, ArrayList<String>> metaAnnotationToAnnotated = new HashMap<>();
+    /**
+     * Mapping from fully-qualified meta-annotation names to names of annotations that are annotated with the
+     * meta-annotation.
+     */
+    private final HashMap<String, ArrayList<String>> metaAnnotationToAnnotatedAnnotationNames = new HashMap<>();
 
     /**
-     * Classes encountered so far during a scan. If the same fully-qualified classname is encountered more than
-     * once, the second and subsequent instances are ignored, because they are masked by the earlier occurrence in
-     * the classpath.
+     * Mapping from fully-qualified meta-annotation names to classes that are annotated with the meta-annotation.
+     */
+    private final HashMap<String, ArrayList<String>> metaAnnotationToAnnotatedClassNames = new HashMap<>();
+
+    /**
+     * Fully-qualified names of classes encountered so far during a scan. If the same fully-qualified classname is
+     * encountered more than once, the second and subsequent instances are ignored, because they are masked by the
+     * earlier occurrence in the classpath.
      */
     private final HashSet<String> classesEncounteredSoFarDuringScan = new HashSet<>();
 
@@ -96,37 +104,23 @@ public class ClassGraphBuilder {
 
     /** Return the names of all classes with the named class annotation. */
     public List<String> getNamesOfClassesWithAnnotation(final String annotationName) {
-        final ArrayList<String> classes = annotationNameToClassName.get(annotationName);
+        final ArrayList<String> classes = annotationNameToClassNames.get(annotationName);
         if (classes == null) {
             return Collections.emptyList();
         }
         return classes;
     }
 
-    /** Return the names of all classes with the named class annotation. */
-    public List<String> getNamesOfClassesWithAnnotation(final String... annotationName) {
-      final ArrayList<String> classes = new ArrayList<>();
-      for (String name : annotationName) {
-        List<String> moreClasses = annotationNameToClassName.get(name);
-        if (moreClasses != null)
-          classes.addAll(moreClasses);
-      }
-      return classes;
-    }
-
-    public List<String> getNamesOfClassesWithMetaAnnotation(final String... metaAnnotations) {
-      final List<String> classes = new ArrayList<>();
-      classes.addAll(getNamesOfClassesWithAnnotation(metaAnnotations));
-
-      for (String meta : metaAnnotations) {
-        ArrayList<String> metaAnnotated = metaAnnotationToAnnotated.get(meta);
-        if (metaAnnotated != null) {
-          for (String string : metaAnnotated) {
-            classes.addAll(getNamesOfClassesWithAnnotation(string));
-          }
+    /**
+     * Return the names of all classes with the named class meta-annotation (i.e. classes that are annotated with
+     * the meta-annotation, or that are annotated with an annotation that is annotated with the meta-annotation).
+     */
+    public List<String> getNamesOfClassesWithMetaAnnotation(final String metaAnnotation) {
+        ArrayList<String> classes = metaAnnotationToAnnotatedClassNames.get(metaAnnotation);
+        if (classes == null) {
+            return Collections.emptyList();
         }
-      }
-      return classes;
+        return classes;
     }
 
     /** Return the names of all classes implementing the named interface. */
@@ -195,9 +189,7 @@ public class ClassGraphBuilder {
 
     /** Link a class to its superclass and to the interfaces it implements, and save the class annotations. */
     private void linkToSuperclassAndInterfaces(final String className, final String superclassName,
-            final ArrayList<String> interfaces, final HashSet<String> annotations) {
-        // Save the info recovered from the classfile for a class
-
+            final ArrayList<String> interfaces, final HashSet<String> annotations, boolean isAnnotation) {
         // Look up ClassNode object for this class
         ClassNode thisClassNode = classNameToClassNode.get(className);
         if (thisClassNode == null) {
@@ -209,19 +201,21 @@ public class ClassGraphBuilder {
             thisClassNode.encounter(interfaces, annotations);
         }
 
-        // Look up ClassNode object for superclass, and connect it to this class
-        ClassNode superclassNode = classNameToClassNode.get(superclassName);
-        if (superclassNode == null) {
-            // The superclass of this class has not yet been encountered on the classpath
-            classNameToClassNode.put(superclassName, superclassNode = new ClassNode(superclassName, thisClassNode));
-        } else {
-            superclassNode.addSubNode(thisClassNode);
+        if (superclassName != null) {
+            // Look up ClassNode object for superclass, and connect it to this class
+            ClassNode superclassNode = classNameToClassNode.get(superclassName);
+            if (superclassNode == null) {
+                // The superclass of this class has not yet been encountered on the classpath
+                classNameToClassNode.put(superclassName, superclassNode = new ClassNode(superclassName,
+                        thisClassNode));
+            } else {
+                superclassNode.addSubNode(thisClassNode);
+            }
         }
     }
 
     /** Save the mapping from an interface to its superinterfaces. */
     private void linkToSuperinterfaces(final String interfaceName, final ArrayList<String> superInterfaces) {
-
         // Look up InterfaceNode for this interface
         InterfaceNode thisInterfaceInfo = interfaceNameToInterfaceNode.get(interfaceName);
         if (thisInterfaceInfo == null) {
@@ -248,21 +242,19 @@ public class ClassGraphBuilder {
         }
     }
 
-    private void linkToMetaAnnotations(String className, HashSet<String> annotations) {
-        if (annotations == null)
-          return;
-
-        for (String meta : annotations) {
-            ArrayList<String> annotated = metaAnnotationToAnnotated(meta);
-            annotated.add(className);
+    /** Save the mapping from an annotation to its meta-annotations. */
+    private void linkToMetaAnnotations(String annotationName, HashSet<String> metaAnnotations) {
+        if (metaAnnotations != null) {
+            for (String metaAnnotation : metaAnnotations) {
+                ArrayList<String> annotatedAnnotations = metaAnnotationToAnnotatedAnnotationNames
+                        .get(metaAnnotation);
+                if (annotatedAnnotations == null) {
+                    metaAnnotationToAnnotatedAnnotationNames.put(metaAnnotation,
+                            annotatedAnnotations = new ArrayList<>(4));
+                }
+                annotatedAnnotations.add(annotationName);
+            }
         }
-    }
-
-    private ArrayList<String> metaAnnotationToAnnotated(String meta) {
-        if (!metaAnnotationToAnnotated.containsKey(meta))
-          metaAnnotationToAnnotated.put(meta, new ArrayList<String>(4));
-
-        return metaAnnotationToAnnotated.get(meta);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -391,7 +383,7 @@ public class ClassGraphBuilder {
         // Convert annotation and interface mappings to String->String 
         for (final Entry<String, HashSet<DAGNode>> ent : annotationToClassNodes.entrySet()) {
             final ArrayList<String> classNameList = new ArrayList<>();
-            annotationNameToClassName.put(ent.getKey(), classNameList);
+            annotationNameToClassNames.put(ent.getKey(), classNameList);
             final HashSet<DAGNode> classNodes = ent.getValue();
             if (classNodes != null) {
                 for (final DAGNode classNode : classNodes) {
@@ -409,6 +401,30 @@ public class ClassGraphBuilder {
                 }
             }
         }
+
+        // Map from meta-annotations to the classes annotated by the annotations annotated by the meta-annotations
+        for (Entry<String, ArrayList<String>> ent : annotationNameToClassNames.entrySet()) {
+            String annotationName = ent.getKey();
+            ArrayList<String> classNames = ent.getValue();
+
+            // Meta-annotations can be used to annotate classes directly --
+            // start by adding all classes directly annotated by any annotation
+            HashSet<String> annotatedClassNamesSet = new HashSet<>(classNames);
+
+            // Add all classes that are annotated by annotations that are annotated by a meta-annotation
+            ArrayList<String> annotatedAnnotationNames = metaAnnotationToAnnotatedAnnotationNames
+                    .get(annotationName);
+            if (annotatedAnnotationNames != null) {
+                for (String annotatedAnnotationName : annotatedAnnotationNames) {
+                    ArrayList<String> metaAnnotatedClassNames = annotationNameToClassNames
+                            .get(annotatedAnnotationName);
+                    if (metaAnnotatedClassNames != null) {
+                        annotatedClassNamesSet.addAll(metaAnnotatedClassNames);
+                    }
+                }
+            }
+            metaAnnotationToAnnotatedClassNames.put(annotationName, new ArrayList<>(annotatedClassNamesSet));
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -416,7 +432,7 @@ public class ClassGraphBuilder {
     public void reset() {
         classNameToClassNode.clear();
         interfaceNameToInterfaceNode.clear();
-        annotationNameToClassName.clear();
+        annotationNameToClassNames.clear();
         interfaceNameToClassNames.clear();
         classesEncounteredSoFarDuringScan.clear();
     }
@@ -726,13 +742,11 @@ public class ClassGraphBuilder {
         }
 
         if (isAnnotation) {
-            linkToMetaAnnotations(/* annotation */ className, /* Meta annotations */ annotations);
-
+            linkToMetaAnnotations(/* annotationName = */className, /* metaAnnotations = */annotations);
         } else if (isInterface) {
             linkToSuperinterfaces(/* interfaceName = */className, /* superInterfaces = */interfaces);
-
         } else {
-            linkToSuperclassAndInterfaces(className, superclassName, interfaces, annotations);
+            linkToSuperclassAndInterfaces(className, superclassName, interfaces, annotations, isAnnotation);
         }
     }
 }

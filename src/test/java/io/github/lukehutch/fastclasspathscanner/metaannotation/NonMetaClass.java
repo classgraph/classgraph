@@ -1,5 +1,5 @@
 package io.github.lukehutch.fastclasspathscanner.metaannotation;
 
-@MetaMetaAnnotatedAnnotation2
-public class NonMetaClass2 {
+@NonMetaAnnotation
+public class NonMetaClass {
 }

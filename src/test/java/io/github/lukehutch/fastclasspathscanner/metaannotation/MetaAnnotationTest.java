@@ -4,21 +4,31 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.StrictAssertions.assertThat;
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 import org.junit.Test;
 
 public class MetaAnnotationTest {
     FastClasspathScanner scanner = new FastClasspathScanner(getClass().getPackage().getName()).scan();
+
+    private static <T extends Comparable<T>> ArrayList<T> sort(List<T> list) {
+        ArrayList<T> sorted = new ArrayList<>(list);
+        Collections.sort(sorted);
+        return sorted;
+    }
 
     @Test
     public void metaAnnotationsByClass() {
         assertThat(scanner.getNamesOfClassesWithAnnotation(MetaAnnotatedAnnotation.class)).containsExactly(
                 MetaAnnotatedClass.class.getName());
 
-        assertThat(scanner.getNamesOfClassesWithMetaAnnotation(MetaAnnotation.class)).containsExactly(
-                MetaAnnotatedClass.class.getName());
+        assertThat(sort(scanner.getNamesOfClassesWithMetaAnnotation(MetaAnnotation.class))).containsExactly(
+                MetaAndNonMetaAnnotatedClass.class.getName(), MetaAnnotatedClass.class.getName());
 
-        assertThat(scanner.getNamesOfClassesWithMetaAnnotation(MetaAnnotatedAnnotation.class)).containsExactly(
-                MetaAnnotatedClass.class.getName(), NonMetaClass2.class.getName());
+        assertThat(sort(scanner.getNamesOfClassesWithMetaAnnotation(MetaAnnotatedAnnotation.class)))
+                .containsExactly(MetaAnnotatedClass.class.getName(), MetaMetaAnnotatedClass.class.getName());
     }
 
     @Test
@@ -26,43 +36,52 @@ public class MetaAnnotationTest {
         assertThat(scanner.getNamesOfClassesWithAnnotation(MetaAnnotatedAnnotation.class.getName()))
                 .containsExactly(MetaAnnotatedClass.class.getName());
 
-        assertThat(scanner.getNamesOfClassesWithMetaAnnotation(MetaAnnotation.class.getName())).containsExactly(
-                MetaAnnotatedClass.class.getName());
+        assertThat(sort(scanner.getNamesOfClassesWithMetaAnnotation(MetaAnnotation.class.getName())))
+                .containsExactly(MetaAndNonMetaAnnotatedClass.class.getName(), MetaAnnotatedClass.class.getName());
 
-        assertThat(scanner.getNamesOfClassesWithMetaAnnotation(MetaAnnotatedAnnotation.class.getName()))
-                .containsExactly(MetaAnnotatedClass.class.getName(), NonMetaClass2.class.getName());
+        assertThat(sort(scanner.getNamesOfClassesWithMetaAnnotation(MetaAnnotatedAnnotation.class.getName())))
+                .containsExactly(MetaAnnotatedClass.class.getName(), MetaMetaAnnotatedClass.class.getName());
     }
 
     @Test
-    public void controlWithNonMeta() {
-        assertThat(scanner.getNamesOfClassesWithMetaAnnotation(NonMetaAnnotation.class)).containsExactly(
-                NonMetaClass1.class.getName());
-
-        assertThat(scanner.getNamesOfClassesWithAnnotation(NonMetaAnnotation.class)).containsExactly(
-                NonMetaClass1.class.getName());
+    public void nonMeta() {
+        assertThat(sort(scanner.getNamesOfClassesWithMetaAnnotation(NonMetaAnnotation.class))).containsExactly(
+                MetaAndNonMetaAnnotatedClass.class.getName(), NonMetaClass.class.getName());
     }
 
     @Test
     public void varArgsByClass() {
-        assertThat(scanner.getNamesOfClassesWithMetaAnnotation(MetaAnnotation.class, NonMetaAnnotation.class))
-                .containsExactly(NonMetaClass1.class.getName(), MetaAnnotatedClass.class.getName());
+        assertThat(
+                sort(scanner.getNamesOfClassesWithMetaAnnotationsAnyOf(MetaAnnotation.class,
+                        NonMetaAnnotation.class))) //
+                .containsExactly(MetaAndNonMetaAnnotatedClass.class.getName(), MetaAnnotatedClass.class.getName(),
+                        NonMetaClass.class.getName());
     }
 
     @Test
     public void varArgsByName() {
         assertThat(
-                scanner.getNamesOfClassesWithMetaAnnotation(MetaAnnotation.class.getName(),
-                        NonMetaAnnotation.class.getName())).containsExactly(NonMetaClass1.class.getName(),
-                MetaAnnotatedClass.class.getName());
+                sort(scanner.getNamesOfClassesWithMetaAnnotationsAnyOf(MetaAnnotation.class.getName(),
+                        NonMetaAnnotation.class.getName()))) //
+                .containsExactly(MetaAndNonMetaAnnotatedClass.class.getName(), MetaAnnotatedClass.class.getName(),
+                        NonMetaClass.class.getName());
     }
 
     @Test
-    public void metaMetaDoesntWork() {
-        assertThat(NonMetaClass1.class.getAnnotation(NonMetaAnnotation.class)).isNotNull();
-        assertThat(NonMetaClass1.class.getAnnotation(MetaMetaAnnotatedAnnotation1.class)).isNull();
-        assertThat(NonMetaClass1.class.getAnnotationsByType(NonMetaAnnotation.class)).isNotEmpty();
-        assertThat(NonMetaClass1.class.getAnnotationsByType(MetaMetaAnnotatedAnnotation1.class)).isEmpty();
-        assertThat(NonMetaClass2.class.getAnnotation(MetaAnnotation.class)).isNull();
-        assertThat(NonMetaClass2.class.getAnnotationsByType(MetaAnnotation.class)).isEmpty();
+    public void nonMetaAnnotation() {
+        assertThat(NonMetaClass.class.getAnnotation(NonMetaAnnotation.class)).isNotNull();
+        assertThat(NonMetaClass.class.getAnnotation(MetaAnnotation.class)).isNull();
+    }
+
+    @Test
+    public void nonClassTargetDoesntWork() {
+        assertThat(NonClassTarget.class.getAnnotationsByType(MetaAnnotatedAnnotation.class)).isEmpty();
+        assertThat(NonClassTarget.class.getAnnotationsByType(MetaAnnotation.class)).isEmpty();
+    }
+
+    @Test
+    public void metaMeta() {
+        assertThat(MetaMetaAnnotatedClass.class.getAnnotation(MetaAnnotatedAnnotation.class)).isNull();
+        assertThat(MetaMetaAnnotatedClass.class.getAnnotation(MetaAnnotation.class)).isNull();
     }
 }
