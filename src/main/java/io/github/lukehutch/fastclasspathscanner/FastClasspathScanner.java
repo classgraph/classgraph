@@ -182,6 +182,43 @@ public class FastClasspathScanner {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Check a class is an annotation (throws an IllegalArgumentException if not), and returns the name of the
+     * annotation.
+     */
+    public String annotationName(final Class<?> annotation) {
+        if (!annotation.isAnnotation()) {
+            throw new IllegalArgumentException("Class " + annotation.getName() + " is not an annotation");
+        }
+        return annotation.getName();
+    }
+
+    /**
+     * Check a class is an interface (throws an IllegalArgumentException if not), and returns the name of the
+     * interface.
+     */
+    public String interfaceName(final Class<?> iface) {
+        if (!iface.isInterface()) {
+            throw new IllegalArgumentException("Class " + iface.getName() + " is not an interface");
+        }
+        return iface.getName();
+    }
+
+    /**
+     * Check a class is a regular class (not an interface or annotation -- throws an IllegalArgumentException if not
+     * a regular class), and returns the name of the class.
+     */
+    public String className(final Class<?> klass) {
+        if (klass.isAnnotation()) {
+            throw new IllegalArgumentException(klass.getName() + " is an annotation, not a regular class");
+        } else if (klass.isInterface()) {
+            throw new IllegalArgumentException(klass.getName() + " is an interface, not a regular class");
+        }
+        return klass.getName();
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
      * Calls the provided SubclassMatchProcessor if classes are found on the classpath that extend the specified
      * superclass. Will call the class loader on each matching class (using Class.forName()) before calling the
      * SubclassMatchProcessor. Does not call the classloader on non-matching classes or interfaces.
@@ -193,18 +230,16 @@ public class FastClasspathScanner {
      */
     public <T> FastClasspathScanner matchSubclassesOf(final Class<T> superclass,
             final SubclassMatchProcessor<T> subclassMatchProcessor) {
-        if (superclass.isInterface()) {
-            throw new IllegalArgumentException(superclass.getName() + " is an interface, not a regular class");
-        }
+        final String superclassName = className(superclass);
         classMatchers.add(new ClassMatcher() {
             @Override
             public void lookForMatches() {
-                for (final String subclass : classGraphBuilder.getNamesOfSubclassesOf(superclass.getName())) {
+                for (final String subclassName : classGraphBuilder.getNamesOfSubclassesOf(superclass.getName())) {
                     if (verbose) {
-                        Log.log("Found subclass of " + superclass.getName() + ": " + subclass);
+                        Log.log("Found subclass of " + superclassName + ": " + subclassName);
                     }
                     // Call classloader
-                    final Class<? extends T> klass = loadClass(subclass);
+                    final Class<? extends T> klass = loadClass(subclassName);
                     // Process match
                     subclassMatchProcessor.processMatch(klass);
                 }
@@ -222,11 +257,8 @@ public class FastClasspathScanner {
      *            The superclass to match (i.e. the class that subclasses need to extend to match).
      * @return A list of the names of matching classes, or the empty list if none.
      */
-    public <T> List<String> getNamesOfSubclassesOf(final Class<T> superclass) {
-        if (superclass.isInterface()) {
-            throw new IllegalArgumentException(superclass.getName() + " is an interface, not a regular class");
-        }
-        return classGraphBuilder.getNamesOfSubclassesOf(superclass.getName());
+    public List<String> getNamesOfSubclassesOf(final Class<?> superclass) {
+        return getNamesOfSubclassesOf(className(superclass));
     }
 
     /**
@@ -253,11 +285,8 @@ public class FastClasspathScanner {
      *            match).
      * @return A list of the names of matching classes, or the empty list if none.
      */
-    public <T> List<String> getNamesOfSuperclassesOf(final Class<T> subclass) {
-        if (subclass.isInterface()) {
-            throw new IllegalArgumentException(subclass.getName() + " is an interface, not a regular class");
-        }
-        return classGraphBuilder.getNamesOfSuperclassesOf(subclass.getName());
+    public List<String> getNamesOfSuperclassesOf(final Class<?> subclass) {
+        return getNamesOfSuperclassesOf(className(subclass));
     }
 
     /**
@@ -289,19 +318,17 @@ public class FastClasspathScanner {
      */
     public <T> FastClasspathScanner matchSubinterfacesOf(final Class<T> superinterface,
             final SubinterfaceMatchProcessor<T> subinterfaceMatchProcessor) {
-        if (!superinterface.isInterface()) {
-            throw new IllegalArgumentException(superinterface.getName() + " is not an interface");
-        }
+        final String superinterfaceName = interfaceName(superinterface);
         classMatchers.add(new ClassMatcher() {
             @Override
             public void lookForMatches() {
-                for (final String subinterface : classGraphBuilder.getNamesOfSubinterfacesOf( //
+                for (final String subinterfaceName : classGraphBuilder.getNamesOfSubinterfacesOf( //
                         superinterface.getName())) {
                     if (verbose) {
-                        Log.log("Found subinterface of " + superinterface.getName() + ": " + subinterface);
+                        Log.log("Found subinterface of " + superinterfaceName + ": " + subinterfaceName);
                     }
                     // Call classloader
-                    final Class<? extends T> klass = loadClass(subinterface);
+                    final Class<? extends T> klass = loadClass(subinterfaceName);
                     // Process match
                     subinterfaceMatchProcessor.processMatch(klass);
                 }
@@ -320,11 +347,8 @@ public class FastClasspathScanner {
      *            The superinterface to match (i.e. the interface that subinterfaces need to extend to match).
      * @return A list of the names of matching interfaces, or the empty list if none.
      */
-    public <T> List<String> getNamesOfSubinterfacesOf(final Class<T> superInterface) {
-        if (!superInterface.isInterface()) {
-            throw new IllegalArgumentException(superInterface.getName() + " is not an interface");
-        }
-        return classGraphBuilder.getNamesOfSubinterfacesOf(superInterface.getName());
+    public List<String> getNamesOfSubinterfacesOf(final Class<?> superInterface) {
+        return getNamesOfSubinterfacesOf(interfaceName(superInterface));
     }
 
     /**
@@ -352,11 +376,8 @@ public class FastClasspathScanner {
      *            The superinterface to match (i.e. the interface that subinterfaces need to extend to match).
      * @return A list of the names of matching interfaces, or the empty list if none.
      */
-    public <T> List<String> getNamesOfSuperinterfacesOf(final Class<T> subInterface) {
-        if (!subInterface.isInterface()) {
-            throw new IllegalArgumentException(subInterface.getName() + " is not an interface");
-        }
-        return classGraphBuilder.getNamesOfSuperinterfacesOf(subInterface.getName());
+    public List<String> getNamesOfSuperinterfacesOf(final Class<?> subInterface) {
+        return getNamesOfSuperinterfacesOf(interfaceName(subInterface));
     }
 
     /**
@@ -389,9 +410,7 @@ public class FastClasspathScanner {
      */
     public <T> FastClasspathScanner matchClassesImplementing(final Class<T> implementedInterface,
             final InterfaceMatchProcessor<T> interfaceMatchProcessor) {
-        if (!implementedInterface.isInterface()) {
-            throw new IllegalArgumentException(implementedInterface.getName() + " is not an interface");
-        }
+        final String implementedInterfaceName = interfaceName(implementedInterface);
         classMatchers.add(new ClassMatcher() {
             @Override
             public void lookForMatches() {
@@ -399,8 +418,7 @@ public class FastClasspathScanner {
                 for (final String implClass : classGraphBuilder.getNamesOfClassesImplementing(implementedInterface
                         .getName())) {
                     if (verbose) {
-                        Log.log("Found class implementing interface " + implementedInterface.getName() + ": "
-                                + implClass);
+                        Log.log("Found class implementing interface " + implementedInterfaceName + ": " + implClass);
                     }
                     // Call classloader
                     final Class<? extends T> klass = loadClass(implClass);
@@ -422,11 +440,8 @@ public class FastClasspathScanner {
      *            The interface that classes need to implement to match.
      * @return A list of the names of matching classes, or the empty list if none.
      */
-    public <T> List<String> getNamesOfClassesImplementing(final Class<T> implementedInterface) {
-        if (!implementedInterface.isInterface()) {
-            throw new IllegalArgumentException(implementedInterface.getName() + " is not an interface");
-        }
-        return classGraphBuilder.getNamesOfClassesImplementing(implementedInterface.getName());
+    public List<String> getNamesOfClassesImplementing(final Class<?> implementedInterface) {
+        return getNamesOfClassesImplementing(interfaceName(implementedInterface));
     }
 
     /**
@@ -456,9 +471,7 @@ public class FastClasspathScanner {
      */
     public FastClasspathScanner matchClassesWithAnnotation(final Class<?> annotation,
             final ClassAnnotationMatchProcessor classAnnotationMatchProcessor) {
-        if (!annotation.isAnnotation()) {
-            throw new IllegalArgumentException("Class " + annotation.getName() + " is not an annotation");
-        }
+        final String annotationName = annotationName(annotation);
         classMatchers.add(new ClassMatcher() {
             @Override
             public void lookForMatches() {
@@ -466,7 +479,7 @@ public class FastClasspathScanner {
                 for (final String classWithAnnotation : classGraphBuilder
                         .getNamesOfClassesWithAnnotation(annotation.getName())) {
                     if (verbose) {
-                        Log.log("Found class with annotation " + annotation.getName() + ": " + classWithAnnotation);
+                        Log.log("Found class with annotation " + annotationName + ": " + classWithAnnotation);
                     }
                     // Call classloader
                     final Class<?> klass = loadClass(classWithAnnotation);
@@ -487,11 +500,8 @@ public class FastClasspathScanner {
      *            The class annotation.
      * @return A list of the names of classes with the class annotation, or the empty list if none.
      */
-    public <T> List<String> getNamesOfClassesWithAnnotation(final Class<?> annotation) {
-        if (!annotation.isAnnotation()) {
-            throw new IllegalArgumentException("Class " + annotation.getName() + " is not an annotation");
-        }
-        return classGraphBuilder.getNamesOfClassesWithAnnotation(annotation.getName());
+    public List<String> getNamesOfClassesWithAnnotation(final Class<?> annotation) {
+        return getNamesOfClassesWithAnnotation(annotationName(annotation));
     }
 
     /**
@@ -507,22 +517,125 @@ public class FastClasspathScanner {
         return classGraphBuilder.getNamesOfClassesWithAnnotation(annotationName);
     }
 
-    public List<String> getNamesOfClassesWithMetaAnnotation(final Class<?>... annotations) {
-        String[] names = new String[annotations.length];
+    /**
+     * Returns the names of classes on the classpath that have all of the specified annotations. Should be called
+     * after scan(), and returns matching classes whether or not a ClassAnnotationMatchProcessor was added to the
+     * scanner before the call to scan(). Does not call the classloader on the matching classes, just returns their
+     * names.
+     * 
+     * @param annotations
+     *            The annotations.
+     * @return A list of the names of classes that have all of the annotations, or the empty list if none.
+     */
+    public List<String> getNamesOfClassesWithAnnotationsAllOf(final Class<?>... annotations) {
+        HashSet<String> classNames = new HashSet<>();
         for (int i = 0; i < annotations.length; i++) {
             Class<?> annotation = annotations[i];
-            if (!annotation.isAnnotation())
-              throw new IllegalArgumentException("Class " + annotation.getName() + " is not an annotation");
-
-            names[i] = annotation.getName();
+            List<String> namesOfClassesWithMetaAnnotation = getNamesOfClassesWithAnnotation(annotation);
+            if (i == 0) {
+                classNames.addAll(namesOfClassesWithMetaAnnotation);
+            } else {
+                classNames.retainAll(namesOfClassesWithMetaAnnotation);
+            }
         }
-
-        return classGraphBuilder.getNamesOfClassesWithMetaAnnotation(names);
-      }
-
-    public List<String> getNamesOfClassesWithMetaAnnotation(String... metaAnnotation) {
-        return classGraphBuilder.getNamesOfClassesWithMetaAnnotation(metaAnnotation);
+        return new ArrayList<>(classNames);
     }
+
+    /**
+     * Returns the names of classes on the classpath that have any of the specified annotations. Should be called
+     * after scan(), and returns matching classes whether or not a ClassAnnotationMatchProcessor was added to the
+     * scanner before the call to scan(). Does not call the classloader on the matching classes, just returns their
+     * names.
+     * 
+     * @param annotations
+     *            The annotations.
+     * @return A list of the names of classes that have one or more of the annotations, or the empty list if none.
+     */
+    public List<String> getNamesOfClassesWithAnnotationsAnyOf(final Class<?>... annotations) {
+        HashSet<String> classNames = new HashSet<>();
+        for (Class<?> annotation : annotations) {
+            classNames.addAll(getNamesOfClassesWithAnnotation(annotation));
+        }
+        return new ArrayList<>(classNames);
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Returns the names of classes on the classpath that have the specified meta-annotation (i.e. classes that are
+     * annotated with a meta-annotation, or with an annotation that is annotated with a meta-annotation). Should be
+     * called after scan(), and returns matching classes whether or not a ClassAnnotationMatchProcessor was added to
+     * the scanner before the call to scan(). Does not call the classloader on the matching classes, just returns
+     * their names.
+     * 
+     * @param metaAnnotation
+     *            The meta-annotation.
+     * @return A list of the names of classes that have the meta-annotation, or the empty list if none.
+     */
+    public List<String> getNamesOfClassesWithMetaAnnotation(final Class<?> metaAnnotation) {
+        return getNamesOfClassesWithMetaAnnotation(annotationName(metaAnnotation));
+    }
+
+    /**
+     * Returns the names of classes on the classpath that have the specified meta-annotation (i.e. classes that are
+     * annotated with a meta-annotation, or with an annotation that is annotated with a meta-annotation). Should be
+     * called after scan(), and returns matching classes whether or not a ClassAnnotationMatchProcessor was added to
+     * the scanner before the call to scan(). Does not call the classloader on the matching classes, just returns
+     * their names.
+     * 
+     * @param metaAnnotationName
+     *            The name of the meta-annotation.
+     * @return A list of the names of classes that have the named meta-annotation, or the empty list if none.
+     */
+    public List<String> getNamesOfClassesWithMetaAnnotation(String metaAnnotationName) {
+        return classGraphBuilder.getNamesOfClassesWithMetaAnnotation(metaAnnotationName);
+    }
+
+    /**
+     * Returns the names of classes on the classpath that have all of the specified meta-annotations (i.e. classes
+     * that are annotated with all of the requested meta-annotations, or with an annotation that is annotated with
+     * each of the meta-annotations). Should be called after scan(), and returns matching classes whether or not a
+     * ClassAnnotationMatchProcessor was added to the scanner before the call to scan(). Does not call the
+     * classloader on the matching classes, just returns their names.
+     * 
+     * @param metaAnnotations
+     *            The meta-annotations.
+     * @return A list of the names of classes that have all of the meta-annotations, or the empty list if none.
+     */
+    public List<String> getNamesOfClassesWithMetaAnnotationsAllOf(final Class<?>... metaAnnotations) {
+        HashSet<String> classNames = new HashSet<>();
+        for (int i = 0; i < metaAnnotations.length; i++) {
+            Class<?> metaAnnotation = metaAnnotations[i];
+            List<String> namesOfClassesWithMetaAnnotation = getNamesOfClassesWithMetaAnnotation(metaAnnotation);
+            if (i == 0) {
+                classNames.addAll(namesOfClassesWithMetaAnnotation);
+            } else {
+                classNames.retainAll(namesOfClassesWithMetaAnnotation);
+            }
+        }
+        return new ArrayList<>(classNames);
+    }
+
+    /**
+     * Returns the names of classes on the classpath that have any of the specified meta-annotations (i.e. classes
+     * that are annotated with one or more of the meta-annotations, or with an annotation that is annotated with one
+     * or more of the meta-annotations). Should be called after scan(), and returns matching classes whether or not
+     * a ClassAnnotationMatchProcessor was added to the scanner before the call to scan(). Does not call the
+     * classloader on the matching classes, just returns their names.
+     * 
+     * @param metaAnnotations
+     *            The meta-annotations.
+     * @return A list of the names of classes that have one or more of the meta-annotations, or the empty list if
+     *         none.
+     */
+    public List<String> getNamesOfClassesWithMetaAnnotationsAnyOf(final Class<?>... metaAnnotations) {
+        HashSet<String> classNames = new HashSet<>();
+        for (Class<?> metaAnnotation : metaAnnotations) {
+            classNames.addAll(getNamesOfClassesWithMetaAnnotation(metaAnnotation));
+        }
+        return new ArrayList<>(classNames);
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
@@ -823,7 +936,7 @@ public class FastClasspathScanner {
      * Returns the names of all classes and interfaces processed during the scan, i.e. all classes reachable after
      * taking into account the package whitelist and blacklist criteria.
      */
-    public <T> Set<String> getNamesOfAllClasses() {
+    public Set<String> getNamesOfAllClasses() {
         return classGraphBuilder.getNamesOfAllClasses();
     }
 
