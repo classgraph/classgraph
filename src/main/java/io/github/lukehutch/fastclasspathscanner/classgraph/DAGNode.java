@@ -41,27 +41,20 @@ class DAGNode {
     String name;
 
     /** Direct superclass (there can be only one) / direct superinterface(s). */
-    ArrayList<DAGNode> directSuperNodes = new ArrayList<>();
+    ArrayList<DAGNode> directSuperNodes = new ArrayList<>(4);
 
     /** Direct subclass(es) / superinterface(s). */
-    ArrayList<DAGNode> directSubNodes = new ArrayList<>();
+    ArrayList<DAGNode> directSubNodes = new ArrayList<>(4);
 
     /** All superclasses, including java.lang.Object / all superinterfaces. */
-    HashSet<DAGNode> allSuperNodes = new HashSet<>();
+    HashSet<DAGNode> allSuperNodes = new HashSet<>(4);
 
     /** All subclasses / subinterfaces. */
-    HashSet<DAGNode> allSubNodes = new HashSet<>();
+    HashSet<DAGNode> allSubNodes = new HashSet<>(4);
 
     /** This class or interface was encountered on the classpath. */
     public DAGNode(final String name) {
         this.name = name;
-    }
-
-    /**
-     * This class or interface was previously cited as a superclass or superinterface, and now has itself been
-     * encountered on the classpath.
-     */
-    public void encounter() {
     }
 
     /** This class/interface was referenced as a superclass/superinterface of the given subclass/subinterface. */
@@ -73,26 +66,26 @@ class DAGNode {
     /** Connect this node to a subnode. */
     public void addSubNode(final DAGNode subNode) {
         subNode.directSuperNodes.add(this);
-        subNode.allSuperNodes.add(this);
         this.directSubNodes.add(subNode);
-        this.allSubNodes.add(subNode);
     }
 
     /** Topological sort DFS recursion */
-    protected void topoSortRec(final HashSet<DAGNode> visited, final ArrayList<DAGNode> topoOrder) {
-        if (visited.add(this)) {
+    protected <N extends DAGNode> void topoSortRec(final HashSet<N> visited, final ArrayList<N> topoOrder) {
+        @SuppressWarnings("unchecked")
+        N thisGeneric = (N) this;
+        if (visited.add(thisGeneric)) {
             for (final DAGNode subNode : directSubNodes) {
                 subNode.topoSortRec(visited, topoOrder);
             }
-            topoOrder.add(this);
+            topoOrder.add(thisGeneric);
         }
     }
 
     /** Perform topological sort on DAG. */
-    public static ArrayList<DAGNode> topoSort(final Collection<? extends DAGNode> nodes) {
-        final ArrayList<DAGNode> topoOrder = new ArrayList<>(nodes.size());
-        final HashSet<DAGNode> visited = new HashSet<>();
-        for (final DAGNode node : nodes) {
+    public static <N extends DAGNode> ArrayList<N> topoSort(final Collection<N> nodes) {
+        final ArrayList<N> topoOrder = new ArrayList<>(nodes.size());
+        final HashSet<N> visited = new HashSet<>();
+        for (final N node : nodes) {
             if (node.directSuperNodes.isEmpty()) {
                 // Start the topo sort at each least upper bound
                 node.topoSortRec(visited, topoOrder);
@@ -100,7 +93,7 @@ class DAGNode {
         }
         // Reverse the postorder traversal node ordering to get the topological ordering
         for (int i = 0, n = topoOrder.size(), n2 = n / 2; i < n2; i++) {
-            final DAGNode tmp = topoOrder.get(i);
+            final N tmp = topoOrder.get(i);
             topoOrder.set(i, topoOrder.get(n - 1 - i));
             topoOrder.set(n - 1 - i, tmp);
         }

@@ -30,37 +30,39 @@
 package io.github.lukehutch.fastclasspathscanner.classgraph;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 
-/**
- * The DAG node representing a class. The DAG of classes is technically a tree because of single inheritance.
- */
-class ClassNode extends DAGNode {
-    /** All interfaces */
-    ArrayList<String> interfaceNames = new ArrayList<>();
+/** The DAG node representing an annotation. */
+class AnnotationNode extends DAGNode {
+    /** All classes annotated with this annotation */
+    HashSet<String> annotatedClassNames = new HashSet<>();
 
-    /** This class was encountered on the classpath. */
-    public ClassNode(final String className, final ArrayList<String> interfaceNames) {
-        super(className);
-        this.name = className;
-        this.addInterfaces(interfaceNames);
+    /** All annotations annotated with this annotation */
+    ArrayList<String> annotatedAnnotationNames = new ArrayList<>();
+
+    /** The class defining an annotation was encountered on the classpath. */
+    public AnnotationNode(final String annotationName) {
+        super(annotationName);
     }
 
-    /** A subclass of this class was encountered on the classpath, but this class has not yet been encountered. */
-    public ClassNode(final String className, final ClassNode subclass) {
-        super(className, subclass);
+    /** Add an annotated annotation to this meta-annotation. */
+    public void addAnnotatedAnnotation(String annotatedAnnotationName) {
+        annotatedAnnotationNames.add(annotatedAnnotationName);
     }
 
-    /** This class was previously cited as a superclass, and now has itself been encountered on the classpath. */
-    public void addInterfaces(final ArrayList<String> interfaceNames) {
-        this.interfaceNames = interfaceNames;
+    /** Add an annotated class to this annotation. */
+    public void addAnnotatedClass(String annotatedClassName) {
+        annotatedClassNames.add(annotatedClassName);
     }
 
-    /** Connect this class to a subclass. */
-    public void addSubNode(final ClassNode subclass) {
-        super.addSubNode(subclass);
-        if (subclass.directSuperNodes.size() > 1) {
-            throw new RuntimeException(subclass.name + " has two superclasses: "
-                    + subclass.directSuperNodes.get(0).name + ", " + subclass.directSuperNodes.get(1).name);
+    /** Resolve annotation names at end of classpath scanning. */
+    public void resolveAnnotationNames(final HashMap<String, AnnotationNode> annotationNameToAnnotationNode) {
+        for (String annotatedAnnotation : annotatedAnnotationNames) {
+            AnnotationNode annotatedAnnotationNode = annotationNameToAnnotationNode.get(annotatedAnnotation);
+            if (annotatedAnnotationNode != null) {
+                addSubNode(annotatedAnnotationNode);
+            }
         }
     }
 }

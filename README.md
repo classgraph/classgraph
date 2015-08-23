@@ -256,6 +256,10 @@ public FastClasspathScanner matchClassesWithAnnotation(
 
 // Mechanism 2: Call one of the following after calling .scan():
 
+// (a) Get names of classes that have the specified annotation(s)
+// or meta-annotation(s), or annotations that have the specified
+// meta-annotations
+
 public List<String> getNamesOfClassesWithAnnotation(
     Class<?> annotation)
 
@@ -273,31 +277,32 @@ public List<String> getNamesOfClassesWithAnnotationsAnyOf(
 
 public List<String> getNamesOfClassesWithAnnotationsAnyOf(
     final String... annotationNames)
-```
 
-FastClasspathScanner also supports scanning for classes with meta-annotations. A meta-annotation annotates an annotation that annotates a class. Class names are returned for classes that are either (i) annotated with an annotation that is annotated with the meta-annotation, or (ii) directly annotated with the meta-annotation. (Due to (ii), for a given annotation, the results returned by the meta-annotation methods below will be a superset of the results returned by the annotation methods above.)
-
-```java
-// Mechanism 2: Call one of the following after calling .scan():
-
-public List<String> getNamesOfClassesWithMetaAnnotation(
+public List<String> getNamesOfAnnotationsWithMetaAnnotation(
     final Class<?> metaAnnotation)
 
-public List<String> getNamesOfClassesWithMetaAnnotation(
-    String metaAnnotationName)
+public List<String> getNamesOfAnnotationsWithMetaAnnotation(
+    final String metaAnnotationName)
 
-public List<String> getNamesOfClassesWithMetaAnnotationsAllOf(
-    final Class<?>... metaAnnotations)
+// (b) Get the annotations and meta-annotations on a class or
+// interface, or the meta-annotations on an annotation
 
-public List<String> getNamesOfClassesWithMetaAnnotationsAllOf(
-    final String... metaAnnotationNames)
+public List<String> getNamesOfAnnotationsOnClass(
+    Class<?> classOrInterface)
 
-public List<String> getNamesOfClassesWithMetaAnnotationsAnyOf(
-    final Class<?>... metaAnnotations)
+public List<String> getNamesOfAnnotationsOnClass(
+    String classOrInterfaceName)
 
-public List<String> getNamesOfClassesWithMetaAnnotationsAnyOf(
-    final String... metaAnnotationNames)
+public List<String> getNamesOfMetaAnnotationsOnAnnotation(
+    Class<?> annotation)
+
+public List<String> getNamesOfMetaAnnotationsOnAnnotation(
+    String annotationName)
 ```
+
+All of these methods work for both annotations and *meta-annotations*. A meta-annotation is an annotation that annotates another annotation.
+
+Java's reflection methods do not directly return meta-annotations, but FastClasspathScanner's methods do follow the transitive closure of annotations so that you can scan for both annotations and meta-annotations: if annotation A annotates annotation B, and annotation B annotates class C, then A is also resolved as annotating C. Cycles in the annotation graph are also handled: if A annotates B, and B annotates A, and B also annotates class C, then both A and B are resolved as annotating C. 
 
 ### 5. Fetching the constant initializer values of static final fields
 

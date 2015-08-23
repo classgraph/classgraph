@@ -31,6 +31,7 @@ package io.github.lukehutch.fastclasspathscanner.classgraph;
 
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.StaticFinalFieldMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.utils.Log;
+import io.github.lukehutch.fastclasspathscanner.utils.MultiMapKeyToSet;
 
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
@@ -38,6 +39,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -46,42 +48,42 @@ import java.util.Map.Entry;
 import java.util.Set;
 
 public class ClassGraphBuilder {
-
-    /** A map from fully-qualified class name to the corresponding ClassNode object. */
+    /** A map from class name to the corresponding ClassNode object. */
     private final HashMap<String, ClassNode> classNameToClassNode = new HashMap<>();
 
-    /** A map from fully-qualified class name to the corresponding InterfaceNode object. */
+    /** A map from class name to the corresponding InterfaceNode object. */
     private final HashMap<String, InterfaceNode> interfaceNameToInterfaceNode = new HashMap<>();
 
-    /** Reverse mapping from fully-qualified annotation names to the names of classes that have the annotation. */
+    /** A map from class name to the corresponding AnnotationNode object. */
+    private final HashMap<String, AnnotationNode> annotationNameToAnnotationNode = new HashMap<>();
+
+    /** Reverse mapping from annotation/meta-annotation names to the names of classes that have the annotation. */
     private final HashMap<String, ArrayList<String>> annotationNameToClassNames = new HashMap<>();
 
-    /** Reverse mapping from fully-qualified interface names to the names of classes that implement the interface */
+    /** Reverse mapping from meta-annotation names to the names of annotations that have the meta-annotation. */
+    private final HashMap<String, ArrayList<String>> metaAnnotationNameToAnnotationNames = new HashMap<>();
+
+    /** Mapping from class name to the names of annotations and meta-annotations on the class. */
+    private final HashMap<String, ArrayList<String>> classNameToAnnotationNames = new HashMap<>();
+
+    /** Mapping from annotation name to the names of annotations and meta-annotations on the annotation. */
+    private final HashMap<String, ArrayList<String>> annotationNameToMetaAnnotationNames = new HashMap<>();
+
+    /** Reverse mapping from interface names to the names of classes that implement the interface */
     private final HashMap<String, ArrayList<String>> interfaceNameToClassNames = new HashMap<>();
 
     /**
-     * Mapping from fully-qualified meta-annotation names to names of annotations that are annotated with the
-     * meta-annotation.
-     */
-    private final HashMap<String, ArrayList<String>> metaAnnotationToAnnotatedAnnotationNames = new HashMap<>();
-
-    /**
-     * Mapping from fully-qualified meta-annotation names to classes that are annotated with the meta-annotation.
-     */
-    private final HashMap<String, ArrayList<String>> metaAnnotationToAnnotatedClassNames = new HashMap<>();
-
-    /**
-     * Fully-qualified names of classes encountered so far during a scan. If the same fully-qualified classname is
-     * encountered more than once, the second and subsequent instances are ignored, because they are masked by the
-     * earlier occurrence in the classpath.
+     * Names of classes encountered so far during a scan. If the same classname is encountered more than once, the
+     * second and subsequent instances are ignored, because they are masked by the earlier occurrence in the
+     * classpath.
      */
     private final HashSet<String> classesEncounteredSoFarDuringScan = new HashSet<>();
 
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * A map from fully-qualified classname, to static final field name, to a StaticFinalFieldMatchProcessor that
-     * should be called if that class name and static final field name is encountered during scan.
+     * A map from classname, to static final field name, to a StaticFinalFieldMatchProcessor that should be called
+     * if that class name and static final field name is encountered during scan.
      */
     private final HashMap<String, HashMap<String, StaticFinalFieldMatchProcessor>> //
     classNameToStaticFieldnameToMatchProcessor = new HashMap<>();
@@ -101,36 +103,7 @@ public class ClassGraphBuilder {
     }
 
     // -------------------------------------------------------------------------------------------------------------
-
-    /** Return the names of all classes with the named class annotation. */
-    public List<String> getNamesOfClassesWithAnnotation(final String annotationName) {
-        final ArrayList<String> classes = annotationNameToClassNames.get(annotationName);
-        if (classes == null) {
-            return Collections.emptyList();
-        }
-        return classes;
-    }
-
-    /**
-     * Return the names of all classes with the named class meta-annotation (i.e. classes that are annotated with
-     * the meta-annotation, or that are annotated with an annotation that is annotated with the meta-annotation).
-     */
-    public List<String> getNamesOfClassesWithMetaAnnotation(final String metaAnnotation) {
-        ArrayList<String> classes = metaAnnotationToAnnotatedClassNames.get(metaAnnotation);
-        if (classes == null) {
-            return Collections.emptyList();
-        }
-        return classes;
-    }
-
-    /** Return the names of all classes implementing the named interface. */
-    public List<String> getNamesOfClassesImplementing(final String interfaceName) {
-        final ArrayList<String> classes = interfaceNameToClassNames.get(interfaceName);
-        if (classes == null) {
-            return Collections.emptyList();
-        }
-        return classes;
-    }
+    // Classes
 
     /** Return the names of all subclasses of the named class. */
     public List<String> getNamesOfSubclassesOf(final String className) {
@@ -156,6 +129,9 @@ public class ClassGraphBuilder {
         return superclasses;
     }
 
+    // -------------------------------------------------------------------------------------------------------------
+    // Interfaces
+
     /** Return the names of all subinterfaces of the named interface. */
     public List<String> getNamesOfSubinterfacesOf(final String interfaceName) {
         final ArrayList<String> subinterfaces = new ArrayList<>();
@@ -180,7 +156,57 @@ public class ClassGraphBuilder {
         return superinterfaces;
     }
 
-    /** Return all class names reached during the scan. */
+    /** Return the names of all classes implementing the named interface. */
+    public List<String> getNamesOfClassesImplementing(final String interfaceName) {
+        final ArrayList<String> classes = interfaceNameToClassNames.get(interfaceName);
+        if (classes == null) {
+            return Collections.emptyList();
+        }
+        return classes;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+    // Annotations
+
+    /** Return the names of all annotations and meta-annotations on the named class. */
+    public List<String> getNamesOfAnnotationsOnClass(final String classOrInterfaceName) {
+        final ArrayList<String> annotationNames = classNameToAnnotationNames.get(classOrInterfaceName);
+        if (annotationNames == null) {
+            return Collections.emptyList();
+        }
+        return annotationNames;
+    }
+
+    /** Return the names of all meta-annotations on the named annotation. */
+    public List<String> getNamesOfMetaAnnotationsOnAnnotation(final String annotationName) {
+        final ArrayList<String> metaAnnotationNamess = annotationNameToMetaAnnotationNames.get(annotationName);
+        if (metaAnnotationNamess == null) {
+            return Collections.emptyList();
+        }
+        return metaAnnotationNamess;
+    }
+
+    /** Return the names of all classes with the named class annotation or meta-annotation. */
+    public List<String> getNamesOfClassesWithAnnotation(final String annotationName) {
+        final ArrayList<String> classNames = annotationNameToClassNames.get(annotationName);
+        if (classNames == null) {
+            return Collections.emptyList();
+        }
+        return classNames;
+    }
+
+    /** Return the names of all annotations that have the named meta-annotation. */
+    public List<String> getNamesOfAnnotationsWithMetaAnnotation(final String metaAnnotationName) {
+        final ArrayList<String> annotationNames = metaAnnotationNameToAnnotationNames.get(metaAnnotationName);
+        if (annotationNames == null) {
+            return Collections.emptyList();
+        }
+        return annotationNames;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** Return names of all classes (including interfaces and annotations) reached during the scan. */
     public Set<String> getNamesOfAllClasses() {
         return classNameToClassNode.keySet();
     }
@@ -188,17 +214,17 @@ public class ClassGraphBuilder {
     // -------------------------------------------------------------------------------------------------------------
 
     /** Link a class to its superclass and to the interfaces it implements, and save the class annotations. */
-    private void linkToSuperclassAndInterfaces(final String className, final String superclassName,
-            final ArrayList<String> interfaces, final HashSet<String> annotations, boolean isAnnotation) {
+    private void linkClass(final String superclassName, final ArrayList<String> interfaces, final String className) {
         // Look up ClassNode object for this class
-        ClassNode thisClassNode = classNameToClassNode.get(className);
-        if (thisClassNode == null) {
+        ClassNode classNode = classNameToClassNode.get(className);
+        if (classNode == null) {
             // This class has not been encountered before on the classpath 
-            classNameToClassNode.put(className, thisClassNode = new ClassNode(className, interfaces, annotations));
+            classNameToClassNode.put(className, classNode = new ClassNode(className, interfaces));
         } else {
-            // This is the first time this class has been encountered on the classpath, but
-            // it was previously cited as a superclass of another class
-            thisClassNode.encounter(interfaces, annotations);
+            // This is the first time this class has been encountered on the classpath (since the class
+            // name must be unique, and we have already checked for classpath masking), but this class was
+            // previously cited as a superclass of another interface
+            classNode.addInterfaces(interfaces);
         }
 
         if (superclassName != null) {
@@ -206,25 +232,20 @@ public class ClassGraphBuilder {
             ClassNode superclassNode = classNameToClassNode.get(superclassName);
             if (superclassNode == null) {
                 // The superclass of this class has not yet been encountered on the classpath
-                classNameToClassNode.put(superclassName, superclassNode = new ClassNode(superclassName,
-                        thisClassNode));
+                classNameToClassNode.put(superclassName, superclassNode = new ClassNode(superclassName, classNode));
             } else {
-                superclassNode.addSubNode(thisClassNode);
+                superclassNode.addSubNode(classNode);
             }
         }
     }
 
     /** Save the mapping from an interface to its superinterfaces. */
-    private void linkToSuperinterfaces(final String interfaceName, final ArrayList<String> superInterfaces) {
+    private void linkInterface(final ArrayList<String> superInterfaces, final String interfaceName) {
         // Look up InterfaceNode for this interface
-        InterfaceNode thisInterfaceInfo = interfaceNameToInterfaceNode.get(interfaceName);
-        if (thisInterfaceInfo == null) {
+        InterfaceNode interfaceNode = interfaceNameToInterfaceNode.get(interfaceName);
+        if (interfaceNode == null) {
             // This interface has not been encountered before on the classpath 
-            interfaceNameToInterfaceNode.put(interfaceName, thisInterfaceInfo = new InterfaceNode(interfaceName));
-        } else {
-            // This is the first time this interface has been encountered on the classpath, but
-            // it was previously cited as a superinterface of another interface
-            thisInterfaceInfo.encounter();
+            interfaceNameToInterfaceNode.put(interfaceName, interfaceNode = new InterfaceNode(interfaceName));
         }
 
         if (superInterfaces != null) {
@@ -234,26 +255,90 @@ public class ClassGraphBuilder {
                 if (superInterfaceNode == null) {
                     // The superinterface of this interface has not yet been encountered on the classpath
                     interfaceNameToInterfaceNode.put(superInterfaceName, superInterfaceNode = new InterfaceNode(
-                            superInterfaceName, thisInterfaceInfo));
+                            superInterfaceName, interfaceNode));
                 } else {
-                    superInterfaceNode.addSubNode(thisInterfaceInfo);
+                    superInterfaceNode.addSubNode(interfaceNode);
                 }
             }
         }
     }
 
-    /** Save the mapping from an annotation to its meta-annotations. */
-    private void linkToMetaAnnotations(String annotationName, HashSet<String> metaAnnotations) {
-        if (metaAnnotations != null) {
-            for (String metaAnnotation : metaAnnotations) {
-                ArrayList<String> annotatedAnnotations = metaAnnotationToAnnotatedAnnotationNames
-                        .get(metaAnnotation);
-                if (annotatedAnnotations == null) {
-                    metaAnnotationToAnnotatedAnnotationNames.put(metaAnnotation,
-                            annotatedAnnotations = new ArrayList<>(4));
-                }
-                annotatedAnnotations.add(annotationName);
+    /** Save the mapping from a class or annotation to its annotations or meta-annotations. */
+    private void linkAnnotation(String annotationName, String annotatedClassName, boolean annotatedClassIsAnnotation) {
+        // Look up AnnotationNode for this annotation, or create node if it doesn't exist
+        AnnotationNode annotationNode = annotationNameToAnnotationNode.get(annotationName);
+        if (annotationNode == null) {
+            annotationNameToAnnotationNode.put(annotationName, annotationNode = new AnnotationNode(annotationName));
+        }
+        // If the annotated class is itself an annotation
+        if (annotatedClassIsAnnotation) {
+            // Look up AnnotationNode for the annotated class, or create node if it doesn't exist
+            AnnotationNode annotatedAnnotationNode = annotationNameToAnnotationNode.get(annotatedClassName);
+            if (annotatedAnnotationNode == null) {
+                annotationNameToAnnotationNode.put(annotatedClassName,
+                        annotatedAnnotationNode = new AnnotationNode(annotatedClassName));
             }
+            // Link meta-annotation to annotation
+            annotationNode.addAnnotatedAnnotation(annotatedClassName);
+        } else {
+            // Link annotation to class
+            annotationNode.addAnnotatedClass(annotatedClassName);
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Find the upwards and downwards transitive closure for each node in a graph. Assumes the graph is a DAG in
+     * general, but handles cycles (which may occur in the case of meta-annotations).
+     */
+    private static void findTransitiveClosure(Collection<? extends DAGNode> nodes) {
+        // Find top nodes as initial active set
+        HashSet<DAGNode> activeTopDownNodes = new HashSet<>();
+        for (DAGNode node : nodes) {
+            if (node.directSuperNodes.isEmpty()) {
+                activeTopDownNodes.add(node);
+            }
+        }
+        // Use DP-style "wavefront" to find top-down transitive closure, even if there are cycles
+        while (!activeTopDownNodes.isEmpty()) {
+            HashSet<DAGNode> activeTopDownNodesNext = new HashSet<>(activeTopDownNodes.size());
+            for (DAGNode node : activeTopDownNodes) {
+                boolean changed = node.allSuperNodes.addAll(node.directSuperNodes);
+                for (DAGNode superNode : node.directSuperNodes) {
+                    changed |= node.allSuperNodes.addAll(superNode.allSuperNodes);
+                }
+                if (changed) {
+                    for (DAGNode subNode : node.directSubNodes) {
+                        activeTopDownNodesNext.add(subNode);
+                    }
+                }
+            }
+            activeTopDownNodes = activeTopDownNodesNext;
+        }
+
+        // Find bottom nodes as initial active set
+        HashSet<DAGNode> activeBottomUpNodes = new HashSet<>();
+        for (DAGNode node : nodes) {
+            if (node.directSubNodes.isEmpty()) {
+                activeBottomUpNodes.add(node);
+            }
+        }
+        // Use DP-style "wavefront" to find bottom-up transitive closure, even if there are cycles
+        while (!activeBottomUpNodes.isEmpty()) {
+            HashSet<DAGNode> activeBottomUpNodesNext = new HashSet<>(activeBottomUpNodes.size());
+            for (DAGNode node : activeBottomUpNodes) {
+                boolean changed = node.allSubNodes.addAll(node.directSubNodes);
+                for (DAGNode subNode : node.directSubNodes) {
+                    changed |= node.allSubNodes.addAll(subNode.allSubNodes);
+                }
+                if (changed) {
+                    for (DAGNode superNode : node.directSuperNodes) {
+                        activeBottomUpNodesNext.add(superNode);
+                    }
+                }
+            }
+            activeBottomUpNodes = activeBottomUpNodesNext;
         }
     }
 
@@ -264,98 +349,57 @@ public class ClassGraphBuilder {
      * Called once all classes have been read.
      */
     public void finalizeGraph() {
-        if (classNameToClassNode.isEmpty() && interfaceNameToInterfaceNode.isEmpty()) {
-            // If no classes or interfaces were matched, there is no hierarchy to build
+        if (classNameToClassNode.isEmpty() && interfaceNameToInterfaceNode.isEmpty()
+                && annotationNameToAnnotationNode.isEmpty()) {
+            // If no classes, interfaces or annotations were matched, there is no hierarchy to build
             return;
         }
+        Collection<ClassNode> allClassNodes = classNameToClassNode.values();
+        Collection<InterfaceNode> allInterfaceNodes = interfaceNameToInterfaceNode.values();
+        Collection<AnnotationNode> allAnnotationNodes = annotationNameToAnnotationNode.values();
+
+        // Resolve annotation names
+        for (AnnotationNode annotationNode : allAnnotationNodes) {
+            annotationNode.resolveAnnotationNames(annotationNameToAnnotationNode);
+        }
+
+        // Find all reachable nodes in the upwards and downwards transitive closures of each class type
+        findTransitiveClosure(allClassNodes);
+        findTransitiveClosure(allInterfaceNodes);
+        findTransitiveClosure(allAnnotationNodes);
+
+        // Classes -------------------------------------------------------------------------------------------------
 
         // Perform topological sort on class tree
-        final ArrayList<DAGNode> classNodeTopoOrder = DAGNode.topoSort(classNameToClassNode.values());
+        final ArrayList<ClassNode> classNodeTopoOrder = DAGNode.topoSort(allClassNodes);
 
-        // Accumulate all superclasses of each class by traversing from highest to lowest class
-        for (int i = 0, n = classNodeTopoOrder.size(); i < n; i++) {
-            final DAGNode classNode = classNodeTopoOrder.get(i);
-            final HashSet<DAGNode> allSuperNodes = new HashSet<>(classNode.allSuperNodes);
-            for (final DAGNode superclassNode : classNode.allSuperNodes) {
-                allSuperNodes.addAll(superclassNode.allSuperNodes);
-            }
-            classNode.allSuperNodes = allSuperNodes;
-        }
-
-        // Accumulate all subclasses of each class by traversing from lowest to highest class
-        for (int i = classNodeTopoOrder.size() - 1; i >= 0; --i) {
-            final DAGNode classNode = classNodeTopoOrder.get(i);
-            final HashSet<DAGNode> allSubNodes = new HashSet<>(classNode.allSubNodes);
-            for (final DAGNode subclassNode : classNode.allSubNodes) {
-                allSubNodes.addAll(subclassNode.allSubNodes);
-            }
-            classNode.allSubNodes = allSubNodes;
-        }
+        // Interfaces ----------------------------------------------------------------------------------------------
 
         // Perform topological sort on interface DAG
-        final ArrayList<DAGNode> interfaceNodeTopoOrder = DAGNode.topoSort(interfaceNameToInterfaceNode.values());
-
-        // Accumulate all superinterfaces of each interface by traversing from highest to lowest interface
-        for (int i = 0, n = interfaceNodeTopoOrder.size(); i < n; i++) {
-            final DAGNode interfaceNode = interfaceNodeTopoOrder.get(i);
-            final HashSet<DAGNode> allSuperNodes = new HashSet<>(interfaceNode.allSuperNodes);
-            for (final DAGNode superinterfaceNode : interfaceNode.allSuperNodes) {
-                allSuperNodes.addAll(superinterfaceNode.allSuperNodes);
-            }
-            interfaceNode.allSuperNodes = allSuperNodes;
-        }
-
-        // Accumulate all subinterfaces of each interface by traversing from lowest to highest interface
-        for (int i = interfaceNodeTopoOrder.size() - 1; i >= 0; --i) {
-            final DAGNode interfaceNode = interfaceNodeTopoOrder.get(i);
-            final HashSet<DAGNode> allSubNodes = new HashSet<>(interfaceNode.allSubNodes);
-            for (final DAGNode subinterfaceNode : interfaceNode.allSubNodes) {
-                allSubNodes.addAll(subinterfaceNode.allSubNodes);
-            }
-            interfaceNode.allSubNodes = allSubNodes;
-        }
-
-        // Reverse mapping from annotation to classes that have the annotation.
-        final HashMap<String, HashSet<DAGNode>> annotationToClassNodes = new HashMap<>();
+        final ArrayList<InterfaceNode> interfaceNodeTopoOrder = DAGNode.topoSort(allInterfaceNodes);
 
         // Reverse mapping from interface to classes that implement the interface.
-        final HashMap<String, HashSet<DAGNode>> interfaceToClassNodes = new HashMap<>();
+        final MultiMapKeyToSet<String, DAGNode> interfaceNameToUniqueClassNodes = new MultiMapKeyToSet<>();
 
-        // Create reverse mapping from annotation to the names of classes that have the annotation,
-        // and from interface names to the names of classes that implement the interface.
-        for (final DAGNode classDAGNode : classNodeTopoOrder) {
-            final ClassNode classNode = (ClassNode) classDAGNode;
-            if (classNode.annotationNames != null) {
-                // Map from annotation back to classes that have the annotation
-                for (final String annotation : classNode.annotationNames) {
-                    HashSet<DAGNode> classList = annotationToClassNodes.get(annotation);
-                    if (classList == null) {
-                        annotationToClassNodes.put(annotation, classList = new HashSet<>());
-                    }
-                    classList.add(classDAGNode);
-                }
-            }
-
-            if (classNode.interfaceNames != null) {
+        // Create reverse mapping from interface names to the names of classes that implement the interface.
+        for (final DAGNode classNode : classNodeTopoOrder) {
+            final ArrayList<String> interfaceNames = ((ClassNode) classNode).interfaceNames;
+            if (interfaceNames != null) {
                 // Map from interface back to classes that implement the interface
-                final HashSet<String> interfacesAndSuperinterfaces = new HashSet<>();
-                for (final String interfaceName : classNode.interfaceNames) {
+                final HashSet<String> interfacesAndSuperinterfacesUnion = new HashSet<>();
+                for (final String interfaceName : interfaceNames) {
                     // Any class that implements an interface also implements all its superinterfaces
-                    interfacesAndSuperinterfaces.add(interfaceName);
+                    interfacesAndSuperinterfacesUnion.add(interfaceName);
                     final InterfaceNode interfaceNode = interfaceNameToInterfaceNode.get(interfaceName);
                     if (interfaceNode != null) {
                         for (final DAGNode superinterfaceNode : interfaceNode.allSuperNodes) {
-                            interfacesAndSuperinterfaces.add(superinterfaceNode.name);
+                            interfacesAndSuperinterfacesUnion.add(superinterfaceNode.name);
                         }
                     }
                 }
-                for (final String interfaceName : interfacesAndSuperinterfaces) {
-                    // Add mapping from interface back to implementing class
-                    HashSet<DAGNode> classList = interfaceToClassNodes.get(interfaceName);
-                    if (classList == null) {
-                        interfaceToClassNodes.put(interfaceName, classList = new HashSet<>());
-                    }
-                    classList.add(classDAGNode);
+                for (final String interfaceName : interfacesAndSuperinterfacesUnion) {
+                    // Add mapping from interface to implementing classes
+                    interfaceNameToUniqueClassNodes.put(interfaceName, classNode);
                 }
             }
         }
@@ -364,75 +408,64 @@ public class ClassGraphBuilder {
         // Add these to the mapping from interface back to the classes that implement the interface.
         for (final DAGNode interfaceNode : interfaceNodeTopoOrder) {
             // Get all classes that implement this interface
-            final HashSet<DAGNode> implementingClasses = interfaceToClassNodes.get(interfaceNode.name);
+            final HashSet<DAGNode> implementingClasses = interfaceNameToUniqueClassNodes.get(interfaceNode.name);
             if (implementingClasses != null) {
                 // Get the union of all subclasses of all classes that implement this interface
-                final HashSet<DAGNode> allSubClasses = new HashSet<DAGNode>(implementingClasses);
+                final HashSet<DAGNode> subClassUnion = new HashSet<DAGNode>();
                 for (final DAGNode implementingClass : implementingClasses) {
-                    allSubClasses.addAll(implementingClass.allSubNodes);
+                    subClassUnion.addAll(implementingClass.allSubNodes);
                 }
                 // Add to the mapping from the interface to each subclass of a class that implements the interface
-                HashSet<DAGNode> classList = interfaceToClassNodes.get(interfaceNode.name);
-                if (classList == null) {
-                    interfaceToClassNodes.put(interfaceNode.name, classList = new HashSet<>());
-                }
-                classList.addAll(allSubClasses);
+                implementingClasses.addAll(subClassUnion);
             }
         }
-
-        // Convert annotation and interface mappings to String->String 
-        for (final Entry<String, HashSet<DAGNode>> ent : annotationToClassNodes.entrySet()) {
+        // Convert interface mapping to String->String
+        for (Entry<String, HashSet<DAGNode>> ent : interfaceNameToUniqueClassNodes.entrySet()) {
             final ArrayList<String> classNameList = new ArrayList<>();
-            annotationNameToClassNames.put(ent.getKey(), classNameList);
-            final HashSet<DAGNode> classNodes = ent.getValue();
-            if (classNodes != null) {
-                for (final DAGNode classNode : classNodes) {
-                    classNameList.add(classNode.name);
-                }
+            for (final DAGNode classNode : ent.getValue()) {
+                classNameList.add(classNode.name);
             }
-        }
-        for (final Entry<String, HashSet<DAGNode>> ent : interfaceToClassNodes.entrySet()) {
-            final ArrayList<String> classNameList = new ArrayList<>();
             interfaceNameToClassNames.put(ent.getKey(), classNameList);
-            final HashSet<DAGNode> classNodes = ent.getValue();
-            if (classNodes != null) {
-                for (final DAGNode classNode : classNodes) {
-                    classNameList.add(classNode.name);
-                }
-            }
         }
 
-        // Map from meta-annotations to the classes annotated by the annotations annotated by the meta-annotations
-        for (Entry<String, ArrayList<String>> ent : annotationNameToClassNames.entrySet()) {
-            String annotationName = ent.getKey();
-            ArrayList<String> classNames = ent.getValue();
+        // Annotations ---------------------------------------------------------------------------------------------
 
-            // Meta-annotations can be used to annotate classes directly --
-            // start by adding all classes directly annotated by any annotation
-            HashSet<String> annotatedClassNamesSet = new HashSet<>(classNames);
-
-            // Add all classes that are annotated by annotations that are annotated by a meta-annotation
-            ArrayList<String> annotatedAnnotationNames = metaAnnotationToAnnotatedAnnotationNames
-                    .get(annotationName);
-            if (annotatedAnnotationNames != null) {
-                for (String annotatedAnnotationName : annotatedAnnotationNames) {
-                    ArrayList<String> metaAnnotatedClassNames = annotationNameToClassNames
-                            .get(annotatedAnnotationName);
-                    if (metaAnnotatedClassNames != null) {
-                        annotatedClassNamesSet.addAll(metaAnnotatedClassNames);
-                    }
-                }
+        // Find all annotations and classes reachable through a chain of meta-annotations from each annotation 
+        MultiMapKeyToSet<String, String> annotationNameToAnnotatedClassNamesMM = new MultiMapKeyToSet<>();
+        MultiMapKeyToSet<String, String> annotationNameToAnnotatedAnnotationNamesMM = new MultiMapKeyToSet<>();
+        for (AnnotationNode annotationNode : allAnnotationNodes) {
+            for (DAGNode subNode : annotationNode.allSubNodes) {
+                annotationNameToAnnotatedClassNamesMM.putAll(annotationNode.name,
+                        ((AnnotationNode) subNode).annotatedClassNames);
+                annotationNameToAnnotatedAnnotationNamesMM.put(annotationNode.name, subNode.name);
             }
-            metaAnnotationToAnnotatedClassNames.put(annotationName, new ArrayList<>(annotatedClassNamesSet));
+        }
+        // Create forward and reverse mappings
+        for (Entry<String, HashSet<String>> ent : annotationNameToAnnotatedClassNamesMM.entrySet()) {
+            annotationNameToClassNames.put(ent.getKey(), new ArrayList<>(ent.getValue()));
+        }
+        for (Entry<String, HashSet<String>> ent : annotationNameToAnnotatedClassNamesMM.invert().entrySet()) {
+            classNameToAnnotationNames.put(ent.getKey(), new ArrayList<>(ent.getValue()));
+        }
+        for (Entry<String, HashSet<String>> ent : annotationNameToAnnotatedAnnotationNamesMM.entrySet()) {
+            metaAnnotationNameToAnnotationNames.put(ent.getKey(), new ArrayList<>(ent.getValue()));
+        }
+        for (Entry<String, HashSet<String>> ent : annotationNameToAnnotatedAnnotationNamesMM.invert().entrySet()) {
+            annotationNameToMetaAnnotationNames.put(ent.getKey(), new ArrayList<>(ent.getValue()));
         }
     }
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /** Clear all the data structures to be ready for another scan. */
     public void reset() {
         classNameToClassNode.clear();
         interfaceNameToInterfaceNode.clear();
+        annotationNameToAnnotationNode.clear();
         annotationNameToClassNames.clear();
+        classNameToAnnotationNames.clear();
+        metaAnnotationNameToAnnotationNames.clear();
+        annotationNameToMetaAnnotationNames.clear();
         interfaceNameToClassNames.clear();
         classesEncounteredSoFarDuringScan.clear();
     }
@@ -722,19 +755,14 @@ public class ClassGraphBuilder {
         }
 
         // Attributes (including class annotations)
-        HashSet<String> annotations = null;
-        final int attributesCount = inp.readUnsignedShort();
-        for (int i = 0; i < attributesCount; i++) {
+        for (int i = 0; i < /* attributesCount = */inp.readUnsignedShort(); i++) {
             final String attributeName = readRefdString(inp, constantPool);
             final int attributeLength = inp.readInt();
             if ("RuntimeVisibleAnnotations".equals(attributeName)) {
                 final int annotationCount = inp.readUnsignedShort();
                 for (int m = 0; m < annotationCount; m++) {
                     final String annotationName = readAnnotation(inp, constantPool);
-                    if (annotations == null) {
-                        annotations = new HashSet<>();
-                    }
-                    annotations.add(annotationName);
+                    linkAnnotation(annotationName, className, /* classIsAnnotation = */isAnnotation);
                 }
             } else {
                 inp.skipBytes(attributeLength);
@@ -742,11 +770,11 @@ public class ClassGraphBuilder {
         }
 
         if (isAnnotation) {
-            linkToMetaAnnotations(/* annotationName = */className, /* metaAnnotations = */annotations);
+            // If a class is itself an annotation (rather than having an annotation), ignore -- handled above.
         } else if (isInterface) {
-            linkToSuperinterfaces(/* interfaceName = */className, /* superInterfaces = */interfaces);
+            linkInterface(/* superInterfaces = */interfaces, /* interfaceName = */className);
         } else {
-            linkToSuperclassAndInterfaces(className, superclassName, interfaces, annotations, isAnnotation);
+            linkClass(superclassName, interfaces, className);
         }
     }
 }
