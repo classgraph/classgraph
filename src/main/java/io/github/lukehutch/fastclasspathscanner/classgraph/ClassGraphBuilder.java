@@ -30,6 +30,7 @@
 package io.github.lukehutch.fastclasspathscanner.classgraph;
 
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.StaticFinalFieldMatchProcessor;
+import io.github.lukehutch.fastclasspathscanner.utils.LazyMap;
 import io.github.lukehutch.fastclasspathscanner.utils.Log;
 import io.github.lukehutch.fastclasspathscanner.utils.MultiMap;
 import io.github.lukehutch.fastclasspathscanner.utils.MultiSet;
@@ -49,41 +50,6 @@ import java.util.Map.Entry;
 import java.util.Set;
 
 public class ClassGraphBuilder {
-    /**
-     * Used to wrap a map with lazy evaluation, so work is not done unless it is needed. (e.g. if you don't use the
-     * annotations features of the API, most of the annotations data structures are not built.)
-     */
-    private static abstract class LazyMap<K, V> {
-        protected final HashMap<K, V> map = new HashMap<>();
-        private boolean initialized = false;
-
-        protected void clear() {
-            map.clear();
-            initialized = false;
-        }
-
-        protected HashMap<K, V> resolve() {
-            if (!initialized) {
-                initialize();
-                initialized = true;
-            }
-            return map;
-        }
-
-        protected HashMap<K, V> getRawMap() {
-            return map;
-        }
-
-        @Override
-        public String toString() {
-            return map.toString();
-        }
-        
-        protected abstract void initialize();
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
     /**
      * Names of classes encountered so far during a scan. If the same classname is encountered more than once, the
      * second and subsequent instances are ignored, because they are masked by the earlier occurrence in the
