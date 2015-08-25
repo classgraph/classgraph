@@ -1397,9 +1397,7 @@ public class FastClasspathScanner {
         }
 
         if (!scanTimestampsOnly) {
-            // Finalize class and interface DAGs
-            classGraphBuilder.finalizeGraph();
-            // Look for class and interface matches
+            // Look for class, interface and annotation matches
             for (final ClassMatcher classMatcher : classMatchers) {
                 classMatcher.lookForMatches();
             }
