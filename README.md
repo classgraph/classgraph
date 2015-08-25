@@ -209,7 +209,7 @@ FastClasspathScanner can find all classes on the classpath within whitelisted pa
 
 There are also methods `List<String> getNamesOfClassesImplementing(String ifaceName)` and `List<String> getNamesOfClassesImplementing(Class<?> iface)` that can be called after `.scan()` to find the names of the classes implementing a given interface (whether or not a corresponding match processor was added to detect this). These methods will return the matching classes without calling the classloader, whereas if a match processor is used, the classloader is called first (using Class.forName()) so that a class reference can be passed into the match processor.
 
-N.B. There are also convenience methods for matching classes that implement all of a given list of annotations. 
+N.B. There are also convenience methods for matching classes that implement *all of* a given list of annotations (an "and" operator). 
 
 ```java
 // Mechanism 1: Attach a MatchProcessor before calling .scan():
@@ -248,7 +248,7 @@ All of these methods work for both annotations and *meta-annotations*. A meta-an
 
 Java's reflection methods (e.g. Class.getAnnotations()) do not directly return meta-annotations (they only look one level back up the annotation graph), but FastClasspathScanner's methods follow the transitive closure of annotations, so you can scan for both annotations and meta-annotations using the same API. This allows for OO-like multi-level inheritance of annotated traits. (Compare with @dblevins' [metatypes](https://github.com/dblevins/metatypes/).)
 
-N.B. There are also convenience methods for matching classes that have any of a given list of annotations, and methods for matching classes that have all of a given list of annotations. 
+N.B. There are also convenience methods for matching classes that have *any of* a given list of annotations (an "or" operator), and methods for matching classes that have *all of* a given list of annotations (and "and" operator). 
 
 ```java
 // Mechanism 1: Attach a MatchProcessor before calling .scan():
