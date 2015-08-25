@@ -311,6 +311,8 @@ public List<String> getNamesOfMetaAnnotationsOnAnnotation(
     String annotationName)
 ```
 
+The method `getNamesOfMetaAnnotationsOnAnnotation()` gives a reverse mapping (from annotation to meta-annotations) compared to `getNamesOfAnnotationsWithMetaAnnotation()` (which maps from meta-annotations to annotations). The method `getNamesOfAnnotationsOnClass()` (which maps from class to annotation/meta-annotations) gives a reverse mapping compared to `getNamesOfClassesWithAnnotation()` (which maps from annotation/meta-annotation to classes).
+
 ### 5. Fetching the constant initializer values of static final fields
 
 FastClassPathScanner is able to scan the classpath for matching fully-qualified static final fields, e.g. for the fully-qualified field name "com.xyz.Config.POLL_INTERVAL", FastClassPathScanner will look in the class com.xyz.Config for the static final field POLL_INTERVAL, and if it is found, and if it has a constant literal initializer value, that value will be read directly from the classfile and passed into a provided StaticFinalFieldMatchProcessor.
