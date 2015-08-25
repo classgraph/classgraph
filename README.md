@@ -209,6 +209,8 @@ FastClasspathScanner can find all classes on the classpath within whitelisted pa
 
 There are also methods `List<String> getNamesOfClassesImplementing(String ifaceName)` and `List<String> getNamesOfClassesImplementing(Class<?> iface)` that can be called after `.scan()` to find the names of the classes implementing a given interface (whether or not a corresponding match processor was added to detect this). These methods will return the matching classes without calling the classloader, whereas if a match processor is used, the classloader is called first (using Class.forName()) so that a class reference can be passed into the match processor.
 
+N.B. There are also convenience methods for matching classes that implement all of a given list of annotations. 
+
 ```java
 // Mechanism 1: Attach a MatchProcessor before calling .scan():
 
@@ -241,6 +243,12 @@ public List<String> getNamesOfClassesImplementingAllOf(
 FastClassPathScanner can detect classes that have a class annotation that matches a given annotation. 
 
 There are also methods `List<String> getNamesOfClassesWithAnnotation(String annotationClassName)` and `List<String> getNamesOfClassesWithAnnotation(Class<?> annotationClass)` that can be called after `.scan()` to find the names of the classes that have a given annotation (whether or not a corresponding match processor was added to detect this). These methods will return the matching classes without calling the classloader, whereas if a match processor is used, the classloader is called first (using Class.forName()) so that a class reference can be passed into the match processor.
+
+All of these methods work for both annotations and *meta-annotations*. A meta-annotation is an annotation that annotates another annotation. If annotation A annotates annotation B, and annotation B annotates class C, then annotation A is also resolved as annotating class C. Cycles in the annotation graph are also handled: if annotation A annotates annotation B, and annotation B annotates both annotation A and class C, then both annotatons A and B are resolved as annotating class C, because class C is reachable along the directed annotation graph from both A and B. 
+
+Java's reflection methods (e.g. Class.getAnnotations()) do not directly return meta-annotations (they only look one level back up the annotation graph), but FastClasspathScanner's methods follow the transitive closure of annotations, so you can scan for both annotations and meta-annotations using the same API. This allows for OO-like multi-level inheritance of annotated traits. (Compare with @dblevins' [metatypes](https://github.com/dblevins/metatypes/).)
+
+N.B. There are also convenience methods for matching classes that have any of a given list of annotations, and methods for matching classes that have all of a given list of annotations. 
 
 ```java
 // Mechanism 1: Attach a MatchProcessor before calling .scan():
@@ -278,14 +286,17 @@ public List<String> getNamesOfClassesWithAnnotationsAnyOf(
 public List<String> getNamesOfClassesWithAnnotationsAnyOf(
     final String... annotationNames)
 
+// (b) Get names of annotations that have the specified meta-annotation
+
 public List<String> getNamesOfAnnotationsWithMetaAnnotation(
     final Class<?> metaAnnotation)
 
 public List<String> getNamesOfAnnotationsWithMetaAnnotation(
     final String metaAnnotationName)
 
-// (b) Get the annotations and meta-annotations on a class or
-// interface, or the meta-annotations on an annotation
+// (c) Get the annotations and meta-annotations on a class or interface,
+// or the meta-annotations on an annotation. This is more powerful than
+// Class.getAnnotations(), because it also returns meta-annotations.
 
 public List<String> getNamesOfAnnotationsOnClass(
     Class<?> classOrInterface)
@@ -299,10 +310,6 @@ public List<String> getNamesOfMetaAnnotationsOnAnnotation(
 public List<String> getNamesOfMetaAnnotationsOnAnnotation(
     String annotationName)
 ```
-
-All of these methods work for both annotations and *meta-annotations*. A meta-annotation is an annotation that annotates another annotation.
-
-Java's reflection methods do not directly return meta-annotations, but FastClasspathScanner's methods do follow the transitive closure of annotations so that you can scan for both annotations and meta-annotations: if annotation A annotates annotation B, and annotation B annotates class C, then A is also resolved as annotating C. Cycles in the annotation graph are also handled: if A annotates B, and B annotates A, and B also annotates class C, then both A and B are resolved as annotating C. 
 
 ### 5. Fetching the constant initializer values of static final fields
 
