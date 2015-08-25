@@ -1,5 +1,5 @@
 package io.github.lukehutch.fastclasspathscanner.metaannotation;
 
-@MetaAnnotatedAnnotation
-public class MetaAnnotatedClass {
+@F
+public class B {
 }

@@ -107,26 +107,30 @@ public class ClassGraphBuilder {
 
     /** Return the names of all subclasses of the named class. */
     public List<String> getNamesOfSubclassesOf(final String className) {
-        final ArrayList<String> subclasses = new ArrayList<>();
         final ClassNode classNode = classNameToClassNode.get(className);
-        if (classNode != null) {
+        if (classNode == null) {
+            return Collections.emptyList();
+        } else {
+            final ArrayList<String> subclasses = new ArrayList<>();
             for (final DAGNode subNode : classNode.allSubNodes) {
                 subclasses.add(subNode.name);
             }
+            return subclasses;
         }
-        return subclasses;
     }
 
     /** Return the names of all superclasses of the named class. */
     public List<String> getNamesOfSuperclassesOf(final String className) {
-        final ArrayList<String> superclasses = new ArrayList<>();
         final ClassNode classNode = classNameToClassNode.get(className);
-        if (classNode != null) {
+        if (classNode == null) {
+            return Collections.emptyList();
+        } else {
+            final ArrayList<String> superclasses = new ArrayList<>();
             for (final DAGNode subNode : classNode.allSuperNodes) {
                 superclasses.add(subNode.name);
             }
+            return superclasses;
         }
-        return superclasses;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -134,26 +138,30 @@ public class ClassGraphBuilder {
 
     /** Return the names of all subinterfaces of the named interface. */
     public List<String> getNamesOfSubinterfacesOf(final String interfaceName) {
-        final ArrayList<String> subinterfaces = new ArrayList<>();
         final InterfaceNode interfaceNode = interfaceNameToInterfaceNode.get(interfaceName);
-        if (interfaceNode != null) {
+        if (interfaceNode == null) {
+            return Collections.emptyList();
+        } else {
+            final ArrayList<String> subinterfaces = new ArrayList<>();
             for (final DAGNode subNode : interfaceNode.allSubNodes) {
                 subinterfaces.add(subNode.name);
             }
+            return subinterfaces;
         }
-        return subinterfaces;
     }
 
     /** Return the names of all superinterfaces of the named interface. */
     public List<String> getNamesOfSuperinterfacesOf(final String interfaceName) {
-        final ArrayList<String> superinterfaces = new ArrayList<>();
         final InterfaceNode interfaceNode = interfaceNameToInterfaceNode.get(interfaceName);
-        if (interfaceNode != null) {
+        if (interfaceNode == null) {
+            return Collections.emptyList();
+        } else {
+            final ArrayList<String> superinterfaces = new ArrayList<>();
             for (final DAGNode superNode : interfaceNode.allSuperNodes) {
                 superinterfaces.add(superNode.name);
             }
+            return superinterfaces;
         }
-        return superinterfaces;
     }
 
     /** Return the names of all classes implementing the named interface. */
@@ -161,8 +169,9 @@ public class ClassGraphBuilder {
         final ArrayList<String> classes = interfaceNameToClassNames.get(interfaceName);
         if (classes == null) {
             return Collections.emptyList();
+        } else {
+            return classes;
         }
-        return classes;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -173,17 +182,19 @@ public class ClassGraphBuilder {
         final ArrayList<String> annotationNames = classNameToAnnotationNames.get(classOrInterfaceName);
         if (annotationNames == null) {
             return Collections.emptyList();
+        } else {
+            return annotationNames;
         }
-        return annotationNames;
     }
 
     /** Return the names of all meta-annotations on the named annotation. */
     public List<String> getNamesOfMetaAnnotationsOnAnnotation(final String annotationName) {
-        final ArrayList<String> metaAnnotationNamess = annotationNameToMetaAnnotationNames.get(annotationName);
-        if (metaAnnotationNamess == null) {
+        final ArrayList<String> metaAnnotationNames = annotationNameToMetaAnnotationNames.get(annotationName);
+        if (metaAnnotationNames == null) {
             return Collections.emptyList();
+        } else {
+            return metaAnnotationNames;
         }
-        return metaAnnotationNamess;
     }
 
     /** Return the names of all classes with the named class annotation or meta-annotation. */
@@ -191,8 +202,9 @@ public class ClassGraphBuilder {
         final ArrayList<String> classNames = annotationNameToClassNames.get(annotationName);
         if (classNames == null) {
             return Collections.emptyList();
+        } else {
+            return classNames;
         }
-        return classNames;
     }
 
     /** Return the names of all annotations that have the named meta-annotation. */
@@ -200,8 +212,9 @@ public class ClassGraphBuilder {
         final ArrayList<String> annotationNames = metaAnnotationNameToAnnotationNames.get(metaAnnotationName);
         if (annotationNames == null) {
             return Collections.emptyList();
+        } else {
+            return annotationNames;
         }
-        return annotationNames;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -297,9 +310,7 @@ public class ClassGraphBuilder {
         HashSet<DAGNode> activeTopDownNodes = new HashSet<>();
         for (DAGNode node : nodes) {
             if (node.directSuperNodes.isEmpty()) {
-                for (DAGNode sub : node.directSubNodes) {
-                    activeTopDownNodes.add(sub);
-                }
+                activeTopDownNodes.addAll(node.directSubNodes);
             }
         }
         // Use DP-style "wavefront" to find top-down transitive closure, even if there are cycles
@@ -323,9 +334,7 @@ public class ClassGraphBuilder {
         HashSet<DAGNode> activeBottomUpNodes = new HashSet<>();
         for (DAGNode node : nodes) {
             if (node.directSubNodes.isEmpty()) {
-                for (DAGNode sup : node.directSuperNodes) {
-                    activeBottomUpNodes.add(sup);
-                }
+                activeBottomUpNodes.addAll(node.directSuperNodes);
             }
         }
         // Use DP-style "wavefront" to find bottom-up transitive closure, even if there are cycles
@@ -368,6 +377,7 @@ public class ClassGraphBuilder {
         }
 
         // Find all reachable nodes in the upwards and downwards transitive closures of each class type
+        // (also deals with any cycles in meta-annotation graph)
         findTransitiveClosure(allClassNodes);
         findTransitiveClosure(allInterfaceNodes);
         findTransitiveClosure(allAnnotationNodes);
@@ -439,10 +449,11 @@ public class ClassGraphBuilder {
         MultiMapKeyToSet<String, String> annotationNameToAnnotatedAnnotationNamesMM = new MultiMapKeyToSet<>();
         for (AnnotationNode annotationNode : allAnnotationNodes) {
             for (DAGNode subNode : annotationNode.allSubNodes) {
+                annotationNameToAnnotatedAnnotationNamesMM.put(annotationNode.name, subNode.name);
                 annotationNameToAnnotatedClassNamesMM.putAll(annotationNode.name,
                         ((AnnotationNode) subNode).annotatedClassNames);
-                annotationNameToAnnotatedAnnotationNamesMM.put(annotationNode.name, subNode.name);
             }
+            annotationNameToAnnotatedClassNamesMM.putAll(annotationNode.name, annotationNode.annotatedClassNames);
         }
         // Create forward and reverse mappings
         for (Entry<String, HashSet<String>> ent : annotationNameToAnnotatedClassNamesMM.entrySet()) {
@@ -767,7 +778,10 @@ public class ClassGraphBuilder {
                 final int annotationCount = inp.readUnsignedShort();
                 for (int m = 0; m < annotationCount; m++) {
                     final String annotationName = readAnnotation(inp, constantPool);
-                    linkAnnotation(annotationName, className, /* classIsAnnotation = */isAnnotation);
+                    // Ignore java.lang.annotation annotations (Target/Retention/Documented etc.)
+                    if (!annotationName.startsWith("java.lang.annotation.")) {
+                        linkAnnotation(annotationName, className, /* classIsAnnotation = */isAnnotation);
+                    }
                 }
             } else {
                 inp.skipBytes(attributeLength);

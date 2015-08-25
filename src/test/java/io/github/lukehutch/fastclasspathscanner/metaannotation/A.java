@@ -1,4 +1,6 @@
 package io.github.lukehutch.fastclasspathscanner.metaannotation;
 
-public interface PlainClass {
+@E
+@F
+public class A {
 }
