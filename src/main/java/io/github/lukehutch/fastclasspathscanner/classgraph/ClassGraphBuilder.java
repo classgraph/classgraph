@@ -66,15 +66,6 @@ public class ClassGraphBuilder {
         }
     };
 
-    private Collection<ClassNode> allClassNodes() {
-        return classNameToClassNode.resolve().values();
-    }
-
-    /** Return names of all classes (including interfaces and annotations) reached during the scan. */
-    public Set<String> getNamesOfAllClasses() {
-        return classNameToClassNode.resolve().keySet();
-    }
-
     /** A map from class name to the corresponding InterfaceNode object. */
     private final LazyMap<String, InterfaceNode> interfaceNameToInterfaceNode = //
     new LazyMap<String, InterfaceNode>() {
@@ -83,10 +74,6 @@ public class ClassGraphBuilder {
             findTransitiveClosure(map.values());
         }
     };
-
-    private Collection<InterfaceNode> allInterfaceNodes() {
-        return interfaceNameToInterfaceNode.resolve().values();
-    }
 
     /** A map from class name to the corresponding AnnotationNode object. */
     private final LazyMap<String, AnnotationNode> annotationNameToAnnotationNode = //
@@ -100,6 +87,21 @@ public class ClassGraphBuilder {
             findTransitiveClosure(map.values());
         }
     };
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    private Collection<ClassNode> allClassNodes() {
+        return classNameToClassNode.resolve().values();
+    }
+
+    /** Return names of all classes (including interfaces and annotations) reached during the scan. */
+    public Set<String> getNamesOfAllClasses() {
+        return classNameToClassNode.resolve().keySet();
+    }
+
+    private Collection<InterfaceNode> allInterfaceNodes() {
+        return interfaceNameToInterfaceNode.resolve().values();
+    }
 
     private Collection<AnnotationNode> allAnnotationNodes() {
         return annotationNameToAnnotationNode.resolve().values();
@@ -206,7 +208,7 @@ public class ClassGraphBuilder {
     // -------------------------------------------------------------------------------------------------------------
 
     /** Reverse mapping from annotation/meta-annotation names to the names of classes that have the annotation. */
-    private final LazyMap<String, ArrayList<String>> annotationNameToClassNames = //
+    private final LazyMap<String, ArrayList<String>> annotationNameToAnnotatedClassNames = //
     new LazyMap<String, ArrayList<String>>() {
         @Override
         public void initialize() {
@@ -231,7 +233,7 @@ public class ClassGraphBuilder {
     // -------------------------------------------------------------------------------------------------------------
 
     /** Reverse mapping from meta-annotation names to the names of annotations that have the meta-annotation. */
-    private final LazyMap<String, ArrayList<String>> metaAnnotationNameToAnnotationNames = //
+    private final LazyMap<String, ArrayList<String>> metaAnnotationNameToAnnotatedAnnotationNames = //
     new LazyMap<String, ArrayList<String>>() {
         @Override
         public void initialize() {
@@ -375,7 +377,7 @@ public class ClassGraphBuilder {
 
     /** Return the names of all classes with the named class annotation or meta-annotation. */
     public List<String> getNamesOfClassesWithAnnotation(final String annotationName) {
-        final ArrayList<String> classNames = annotationNameToClassNames.resolve().get(annotationName);
+        final ArrayList<String> classNames = annotationNameToAnnotatedClassNames.resolve().get(annotationName);
         if (classNames == null) {
             return Collections.emptyList();
         } else {
@@ -385,7 +387,7 @@ public class ClassGraphBuilder {
 
     /** Return the names of all annotations that have the named meta-annotation. */
     public List<String> getNamesOfAnnotationsWithMetaAnnotation(final String metaAnnotationName) {
-        final ArrayList<String> annotationNames = metaAnnotationNameToAnnotationNames.resolve().get(
+        final ArrayList<String> annotationNames = metaAnnotationNameToAnnotatedAnnotationNames.resolve().get(
                 metaAnnotationName);
         if (annotationNames == null) {
             return Collections.emptyList();
@@ -397,7 +399,8 @@ public class ClassGraphBuilder {
     // -------------------------------------------------------------------------------------------------------------
 
     /** Link a class to its superclass and to the interfaces it implements, and save the class annotations. */
-    private void linkClass(final String superclassName, final ArrayList<String> interfaces, final String className) {
+    private void linkClass(final String superclassName, final ArrayList<String> interfaces, //
+            final String className) {
         // Look up ClassNode object for this class
         HashMap<String, ClassNode> map = classNameToClassNode.getRawMap();
         ClassNode classNode = map.get(className);
@@ -462,8 +465,7 @@ public class ClassGraphBuilder {
             // Look up AnnotationNode for the annotated class, or create node if it doesn't exist
             AnnotationNode annotatedAnnotationNode = map.get(annotatedClassName);
             if (annotatedAnnotationNode == null) {
-                map.put(annotatedClassName,
-                        annotatedAnnotationNode = new AnnotationNode(annotatedClassName));
+                map.put(annotatedClassName, annotatedAnnotationNode = new AnnotationNode(annotatedClassName));
             }
             // Link meta-annotation to annotation
             annotationNode.addAnnotatedAnnotation(annotatedClassName);
@@ -542,9 +544,9 @@ public class ClassGraphBuilder {
         annotationNameToAnnotatedClassNamesSet.clear();
         annotationNameToAnnotatedAnnotationNamesSet.clear();
 
-        annotationNameToClassNames.clear();
+        annotationNameToAnnotatedClassNames.clear();
         classNameToAnnotationNames.clear();
-        metaAnnotationNameToAnnotationNames.clear();
+        metaAnnotationNameToAnnotatedAnnotationNames.clear();
         annotationNameToMetaAnnotationNames.clear();
         interfaceNameToClassNames.clear();
     }
@@ -622,7 +624,8 @@ public class ClassGraphBuilder {
     /**
      * Read as usigned short constant pool reference, then look up the string in the constant pool.
      */
-    private static String readRefdString(final DataInputStream inp, final Object[] constantPool) throws IOException {
+    private static String readRefdString(final DataInputStream inp, final Object[] constantPool) //
+            throws IOException {
         return (String) constantPool[inp.readUnsignedShort()];
     }
 
@@ -631,7 +634,8 @@ public class ClassGraphBuilder {
      * 
      * @param verbose
      */
-    public void readClassInfoFromClassfileHeader(final InputStream inputStream, boolean verbose) throws IOException {
+    public void readClassInfoFromClassfileHeader(final InputStream inputStream, boolean verbose) //
+            throws IOException {
         final DataInputStream inp = new DataInputStream(new BufferedInputStream(inputStream, 1024));
 
         // Magic
