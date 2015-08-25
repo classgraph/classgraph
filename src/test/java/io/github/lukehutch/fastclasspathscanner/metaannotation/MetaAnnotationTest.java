@@ -14,10 +14,10 @@ public class MetaAnnotationTest {
         assertThat(scanner.getNamesOfClassesWithAnnotation(MetaAnnotatedAnnotation.class)).containsExactly(
                 MetaAnnotatedClass.class.getName());
 
-        assertThat(scanner.getNamesOfClassesWithMetaAnnotation(MetaAnnotation.class)).containsOnly(
+        assertThat(scanner.getNamesOfClassesWithAnnotation(MetaAnnotation.class)).containsOnly(
                 MetaAndNonMetaAnnotatedClass.class.getName(), MetaAnnotatedClass.class.getName());
 
-        assertThat(scanner.getNamesOfClassesWithMetaAnnotation(MetaAnnotatedAnnotation.class)).containsOnly(
+        assertThat(scanner.getNamesOfClassesWithAnnotation(MetaAnnotatedAnnotation.class)).containsOnly(
                 MetaAnnotatedClass.class.getName(), MetaMetaAnnotatedClass.class.getName());
     }
 
@@ -26,22 +26,22 @@ public class MetaAnnotationTest {
         assertThat(scanner.getNamesOfClassesWithAnnotation(MetaAnnotatedAnnotation.class.getName()))
                 .containsExactly(MetaAnnotatedClass.class.getName());
 
-        assertThat(scanner.getNamesOfClassesWithMetaAnnotation(MetaAnnotation.class.getName())).containsOnly(
+        assertThat(scanner.getNamesOfClassesWithAnnotation(MetaAnnotation.class.getName())).containsOnly(
                 MetaAndNonMetaAnnotatedClass.class.getName(), MetaAnnotatedClass.class.getName());
 
-        assertThat(scanner.getNamesOfClassesWithMetaAnnotation(MetaAnnotatedAnnotation.class.getName()))
+        assertThat(scanner.getNamesOfClassesWithAnnotation(MetaAnnotatedAnnotation.class.getName()))
                 .containsOnly(MetaAnnotatedClass.class.getName(), MetaMetaAnnotatedClass.class.getName());
     }
 
     @Test
     public void nonMeta() {
-        assertThat(scanner.getNamesOfClassesWithMetaAnnotation(NonMetaAnnotation.class)).containsOnly(
+        assertThat(scanner.getNamesOfClassesWithAnnotation(NonMetaAnnotation.class)).containsOnly(
                 MetaAndNonMetaAnnotatedClass.class.getName(), NonMetaClass.class.getName());
     }
 
     @Test
     public void varArgsAnyOfByClass() {
-        assertThat(scanner.getNamesOfClassesWithMetaAnnotationsAnyOf(MetaAnnotation.class, NonMetaAnnotation.class))
+        assertThat(scanner.getNamesOfClassesWithAnnotationsAnyOf(MetaAnnotation.class, NonMetaAnnotation.class))
                 .containsOnly(MetaAndNonMetaAnnotatedClass.class.getName(), MetaAnnotatedClass.class.getName(),
                         NonMetaClass.class.getName());
     }
@@ -49,7 +49,7 @@ public class MetaAnnotationTest {
     @Test
     public void varArgsAnyOfByName() {
         assertThat(
-                scanner.getNamesOfClassesWithMetaAnnotationsAnyOf(MetaAnnotation.class.getName(),
+                scanner.getNamesOfClassesWithAnnotationsAnyOf(MetaAnnotation.class.getName(),
                         NonMetaAnnotation.class.getName())).containsOnly(
                 MetaAndNonMetaAnnotatedClass.class.getName(), MetaAnnotatedClass.class.getName(),
                 NonMetaClass.class.getName());
@@ -57,14 +57,14 @@ public class MetaAnnotationTest {
 
     @Test
     public void varArgsAllOfByClass() {
-        assertThat(scanner.getNamesOfClassesWithMetaAnnotationsAllOf(MetaAnnotation.class, NonMetaAnnotation.class))
+        assertThat(scanner.getNamesOfClassesWithAnnotationsAllOf(MetaAnnotation.class, NonMetaAnnotation.class))
                 .containsExactly(MetaAndNonMetaAnnotatedClass.class.getName());
     }
 
     @Test
     public void varArgsAllOfByName() {
         assertThat(
-                scanner.getNamesOfClassesWithMetaAnnotationsAllOf(MetaAnnotation.class.getName(),
+                scanner.getNamesOfClassesWithAnnotationsAllOf(MetaAnnotation.class.getName(),
                         NonMetaAnnotation.class.getName())) //
                 .containsExactly(MetaAndNonMetaAnnotatedClass.class.getName());
     }

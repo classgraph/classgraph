@@ -297,7 +297,9 @@ public class ClassGraphBuilder {
         HashSet<DAGNode> activeTopDownNodes = new HashSet<>();
         for (DAGNode node : nodes) {
             if (node.directSuperNodes.isEmpty()) {
-                activeTopDownNodes.add(node);
+                for (DAGNode sub : node.directSubNodes) {
+                    activeTopDownNodes.add(sub);
+                }
             }
         }
         // Use DP-style "wavefront" to find top-down transitive closure, even if there are cycles
@@ -321,7 +323,9 @@ public class ClassGraphBuilder {
         HashSet<DAGNode> activeBottomUpNodes = new HashSet<>();
         for (DAGNode node : nodes) {
             if (node.directSubNodes.isEmpty()) {
-                activeBottomUpNodes.add(node);
+                for (DAGNode sup : node.directSuperNodes) {
+                    activeBottomUpNodes.add(sup);
+                }
             }
         }
         // Use DP-style "wavefront" to find bottom-up transitive closure, even if there are cycles
@@ -755,7 +759,8 @@ public class ClassGraphBuilder {
         }
 
         // Attributes (including class annotations)
-        for (int i = 0; i < /* attributesCount = */inp.readUnsignedShort(); i++) {
+        int attributesCount = inp.readUnsignedShort();
+        for (int i = 0; i < attributesCount; i++) {
             final String attributeName = readRefdString(inp, constantPool);
             final int attributeLength = inp.readInt();
             if ("RuntimeVisibleAnnotations".equals(attributeName)) {
