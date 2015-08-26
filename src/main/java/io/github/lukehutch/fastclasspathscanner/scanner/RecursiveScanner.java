@@ -306,16 +306,12 @@ public class RecursiveScanner {
             } else if (pathElt.isFile()) {
                 if (Utils.isJar(path)) {
                     // Scan within jar/zipfile path element
-                    ZipFile zipfile = null;
-                    try {
-                        zipfile = new ZipFile(pathElt);
+                    try (ZipFile zipfile = new ZipFile(pathElt)) {
+                        scanZipfile(path, zipfile, pathElt.lastModified(), classpathEltIdx, scanTimestampsOnly);
                     } catch (final IOException e) {
                         if (FastClasspathScanner.verbose) {
                             Log.log(e.getMessage() + " while opening zipfile " + pathElt);
                         }
-                    }
-                    if (zipfile != null) {
-                        scanZipfile(path, zipfile, pathElt.lastModified(), classpathEltIdx, scanTimestampsOnly);
                     }
                 } else {
                     // File listed directly on classpath
