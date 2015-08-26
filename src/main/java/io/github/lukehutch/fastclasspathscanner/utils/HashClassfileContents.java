@@ -26,7 +26,6 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-
 package io.github.lukehutch.fastclasspathscanner.utils;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
@@ -48,27 +47,28 @@ public class HashClassfileContents {
     private final FastClasspathScanner scanner;
     private final HashMap<String, String> classNameToClassfileHash;
 
-    public HashClassfileContents(String... packagePrefixesToScan) {
+    public HashClassfileContents(final String... packagePrefixesToScan) {
         this.classNameToClassfileHash = new HashMap<>();
         this.scanner = new FastClasspathScanner(packagePrefixesToScan)
         // MD5-hash all files ending in ".class"
                 .matchFilenameExtension("class", new FileMatchProcessor() {
                     @Override
-                    public void processMatch(String relativePath, InputStream inputStream, int length)
-                            throws IOException {
+                    public void processMatch(final String relativePath, final int classpathEltIdx,
+                            final InputStream inputStream, final int length) throws IOException {
                         final MessageDigest digest;
                         try {
                             digest = MessageDigest.getInstance("MD5");
-                        } catch (NoSuchAlgorithmException e) {
+                        } catch (final NoSuchAlgorithmException e) {
                             throw new RuntimeException(e);
                         }
                         final byte[] buffer = new byte[8192];
                         for (int read; (read = inputStream.read(buffer)) > 0;) {
                             digest.update(buffer, 0, read);
                         }
-                        String hash = "0000000000000000000000000000000"
+                        final String hash = "0000000000000000000000000000000"
                                 + new BigInteger(1, digest.digest()).toString(16);
-                        String className = relativePath.substring(0, relativePath.length() - 6).replace('/', '.');
+                        final String className = relativePath.substring(0, relativePath.length() - 6).replace('/',
+                                '.');
                         classNameToClassfileHash.put(className, hash.substring(hash.length() - 32));
                     }
                 });

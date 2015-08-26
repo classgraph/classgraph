@@ -26,7 +26,6 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-
 package io.github.lukehutch.fastclasspathscanner.utils;
 
 import java.util.ArrayList;
@@ -37,7 +36,7 @@ import java.util.Map.Entry;
 /** Multimap utility functions. */
 public class MultiMap {
 
-    public static <K, V> boolean put(HashMap<K, ArrayList<V>> map, K key, V value) {
+    public static <K, V> boolean put(final HashMap<K, ArrayList<V>> map, final K key, final V value) {
         ArrayList<V> set = map.get(key);
         if (set == null) {
             set = new ArrayList<V>();
@@ -46,9 +45,9 @@ public class MultiMap {
         return set.add(value);
     }
 
-    public static <K, V> void putAll(HashMap<K, ArrayList<V>> map, K key, Iterable<V> values) {
+    public static <K, V> void putAll(final HashMap<K, ArrayList<V>> map, final K key, final Iterable<V> values) {
         boolean putSomething = false;
-        for (V val : values) {
+        for (final V val : values) {
             put(map, key, val);
             putSomething = true;
         }
@@ -58,11 +57,11 @@ public class MultiMap {
     }
 
     /** Invert the mapping */
-    public static <K, V> HashMap<V, HashSet<K>> invert(HashMap<K, ArrayList<V>> map) {
-        HashMap<V, HashSet<K>> inv = new HashMap<V, HashSet<K>>();
-        for (Entry<K, ArrayList<V>> ent : map.entrySet()) {
-            K key = ent.getKey();
-            for (V val : ent.getValue()) {
+    public static <K, V> HashMap<V, HashSet<K>> invert(final HashMap<K, ArrayList<V>> map) {
+        final HashMap<V, HashSet<K>> inv = new HashMap<V, HashSet<K>>();
+        for (final Entry<K, ArrayList<V>> ent : map.entrySet()) {
+            final K key = ent.getKey();
+            for (final V val : ent.getValue()) {
                 MultiSet.put(inv, val, key);
             }
         }

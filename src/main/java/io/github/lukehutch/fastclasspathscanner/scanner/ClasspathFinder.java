@@ -26,7 +26,6 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-
 package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
@@ -59,7 +58,7 @@ public class ClasspathFinder {
     }
 
     /** Add a classpath element. */
-    private void addClasspathElement(String pathElement) {
+    private void addClasspathElement(final String pathElement) {
         if (!pathElement.isEmpty()) {
             final File pathElementFile = new File(pathElement);
             if (pathElementFile.exists()) {
@@ -81,25 +80,25 @@ public class ClasspathFinder {
                     // file. OpenJDK scans manifest-defined classpath elements after the jar that listed them, so
                     // we recursively call addClasspathElement if needed each time a jar is encountered. 
                     if (pathElementFile.isFile() && Utils.isJar(pathElement)) {
-                        String manifestUrlStr = "jar:file:" + pathElement + "!/META-INF/MANIFEST.MF";
+                        final String manifestUrlStr = "jar:file:" + pathElement + "!/META-INF/MANIFEST.MF";
                         try (InputStream stream = new URL(manifestUrlStr).openStream()) {
                             // Look for Class-Path keys within manifest files
-                            Manifest manifest = new Manifest(stream);
-                            String manifestClassPath = manifest.getMainAttributes().getValue("Class-Path");
+                            final Manifest manifest = new Manifest(stream);
+                            final String manifestClassPath = manifest.getMainAttributes().getValue("Class-Path");
                             if (manifestClassPath != null && !manifestClassPath.isEmpty()) {
                                 if (FastClasspathScanner.verbose) {
                                     Log.log("Found Class-Path entry in " + manifestUrlStr + ": "
                                             + manifestClassPath);
                                 }
                                 // Class-Path elements are space-delimited
-                                for (String manifestClassPathElement : manifestClassPath.split(" ")) {
+                                for (final String manifestClassPathElement : manifestClassPath.split(" ")) {
                                     // Resolve Class-Path elements relative to the parent jar's containing directory
-                                    String manifestClassPathElementAbsolute = new File(pathElementFile.getParent(),
-                                            manifestClassPathElement).getPath();
+                                    final String manifestClassPathElementAbsolute = new File(
+                                            pathElementFile.getParent(), manifestClassPathElement).getPath();
                                     addClasspathElement(manifestClassPathElementAbsolute);
                                 }
                             }
-                        } catch (IOException e) {
+                        } catch (final IOException e) {
                             // Jar does not contain a manifest
                         }
                     }
@@ -122,20 +121,20 @@ public class ClasspathFinder {
 
         // Look for all unique classloaders.
         // Keep them in an order that (hopefully) reflects the order in which the JDK calls classloaders.
-        ArrayList<ClassLoader> classLoaders = new ArrayList<>();
-        HashSet<ClassLoader> classLoadersSet = new HashSet<>();
+        final ArrayList<ClassLoader> classLoaders = new ArrayList<>();
+        final HashSet<ClassLoader> classLoadersSet = new HashSet<>();
         classLoadersSet.add(ClassLoader.getSystemClassLoader());
         classLoaders.add(ClassLoader.getSystemClassLoader());
         // Dirty method for looking for other classloaders on the call stack
         try {
             // Generate stacktrace
             throw new Exception();
-        } catch (Exception e) {
-            StackTraceElement[] stacktrace = e.getStackTrace();
+        } catch (final Exception e) {
+            final StackTraceElement[] stacktrace = e.getStackTrace();
             if (stacktrace.length >= 3) {
                 // Add the classloader from the calling class
-                StackTraceElement caller = stacktrace[2];
-                ClassLoader cl = caller.getClass().getClassLoader();
+                final StackTraceElement caller = stacktrace[2];
+                final ClassLoader cl = caller.getClass().getClassLoader();
                 if (classLoadersSet.add(cl)) {
                     classLoaders.add(cl);
                 }
@@ -163,10 +162,10 @@ public class ClasspathFinder {
         }
 
         // Get file paths for URLs of each classloader.
-        for (ClassLoader cl : classLoaders) {
+        for (final ClassLoader cl : classLoaders) {
             if (cl != null) {
-                for (URL url : ((URLClassLoader) cl).getURLs()) {
-                    String protocol = url.getProtocol();
+                for (final URL url : ((URLClassLoader) cl).getURLs()) {
+                    final String protocol = url.getProtocol();
                     if (protocol == null || protocol.equalsIgnoreCase("file")) {
                         // "file:" URL found in classpath
                         addClasspathElement(url.getFile());
@@ -178,9 +177,9 @@ public class ClasspathFinder {
     }
 
     /** Override the system classpath with a custom classpath to search. */
-    public void overrideClasspath(String classpath) {
+    public void overrideClasspath(final String classpath) {
         clearClasspath();
-        for (String pathElement : classpath.split(File.pathSeparator)) {
+        for (final String pathElement : classpath.split(File.pathSeparator)) {
             addClasspathElement(pathElement);
         }
         initialized = true;

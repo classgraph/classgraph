@@ -26,7 +26,6 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-
 package io.github.lukehutch.fastclasspathscanner;
 
 import io.github.lukehutch.fastclasspathscanner.classgraph.ClassGraphBuilder;
@@ -48,6 +47,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -68,6 +68,12 @@ public class FastClasspathScanner {
 
     /** The class and interface graph builder. */
     private final ClassGraphBuilder classGraphBuilder;
+    /**
+     * A map from classname, to static final field name, to a StaticFinalFieldMatchProcessor that should be called
+     * if that class name and static final field name is encountered during scan.
+     */
+    private final HashMap<String, HashMap<String, StaticFinalFieldMatchProcessor>> //
+    classNameToStaticFieldnameToMatchProcessor = new HashMap<>();
 
     /** If set to true, print info while scanning */
     public static boolean verbose = false;
@@ -130,11 +136,28 @@ public class FastClasspathScanner {
         // Read classfile headers for all filenames ending in ".class" on classpath
         this.matchFilenameExtension("class", new FileMatchProcessor() {
             @Override
-            public void processMatch(String relativePath, InputStream inputStream, int lengthBytes)
-                    throws IOException {
-                classGraphBuilder.readClassInfoFromClassfileHeader(inputStream);
+            public void processMatch(final String relativePath, final int classpathEltIdx,
+                    final InputStream inputStream, final int lengthBytes) throws IOException {
+                classGraphBuilder.readClassInfoFromClassfileHeader(relativePath, inputStream, classpathEltIdx,
+                        classNameToStaticFieldnameToMatchProcessor);
             }
         });
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Add a StaticFinalFieldMatchProcessor that should be called if a static final field with the given name is
+     * encountered in a class with the given fully-qualified classname while reading a classfile header.
+     */
+    public void addStaticFinalFieldProcessor(final String className, final String fieldName,
+            final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor) {
+        HashMap<String, StaticFinalFieldMatchProcessor> fieldNameToMatchProcessor = //
+        classNameToStaticFieldnameToMatchProcessor.get(className);
+        if (fieldNameToMatchProcessor == null) {
+            classNameToStaticFieldnameToMatchProcessor.put(className, fieldNameToMatchProcessor = new HashMap<>(2));
+        }
+        fieldNameToMatchProcessor.put(fieldName, staticFinalFieldMatchProcessor);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -169,8 +192,8 @@ public class FastClasspathScanner {
      * Check each element of an array of classes is an annotation (throws an IllegalArgumentException if not), and
      * return the names of the classes as an array of strings.
      */
-    private static String[] annotationNames(Class<?>[] annotations) {
-        String[] annotationNames = new String[annotations.length];
+    private static String[] annotationNames(final Class<?>[] annotations) {
+        final String[] annotationNames = new String[annotations.length];
         for (int i = 0; i < annotations.length; i++) {
             annotationNames[i] = annotationName(annotations[i]);
         }
@@ -192,8 +215,8 @@ public class FastClasspathScanner {
      * Check each element of an array of classes is an interface (throws an IllegalArgumentException if not), and
      * return the names of the classes as an array of strings.
      */
-    private static String[] interfaceNames(Class<?>[] interfaces) {
-        String[] interfaceNames = new String[interfaces.length];
+    private static String[] interfaceNames(final Class<?>[] interfaces) {
+        final String[] interfaceNames = new String[interfaces.length];
         for (int i = 0; i < interfaces.length; i++) {
             interfaceNames[i] = interfaceName(interfaces[i]);
         }
@@ -489,10 +512,10 @@ public class FastClasspathScanner {
      * @return A list of the names of matching classes, or the empty list if none.
      */
     public List<String> getNamesOfClassesImplementingAllOf(final String... implementedInterfaceNames) {
-        HashSet<String> classNames = new HashSet<>();
+        final HashSet<String> classNames = new HashSet<>();
         for (int i = 0; i < implementedInterfaceNames.length; i++) {
-            String implementedInterfaceName = implementedInterfaceNames[i];
-            List<String> namesOfImplementingClasses = getNamesOfClassesImplementing(implementedInterfaceName);
+            final String implementedInterfaceName = implementedInterfaceNames[i];
+            final List<String> namesOfImplementingClasses = getNamesOfClassesImplementing(implementedInterfaceName);
             if (i == 0) {
                 classNames.addAll(namesOfImplementingClasses);
             } else {
@@ -584,10 +607,10 @@ public class FastClasspathScanner {
      * @return A list of the names of classes that have all of the annotations, or the empty list if none.
      */
     public List<String> getNamesOfClassesWithAnnotationsAllOf(final String... annotationNames) {
-        HashSet<String> classNames = new HashSet<>();
+        final HashSet<String> classNames = new HashSet<>();
         for (int i = 0; i < annotationNames.length; i++) {
-            String annotationName = annotationNames[i];
-            List<String> namesOfClassesWithMetaAnnotation = getNamesOfClassesWithAnnotation(annotationName);
+            final String annotationName = annotationNames[i];
+            final List<String> namesOfClassesWithMetaAnnotation = getNamesOfClassesWithAnnotation(annotationName);
             if (i == 0) {
                 classNames.addAll(namesOfClassesWithMetaAnnotation);
             } else {
@@ -622,8 +645,8 @@ public class FastClasspathScanner {
      * @return A list of the names of classes that have one or more of the annotations, or the empty list if none.
      */
     public List<String> getNamesOfClassesWithAnnotationsAnyOf(final String... annotationNames) {
-        HashSet<String> classNames = new HashSet<>();
-        for (String annotationName : annotationNames) {
+        final HashSet<String> classNames = new HashSet<>();
+        for (final String annotationName : annotationNames) {
             classNames.addAll(getNamesOfClassesWithAnnotation(annotationName));
         }
         return new ArrayList<>(classNames);
@@ -660,7 +683,7 @@ public class FastClasspathScanner {
      *            The class or interface.
      * @return A list of the names of annotations and meta-annotations on the class, or the empty list if none.
      */
-    public List<String> getNamesOfAnnotationsOnClass(Class<?> classOrInterface) {
+    public List<String> getNamesOfAnnotationsOnClass(final Class<?> classOrInterface) {
         return getNamesOfAnnotationsOnClass(classOrInterfaceName(classOrInterface));
     }
 
@@ -671,7 +694,7 @@ public class FastClasspathScanner {
      *            The name of the class or interface.
      * @return A list of the names of annotations and meta-annotations on the class, or the empty list if none.
      */
-    public List<String> getNamesOfAnnotationsOnClass(String classOrInterfaceName) {
+    public List<String> getNamesOfAnnotationsOnClass(final String classOrInterfaceName) {
         return classGraphBuilder.getNamesOfAnnotationsOnClass(classOrInterfaceName);
     }
 
@@ -682,7 +705,7 @@ public class FastClasspathScanner {
      *            The specified annotation.
      * @return A list of the names of meta-annotations on the specified annotation, or the empty list if none.
      */
-    public List<String> getNamesOfMetaAnnotationsOnAnnotation(Class<?> annotation) {
+    public List<String> getNamesOfMetaAnnotationsOnAnnotation(final Class<?> annotation) {
         return getNamesOfMetaAnnotationsOnAnnotation(annotationName(annotation));
     }
 
@@ -693,7 +716,7 @@ public class FastClasspathScanner {
      *            The name of the specified annotation.
      * @return A list of the names of meta-annotations on the specified annotation, or the empty list if none.
      */
-    public List<String> getNamesOfMetaAnnotationsOnAnnotation(String annotationName) {
+    public List<String> getNamesOfMetaAnnotationsOnAnnotation(final String annotationName) {
         return classGraphBuilder.getNamesOfMetaAnnotationsOnAnnotation(annotationName);
     }
 
@@ -729,8 +752,7 @@ public class FastClasspathScanner {
             if (lastDotIdx > 0) {
                 final String className = fullyQualifiedFieldName.substring(0, lastDotIdx);
                 final String fieldName = fullyQualifiedFieldName.substring(lastDotIdx + 1);
-                classGraphBuilder
-                        .addStaticFinalFieldProcessor(className, fieldName, staticFinalFieldMatchProcessor);
+                addStaticFinalFieldProcessor(className, fieldName, staticFinalFieldMatchProcessor);
             }
         }
         return this;
@@ -802,8 +824,8 @@ public class FastClasspathScanner {
             final FileMatchContentsProcessor fileMatchContentsProcessor) {
         return new FileMatchProcessor() {
             @Override
-            public void processMatch(final String relativePath, final InputStream inputStream, //
-                    final int lengthBytes) throws IOException {
+            public void processMatch(final String relativePath, final int classpathElementIndex,
+                    final InputStream inputStream, final int lengthBytes) throws IOException {
                 // Read the file contents into a byte[] array
                 final byte[] contents = new byte[lengthBytes];
                 final int bytesRead = Math.max(0, inputStream.read(contents));
@@ -828,10 +850,10 @@ public class FastClasspathScanner {
     public FastClasspathScanner matchFilenamePattern(final String pathRegexp,
             final FileMatchProcessor fileMatchProcessor) {
         recursiveScanner.addFilePathMatcher(new FilePathMatcher(new FilePathTester() {
-            private Pattern pattern = Pattern.compile(pathRegexp);
+            private final Pattern pattern = Pattern.compile(pathRegexp);
 
             @Override
-            public boolean filePathMatches(String relativePath) {
+            public boolean filePathMatches(final String relativePath) {
                 return pattern.matcher(relativePath).matches();
             }
         }, fileMatchProcessor));
@@ -866,7 +888,7 @@ public class FastClasspathScanner {
             final FileMatchProcessor fileMatchProcessor) {
         recursiveScanner.addFilePathMatcher(new FilePathMatcher(new FilePathTester() {
             @Override
-            public boolean filePathMatches(String relativePath) {
+            public boolean filePathMatches(final String relativePath) {
                 return relativePath.equals(relativePathToMatch);
             }
         }, fileMatchProcessor));
@@ -900,11 +922,11 @@ public class FastClasspathScanner {
     public FastClasspathScanner matchFilenamePathLeaf(final String pathLeafToMatch,
             final FileMatchProcessor fileMatchProcessor) {
         recursiveScanner.addFilePathMatcher(new FilePathMatcher(new FilePathTester() {
-            private String leafToMatch = pathLeafToMatch.substring(pathLeafToMatch.lastIndexOf('/') + 1);
+            private final String leafToMatch = pathLeafToMatch.substring(pathLeafToMatch.lastIndexOf('/') + 1);
 
             @Override
-            public boolean filePathMatches(String relativePath) {
-                String relativePathLeaf = relativePath.substring(relativePath.lastIndexOf('/') + 1);
+            public boolean filePathMatches(final String relativePath) {
+                final String relativePathLeaf = relativePath.substring(relativePath.lastIndexOf('/') + 1);
                 return relativePathLeaf.equals(leafToMatch);
             }
         }, fileMatchProcessor));
@@ -936,10 +958,10 @@ public class FastClasspathScanner {
     public FastClasspathScanner matchFilenameExtension(final String extensionToMatch,
             final FileMatchProcessor fileMatchProcessor) {
         recursiveScanner.addFilePathMatcher(new FilePathMatcher(new FilePathTester() {
-            private String suffixToMatch = "." + extensionToMatch;
+            private final String suffixToMatch = "." + extensionToMatch;
 
             @Override
-            public boolean filePathMatches(String relativePath) {
+            public boolean filePathMatches(final String relativePath) {
                 return relativePath.endsWith(suffixToMatch);
             }
         }, fileMatchProcessor));

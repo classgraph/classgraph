@@ -26,29 +26,23 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.lukehutch.fastclasspathscanner.matchprocessor;
+package io.github.lukehutch.fastclasspathscanner.classgraph;
 
-import java.io.IOException;
-import java.io.InputStream;
+import java.util.ArrayList;
 
-/** The method to run when a file with a matching path is found on the classpath. */
-@FunctionalInterface
-public interface FileMatchProcessor {
-    /**
-     * Process a matching file.
-     * 
-     * @param relativePath
-     *            The path of the matching file relative to the classpath entry that contained the match.
-     * @param classpathElementIndex
-     *            The index of the classpath element that contains the relative path. This can be used to implement
-     *            classpath masking (for two files with the same relativePath, the one with the larger
-     *            classpathElementIndex can be ignored, as is done by the Java class loader).
-     * @param inputStream
-     *            An InputStream (either a FileInputStream or a ZipEntry InputStream) opened on the file. You do not
-     *            need to close this InputStream before returning, it is closed by the caller.
-     * @param lengthBytes
-     *            The length of the InputStream in bytes.
-     */
-    public void processMatch(String relativePath, int classpathElementIndex, InputStream inputStream,
-            int lengthBytes) throws IOException;
+public class ClassInfo {
+    public String relativePath;
+    public int classPathIdx;
+
+    public String className;
+    public String superclassName;
+    public ArrayList<String> interfaceNames;
+    public ArrayList<String> annotationNames;
+    public boolean isInterface;
+    public boolean isAnnotation;
+
+    public ClassInfo(final String relativePath, final int classPathIdx) {
+        this.relativePath = relativePath;
+        this.classPathIdx = classPathIdx;
+    }
 }

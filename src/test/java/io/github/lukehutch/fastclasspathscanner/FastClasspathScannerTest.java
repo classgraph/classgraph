@@ -26,7 +26,6 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-
 package io.github.lukehutch.fastclasspathscanner;
 
 import static org.junit.Assert.assertTrue;
@@ -183,8 +182,8 @@ public class FastClasspathScannerTest {
     public void scanStaticFinalFieldName() throws Exception {
         final AtomicInteger readStaticFieldCount = new AtomicInteger(0);
         final HashSet<String> fieldNames = new HashSet<String>();
-        for (String fieldName : new String[] { "stringField", "intField", "boolField", "charField", "integerField",
-                "booleanField" }) {
+        for (final String fieldName : new String[] { "stringField", "intField", "boolField", "charField",
+                "integerField", "booleanField" }) {
             fieldNames.add(StaticField.class.getName() + "." + fieldName);
         }
         new FastClasspathScanner(WHITELIST_PACKAGE).matchStaticFinalFieldNames(fieldNames,
@@ -219,9 +218,9 @@ public class FastClasspathScannerTest {
 
     @Test
     public void hashContents() throws Exception {
-        HashMap<String, String> classNameToClassfileHash = new HashClassfileContents(WHITELIST_PACKAGE).scan()
-                .getClassNameToClassfileHash();
-        String hash = classNameToClassfileHash.get(Cls.class.getName());
+        final HashMap<String, String> classNameToClassfileHash = new HashClassfileContents(WHITELIST_PACKAGE)
+                .scan().getClassNameToClassfileHash();
+        final String hash = classNameToClassfileHash.get(Cls.class.getName());
         assertTrue(hash != null && hash.length() == 32);
     }
 }

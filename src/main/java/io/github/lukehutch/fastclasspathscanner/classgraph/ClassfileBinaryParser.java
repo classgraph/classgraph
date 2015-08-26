@@ -11,54 +11,12 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
 
 class ClassfileBinaryParser {
-    ClassGraphBuilder classGraphBuilder;
-
-    /**
-     * Names of classes encountered so far during a scan. If the same classname is encountered more than once, the
-     * second and subsequent instances are ignored, because they are masked by the earlier occurrence in the
-     * classpath.
-     */
-    private final HashSet<String> classesEncounteredSoFarDuringScan = new HashSet<>();
-
-    /** Clear all the data structures to be ready for another scan. */
-    public void reset() {
-        classesEncounteredSoFarDuringScan.clear();
-    }
-
-    /**
-     * A map from classname, to static final field name, to a StaticFinalFieldMatchProcessor that should be called
-     * if that class name and static final field name is encountered during scan.
-     */
-    private final HashMap<String, HashMap<String, StaticFinalFieldMatchProcessor>> //
-    classNameToStaticFieldnameToMatchProcessor = new HashMap<>();
-
-    /**
-     * Add a StaticFinalFieldMatchProcessor that should be called if a static final field with the given name is
-     * encountered in a class with the given fully-qualified classname while reading a classfile header.
-     */
-    public void addStaticFinalFieldProcessor(String className, String fieldName,
-            StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor) {
-        HashMap<String, StaticFinalFieldMatchProcessor> fieldNameToMatchProcessor = //
-        classNameToStaticFieldnameToMatchProcessor.get(className);
-        if (fieldNameToMatchProcessor == null) {
-            classNameToStaticFieldnameToMatchProcessor.put(className, fieldNameToMatchProcessor = new HashMap<>(2));
-        }
-        fieldNameToMatchProcessor.put(fieldName, staticFinalFieldMatchProcessor);
-    }
-
-    public ClassfileBinaryParser(ClassGraphBuilder classGraphBuilder) {
-        this.classGraphBuilder = classGraphBuilder;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
     /**
      * Read annotation entry from classfile.
      */
-    private String readAnnotation(final DataInputStream inp, final Object[] constantPool) throws IOException {
+    private static String readAnnotation(final DataInputStream inp, final Object[] constantPool) throws IOException {
         final String annotationFieldDescriptor = readRefdString(inp, constantPool);
         String annotationClassName;
         if (annotationFieldDescriptor.charAt(0) == 'L'
@@ -81,7 +39,7 @@ class ClassfileBinaryParser {
     /**
      * Read annotation element value from classfile.
      */
-    private void readAnnotationElementValue(final DataInputStream inp, final Object[] constantPool)
+    private static void readAnnotationElementValue(final DataInputStream inp, final Object[] constantPool)
             throws IOException {
         final int tag = inp.readUnsignedByte();
         switch (tag) {
@@ -132,17 +90,17 @@ class ClassfileBinaryParser {
     }
 
     /**
-     * Directly examine contents of classfile binary header.
-     * 
-     * @param verbose
+     * Directly examine contents of classfile binary header, and write the information obtained into the classInfo
+     * out-parameter.
      */
-    public void readClassInfoFromClassfileHeader(final InputStream inputStream) //
-            throws IOException {
+    public static void readClassInfoFromClassfileHeader(final String relativePath, final InputStream inputStream,
+            final ClassInfo classInfo, final HashMap<String, HashMap<String, StaticFinalFieldMatchProcessor>> //
+            classNameToStaticFieldnameToMatchProcessor) throws IOException {
         final DataInputStream inp = new DataInputStream(new BufferedInputStream(inputStream, 1024));
 
-        // Magic
+        // Magic number
         if (inp.readInt() != 0xCAFEBABE) {
-            // Not classfile
+            // Not a classfile
             return;
         }
 
@@ -212,35 +170,36 @@ class ClassfileBinaryParser {
 
         // Access flags
         final int flags = inp.readUnsignedShort();
-        final boolean isInterface = (flags & 0x0200) != 0;
-        final boolean isAnnotation = (flags & 0x2000) != 0;
+        classInfo.isInterface = (flags & 0x0200) != 0;
+        classInfo.isAnnotation = (flags & 0x2000) != 0;
 
         // The fully-qualified class name of this class, with slashes replaced with dots
-        final String className = readRefdString(inp, constantPool).replace('/', '.');
-        if (className.equals("java.lang.Object")) {
+        final String classNamePath = readRefdString(inp, constantPool);
+        classInfo.className = classNamePath.replace('/', '.');
+        if (classInfo.className.equals("java.lang.Object")) {
             // java.lang.Object doesn't have a superclass to be linked to, can simply return
             return;
-        }
-
-        // Determine if this fully-qualified class name has already been encountered during this scan
-        if (!classesEncounteredSoFarDuringScan.add(className)) {
-            // If so, skip this classfile, because the earlier class with the same name as this one
-            // occurred earlier on the classpath, so it masks this one.
+        } else if (!classNamePath
+                .equals(relativePath.subSequence(0, relativePath.length() - 6 /* (strip off ".class") */))) {
+            // Ignore classfiles on the classpath that are in the wrong directory (the classloader won't find them)
+            if (FastClasspathScanner.verbose) {
+                Log.log("Ignoring class " + classInfo.className + " at non-standard path " + relativePath);
+            }
             return;
         }
 
         // Superclass name, with slashes replaced with dots
-        final String superclassName = readRefdString(inp, constantPool).replace('/', '.');
+        classInfo.superclassName = readRefdString(inp, constantPool).replace('/', '.');
 
         // Look up static field name match processors given class name 
         final HashMap<String, StaticFinalFieldMatchProcessor> staticFieldnameToMatchProcessor //
-        = classNameToStaticFieldnameToMatchProcessor.get(className);
+        = classNameToStaticFieldnameToMatchProcessor.get(classInfo.className);
 
         // Interfaces
         final int interfaceCount = inp.readUnsignedShort();
-        final ArrayList<String> interfaces = interfaceCount > 0 ? new ArrayList<String>(interfaceCount) : null;
+        classInfo.interfaceNames = interfaceCount > 0 ? new ArrayList<String>(interfaceCount) : null;
         for (int i = 0; i < interfaceCount; i++) {
-            interfaces.add(readRefdString(inp, constantPool).replace('/', '.'));
+            classInfo.interfaceNames.add(readRefdString(inp, constantPool).replace('/', '.'));
         }
 
         // Fields
@@ -257,7 +216,7 @@ class ClassfileBinaryParser {
             if (!isStaticFinal && staticFinalFieldMatchProcessor != null) {
                 // Requested to match a field that is not static or not final
                 System.err.println(StaticFinalFieldMatchProcessor.class.getSimpleName()
-                        + ": cannot match requested field " + className + "." + fieldName
+                        + ": cannot match requested field " + classInfo.className + "." + fieldName
                         + " because it is either not static or not final");
             } else if (!isStaticFinal || staticFinalFieldMatchProcessor == null) {
                 // Not matching this static final field, just skip field attributes rather than parsing them
@@ -310,16 +269,17 @@ class ClassfileBinaryParser {
                         }
                         // Call static final field match processor
                         if (FastClasspathScanner.verbose) {
-                            Log.log("Found static final field " + className + "." + fieldName + " = " + constValue);
+                            Log.log("Found static final field " + classInfo.className + "." + fieldName + " = "
+                                    + constValue);
                         }
-                        staticFinalFieldMatchProcessor.processMatch(className, fieldName, constValue);
+                        staticFinalFieldMatchProcessor.processMatch(classInfo.className, fieldName, constValue);
                         foundConstantValue = true;
                     } else {
                         inp.skipBytes(attributeLength);
                     }
                     if (!foundConstantValue) {
                         System.err.println(StaticFinalFieldMatchProcessor.class.getSimpleName()
-                                + ": Requested static final field " + className + "." + fieldName
+                                + ": Requested static final field " + classInfo.className + "." + fieldName
                                 + "is not initialized with a constant literal value, so there is no "
                                 + "initializer value in the constant pool of the classfile");
                     }
@@ -340,7 +300,8 @@ class ClassfileBinaryParser {
         }
 
         // Attributes (including class annotations)
-        int attributesCount = inp.readUnsignedShort();
+        classInfo.annotationNames = null;
+        final int attributesCount = inp.readUnsignedShort();
         for (int i = 0; i < attributesCount; i++) {
             final String attributeName = readRefdString(inp, constantPool);
             final int attributeLength = inp.readInt();
@@ -350,21 +311,15 @@ class ClassfileBinaryParser {
                     final String annotationName = readAnnotation(inp, constantPool);
                     // Ignore java.lang.annotation annotations (Target/Retention/Documented etc.)
                     if (!annotationName.startsWith("java.lang.annotation.")) {
-                        classGraphBuilder.linkAnnotation(annotationName, className, //
-                                /* classIsAnnotation = */isAnnotation);
+                        if (classInfo.annotationNames == null) {
+                            classInfo.annotationNames = new ArrayList<>();
+                        }
+                        classInfo.annotationNames.add(annotationName);
                     }
                 }
             } else {
                 inp.skipBytes(attributeLength);
             }
-        }
-
-        if (isAnnotation) {
-            // Class is itself an annotation class. Handled inside classGraphBuilder.linkAnnotation().
-        } else if (isInterface) {
-            classGraphBuilder.linkInterface(/* superInterfaces = */interfaces, /* interfaceName = */className);
-        } else {
-            classGraphBuilder.linkClass(superclassName, interfaces, className);
         }
     }
 }

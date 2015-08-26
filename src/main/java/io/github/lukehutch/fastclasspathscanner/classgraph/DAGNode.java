@@ -26,7 +26,6 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-
 package io.github.lukehutch.fastclasspathscanner.classgraph;
 
 import java.util.ArrayList;
@@ -72,7 +71,7 @@ class DAGNode {
     /** Topological sort DFS recursion */
     protected <N extends DAGNode> void topoSortRec(final HashSet<N> visited, final ArrayList<N> topoOrder) {
         @SuppressWarnings("unchecked")
-        N thisGeneric = (N) this;
+        final N thisGeneric = (N) this;
         if (visited.add(thisGeneric)) {
             for (final DAGNode subNode : directSubNodes) {
                 subNode.topoSortRec(visited, topoOrder);

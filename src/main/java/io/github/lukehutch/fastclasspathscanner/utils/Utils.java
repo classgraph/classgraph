@@ -26,14 +26,13 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-
 package io.github.lukehutch.fastclasspathscanner.utils;
 
 public class Utils {
 
     /** Returns true if the path ends with a JAR extension */
-    public static boolean isJar(String path) {
-        String pathLower = path.toLowerCase();
+    public static boolean isJar(final String path) {
+        final String pathLower = path.toLowerCase();
         return pathLower.endsWith(".jar") || pathLower.endsWith(".zip") || pathLower.endsWith(".war");
     }
 

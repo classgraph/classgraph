@@ -26,11 +26,12 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-
 package io.github.lukehutch.fastclasspathscanner.classgraph;
 
+import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.StaticFinalFieldMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.utils.LazyMap;
+import io.github.lukehutch.fastclasspathscanner.utils.Log;
 import io.github.lukehutch.fastclasspathscanner.utils.MultiMap;
 import io.github.lukehutch.fastclasspathscanner.utils.MultiSet;
 
@@ -44,15 +45,77 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class ClassGraphBuilder {
-    private final ClassfileBinaryParser classfileBinaryParser = new ClassfileBinaryParser(this);
+    /**
+     * A map from the relative path of classes encountered so far during a scan to the information extracted from
+     * the class. If the same relative file path is encountered more than once, the second and subsequent instances
+     * are ignored, because they are masked by the earlier occurrence of the class in the classpath.
+     */
+    private final ConcurrentHashMap<String, ClassInfo> relativePathToClassInfo = new ConcurrentHashMap<>();
+
+    /**
+     * Try creating a new ClassInfo object. Returns null if the file at the relative path has already been seen by
+     * the classpath scanner with a smaller classpath index, indicating that the new file was masked by an earlier
+     * definition of the class.
+     */
+    private ClassInfo newClassInfo(final String relativePath, final int classpathEltIdx) {
+        ClassInfo newClassInfo = new ClassInfo(relativePath, classpathEltIdx);
+        ClassInfo oldClassInfo = relativePathToClassInfo.put(relativePath, newClassInfo);
+        if (oldClassInfo == null || oldClassInfo.classPathIdx > newClassInfo.classPathIdx) {
+            // This is the first time we have encountered this class, or we have encountered it before but at
+            // a larger classpath index (i.e. the definition we just found occurs earlier in the classpath, so
+            // the new class masks the version we already found -- this can occur with parallel scanning).
+            return newClassInfo;
+        } else if (oldClassInfo.classPathIdx == newClassInfo.classPathIdx) {
+            // Two files with the same name occurred within the same classpath element.
+            // Should never happen (paths are unique on filesystems and in zipfiles), but for safety, just
+            // arbitrarily reject one of them here.
+            return null;
+        }
+        // The new class was masked by a class with the same name earlier in the classpath. Need to put the
+        // old ClassInfo back into the map, but need to make sure that the final ClassInfo that ends up in
+        // the map is the one with the lowest index, to handle race conditions.
+        do {
+            newClassInfo = oldClassInfo;
+            oldClassInfo = relativePathToClassInfo.put(relativePath, oldClassInfo);
+        } while (oldClassInfo.classPathIdx < newClassInfo.classPathIdx);
+        // New class was masked by an earlier definition -- return null
+        return null;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     /** A map from class name to the corresponding ClassNode object. */
     private final LazyMap<String, ClassNode> classNameToClassNode = //
     new LazyMap<String, ClassNode>() {
         @Override
         public void initialize() {
+            for (final ClassInfo classInfo : relativePathToClassInfo.values()) {
+                if (!classInfo.isAnnotation && !classInfo.isInterface) {
+                    // Look up or create ClassNode object for this class
+                    ClassNode classNode = map.get(classInfo.className);
+                    if (classNode == null) {
+                        map.put(classInfo.className, classNode = new ClassNode(classInfo.className,
+                                classInfo.interfaceNames));
+                    } else {
+                        classNode.addInterfaces(classInfo.interfaceNames);
+                    }
+                    if (classInfo.superclassName != null) {
+                        // Look up or create ClassNode object for superclass, and connect it to this class
+                        ClassNode superclassNode = map.get(classInfo.superclassName);
+                        if (superclassNode == null) {
+                            // The superclass of this class has not yet been encountered on the classpath
+                            map.put(classInfo.superclassName, superclassNode = new ClassNode(
+                                    classInfo.superclassName, classNode));
+                        } else {
+                            superclassNode.addSubNode(classNode);
+                        }
+                    }
+
+                }
+            }
             findTransitiveClosure(map.values());
         }
     };
@@ -62,6 +125,28 @@ public class ClassGraphBuilder {
     new LazyMap<String, InterfaceNode>() {
         @Override
         public void initialize() {
+            for (final ClassInfo classInfo : relativePathToClassInfo.values()) {
+                if (classInfo.isInterface) {
+                    // Look up or create InterfaceNode for this interface
+                    InterfaceNode interfaceNode = map.get(classInfo.className);
+                    if (interfaceNode == null) {
+                        map.put(classInfo.className, interfaceNode = new InterfaceNode(classInfo.className));
+                    }
+                    if (classInfo.interfaceNames != null) {
+                        // Look up or create InterfaceNode objects for superinterfaces, and connect them
+                        // to this interface
+                        for (final String superInterfaceName : classInfo.interfaceNames) {
+                            InterfaceNode superInterfaceNode = map.get(superInterfaceName);
+                            if (superInterfaceNode == null) {
+                                map.put(superInterfaceName, superInterfaceNode = new InterfaceNode(
+                                        superInterfaceName, interfaceNode));
+                            } else {
+                                superInterfaceNode.addSubNode(interfaceNode);
+                            }
+                        }
+                    }
+                }
+            }
             findTransitiveClosure(map.values());
         }
     };
@@ -71,9 +156,31 @@ public class ClassGraphBuilder {
     new LazyMap<String, AnnotationNode>() {
         @Override
         public void initialize() {
-            // Resolve annotation names to annotation references
-            for (AnnotationNode annotationNode : map.values()) {
-                annotationNode.resolveAnnotationNames(map);
+            for (final ClassInfo classInfo : relativePathToClassInfo.values()) {
+                if (classInfo.annotationNames != null) {
+                    for (final String annotationName : classInfo.annotationNames) {
+                        // Look up or create AnnotationNode for each annotation on class
+                        AnnotationNode annotationNode = map.get(annotationName);
+                        if (annotationNode == null) {
+                            map.put(annotationName, annotationNode = new AnnotationNode(annotationName));
+                        }
+                        if (classInfo.isAnnotation) {
+                            // If the annotated class is itself an annotation
+                            // Look up AnnotationNode for the annotated class, or create node if it doesn't exist
+                            AnnotationNode annotatedAnnotationNode = map.get(classInfo.className);
+                            if (annotatedAnnotationNode == null) {
+                                map.put(classInfo.className, annotatedAnnotationNode = new AnnotationNode(
+                                        classInfo.className));
+                            }
+                            // Link meta-annotation to annotation
+                            annotationNode.addSubNode(annotatedAnnotationNode);
+                            annotationNode.addAnnotatedAnnotation(classInfo.className);
+                        } else {
+                            // Link annotation to class
+                            annotationNode.addAnnotatedClass(classInfo.className);
+                        }
+                    }
+                }
             }
             findTransitiveClosure(map.values());
         }
@@ -156,7 +263,7 @@ public class ClassGraphBuilder {
                 }
             }
             // Convert interface mapping to String->String
-            for (Entry<String, HashSet<DAGNode>> ent : interfaceNameToClassNodesSet.entrySet()) {
+            for (final Entry<String, HashSet<DAGNode>> ent : interfaceNameToClassNodesSet.entrySet()) {
                 final HashSet<DAGNode> nodes = ent.getValue();
                 final ArrayList<String> classNameList = new ArrayList<>(nodes.size());
                 for (final DAGNode classNode : nodes) {
@@ -174,8 +281,8 @@ public class ClassGraphBuilder {
     new LazyMap<String, HashSet<String>>() {
         @Override
         public void initialize() {
-            for (AnnotationNode annotationNode : allAnnotationNodes()) {
-                for (DAGNode subNode : annotationNode.allSubNodes) {
+            for (final AnnotationNode annotationNode : allAnnotationNodes()) {
+                for (final DAGNode subNode : annotationNode.allSubNodes) {
                     MultiSet.putAll(map, annotationNode.name, ((AnnotationNode) subNode).annotatedClassNames);
                 }
                 MultiSet.putAll(map, annotationNode.name, annotationNode.annotatedClassNames);
@@ -188,8 +295,8 @@ public class ClassGraphBuilder {
     new LazyMap<String, HashSet<String>>() {
         @Override
         public void initialize() {
-            for (AnnotationNode annotationNode : allAnnotationNodes()) {
-                for (DAGNode subNode : annotationNode.allSubNodes) {
+            for (final AnnotationNode annotationNode : allAnnotationNodes()) {
+                for (final DAGNode subNode : annotationNode.allSubNodes) {
                     MultiSet.put(map, annotationNode.name, subNode.name);
                 }
             }
@@ -203,7 +310,8 @@ public class ClassGraphBuilder {
     new LazyMap<String, ArrayList<String>>() {
         @Override
         public void initialize() {
-            for (Entry<String, HashSet<String>> ent : annotationNameToAnnotatedClassNamesSet.resolve().entrySet()) {
+            for (final Entry<String, HashSet<String>> ent : annotationNameToAnnotatedClassNamesSet.resolve()
+                    .entrySet()) {
                 MultiMap.putAll(map, ent.getKey(), ent.getValue());
             }
         }
@@ -214,7 +322,7 @@ public class ClassGraphBuilder {
     new LazyMap<String, ArrayList<String>>() {
         @Override
         public void initialize() {
-            for (Entry<String, HashSet<String>> ent : MultiSet.invert(
+            for (final Entry<String, HashSet<String>> ent : MultiSet.invert(
                     annotationNameToAnnotatedClassNamesSet.resolve()).entrySet()) {
                 MultiMap.putAll(map, ent.getKey(), ent.getValue());
             }
@@ -228,7 +336,7 @@ public class ClassGraphBuilder {
     new LazyMap<String, ArrayList<String>>() {
         @Override
         public void initialize() {
-            for (Entry<String, HashSet<String>> ent : annotationNameToAnnotatedAnnotationNamesSet.resolve()
+            for (final Entry<String, HashSet<String>> ent : annotationNameToAnnotatedAnnotationNamesSet.resolve()
                     .entrySet()) {
                 MultiMap.putAll(map, ent.getKey(), ent.getValue());
             }
@@ -240,23 +348,12 @@ public class ClassGraphBuilder {
     new LazyMap<String, ArrayList<String>>() {
         @Override
         public void initialize() {
-            for (Entry<String, HashSet<String>> ent : MultiSet.invert(
+            for (final Entry<String, HashSet<String>> ent : MultiSet.invert(
                     annotationNameToAnnotatedAnnotationNamesSet.resolve()).entrySet()) {
                 MultiMap.putAll(map, ent.getKey(), ent.getValue());
             }
         }
     };
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Add a StaticFinalFieldMatchProcessor that should be called if a static final field with the given name is
-     * encountered in a class with the given fully-qualified classname while reading a classfile header.
-     */
-    public void addStaticFinalFieldProcessor(String className, String fieldName,
-            StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor) {
-        classfileBinaryParser.addStaticFinalFieldProcessor(className, fieldName, staticFinalFieldMatchProcessor);
-    }
 
     // -------------------------------------------------------------------------------------------------------------
     // Classes
@@ -377,107 +474,28 @@ public class ClassGraphBuilder {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Link a class to its superclass and to the interfaces it implements, and save the class annotations. */
-    void linkClass(final String superclassName, final ArrayList<String> interfaces, //
-            final String className) {
-        // Look up ClassNode object for this class
-        HashMap<String, ClassNode> map = classNameToClassNode.getRawMap();
-        ClassNode classNode = map.get(className);
-        if (classNode == null) {
-            // This class has not been encountered before on the classpath 
-            map.put(className, classNode = new ClassNode(className, interfaces));
-        } else {
-            // This is the first time this class has been encountered on the classpath (since the class
-            // name must be unique, and we have already checked for classpath masking), but this class was
-            // previously cited as a superclass of another interface
-            classNode.addInterfaces(interfaces);
-        }
-
-        if (superclassName != null) {
-            // Look up ClassNode object for superclass, and connect it to this class
-            ClassNode superclassNode = map.get(superclassName);
-            if (superclassNode == null) {
-                // The superclass of this class has not yet been encountered on the classpath
-                map.put(superclassName, superclassNode = new ClassNode(superclassName, classNode));
-            } else {
-                superclassNode.addSubNode(classNode);
-            }
-        }
-    }
-
-    /** Save the mapping from an interface to its superinterfaces. */
-    void linkInterface(final ArrayList<String> superInterfaceNames, final String interfaceName) {
-        // Look up InterfaceNode for this interface
-        HashMap<String, InterfaceNode> map = interfaceNameToInterfaceNode.getRawMap();
-        InterfaceNode interfaceNode = map.get(interfaceName);
-        if (interfaceNode == null) {
-            // This interface has not been encountered before on the classpath 
-            map.put(interfaceName, interfaceNode = new InterfaceNode(interfaceName));
-        }
-
-        if (superInterfaceNames != null) {
-            for (final String superInterfaceName : superInterfaceNames) {
-                // Look up InterfaceNode objects for superinterfaces, and connect them to this interface
-                InterfaceNode superInterfaceNode = map.get(superInterfaceName);
-                if (superInterfaceNode == null) {
-                    // The superinterface of this interface has not yet been encountered on the classpath
-                    map.put(superInterfaceName, superInterfaceNode = new InterfaceNode(superInterfaceName,
-                            interfaceNode));
-                } else {
-                    superInterfaceNode.addSubNode(interfaceNode);
-                }
-            }
-        }
-    }
-
-    /** Save the mapping from a class or annotation to its annotations or meta-annotations. */
-    void linkAnnotation(String annotationName, String annotatedClassName, //
-            boolean annotatedClassIsAnnotation) {
-        // Look up AnnotationNode for this annotation, or create node if it doesn't exist
-        HashMap<String, AnnotationNode> map = annotationNameToAnnotationNode.getRawMap();
-        AnnotationNode annotationNode = map.get(annotationName);
-        if (annotationNode == null) {
-            map.put(annotationName, annotationNode = new AnnotationNode(annotationName));
-        }
-        // If the annotated class is itself an annotation
-        if (annotatedClassIsAnnotation) {
-            // Look up AnnotationNode for the annotated class, or create node if it doesn't exist
-            AnnotationNode annotatedAnnotationNode = map.get(annotatedClassName);
-            if (annotatedAnnotationNode == null) {
-                map.put(annotatedClassName, annotatedAnnotationNode = new AnnotationNode(annotatedClassName));
-            }
-            // Link meta-annotation to annotation
-            annotationNode.addAnnotatedAnnotation(annotatedClassName);
-        } else {
-            // Link annotation to class
-            annotationNode.addAnnotatedClass(annotatedClassName);
-        }
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
     /**
      * Find the upwards and downwards transitive closure for each node in a graph. Assumes the graph is a DAG in
      * general, but handles cycles (which may occur in the case of meta-annotations).
      */
-    private static void findTransitiveClosure(Collection<? extends DAGNode> nodes) {
+    private static void findTransitiveClosure(final Collection<? extends DAGNode> nodes) {
         // Find top nodes as initial active set
         HashSet<DAGNode> activeTopDownNodes = new HashSet<>();
-        for (DAGNode node : nodes) {
+        for (final DAGNode node : nodes) {
             if (node.directSuperNodes.isEmpty()) {
                 activeTopDownNodes.addAll(node.directSubNodes);
             }
         }
         // Use DP-style "wavefront" to find top-down transitive closure, even if there are cycles
         while (!activeTopDownNodes.isEmpty()) {
-            HashSet<DAGNode> activeTopDownNodesNext = new HashSet<>(activeTopDownNodes.size());
-            for (DAGNode node : activeTopDownNodes) {
+            final HashSet<DAGNode> activeTopDownNodesNext = new HashSet<>(activeTopDownNodes.size());
+            for (final DAGNode node : activeTopDownNodes) {
                 boolean changed = node.allSuperNodes.addAll(node.directSuperNodes);
-                for (DAGNode superNode : node.directSuperNodes) {
+                for (final DAGNode superNode : node.directSuperNodes) {
                     changed |= node.allSuperNodes.addAll(superNode.allSuperNodes);
                 }
                 if (changed) {
-                    for (DAGNode subNode : node.directSubNodes) {
+                    for (final DAGNode subNode : node.directSubNodes) {
                         activeTopDownNodesNext.add(subNode);
                     }
                 }
@@ -487,21 +505,21 @@ public class ClassGraphBuilder {
 
         // Find bottom nodes as initial active set
         HashSet<DAGNode> activeBottomUpNodes = new HashSet<>();
-        for (DAGNode node : nodes) {
+        for (final DAGNode node : nodes) {
             if (node.directSubNodes.isEmpty()) {
                 activeBottomUpNodes.addAll(node.directSuperNodes);
             }
         }
         // Use DP-style "wavefront" to find bottom-up transitive closure, even if there are cycles
         while (!activeBottomUpNodes.isEmpty()) {
-            HashSet<DAGNode> activeBottomUpNodesNext = new HashSet<>(activeBottomUpNodes.size());
-            for (DAGNode node : activeBottomUpNodes) {
+            final HashSet<DAGNode> activeBottomUpNodesNext = new HashSet<>(activeBottomUpNodes.size());
+            for (final DAGNode node : activeBottomUpNodes) {
                 boolean changed = node.allSubNodes.addAll(node.directSubNodes);
-                for (DAGNode subNode : node.directSubNodes) {
+                for (final DAGNode subNode : node.directSubNodes) {
                     changed |= node.allSubNodes.addAll(subNode.allSubNodes);
                 }
                 if (changed) {
-                    for (DAGNode superNode : node.directSuperNodes) {
+                    for (final DAGNode superNode : node.directSuperNodes) {
                         activeBottomUpNodesNext.add(superNode);
                     }
                 }
@@ -514,7 +532,7 @@ public class ClassGraphBuilder {
 
     /** Clear all the data structures to be ready for another scan. */
     public void reset() {
-        classfileBinaryParser.reset();
+        relativePathToClassInfo.clear();
 
         classNameToClassNode.clear();
         interfaceNameToInterfaceNode.clear();
@@ -535,10 +553,21 @@ public class ClassGraphBuilder {
     /**
      * Directly examine contents of classfile binary header.
      * 
-     * @param verbose
+     * @param classNameToStaticFieldnameToMatchProcessor
      */
-    public void readClassInfoFromClassfileHeader(final InputStream inputStream) //
-            throws IOException {
-        classfileBinaryParser.readClassInfoFromClassfileHeader(inputStream);
+    public void readClassInfoFromClassfileHeader(final String relativePath, final InputStream inputStream,
+            final int classpathEltIdx, final HashMap<String, HashMap<String, StaticFinalFieldMatchProcessor>> // 
+            classNameToStaticFieldnameToMatchProcessor) throws IOException {
+        // Make sure this was the first occurrence of the given relativePath on the classpath to enable masking
+        final ClassInfo classInfo = newClassInfo(relativePath, classpathEltIdx);
+        if (classInfo == null) {
+            // This relative path was already encountered earlier on the classpath
+            if (FastClasspathScanner.verbose) {
+                Log.log("Duplicate file on classpath, ignoring all but first instance: " + relativePath);
+            }
+        } else {
+            ClassfileBinaryParser.readClassInfoFromClassfileHeader(relativePath, inputStream, classInfo,
+                    classNameToStaticFieldnameToMatchProcessor);
+        }
     }
 }

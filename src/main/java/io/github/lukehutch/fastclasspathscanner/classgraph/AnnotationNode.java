@@ -26,20 +26,18 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-
 package io.github.lukehutch.fastclasspathscanner.classgraph;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 
 /** The DAG node representing an annotation. */
 class AnnotationNode extends DAGNode {
     /** All classes annotated with this annotation */
-    HashSet<String> annotatedClassNames = new HashSet<>();
+    HashSet<String> annotatedClassNames = new HashSet<>(4);
 
     /** All annotations annotated with this annotation */
-    ArrayList<String> annotatedAnnotationNames = new ArrayList<>();
+    ArrayList<String> annotatedAnnotationNames = new ArrayList<>(2);
 
     /** The class defining an annotation was encountered on the classpath. */
     public AnnotationNode(final String annotationName) {
@@ -47,22 +45,12 @@ class AnnotationNode extends DAGNode {
     }
 
     /** Add an annotated annotation to this meta-annotation. */
-    public void addAnnotatedAnnotation(String annotatedAnnotationName) {
+    public void addAnnotatedAnnotation(final String annotatedAnnotationName) {
         annotatedAnnotationNames.add(annotatedAnnotationName);
     }
 
     /** Add an annotated class to this annotation. */
-    public void addAnnotatedClass(String annotatedClassName) {
+    public void addAnnotatedClass(final String annotatedClassName) {
         annotatedClassNames.add(annotatedClassName);
-    }
-
-    /** Resolve annotation names at end of classpath scanning. */
-    public void resolveAnnotationNames(final HashMap<String, AnnotationNode> annotationNameToAnnotationNode) {
-        for (String annotatedAnnotation : annotatedAnnotationNames) {
-            AnnotationNode annotatedAnnotationNode = annotationNameToAnnotationNode.get(annotatedAnnotation);
-            if (annotatedAnnotationNode != null) {
-                addSubNode(annotatedAnnotationNode);
-            }
-        }
     }
 }
