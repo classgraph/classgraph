@@ -51,10 +51,6 @@ public abstract class LazyMap<K, V> {
         return map;
     }
 
-    public HashMap<K, V> getRawMap() {
-        return map;
-    }
-
     @Override
     public String toString() {
         return map.toString();
