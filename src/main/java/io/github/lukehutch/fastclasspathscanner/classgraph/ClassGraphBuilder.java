@@ -51,38 +51,65 @@ public class ClassGraphBuilder {
     /**
      * A map from the relative path of classes encountered so far during a scan to the information extracted from
      * the class. If the same relative file path is encountered more than once, the second and subsequent instances
-     * are ignored, because they are masked by the earlier occurrence of the class in the classpath.
+     * are ignored, because they are masked by the earlier occurrence of the class in the classpath. (This is a
+     * ConcurrentHashMap so that classpath scanning can be parallelized.)
      */
     private final ConcurrentHashMap<String, ClassInfo> relativePathToClassInfo = new ConcurrentHashMap<>();
 
+    // -------------------------------------------------------------------------------------------------------------
+
     /**
-     * Try creating a new ClassInfo object. Returns null if the file at the relative path has already been seen by
-     * the classpath scanner with a smaller classpath index, indicating that the new file was masked by an earlier
-     * definition of the class.
+     * Find the upwards and downwards transitive closure for each node in a graph. Assumes the graph is a DAG in
+     * general, but handles cycles (which may occur in the case of meta-annotations).
      */
-    private ClassInfo newClassInfo(final String relativePath, final int classpathEltIdx) {
-        ClassInfo newClassInfo = new ClassInfo(relativePath, classpathEltIdx);
-        ClassInfo oldClassInfo = relativePathToClassInfo.put(relativePath, newClassInfo);
-        if (oldClassInfo == null || oldClassInfo.classPathIdx > newClassInfo.classPathIdx) {
-            // This is the first time we have encountered this class, or we have encountered it before but at
-            // a larger classpath index (i.e. the definition we just found occurs earlier in the classpath, so
-            // the new class masks the version we already found -- this can occur with parallel scanning).
-            return newClassInfo;
-        } else if (oldClassInfo.classPathIdx == newClassInfo.classPathIdx) {
-            // Two files with the same name occurred within the same classpath element.
-            // Should never happen (paths are unique on filesystems and in zipfiles), but for safety, just
-            // arbitrarily reject one of them here.
-            return null;
+    private static void findTransitiveClosure(final Collection<? extends DAGNode> nodes) {
+        // Find top nodes as initial active set
+        HashSet<DAGNode> activeTopDownNodes = new HashSet<>();
+        for (final DAGNode node : nodes) {
+            if (node.directSuperNodes.isEmpty()) {
+                activeTopDownNodes.addAll(node.directSubNodes);
+            }
         }
-        // The new class was masked by a class with the same name earlier in the classpath. Need to put the
-        // old ClassInfo back into the map, but need to make sure that the final ClassInfo that ends up in
-        // the map is the one with the lowest index, to handle race conditions.
-        do {
-            newClassInfo = oldClassInfo;
-            oldClassInfo = relativePathToClassInfo.put(relativePath, oldClassInfo);
-        } while (oldClassInfo.classPathIdx < newClassInfo.classPathIdx);
-        // New class was masked by an earlier definition -- return null
-        return null;
+        // Use DP-style "wavefront" to find top-down transitive closure, even if there are cycles
+        while (!activeTopDownNodes.isEmpty()) {
+            final HashSet<DAGNode> activeTopDownNodesNext = new HashSet<>(activeTopDownNodes.size());
+            for (final DAGNode node : activeTopDownNodes) {
+                boolean changed = node.allSuperNodes.addAll(node.directSuperNodes);
+                for (final DAGNode superNode : node.directSuperNodes) {
+                    changed |= node.allSuperNodes.addAll(superNode.allSuperNodes);
+                }
+                if (changed) {
+                    for (final DAGNode subNode : node.directSubNodes) {
+                        activeTopDownNodesNext.add(subNode);
+                    }
+                }
+            }
+            activeTopDownNodes = activeTopDownNodesNext;
+        }
+
+        // Find bottom nodes as initial active set
+        HashSet<DAGNode> activeBottomUpNodes = new HashSet<>();
+        for (final DAGNode node : nodes) {
+            if (node.directSubNodes.isEmpty()) {
+                activeBottomUpNodes.addAll(node.directSuperNodes);
+            }
+        }
+        // Use DP-style "wavefront" to find bottom-up transitive closure, even if there are cycles
+        while (!activeBottomUpNodes.isEmpty()) {
+            final HashSet<DAGNode> activeBottomUpNodesNext = new HashSet<>(activeBottomUpNodes.size());
+            for (final DAGNode node : activeBottomUpNodes) {
+                boolean changed = node.allSubNodes.addAll(node.directSubNodes);
+                for (final DAGNode subNode : node.directSubNodes) {
+                    changed |= node.allSubNodes.addAll(subNode.allSubNodes);
+                }
+                if (changed) {
+                    for (final DAGNode superNode : node.directSuperNodes) {
+                        activeBottomUpNodesNext.add(superNode);
+                    }
+                }
+            }
+            activeBottomUpNodes = activeBottomUpNodesNext;
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -166,7 +193,7 @@ public class ClassGraphBuilder {
                         }
                         if (classInfo.isAnnotation) {
                             // If the annotated class is itself an annotation
-                            // Look up AnnotationNode for the annotated class, or create node if it doesn't exist
+                            // Look up or create AnnotationNode for the annotated class
                             AnnotationNode annotatedAnnotationNode = map.get(classInfo.className);
                             if (annotatedAnnotationNode == null) {
                                 map.put(classInfo.className, annotatedAnnotationNode = new AnnotationNode(
@@ -474,62 +501,6 @@ public class ClassGraphBuilder {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /**
-     * Find the upwards and downwards transitive closure for each node in a graph. Assumes the graph is a DAG in
-     * general, but handles cycles (which may occur in the case of meta-annotations).
-     */
-    private static void findTransitiveClosure(final Collection<? extends DAGNode> nodes) {
-        // Find top nodes as initial active set
-        HashSet<DAGNode> activeTopDownNodes = new HashSet<>();
-        for (final DAGNode node : nodes) {
-            if (node.directSuperNodes.isEmpty()) {
-                activeTopDownNodes.addAll(node.directSubNodes);
-            }
-        }
-        // Use DP-style "wavefront" to find top-down transitive closure, even if there are cycles
-        while (!activeTopDownNodes.isEmpty()) {
-            final HashSet<DAGNode> activeTopDownNodesNext = new HashSet<>(activeTopDownNodes.size());
-            for (final DAGNode node : activeTopDownNodes) {
-                boolean changed = node.allSuperNodes.addAll(node.directSuperNodes);
-                for (final DAGNode superNode : node.directSuperNodes) {
-                    changed |= node.allSuperNodes.addAll(superNode.allSuperNodes);
-                }
-                if (changed) {
-                    for (final DAGNode subNode : node.directSubNodes) {
-                        activeTopDownNodesNext.add(subNode);
-                    }
-                }
-            }
-            activeTopDownNodes = activeTopDownNodesNext;
-        }
-
-        // Find bottom nodes as initial active set
-        HashSet<DAGNode> activeBottomUpNodes = new HashSet<>();
-        for (final DAGNode node : nodes) {
-            if (node.directSubNodes.isEmpty()) {
-                activeBottomUpNodes.addAll(node.directSuperNodes);
-            }
-        }
-        // Use DP-style "wavefront" to find bottom-up transitive closure, even if there are cycles
-        while (!activeBottomUpNodes.isEmpty()) {
-            final HashSet<DAGNode> activeBottomUpNodesNext = new HashSet<>(activeBottomUpNodes.size());
-            for (final DAGNode node : activeBottomUpNodes) {
-                boolean changed = node.allSubNodes.addAll(node.directSubNodes);
-                for (final DAGNode subNode : node.directSubNodes) {
-                    changed |= node.allSubNodes.addAll(subNode.allSubNodes);
-                }
-                if (changed) {
-                    for (final DAGNode superNode : node.directSuperNodes) {
-                        activeBottomUpNodesNext.add(superNode);
-                    }
-                }
-            }
-            activeBottomUpNodes = activeBottomUpNodesNext;
-        }
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
     /** Clear all the data structures to be ready for another scan. */
     public void reset() {
         relativePathToClassInfo.clear();
@@ -551,9 +522,37 @@ public class ClassGraphBuilder {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Try creating a new ClassInfo object. Returns null if the file at the relative path has already been seen by
+     * the classpath scanner with a smaller classpath index, indicating that the new file was masked by an earlier
+     * definition of the class.
+     */
+    private ClassInfo newClassInfo(final String relativePath, final int classpathEltIdx) {
+        ClassInfo newClassInfo = new ClassInfo(relativePath, classpathEltIdx);
+        ClassInfo oldClassInfo = relativePathToClassInfo.put(relativePath, newClassInfo);
+        if (oldClassInfo == null || oldClassInfo.classpathElementIndex > newClassInfo.classpathElementIndex) {
+            // This is the first time we have encountered this class, or we have encountered it before but at
+            // a larger classpath index (i.e. the definition we just found occurs earlier in the classpath, so
+            // the new class masks the version we already found -- this can occur with parallel scanning).
+            return newClassInfo;
+        } else if (oldClassInfo.classpathElementIndex == newClassInfo.classpathElementIndex) {
+            // Two files with the same name occurred within the same classpath element.
+            // Should never happen (paths are unique on filesystems and in zipfiles), but for safety, just
+            // arbitrarily reject one of them here.
+            return null;
+        }
+        // The new class was masked by a class with the same name earlier in the classpath. Need to put the
+        // old ClassInfo back into the map, but need to make sure that the final ClassInfo that ends up in
+        // the map is the one with the lowest index, to handle race conditions.
+        do {
+            newClassInfo = oldClassInfo;
+            oldClassInfo = relativePathToClassInfo.put(relativePath, oldClassInfo);
+        } while (oldClassInfo.classpathElementIndex < newClassInfo.classpathElementIndex);
+        // New class was masked by an earlier definition -- return null
+        return null;
+    }
+
+    /**
      * Directly examine contents of classfile binary header.
-     * 
-     * @param classNameToStaticFieldnameToMatchProcessor
      */
     public void readClassInfoFromClassfileHeader(final String relativePath, final InputStream inputStream,
             final int classpathEltIdx, final HashMap<String, HashMap<String, StaticFinalFieldMatchProcessor>> // 

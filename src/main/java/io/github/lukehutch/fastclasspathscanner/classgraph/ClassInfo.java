@@ -32,7 +32,7 @@ import java.util.ArrayList;
 
 public class ClassInfo {
     public String relativePath;
-    public int classPathIdx;
+    public int classpathElementIndex;
 
     public String className;
     public String superclassName;
@@ -41,8 +41,8 @@ public class ClassInfo {
     public boolean isInterface;
     public boolean isAnnotation;
 
-    public ClassInfo(final String relativePath, final int classPathIdx) {
+    public ClassInfo(final String relativePath, final int classpathElementIndex) {
         this.relativePath = relativePath;
-        this.classPathIdx = classPathIdx;
+        this.classpathElementIndex = classpathElementIndex;
     }
 }
