@@ -82,39 +82,63 @@ class DAGNode {
         this.crossLinkedClassNames.add(crossLinkedClassName);
     }
 
-    /** Topological sort DFS recursion */
-    protected <N extends DAGNode> void topoSortRec(final HashSet<N> visited, final ArrayList<N> topoOrder) {
-        @SuppressWarnings("unchecked")
-        final N thisGeneric = (N) this;
-        if (visited.add(thisGeneric)) {
-            for (final DAGNode subNode : directSubNodes) {
-                subNode.topoSortRec(visited, topoOrder);
-            }
-            topoOrder.add(thisGeneric);
-        }
-    }
-
-    /** Perform topological sort on DAG. */
-    public static <N extends DAGNode> ArrayList<N> topoSort(final Collection<N> nodes) {
-        final ArrayList<N> topoOrder = new ArrayList<>(nodes.size());
-        final HashSet<N> visited = new HashSet<>();
-        for (final N node : nodes) {
-            if (node.directSuperNodes.isEmpty()) {
-                // Start the topo sort at each least upper bound
-                node.topoSortRec(visited, topoOrder);
-            }
-        }
-        // Reverse the postorder traversal node ordering to get the topological ordering
-        for (int i = 0, n = topoOrder.size(), n2 = n / 2; i < n2; i++) {
-            final N tmp = topoOrder.get(i);
-            topoOrder.set(i, topoOrder.get(n - 1 - i));
-            topoOrder.set(n - 1 - i, tmp);
-        }
-        return topoOrder;
-    }
-
     @Override
     public String toString() {
         return name;
+    }
+
+    /**
+     * Find the upwards and downwards transitive closure for each node in a graph. Assumes the graph is a DAG in
+     * general, but handles cycles (which may occur in the case of meta-annotations). Updates the allSubNodes and
+     * allSuperNodes fields of each node based on the downwards and upwards transitive closures respectively.
+     */
+    public static void findTransitiveClosure(final Collection<? extends DAGNode> nodes) {
+        // Find top nodes as initial active set
+        HashSet<DAGNode> activeTopDownNodes = new HashSet<>();
+        for (final DAGNode node : nodes) {
+            if (node.directSuperNodes.isEmpty()) {
+                activeTopDownNodes.addAll(node.directSubNodes);
+            }
+        }
+        // Use DP-style "wavefront" to find top-down transitive closure, even if there are cycles
+        while (!activeTopDownNodes.isEmpty()) {
+            final HashSet<DAGNode> activeTopDownNodesNext = new HashSet<>(activeTopDownNodes.size());
+            for (final DAGNode node : activeTopDownNodes) {
+                boolean changed = node.allSuperNodes.addAll(node.directSuperNodes);
+                for (final DAGNode superNode : node.directSuperNodes) {
+                    changed |= node.allSuperNodes.addAll(superNode.allSuperNodes);
+                }
+                if (changed) {
+                    for (final DAGNode subNode : node.directSubNodes) {
+                        activeTopDownNodesNext.add(subNode);
+                    }
+                }
+            }
+            activeTopDownNodes = activeTopDownNodesNext;
+        }
+
+        // Find bottom nodes as initial active set
+        HashSet<DAGNode> activeBottomUpNodes = new HashSet<>();
+        for (final DAGNode node : nodes) {
+            if (node.directSubNodes.isEmpty()) {
+                activeBottomUpNodes.addAll(node.directSuperNodes);
+            }
+        }
+        // Use DP-style "wavefront" to find bottom-up transitive closure, even if there are cycles
+        while (!activeBottomUpNodes.isEmpty()) {
+            final HashSet<DAGNode> activeBottomUpNodesNext = new HashSet<>(activeBottomUpNodes.size());
+            for (final DAGNode node : activeBottomUpNodes) {
+                boolean changed = node.allSubNodes.addAll(node.directSubNodes);
+                for (final DAGNode subNode : node.directSubNodes) {
+                    changed |= node.allSubNodes.addAll(subNode.allSubNodes);
+                }
+                if (changed) {
+                    for (final DAGNode superNode : node.directSuperNodes) {
+                        activeBottomUpNodesNext.add(superNode);
+                    }
+                }
+            }
+            activeBottomUpNodes = activeBottomUpNodesNext;
+        }
     }
 }

@@ -38,7 +38,6 @@ import io.github.lukehutch.fastclasspathscanner.utils.MultiSet;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -55,62 +54,6 @@ public class ClassGraphBuilder {
      * ConcurrentHashMap so that classpath scanning can be parallelized.)
      */
     private final ConcurrentHashMap<String, ClassInfo> relativePathToClassInfo = new ConcurrentHashMap<>();
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Find the upwards and downwards transitive closure for each node in a graph. Assumes the graph is a DAG in
-     * general, but handles cycles (which may occur in the case of meta-annotations).
-     */
-    private static void findTransitiveClosure(final Collection<? extends DAGNode> nodes) {
-        // Find top nodes as initial active set
-        HashSet<DAGNode> activeTopDownNodes = new HashSet<>();
-        for (final DAGNode node : nodes) {
-            if (node.directSuperNodes.isEmpty()) {
-                activeTopDownNodes.addAll(node.directSubNodes);
-            }
-        }
-        // Use DP-style "wavefront" to find top-down transitive closure, even if there are cycles
-        while (!activeTopDownNodes.isEmpty()) {
-            final HashSet<DAGNode> activeTopDownNodesNext = new HashSet<>(activeTopDownNodes.size());
-            for (final DAGNode node : activeTopDownNodes) {
-                boolean changed = node.allSuperNodes.addAll(node.directSuperNodes);
-                for (final DAGNode superNode : node.directSuperNodes) {
-                    changed |= node.allSuperNodes.addAll(superNode.allSuperNodes);
-                }
-                if (changed) {
-                    for (final DAGNode subNode : node.directSubNodes) {
-                        activeTopDownNodesNext.add(subNode);
-                    }
-                }
-            }
-            activeTopDownNodes = activeTopDownNodesNext;
-        }
-
-        // Find bottom nodes as initial active set
-        HashSet<DAGNode> activeBottomUpNodes = new HashSet<>();
-        for (final DAGNode node : nodes) {
-            if (node.directSubNodes.isEmpty()) {
-                activeBottomUpNodes.addAll(node.directSuperNodes);
-            }
-        }
-        // Use DP-style "wavefront" to find bottom-up transitive closure, even if there are cycles
-        while (!activeBottomUpNodes.isEmpty()) {
-            final HashSet<DAGNode> activeBottomUpNodesNext = new HashSet<>(activeBottomUpNodes.size());
-            for (final DAGNode node : activeBottomUpNodes) {
-                boolean changed = node.allSubNodes.addAll(node.directSubNodes);
-                for (final DAGNode subNode : node.directSubNodes) {
-                    changed |= node.allSubNodes.addAll(subNode.allSubNodes);
-                }
-                if (changed) {
-                    for (final DAGNode superNode : node.directSuperNodes) {
-                        activeBottomUpNodesNext.add(superNode);
-                    }
-                }
-            }
-            activeBottomUpNodes = activeBottomUpNodesNext;
-        }
-    }
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -146,7 +89,7 @@ public class ClassGraphBuilder {
 
                 }
             }
-            findTransitiveClosure(map.values());
+            DAGNode.findTransitiveClosure(map.values());
         }
     };
 
@@ -182,7 +125,7 @@ public class ClassGraphBuilder {
                     }
                 }
             }
-            findTransitiveClosure(map.values());
+            DAGNode.findTransitiveClosure(map.values());
         }
     };
 
@@ -216,7 +159,7 @@ public class ClassGraphBuilder {
                     }
                 }
             }
-            findTransitiveClosure(map.values());
+            DAGNode.findTransitiveClosure(map.values());
         }
     };
 
