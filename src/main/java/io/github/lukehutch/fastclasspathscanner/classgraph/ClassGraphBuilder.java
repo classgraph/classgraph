@@ -537,8 +537,8 @@ public class ClassGraphBuilder {
      * 
      * @param verbose
      */
-    public void readClassInfoFromClassfileHeader(final InputStream inputStream, boolean verbose) //
+    public void readClassInfoFromClassfileHeader(final InputStream inputStream) //
             throws IOException {
-        classfileBinaryParser.readClassInfoFromClassfileHeader(inputStream, verbose);
+        classfileBinaryParser.readClassInfoFromClassfileHeader(inputStream);
     }
 }

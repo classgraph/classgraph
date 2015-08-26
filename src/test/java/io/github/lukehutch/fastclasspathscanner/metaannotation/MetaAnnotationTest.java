@@ -30,7 +30,6 @@
 package io.github.lukehutch.fastclasspathscanner.metaannotation;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.StrictAssertions.assertThat;
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 
 import org.junit.Test;

@@ -50,7 +50,7 @@ public class ClasspathFinder {
     private final HashSet<String> classpathElementsSet = new HashSet<>();
 
     private boolean initialized = false;
-    
+
     /** Clear the classpath. */
     private void clearClasspath() {
         classpathElements.clear();

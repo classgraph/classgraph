@@ -60,6 +60,6 @@ public abstract class LazyMap<K, V> {
     public String toString() {
         return map.toString();
     }
-    
+
     public abstract void initialize();
 }

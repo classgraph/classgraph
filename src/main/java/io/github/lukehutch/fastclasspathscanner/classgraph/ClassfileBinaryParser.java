@@ -1,5 +1,6 @@
 package io.github.lukehutch.fastclasspathscanner.classgraph;
 
+import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.StaticFinalFieldMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.utils.Log;
 
@@ -135,7 +136,7 @@ class ClassfileBinaryParser {
      * 
      * @param verbose
      */
-    public void readClassInfoFromClassfileHeader(final InputStream inputStream, boolean verbose) //
+    public void readClassInfoFromClassfileHeader(final InputStream inputStream) //
             throws IOException {
         final DataInputStream inp = new DataInputStream(new BufferedInputStream(inputStream, 1024));
 
@@ -308,7 +309,7 @@ class ClassfileBinaryParser {
                             break;
                         }
                         // Call static final field match processor
-                        if (verbose) {
+                        if (FastClasspathScanner.verbose) {
                             Log.log("Found static final field " + className + "." + fieldName + " = " + constValue);
                         }
                         staticFinalFieldMatchProcessor.processMatch(className, fieldName, constValue);
