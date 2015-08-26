@@ -51,6 +51,12 @@ class DAGNode {
     /** All subclasses / subinterfaces. */
     HashSet<DAGNode> allSubNodes = new HashSet<>(4);
 
+    /**
+     * For annotations: the names of classes annotated by this annotation. For regular classes: the name of
+     * interfaces that the class implements.
+     */
+    ArrayList<String> crossLinkedClassNames = new ArrayList<>(2);
+
     /** This class or interface was encountered on the classpath. */
     public DAGNode(final String name) {
         this.name = name;
@@ -66,6 +72,14 @@ class DAGNode {
     public void addSubNode(final DAGNode subNode) {
         subNode.directSuperNodes.add(this);
         this.directSubNodes.add(subNode);
+    }
+
+    /**
+     * Connect this node to a different node type (for annotations, the cross-linked class is a class annotated by
+     * this annotation; for regular classes, the cross-linked class is an interface that the class implements).
+     */
+    public void addCrossLink(final String crossLinkedClassName) {
+        this.crossLinkedClassNames.add(crossLinkedClassName);
     }
 
     /** Topological sort DFS recursion */
