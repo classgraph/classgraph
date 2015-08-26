@@ -37,21 +37,20 @@ import io.github.lukehutch.fastclasspathscanner.matchprocessor.InterfaceMatchPro
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.StaticFinalFieldMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubclassMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubinterfaceMatchProcessor;
+import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
 import io.github.lukehutch.fastclasspathscanner.utils.Log;
+import io.github.lukehutch.fastclasspathscanner.utils.Utils;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URL;
-import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.jar.Manifest;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
@@ -63,12 +62,8 @@ import java.util.zip.ZipFile;
  * documentation.
  */
 public class FastClasspathScanner {
-    /** The unique elements of the classpath, as an ordered list. */
-    private final ArrayList<File> classpathElements = new ArrayList<>();
-
-    /** The unique elements of the classpath, as a set. */
-    private final HashSet<String> classpathElementsSet = new HashSet<>();
-
+    private final ClasspathFinder classpath = new ClasspathFinder();
+    
     /**
      * List of directory path prefixes to scan (produced from list of package prefixes passed into the constructor)
      */
@@ -101,7 +96,7 @@ public class FastClasspathScanner {
     private final ClassGraphBuilder classGraphBuilder = new ClassGraphBuilder();
 
     /** If set to true, print info while scanning */
-    private boolean verbose = false;
+    public static boolean verbose = false;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -117,8 +112,6 @@ public class FastClasspathScanner {
      *            of blacklisted packages.
      */
     public FastClasspathScanner(final String... packagesToScan) {
-        parseSystemClasspath();
-
         final HashSet<String> uniqueWhitelistedPaths = new HashSet<>();
         final HashSet<String> uniqueBlacklistedPaths = new HashSet<>();
         boolean scanAll = false;
@@ -1193,153 +1186,6 @@ public class FastClasspathScanner {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Clear the classpath. */
-    private void clearClasspath() {
-        classpathElements.clear();
-        classpathElementsSet.clear();
-    }
-
-    /** Returns true if the path ends with a JAR extension */
-    private static boolean isJar(String path) {
-        String pathLower = path.toLowerCase();
-        return pathLower.endsWith(".jar") || pathLower.endsWith(".zip") || pathLower.endsWith(".war");
-    }
-
-    /** Add a classpath element. */
-    private void addClasspathElement(String pathElement) {
-        if (!pathElement.isEmpty()) {
-            final File pathElementFile = new File(pathElement);
-            if (pathElementFile.exists()) {
-                // Canonicalize path so that we don't get stuck in a redirect loop due to softlinks
-                String canonicalPath;
-                try {
-                    canonicalPath = pathElementFile.getCanonicalPath();
-                } catch (IOException | SecurityException e) {
-                    canonicalPath = pathElement;
-                }
-                if (classpathElementsSet.add(canonicalPath)) {
-                    // This is the first time this classpath element has been encountered
-                    if (verbose) {
-                        Log.log("Found classpath element: " + pathElement);
-                    }
-                    classpathElements.add(pathElementFile);
-
-                    // If this classpath element is a jar or zipfile, look for Class-Path entries in the manifest
-                    // file. OpenJDK scans manifest-defined classpath elements after the jar that listed them, so
-                    // we recursively call addClasspathElement if needed each time a jar is encountered. 
-                    if (pathElementFile.isFile() && isJar(pathElement)) {
-                        String manifestUrlStr = "jar:file:" + pathElement + "!/META-INF/MANIFEST.MF";
-                        try (InputStream stream = new URL(manifestUrlStr).openStream()) {
-                            // Look for Class-Path keys within manifest files
-                            Manifest manifest = new Manifest(stream);
-                            String manifestClassPath = manifest.getMainAttributes().getValue("Class-Path");
-                            if (manifestClassPath != null && !manifestClassPath.isEmpty()) {
-                                if (verbose) {
-                                    Log.log("Found Class-Path entry in " + manifestUrlStr + ": "
-                                            + manifestClassPath);
-                                }
-                                // Class-Path elements are space-delimited
-                                for (String manifestClassPathElement : manifestClassPath.split(" ")) {
-                                    // Resolve Class-Path elements relative to the parent jar's containing directory
-                                    String manifestClassPathElementAbsolute = new File(pathElementFile.getParent(),
-                                            manifestClassPathElement).getPath();
-                                    addClasspathElement(manifestClassPathElementAbsolute);
-                                }
-                            }
-                        } catch (IOException e) {
-                            // Jar does not contain a manifest
-                        }
-                    }
-                }
-            } else if (verbose) {
-                Log.log("Classpath element does not exist: " + pathElement);
-            }
-        }
-    }
-
-    /** Parse the system classpath. */
-    private void parseSystemClasspath() {
-        // Start with java.class.path (Maven sets this, but doesn't seem to add all classpath URLs to class loaders)
-        String sysClassPath = System.getProperty("java.class.path");
-        if (sysClassPath == null || sysClassPath.isEmpty()) {
-            // Should never need this, but just in case java.class.path is empty, use current dir
-            sysClassPath = ".";
-        }
-        overrideClasspath(sysClassPath);
-
-        // Look for all unique classloaders.
-        // Keep them in an order that (hopefully) reflects the order in which the JDK calls classloaders.
-        ArrayList<ClassLoader> classLoaders = new ArrayList<>();
-        HashSet<ClassLoader> classLoadersSet = new HashSet<>();
-        classLoadersSet.add(ClassLoader.getSystemClassLoader());
-        classLoaders.add(ClassLoader.getSystemClassLoader());
-        // Dirty method for looking for other classloaders on the call stack
-        try {
-            // Generate stacktrace
-            throw new Exception();
-        } catch (Exception e) {
-            StackTraceElement[] stacktrace = e.getStackTrace();
-            if (stacktrace.length >= 3) {
-                // Add the classloader from the calling class
-                StackTraceElement caller = stacktrace[2];
-                ClassLoader cl = caller.getClass().getClassLoader();
-                if (classLoadersSet.add(cl)) {
-                    classLoaders.add(cl);
-                }
-
-                // The following is for reference only: it adds the classloader for the Java extension classes
-                // (which is at caller.getClass().getClassLoader().getParent()). Under most circumstances,
-                // the user should not need to scan extension classes. See:
-                // https://docs.oracle.com/javase/8/docs/technotes/tools/findingclasses.html
-
-                //    ArrayList<ClassLoader> callerClassLoaders = new ArrayList<>();
-                //    for (ClassLoader cl = caller.getClass().getClassLoader(); cl != null; cl = cl.getParent()) {
-                //        callerClassLoaders.add(cl);
-                //    }
-                //    // OpenJDK calls classloaders in a top-down order
-                //    for (int i = callerClassLoaders.size() - 1; i >= 0; --i) {
-                //        ClassLoader cl = callerClassLoaders.get(i);
-                //        if (classLoadersSet.add(cl)) {
-                //            classLoaders.add(cl);
-                //        }
-                //    }
-            }
-        }
-        if (classLoadersSet.add(Thread.currentThread().getContextClassLoader())) {
-            classLoaders.add(Thread.currentThread().getContextClassLoader());
-        }
-
-        // Get file paths for URLs of each classloader.
-        for (ClassLoader cl : classLoaders) {
-            if (cl != null) {
-                for (URL url : ((URLClassLoader) cl).getURLs()) {
-                    String protocol = url.getProtocol();
-                    if (protocol == null || protocol.equalsIgnoreCase("file")) {
-                        // "file:" URL found in classpath
-                        addClasspathElement(url.getFile());
-                    }
-                }
-            }
-        }
-    }
-
-    /** Override the system classpath with a custom classpath to search. */
-    public FastClasspathScanner overrideClasspath(String classpath) {
-        clearClasspath();
-        for (String pathElement : classpath.split(File.pathSeparator)) {
-            addClasspathElement(pathElement);
-        }
-        return this;
-    }
-
-    /**
-     * Get a list of unique elements on the classpath (directories and files) as File objects, preserving order.
-     * Classpath elements that do not exist are not included in the list.
-     */
-    public ArrayList<File> getUniqueClasspathElements() {
-        return classpathElements;
-    }
-
     // -------------------------------------------------------------------------------------------------------------
 
     /**
@@ -1350,10 +1196,11 @@ public class FastClasspathScanner {
      * This method should be called before any "get" methods (e.g. getSubclassesOf()).
      */
     private FastClasspathScanner scan(final boolean scanTimestampsOnly) {
+        ArrayList<File> uniqueClasspathElements = classpath.getUniqueClasspathElements();
         if (verbose) {
             Log.log("*** Starting scan" + (scanTimestampsOnly ? " (scanning classpath timestamps only)" : "")
                     + " ***");
-            Log.log("Classpath elements: " + getUniqueClasspathElements());
+            Log.log("Classpath elements: " + uniqueClasspathElements);
             Log.log("Whitelisted paths:  " + Arrays.toString(whitelistedPaths));
             Log.log("Blacklisted paths:  " + Arrays.toString(blacklistedPaths));
         }
@@ -1365,7 +1212,7 @@ public class FastClasspathScanner {
         }
 
         // Iterate through path elements and recursively scan within each directory and zipfile
-        for (final File pathElt : getUniqueClasspathElements()) {
+        for (final File pathElt : uniqueClasspathElements) {
             final String path = pathElt.getPath();
             if (verbose) {
                 Log.log("=> Scanning classpath element: " + path);
@@ -1374,7 +1221,7 @@ public class FastClasspathScanner {
                 // Scan within dir path element
                 scanDir(pathElt, path.length() + 1, false, scanTimestampsOnly);
             } else if (pathElt.isFile()) {
-                if (isJar(path)) {
+                if (Utils.isJar(path)) {
                     // Scan within jar/zipfile path element
                     ZipFile zipfile = null;
                     try {
