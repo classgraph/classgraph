@@ -37,7 +37,7 @@ import java.util.HashSet;
  */
 class DAGNode {
     /** Class or interface name. */
-    String name;
+    final String name;
 
     /** Direct superclass (there can be only one) / direct superinterface(s). */
     ArrayList<DAGNode> directSuperNodes = new ArrayList<>(4);
