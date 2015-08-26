@@ -150,6 +150,11 @@ public class ClassGraphBuilder {
         }
     };
 
+    /** Return names of all classes (including interfaces and annotations) reached during the scan. */
+    public Set<String> getNamesOfAllClasses() {
+        return classNameToClassNode.resolve().keySet();
+    }
+
     /** A map from class name to the corresponding DAGNode object. */
     private final LazyMap<String, DAGNode> interfaceNameToInterfaceNode = //
     new LazyMap<String, DAGNode>() {
@@ -217,88 +222,39 @@ public class ClassGraphBuilder {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    private Collection<DAGNode> allClassNodes() {
-        return classNameToClassNode.resolve().values();
-    }
-
-    /** Return names of all classes (including interfaces and annotations) reached during the scan. */
-    public Set<String> getNamesOfAllClasses() {
-        return classNameToClassNode.resolve().keySet();
-    }
-
-    private Collection<DAGNode> allInterfaceNodes() {
-        return interfaceNameToInterfaceNode.resolve().values();
-    }
-
-    private Collection<DAGNode> allAnnotationNodes() {
-        return annotationNameToAnnotationNode.resolve().values();
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
     /** Reverse mapping from interface names to the names of classes that implement the interface */
-    private final LazyMap<String, ArrayList<String>> interfaceNameToClassNames = //
-    new LazyMap<String, ArrayList<String>>() {
+    private final LazyMap<String, HashSet<String>> interfaceNameToClassNames = //
+    new LazyMap<String, HashSet<String>>() {
         @Override
         public void initialize() {
-            // Perform topological sort on class tree
-            final ArrayList<DAGNode> classNodeTopoOrder = DAGNode.topoSort(allClassNodes());
-
-            // Perform topological sort on interface DAG
-            final ArrayList<DAGNode> interfaceNodeTopoOrder = DAGNode.topoSort(allInterfaceNodes());
-
-            // Reverse mapping from interface to classes that implement the interface.
-            final HashMap<String, HashSet<DAGNode>> interfaceNameToClassNodesSet = new HashMap<>();
-
             // Create mapping from interface names to the names of classes that implement the interface.
-            for (final DAGNode classNode : classNodeTopoOrder) {
+            for (final DAGNode classNode : classNameToClassNode.resolve().values()) {
                 // For regular classes, cross-linked class names are the names of implemented interfaces
                 final ArrayList<String> interfaceNames = classNode.crossLinkedClassNames;
                 if (interfaceNames != null) {
-                    // Map from interface back to classes that implement the interface
-                    final HashSet<String> interfacesAndSuperinterfacesUnion = new HashSet<>();
+                    // Create reverse mapping from interfaces and superinterfaces implemented by the class
+                    // back to the class the interface implements
                     for (final String interfaceName : interfaceNames) {
-                        // Any class that implements an interface also implements all its superinterfaces
-                        interfacesAndSuperinterfacesUnion.add(interfaceName);
                         final DAGNode interfaceNode = interfaceNameToInterfaceNode.resolve().get(interfaceName);
                         if (interfaceNode != null) {
+                            // Any class that implements an interface also implements all its superinterfaces
+                            MultiSet.put(map, interfaceName, classNode.name);
+                            // Classes that subclass another class that implements an interface also implement 
+                            // the same interface.
+                            for (DAGNode subclass : classNode.allSubNodes) {
+                                MultiSet.put(map, interfaceName, subclass.name);
+                            }
+
+                            // Do the same for any superinterfaces of this interface
                             for (final DAGNode superinterfaceNode : interfaceNode.allSuperNodes) {
-                                interfacesAndSuperinterfacesUnion.add(superinterfaceNode.name);
+                                MultiSet.put(map, superinterfaceNode.name, classNode.name);
+                                for (DAGNode subclass : classNode.allSubNodes) {
+                                    MultiSet.put(map, superinterfaceNode.name, subclass.name);
+                                }
                             }
                         }
                     }
-                    for (final String interfaceName : interfacesAndSuperinterfacesUnion) {
-                        // Add mapping from interface to implementing classes
-                        MultiSet.put(interfaceNameToClassNodesSet, interfaceName, classNode);
-                    }
                 }
-            }
-
-            // Classes that subclass another class that implements an interface also implement the same interface.
-            // Add these to the mapping from interface back to the classes that implement the interface.
-            for (final DAGNode interfaceNode : interfaceNodeTopoOrder) {
-                // Get all classes that implement this interface
-                final HashSet<DAGNode> implementingClasses = interfaceNameToClassNodesSet.get( //
-                        interfaceNode.name);
-                if (implementingClasses != null) {
-                    // Get the union of all subclasses of all classes that implement this interface
-                    final HashSet<DAGNode> subClassUnion = new HashSet<DAGNode>();
-                    for (final DAGNode implementingClass : implementingClasses) {
-                        subClassUnion.addAll(implementingClass.allSubNodes);
-                    }
-                    // Add to the mapping from the interface to each subclass of the class that implements
-                    // the interface.
-                    implementingClasses.addAll(subClassUnion);
-                }
-            }
-            // Convert interface mapping to String->String
-            for (final Entry<String, HashSet<DAGNode>> ent : interfaceNameToClassNodesSet.entrySet()) {
-                final HashSet<DAGNode> nodes = ent.getValue();
-                final ArrayList<String> classNameList = new ArrayList<>(nodes.size());
-                for (final DAGNode classNode : nodes) {
-                    classNameList.add(classNode.name);
-                }
-                map.put(ent.getKey(), classNameList);
             }
         }
     };
@@ -310,7 +266,7 @@ public class ClassGraphBuilder {
     new LazyMap<String, HashSet<String>>() {
         @Override
         public void initialize() {
-            for (final DAGNode annotationNode : allAnnotationNodes()) {
+            for (final DAGNode annotationNode : annotationNameToAnnotationNode.resolve().values()) {
                 for (final DAGNode subNode : annotationNode.allSubNodes) {
                     MultiSet.putAll(map, annotationNode.name, subNode.crossLinkedClassNames);
                 }
@@ -324,7 +280,7 @@ public class ClassGraphBuilder {
     new LazyMap<String, HashSet<String>>() {
         @Override
         public void initialize() {
-            for (final DAGNode annotationNode : allAnnotationNodes()) {
+            for (final DAGNode annotationNode : annotationNameToAnnotationNode.resolve().values()) {
                 for (final DAGNode subNode : annotationNode.allSubNodes) {
                     MultiSet.put(map, annotationNode.name, subNode.name);
                 }
@@ -448,11 +404,11 @@ public class ClassGraphBuilder {
 
     /** Return the names of all classes implementing the named interface. */
     public List<String> getNamesOfClassesImplementing(final String interfaceName) {
-        final ArrayList<String> classes = interfaceNameToClassNames.resolve().get(interfaceName);
+        final HashSet<String> classes = interfaceNameToClassNames.resolve().get(interfaceName);
         if (classes == null) {
             return Collections.emptyList();
         } else {
-            return classes;
+            return new ArrayList<>(classes);
         }
     }
 
