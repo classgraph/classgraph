@@ -3,7 +3,7 @@ FastClasspathScanner
 
 Uber-fast, ultra-lightweight Java classpath scanner.
 
-**What is classpath scanning?** Classpath scanning involves scanning directories and jar/zip files on the classpath to find files (especially classfiles) that meet certain criteria. In many ways, classpath scanning offers the *inverse of the Java reflection API*: the reflection API can tell you the superclass of a given class, but classpath scanning can find all classes that extend a given superclass. The reflections API can give you the list of annotations on a given class, but classpath scanning can find all classes that are annotated with a given annotation.
+**What is classpath scanning?** Classpath scanning involves scanning directories and jar/zip files on the classpath to find files (especially classfiles) that meet certain criteria. In many ways, classpath scanning offers the *inverse of the Java reflection API:* the reflection API can tell you the superclass of a given class, but classpath scanning can find all classes that extend a given superclass. The reflections API can give you the list of annotations on a given class, but classpath scanning can find all classes that are annotated with a given annotation.
 
 FastClasspathScanner is able to:
 
@@ -20,7 +20,7 @@ FastClasspathScanner is able to:
 
 FastClasspathScanner parses the classfile binary format directly, rather than by using reflection, which makes it particularly fast. (Reflection causes the classloader to load each class, which can take an order of magnitude more time than parsing the classfile directly, and can lead to unexpected behavior due to static initializer blocks of classes being called on class load.) FastClasspathScanner does not depend on any classfile/bytecode parsing or manipulation libraries like [Javassist](http://jboss-javassist.github.io/javassist/) or [ObjectWeb ASM](http://asm.ow2.org/), which makes it lightweight.
 
-FastClasspathScanner is able to transitively follow [Class-Path references](https://docs.oracle.com/javase/tutorial/deployment/jar/downman.html) in a jarfile's `META-INF/MANIFEST.MF` -- these are not added to the [system property](https://docs.oracle.com/javase/tutorial/essential/environment/sysprop.html) `java.class.path`, so FastClasspathScanner jumps through some hoops to figure out the actual classpath in use by the classloader(s).
+[Classloading is a very complicated process.](https://docs.oracle.com/javase/8/docs/technotes/tools/findingclasses.html) FastClasspathScanner is able to transitively follow [Class-Path references](https://docs.oracle.com/javase/tutorial/deployment/jar/downman.html) in a jarfile's `META-INF/MANIFEST.MF` -- these are not added to the [system property](https://docs.oracle.com/javase/tutorial/essential/environment/sysprop.html) `java.class.path`, but FastClasspathScanner is able to figure out the actual classpath in use by the classloader(s) anyway.
 
 ### Usage
 
@@ -463,7 +463,7 @@ public Set<String> getNamesOfAllClasses()
 
 The list of all directories and files on the classpath is returned by `.getUniqueClasspathElements()`. The resulting list is filtered to include only unique classpath elements (duplicates are eliminated), and to include only directories and files that actually exist. The elements in the list are in classpath order.
 
-This method is useful if you want to see what's actually on the classpath -- note that `System.getProperty("java.class.path")` does not always return the complete classpath. [Classloading is a very complicated process.](https://docs.oracle.com/javase/8/docs/technotes/tools/findingclasses.html)
+This method is useful if you want to see what's actually on the classpath -- note that `System.getProperty("java.class.path")` does not always return the [complete classpath.](https://docs.oracle.com/javase/8/docs/technotes/tools/findingclasses.html)
 
 Note that FastClasspathScanner does not scan [bootstrap or extension classes](https://docs.oracle.com/javase/8/docs/technotes/tools/findingclasses.html), so the jars containing these system classes will not be listed by `.getUniqueClasspathElements()`.
 
