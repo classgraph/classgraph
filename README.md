@@ -1,9 +1,11 @@
 FastClasspathScanner
 ====================
 
-Uber-fast, ultra-lightweight Java classpath scanner. Scans the classpath by parsing the classfile binary format directly rather than by using reflection. (Reflection causes the classloader to load each class, which can take an order of magnitude more time than parsing the classfile directly, and can lead to unexpected behavior due to static initializer blocks of classes being called on class load.)
+Uber-fast, ultra-lightweight Java classpath scanner.
 
-FastClasspathScanner scans directories and jar/zip files on the classpath, and is able to:
+**What is classpath scanning?** Classpath scanning involves scanning directories and jar/zip files on the classpath to find files (especially classfiles) that meet certain criteria. In many ways, classpath scanning offers the *inverse of the Java reflection API*: the reflection API can tell you the superclass of a given class, but classpath scanning can find all classes that extend a given superclass. The reflections API can give you the list of annotations on a given class, but classpath scanning can find all classes that are annotated with a given annotation.
+
+FastClasspathScanner is able to:
 
 1. [find classes that subclass a given class](#1-matching-the-subclasses-or-finding-the-superclasses-of-a-class) or one of its subclasses;
 2. [find interfaces that extend a given interface](#2-matching-the-subinterfaces-or-finding-the-superinterfaces-of-an-interface) or one of its subinterfaces;
@@ -16,9 +18,9 @@ FastClasspathScanner scans directories and jar/zip files on the classpath, and i
 9. return a list of the [names of all classes and interfaces on the classpath](#9-get-a-list-of-all-whitelisted-and-non-blacklisted-classes-and-interfaces-on-the-classpath) (after whitelist and blacklist filtering).
 10. return a list of [all directories and files on the classpath](#10-get-all-unique-directories-and-files-on-the-classpath) (i.e. all classpath elements) as a list of File objects, with the list deduplicated and filtered to include only classpath directories and files that actually exist, saving you the trouble of parsing and filtering the classpath; and
 
-Because FastClasspathScanner parses the classfile binary format directly, it is particularly lightweight. In particular, FastClasspathScanner does not depend on any classfile/bytecode parsing or manipulation libraries like [Javassist](http://jboss-javassist.github.io/javassist/) or [ObjectWeb ASM](http://asm.ow2.org/), which are overkill for classpath scanning.
+FastClasspathScanner parses the classfile binary format directly, rather than by using reflection, which makes it particularly fast. (Reflection causes the classloader to load each class, which can take an order of magnitude more time than parsing the classfile directly, and can lead to unexpected behavior due to static initializer blocks of classes being called on class load.) FastClasspathScanner does not depend on any classfile/bytecode parsing or manipulation libraries like [Javassist](http://jboss-javassist.github.io/javassist/) or [ObjectWeb ASM](http://asm.ow2.org/), which makes it lightweight.
 
-FastClasspathScanner is able to transitively follow [Class-Path references](https://docs.oracle.com/javase/tutorial/deployment/jar/downman.html) in a jarfile's `META-INF/MANIFEST.MF` (these are not added to the [system property](https://docs.oracle.com/javase/tutorial/essential/environment/sysprop.html) `java.class.path` for some reason).
+FastClasspathScanner is able to transitively follow [Class-Path references](https://docs.oracle.com/javase/tutorial/deployment/jar/downman.html) in a jarfile's `META-INF/MANIFEST.MF` -- these are not added to the [system property](https://docs.oracle.com/javase/tutorial/essential/environment/sysprop.html) `java.class.path`, so FastClasspathScanner jumps through some hoops to figure out the actual classpath in use by the classloader(s).
 
 ### Usage
 
@@ -240,13 +242,17 @@ public List<String> getNamesOfClassesImplementingAllOf(
 
 ### 4. Matching classes with a specific annotation or meta-annotation
 
-FastClassPathScanner can detect classes that have a specified **class annotation** or **class meta-annotation**.
+FastClassPathScanner can detect classes that have a specified **class annotation** or **class meta-annotation**. This is the inverse of the Java reflection API, which allows you to find the annotations on a given class, not the classes that have a given annotation.
 
 A **meta-annotation** is an annotation that annotates another annotation. If annotation `A` annotates annotation `B`, and annotation `B` annotates class `C`, then annotation `A` is also resolved by FastClasspathScanner as annotating class `C`. Note that Java's reflection methods (e.g. `Class.getAnnotations()`) do not directly return meta-annotations (they only look one level back up the annotation graph), but FastClasspathScanner's methods follow the transitive closure of annotations, so you can scan for both annotations and meta-annotations using the same API. This allows for multi-level "inheritance" of annotated traits, similar to inheritance (technically, multiple inheritance) in Object Oriented design. (Compare with @dblevins' [metatypes](https://github.com/dblevins/metatypes/).)  (N.B. Cycles in the annotation graph are also handled by FastClasspathScanner: if annotation `A` annotates annotation `B`, and annotation `B` meta-annotates annotation `A` but also directly annotates class `C`, then annotatons `A` and `B` are both resolved by FastClasspathScanner as annotating class `C`, because class `C` is reachable along some directed path of annotations from both `A` and `B`.)
 
 You can scan for classes with a given annotation or meta-annotation by calling `.matchClassesWithAnnotation()` with a `ClassAnnotationMatchProcessor` parameter before calling `.scan()`. This method will call the classloader on each matching class (using `Class.forName()`) so that a class reference can be passed into the match processor. There are also methods `List<String> getNamesOfClassesWithAnnotation(String annotationClassName)` and `List<String> getNamesOfClassesWithAnnotation(Class<?> annotationClass)` that can be called after `.scan()` to return the names of the classes that have a given annotation (whether or not a corresponding match processor was added to detect this) without calling the classloader.
 
-N.B. There are also convenience methods for matching classes that have *any of* a given list of annotations (an "or" operator), and methods for matching classes that have *all of* a given list of annotations (and "and" operator). 
+Aspects of this API that are worth pointing out:
+
+1. There are convenience methods for matching classes that have *any of* a given list of annotations (an "or" operator), and methods for matching classes that have *all of* a given list of annotations (and "and" operator). 
+2. The method `getNamesOfAnnotationsOnClass()`, called after `.scan()`, is analogous to `Class.getAnnotations()` in the Java reflections API, but it returns not just direct annotations on a class, but also meta-annotations that are in the transitive closure of the inverted meta-annotation graph, starting at the annotations that annotate the specified class. (The graph is "inverted" in the sense that we look at "annotated-by" edges, not "annotates" edges.) The method `getNamesOfMetaAnnotationsOnAnnotation()` returns the transitive closure of inverted meta-annotation graph starting at just the specified annotation.
+3. The method `getNamesOfMetaAnnotationsOnAnnotation()` (which maps from annotation to meta-annotations) is the reverse of the mapping returned by `getNamesOfAnnotationsWithMetaAnnotation()` (which maps from meta-annotations to annotations). The method `getNamesOfAnnotationsOnClass()` (which maps from class to annotation/meta-annotations) is the reverse of the mapping returned by `getNamesOfClassesWithAnnotation()` (which maps from annotation/meta-annotation to classes).
 
 ```java
 // Mechanism 1: Attach a MatchProcessor before calling .scan():
@@ -308,8 +314,6 @@ public List<String> getNamesOfMetaAnnotationsOnAnnotation(
 public List<String> getNamesOfMetaAnnotationsOnAnnotation(
     String annotationName)
 ```
-
-The method `getNamesOfMetaAnnotationsOnAnnotation()` gives a reverse mapping (from annotation to meta-annotations) compared to `getNamesOfAnnotationsWithMetaAnnotation()` (which maps from meta-annotations to annotations). The method `getNamesOfAnnotationsOnClass()` (which maps from class to annotation/meta-annotations) gives a reverse mapping compared to `getNamesOfClassesWithAnnotation()` (which maps from annotation/meta-annotation to classes).
 
 ### 5. Fetching the constant initializer values of static final fields
 
