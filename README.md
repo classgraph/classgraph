@@ -250,7 +250,7 @@ You can scan for classes with a given annotation or meta-annotation by calling `
 
 Aspects of this API that are worth pointing out:
 
-1. There are convenience methods for matching classes that have *any of* a given list of annotations (an "or" operator), and methods for matching classes that have *all of* a given list of annotations (and "and" operator). 
+1. There are convenience methods for matching classes that have *any of* a given list of annotations (an "or" operator), and methods for matching classes that have *all of* a given list of annotations (an "and" operator). 
 2. The method `getNamesOfAnnotationsOnClass()`, called after `.scan()`, is analogous to `Class.getAnnotations()` in the Java reflections API, but it returns not just direct annotations on a class, but also meta-annotations that are in the transitive closure of the inverted meta-annotation graph, starting at the annotations that annotate the specified class. (The graph is "inverted" in the sense that we look at "annotated-by" edges, not "annotates" edges.) The method `getNamesOfMetaAnnotationsOnAnnotation()` returns the transitive closure of inverted meta-annotation graph starting at just the specified annotation.
 3. The method `getNamesOfMetaAnnotationsOnAnnotation()` (which maps from annotation to meta-annotations) is the reverse of the mapping returned by `getNamesOfAnnotationsWithMetaAnnotation()` (which maps from meta-annotations to annotations). The method `getNamesOfAnnotationsOnClass()` (which maps from class to annotation/meta-annotations) is the reverse of the mapping returned by `getNamesOfClassesWithAnnotation()` (which maps from annotation/meta-annotation to classes).
 
