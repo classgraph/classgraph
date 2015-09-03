@@ -88,16 +88,12 @@ class DAGNode {
         if (node == null) {
             map.put(name, node = new DAGNode(name));
         }
-        node.addSubNode(subNode);
+
+        // Connect node to subnode
+        subNode.directSuperNodes.add(node);
+        node.directSubNodes.add(subNode);
+
         return node;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /** Connect this node to a subnode. */
-    public void addSubNode(final DAGNode subNode) {
-        subNode.directSuperNodes.add(this);
-        this.directSubNodes.add(subNode);
     }
 
     /**
@@ -107,6 +103,8 @@ class DAGNode {
     public void addCrossLink(final String crossLinkedClassName) {
         this.crossLinkedClassNames.add(crossLinkedClassName);
     }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     @Override
     public String toString() {
