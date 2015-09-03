@@ -51,7 +51,10 @@ public class ClassGraphBuilder {
      * A map from the relative path of classes encountered so far during a scan to the information extracted from
      * the class. If the same relative file path is encountered more than once, the second and subsequent instances
      * are ignored, because they are masked by the earlier occurrence of the class in the classpath. (This is a
-     * ConcurrentHashMap so that classpath scanning can be parallelized.)
+     * ConcurrentHashMap so that classpath scanning can be parallelized -- note however that both the native gzip
+     * support in Java and the support based on zlib seem to be non-threadsafe, even when operating on different
+     * streams, so the final step of parallelizing the scanner using a work queue of files to scan has not been
+     * completed.)
      */
     private final ConcurrentHashMap<String, ClassInfo> relativePathToClassInfo = new ConcurrentHashMap<>();
 
