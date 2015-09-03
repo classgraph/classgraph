@@ -30,43 +30,69 @@ package io.github.lukehutch.fastclasspathscanner.classgraph;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 
 /**
- * An object to hold class or interface interrelatedness information in a tree or DAG structure.
+ * A node representing classes, interfaces or annotations a tree or DAG structure.
  */
 class DAGNode {
-    /** Class or interface name. */
+    /** Class, interface or annotation name. */
     final String name;
 
-    /** Direct superclass (there can be only one) / direct superinterface(s). */
+    /** Direct super-nodes. */
     ArrayList<DAGNode> directSuperNodes = new ArrayList<>(4);
 
-    /** Direct subclass(es) / superinterface(s). */
+    /** Direct sub-nodes. */
     ArrayList<DAGNode> directSubNodes = new ArrayList<>(4);
 
-    /** All superclasses, including java.lang.Object / all superinterfaces. */
+    /** All super-nodes. */
     HashSet<DAGNode> allSuperNodes = new HashSet<>(4);
 
-    /** All subclasses / subinterfaces. */
+    /** All sub-nodes. */
     HashSet<DAGNode> allSubNodes = new HashSet<>(4);
 
     /**
-     * For annotations: the names of classes annotated by this annotation. For regular classes: the name of
-     * interfaces that the class implements.
+     * For annotations: the names of classes annotated by this annotation.
+     * 
+     * For regular classes: the name of interfaces that the class implements.
      */
     ArrayList<String> crossLinkedClassNames = new ArrayList<>(2);
 
-    /** This class or interface was encountered on the classpath. */
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** A node representing a class, interface or annotation. */
     public DAGNode(final String name) {
         this.name = name;
     }
 
-    /** This class/interface was referenced as a superclass/superinterface of the given subclass/subinterface. */
-    public DAGNode(final String name, final DAGNode subNode) {
-        this.name = name;
-        addSubNode(subNode);
+    /**
+     * Get the named node from the map, or create a new node with this name and store it in the map if there isn't
+     * yet a node in the map with this name. Returns the found or created node.
+     */
+    public static DAGNode getOrNew(final HashMap<String, DAGNode> map, final String name) {
+        DAGNode node = map.get(name);
+        if (node == null) {
+            map.put(name, node = new DAGNode(name));
+        }
+        return node;
     }
+
+    /**
+     * Get the named node from the map, or create a new node with this name and store it in the map if there isn't
+     * yet a node in the map with this name. Returns the found or created node, after connecting it as a super-node
+     * to the specified sub-node.
+     */
+    public static DAGNode getOrNew(final HashMap<String, DAGNode> map, final String name, final DAGNode subNode) {
+        DAGNode node = map.get(name);
+        if (node == null) {
+            map.put(name, node = new DAGNode(name));
+        }
+        node.addSubNode(subNode);
+        return node;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     /** Connect this node to a subnode. */
     public void addSubNode(final DAGNode subNode) {
