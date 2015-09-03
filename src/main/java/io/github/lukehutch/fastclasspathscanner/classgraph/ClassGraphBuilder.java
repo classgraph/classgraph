@@ -183,19 +183,21 @@ public class ClassGraphBuilder {
                     for (final String interfaceName : interfaceNames) {
                         final DAGNode interfaceNode = interfaceNameToInterfaceNode.resolve().get(interfaceName);
                         if (interfaceNode != null) {
-                            // Any class that implements an interface also implements all its superinterfaces
+                            // Map from interface to implementing class
                             MultiSet.put(map, interfaceName, classNode.name);
-                            // Classes that subclass another class that implements an interface also implement 
-                            // the same interface.
-                            for (DAGNode subclass : classNode.allSubNodes) {
-                                MultiSet.put(map, interfaceName, subclass.name);
+                            // Classes that subclass another class that implements an interface
+                            // also implement the same interface.
+                            for (DAGNode subclassNode : classNode.allSubNodes) {
+                                MultiSet.put(map, interfaceName, subclassNode.name);
                             }
 
-                            // Do the same for any superinterfaces of this interface
+                            // Do the same for any superinterfaces of this interface: any class that
+                            // implements an interface also implements all its superinterfaces, and so
+                            // do all the subclasses of the class.
                             for (final DAGNode superinterfaceNode : interfaceNode.allSuperNodes) {
                                 MultiSet.put(map, superinterfaceNode.name, classNode.name);
-                                for (DAGNode subclass : classNode.allSubNodes) {
-                                    MultiSet.put(map, superinterfaceNode.name, subclass.name);
+                                for (DAGNode subclassNode : classNode.allSubNodes) {
+                                    MultiSet.put(map, superinterfaceNode.name, subclassNode.name);
                                 }
                             }
                         }
