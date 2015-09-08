@@ -269,8 +269,7 @@ public FastClasspathScanner matchClassesWithAnnotation(
 // Mechanism 2: Call one of the following after calling .scan():
 
 // (a) Get names of classes that have the specified annotation(s)
-// or meta-annotation(s), or annotations that have the specified
-// meta-annotations
+// or meta-annotation(s)
 
 public List<String> getNamesOfClassesWithAnnotation(
     Class<?> annotation)
