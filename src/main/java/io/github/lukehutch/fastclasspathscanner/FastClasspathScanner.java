@@ -136,9 +136,9 @@ public class FastClasspathScanner {
         // Read classfile headers for all filenames ending in ".class" on classpath
         this.matchFilenameExtension("class", new FileMatchProcessor() {
             @Override
-            public void processMatch(final String relativePath, final int classpathEltIdx,
-                    final InputStream inputStream, final int lengthBytes) throws IOException {
-                classGraphBuilder.readClassInfoFromClassfileHeader(relativePath, inputStream, classpathEltIdx,
+            public void processMatch(final String relativePath, final InputStream inputStream, final int lengthBytes)
+                    throws IOException {
+                classGraphBuilder.readClassInfoFromClassfileHeader(relativePath, inputStream,
                         classNameToStaticFieldnameToMatchProcessor);
             }
         });
@@ -824,8 +824,8 @@ public class FastClasspathScanner {
             final FileMatchContentsProcessor fileMatchContentsProcessor) {
         return new FileMatchProcessor() {
             @Override
-            public void processMatch(final String relativePath, final int classpathElementIndex,
-                    final InputStream inputStream, final int lengthBytes) throws IOException {
+            public void processMatch(final String relativePath, final InputStream inputStream, //
+                    final int lengthBytes) throws IOException {
                 // Read the file contents into a byte[] array
                 final byte[] contents = new byte[lengthBytes];
                 final int bytesRead = Math.max(0, inputStream.read(contents));

@@ -401,51 +401,24 @@ public class ClassGraphBuilder {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Try creating a new ClassInfo object. Returns null if the file at the relative path has already been seen by
-     * the classpath scanner with a smaller classpath index, indicating that the new file was masked by an earlier
-     * definition of the class.
-     */
-    private ClassInfo newClassInfo(final String relativePath, final int classpathEltIdx) {
-        ClassInfo newClassInfo = new ClassInfo(relativePath, classpathEltIdx);
-        ClassInfo oldClassInfo = relativePathToClassInfo.put(relativePath, newClassInfo);
-        if (oldClassInfo == null || oldClassInfo.classpathElementIndex > newClassInfo.classpathElementIndex) {
-            // This is the first time we have encountered this class, or we have encountered it before but at
-            // a larger classpath index (i.e. the definition we just found occurs earlier in the classpath, so
-            // the new class masks the version we already found -- this can occur with parallel scanning).
-            return newClassInfo;
-        } else if (oldClassInfo.classpathElementIndex == newClassInfo.classpathElementIndex) {
-            // Two files with the same name occurred within the same classpath element.
-            // Should never happen (paths are unique on filesystems and in zipfiles), but for safety, just
-            // arbitrarily reject one of them here.
-            return null;
-        }
-        // The new class was masked by a class with the same name earlier in the classpath. Need to put the
-        // old ClassInfo back into the map, but need to make sure that the final ClassInfo that ends up in
-        // the map is the one with the lowest index, to handle race conditions.
-        do {
-            newClassInfo = oldClassInfo;
-            oldClassInfo = relativePathToClassInfo.put(relativePath, oldClassInfo);
-        } while (oldClassInfo.classpathElementIndex < newClassInfo.classpathElementIndex);
-        // New class was masked by an earlier definition -- return null
-        return null;
-    }
-
-    /**
      * Directly examine contents of classfile binary header.
      */
     public void readClassInfoFromClassfileHeader(final String relativePath, final InputStream inputStream,
-            final int classpathEltIdx, final HashMap<String, HashMap<String, StaticFinalFieldMatchProcessor>> // 
+            final HashMap<String, HashMap<String, StaticFinalFieldMatchProcessor>> // 
             classNameToStaticFieldnameToMatchProcessor) throws IOException {
         // Make sure this was the first occurrence of the given relativePath on the classpath to enable masking
-        final ClassInfo classInfo = newClassInfo(relativePath, classpathEltIdx);
-        if (classInfo == null) {
-            // This relative path was already encountered earlier on the classpath
-            if (FastClasspathScanner.verbose) {
-                Log.log("Duplicate file on classpath, ignoring all but first instance: " + relativePath);
-            }
-        } else {
-            ClassfileBinaryParser.readClassInfoFromClassfileHeader(relativePath, inputStream, classInfo,
+        ClassInfo newClassInfo = new ClassInfo(relativePath);
+        ClassInfo oldClassInfo = relativePathToClassInfo.put(relativePath, newClassInfo);
+        if (oldClassInfo == null) {
+            // This is the first time we have encountered this class on the classpath
+            ClassfileBinaryParser.readClassInfoFromClassfileHeader(relativePath, inputStream, newClassInfo,
                     classNameToStaticFieldnameToMatchProcessor);
+        } else {
+            // The new class was masked by a class with the same name earlier in the classpath.
+            if (FastClasspathScanner.verbose) {
+                Log.log(relativePath.replace('/', '.')
+                        + " occurs more than once on classpath, ignoring all but first instance");
+            }
         }
     }
 }

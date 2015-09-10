@@ -384,8 +384,8 @@ The value of `relativePath` is relative to the classpath entry that contained th
 // by the caller.
 @FunctionalInterface
 public interface FileMatchProcessor {
-    public void processMatch(String relativePath, int classpathElementIndex,
-        InputStream inputStream, int inputStreamLengthBytes) throws IOException;
+    public void processMatch(String relativePath, InputStream inputStream,
+    int inputStreamLengthBytes) throws IOException;
 }
 
 // Use this interface if you want to be passed a byte array with the file contents

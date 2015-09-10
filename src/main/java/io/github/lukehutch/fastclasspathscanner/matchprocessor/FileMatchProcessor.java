@@ -39,16 +39,11 @@ public interface FileMatchProcessor {
      * 
      * @param relativePath
      *            The path of the matching file relative to the classpath entry that contained the match.
-     * @param classpathElementIndex
-     *            The index of the classpath element that contains the relative path. This can be used to implement
-     *            classpath masking (for two files with the same relativePath, the one with the larger
-     *            classpathElementIndex can be ignored, as is done by the Java class loader).
      * @param inputStream
      *            An InputStream (either a FileInputStream or a ZipEntry InputStream) opened on the file. You do not
      *            need to close this InputStream before returning, it is closed by the caller.
      * @param lengthBytes
      *            The length of the InputStream in bytes.
      */
-    public void processMatch(String relativePath, int classpathElementIndex, InputStream inputStream,
-            int lengthBytes) throws IOException;
+    public void processMatch(String relativePath, InputStream inputStream, int lengthBytes) throws IOException;
 }

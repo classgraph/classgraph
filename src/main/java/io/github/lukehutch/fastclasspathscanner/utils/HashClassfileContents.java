@@ -53,8 +53,8 @@ public class HashClassfileContents {
         // MD5-hash all files ending in ".class"
                 .matchFilenameExtension("class", new FileMatchProcessor() {
                     @Override
-                    public void processMatch(final String relativePath, final int classpathEltIdx,
-                            final InputStream inputStream, final int length) throws IOException {
+                    public void processMatch(final String relativePath, final InputStream inputStream,
+                            final int length) throws IOException {
                         final MessageDigest digest;
                         try {
                             digest = MessageDigest.getInstance("MD5");
