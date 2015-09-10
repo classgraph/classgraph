@@ -1051,16 +1051,15 @@ public class FastClasspathScanner {
     public FastClasspathScanner scan() {
         final long scanStart = System.currentTimeMillis();
 
-        classNameToClassInfo.clear();
-
         // Scan classpath, calling file pattern matchers, including matcher for ".class", which reads class info
         // for each class, and stores it in classNameToClassInfo
+        classNameToClassInfo.clear();
         recursiveScanner.scan(/* scanTimestampsOnly = */false);
 
         // Build class graph structure
         classGraphBuilder = new ClassGraphBuilder(classNameToClassInfo.values());
 
-        // Look for class, interface and annotation matches
+        // Look for class, interface and annotation matches using classGraphBuilder
         for (final ClassMatcher classMatcher : classMatchers) {
             classMatcher.lookForMatches();
         }
