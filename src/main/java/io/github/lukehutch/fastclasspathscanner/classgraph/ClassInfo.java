@@ -31,8 +31,6 @@ package io.github.lukehutch.fastclasspathscanner.classgraph;
 import java.util.ArrayList;
 
 public class ClassInfo {
-    public String relativePath;
-
     public String className;
     public String superclassName;
     public ArrayList<String> interfaceNames;
@@ -41,6 +39,8 @@ public class ClassInfo {
     public boolean isAnnotation;
 
     public ClassInfo(final String relativePath) {
-        this.relativePath = relativePath;
+        this.className = relativePath //
+                .substring(0, relativePath.length() - 6 /* (strip off ".class") */) //
+                .replace('/', '.');
     }
 }

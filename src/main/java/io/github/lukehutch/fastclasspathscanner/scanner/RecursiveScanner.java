@@ -1,7 +1,6 @@
 package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-import io.github.lukehutch.fastclasspathscanner.classgraph.ClassGraphBuilder;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.utils.Log;
 import io.github.lukehutch.fastclasspathscanner.utils.Utils;
@@ -19,8 +18,6 @@ import java.util.zip.ZipFile;
 public class RecursiveScanner {
     private final ClasspathFinder classpath;
 
-    private final ClassGraphBuilder classGraphBuilder;
-
     /**
      * List of directory path prefixes to scan (produced from list of package prefixes passed into the constructor)
      */
@@ -31,9 +28,6 @@ public class RecursiveScanner {
      * regexp.
      */
     private final ArrayList<FilePathMatcher> filePathMatchers = new ArrayList<>();
-
-    /** A list of class matchers to call once all classes have been read in from classpath. */
-    private final ArrayList<ClassMatcher> classMatchers = new ArrayList<>();
 
     /**
      * The latest last-modified timestamp of any file, directory or sub-directory in the classpath, in millis since
@@ -52,12 +46,10 @@ public class RecursiveScanner {
     // -------------------------------------------------------------------------------------------------------------
 
     public RecursiveScanner(final ClasspathFinder classpath, final String[] whitelistedPaths,
-            final String[] blacklistedPaths, //
-            final ClassGraphBuilder classGraphBuilder) {
+            final String[] blacklistedPaths) {
         this.classpath = classpath;
         this.whitelistedPaths = whitelistedPaths;
         this.blacklistedPaths = blacklistedPaths;
-        this.classGraphBuilder = classGraphBuilder;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -85,15 +77,6 @@ public class RecursiveScanner {
                 final int inputStreamLengthBytes) throws IOException {
             fileMatchProcessor.processMatch(relativePath, inputStream, inputStreamLengthBytes);
         }
-    }
-
-    /** An interface used for testing if a class matches specified criteria. */
-    public static interface ClassMatcher {
-        public abstract void lookForMatches();
-    }
-
-    public void addClassMatcher(final ClassMatcher classMatcher) {
-        this.classMatchers.add(classMatcher);
     }
 
     public void addFilePathMatcher(final FilePathMatcher filePathMatcher) {
@@ -284,12 +267,6 @@ public class RecursiveScanner {
             Log.log("Blacklisted paths:  " + Arrays.toString(blacklistedPaths));
         }
 
-        final long scanStart = System.currentTimeMillis();
-
-        if (!scanTimestampsOnly) {
-            classGraphBuilder.reset();
-        }
-
         // Iterate through path elements and recursively scan within each directory and zipfile
         for (int classpathEltIdx = 0; classpathEltIdx < uniqueClasspathElements.size(); classpathEltIdx++) {
             final File pathElt = uniqueClasspathElements.get(classpathEltIdx);
@@ -317,16 +294,6 @@ public class RecursiveScanner {
             } else if (FastClasspathScanner.verbose) {
                 Log.log("Skipping non-file/non-dir on classpath: " + pathElt.getPath());
             }
-        }
-
-        if (!scanTimestampsOnly) {
-            // Look for class, interface and annotation matches
-            for (final ClassMatcher classMatcher : classMatchers) {
-                classMatcher.lookForMatches();
-            }
-        }
-        if (FastClasspathScanner.verbose) {
-            Log.log("*** Scanning took: " + (System.currentTimeMillis() - scanStart) + " ms ***");
         }
     }
 

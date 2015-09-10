@@ -12,7 +12,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 
-class ClassfileBinaryParser {
+public class ClassfileBinaryParser {
     /**
      * Read annotation entry from classfile.
      */
@@ -175,13 +175,13 @@ class ClassfileBinaryParser {
 
         // The fully-qualified class name of this class, with slashes replaced with dots
         final String classNamePath = readRefdString(inp, constantPool);
-        classInfo.className = classNamePath.replace('/', '.');
-        if (classInfo.className.equals("java.lang.Object")) {
+        final String className = classNamePath.replace('/', '.');
+        if (className.equals("java.lang.Object")) {
             // java.lang.Object doesn't have a superclass to be linked to, can simply return
             return;
-        } else if (!classNamePath
-                .equals(relativePath.subSequence(0, relativePath.length() - 6 /* (strip off ".class") */))) {
-            // Ignore classfiles on the classpath that are in the wrong directory (the classloader won't find them)
+        } else if (!className.equals(classInfo.className)) {
+            // Ignore classfiles on the classpath that are in the wrong directory (the classloader won't find them).
+            // (classInfo.className was based on relativePath)
             if (FastClasspathScanner.verbose) {
                 Log.log("Ignoring class " + classInfo.className + " at non-standard path " + relativePath);
             }

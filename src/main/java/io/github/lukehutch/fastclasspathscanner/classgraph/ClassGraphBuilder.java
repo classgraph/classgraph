@@ -28,41 +28,23 @@
  */
 package io.github.lukehutch.fastclasspathscanner.classgraph;
 
-import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-import io.github.lukehutch.fastclasspathscanner.matchprocessor.StaticFinalFieldMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.utils.LazyMap;
-import io.github.lukehutch.fastclasspathscanner.utils.Log;
 import io.github.lukehutch.fastclasspathscanner.utils.MultiMap;
 import io.github.lukehutch.fastclasspathscanner.utils.MultiSet;
 
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
 public class ClassGraphBuilder {
-    /**
-     * A map from the relative path of classes encountered so far during a scan to the information extracted from
-     * the class. If the same relative file path is encountered more than once, the second and subsequent instances
-     * are ignored, because they are masked by the earlier occurrence of the class in the classpath. (This is a
-     * ConcurrentHashMap so that classpath scanning can be parallelized -- note however that both the native gzip
-     * support in Java and the support based on zlib seem to be non-threadsafe, even when operating on different
-     * streams, so the final step of parallelizing the scanner using a work queue of files to scan has not been
-     * completed.)
-     */
-    private final ConcurrentHashMap<String, ClassInfo> relativePathToClassInfo = new ConcurrentHashMap<>();
+    private final ArrayList<ClassInfo> allClassInfo;
 
-    // -------------------------------------------------------------------------------------------------------------
-
-    private Collection<ClassInfo> allClassInfo() {
-        return relativePathToClassInfo.values();
+    public ClassGraphBuilder(final Collection<ClassInfo> relativePathToClassInfo) {
+        this.allClassInfo = new ArrayList<>(relativePathToClassInfo);
     }
 
     /** A map from class name to the corresponding DAGNode object. */
@@ -70,12 +52,12 @@ public class ClassGraphBuilder {
     new LazyMap<String, DAGNode>() {
         @Override
         public void initialize() {
-            for (final ClassInfo classInfo : allClassInfo()) {
+            for (final ClassInfo classInfo : allClassInfo) {
                 if (!classInfo.isAnnotation && !classInfo.isInterface) {
                     // Look up or create ClassNode object for this class
-                    DAGNode classNode = DAGNode.getOrNew(map, classInfo.className);
+                    final DAGNode classNode = DAGNode.getOrNew(map, classInfo.className);
                     if (classInfo.interfaceNames != null) {
-                        for (String interfaceName : classInfo.interfaceNames) {
+                        for (final String interfaceName : classInfo.interfaceNames) {
                             // Cross-link classes to the interfaces they implement
                             classNode.addCrossLink(interfaceName);
                         }
@@ -100,10 +82,10 @@ public class ClassGraphBuilder {
     new LazyMap<String, DAGNode>() {
         @Override
         public void initialize() {
-            for (final ClassInfo classInfo : allClassInfo()) {
+            for (final ClassInfo classInfo : allClassInfo) {
                 if (classInfo.isInterface) {
                     // Look up or create InterfaceNode for this interface
-                    DAGNode interfaceNode = DAGNode.getOrNew(map, classInfo.className);
+                    final DAGNode interfaceNode = DAGNode.getOrNew(map, classInfo.className);
                     if (classInfo.interfaceNames != null) {
                         // Look up or create InterfaceNode objects for superinterfaces,
                         // and connect them to this interface
@@ -122,7 +104,7 @@ public class ClassGraphBuilder {
     new LazyMap<String, DAGNode>() {
         @Override
         public void initialize() {
-            for (final ClassInfo classInfo : allClassInfo()) {
+            for (final ClassInfo classInfo : allClassInfo) {
                 if (classInfo.annotationNames != null) {
                     // Iterate through annotations on each scanned class
                     for (final String annotationName : classInfo.annotationNames) {
@@ -162,7 +144,7 @@ public class ClassGraphBuilder {
                             MultiSet.put(map, interfaceName, classNode.name);
                             // Classes that subclass another class that implements an interface
                             // also implement the same interface.
-                            for (DAGNode subclassNode : classNode.allSubNodes) {
+                            for (final DAGNode subclassNode : classNode.allSubNodes) {
                                 MultiSet.put(map, interfaceName, subclassNode.name);
                             }
 
@@ -171,7 +153,7 @@ public class ClassGraphBuilder {
                             // do all the subclasses of the class.
                             for (final DAGNode superinterfaceNode : interfaceNode.allSuperNodes) {
                                 MultiSet.put(map, superinterfaceNode.name, classNode.name);
-                                for (DAGNode subclassNode : classNode.allSubNodes) {
+                                for (final DAGNode subclassNode : classNode.allSubNodes) {
                                     MultiSet.put(map, superinterfaceNode.name, subclassNode.name);
                                 }
                             }
@@ -375,50 +357,6 @@ public class ClassGraphBuilder {
             return Collections.emptyList();
         } else {
             return annotationNames;
-        }
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /** Clear all the data structures to be ready for another scan. */
-    public void reset() {
-        relativePathToClassInfo.clear();
-
-        classNameToClassNode.clear();
-        interfaceNameToInterfaceNode.clear();
-        annotationNameToAnnotationNode.clear();
-
-        annotationNameToAnnotatedClassNamesSet.clear();
-        annotationNameToAnnotatedAnnotationNamesSet.clear();
-
-        annotationNameToAnnotatedClassNames.clear();
-        classNameToAnnotationNames.clear();
-        metaAnnotationNameToAnnotatedAnnotationNames.clear();
-        annotationNameToMetaAnnotationNames.clear();
-        interfaceNameToClassNames.clear();
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Directly examine contents of classfile binary header.
-     */
-    public void readClassInfoFromClassfileHeader(final String relativePath, final InputStream inputStream,
-            final HashMap<String, HashMap<String, StaticFinalFieldMatchProcessor>> // 
-            classNameToStaticFieldnameToMatchProcessor) throws IOException {
-        // Make sure this was the first occurrence of the given relativePath on the classpath to enable masking
-        ClassInfo newClassInfo = new ClassInfo(relativePath);
-        ClassInfo oldClassInfo = relativePathToClassInfo.put(relativePath, newClassInfo);
-        if (oldClassInfo == null) {
-            // This is the first time we have encountered this class on the classpath
-            ClassfileBinaryParser.readClassInfoFromClassfileHeader(relativePath, inputStream, newClassInfo,
-                    classNameToStaticFieldnameToMatchProcessor);
-        } else {
-            // The new class was masked by a class with the same name earlier in the classpath.
-            if (FastClasspathScanner.verbose) {
-                Log.log(relativePath.replace('/', '.')
-                        + " occurs more than once on classpath, ignoring all but first instance");
-            }
         }
     }
 }
