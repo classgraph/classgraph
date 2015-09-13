@@ -1,7 +1,39 @@
+/*
+ * This file is part of FastClasspathScanner.
+ * 
+ * Author: Luke Hutchison <luke .dot. hutch .at. gmail .dot. com>
+ * 
+ * Hosted at: https://github.com/lukehutch/fast-classpath-scanner
+ * 
+ * --
+ *
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2015 Luke Hutchison
+ * 
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without
+ * limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so, subject to the following
+ * conditions:
+ * 
+ * The above copyright notice and this permission notice shall be included in all copies or substantial
+ * portions of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
+ * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO
+ * EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
+ * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
+ * OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
+import io.github.lukehutch.fastclasspathscanner.classgraph.ClassGraphBuilder;
+import io.github.lukehutch.fastclasspathscanner.classgraph.ClassInfo;
+import io.github.lukehutch.fastclasspathscanner.classgraph.ClassfileBinaryParser;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchProcessor;
+import io.github.lukehutch.fastclasspathscanner.matchprocessor.StaticFinalFieldMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.utils.Log;
 import io.github.lukehutch.fastclasspathscanner.utils.Utils;
 
@@ -12,16 +44,22 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 public class RecursiveScanner {
-    private final ClasspathFinder classpath;
+    /** The classpath finder. */
+    private final ClasspathFinder classpathFinder;
 
     /**
      * List of directory path prefixes to scan (produced from list of package prefixes passed into the constructor)
      */
     private final String[] whitelistedPaths, blacklistedPaths;
+
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * A list of file path matchers to call when a directory or subdirectory on the classpath matches a given
@@ -29,12 +67,39 @@ public class RecursiveScanner {
      */
     private final ArrayList<FilePathMatcher> filePathMatchers = new ArrayList<>();
 
+    /** A list of class matchers to call once all classes have been read in from classpath. */
+    private final ArrayList<ClassMatcher> classMatchers = new ArrayList<>();
+
+    /**
+     * A map from classname, to static final field name, to a StaticFinalFieldMatchProcessor that should be called
+     * if that class name and static final field name is encountered during scan.
+     */
+    private final HashMap<String, HashMap<String, StaticFinalFieldMatchProcessor>> //
+    classNameToStaticFieldnameToMatchProcessor = new HashMap<>();
+
+    // -------------------------------------------------------------------------------------------------------------
+    
+    /**
+     * A map from relative path to the information extracted from the class. If the class name is encountered more
+     * than once (i.e. if the same class is defined in multiple classpath elements), the second and subsequent class
+     * definitions are ignored, because they are masked by the earlier definition.
+     */
+    private ConcurrentHashMap<String, ClassInfo> classNameToClassInfo = new ConcurrentHashMap<>();
+
+
+    /** The class and interface graph builder. */
+    private ClassGraphBuilder classGraphBuilder;
+
+    // -------------------------------------------------------------------------------------------------------------
+
     /**
      * The latest last-modified timestamp of any file, directory or sub-directory in the classpath, in millis since
      * the Unix epoch. Does not consider timestamps inside zipfiles/jarfiles, but the timestamp of the zip/jarfile
      * itself is considered.
      */
     private long lastModified = 0;
+
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * If this is set to true, then the timestamps of zipfile entries should be used to determine when files inside
@@ -45,11 +110,79 @@ public class RecursiveScanner {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    public RecursiveScanner(final ClasspathFinder classpath, final String[] whitelistedPaths,
-            final String[] blacklistedPaths) {
-        this.classpath = classpath;
-        this.whitelistedPaths = whitelistedPaths;
-        this.blacklistedPaths = blacklistedPaths;
+    /**
+     * Recursive classpath scanner. Pass in a list of whitelisted packages to scan, and blacklisted packages to not
+     * scan (blacklisted packages are prefixed with the '-' character).
+     */
+    public RecursiveScanner(final String[] packagesToScan) {
+        this.classpathFinder = new ClasspathFinder();
+
+        final HashSet<String> uniqueWhitelistedPaths = new HashSet<>();
+        final HashSet<String> uniqueBlacklistedPaths = new HashSet<>();
+        boolean scanAll = false;
+        if (packagesToScan.length == 0) {
+            scanAll = true;
+        } else {
+            for (final String packageToScan : packagesToScan) {
+                if (packageToScan.isEmpty()) {
+                    scanAll = true;
+                    break;
+                }
+                String pkg = packageToScan.replace('.', '/') + "/";
+                final boolean blacklisted = pkg.startsWith("-");
+                if (blacklisted) {
+                    pkg = pkg.substring(1);
+                }
+                (blacklisted ? uniqueBlacklistedPaths : uniqueWhitelistedPaths).add(pkg);
+            }
+        }
+        uniqueWhitelistedPaths.removeAll(uniqueBlacklistedPaths);
+        if (scanAll) {
+            this.whitelistedPaths = new String[] { "/" };
+        } else {
+            this.whitelistedPaths = new String[uniqueWhitelistedPaths.size()];
+            int i = 0;
+            for (final String path : uniqueWhitelistedPaths) {
+                this.whitelistedPaths[i++] = path;
+            }
+        }
+        this.blacklistedPaths = new String[uniqueBlacklistedPaths.size()];
+        int i = 0;
+        for (final String path : uniqueBlacklistedPaths) {
+            this.blacklistedPaths[i++] = path;
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** Override the automatically-detected classpath with a custom search path. */
+    public void overrideClasspath(String classpath) {
+        classpathFinder.overrideClasspath(classpath);
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Handle each classfile encountered on the classpath. Implements classpath masking, so classes that are
+     * encountered earlier on the classpath hide classes with the same name that are encountered later on the
+     * classpath.
+     */
+    public void processClass(String relativePath, InputStream inputStream) throws IOException {
+        // Make sure this was the first occurrence of the given relativePath on the classpath,
+        // to enable masking of classes
+        final ClassInfo newClassInfo = new ClassInfo(relativePath);
+        final ClassInfo oldClassInfo = classNameToClassInfo.put(newClassInfo.className, newClassInfo);
+        if (oldClassInfo == null) {
+            // This is the first time we have encountered this class on the classpath
+            ClassfileBinaryParser.readClassInfoFromClassfileHeader(relativePath, inputStream, newClassInfo,
+                    classNameToStaticFieldnameToMatchProcessor);
+        } else {
+            // The new class was masked by a class with the same name earlier in the classpath.
+            if (FastClasspathScanner.verbose) {
+                Log.log(relativePath.replace('/', '.')
+                        + " occurs more than once on classpath, ignoring all but first instance");
+            }
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -81,6 +214,29 @@ public class RecursiveScanner {
 
     public void addFilePathMatcher(final FilePathMatcher filePathMatcher) {
         this.filePathMatchers.add(filePathMatcher);
+    }
+
+    /** An interface used for testing if a class matches specified criteria. */
+    public static interface ClassMatcher {
+        public abstract void lookForMatches();
+    }
+
+    public void addClassMatcher(final ClassMatcher classMatcher) {
+        this.classMatchers.add(classMatcher);
+    }
+
+    /**
+     * Add a StaticFinalFieldMatchProcessor that should be called if a static final field with the given name is
+     * encountered in a class with the given fully-qualified classname while reading a classfile header.
+     */
+    public void addStaticFinalFieldProcessor(final String className, final String fieldName,
+            final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor) {
+        HashMap<String, StaticFinalFieldMatchProcessor> fieldNameToMatchProcessor = //
+        classNameToStaticFieldnameToMatchProcessor.get(className);
+        if (fieldNameToMatchProcessor == null) {
+            classNameToStaticFieldnameToMatchProcessor.put(className, fieldNameToMatchProcessor = new HashMap<>(2));
+        }
+        fieldNameToMatchProcessor.put(fieldName, staticFinalFieldMatchProcessor);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -251,14 +407,11 @@ public class RecursiveScanner {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Scans the classpath for matching files, and calls any match processors if a match is identified.
-     * 
-     * This method should be called after all required match processors have been added.
-     * 
-     * This method should be called before any "get" methods (e.g. getSubclassesOf()).
+     * If scanTimestampsOnly is true, scans the classpath for matching files, and calls any match processors if a
+     * match is identified. If scanTimestampsOnly is false, only scans timestamps of files.
      */
-    public void scan(final boolean scanTimestampsOnly) {
-        final ArrayList<File> uniqueClasspathElements = classpath.getUniqueClasspathElements();
+    private void scan(final boolean scanTimestampsOnly) {
+        final ArrayList<File> uniqueClasspathElements = classpathFinder.getUniqueClasspathElements();
         if (FastClasspathScanner.verbose) {
             Log.log("*** Starting scan" + (scanTimestampsOnly ? " (scanning classpath timestamps only)" : "")
                     + " ***");
@@ -298,6 +451,29 @@ public class RecursiveScanner {
     }
 
     /**
+     * Scans the classpath for matching files, and calls any match processors if a match is identified.
+     * 
+     * This method should be called after all required match processors have been added.
+     * 
+     * This method should be called before any "get" methods (e.g. getSubclassesOf()).
+     */
+    public void scan() {
+        classNameToClassInfo.clear();
+
+        // Perform the scan -- will call FileMatchProcessors for each file with a matching path.
+        // Also causes RecursiveScanner.processClass() to be called for all files ending in ".class".
+        scan(/* scanTimestampsOnly = */false);
+
+        // Build class graph structure
+        classGraphBuilder = new ClassGraphBuilder(classNameToClassInfo.values());
+
+        // Look for class, interface and annotation matches using classGraphBuilder
+        for (final ClassMatcher classMatcher : classMatchers) {
+            classMatcher.lookForMatches();
+        }
+    }
+
+    /**
      * Returns true if the classpath contents have been changed since scan() was last called. Only considers
      * classpath prefixes whitelisted in the call to the constructor. Returns true if scan() has not yet been run.
      * Much faster than standard classpath scanning, because only timestamps are checked, and jarfiles don't have to
@@ -324,5 +500,16 @@ public class RecursiveScanner {
      */
     public long classpathContentsLastModifiedTime() {
         return this.lastModified;
+    }
+
+    /**
+     * Returns the ClassGraphBuilder created by calling .scan(), or throws RuntimeException if .scan() has not yet
+     * been called.
+     */
+    public ClassGraphBuilder getScanResults() {
+        if (classGraphBuilder == null) {
+            throw new RuntimeException("Must call .scan() before attempting to get the results of the scan");
+        }
+        return classGraphBuilder;
     }
 }
