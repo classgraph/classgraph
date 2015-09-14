@@ -186,8 +186,8 @@ public class ClasspathFinder {
     }
 
     /**
-     * Get a list of unique elements on the classpath (directories and files) as File objects, preserving order.
-     * Classpath elements that do not exist are not included in the list.
+     * Returns the list of all unique File objects representing directories or zip/jarfiles on the classpath, in
+     * classloader resolution order. Classpath elements that do not exist are not included in the list.
      */
     public ArrayList<File> getUniqueClasspathElements() {
         if (!initialized) {

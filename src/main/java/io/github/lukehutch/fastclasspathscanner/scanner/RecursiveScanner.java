@@ -157,6 +157,14 @@ public class RecursiveScanner {
         classpathFinder.overrideClasspath(classpath);
     }
 
+    /**
+     * Returns the list of all unique File objects representing directories or zip/jarfiles on the classpath, in
+     * classloader resolution order. Classpath elements that do not exist are not included in the list.
+     */
+    public ArrayList<File> getUniqueClasspathElements() {
+        return classpathFinder.getUniqueClasspathElements();
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**

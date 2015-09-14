@@ -41,6 +41,7 @@ import io.github.lukehutch.fastclasspathscanner.scanner.RecursiveScanner.FilePat
 import io.github.lukehutch.fastclasspathscanner.scanner.RecursiveScanner.FilePathTester;
 import io.github.lukehutch.fastclasspathscanner.utils.Log;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -926,6 +927,16 @@ public class FastClasspathScanner {
         return recursiveScanner.getScanResults().getNamesOfAllClasses();
     }
 
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Returns the list of all unique File objects representing directories or zip/jarfiles on the classpath, in
+     * classloader resolution order. Classpath elements that do not exist are not included in the list.
+     */
+    public ArrayList<File> getUniqueClasspathElements() {
+        return recursiveScanner.getUniqueClasspathElements();
+    }
+    
     // -------------------------------------------------------------------------------------------------------------
 
     /**
