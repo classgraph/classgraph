@@ -223,9 +223,7 @@ public class RecursiveScanner {
                             : zipFileLastModified;
                     lastModified = Math.max(lastModified, entryTime);
                     if (entryTime > System.currentTimeMillis() && !timestampWarning) {
-                        final String msg = zipfilePath + " contains modification timestamps after the current time";
-                        // Log.warning(msg);
-                        System.err.println(msg);
+                        Log.log(zipfilePath + " contains modification timestamps after the current time");
                         // Only warn once
                         timestampWarning = true;
                     }
