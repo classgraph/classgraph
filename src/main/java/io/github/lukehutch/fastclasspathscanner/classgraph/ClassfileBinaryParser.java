@@ -175,8 +175,8 @@ public class ClassfileBinaryParser {
 
             // Access flags
             final int flags = inp.readUnsignedShort();
-            boolean isInterface = (flags & 0x0200) != 0;
-            boolean isAnnotation = (flags & 0x2000) != 0;
+            final boolean isInterface = (flags & 0x0200) != 0;
+            final boolean isAnnotation = (flags & 0x2000) != 0;
 
             // The fully-qualified class name of this class, with slashes replaced with dots
             final String classNamePath = readRefdString(inp, constantPool);
@@ -335,8 +335,8 @@ public class ClassfileBinaryParser {
                 }
             }
             return classInfo;
-            
-        } catch (IOException e) {
+
+        } catch (final IOException e) {
             Log.log("IOException while attempting to load classfile " + relativePath + ": " + e.getMessage());
             return null;
         }

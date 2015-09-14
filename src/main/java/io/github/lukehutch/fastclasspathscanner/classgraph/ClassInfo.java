@@ -35,11 +35,12 @@ public class ClassInfo {
     public boolean isInterface;
     public boolean isAnnotation;
     public String superclassName;
-    
+
     public ArrayList<String> interfaceNames;
     public ArrayList<String> annotationNames;
 
-    public ClassInfo(final String className, boolean isInterface, boolean isAnnotation, String superclassName) {
+    public ClassInfo(final String className, final boolean isInterface, final boolean isAnnotation,
+            final String superclassName) {
         this.className = className;
         this.isInterface = isInterface;
         this.isAnnotation = isAnnotation;
