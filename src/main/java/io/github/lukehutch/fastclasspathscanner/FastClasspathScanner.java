@@ -424,13 +424,13 @@ public class FastClasspathScanner {
      * the scanner before the call to scan(). Does not call the classloader on the matching interfaces, just returns
      * their
      * 
-     * @param subInterfaceName
+     * @param subinterfaceName
      *            The name of the superinterface to match (i.e. the name of the interface that subinterfaces need to
      *            extend).
      * @return A list of the names of matching interfaces, or the empty list if none.
      */
-    public List<String> getNamesOfSuperinterfacesOf(final String subInterfaceName) {
-        return getScanResults().getNamesOfSuperinterfacesOf(subInterfaceName);
+    public List<String> getNamesOfSuperinterfacesOf(final String subinterfaceName) {
+        return getScanResults().getNamesOfSuperinterfacesOf(subinterfaceName);
     }
 
     // -------------------------------------------------------------------------------------------------------------

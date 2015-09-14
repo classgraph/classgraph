@@ -147,6 +147,8 @@ Note that if you don't specify any whitelisted package prefixes, i.e. `new FastC
 
 ## API calls for each use case
 
+Note that the `|` character is used to compactly describe overloaded methods below, e.g. `getNamesOfSuperclassesOf(Class<?> subclass | String subclassName)`. 
+
 ### 1. Matching the subclasses (or finding the superclasses) of a class
 
 FastClasspathScanner can find all classes on the classpath within whitelisted package prefixes that extend a given superclass.
@@ -170,13 +172,11 @@ public <T> FastClasspathScanner matchSubclassesOf(Class<T> superclass,
 
 // Mechanism 2: Call one of the following after calling .scan():
 
-public List<String> getNamesOfSubclassesOf(Class<?> superclass) 
+public List<String> getNamesOfSubclassesOf(
+    Class<?> superclass | String superclassName)
 
-public List<String> getNamesOfSubclassesOf(String superclassName)
-
-public List<String> getNamesOfSuperclassesOf(Class<?> subclass)
-
-public List<String> getNamesOfSuperclassesOf(String subclassName)
+public List<String> getNamesOfSuperclassesOf(
+    Class<?> subclass | String subclassName)
 ```
 
 ### 2. Matching the subinterfaces (or finding the superinterfaces) of an interface
@@ -202,13 +202,11 @@ public <T> FastClasspathScanner matchSubinterfacesOf(Class<T> superInterface,
 
 // Mechanism 2: Call one of the following after calling .scan():
 
-public List<String> getNamesOfSubinterfacesOf(Class<?> superInterface)
+public List<String> getNamesOfSubinterfacesOf(
+    Class<?> superinterface | String superinterfaceName)
 
-public List<String> getNamesOfSubinterfacesOf(String superInterfaceName)
-
-public List<String> getNamesOfSuperinterfacesOf(Class<?> subinterface)
-
-public List<String> getNamesOfSuperinterfacesOf(String subinterfaceName)
+public List<String> getNamesOfSuperinterfacesOf(
+    Class<?> subinterface | String subinterfaceName)
 ```
 
 ### 3. Matching the classes that implement an interface
@@ -236,16 +234,10 @@ public <T> FastClasspathScanner matchClassesImplementing(
 // Mechanism 2: Call one of the following after calling .scan():
 
 public List<String> getNamesOfClassesImplementing(
-    Class<?> implementedInterface)
-
-public List<String> getNamesOfClassesImplementing(
-    String implementedInterfaceName)
+    Class<?> implementedInterface | String implementedInterfaceName)
 
 public List<String> getNamesOfClassesImplementingAllOf(
-    final Class<?>... implementedInterfaces)
-
-public List<String> getNamesOfClassesImplementingAllOf(
-    final String... implementedInterfaceNames)
+    Class<?>... implementedInterfaces | String... implementedInterfaceNames)
 ```
 
 ### 4. Matching classes with a specific annotation or meta-annotation
@@ -280,46 +272,28 @@ public FastClasspathScanner matchClassesWithAnnotation(
 // or meta-annotation(s)
 
 public List<String> getNamesOfClassesWithAnnotation(
-    Class<?> annotation)
-
-public List<String> getNamesOfClassesWithAnnotation(
-    String annotationName)
+    Class<?> annotation | String annotationName)
 
 public List<String> getNamesOfClassesWithAnnotationsAllOf(
-    final Class<?>... annotations)
-
-public List<String> getNamesOfClassesWithAnnotationsAllOf(
-    final String... annotationNames)
+    Class<?>... annotations | String... annotationNames)
 
 public List<String> getNamesOfClassesWithAnnotationsAnyOf(
-    final Class<?>... annotations)
-
-public List<String> getNamesOfClassesWithAnnotationsAnyOf(
-    final String... annotationNames)
+    Class<?>... annotations | String... annotationNames)
 
 // (b) Get names of annotations that have the specified meta-annotation
 
 public List<String> getNamesOfAnnotationsWithMetaAnnotation(
-    final Class<?> metaAnnotation)
-
-public List<String> getNamesOfAnnotationsWithMetaAnnotation(
-    final String metaAnnotationName)
+    Class<?> metaAnnotation | String metaAnnotationName)
 
 // (c) Get the annotations and meta-annotations on a class or interface,
 // or the meta-annotations on an annotation. This is more powerful than
 // Class.getAnnotations(), because it also returns meta-annotations.
 
 public List<String> getNamesOfAnnotationsOnClass(
-    Class<?> classOrInterface)
-
-public List<String> getNamesOfAnnotationsOnClass(
-    String classOrInterfaceName)
+    Class<?> classOrInterface | String classOrInterfaceName)
 
 public List<String> getNamesOfMetaAnnotationsOnAnnotation(
-    Class<?> annotation)
-
-public List<String> getNamesOfMetaAnnotationsOnAnnotation(
-    String annotationName)
+    Class<?> annotation | String annotationName)
 ```
 
 ### 5. Fetching the constant initializer values of static final fields
@@ -342,16 +316,10 @@ public interface StaticFinalFieldMatchProcessor {
 }
 
 public FastClasspathScanner matchStaticFinalFieldNames(
-    HashSet<String> fullyQualifiedStaticFinalFieldNames,
+    HashSet<String> fullyQualifiedStaticFinalFieldNames
+        | String fullyQualifiedStaticFinalFieldName
+        | String[] fullyQualifiedStaticFinalFieldNames,
     StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor)
-
-public FastClasspathScanner matchStaticFinalFieldNames(
-    final String fullyQualifiedStaticFinalFieldName,
-    final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor)
-
-public FastClasspathScanner matchStaticFinalFieldNames(
-    final String[] fullyQualifiedStaticFinalFieldNames,
-    final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor)
 ```
 
 *Note:* Only static final fields with constant-valued literals are matched, not fields with initializer values that are the result of an expression or reference, except for cases where the compiler is able to simplify an expression into a single constant at compiletime, [such as in the case of string concatenation](https://docs.oracle.com/javase/specs/jvms/se7/html/jvms-5.html#jvms-5.1). The following are examples of constant static final fields:
@@ -405,27 +373,23 @@ public interface FileMatchContentsProcessor {
 
 // Match a pattern, such as "^com/pkg/.*\\.html$"
 public FastClasspathScanner matchFilenamePattern(String pathRegexp,
-        FileMatchProcessor fileMatchProcessor)
-public FastClasspathScanner matchFilenamePattern(String pathRegexp,
-        FileMatchContentsProcessor fileMatchContentsProcessor)
+        FileMatchProcessor fileMatchProcessor
+            | FileMatchContentsProcessor fileMatchContentsProcessor)
         
 // Match a (non-regexp) relative path, such as "com/pkg/WidgetTemplate.html"
 public FastClasspathScanner matchFilenamePath(String relativePathToMatch,
-        FileMatchProcessor fileMatchProcessor)
-public FastClasspathScanner matchFilenamePath(String relativePathToMatch,
-        FileMatchContentsProcessor fileMatchContentsProcessor)
+        FileMatchProcessor fileMatchProcessor
+            | FileMatchContentsProcessor fileMatchContentsProcessor)
         
 // Match a leafname, such as "WidgetTemplate.html"
 public FastClasspathScanner matchFilenameLeaf(String leafToMatch,
-        FileMatchProcessor fileMatchProcessor)
-public FastClasspathScanner matchFilenameLeaf(String leafToMatch,
-        FileMatchContentsProcessor fileMatchContentsProcessor)
+        FileMatchProcessor fileMatchProcessor
+            | FileMatchContentsProcessor fileMatchContentsProcessor)
         
 // Match a file extension, e.g. "html" matches "WidgetTemplate.html"
 public FastClasspathScanner matchFilenameExtension(String extensionToMatch,
-        FileMatchProcessor fileMatchProcessor)
-public FastClasspathScanner matchFilenameExtension(String extensionToMatch,
-        FileMatchContentsProcessor fileMatchContentsProcessor)
+        FileMatchProcessor fileMatchProcessor
+            | FileMatchContentsProcessor fileMatchContentsProcessor)
 ```
 
 ### 7. Performing the actual scan
@@ -545,8 +509,7 @@ Note that `SubclassMatchProcessor<Widget<?>>` can now be properly parameterized 
 public static void main(String[] args) {
     // Declare the type as a variable so you can suppress the warning
     @SuppressWarnings("unchecked")
-    Class<? extends Widget<?>> widgetClassRef =
-        (Class<? extends Widget<?>>) Widget.class;
+    Class<? extends Widget<?>> widgetClassRef = (Class<? extends Widget<?>>) Widget.class;
     new FastClasspathScanner("com.xyz.widget").matchSubclassesOf(
                 widgetClassRef, new SubclassMatchProcessor<Widget<?>>() {
             @Override
@@ -563,9 +526,7 @@ public static void main(String[] args) {
 ```java
 public static void main(String[] args) {
     @SuppressWarnings("unchecked")
-    Class<Widget<?>> widgetClass =
-        (Class<Widget<?>>) new Widget<Object>().getClass();
-        
+    Class<Widget<?>> widgetClass = (Class<Widget<?>>) new Widget<Object>().getClass();
     new FastClasspathScanner("com.xyz.widget") //
         .matchSubclassesOf(widgetClass, new SubclassMatchProcessor<Widget<?>>() {
             @Override
@@ -585,7 +546,6 @@ public static void main(String[] args) {
     Class<Widget<?>> widgetClass =
             (Class<Widget<?>>) ((ParameterizedType) WidgetSubclass.class
                 .getGenericSuperclass()).getRawType();
-    
     new FastClasspathScanner("com.xyz.widget") //
         .matchSubclassesOf(widgetClass, new SubclassMatchProcessor<Widget<?>>() {
             @Override
