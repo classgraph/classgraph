@@ -31,7 +31,7 @@ There are two different mechanisms for using FastClasspathScanner. (The two mech
 ```java
 // Package prefixes to scan are listed in the constructor.
 // (See note below on whitelisting/blacklisting packages and/or jars)
-new FastClasspathScanner("com.xyz.widget", "com.xyz.gizmo")  
+new FastClasspathScanner("com.xyz.widget", "-com.xyz.widget.internal")  
     .matchSubclassesOf(Widget.class,
         // c is a subclass of Widget or a descendant subclass.
         // This lambda expression is of type SubclassMatchProcessor.
@@ -94,7 +94,7 @@ List<String> subclassesOfWidget = new FastClasspathScanner("com.xyz.widget")
 
 Note that Mechanism 2 only works with class and interface matches; there are no corresponding `.getNamesOf...()` methods for filename pattern or static field matches, since these methods are only looking at the DAG of whitelisted classes and interfaces encountered during the scan.
 
-**Whitelisting/blacklisting of packages/jarfiles:** To reduce needless scanning, the constructor FastClasspathScanner() takes a specification of whitelisted packages/jars to scan as well as blacklisted packages/jars not to scan, where blacklisted entries are prefixed with the '-' character. For example:
+**Whitelisting/blacklisting of packages/jarfiles:** To reduce needless scanning, the constructor `FastClasspathScanner()` takes a list of whitelisted package prefixes / jar names to scan, as well as blacklisted packages/jars not to scan, where blacklisted entries are prefixed with the `'-'` character. For example:
 * `["com.x"]` scans the package `com.x` and its sub-packages in all directories and jars on the classpath.
 * `["com.x", "-com.x.y"]` scans `com.x` and all sub-packages except `com.x.y` in all directories and jars on the classpath.
 * `["com.x", "-com.x.y", "jar:deploy.jar"]` scans `com.x` and all sub-packages except `com.x.y`, but only looks in jars named `deploy.jar` on the classpath (i.e. whitelisting a jar entry prevents non-jar entries from being searched). Note that only the leafname of a jarfile can be specified.
