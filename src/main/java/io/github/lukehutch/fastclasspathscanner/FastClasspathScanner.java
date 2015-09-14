@@ -38,6 +38,7 @@ import io.github.lukehutch.fastclasspathscanner.matchprocessor.InterfaceMatchPro
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.StaticFinalFieldMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubclassMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubinterfaceMatchProcessor;
+import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
 import io.github.lukehutch.fastclasspathscanner.scanner.RecursiveScanner;
 import io.github.lukehutch.fastclasspathscanner.scanner.RecursiveScanner.FilePathMatcher;
 import io.github.lukehutch.fastclasspathscanner.scanner.RecursiveScanner.FilePathTester;
@@ -61,6 +62,9 @@ import java.util.regex.Pattern;
  * documentation.
  */
 public class FastClasspathScanner {
+    /** The classpath finder. */
+    private final ClasspathFinder classpathFinder = new ClasspathFinder();
+
     /** The class that recursively scans the classpath. */
     private final RecursiveScanner recursiveScanner;
 
@@ -106,7 +110,7 @@ public class FastClasspathScanner {
      *            of blacklisted packages.
      */
     public FastClasspathScanner(final String... packagesToScan) {
-        this.recursiveScanner = new RecursiveScanner(packagesToScan);
+        this.recursiveScanner = new RecursiveScanner(classpathFinder, packagesToScan);
 
         // Read classfile headers for all filenames ending in ".class" on classpath
         this.matchFilenameExtension("class", new FileMatchProcessor() {
@@ -139,7 +143,7 @@ public class FastClasspathScanner {
 
     /** Override the automatically-detected classpath with a custom search path. */
     public FastClasspathScanner overrideClasspath(final String classpath) {
-        recursiveScanner.overrideClasspath(classpath);
+        classpathFinder.overrideClasspath(classpath);
         return this;
     }
 
@@ -995,7 +999,7 @@ public class FastClasspathScanner {
      * classloader resolution order. Classpath elements that do not exist are not included in the list.
      */
     public ArrayList<File> getUniqueClasspathElements() {
-        return recursiveScanner.getUniqueClasspathElements();
+        return classpathFinder.getUniqueClasspathElements();
     }
 
     // -------------------------------------------------------------------------------------------------------------

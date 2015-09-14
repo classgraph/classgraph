@@ -41,7 +41,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.jar.Manifest;
 
-class ClasspathFinder {
+public class ClasspathFinder {
     /** The unique elements of the classpath, as an ordered list. */
     private final ArrayList<File> classpathElements = new ArrayList<>();
 

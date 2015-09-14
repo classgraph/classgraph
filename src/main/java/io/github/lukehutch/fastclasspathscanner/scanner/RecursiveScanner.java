@@ -45,23 +45,19 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 public class RecursiveScanner {
-    /** The classpath finder. */
-    private final ClasspathFinder classpathFinder;
-
     /**
      * List of directory path prefixes to scan (produced from list of package prefixes passed into the constructor)
      */
     private final String[] whitelistedPaths, blacklistedPaths;
 
-    // -------------------------------------------------------------------------------------------------------------
-
+    /** The classpath finder. */
+    private final ClasspathFinder classpathFinder;
+    
     /**
      * A list of file path matchers to call when a directory or subdirectory on the classpath matches a given
      * regexp.
      */
     private final ArrayList<FilePathMatcher> filePathMatchers = new ArrayList<>();
-
-    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * The latest last-modified timestamp of any file, directory or sub-directory in the classpath, in millis since
@@ -69,8 +65,6 @@ public class RecursiveScanner {
      * itself is considered.
      */
     private long lastModified = 0;
-
-    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * If this is set to true, then the timestamps of zipfile entries should be used to determine when files inside
@@ -85,9 +79,8 @@ public class RecursiveScanner {
      * Recursive classpath scanner. Pass in a list of whitelisted packages to scan, and blacklisted packages to not
      * scan (blacklisted packages are prefixed with the '-' character).
      */
-    public RecursiveScanner(final String[] packagesToScan) {
-        this.classpathFinder = new ClasspathFinder();
-
+    public RecursiveScanner(ClasspathFinder classpathFinder, final String[] packagesToScan) {
+        this.classpathFinder = classpathFinder;
         final HashSet<String> uniqueWhitelistedPaths = new HashSet<>();
         final HashSet<String> uniqueBlacklistedPaths = new HashSet<>();
         for (final String packageToScan : packagesToScan) {
@@ -121,21 +114,6 @@ public class RecursiveScanner {
         for (final String path : uniqueBlacklistedPaths) {
             this.blacklistedPaths[i++] = path;
         }
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /** Override the automatically-detected classpath with a custom search path. */
-    public void overrideClasspath(final String classpath) {
-        classpathFinder.overrideClasspath(classpath);
-    }
-
-    /**
-     * Returns the list of all unique File objects representing directories or zip/jarfiles on the classpath, in
-     * classloader resolution order. Classpath elements that do not exist are not included in the list.
-     */
-    public ArrayList<File> getUniqueClasspathElements() {
-        return classpathFinder.getUniqueClasspathElements();
     }
 
     // -------------------------------------------------------------------------------------------------------------
