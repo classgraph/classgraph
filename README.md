@@ -509,7 +509,8 @@ Note that `SubclassMatchProcessor<Widget<?>>` can now be properly parameterized 
 public static void main(String[] args) {
     // Declare the type as a variable so you can suppress the warning
     @SuppressWarnings("unchecked")
-    Class<? extends Widget<?>> widgetClassRef = (Class<? extends Widget<?>>) Widget.class;
+    Class<? extends Widget<?>> widgetClassRef = 
+        (Class<? extends Widget<?>>) Widget.class;
     new FastClasspathScanner("com.xyz.widget").matchSubclassesOf(
                 widgetClassRef, new SubclassMatchProcessor<Widget<?>>() {
             @Override
@@ -526,7 +527,8 @@ public static void main(String[] args) {
 ```java
 public static void main(String[] args) {
     @SuppressWarnings("unchecked")
-    Class<Widget<?>> widgetClass = (Class<Widget<?>>) new Widget<Object>().getClass();
+    Class<Widget<?>> widgetClass = 
+        (Class<Widget<?>>) new Widget<Object>().getClass();
     new FastClasspathScanner("com.xyz.widget") //
         .matchSubclassesOf(widgetClass, new SubclassMatchProcessor<Widget<?>>() {
             @Override
