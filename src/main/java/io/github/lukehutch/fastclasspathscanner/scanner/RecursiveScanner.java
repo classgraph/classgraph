@@ -125,8 +125,9 @@ public class RecursiveScanner {
                 final String blacklistedPath = pathToScan.substring(1);
                 if (blacklistedPath.equals("/") || blacklistedPath.isEmpty()) {
                     Log.log("Ignoring blacklist of root package, it would prevent all scanning");
+                } else {
+                    uniqueBlacklistedPaths.add(blacklistedPath);
                 }
-                uniqueBlacklistedPaths.add(blacklistedPath);
             } else {
                 uniqueWhitelistedPaths.add(pathToScan);
             }
