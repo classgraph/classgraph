@@ -118,27 +118,25 @@ public class RecursiveScanner {
 
         final HashSet<String> uniqueWhitelistedPaths = new HashSet<>();
         final HashSet<String> uniqueBlacklistedPaths = new HashSet<>();
-        boolean scanAll = false;
-        if (packagesToScan.length == 0) {
-            scanAll = true;
-        } else {
-            for (final String packageToScan : packagesToScan) {
-                if (packageToScan.isEmpty()) {
-                    scanAll = true;
-                    break;
+        for (final String packageToScan : packagesToScan) {
+            final String pathToScan = packageToScan.replace('.', '/') + "/";
+            final boolean blacklisted = pathToScan.startsWith("-");
+            if (blacklisted) {
+                final String blacklistedPath = pathToScan.substring(1);
+                if (blacklistedPath.equals("/") || blacklistedPath.isEmpty()) {
+                    Log.log("Ignoring blacklist of root package, it would prevent all scanning");
                 }
-                String pkg = packageToScan.replace('.', '/') + "/";
-                final boolean blacklisted = pkg.startsWith("-");
-                if (blacklisted) {
-                    pkg = pkg.substring(1);
-                }
-                (blacklisted ? uniqueBlacklistedPaths : uniqueWhitelistedPaths).add(pkg);
+                uniqueBlacklistedPaths.add(blacklistedPath);
+            } else {
+                uniqueWhitelistedPaths.add(pathToScan);
             }
         }
         uniqueWhitelistedPaths.removeAll(uniqueBlacklistedPaths);
-        if (scanAll) {
+        if (uniqueWhitelistedPaths.isEmpty() || uniqueWhitelistedPaths.contains("/")) {
+            // Scan all packages
             this.whitelistedPaths = new String[] { "/" };
         } else {
+            // Scan whitelisted packages minus blacklisted sub-packages
             this.whitelistedPaths = new String[uniqueWhitelistedPaths.size()];
             int i = 0;
             for (final String path : uniqueWhitelistedPaths) {
