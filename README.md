@@ -95,12 +95,12 @@ List<String> subclassesOfWidget = new FastClasspathScanner("com.xyz.widget")
 Note that Mechanism 2 only works with class and interface matches; there are no corresponding `.getNamesOf...()` methods for filename pattern or static field matches, since these methods are only looking at the DAG of whitelisted classes and interfaces encountered during the scan.
 
 **Whitelisting/blacklisting of packages/jarfiles:** To reduce needless scanning, the constructor `FastClasspathScanner()` takes a list of whitelisted package prefixes / jar names to scan, as well as blacklisted packages/jars not to scan, where blacklisted entries are prefixed with the `'-'` character. For example:
-* `["com.x"]` scans the package `com.x` and its sub-packages in all directories and jars on the classpath.
-* `["com.x", "-com.x.y"]` scans `com.x` and all sub-packages except `com.x.y` in all directories and jars on the classpath.
+* `["com.x"]` scans the package `com.x` and its sub-packages in all jarfiles and all directory entries on the classpath.
+* `["com.x", "-com.x.y"]` scans `com.x` and all sub-packages *except* `com.x.y` in all jars and directories on the classpath.
 * `["com.x", "-com.x.y", "jar:deploy.jar"]` scans `com.x` and all sub-packages except `com.x.y`, but only looks in jars named `deploy.jar` on the classpath (i.e. whitelisting a jar entry prevents non-jar entries from being searched). Note that only the leafname of a jarfile can be specified.
-* `["com.x", "-jar:irrelevant.jar"]` scans `com.x` and all sub-packages in all directories and jars on the classpath except `irrelevant.jar` (i.e. blacklisting a jarfile doesn't prevent directories from being scanned the way that whitelisting a jarfile does).
-* `["com.x", "jar:"]` scans `com.x` and all sub-packages, but only looks in jarfiles on the classpath, doesn't scan directories (i.e. all jars are whitelisted, and whitelisting jarfiles prevents non-jars (directories) from being scanned).
-* `["com.x", "-jar:"]` scans `com.x` and all sub-packages, but only looks in directories on the classpath, doesn't scan jarfiles (i.e. all jars are blacklisted.)
+* `["com.x", "-jar:irrelevant.jar"]` scans `com.x` and all sub-packages in jars *and in directories* on the classpath except `irrelevant.jar` (i.e. blacklisting a jarfile doesn't prevent directories from being scanned the way that whitelisting a jarfile does).
+* `["com.x", "jar:"]` scans `com.x` and all sub-packages, but only looks in jarfiles on the classpath, it doesn't scan directories (i.e. `"jar:"` is a wildcard to indicate that all jars are whitelisted, and as in the example above, whitelisting jarfiles prevents non-jars (directories) from being scanned).
+* `["com.x", "-jar:"]` scans `com.x` and all sub-packages, but only looks in directories on the classpath, jarfiles won't be scanned (i.e. `"-jar:"` is a wildcard to indicate that all jars are blacklisted.)
 
 ### Tips
 
