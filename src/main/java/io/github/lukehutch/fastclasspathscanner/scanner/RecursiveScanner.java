@@ -84,7 +84,7 @@ public class RecursiveScanner {
      * than once (i.e. if the same class is defined in multiple classpath elements), the second and subsequent class
      * definitions are ignored, because they are masked by the earlier definition.
      */
-    private ConcurrentHashMap<String, ClassInfo> classNameToClassInfo = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<String, ClassInfo> relativePathToClassInfo = new ConcurrentHashMap<>();
 
     /** The class and interface graph builder. */
     private ClassGraphBuilder classGraphBuilder;
@@ -176,20 +176,12 @@ public class RecursiveScanner {
     public void processClass(String relativePath, InputStream inputStream) {
         // Make sure this was the first occurrence of the given relativePath on the classpath,
         // to enable masking of classes
-        final ClassInfo newClassInfo = new ClassInfo(relativePath);
-        final ClassInfo oldClassInfo = classNameToClassInfo.put(newClassInfo.className, newClassInfo);
-        if (oldClassInfo == null) {
-            // This is the first time we have encountered this class on the classpath
-            try {
-                ClassfileBinaryParser.readClassInfoFromClassfileHeader(relativePath, inputStream, newClassInfo,
-                        classNameToStaticFieldnameToMatchProcessor);
-            } catch (IOException e) {
-                if (FastClasspathScanner.verbose) {
-                    Log.log("Exception while attempting to load classfile " + relativePath + ": " + e.getMessage());
-                }
-                // Remove ClassInfo, classfile was bad so it's probably not completely initialized
-                classNameToClassInfo.remove(newClassInfo.className);
-            }
+        if (!relativePathToClassInfo.containsKey(relativePath)) {
+            // This is the first time we have encountered this relative path (and therefore this class)
+            // on the classpath
+            relativePathToClassInfo.put(relativePath, //
+                    ClassfileBinaryParser.readClassInfoFromClassfileHeader(relativePath, inputStream,
+                            classNameToStaticFieldnameToMatchProcessor));
         } else {
             // The new class was masked by a class with the same name earlier in the classpath.
             if (FastClasspathScanner.verbose) {
@@ -472,14 +464,14 @@ public class RecursiveScanner {
      * This method should be called before any "get" methods (e.g. getSubclassesOf()).
      */
     public void scan() {
-        classNameToClassInfo.clear();
+        relativePathToClassInfo.clear();
 
         // Perform the scan -- will call FileMatchProcessors for each file with a matching path.
         // Also causes RecursiveScanner.processClass() to be called for all files ending in ".class".
         scan(/* scanTimestampsOnly = */false);
 
         // Build class graph structure
-        classGraphBuilder = new ClassGraphBuilder(classNameToClassInfo.values());
+        classGraphBuilder = new ClassGraphBuilder(relativePathToClassInfo.values());
 
         // Look for class, interface and annotation matches using classGraphBuilder
         for (final ClassMatcher classMatcher : classMatchers) {

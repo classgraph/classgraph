@@ -32,15 +32,17 @@ import java.util.ArrayList;
 
 public class ClassInfo {
     public String className;
-    public String superclassName;
-    public ArrayList<String> interfaceNames;
-    public ArrayList<String> annotationNames;
     public boolean isInterface;
     public boolean isAnnotation;
+    public String superclassName;
+    
+    public ArrayList<String> interfaceNames;
+    public ArrayList<String> annotationNames;
 
-    public ClassInfo(final String relativePath) {
-        this.className = relativePath //
-                .substring(0, relativePath.length() - 6 /* (strip off ".class") */) //
-                .replace('/', '.');
+    public ClassInfo(final String className, boolean isInterface, boolean isAnnotation, String superclassName) {
+        this.className = className;
+        this.isInterface = isInterface;
+        this.isAnnotation = isAnnotation;
+        this.superclassName = superclassName;
     }
 }
