@@ -1023,13 +1023,15 @@ public class FastClasspathScanner {
 
         relativePathToClassInfo.clear();
 
-        // Scan classpath, calling file and class matchers if any matches are found
+        // Scan classpath, calling FilePathMatchers if any matching paths are found, including the matcher
+        // that calls the classfile binary parser when the extension ".class" is found on a filename,
+        // producing a ClassInfo object for each encountered class.
         recursiveScanner.scan();
 
-        // Build class graph structure
+        // Build class, interface and annotation graph out of all the ClassInfo objects.
         classGraphBuilder = new ClassGraphBuilder(relativePathToClassInfo.values());
 
-        // Look for class, interface and annotation matches using classGraphBuilder
+        // Call any class, interface and annotation MatchProcessors
         for (final ClassMatcher classMatcher : classMatchers) {
             classMatcher.lookForMatches();
         }
