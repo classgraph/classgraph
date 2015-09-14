@@ -101,16 +101,36 @@ public class FastClasspathScanner {
     /**
      * Constructs a FastClasspathScanner instance.
      * 
-     * @param packagesToScan
-     *            the whitelist of package prefixes to scan, e.g. "com.xyz.widget", "com.xyz.gizmo". If no
-     *            whitelisted packages are given (i.e. if the constructor is called with zero arguments), or a
-     *            whitelisted package is "", then all packages on the classpath are whitelisted. If a package name
-     *            is prefixed with "-", e.g. "-com.xyz.otherthing", then that package is blacklisted, rather than
-     *            whitelisted. The final list of packages scanned is the set of whitelisted packages minus the set
-     *            of blacklisted packages.
+     * @param scanSpec
+     *            a specification of whitelisted packages/jars to scan and blacklisted packages/jars not to scan,
+     *            where blacklisted entries are prefixed with the '-' character.
+     * 
+     *            Examples of values for scanSpecs:
+     * 
+     *            ["com.x"] => scans the package "com.x" and its sub-packages in all directories and jars on the
+     *            classpath.
+     * 
+     *            ["com.x", "-com.x.y"] => scans "com.x" and all sub-packages except "com.x.y" in all directories
+     *            and jars on the classpath.
+     * 
+     *            ["com.x", "-com.x.y", "jar:deploy.jar"] => scans "com.x" and all sub-packages except "com.x.y",
+     *            but only looks in jars named "deploy.jar" on the classpath (i.e. whitelisting a "jar:" entry
+     *            prevents non-jar entries from being searched). Note that only the leafname of a jarfile can be
+     *            specified.
+     * 
+     *            ["com.x", "-jar:irrelevant.jar"] => scans "com.x" and all sub-packages in all directories and jars
+     *            on the classpath *except* "irrelevant.jar" (i.e. blacklisting a jarfile doesn't prevent
+     *            directories from being scanned the way that whitelisting a jarfile does).
+     * 
+     *            ["com.x", "jar:"] => scans "com.x" and all sub-packages, but only looks in jarfiles on the
+     *            classpath, doesn't scan directories (i.e. all jars are whitelisted, and whitelisting jarfiles
+     *            prevents non-jars (directories) from being scanned).
+     * 
+     *            ["com.x", "-jar:"] => scans "com.x" and all sub-packages, but only looks in directories on the
+     *            classpath, doesn't scan jarfiles (i.e. all jars are blacklisted.)
      */
-    public FastClasspathScanner(final String... packagesToScan) {
-        this.recursiveScanner = new RecursiveScanner(classpathFinder, packagesToScan);
+    public FastClasspathScanner(final String... scanSpec) {
+        this.recursiveScanner = new RecursiveScanner(classpathFinder, scanSpec);
 
         // Read classfile headers for all filenames ending in ".class" on classpath
         this.matchFilenameExtension("class", new FileMatchProcessor() {

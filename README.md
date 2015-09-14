@@ -29,8 +29,8 @@ There are two different mechanisms for using FastClasspathScanner. (The two mech
 **Mechanism 1:** Create a FastClasspathScanner instance, listing package prefixes to scan within, then add one or more [`MatchProcessor`](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) instances to the FastClasspathScanner by calling the FastClasspathScanner's `.match...()` methods, followed by calling `.scan()` to start the scan. This is the pattern shown in the following example: (Note: Java 8 lambda expressions are used below to implicitly create the appropriate type of MatchProcessor corresponding to each `.match...()` method, but see [Tips](#tips) below for the Java 7 equivalent of Mechanism 1; in particular, you might want to use the Java 7 syntax to avoid the 30-40ms startup cost incurred by the first encountered usage of lambda expressions in Java 8.)
  
 ```java
-// Whitelisted package prefixes are listed in the constructor
-// (can also blacklist packages by prefixing with "-")
+// Package prefixes to scan are listed in the constructor.
+// (See note below on whitelisting/blacklisting packages and/or jars)
 new FastClasspathScanner("com.xyz.widget", "com.xyz.gizmo")  
     .matchSubclassesOf(Widget.class,
         // c is a subclass of Widget or a descendant subclass.
@@ -93,6 +93,14 @@ List<String> subclassesOfWidget = new FastClasspathScanner("com.xyz.widget")
 ```
 
 Note that Mechanism 2 only works with class and interface matches; there are no corresponding `.getNamesOf...()` methods for filename pattern or static field matches, since these methods are only looking at the DAG of whitelisted classes and interfaces encountered during the scan.
+
+**Whitelisting/blacklisting of packages/jarfiles:** To reduce needless scanning, the constructor FastClasspathScanner() takes a specification of whitelisted packages/jars to scan as well as blacklisted packages/jars not to scan, where blacklisted entries are prefixed with the '-' character. For example:
+* `["com.x"]` scans the package `com.x` and its sub-packages in all directories and jars on the classpath.
+* `["com.x", "-com.x.y"]` scans `com.x` and all sub-packages except `com.x.y` in all directories and jars on the classpath.
+* `["com.x", "-com.x.y", "jar:deploy.jar"]` scans `com.x` and all sub-packages except `com.x.y`, but only looks in jars named `deploy.jar` on the classpath (i.e. whitelisting a jar entry prevents non-jar entries from being searched). Note that only the leafname of a jarfile can be specified.
+* `["com.x", "-jar:irrelevant.jar"]` scans `com.x` and all sub-packages in all directories and jars on the classpath except `irrelevant.jar` (i.e. blacklisting a jarfile doesn't prevent directories from being scanned the way that whitelisting a jarfile does).
+* `["com.x", "jar:"]` scans `com.x` and all sub-packages, but only looks in jarfiles on the classpath, doesn't scan directories (i.e. all jars are whitelisted, and whitelisting jarfiles prevents non-jars (directories) from being scanned).
+* `["com.x", "-jar:"]` scans `com.x` and all sub-packages, but only looks in directories on the classpath, doesn't scan jarfiles (i.e. all jars are blacklisted.)
 
 ### Tips
 
