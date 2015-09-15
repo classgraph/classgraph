@@ -126,24 +126,24 @@ Note that the `|` character is used below to compactly describe overloaded metho
 
 ## Constructor
 
-You can pass a scanning specification to the constructor of `FastClasspathScanner` to describe what should be scanned. This prevents irrelevant classpath entries from being unecessarily scanned, which can be time-consuming.
+You can pass a scanning specification to the constructor of `FastClasspathScanner` to describe what should be scanned. This prevents irrelevant classpath entries from being unecessarily scanned, which can be time-consuming. (Note that calling the constructor does not start the scan, you must separately call `.scan()` to perform the actual scan.)
 
-The constructor `FastClasspathScanner()` takes a list of whitelisted package prefixes / jar names to scan, as well as blacklisted packages/jars not to scan, where blacklisted entries are prefixed with the `'-'` character. For example:
-* `["com.x"]` scans the package `com.x` and its sub-packages in all jarfiles and all directory entries on the classpath.
-* `["com.x", "-com.x.y"]` scans `com.x` and all sub-packages *except* `com.x.y` in all jars and directories on the classpath.
-* `["com.x", "-com.x.y", "jar:deploy.jar"]` scans `com.x` and all sub-packages except `com.x.y`, but only looks in jars named `deploy.jar` on the classpath (i.e. whitelisting a jar entry prevents non-jar entries from being searched). Note that only the leafname of a jarfile can be specified.
-* `["com.x", "-jar:irrelevant.jar"]` scans `com.x` and all sub-packages in jars *and in directories* on the classpath except `irrelevant.jar` (i.e. blacklisting a jarfile doesn't prevent directories from being scanned the way that whitelisting a jarfile does).
-* `["com.x", "jar:"]` scans `com.x` and all sub-packages, but only looks in jarfiles on the classpath, this will prevent non-jar entries (directories and non-jar files) on the classpath from being scanned (i.e. `"jar:"` is a wildcard to indicate that all jars are whitelisted, and as in the example above, whitelisting jarfiles prevents non-jars from being scanned).
-* `["com.x", "-jar:"]` scans `com.x` and all sub-packages, but only looks in directories on the classpath, jarfiles won't be scanned (i.e. `"-jar:"` is a wildcard to indicate that all jars are blacklisted.)
-* `[]`: If you don't specify any whitelisted package prefixes, i.e. you call `new FastClasspathScanner()`, all packages and all jarfiles on the classpath will be scanned.
+The constructor accepts a list of whitelisted package prefixes / jar names to scan, as well as blacklisted packages/jars not to scan, where blacklisted entries are prefixed with the `'-'` character. For example:
+* `new FastClasspathScanner("com.x")` limits scanning to the package `com.x` and its sub-packages in all jarfiles and all directory entries on the classpath.
+* `new FastClasspathScanner("com.x", "-com.x.y")` limits scanning to `com.x` and all sub-packages *except* `com.x.y` in all jars and directories on the classpath.
+* `new FastClasspathScanner("com.x", "-com.x.y", "jar:deploy.jar")` limits scanning to `com.x` and all its sub-packages except `com.x.y`, but only looks in jars named `deploy.jar` on the classpath. Note:
+  1. Whitelisting one or more jar entries prevents non-jar entries (directories) on the classpath from being scanned.
+  2. Only the leafname of a jarfile can be specified in a `jar:` or `-jar:` entry, so if there is a chance of conflict, make sure the jarfile's leaf name is unique.
+* `new FastClasspathScanner("com.x", "-jar:irrelevant.jar")` limits scanning to `com.x` and all sub-packages in all directories on the classpath, and in all jars except `irrelevant.jar`. (i.e. blacklisting a jarfile only excludes the specified jarfile, it doesn't prevent all directories from being scanned, as with whitelisting a jarfile.)
+* `new FastClasspathScanner("com.x", "jar:")` limits scanning to `com.x` and all sub-packages, but only looks in jarfiles on the classpath -- directories are not scanned. (i.e. `"jar:"` is a wildcard to indicate that all jars are whitelisted, and as in the example above, whitelisting jarfiles prevents non-jars (directories) from being scanned.)
+* `new FastClasspathScanner("com.x", "-jar:")` limits scanning to `com.x` and all sub-packages, but only looks in directories on the classpath -- jarfiles are not scanned. (i.e. `"-jar:"` is a wildcard to indicate that all jars are blacklisted.)
+* `new FastClasspathScanner()`: If you don't specify any whitelisted package prefixes, all jarfiles and all directories on the classpath will be scanned.
 * N.B. System, bootstrap and extension jarfiles (i.e. the JRE jarfiles) are never scanned.
 
 ```java
 // Constructor for FastClasspathScanner
 public FastClasspathScanner(String... scanSpec)
 ```
-
-**Note:** Calling the constructor does not start the scan, you must separately call `.scan()` to perform the actual scan.
 
 ### 1. Matching the subclasses (or finding the superclasses) of a class
 
