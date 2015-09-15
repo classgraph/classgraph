@@ -223,6 +223,18 @@ public class ClasspathFinder {
                         classLoaders.add(cl);
                     }
                 }
+
+                // Simpler version of this block that does not look up parent classloaders (in most runtime
+                // environments, the only parent classloader will be the one that loads the Java extension
+                // classes, and those are not scanned anyway), see:
+                // https://docs.oracle.com/javase/8/docs/technotes/tools/findingclasses.html
+
+                //    // Add the classloader from the calling class
+                //    final StackTraceElement caller = stacktrace[2];
+                //    final ClassLoader cl = caller.getClass().getClassLoader();
+                //    if (classLoadersSet.add(cl)) {
+                //        classLoaders.add(cl);
+                //    }
             }
         }
         if (classLoadersSet.add(Thread.currentThread().getContextClassLoader())) {
