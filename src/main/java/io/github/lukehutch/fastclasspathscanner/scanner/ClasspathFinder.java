@@ -48,6 +48,9 @@ public class ClasspathFinder {
     /** The unique elements of the classpath, as a set. */
     private final HashSet<String> classpathElementsSet = new HashSet<>();
 
+    /** The set of JRE paths found so far in the classpath, cached for speed. */
+    private final HashSet<String> knownJREPaths = new HashSet<>();
+
     private boolean initialized = false;
 
     /** Clear the classpath. */
@@ -71,36 +74,50 @@ public class ClasspathFinder {
                 }
                 if (classpathElementsSet.add(canonicalPath)) {
                     // This is the first time this classpath element has been encountered
-                    if (FastClasspathScanner.verbose) {
-                        Log.log("Found classpath element: " + pathElement);
-                    }
-                    classpathElements.add(pathElementFile);
+                    boolean isValidClasspathElement = true;
 
                     // If this classpath element is a jar or zipfile, look for Class-Path entries in the manifest
                     // file. OpenJDK scans manifest-defined classpath elements after the jar that listed them, so
                     // we recursively call addClasspathElement if needed each time a jar is encountered. 
                     if (pathElementFile.isFile() && Utils.isJar(pathElement)) {
-                        final String manifestUrlStr = "jar:file:" + pathElement + "!/META-INF/MANIFEST.MF";
-                        try (InputStream stream = new URL(manifestUrlStr).openStream()) {
-                            // Look for Class-Path keys within manifest files
-                            final Manifest manifest = new Manifest(stream);
-                            final String manifestClassPath = manifest.getMainAttributes().getValue("Class-Path");
-                            if (manifestClassPath != null && !manifestClassPath.isEmpty()) {
-                                if (FastClasspathScanner.verbose) {
-                                    Log.log("Found Class-Path entry in " + manifestUrlStr + ": "
-                                            + manifestClassPath);
-                                }
-                                // Class-Path elements are space-delimited
-                                for (final String manifestClassPathElement : manifestClassPath.split(" ")) {
-                                    // Resolve Class-Path elements relative to the parent jar's containing directory
-                                    final String manifestClassPathElementAbsolute = new File(
-                                            pathElementFile.getParent(), manifestClassPathElement).getPath();
-                                    addClasspathElement(manifestClassPathElementAbsolute);
-                                }
+                        // Don't scan system jars
+                        if (isJREJar(pathElementFile, /* ancestralScanDepth = */2)) {
+                            isValidClasspathElement = false;
+                            if (FastClasspathScanner.verbose) {
+                                Log.log("Skipping JRE jar: " + pathElement);
                             }
-                        } catch (final IOException e) {
-                            // Jar does not contain a manifest
+                        } else {
+                            final String manifestUrlStr = "jar:file:" + pathElement + "!/META-INF/MANIFEST.MF";
+                            try (InputStream stream = new URL(manifestUrlStr).openStream()) {
+                                // Look for Class-Path keys within manifest files
+                                final Manifest manifest = new Manifest(stream);
+                                final String manifestClassPath = manifest.getMainAttributes()
+                                        .getValue("Class-Path");
+                                if (manifestClassPath != null && !manifestClassPath.isEmpty()) {
+                                    if (FastClasspathScanner.verbose) {
+                                        Log.log("Found Class-Path entry in " + manifestUrlStr + ": "
+                                                + manifestClassPath);
+                                    }
+                                    // Class-Path elements are space-delimited
+                                    for (final String manifestClassPathElement : manifestClassPath.split(" ")) {
+                                        // Resolve Class-Path elements relative to the parent jar's
+                                        // containing directory
+                                        final String manifestClassPathElementAbsolute = new File(
+                                                pathElementFile.getParent(), manifestClassPathElement).getPath();
+                                        addClasspathElement(manifestClassPathElementAbsolute);
+                                    }
+                                }
+                            } catch (final IOException e) {
+                                // Jar does not contain a manifest
+                            }
                         }
+                    }
+
+                    if (isValidClasspathElement) {
+                        if (FastClasspathScanner.verbose) {
+                            Log.log("Found classpath element: " + pathElement);
+                        }
+                        classpathElements.add(pathElementFile);
                     }
                 }
             } else if (FastClasspathScanner.verbose) {
@@ -109,15 +126,48 @@ public class ClasspathFinder {
         }
     }
 
+    /**
+     * Recursively search within ancestral directories of a jarfile to see if rt.jar is present, in order to
+     * determine if the given jarfile is part of the JRE. This would typically be called with an initial
+     * ancestralScandepth of 2, since JRE jarfiles can be in the lib or lib/ext directories of the JRE.
+     */
+    private boolean isJREJar(File file, int ancestralScanDepth) {
+        if (ancestralScanDepth == 0) {
+            return false;
+        } else {
+            File parent = file.getParentFile();
+            if (parent == null) {
+                return false;
+            }
+            if (knownJREPaths.contains(parent.getPath())) {
+                return true;
+            }
+            File rt = new File(parent, "rt.jar");
+            if (rt.exists()) {
+                // Found rt.jar; check its manifest file to make sure it's the JRE's rt.jar and not something else 
+                final String manifestUrlStr = "jar:file:" + rt.getPath() + "!/META-INF/MANIFEST.MF";
+                try (InputStream stream = new URL(manifestUrlStr).openStream()) {
+                    // Look for Class-Path keys within manifest files
+                    final Manifest manifest = new Manifest(stream);
+                    if ("Java Runtime Environment".equals( //
+                            manifest.getMainAttributes().getValue("Implementation-Title"))
+                            || "Java Platform API Specification".equals( //
+                                    manifest.getMainAttributes().getValue("Specification-Title"))) {
+                        // Found the JRE's rt.jar
+                        knownJREPaths.add(parent.getPath());
+                        return true;
+                    }
+                } catch (final IOException e) {
+                    // Jar does not contain a manifest
+                }
+            }
+            return isJREJar(parent, ancestralScanDepth - 1);
+        }
+    }
+
     /** Parse the system classpath. */
     private void parseSystemClasspath() {
-        // Start with java.class.path (Maven sets this, but doesn't seem to add all classpath URLs to class loaders)
-        String sysClassPath = System.getProperty("java.class.path");
-        if (sysClassPath == null || sysClassPath.isEmpty()) {
-            // Should never need this, but just in case java.class.path is empty, use current dir
-            sysClassPath = ".";
-        }
-        overrideClasspath(sysClassPath);
+        clearClasspath();
 
         // Look for all unique classloaders.
         // Keep them in an order that (hopefully) reflects the order in which the JDK calls classloaders.
@@ -132,29 +182,30 @@ public class ClasspathFinder {
         } catch (final Exception e) {
             final StackTraceElement[] stacktrace = e.getStackTrace();
             if (stacktrace.length >= 3) {
-                // Add the classloader from the calling class
+                // Visit parent classloaders in top-down order, the same as in the JRE
+                ArrayList<ClassLoader> callerClassLoaders = new ArrayList<>();
                 final StackTraceElement caller = stacktrace[2];
-                final ClassLoader cl = caller.getClass().getClassLoader();
-                if (classLoadersSet.add(cl)) {
-                    classLoaders.add(cl);
+                for (ClassLoader cl = caller.getClass().getClassLoader(); cl != null; cl = cl.getParent()) {
+                    callerClassLoaders.add(cl);
+                }
+                // OpenJDK calls classloaders in a top-down order
+                for (int i = callerClassLoaders.size() - 1; i >= 0; --i) {
+                    ClassLoader cl = callerClassLoaders.get(i);
+                    if (classLoadersSet.add(cl)) {
+                        classLoaders.add(cl);
+                    }
                 }
 
-                // The following is for reference only: it adds the classloader for the Java extension classes
-                // (which is at caller.getClass().getClassLoader().getParent()). Under most circumstances,
-                // the user should not need to scan extension classes. See:
+                // Simplified version, which ignores parent classloaders, which (probably) are only used to
+                // load java extension classes (JRE classes are not scanned) -- see:
                 // https://docs.oracle.com/javase/8/docs/technotes/tools/findingclasses.html
-
-                //    ArrayList<ClassLoader> callerClassLoaders = new ArrayList<>();
-                //    for (ClassLoader cl = caller.getClass().getClassLoader(); cl != null; cl = cl.getParent()) {
-                //        callerClassLoaders.add(cl);
-                //    }
-                //    // OpenJDK calls classloaders in a top-down order
-                //    for (int i = callerClassLoaders.size() - 1; i >= 0; --i) {
-                //        ClassLoader cl = callerClassLoaders.get(i);
-                //        if (classLoadersSet.add(cl)) {
-                //            classLoaders.add(cl);
-                //        }
-                //    }
+                
+                //                // Add the classloader from the calling class
+                //                final StackTraceElement caller = stacktrace[2];
+                //                final ClassLoader cl = caller.getClass().getClassLoader();
+                //                if (classLoadersSet.add(cl)) {
+                //                    classLoaders.add(cl);
+                //                }
             }
         }
         if (classLoadersSet.add(Thread.currentThread().getContextClassLoader())) {
@@ -173,6 +224,15 @@ public class ClasspathFinder {
                 }
             }
         }
+        
+        // Add entries found in java.class.path
+        String classpathProperty = System.getProperty("java.class.path");
+        if (classpathProperty == null || classpathProperty.isEmpty()) {
+            for (final String pathElement : classpathProperty.split(File.pathSeparator)) {
+                addClasspathElement(pathElement);
+            }
+        }
+
         initialized = true;
     }
 
