@@ -221,6 +221,7 @@ public class RecursiveScanner {
     private void scanFile(final File file, final String relativePath, final boolean scanTimestampsOnly) {
         lastModified = Math.max(lastModified, file.lastModified());
         if (!scanTimestampsOnly) {
+            long startTime = System.currentTimeMillis();
             // Match file paths against path patterns
             boolean filePathMatches = false;
             for (final FilePathMatcher fileMatcher : filePathMatchers) {
@@ -237,7 +238,8 @@ public class RecursiveScanner {
                 }
             }
             if (FastClasspathScanner.verbose && filePathMatches) {
-                Log.log("Found file:    " + relativePath);
+                Log.log("Scanned file " + relativePath + " in " + (System.currentTimeMillis() - startTime)
+                        + " msec");
             }
         }
     }
@@ -249,9 +251,7 @@ public class RecursiveScanner {
      */
     private void scanZipfile(final String zipfilePath, final ZipFile zipFile, final long zipFileLastModified,
             final boolean scanTimestampsOnly) {
-        if (FastClasspathScanner.verbose) {
-            Log.log("Scanning jar:  " + zipfilePath);
-        }
+        long startTime = System.currentTimeMillis();
         boolean timestampWarning = false;
         for (final Enumeration<? extends ZipEntry> entries = zipFile.entries(); entries.hasMoreElements();) {
             // Scan for matching filenames
@@ -310,6 +310,9 @@ public class RecursiveScanner {
                     }
                 }
             }
+        }
+        if (FastClasspathScanner.verbose) {
+            Log.log("Scanned jar  " + zipfilePath + " in " + (System.currentTimeMillis() - startTime) + " msec");
         }
     }
 
