@@ -312,7 +312,7 @@ public class RecursiveScanner {
             }
         }
         if (FastClasspathScanner.verbose) {
-            Log.log("Scanned jar  " + zipfilePath + " in " + (System.currentTimeMillis() - startTime) + " msec");
+            Log.log("Scanned jar " + zipfilePath + " in " + (System.currentTimeMillis() - startTime) + " msec");
         }
     }
 
