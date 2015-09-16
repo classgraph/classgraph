@@ -37,7 +37,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Enumeration;
@@ -225,6 +224,9 @@ public class RecursiveScanner {
         try {
             return file.toPath().toRealPath().toFile();
         } catch (IOException | SecurityException e) {
+            if (FastClasspathScanner.verbose) {
+                Log.log("Could not access file " + file + ": " + e.getMessage());
+            }
             return null;
         }
     }
