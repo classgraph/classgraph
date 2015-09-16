@@ -125,7 +125,7 @@ public class ClasspathFinder {
                                 Log.log("Skipping JRE jar: " + pathStr);
                             }
                         } else {
-                            final String manifestUrlStr = "jar:file:" + pathStr + "!/META-INF/MANIFEST.MF";
+                            final String manifestUrlStr = "jar:" + pathFile.toURI() + "!/META-INF/MANIFEST.MF";
                             try (InputStream stream = new URL(manifestUrlStr).openStream()) {
                                 // Look for Class-Path keys within manifest files
                                 final Manifest manifest = new Manifest(stream);
@@ -185,7 +185,7 @@ public class ClasspathFinder {
             File rt = new File(parent, "rt.jar");
             if (rt.exists()) {
                 // Found rt.jar; check its manifest file to make sure it's the JRE's rt.jar and not something else 
-                final String manifestUrlStr = "jar:file:" + rt.getPath() + "!/META-INF/MANIFEST.MF";
+                final String manifestUrlStr = "jar:" + rt.toURI() + "!/META-INF/MANIFEST.MF";
                 try (InputStream stream = new URL(manifestUrlStr).openStream()) {
                     // Look for Class-Path keys within manifest files
                     final Manifest manifest = new Manifest(stream);
