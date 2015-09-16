@@ -37,6 +37,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Enumeration;
@@ -216,6 +217,21 @@ public class RecursiveScanner {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * If file is a symbolic link, resolve to its final target, else return a File pointing to the same object as
+     * the original File, except that the path is normalized. Returns null if an exception occurred while resolving
+     * links (e.g. broken link).
+     */
+    private File toRealPath(File file) {
+        try {
+            return file.toPath().toRealPath().toFile();
+        } catch (IOException | SecurityException e) {
+            return null;
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
      * Scan a file.
      */
     private void scanFile(final File file, final String relativePath, final boolean scanTimestampsOnly) {
@@ -365,14 +381,16 @@ public class RecursiveScanner {
             final File[] subFiles = dir.listFiles();
             if (subFiles != null) {
                 for (final File subFile : subFiles) {
-                    if (subFile.isDirectory()) {
-                        // Recurse into subdirectory
-                        scanDir(subFile, ignorePrefixLen, inWhitelistedPath, scanTimestampsOnly);
-                    } else if (inWhitelistedPath && subFile.isFile()) {
-                        // Scan file
-                        scanFile(subFile,
-                                relativePath.equals("/") ? subFile.getName() : relativePath + subFile.getName(),
-                                scanTimestampsOnly);
+                    File subFileReal = toRealPath(subFile);
+                    if (subFileReal != null) {
+                        if (subFileReal.isDirectory()) {
+                            // Recurse into subdirectory
+                            scanDir(subFileReal, ignorePrefixLen, inWhitelistedPath, scanTimestampsOnly);
+                        } else if (inWhitelistedPath && subFileReal.isFile()) {
+                            // Scan file
+                            scanFile(subFileReal, relativePath.equals("/") ? subFileReal.getName() : relativePath
+                                    + subFileReal.getName(), scanTimestampsOnly);
+                        }
                     }
                 }
             }
