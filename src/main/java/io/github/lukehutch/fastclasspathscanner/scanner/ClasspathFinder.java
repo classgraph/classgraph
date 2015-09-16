@@ -70,6 +70,13 @@ public class ClasspathFinder {
         if (pathElement.startsWith("jar:")) {
             pathElement = pathElement.substring(4);
         }
+        // We don't fetch remote classpath entries, although they are theoretically valid if using
+        // a URLClassLoader, such as used to resolve the Class-Path field in a jarfile's manifest file.
+        if (pathElement.startsWith("http://") || pathElement.startsWith("https://")) {
+            Log.log("Ignoring remote entry in classpath: " + pathElement);
+            // Return "", which is ignored as a classpath element
+            return "";
+        }
         // Deal with possibly broken mixes of file:// URLs and system-dependent path formats.
         // See: https://weblogs.java.net/blog/kohsuke/archive/2007/04/how_to_convert.html
         try {
@@ -88,9 +95,6 @@ public class ClasspathFinder {
     private void addClasspathElement(final String pathElement) {
         String path = urlToPath(pathElement);
         if (!path.isEmpty()) {
-            if (path.startsWith("http:") || path.startsWith("https:")) {
-                Log.log("Cannot scan remote entry in classpath: " + path);
-            }
             final File pathFile = new File(path);
             if (pathFile.exists()) {
                 // Canonicalize path so that we don't get stuck in a redirect loop due to softlinks
