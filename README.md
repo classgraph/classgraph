@@ -20,8 +20,6 @@ FastClasspathScanner is able to:
 
 FastClasspathScanner parses the classfile binary format directly, rather than by using reflection, which makes it particularly fast. (Reflection causes the classloader to load each class, which can take an order of magnitude more time than parsing the classfile directly, and can lead to unexpected behavior due to static initializer blocks of classes being called on class load.) FastClasspathScanner does not depend on any classfile/bytecode parsing or manipulation libraries like [Javassist](http://jboss-javassist.github.io/javassist/) or [ObjectWeb ASM](http://asm.ow2.org/), which makes it lightweight.
 
-[Classloading is a very complicated process.](https://docs.oracle.com/javase/8/docs/technotes/tools/findingclasses.html) FastClasspathScanner is able to transitively follow [Class-Path references](https://docs.oracle.com/javase/tutorial/deployment/jar/downman.html) in a jarfile's `META-INF/MANIFEST.MF` -- these are not added to the [system property](https://docs.oracle.com/javase/tutorial/essential/environment/sysprop.html) `java.class.path`, but FastClasspathScanner is able to figure out the actual classpath in use by the classloader(s) anyway.
-
 ### Usage
 
 There are two different mechanisms for using FastClasspathScanner. (The two mechanisms can be used together.)
@@ -29,8 +27,8 @@ There are two different mechanisms for using FastClasspathScanner. (The two mech
 **Mechanism 1:** Create a FastClasspathScanner instance, listing package prefixes to scan within, then add one or more [`MatchProcessor`](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) instances to the FastClasspathScanner by calling the FastClasspathScanner's `.match...()` methods, followed by calling `.scan()` to start the scan. This is the pattern shown in the following example: (Note: Java 8 lambda expressions are used below to implicitly create the appropriate type of MatchProcessor corresponding to each `.match...()` method, but see [Tips](#tips) below for the Java 7 equivalent of Mechanism 1; in particular, you might want to use the Java 7 syntax to avoid the 30-40ms startup cost incurred by the first encountered usage of lambda expressions in Java 8.)
  
 ```java
-// Package prefixes to scan are listed in the constructor.
-// (See note below on whitelisting/blacklisting packages and/or jars)
+// Package prefixes to scan are listed in the constructor. (See section
+// "Constructor" for info on whitelisting/blacklisting packages and/or jars)
 new FastClasspathScanner("com.xyz.widget", "-com.xyz.widget.internal")  
     .matchSubclassesOf(Widget.class,
         // c is a subclass of Widget or a descendant subclass.
@@ -94,14 +92,6 @@ List<String> subclassesOfWidget = new FastClasspathScanner("com.xyz.widget")
 
 Note that Mechanism 2 only works with class and interface matches; there are no corresponding `.getNamesOf...()` methods for filename pattern or static field matches, since these methods are only looking at the DAG of whitelisted classes and interfaces encountered during the scan.
 
-**Whitelisting/blacklisting of packages/jarfiles:** To reduce needless scanning, the constructor `FastClasspathScanner()` takes a list of whitelisted package prefixes / jar names to scan, as well as blacklisted packages/jars not to scan, where blacklisted entries are prefixed with the `'-'` character. For example:
-* `["com.x"]` scans the package `com.x` and its sub-packages in all jarfiles and all directory entries on the classpath.
-* `["com.x", "-com.x.y"]` scans `com.x` and all sub-packages *except* `com.x.y` in all jars and directories on the classpath.
-* `["com.x", "-com.x.y", "jar:deploy.jar"]` scans `com.x` and all sub-packages except `com.x.y`, but only looks in jars named `deploy.jar` on the classpath (i.e. whitelisting a jar entry prevents non-jar entries from being searched). Note that only the leafname of a jarfile can be specified.
-* `["com.x", "-jar:irrelevant.jar"]` scans `com.x` and all sub-packages in jars *and in directories* on the classpath except `irrelevant.jar` (i.e. blacklisting a jarfile doesn't prevent directories from being scanned the way that whitelisting a jarfile does).
-* `["com.x", "jar:"]` scans `com.x` and all sub-packages, but only looks in jarfiles on the classpath, this will prevent non-jar entries (directories and non-jar files) on the classpath from being scanned (i.e. `"jar:"` is a wildcard to indicate that all jars are whitelisted, and as in the example above, whitelisting jarfiles prevents non-jars from being scanned).
-* `["com.x", "-jar:"]` scans `com.x` and all sub-packages, but only looks in directories on the classpath, jarfiles won't be scanned (i.e. `"-jar:"` is a wildcard to indicate that all jars are blacklisted.)
-
 ### Tips
 
 **Calling from Java 7:** The usage examples above use lambda expressions (functional interfaces) from Java 8 for simplicity. However, at least as of JDK 1.8.0 r20, Java 8 features like lambda expressions and Streams incur a one-time startup penalty of 30-40ms the first time they are used. If this overhead is prohibitive, you can use the Java 7 version of Mechanism 1 (note that there is a different [`MatchProcessor`](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) class corresponding to each `.match...()` method, e.g. `.matchSubclassesOf()` takes a `SubclassMatchProcessor`):
@@ -128,26 +118,30 @@ new FastClasspathScanner("com.xyz.widget")
 
 # API
 
-Note that most of the methods in the API return *this* (of type FastClasspathScanner), so that you can use the [method chaining](http://en.wikipedia.org/wiki/Method_chaining) calling style, as shown in the example above.
+Most of the methods in the API return `this` (of type `FastClasspathScanner`), so that you can use the [method chaining](http://en.wikipedia.org/wiki/Method_chaining) calling style, as shown in the example above.
+
+Note that the `|` character is used below to compactly describe overloaded methods below, e.g. `getNamesOfSuperclassesOf(Class<?> subclass | String subclassName)`. 
 
 ## Constructor
 
-Calling the constructor does not actually start the scan. The constructor takes a whitelist and/or a blacklist of package prefixes that should be scanned.
+You can pass a scanning specification to the constructor of `FastClasspathScanner` to describe what should be scanned. This prevents irrelevant classpath entries from being unecessarily scanned, which can be time-consuming. (Note that calling the constructor does not start the scan, you must separately call `.scan()` to perform the actual scan.)
 
-**Whitelisting package prefixes:** Whitelisted package prefixes can dramatically speed up classpath scanning, because it limits the number of classfiles that need to be opened and read, e.g. `new FastClasspathScanner("com.xyz.widget")` will scan inside package `com.xyz.widget` as well as any child packages like `com.xyz.widget.button`. If no whitelisted packages are specified (i.e. if the constructor is called without arguments), or if one of the whitelisted package names is "" or "/", all classfiles in the classpath will be scanned.
-
-**Blacklisting package prefixes:** If a package name is listed in the constructor prefixed with the hyphen (`-`) character, e.g. `"-com.xyz.widget.slider"`, then the package name (without the leading hyphen) will be blacklisted, rather than whitelisted. The final list of packages scanned is the set of whitelisted packages minus the set of blacklisted packages. Blacklisting is useful for excluding an entire sub-tree within the tree corresponding to a whitelisted package prefix.
+The constructor accepts a list of whitelisted package prefixes / jar names to scan, as well as blacklisted packages/jars not to scan, where blacklisted entries are prefixed with the `'-'` character. For example:
+* `new FastClasspathScanner("com.x")` limits scanning to the package `com.x` and its sub-packages in all jarfiles and all directory entries on the classpath.
+* `new FastClasspathScanner("com.x", "-com.x.y")` limits scanning to `com.x` and all sub-packages *except* `com.x.y` in all jars and directories on the classpath.
+* `new FastClasspathScanner("com.x", "-com.x.y", "jar:deploy.jar")` limits scanning to `com.x` and all its sub-packages except `com.x.y`, but only looks in jars named `deploy.jar` on the classpath. Note:
+  1. Whitelisting one or more jar entries prevents non-jar entries (directories) on the classpath from being scanned.
+  2. Only the leafname of a jarfile can be specified in a `jar:` or `-jar:` entry, so if there is a chance of conflict, make sure the jarfile's leaf name is unique.
+* `new FastClasspathScanner("com.x", "-jar:irrelevant.jar")` limits scanning to `com.x` and all sub-packages in all directories on the classpath, and in all jars except `irrelevant.jar`. (i.e. blacklisting a jarfile only excludes the specified jarfile, it doesn't prevent all directories from being scanned, as with whitelisting a jarfile.)
+* `new FastClasspathScanner("com.x", "jar:")` limits scanning to `com.x` and all sub-packages, but only looks in jarfiles on the classpath -- directories are not scanned. (i.e. `"jar:"` is a wildcard to indicate that all jars are whitelisted, and as in the example above, whitelisting jarfiles prevents non-jars (directories) from being scanned.)
+* `new FastClasspathScanner("com.x", "-jar:")` limits scanning to `com.x` and all sub-packages, but only looks in directories on the classpath -- jarfiles are not scanned. (i.e. `"-jar:"` is a wildcard to indicate that all jars are blacklisted.)
+* `new FastClasspathScanner()`: If you don't specify any whitelisted package prefixes, all jarfiles and all directories on the classpath will be scanned.
+* N.B. System, bootstrap and extension jarfiles (i.e. the JRE jarfiles) are never scanned.
 
 ```java
 // Constructor for FastClasspathScanner
-public FastClasspathScanner(String... pacakagesToScan)
+public FastClasspathScanner(String... scanSpec)
 ```
-
-Note that if you don't specify any whitelisted package prefixes, i.e. `new FastClasspathScanner()`, all packages on the classpath will be scanned. ("Scanning" involves parsing the classfile binary format to determine class and interface relationships.)
-
-## API calls for each use case
-
-Note that the `|` character is used to compactly describe overloaded methods below, e.g. `getNamesOfSuperclassesOf(Class<?> subclass | String subclassName)`. 
 
 ### 1. Matching the subclasses (or finding the superclasses) of a class
 
@@ -434,9 +428,9 @@ public Set<String> getNamesOfAllClasses()
 
 The list of all directories and files on the classpath is returned by `.getUniqueClasspathElements()`. The resulting list is filtered to include only unique classpath elements (duplicates are eliminated), and to include only directories and files that actually exist. The elements in the list are in classpath order.
 
-This method is useful if you want to see what's actually on the classpath -- note that `System.getProperty("java.class.path")` does not always return the [complete classpath.](https://docs.oracle.com/javase/8/docs/technotes/tools/findingclasses.html)
+This method is useful if you want to see what's actually on the classpath -- note that `System.getProperty("java.class.path")` does not always return the [complete classpath](https://docs.oracle.com/javase/8/docs/technotes/tools/findingclasses.html) because [Classloading is a very complicated process](https://docs.oracle.com/javase/8/docs/technotes/tools/findingclasses.html). FastClasspathScanner looks for classpath entries in `java.class.path` and in various system classloaders, but it can also transitively follow [Class-Path references](https://docs.oracle.com/javase/tutorial/deployment/jar/downman.html) in a jarfile's `META-INF/MANIFEST.MF`.
 
-Note that FastClasspathScanner does not scan [bootstrap or extension classes](https://docs.oracle.com/javase/8/docs/technotes/tools/findingclasses.html), so the jars containing these system classes will not be listed by `.getUniqueClasspathElements()`.
+Note that FastClasspathScanner does not scan [JRE system, bootstrap or extension jarfiles](https://docs.oracle.com/javase/8/docs/technotes/tools/findingclasses.html), so the classpath entries for these system jarfiles will not be listed by `.getUniqueClasspathElements()`.
 
 ```java
 public ArrayList<File> getUniqueClasspathElements()
