@@ -312,6 +312,31 @@ public class ClassGraphBuilder {
     private final LazyMap<String, ArrayList<String>> annotationNameToAnnotatedClassNames = LazyMap
             .convertToMultiMap(annotationNameToAnnotatedClassNamesSet);
 
+    /** Return the names of all classes with the named class annotation or meta-annotation. */
+    public List<String> getNamesOfClassesWithAnnotation(final String annotationName) {
+        final ArrayList<String> classNames = annotationNameToAnnotatedClassNames.get(annotationName);
+        if (classNames == null) {
+            return Collections.emptyList();
+        } else {
+            return classNames;
+        }
+    }
+
+    /** A map from the names of classes to the names of annotations and meta-annotations on the classes. */
+    private final LazyMap<String, ArrayList<String>> classNameToAnnotationNames = //
+    LazyMap.convertToMultiMap( //
+    LazyMap.invertMultiSet(annotationNameToAnnotatedClassNamesSet, annotationNameToAnnotationNode));
+
+    /** Return the names of all annotations and meta-annotations on the named class. */
+    public List<String> getNamesOfAnnotationsOnClass(final String classOrInterfaceName) {
+        final ArrayList<String> annotationNames = classNameToAnnotationNames.get(classOrInterfaceName);
+        if (annotationNames == null) {
+            return Collections.emptyList();
+        } else {
+            return annotationNames;
+        }
+    }
+
     /** A map from meta-annotation name to the names of the annotations they annotate. */
     private final LazyMap<String, HashSet<String>> metaAnnotationNameToAnnotatedAnnotationNamesSet = //
     new LazyMap<String, HashSet<String>>() {
@@ -329,29 +354,10 @@ public class ClassGraphBuilder {
         }
     };
 
-    /** A map from the names of classes to the names of annotations and meta-annotations on the classes. */
-    private final LazyMap<String, ArrayList<String>> classNameToAnnotationNames = //
-    LazyMap.convertToMultiMap( //
-    LazyMap.invertMultiSet(annotationNameToAnnotatedClassNamesSet, annotationNameToAnnotationNode));
-
-    /** Mapping from meta-annotation names to the names of annotations that have the meta-annotation. */
-    private final LazyMap<String, ArrayList<String>> metaAnnotationNameToAnnotatedAnnotationNames = //
-    LazyMap.convertToMultiMap(metaAnnotationNameToAnnotatedAnnotationNamesSet);
-
     /** Mapping from annotation name to the names of annotations and meta-annotations on the annotation. */
     private final LazyMap<String, ArrayList<String>> annotationNameToMetaAnnotationNames = //
     LazyMap.convertToMultiMap( //
     LazyMap.invertMultiSet(metaAnnotationNameToAnnotatedAnnotationNamesSet, annotationNameToAnnotationNode));
-
-    /** Return the names of all annotations and meta-annotations on the named class. */
-    public List<String> getNamesOfAnnotationsOnClass(final String classOrInterfaceName) {
-        final ArrayList<String> annotationNames = classNameToAnnotationNames.get(classOrInterfaceName);
-        if (annotationNames == null) {
-            return Collections.emptyList();
-        } else {
-            return annotationNames;
-        }
-    }
 
     /** Return the names of all meta-annotations on the named annotation. */
     public List<String> getNamesOfMetaAnnotationsOnAnnotation(final String annotationName) {
@@ -363,15 +369,9 @@ public class ClassGraphBuilder {
         }
     }
 
-    /** Return the names of all classes with the named class annotation or meta-annotation. */
-    public List<String> getNamesOfClassesWithAnnotation(final String annotationName) {
-        final ArrayList<String> classNames = annotationNameToAnnotatedClassNames.get(annotationName);
-        if (classNames == null) {
-            return Collections.emptyList();
-        } else {
-            return classNames;
-        }
-    }
+    /** Mapping from meta-annotation names to the names of annotations that have the meta-annotation. */
+    private final LazyMap<String, ArrayList<String>> metaAnnotationNameToAnnotatedAnnotationNames = //
+    LazyMap.convertToMultiMap(metaAnnotationNameToAnnotatedAnnotationNamesSet);
 
     /** Return the names of all annotations that have the named meta-annotation. */
     public List<String> getNamesOfAnnotationsWithMetaAnnotation(final String metaAnnotationName) {
