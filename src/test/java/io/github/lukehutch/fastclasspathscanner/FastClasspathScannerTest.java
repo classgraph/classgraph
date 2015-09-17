@@ -28,7 +28,8 @@
  */
 package io.github.lukehutch.fastclasspathscanner;
 
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.StrictAssertions.assertThat;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchContentsProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.StaticFinalFieldMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubclassMatchProcessor;
@@ -65,104 +66,104 @@ public class FastClasspathScannerTest {
     @Test
     public void scan() throws Exception {
         final Set<String> allClasses = new FastClasspathScanner().scan().getNamesOfAllClasses();
-        assertTrue(allClasses.contains(Cls.class.getName()));
-        assertTrue(allClasses.contains(FastClasspathScanner.class.getName()));
-        assertTrue(allClasses.contains(FastClasspathScannerTest.class.getName()));
-        assertTrue(!allClasses.contains(String.class.getName()));
-        assertTrue(allClasses.contains(Object.class.getName()));
-        assertTrue(allClasses.contains(Blacklisted.class.getName()));
+        assertThat(allClasses).contains(Cls.class.getName());
+        assertThat(allClasses).contains(FastClasspathScanner.class.getName());
+        assertThat(allClasses).contains(FastClasspathScannerTest.class.getName());
+        assertThat(allClasses).doesNotContain(String.class.getName());
+        assertThat(allClasses).contains(Object.class.getName());
+        assertThat(allClasses).contains(Blacklisted.class.getName());
     }
 
     @Test
     public void scanWithWhitelist() throws Exception {
         final Set<String> allClasses = new FastClasspathScanner(WHITELIST_PACKAGE).scan().getNamesOfAllClasses();
-        assertTrue(allClasses.contains(Cls.class.getName()));
-        assertTrue(!allClasses.contains(FastClasspathScanner.class.getName()));
-        assertTrue(!allClasses.contains(FastClasspathScannerTest.class.getName()));
-        assertTrue(!allClasses.contains(String.class.getName()));
-        assertTrue(allClasses.contains(Object.class.getName()));
-        assertTrue(allClasses.contains(Blacklisted.class.getName()));
+        assertThat(allClasses).contains(Cls.class.getName());
+        assertThat(allClasses).doesNotContain(FastClasspathScanner.class.getName());
+        assertThat(allClasses).doesNotContain(FastClasspathScannerTest.class.getName());
+        assertThat(allClasses).doesNotContain(String.class.getName());
+        assertThat(allClasses).contains(Object.class.getName());
+        assertThat(allClasses).contains(Blacklisted.class.getName());
     }
 
     @Test
     public void scanWithWhitelistAndBlacklist() throws Exception {
         final Set<String> allClasses = new FastClasspathScanner(WHITELIST_PACKAGE, "-" + BLACKLIST_PACKAGE).scan()
                 .getNamesOfAllClasses();
-        assertTrue(allClasses.contains(Cls.class.getName()));
-        assertTrue(!allClasses.contains(FastClasspathScanner.class.getName()));
-        assertTrue(!allClasses.contains(FastClasspathScannerTest.class.getName()));
-        assertTrue(!allClasses.contains(String.class.getName()));
-        assertTrue(allClasses.contains(Object.class.getName()));
-        assertTrue(!allClasses.contains(Blacklisted.class.getName()));
+        assertThat(allClasses).contains(Cls.class.getName());
+        assertThat(allClasses).doesNotContain(FastClasspathScanner.class.getName());
+        assertThat(allClasses).doesNotContain(FastClasspathScannerTest.class.getName());
+        assertThat(allClasses).doesNotContain(String.class.getName());
+        assertThat(allClasses).contains(Object.class.getName());
+        assertThat(allClasses).doesNotContain(Blacklisted.class.getName());
     }
 
     @Test
     public void scanSubAndSuperclass() throws Exception {
-        final HashSet<Class<? extends Cls>> subclasses = new HashSet<>();
+        final HashSet<String> subclasses = new HashSet<>();
         final FastClasspathScanner scanner = new FastClasspathScanner(WHITELIST_PACKAGE).matchSubclassesOf(
                 Cls.class, new SubclassMatchProcessor<Cls>() {
                     @Override
                     public void processMatch(final Class<? extends Cls> matchingClass) {
-                        subclasses.add(matchingClass);
+                        subclasses.add(matchingClass.getName());
                     }
                 }).scan();
-        assertTrue(!subclasses.contains(Cls.class));
-        assertTrue(subclasses.contains(ClsSub.class));
-        assertTrue(subclasses.contains(ClsSubSub.class));
-        assertTrue(!scanner.getNamesOfSubclassesOf(Cls.class).contains(Cls.class.getName()));
-        assertTrue(scanner.getNamesOfSubclassesOf(Cls.class).contains(ClsSub.class.getName()));
-        assertTrue(scanner.getNamesOfSubclassesOf(Cls.class).contains(ClsSubSub.class.getName()));
-        assertTrue(!scanner.getNamesOfSuperclassesOf(ClsSubSub.class).contains(ClsSubSub.class.getName()));
-        assertTrue(scanner.getNamesOfSuperclassesOf(ClsSubSub.class).contains(ClsSub.class.getName()));
-        assertTrue(scanner.getNamesOfSuperclassesOf(ClsSubSub.class).contains(Cls.class.getName()));
+        assertThat(subclasses).doesNotContain(Cls.class.getName());
+        assertThat(subclasses).contains(ClsSub.class.getName());
+        assertThat(subclasses).contains(ClsSubSub.class.getName());
+        assertThat(scanner.getNamesOfSubclassesOf(Cls.class)).doesNotContain(Cls.class.getName());
+        assertThat(scanner.getNamesOfSubclassesOf(Cls.class)).contains(ClsSub.class.getName());
+        assertThat(scanner.getNamesOfSubclassesOf(Cls.class)).contains(ClsSubSub.class.getName());
+        assertThat(scanner.getNamesOfSuperclassesOf(ClsSubSub.class)).doesNotContain(ClsSubSub.class.getName());
+        assertThat(scanner.getNamesOfSuperclassesOf(ClsSubSub.class)).contains(ClsSub.class.getName());
+        assertThat(scanner.getNamesOfSuperclassesOf(ClsSubSub.class)).contains(Cls.class.getName());
     }
 
     @Test
     public void scanSubAndSuperinterface() throws Exception {
-        final HashSet<Class<? extends Iface>> subinterfaces = new HashSet<>();
+        final HashSet<String> subinterfaces = new HashSet<>();
         final FastClasspathScanner scanner = new FastClasspathScanner(WHITELIST_PACKAGE).matchSubinterfacesOf(
                 Iface.class, new SubinterfaceMatchProcessor<Iface>() {
                     @Override
                     public void processMatch(final Class<? extends Iface> matchingInterface) {
-                        subinterfaces.add(matchingInterface);
+                        subinterfaces.add(matchingInterface.getName());
                     }
                 }).scan();
-        assertTrue(!subinterfaces.contains(Iface.class));
-        assertTrue(subinterfaces.contains(IfaceSub.class));
-        assertTrue(subinterfaces.contains(IfaceSubSub.class));
-        assertTrue(!scanner.getNamesOfSubinterfacesOf(Iface.class).contains(Iface.class.getName()));
-        assertTrue(scanner.getNamesOfSubinterfacesOf(Iface.class).contains(IfaceSub.class.getName()));
-        assertTrue(scanner.getNamesOfSubinterfacesOf(Iface.class).contains(IfaceSubSub.class.getName()));
-        assertTrue(!scanner.getNamesOfSuperinterfacesOf(IfaceSubSub.class).contains(IfaceSubSub.class.getName()));
-        assertTrue(scanner.getNamesOfSuperinterfacesOf(IfaceSubSub.class).contains(IfaceSub.class.getName()));
-        assertTrue(scanner.getNamesOfSuperinterfacesOf(IfaceSubSub.class).contains(Iface.class.getName()));
+        assertThat(subinterfaces).doesNotContain(Iface.class.getName());
+        assertThat(subinterfaces).contains(IfaceSub.class.getName());
+        assertThat(subinterfaces).contains(IfaceSubSub.class.getName());
+        assertThat(scanner.getNamesOfSubinterfacesOf(Iface.class)).doesNotContain(Iface.class.getName());
+        assertThat(scanner.getNamesOfSubinterfacesOf(Iface.class)).contains(IfaceSub.class.getName());
+        assertThat(scanner.getNamesOfSubinterfacesOf(Iface.class)).contains(IfaceSubSub.class.getName());
+        assertThat(scanner.getNamesOfSuperinterfacesOf(IfaceSubSub.class)).doesNotContain(IfaceSubSub.class.getName());
+        assertThat(scanner.getNamesOfSuperinterfacesOf(IfaceSubSub.class)).contains(IfaceSub.class.getName());
+        assertThat(scanner.getNamesOfSuperinterfacesOf(IfaceSubSub.class)).contains(Iface.class.getName());
     }
 
     @Test
     public void scanTransitiveImplements() throws Exception {
         final FastClasspathScanner scanner = new FastClasspathScanner(WHITELIST_PACKAGE).scan();
-        assertTrue(!scanner.getNamesOfClassesImplementing(Iface.class).contains(Iface.class.getName()));
-        assertTrue(!scanner.getNamesOfClassesImplementing(IfaceSubSub.class).contains(Cls.class.getName()));
+        assertThat(scanner.getNamesOfClassesImplementing(Iface.class)).doesNotContain(Iface.class.getName());
+        assertThat(scanner.getNamesOfClassesImplementing(IfaceSubSub.class)).doesNotContain(Cls.class.getName());
 
-        assertTrue(scanner.getNamesOfClassesImplementing(Iface.class).contains(Impl1.class.getName()));
-        assertTrue(scanner.getNamesOfClassesImplementing(IfaceSub.class).contains(Impl1.class.getName()));
-        assertTrue(scanner.getNamesOfClassesImplementing(IfaceSubSub.class).contains(Impl1.class.getName()));
-        assertTrue(scanner.getNamesOfClassesImplementing(Iface.class).contains(Impl1Sub.class.getName()));
-        assertTrue(scanner.getNamesOfClassesImplementing(IfaceSub.class).contains(Impl1Sub.class.getName()));
-        assertTrue(scanner.getNamesOfClassesImplementing(IfaceSubSub.class).contains(Impl1Sub.class.getName()));
-        assertTrue(scanner.getNamesOfClassesImplementing(Iface.class).contains(Impl1SubSub.class.getName()));
-        assertTrue(scanner.getNamesOfClassesImplementing(IfaceSub.class).contains(Impl1SubSub.class.getName()));
-        assertTrue(scanner.getNamesOfClassesImplementing(IfaceSubSub.class).contains(Impl1SubSub.class.getName()));
+        assertThat(scanner.getNamesOfClassesImplementing(Iface.class)).contains(Impl1.class.getName());
+        assertThat(scanner.getNamesOfClassesImplementing(IfaceSub.class)).contains(Impl1.class.getName());
+        assertThat(scanner.getNamesOfClassesImplementing(IfaceSubSub.class)).contains(Impl1.class.getName());
+        assertThat(scanner.getNamesOfClassesImplementing(Iface.class)).contains(Impl1Sub.class.getName());
+        assertThat(scanner.getNamesOfClassesImplementing(IfaceSub.class)).contains(Impl1Sub.class.getName());
+        assertThat(scanner.getNamesOfClassesImplementing(IfaceSubSub.class)).contains(Impl1Sub.class.getName());
+        assertThat(scanner.getNamesOfClassesImplementing(Iface.class)).contains(Impl1SubSub.class.getName());
+        assertThat(scanner.getNamesOfClassesImplementing(IfaceSub.class)).contains(Impl1SubSub.class.getName());
+        assertThat(scanner.getNamesOfClassesImplementing(IfaceSubSub.class)).contains(Impl1SubSub.class.getName());
 
-        assertTrue(scanner.getNamesOfClassesImplementing(Iface.class).contains(Impl2.class.getName()));
-        assertTrue(!scanner.getNamesOfClassesImplementing(IfaceSub.class).contains(Impl2.class.getName()));
-        assertTrue(!scanner.getNamesOfClassesImplementing(IfaceSubSub.class).contains(Impl2.class.getName()));
-        assertTrue(scanner.getNamesOfClassesImplementing(Iface.class).contains(Impl2Sub.class.getName()));
-        assertTrue(!scanner.getNamesOfClassesImplementing(IfaceSub.class).contains(Impl2Sub.class.getName()));
-        assertTrue(!scanner.getNamesOfClassesImplementing(IfaceSubSub.class).contains(Impl2Sub.class.getName()));
-        assertTrue(scanner.getNamesOfClassesImplementing(Iface.class).contains(Impl2SubSub.class.getName()));
-        assertTrue(scanner.getNamesOfClassesImplementing(IfaceSub.class).contains(Impl2SubSub.class.getName()));
-        assertTrue(scanner.getNamesOfClassesImplementing(IfaceSubSub.class).contains(Impl2SubSub.class.getName()));
+        assertThat(scanner.getNamesOfClassesImplementing(Iface.class)).contains(Impl2.class.getName());
+        assertThat(scanner.getNamesOfClassesImplementing(IfaceSub.class)).doesNotContain(Impl2.class.getName());
+        assertThat(scanner.getNamesOfClassesImplementing(IfaceSubSub.class)).doesNotContain(Impl2.class.getName());
+        assertThat(scanner.getNamesOfClassesImplementing(Iface.class)).contains(Impl2Sub.class.getName());
+        assertThat(scanner.getNamesOfClassesImplementing(IfaceSub.class)).doesNotContain(Impl2Sub.class.getName());
+        assertThat(scanner.getNamesOfClassesImplementing(IfaceSubSub.class)).doesNotContain(Impl2Sub.class.getName());
+        assertThat(scanner.getNamesOfClassesImplementing(Iface.class)).contains(Impl2SubSub.class.getName());
+        assertThat(scanner.getNamesOfClassesImplementing(IfaceSub.class)).contains(Impl2SubSub.class.getName());
+        assertThat(scanner.getNamesOfClassesImplementing(IfaceSubSub.class)).contains(Impl2SubSub.class.getName());
     }
 
     @Test
@@ -175,7 +176,7 @@ public class FastClasspathScannerTest {
                         readFileContents.set("File contents".equals(new String(contents, "UTF-8")));
                     }
                 }).scan();
-        assertTrue(readFileContents.get());
+        assertThat(readFileContents.get()).isTrue();
     }
 
     @Test
@@ -193,16 +194,16 @@ public class FastClasspathScannerTest {
                             final Object fieldConstantValue) {
                         switch (fieldName) {
                         case "stringField":
-                            assertTrue("Static field contents".equals(fieldConstantValue));
+                            assertThat("Static field contents").isEqualTo(fieldConstantValue);
                             break;
                         case "intField":
-                            assertTrue(new Integer(3).equals(fieldConstantValue));
+                            assertThat(new Integer(3)).isEqualTo(fieldConstantValue);
                             break;
                         case "boolField":
-                            assertTrue(new Boolean(true).equals(fieldConstantValue));
+                            assertThat(new Boolean(true)).isEqualTo(fieldConstantValue);
                             break;
                         case "charField":
-                            assertTrue(new Character('y').equals(fieldConstantValue));
+                            assertThat(new Character('y')).isEqualTo(fieldConstantValue);
                             break;
                         case "integerField":
                         case "booleanField":
@@ -213,7 +214,7 @@ public class FastClasspathScannerTest {
                         readStaticFieldCount.incrementAndGet();
                     }
                 }).scan();
-        assertTrue(readStaticFieldCount.get() == 4);
+        assertThat(readStaticFieldCount.get()).isEqualTo(4);
     }
 
     @Test
@@ -221,6 +222,7 @@ public class FastClasspathScannerTest {
         final HashMap<String, String> classNameToClassfileHash = new HashClassfileContents(WHITELIST_PACKAGE)
                 .scan().getClassNameToClassfileHash();
         final String hash = classNameToClassfileHash.get(Cls.class.getName());
-        assertTrue(hash != null && hash.length() == 32);
+        assertThat(hash).isNotNull();
+        assertThat(hash.length()).isEqualTo(32);
     }
 }

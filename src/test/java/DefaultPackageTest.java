@@ -27,7 +27,7 @@
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.whitelisted.Cls;
 import io.github.lukehutch.fastclasspathscanner.whitelisted.blacklisted.Blacklisted;
@@ -42,24 +42,24 @@ public class DefaultPackageTest {
     @Test
     public void scan() throws Exception {
         final Set<String> allClasses = new FastClasspathScanner().scan().getNamesOfAllClasses();
-        assertTrue(allClasses.contains(Cls.class.getName()));
-        assertTrue(allClasses.contains(FastClasspathScanner.class.getName()));
-        assertTrue(allClasses.contains(DefaultPackageTest.class.getName()));
-        assertTrue(!allClasses.contains(String.class.getName()));
-        assertTrue(allClasses.contains(Object.class.getName()));
-        assertTrue(allClasses.contains(Blacklisted.class.getName()));
-        assertTrue(allClasses.contains(ClassInDefaultPackage.class.getName()));
+        assertThat(allClasses).contains(Cls.class.getName());
+        assertThat(allClasses).contains(FastClasspathScanner.class.getName());
+        assertThat(allClasses).contains(DefaultPackageTest.class.getName());
+        assertThat(allClasses).doesNotContain(String.class.getName());
+        assertThat(allClasses).contains(Object.class.getName());
+        assertThat(allClasses).contains(Blacklisted.class.getName());
+        assertThat(allClasses).contains(ClassInDefaultPackage.class.getName());
     }
 
     @Test
     public void scanWithWhitelist() throws Exception {
         final Set<String> allClasses = new FastClasspathScanner(WHITELIST_PACKAGE).scan().getNamesOfAllClasses();
-        assertTrue(allClasses.contains(Cls.class.getName()));
-        assertTrue(!allClasses.contains(FastClasspathScanner.class.getName()));
-        assertTrue(!allClasses.contains(DefaultPackageTest.class.getName()));
-        assertTrue(!allClasses.contains(String.class.getName()));
-        assertTrue(allClasses.contains(Object.class.getName()));
-        assertTrue(allClasses.contains(Blacklisted.class.getName()));
-        assertTrue(!allClasses.contains(ClassInDefaultPackage.class.getName()));
+        assertThat(allClasses).contains(Cls.class.getName());
+        assertThat(allClasses).doesNotContain(FastClasspathScanner.class.getName());
+        assertThat(allClasses).doesNotContain(DefaultPackageTest.class.getName());
+        assertThat(allClasses).doesNotContain(String.class.getName());
+        assertThat(allClasses).contains(Object.class.getName());
+        assertThat(allClasses).contains(Blacklisted.class.getName());
+        assertThat(allClasses).doesNotContain(ClassInDefaultPackage.class.getName());
     }
 }
