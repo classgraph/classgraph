@@ -220,7 +220,7 @@ public class RecursiveScanner {
      * the original File, except that the path is normalized. Returns null if an exception occurred while resolving
      * links (e.g. broken link).
      */
-    private File toRealPath(File file) {
+    private static File toRealPath(File file) {
         try {
             return file.toPath().toRealPath().toFile();
         } catch (IOException | SecurityException e) {
