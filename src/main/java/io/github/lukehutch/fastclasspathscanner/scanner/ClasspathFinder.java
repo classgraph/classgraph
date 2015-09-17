@@ -39,6 +39,7 @@ import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -64,49 +65,72 @@ public class ClasspathFinder {
         initialized = false;
     }
 
-    /** Strip away any [jar:][file:] prefix from a filename URI, and convert to a file path. */
-    private static String urlToPath(String pathElement) {
-        if (pathElement.isEmpty()) {
-            return pathElement;
+    /**
+     * Strip away any "jar:" prefix from a filename URI, and convert it to a file path, handling possibly-broken
+     * mixes of filesystem and URI conventions. Follows symbolic links, and resolves any relative paths relative to
+     * resolveBase.
+     */
+    private static Path urlToPath(Path resolveBasePath, String pathElementStr) {
+        if (pathElementStr.isEmpty()) {
+            return null;
         }
         // Ignore "jar:", we look for ".jar" on the end of filenames instead
-        if (pathElement.startsWith("jar:")) {
-            pathElement = pathElement.substring(4);
+        if (pathElementStr.startsWith("jar:")) {
+            pathElementStr = pathElementStr.substring(4);
         }
         // We don't fetch remote classpath entries, although they are theoretically valid if using
         // a URLClassLoader, such as used to resolve the Class-Path field in a jarfile's manifest file.
-        if (pathElement.startsWith("http://") || pathElement.startsWith("https://")) {
-            Log.log("Ignoring remote entry in classpath: " + pathElement);
-            // Return "", which is ignored as a classpath element
-            return "";
+        if (pathElementStr.startsWith("http://") || pathElementStr.startsWith("https://")) {
+            Log.log("Ignoring remote entry in classpath: " + pathElementStr);
+            return null;
         }
-        // Deal with possibly broken mixes of file:// URLs and system-dependent path formats.
-        // See: https://weblogs.java.net/blog/kohsuke/archive/2007/04/how_to_convert.html
+        // Try parsing the path element as a URL/URI, then as a filesystem path
+        Path path;
         try {
-            URL url = new URL(pathElement);
+            // Deal with possibly broken mixes of file:// URLs and system-dependent path formats.
+            // See: https://weblogs.java.net/blog/kohsuke/archive/2007/04/how_to_convert.html
+            URL url = new URL(pathElementStr);
             try {
-                return new File(url.toURI()).getPath();
-            } catch (URISyntaxException e) {
-                return new File(url.getPath()).getPath();
+                path = new File(url.toURI()).toPath();
+            } catch (URISyntaxException | InvalidPathException e) {
+                path = new File(url.getPath()).toPath();
             }
-        } catch (MalformedURLException e) {
-            return pathElement;
+        } catch (MalformedURLException | InvalidPathException e) {
+            try {
+                // Try to resolve path element relative to base
+                path = resolveBasePath.resolve(pathElementStr);
+                try {
+                    // If that succeeded, try converting to real path and returning
+                    return path.toRealPath();
+                } catch (IOException | SecurityException e1) {
+                    Log.log("Could not access classpath element " + pathElementStr + " : " + e1.getMessage());
+                    return null;
+                }
+            } catch (InvalidPathException e1) {
+                try {
+                    // Try to use the path element as a File path, then convert to a Path object
+                    path = new File(pathElementStr).toPath();
+                } catch (InvalidPathException e2) {
+                    // One of the above should have worked, so if we got here, the path element is junk.
+                    Log.log("Invalid classpath element " + pathElementStr + " : " + e2.getMessage());
+                    return null;
+                }
+            }
+        }
+        // Convert to real path (follow symlinks etc.)
+        try {
+            return resolveBasePath.resolve(path).toRealPath();
+        } catch (InvalidPathException | IOException | SecurityException e) {
+            Log.log("Could not access classpath element " + pathElementStr + " : " + e.getMessage());
+            return null;
         }
     }
 
     /** Add a classpath element. */
     private void addClasspathElement(final String pathElement) {
-        String pathElementStr = urlToPath(pathElement);
-        if (!pathElementStr.isEmpty()) {
-            Path path;
-            try {
-                path = Paths.get(pathElementStr).toRealPath();
-            } catch (IOException | SecurityException e) {
-                if (FastClasspathScanner.verbose) {
-                    Log.log("Could not access path " + pathElement + ": " + e.getMessage());
-                }
-                return;
-            }
+        Path currDirPath = Paths.get("").toAbsolutePath();
+        Path path = urlToPath(currDirPath, pathElement);
+        if (path != null) {
             final File pathFile = path.toFile();
             if (pathFile.exists()) {
                 String pathStr = path.toString();
@@ -136,14 +160,14 @@ public class ClasspathFinder {
                                         Log.log("Found Class-Path entry in " + manifestUrlStr + ": "
                                                 + manifestClassPath);
                                     }
-                                    // Class-Path elements are space-delimited
-                                    // Resolve each Class-Path element's path relative to the parent jar's
-                                    // containing directory
-                                    Path parent = path.getParent();
+                                    // Class-Path entries in the manifest file should be resolved relative to the
+                                    // directory the manifest's jarfile is contained in (i.e. path.getParent()).
+                                    Path parentPath = path.getParent();
+                                    // Class-Path entries in manifest files are a space-delimited list of URIs.
                                     for (final String manifestClassPathElement : manifestClassPath.split(" ")) {
-                                        String manifestEltPath = urlToPath(manifestClassPathElement);
-                                        if (!manifestEltPath.isEmpty()) {
-                                            addClasspathElement(parent.resolve(manifestEltPath).toString());
+                                        Path manifestEltPath = urlToPath(parentPath, manifestClassPathElement);
+                                        if (manifestEltPath != null) {
+                                            addClasspathElement(manifestEltPath.toString());
                                         }
                                     }
                                 }
