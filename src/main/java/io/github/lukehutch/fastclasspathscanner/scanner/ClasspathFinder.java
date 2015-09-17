@@ -84,44 +84,27 @@ public class ClasspathFinder {
             Log.log("Ignoring remote entry in classpath: " + pathElementStr);
             return null;
         }
-        // Try parsing the path element as a URL/URI, then as a filesystem path
-        Path path;
+        // Try parsing the path element as a URL/URI, then as a filesystem path.
+        // Need to deal with possibly-broken mixes of file:// URLs and system-dependent path formats -- see:
+        // https://weblogs.java.net/blog/kohsuke/archive/2007/04/how_to_convert.html
         try {
-            // Deal with possibly broken mixes of file:// URLs and system-dependent path formats.
-            // See: https://weblogs.java.net/blog/kohsuke/archive/2007/04/how_to_convert.html
+            // The URL parser is forgiving, try that first
             URL url = new URL(pathElementStr);
             try {
-                path = new File(url.toURI()).toPath();
-            } catch (URISyntaxException | InvalidPathException e) {
-                path = new File(url.getPath()).toPath();
-            }
-        } catch (MalformedURLException | InvalidPathException e) {
-            try {
-                // Try to resolve path element relative to base
-                path = resolveBasePath.resolve(pathElementStr);
+                return resolveBasePath.resolve(Paths.get(url.toURI())).toRealPath();
+            } catch (Exception e) {
                 try {
-                    // If that succeeded, try converting to real path and returning
-                    return path.toRealPath();
-                } catch (IOException | SecurityException e1) {
-                    Log.log("Could not access classpath element " + pathElementStr + " : " + e1.getMessage());
-                    return null;
-                }
-            } catch (InvalidPathException e1) {
-                try {
-                    // Try to use the path element as a File path, then convert to a Path object
-                    path = new File(pathElementStr).toPath();
-                } catch (InvalidPathException e2) {
-                    // One of the above should have worked, so if we got here, the path element is junk.
-                    Log.log("Invalid classpath element " + pathElementStr + " : " + e2.getMessage());
-                    return null;
+                    return resolveBasePath.resolve(Paths.get(url.getPath())).toRealPath();
+                } catch (Exception e1) {
                 }
             }
+        } catch (MalformedURLException e) {
         }
-        // Convert to real path (follow symlinks etc.)
         try {
-            return resolveBasePath.resolve(path).toRealPath();
-        } catch (InvalidPathException | IOException | SecurityException e) {
-            Log.log("Could not access classpath element " + pathElementStr + " : " + e.getMessage());
+            return resolveBasePath.resolve(pathElementStr).toRealPath();
+        } catch (Exception e) {
+            // One of the above should have worked, so if we got here, the path element is junk.
+            Log.log(e.getMessage() + " while trying to read classpath element: " + pathElementStr);
             return null;
         }
     }
