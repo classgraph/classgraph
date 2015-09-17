@@ -36,10 +36,8 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
-import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -70,7 +68,7 @@ public class ClasspathFinder {
      * mixes of filesystem and URI conventions. Follows symbolic links, and resolves any relative paths relative to
      * resolveBase.
      */
-    private static Path urlToPath(Path resolveBasePath, String pathElementStr) {
+    private static Path urlToPath(final Path resolveBasePath, String pathElementStr) {
         if (pathElementStr.isEmpty()) {
             return null;
         }
@@ -89,20 +87,20 @@ public class ClasspathFinder {
         // https://weblogs.java.net/blog/kohsuke/archive/2007/04/how_to_convert.html
         try {
             // The URL parser is forgiving, try that first
-            URL url = new URL(pathElementStr);
+            final URL url = new URL(pathElementStr);
             try {
                 return resolveBasePath.resolve(Paths.get(url.toURI())).toRealPath();
-            } catch (Exception e) {
+            } catch (final Exception e) {
                 try {
                     return resolveBasePath.resolve(Paths.get(url.getPath())).toRealPath();
-                } catch (Exception e1) {
+                } catch (final Exception e1) {
                 }
             }
-        } catch (MalformedURLException e) {
+        } catch (final MalformedURLException e) {
         }
         try {
             return resolveBasePath.resolve(pathElementStr).toRealPath();
-        } catch (Exception e) {
+        } catch (final Exception e) {
             // One of the above should have worked, so if we got here, the path element is junk.
             Log.log(e.getMessage() + " while trying to read classpath element: " + pathElementStr);
             return null;
@@ -111,12 +109,12 @@ public class ClasspathFinder {
 
     /** Add a classpath element. */
     private void addClasspathElement(final String pathElement) {
-        Path currDirPath = Paths.get("").toAbsolutePath();
-        Path path = urlToPath(currDirPath, pathElement);
+        final Path currDirPath = Paths.get("").toAbsolutePath();
+        final Path path = urlToPath(currDirPath, pathElement);
         if (path != null) {
             final File pathFile = path.toFile();
             if (pathFile.exists()) {
-                String pathStr = path.toString();
+                final String pathStr = path.toString();
                 if (classpathElementsSet.add(pathStr)) {
                     // This is the first time this classpath element has been encountered
                     boolean isValidClasspathElement = true;
@@ -145,10 +143,10 @@ public class ClasspathFinder {
                                     }
                                     // Class-Path entries in the manifest file should be resolved relative to the
                                     // directory the manifest's jarfile is contained in (i.e. path.getParent()).
-                                    Path parentPath = path.getParent();
+                                    final Path parentPath = path.getParent();
                                     // Class-Path entries in manifest files are a space-delimited list of URIs.
                                     for (final String manifestClassPathElement : manifestClassPath.split(" ")) {
-                                        Path manifestEltPath = urlToPath(parentPath, manifestClassPathElement);
+                                        final Path manifestEltPath = urlToPath(parentPath, manifestClassPathElement);
                                         if (manifestEltPath != null) {
                                             addClasspathElement(manifestEltPath.toString());
                                         }
@@ -178,18 +176,18 @@ public class ClasspathFinder {
      * determine if the given jarfile is part of the JRE. This would typically be called with an initial
      * ancestralScandepth of 2, since JRE jarfiles can be in the lib or lib/ext directories of the JRE.
      */
-    private boolean isJREJar(File file, int ancestralScanDepth) {
+    private boolean isJREJar(final File file, final int ancestralScanDepth) {
         if (ancestralScanDepth == 0) {
             return false;
         } else {
-            File parent = file.getParentFile();
+            final File parent = file.getParentFile();
             if (parent == null) {
                 return false;
             }
             if (knownJREPaths.contains(parent.getPath())) {
                 return true;
             }
-            File rt = new File(parent, "rt.jar");
+            final File rt = new File(parent, "rt.jar");
             if (rt.exists()) {
                 // Found rt.jar; check its manifest file to make sure it's the JRE's rt.jar and not something else 
                 final String manifestUrlStr = "jar:" + rt.toURI() + "!/META-INF/MANIFEST.MF";
@@ -230,14 +228,14 @@ public class ClasspathFinder {
             final StackTraceElement[] stacktrace = e.getStackTrace();
             if (stacktrace.length >= 3) {
                 // Visit parent classloaders in top-down order, the same as in the JRE
-                ArrayList<ClassLoader> callerClassLoaders = new ArrayList<>();
+                final ArrayList<ClassLoader> callerClassLoaders = new ArrayList<>();
                 final StackTraceElement caller = stacktrace[2];
                 for (ClassLoader cl = caller.getClass().getClassLoader(); cl != null; cl = cl.getParent()) {
                     callerClassLoaders.add(cl);
                 }
                 // OpenJDK calls classloaders in a top-down order
                 for (int i = callerClassLoaders.size() - 1; i >= 0; --i) {
-                    ClassLoader cl = callerClassLoaders.get(i);
+                    final ClassLoader cl = callerClassLoaders.get(i);
                     if (classLoadersSet.add(cl)) {
                         classLoaders.add(cl);
                     }
@@ -274,7 +272,7 @@ public class ClasspathFinder {
         }
 
         // Add entries found in java.class.path
-        String classpathProperty = System.getProperty("java.class.path");
+        final String classpathProperty = System.getProperty("java.class.path");
         if (classpathProperty == null || classpathProperty.isEmpty()) {
             for (final String pathElement : classpathProperty.split(File.pathSeparator)) {
                 addClasspathElement(pathElement);

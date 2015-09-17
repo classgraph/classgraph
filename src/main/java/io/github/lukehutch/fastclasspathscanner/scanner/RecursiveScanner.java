@@ -114,7 +114,7 @@ public class RecursiveScanner {
      * ["com.x", "-jar:"] => scans "com.x" and all sub-packages, but only looks in directories on the classpath,
      * doesn't scan jarfiles (i.e. all jars are blacklisted.)
      */
-    public RecursiveScanner(ClasspathFinder classpathFinder, final String[] scanSpecs) {
+    public RecursiveScanner(final ClasspathFinder classpathFinder, final String[] scanSpecs) {
         this.classpathFinder = classpathFinder;
         final HashSet<String> uniqueWhitelistedPaths = new HashSet<>();
         final HashSet<String> uniqueBlacklistedPaths = new HashSet<>();
@@ -221,7 +221,7 @@ public class RecursiveScanner {
     private void scanFile(final File file, final String relativePath, final boolean scanTimestampsOnly) {
         lastModified = Math.max(lastModified, file.lastModified());
         if (!scanTimestampsOnly) {
-            long startTime = System.currentTimeMillis();
+            final long startTime = System.currentTimeMillis();
             // Match file paths against path patterns
             boolean filePathMatches = false;
             for (final FilePathMatcher fileMatcher : filePathMatchers) {
@@ -251,7 +251,7 @@ public class RecursiveScanner {
      */
     private void scanZipfile(final String zipfilePath, final ZipFile zipFile, final long zipFileLastModified,
             final boolean scanTimestampsOnly) {
-        long startTime = System.currentTimeMillis();
+        final long startTime = System.currentTimeMillis();
         boolean timestampWarning = false;
         for (final Enumeration<? extends ZipEntry> entries = zipFile.entries(); entries.hasMoreElements();) {
             // Scan for matching filenames
@@ -417,7 +417,7 @@ public class RecursiveScanner {
             } else if (pathElt.isFile()) {
                 if (Utils.isJar(path) && scanJars) {
                     // Scan within jar/zipfile path element
-                    String jarName = pathElt.getName();
+                    final String jarName = pathElt.getName();
                     if ((whitelistedJars.isEmpty() || whitelistedJars.contains(jarName))
                             && !blacklistedJars.contains(jarName)) {
                         try (ZipFile zipfile = new ZipFile(pathElt)) {
