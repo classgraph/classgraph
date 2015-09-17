@@ -46,7 +46,7 @@ public abstract class LazyMap<K, V> {
     private boolean initialized = false;
 
     /** Override this to generate a single value each time get() is called. The result will be cached in the map. */
-    protected V generateValue(K key) {
+    protected V generateValue(final K key) {
         return null;
     }
 
@@ -68,9 +68,9 @@ public abstract class LazyMap<K, V> {
     }
 
     /** Ensure that all keys in the provided collection have been initialized or generated. */
-    public void generateAllValues(Collection<K> keys) {
+    public void generateAllValues(final Collection<K> keys) {
         checkInitialized();
-        for (K key : keys) {
+        for (final K key : keys) {
             get(key);
         }
     }
@@ -80,7 +80,7 @@ public abstract class LazyMap<K, V> {
      * contain the key, generateValue(key) will be called, and the result will be stored in the map. If there is
      * still no value corresponding to the key in the map, null will be returned.
      */
-    public V get(K key) {
+    public V get(final K key) {
         checkInitialized();
         V cachedVal = map.get(key);
         if (cachedVal == null) {
@@ -140,7 +140,7 @@ public abstract class LazyMap<K, V> {
     public static <K, V> LazyMap<K, ArrayList<V>> convertToMultiMap(final LazyMap<K, HashSet<V>> lazyMap) {
         return new LazyMap<K, ArrayList<V>>() {
             @Override
-            protected ArrayList<V> generateValue(K key) {
+            protected ArrayList<V> generateValue(final K key) {
                 final HashSet<V> setVals = lazyMap.get(key);
                 return setVals == null ? null : new ArrayList<>(setVals);
             }

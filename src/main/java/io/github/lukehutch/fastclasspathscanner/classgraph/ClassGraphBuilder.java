@@ -130,7 +130,8 @@ public class ClassGraphBuilder {
     /** Return the names of all subclasses of the named class. */
     private final LazyMap<String, ArrayList<String>> classNameToSubclassNames = //
     new LazyMap<String, ArrayList<String>>() {
-        protected ArrayList<String> generateValue(String className) {
+        @Override
+        protected ArrayList<String> generateValue(final String className) {
             final DAGNode classNode = classNameToClassNode.get(className);
             if (classNode == null) {
                 return null;
@@ -156,7 +157,8 @@ public class ClassGraphBuilder {
     /** Return the names of all superclasses of the named class. */
     private final LazyMap<String, ArrayList<String>> classNameToSuperclassNames = //
     new LazyMap<String, ArrayList<String>>() {
-        protected ArrayList<String> generateValue(String className) {
+        @Override
+        protected ArrayList<String> generateValue(final String className) {
             final DAGNode classNode = classNameToClassNode.get(className);
             if (classNode == null) {
                 return null;
@@ -185,7 +187,8 @@ public class ClassGraphBuilder {
     /** Return the names of all subinterfaces of the named interface. */
     private final LazyMap<String, ArrayList<String>> interfaceNameToSubinterfaceNames = //
     new LazyMap<String, ArrayList<String>>() {
-        protected ArrayList<String> generateValue(String interfaceName) {
+        @Override
+        protected ArrayList<String> generateValue(final String interfaceName) {
             final DAGNode interfaceNode = interfaceNameToInterfaceNode.get(interfaceName);
             if (interfaceNode == null) {
                 return null;
@@ -211,7 +214,8 @@ public class ClassGraphBuilder {
     /** Return the names of all superinterfaces of the named interface. */
     private final LazyMap<String, ArrayList<String>> interfaceNameToSuperinterfaceNames = //
     new LazyMap<String, ArrayList<String>>() {
-        protected ArrayList<String> generateValue(String interfaceName) {
+        @Override
+        protected ArrayList<String> generateValue(final String interfaceName) {
             final DAGNode interfaceNode = interfaceNameToInterfaceNode.get(interfaceName);
             if (interfaceNode == null) {
                 return null;
@@ -294,7 +298,7 @@ public class ClassGraphBuilder {
     private final LazyMap<String, HashSet<String>> annotationNameToAnnotatedClassNamesSet = //
     new LazyMap<String, HashSet<String>>() {
         @Override
-        protected HashSet<String> generateValue(String annotationName) {
+        protected HashSet<String> generateValue(final String annotationName) {
             final DAGNode annotationNode = annotationNameToAnnotationNode.get(annotationName);
             if (annotationNode == null) {
                 return null;
@@ -341,7 +345,7 @@ public class ClassGraphBuilder {
     private final LazyMap<String, HashSet<String>> metaAnnotationNameToAnnotatedAnnotationNamesSet = //
     new LazyMap<String, HashSet<String>>() {
         @Override
-        protected HashSet<String> generateValue(String annotationName) {
+        protected HashSet<String> generateValue(final String annotationName) {
             final DAGNode annotationNode = annotationNameToAnnotationNode.get(annotationName);
             if (annotationNode == null) {
                 return null;
