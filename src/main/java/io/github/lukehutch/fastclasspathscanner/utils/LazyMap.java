@@ -28,33 +28,122 @@
  */
 package io.github.lukehutch.fastclasspathscanner.utils;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Used to wrap a map with lazy evaluation, so work is not done unless it is needed. (e.g. if you don't use the
  * annotations features of the API, most of the annotations data structures are not built.)
+ * 
+ * Either override initialize() if you need to initialize and finalize the entire map at once, or, better, override
+ * generateValue() to compute map entries only as they are requested.
  */
 public abstract class LazyMap<K, V> {
     protected final HashMap<K, V> map = new HashMap<>();
     private boolean initialized = false;
 
+    /** Override this to generate a single value each time get() is called. The result will be cached in the map. */
+    protected V generateValue(K key) {
+        return null;
+    }
+
+    /** Override this to initialize the entire map the first time get() is called. */
+    public void initialize() {
+    }
+
+    private void checkInitialized() {
+        if (!initialized) {
+            initialize();
+            initialized = true;
+        }
+    }
+
+    /** Clear the map. */
     public void clear() {
         map.clear();
         initialized = false;
     }
 
-    public HashMap<K, V> resolve() {
-        if (!initialized) {
-            initialize();
-            initialized = true;
+    /** Ensure that all keys in the provided collection have been initialized or generated. */
+    public void generateAllValues(Collection<K> keys) {
+        checkInitialized();
+        for (K key : keys) {
+            get(key);
         }
-        return map;
+    }
+
+    /**
+     * Get the requested key. If initialize() has not yet been called, it will be called. If the map does not yet
+     * contain the key, generateValue(key) will be called, and the result will be stored in the map. If there is
+     * still no value corresponding to the key in the map, null will be returned.
+     */
+    public V get(K key) {
+        checkInitialized();
+        V cachedVal = map.get(key);
+        if (cachedVal == null) {
+            cachedVal = generateValue(key);
+            if (cachedVal != null) {
+                map.put(key, cachedVal);
+            }
+        }
+        return cachedVal;
+    }
+
+    /**
+     * Returns all values in the map that have been initialized so far. If the map is not exhaustively initialized
+     * in the initialize() method, this will not contain all possible values for the map, only the values that have
+     * been computed as a result of calling generateValue().
+     */
+    public Collection<V> values() {
+        checkInitialized();
+        return map.values();
+    }
+
+    /**
+     * Returns all keys in the map that have been initialized so far. If the map is not exhaustively initialized in
+     * the initialize() method, this will not contain all possible keys for the map, only the keys that have been
+     * passed so far to generateValue().
+     */
+    public Set<K> keySet() {
+        checkInitialized();
+        return map.keySet();
     }
 
     @Override
     public String toString() {
+        checkInitialized();
         return map.toString();
     }
 
-    public abstract void initialize();
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * For all keys in templateLazyMap, generate the value for each key, then invert the map to find the preimage of
+     * each unique value. The keySet in templateLazyMap is read the first time get() is called on the returned
+     * LazyMap.
+     */
+    public static <K, V, T> LazyMap<V, HashSet<K>> invertMultiSet(final LazyMap<K, HashSet<V>> lazyMap, //
+            final LazyMap<K, T> templateLazyMap) {
+        return new LazyMap<V, HashSet<K>>() {
+            @Override
+            public void initialize() {
+                lazyMap.generateAllValues(templateLazyMap.keySet());
+                MultiSet.invert(lazyMap.map, this.map);
+            }
+        };
+    }
+
+    /** Convert a lazy MultiSet into a lazy MultiMap. */
+    public static <K, V> LazyMap<K, ArrayList<V>> convertToMultiMap(final LazyMap<K, HashSet<V>> lazyMap) {
+        return new LazyMap<K, ArrayList<V>>() {
+            @Override
+            protected ArrayList<V> generateValue(K key) {
+                final HashSet<V> setVals = lazyMap.get(key);
+                return setVals == null ? null : new ArrayList<>(setVals);
+            }
+        };
+    }
 }
