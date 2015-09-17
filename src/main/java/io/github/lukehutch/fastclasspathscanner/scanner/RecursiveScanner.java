@@ -216,24 +216,6 @@ public class RecursiveScanner {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * If file is a symbolic link, resolve to its final target, else return a File pointing to the same object as
-     * the original File, except that the path is normalized. Returns null if an exception occurred while resolving
-     * links (e.g. broken link).
-     */
-    private static File toRealPath(File file) {
-        try {
-            return file.toPath().toRealPath().toFile();
-        } catch (IOException | SecurityException e) {
-            if (FastClasspathScanner.verbose) {
-                Log.log("Could not access file " + file + ": " + e.getMessage());
-            }
-            return null;
-        }
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
      * Scan a file.
      */
     private void scanFile(final File file, final String relativePath, final boolean scanTimestampsOnly) {
@@ -383,7 +365,14 @@ public class RecursiveScanner {
             final File[] subFiles = dir.listFiles();
             if (subFiles != null) {
                 for (final File subFile : subFiles) {
-                    File subFileReal = toRealPath(subFile);
+                    File subFileReal = null;
+                    try {
+                        subFileReal = subFile.toPath().toRealPath().toFile();
+                    } catch (IOException | SecurityException e) {
+                        if (FastClasspathScanner.verbose) {
+                            Log.log("Could not access file " + subFile + ": " + e.getMessage());
+                        }
+                    }
                     if (subFileReal != null) {
                         if (subFileReal.isDirectory()) {
                             // Recurse into subdirectory
