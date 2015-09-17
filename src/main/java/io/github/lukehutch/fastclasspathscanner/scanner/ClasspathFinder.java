@@ -96,7 +96,7 @@ public class ClasspathFinder {
         // Need to deal with possibly-broken mixes of file:// URLs and system-dependent path formats -- see:
         // https://weblogs.java.net/blog/kohsuke/archive/2007/04/how_to_convert.html
         try {
-            // The URL parser is forgiving, try that first
+            // The URL parser is forgiving -- try that first
             final URL url = new URL(pathElementStr);
             try {
                 return resolveBasePath.resolve(Paths.get(url.toURI())).toRealPath();
@@ -159,7 +159,8 @@ public class ClasspathFinder {
                                     final Path parentPath = path.getParent();
                                     // Class-Path entries in manifest files are a space-delimited list of URIs.
                                     for (final String manifestClassPathElement : manifestClassPath.split(" ")) {
-                                        final Path manifestEltPath = urlToPath(parentPath, manifestClassPathElement);
+                                        final Path manifestEltPath = urlToPath(parentPath, //
+                                                manifestClassPathElement);
                                         if (manifestEltPath != null) {
                                             addClasspathElement(manifestEltPath.toString());
                                         }
