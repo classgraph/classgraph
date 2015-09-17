@@ -75,11 +75,21 @@ public class ClasspathFinder {
         // Ignore "jar:", we look for ".jar" on the end of filenames instead
         if (pathElementStr.startsWith("jar:")) {
             pathElementStr = pathElementStr.substring(4);
+            // Everything after '!' in a "jar:" URL refers to a path within the jar.
+            // Don't allow this for classpath scanning.
+            if (pathElementStr.indexOf('!') >= 0) {
+                if (FastClasspathScanner.verbose) {
+                    Log.log("Ignoring direct jar-internal URL reference in classpath: " + pathElementStr);
+                }
+                return null;
+            }
         }
         // We don't fetch remote classpath entries, although they are theoretically valid if using
         // a URLClassLoader, such as used to resolve the Class-Path field in a jarfile's manifest file.
         if (pathElementStr.startsWith("http://") || pathElementStr.startsWith("https://")) {
-            Log.log("Ignoring remote entry in classpath: " + pathElementStr);
+            if (FastClasspathScanner.verbose) {
+                Log.log("Ignoring remote entry in classpath: " + pathElementStr);
+            }
             return null;
         }
         // Try parsing the path element as a URL/URI, then as a filesystem path.
@@ -102,7 +112,10 @@ public class ClasspathFinder {
             return resolveBasePath.resolve(pathElementStr).toRealPath();
         } catch (final Exception e) {
             // One of the above should have worked, so if we got here, the path element is junk.
-            Log.log(e.getMessage() + " while trying to read classpath element: " + pathElementStr);
+            if (FastClasspathScanner.verbose) {
+                Log.log("Exception while trying to read classpath element " + pathElementStr + " : "
+                        + e.getMessage());
+            }
             return null;
         }
     }
