@@ -112,7 +112,7 @@ new FastClasspathScanner("com.xyz.widget")
 ```java
 List<Class<? extends Widget>> matchingClasses = new ArrayList<>();
 new FastClasspathScanner("com.xyz.widget")
-    .matchSubclassesOf(Widget.class, matchingClasses::add)  // Ref to List::add
+    .matchSubclassesOf(Widget.class, matchingClasses::add)  // Ref to List.add()
     .scan();
 ```
 
