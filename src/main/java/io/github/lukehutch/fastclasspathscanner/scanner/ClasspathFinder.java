@@ -35,7 +35,6 @@ import io.github.lukehutch.fastclasspathscanner.utils.Utils;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Path;
@@ -85,7 +84,7 @@ public class ClasspathFinder {
             }
             // Convert "jar:" to "file:" URL, so that URL -> URI -> Path works
             pathStr = pathStr.substring(4);
-            if (!pathStr.startsWith("http:") && !pathStr.startsWith("file:")) {
+            if (!pathStr.startsWith("file:") && !pathStr.startsWith("http:") && !pathStr.startsWith("https:")) {
                 pathStr = "file:" + pathStr;
             }
         }
