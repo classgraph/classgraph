@@ -73,51 +73,56 @@ public class ClasspathFinder {
             return null;
         }
         // Ignore "jar:", we look for ".jar" on the end of filenames instead
-        if (pathElementStr.startsWith("jar:")) {
-            pathElementStr = pathElementStr.substring(4);
+        String pathStr = pathElementStr;
+        if (pathStr.startsWith("jar:")) {
             // Everything after '!' in a "jar:" URL refers to a path within the jar.
             // Don't allow this for classpath scanning.
-            if (pathElementStr.indexOf('!') >= 0) {
+            if (pathStr.indexOf('!') >= 0) {
                 if (FastClasspathScanner.verbose) {
-                    Log.log("Ignoring direct jar-internal URL reference in classpath: " + pathElementStr);
+                    Log.log("Ignoring direct jar-internal URL reference in classpath: " + pathStr);
                 }
                 return null;
+            }
+            // Convert "jar:" to "file:" URL, so that URL -> URI -> Path works
+            pathStr = pathStr.substring(4);
+            if (!pathStr.startsWith("http:") && !pathStr.startsWith("file:")) {
+                pathStr = "file:" + pathStr;
             }
         }
         // We don't fetch remote classpath entries, although they are theoretically valid if using
         // a URLClassLoader, such as used to resolve the Class-Path field in a jarfile's manifest file.
-        if (pathElementStr.startsWith("http://") || pathElementStr.startsWith("https://")) {
+        if (pathStr.startsWith("http:") || pathStr.startsWith("https:")) {
             if (FastClasspathScanner.verbose) {
-                Log.log("Ignoring remote entry in classpath: " + pathElementStr);
+                Log.log("Ignoring remote entry in classpath: " + pathStr);
             }
             return null;
         }
-        // Try parsing the path element as a URL/URI, then as a filesystem path.
-        // Need to deal with possibly-broken mixes of file:// URLs and system-dependent path formats -- see:
-        // https://weblogs.java.net/blog/kohsuke/archive/2007/04/how_to_convert.html
         try {
-            // The URL parser is forgiving -- try that first
-            final URL url = new URL(pathElementStr);
+            // Try parsing the path element as a URL, then as a URI, then as a filesystem path.
+            // Need to deal with possibly-broken mixes of file:// URLs and system-dependent path formats -- see:
+            // https://weblogs.java.net/blog/kohsuke/archive/2007/04/how_to_convert.html
+            // http://stackoverflow.com/a/17870390/3950982
+            // i.e. the recommended way to do this is URL -> URI -> Path, especially to handle weirdness on Windows.
+            return resolveBasePath.resolve(Paths.get(new URL(pathStr).toURI())).toRealPath();
+        } catch (Exception e) {
             try {
-                return resolveBasePath.resolve(Paths.get(url.toURI())).toRealPath();
-            } catch (final Exception e) {
+                return resolveBasePath.resolve(pathStr).toRealPath();
+            } catch (final Exception e2) {
                 try {
-                    return resolveBasePath.resolve(Paths.get(url.getPath())).toRealPath();
-                } catch (final Exception e1) {
+                    File file = new File(pathElementStr);
+                    if (file.exists()) {
+                        return file.toPath().toRealPath();
+                    }
+                } catch (Exception e3) {
+                    // One of the above should have worked, so if we got here, the path element is junk.
+                    if (FastClasspathScanner.verbose) {
+                        Log.log("Exception while trying to read classpath element " + pathStr + " : "
+                                + e.getMessage());
+                    }
                 }
             }
-        } catch (final MalformedURLException e) {
         }
-        try {
-            return resolveBasePath.resolve(pathElementStr).toRealPath();
-        } catch (final Exception e) {
-            // One of the above should have worked, so if we got here, the path element is junk.
-            if (FastClasspathScanner.verbose) {
-                Log.log("Exception while trying to read classpath element " + pathElementStr + " : "
-                        + e.getMessage());
-            }
-            return null;
-        }
+        return null;
     }
 
     /** Add a classpath element. */
