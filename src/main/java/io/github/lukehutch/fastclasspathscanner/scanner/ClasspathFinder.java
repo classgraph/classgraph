@@ -290,8 +290,9 @@ public class ClasspathFinder {
                         }
                     }
                 } else if (cl.getClass().getName().equals("org.jboss.modules.ModuleClassLoader")) {
-                    // See https://github.com/jboss-modules/jboss-modules/blob/master/ ...
-                    // src/main/java/org/jboss/modules/ModuleClassLoader.java
+                    // This is brittle, but it's the simplest way to support the JBoss ModuleClassLoader. See:
+                    // https://github.com/jboss-modules/jboss-modules/blob/master/src/ ...
+                    // main/java/org/jboss/modules/ModuleClassLoader.java
                     try {
                         Method getPaths = cl.getClass().getDeclaredMethod("getPaths");
                         getPaths.setAccessible(true);
