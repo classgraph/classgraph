@@ -35,12 +35,14 @@ import io.github.lukehutch.fastclasspathscanner.utils.Utils;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Method;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Set;
 import java.util.jar.Manifest;
 
 public class ClasspathFinder {
@@ -279,12 +281,31 @@ public class ClasspathFinder {
         // Get file paths for URLs of each classloader.
         for (final ClassLoader cl : classLoaders) {
             if (cl != null) {
-                for (final URL url : ((URLClassLoader) cl).getURLs()) {
-                    final String protocol = url.getProtocol();
-                    if (protocol == null || protocol.equalsIgnoreCase("file")) {
-                        // "file:" URL found in classpath
-                        addClasspathElement(url.getFile());
+                if (cl instanceof URLClassLoader) {
+                    for (final URL url : ((URLClassLoader) cl).getURLs()) {
+                        final String protocol = url.getProtocol();
+                        if (protocol == null || protocol.equalsIgnoreCase("file")) {
+                            // "file:" URL found in classpath
+                            addClasspathElement(url.getFile());
+                        }
                     }
+                } else if (cl.getClass().getName().equals("org.jboss.modules.ModuleClassLoader")) {
+                    // See https://github.com/jboss-modules/jboss-modules/blob/master/ ...
+                    // src/main/java/org/jboss/modules/ModuleClassLoader.java
+                    try {
+                        Method getPaths = cl.getClass().getDeclaredMethod("getPaths");
+                        getPaths.setAccessible(true);
+                        @SuppressWarnings("unchecked")
+                        Set<String> paths = (Set<String>) getPaths.invoke(cl);
+                        for (String path : paths) {
+                            addClasspathElement(path);
+                        }
+                    } catch (Exception e) {
+                        Log.log("Was not able to call getPaths() in " + cl.getClass().getName() + ": "
+                                + e.getMessage());
+                    }
+                } else {
+                    Log.log("Found unknown ClassLoader type, cannot scan classes: " + cl.getClass().getName());
                 }
             }
         }
