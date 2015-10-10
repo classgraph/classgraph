@@ -98,9 +98,8 @@ public class ClassfileBinaryParser {
     public static ClassInfo readClassInfoFromClassfileHeader(final String relativePath,
             final InputStream inputStream, final HashMap<String, HashMap<String, StaticFinalFieldMatchProcessor>> // 
             classNameToStaticFieldnameToMatchProcessor) {
-        try {
-            final DataInputStream inp = new DataInputStream(new BufferedInputStream(inputStream, 1024));
-
+        
+        try (final DataInputStream inp = new DataInputStream(new BufferedInputStream(inputStream, 8192))) {
             // Magic number
             if (inp.readInt() != 0xCAFEBABE) {
                 if (FastClasspathScanner.verbose) {
