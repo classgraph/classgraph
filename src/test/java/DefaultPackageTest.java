@@ -32,7 +32,7 @@ import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.whitelisted.Cls;
 import io.github.lukehutch.fastclasspathscanner.whitelisted.blacklisted.Blacklisted;
 
-import java.util.Set;
+import java.util.List;
 
 import org.junit.Test;
 
@@ -41,7 +41,7 @@ public class DefaultPackageTest {
 
     @Test
     public void scan() throws Exception {
-        final Set<String> allClasses = new FastClasspathScanner().scan().getNamesOfAllClasses();
+        final List<String> allClasses = new FastClasspathScanner().scan().getNamesOfAllClasses();
         assertThat(allClasses).contains(Cls.class.getName());
         assertThat(allClasses).contains(FastClasspathScanner.class.getName());
         assertThat(allClasses).contains(DefaultPackageTest.class.getName());
@@ -53,7 +53,7 @@ public class DefaultPackageTest {
 
     @Test
     public void scanWithWhitelist() throws Exception {
-        final Set<String> allClasses = new FastClasspathScanner(WHITELIST_PACKAGE).scan().getNamesOfAllClasses();
+        final List<String> allClasses = new FastClasspathScanner(WHITELIST_PACKAGE).scan().getNamesOfAllClasses();
         assertThat(allClasses).contains(Cls.class.getName());
         assertThat(allClasses).doesNotContain(FastClasspathScanner.class.getName());
         assertThat(allClasses).doesNotContain(DefaultPackageTest.class.getName());

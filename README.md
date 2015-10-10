@@ -416,12 +416,12 @@ If you need more careful change detection than is afforded by checking timestamp
 
 ### 9. Get a list of all whitelisted (and non-blacklisted) classes and interfaces on the classpath
 
-The names of all classes and interfaces reached during the scan, after taking into account whitelist and blacklist criteria, can be returned by calling the method `.getNamesOfAllClasses()` after calling `.scan()`. This can be helpful for debugging purposes.
+The names of all classes and interfaces reached during the scan, after taking into account whitelist and blacklist criteria, can be returned by calling the method `.getNamesOfAllClasses()` after calling `.scan()`. This can be helpful for debugging purposes. The list is returned sorted.
 
 Note that system classes (e.g. java.lang.String) do not need to be explicitly included on the classpath, so they are not typically returned in this list. However, any classes *referenced* as a superclass or superinterface of classes on the classpath (and, more specifically, any classes referenced by whitelisted classes), will be returned in this list. For example, any classes encountered that do not extend another class will reference java.lang.Object, so java.lang.Object will be returned in this list. 
 
 ```java
-public Set<String> getNamesOfAllClasses()
+public List<String> getNamesOfAllClasses()
 ```
 
 ### 10. Get all unique directories and files on the classpath

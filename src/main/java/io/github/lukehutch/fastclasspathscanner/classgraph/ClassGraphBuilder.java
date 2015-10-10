@@ -36,7 +36,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 public class ClassGraphBuilder {
     private final ArrayList<ClassInfo> allClassInfo;
@@ -122,9 +121,20 @@ public class ClassGraphBuilder {
     // -------------------------------------------------------------------------------------------------------------
     // Classes
 
+    /** Return the names of all classes reached during classpath scanning, uniquified and sorted, for all keys. */
+    private final LazyMap<String, ArrayList<String>> namesOfAllClasses = //
+    new LazyMap<String, ArrayList<String>>() {
+        @Override
+        protected ArrayList<String> generateValue(final String className) {
+            final ArrayList<String> classNames = new ArrayList<>(classNameToClassNode.keySet());
+            Collections.sort(classNames);
+            return classNames;
+        };
+    };
+
     /** Return names of all classes (including interfaces and annotations) reached during the scan. */
-    public Set<String> getNamesOfAllClasses() {
-        return classNameToClassNode.keySet();
+    public List<String> getNamesOfAllClasses() {
+        return namesOfAllClasses.get("");
     }
 
     /** Return the names of all subclasses of the named class. */

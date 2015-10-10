@@ -53,7 +53,7 @@ import io.github.lukehutch.fastclasspathscanner.whitelisted.blacklisted.Blacklis
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Set;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -65,7 +65,7 @@ public class FastClasspathScannerTest {
 
     @Test
     public void scan() throws Exception {
-        final Set<String> allClasses = new FastClasspathScanner().scan().getNamesOfAllClasses();
+        final List<String> allClasses = new FastClasspathScanner().scan().getNamesOfAllClasses();
         assertThat(allClasses).contains(Cls.class.getName());
         assertThat(allClasses).contains(FastClasspathScanner.class.getName());
         assertThat(allClasses).contains(FastClasspathScannerTest.class.getName());
@@ -76,7 +76,7 @@ public class FastClasspathScannerTest {
 
     @Test
     public void scanWithWhitelist() throws Exception {
-        final Set<String> allClasses = new FastClasspathScanner(WHITELIST_PACKAGE).scan().getNamesOfAllClasses();
+        final List<String> allClasses = new FastClasspathScanner(WHITELIST_PACKAGE).scan().getNamesOfAllClasses();
         assertThat(allClasses).contains(Cls.class.getName());
         assertThat(allClasses).doesNotContain(FastClasspathScanner.class.getName());
         assertThat(allClasses).doesNotContain(FastClasspathScannerTest.class.getName());
@@ -87,7 +87,7 @@ public class FastClasspathScannerTest {
 
     @Test
     public void scanWithWhitelistAndBlacklist() throws Exception {
-        final Set<String> allClasses = new FastClasspathScanner(WHITELIST_PACKAGE, "-" + BLACKLIST_PACKAGE).scan()
+        final List<String> allClasses = new FastClasspathScanner(WHITELIST_PACKAGE, "-" + BLACKLIST_PACKAGE).scan()
                 .getNamesOfAllClasses();
         assertThat(allClasses).contains(Cls.class.getName());
         assertThat(allClasses).doesNotContain(FastClasspathScanner.class.getName());
@@ -134,7 +134,8 @@ public class FastClasspathScannerTest {
         assertThat(scanner.getNamesOfSubinterfacesOf(Iface.class)).doesNotContain(Iface.class.getName());
         assertThat(scanner.getNamesOfSubinterfacesOf(Iface.class)).contains(IfaceSub.class.getName());
         assertThat(scanner.getNamesOfSubinterfacesOf(Iface.class)).contains(IfaceSubSub.class.getName());
-        assertThat(scanner.getNamesOfSuperinterfacesOf(IfaceSubSub.class)).doesNotContain(IfaceSubSub.class.getName());
+        assertThat(scanner.getNamesOfSuperinterfacesOf(IfaceSubSub.class)).doesNotContain(
+                IfaceSubSub.class.getName());
         assertThat(scanner.getNamesOfSuperinterfacesOf(IfaceSubSub.class)).contains(IfaceSub.class.getName());
         assertThat(scanner.getNamesOfSuperinterfacesOf(IfaceSubSub.class)).contains(Iface.class.getName());
     }
@@ -160,7 +161,8 @@ public class FastClasspathScannerTest {
         assertThat(scanner.getNamesOfClassesImplementing(IfaceSubSub.class)).doesNotContain(Impl2.class.getName());
         assertThat(scanner.getNamesOfClassesImplementing(Iface.class)).contains(Impl2Sub.class.getName());
         assertThat(scanner.getNamesOfClassesImplementing(IfaceSub.class)).doesNotContain(Impl2Sub.class.getName());
-        assertThat(scanner.getNamesOfClassesImplementing(IfaceSubSub.class)).doesNotContain(Impl2Sub.class.getName());
+        assertThat(scanner.getNamesOfClassesImplementing(IfaceSubSub.class)).doesNotContain(
+                Impl2Sub.class.getName());
         assertThat(scanner.getNamesOfClassesImplementing(Iface.class)).contains(Impl2SubSub.class.getName());
         assertThat(scanner.getNamesOfClassesImplementing(IfaceSub.class)).contains(Impl2SubSub.class.getName());
         assertThat(scanner.getNamesOfClassesImplementing(IfaceSubSub.class)).contains(Impl2SubSub.class.getName());

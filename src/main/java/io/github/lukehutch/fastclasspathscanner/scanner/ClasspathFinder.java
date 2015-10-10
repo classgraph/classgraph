@@ -69,7 +69,7 @@ public class ClasspathFinder {
      * mixes of filesystem and URI conventions. Follows symbolic links, and resolves any relative paths relative to
      * resolveBase.
      */
-    private static Path urlToPath(final Path resolveBasePath, String pathElementStr) {
+    private static Path urlToPath(final Path resolveBasePath, final String pathElementStr) {
         if (pathElementStr.isEmpty()) {
             return null;
         }
@@ -105,16 +105,16 @@ public class ClasspathFinder {
             // http://stackoverflow.com/a/17870390/3950982
             // i.e. the recommended way to do this is URL -> URI -> Path, especially to handle weirdness on Windows.
             return resolveBasePath.resolve(Paths.get(new URL(pathStr).toURI())).toRealPath();
-        } catch (Exception e) {
+        } catch (final Exception e) {
             try {
                 return resolveBasePath.resolve(pathStr).toRealPath();
             } catch (final Exception e2) {
                 try {
-                    File file = new File(pathElementStr);
+                    final File file = new File(pathElementStr);
                     if (file.exists()) {
                         return file.toPath().toRealPath();
                     }
-                } catch (Exception e3) {
+                } catch (final Exception e3) {
                     // One of the above should have worked, so if we got here, the path element is junk.
                     if (FastClasspathScanner.verbose) {
                         Log.log("Exception while trying to read classpath element " + pathStr + " : "
@@ -294,14 +294,14 @@ public class ClasspathFinder {
                     // https://github.com/jboss-modules/jboss-modules/blob/master/src/ ...
                     // main/java/org/jboss/modules/ModuleClassLoader.java
                     try {
-                        Method getPaths = cl.getClass().getDeclaredMethod("getPaths");
+                        final Method getPaths = cl.getClass().getDeclaredMethod("getPaths");
                         getPaths.setAccessible(true);
                         @SuppressWarnings("unchecked")
-                        Set<String> paths = (Set<String>) getPaths.invoke(cl);
-                        for (String path : paths) {
+                        final Set<String> paths = (Set<String>) getPaths.invoke(cl);
+                        for (final String path : paths) {
                             addClasspathElement(path);
                         }
-                    } catch (Exception e) {
+                    } catch (final Exception e) {
                         Log.log("Was not able to call getPaths() in " + cl.getClass().getName() + ": "
                                 + e.getMessage());
                     }

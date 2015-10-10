@@ -52,7 +52,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
@@ -1017,9 +1016,9 @@ public class FastClasspathScanner {
 
     /**
      * Returns the names of all classes and interfaces processed during the scan, i.e. all classes reachable after
-     * taking into account the package whitelist and blacklist criteria.
+     * taking into account the package whitelist and blacklist criteria. List is sorted.
      */
-    public Set<String> getNamesOfAllClasses() {
+    public List<String> getNamesOfAllClasses() {
         return getScanResults().getNamesOfAllClasses();
     }
 
@@ -1029,7 +1028,7 @@ public class FastClasspathScanner {
      * Returns the list of all unique File objects representing directories or zip/jarfiles on the classpath, in
      * classloader resolution order. Classpath elements that do not exist are not included in the list.
      */
-    public ArrayList<File> getUniqueClasspathElements() {
+    public List<File> getUniqueClasspathElements() {
         return classpathFinder.getUniqueClasspathElements();
     }
 
