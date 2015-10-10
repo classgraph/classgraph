@@ -433,7 +433,7 @@ This method is useful if you want to see what's actually on the classpath -- not
 Note that FastClasspathScanner does not scan [JRE system, bootstrap or extension jarfiles](https://docs.oracle.com/javase/8/docs/technotes/tools/findingclasses.html), so the classpath entries for these system jarfiles will not be listed by `.getUniqueClasspathElements()`.
 
 ```java
-public ArrayList<File> getUniqueClasspathElements()
+public List<File> getUniqueClasspathElements()
 ```
 
 ## More complex usage
