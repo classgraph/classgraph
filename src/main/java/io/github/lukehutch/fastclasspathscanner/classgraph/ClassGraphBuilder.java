@@ -121,18 +121,20 @@ public class ClassGraphBuilder {
     // -------------------------------------------------------------------------------------------------------------
     // Classes
 
-    /** Return the names of all classes reached during classpath scanning, uniquified and sorted, for all keys. */
+    /** The sorted unique names of all classes, interfaces and annotations reached during the scan. */
     private final LazyMap<String, ArrayList<String>> namesOfAllClasses = //
     new LazyMap<String, ArrayList<String>>() {
         @Override
-        protected ArrayList<String> generateValue(final String className) {
+        protected ArrayList<String> generateValue(final String ignored) {
+            // Return same value for all keys -- just always use the key "" to fetch the list so that
+            // work is not duplicated if you call twice with different keys.
             final ArrayList<String> classNames = new ArrayList<>(classNameToClassNode.keySet());
             Collections.sort(classNames);
             return classNames;
         };
     };
 
-    /** Return names of all classes (including interfaces and annotations) reached during the scan. */
+    /** Return the sorted unique names of all classes, interfaces and annotations reached during the scan. */
     public List<String> getNamesOfAllClasses() {
         return namesOfAllClasses.get("");
     }
