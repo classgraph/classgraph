@@ -405,8 +405,7 @@ public class RecursiveScanner {
         }
 
         // Iterate through path elements and recursively scan within each directory and zipfile
-        for (int classpathEltIdx = 0; classpathEltIdx < uniqueClasspathElements.size(); classpathEltIdx++) {
-            final File pathElt = uniqueClasspathElements.get(classpathEltIdx);
+        for (final File pathElt : uniqueClasspathElements) {
             final String path = pathElt.getPath();
             if (FastClasspathScanner.verbose) {
                 Log.log("=> Scanning classpath element: " + path);
