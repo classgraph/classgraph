@@ -305,6 +305,18 @@ public class ClasspathFinder {
                         Log.log("Was not able to call getPaths() in " + cl.getClass().getName() + ": "
                                 + e.getMessage());
                     }
+                } else if (cl.getClass().getName().equals("weblogic.utils.classloaders.ChangeAwareClassLoader")) {
+                  try {
+                    final Method getPaths = cl.getClass().getDeclaredMethod("getClassPath");
+                    @SuppressWarnings("unchecked")
+                    final String paths = (String) getPaths.invoke(cl);
+                    for (final String path : paths.split(";")) {
+                      addClasspathElement(path);
+                    }
+                  } catch (final Exception e) {
+                    Log.log("Was not able to call getClassPath() in " + cl.getClass().getName() + ": "
+                        + e.getMessage());
+                  }
                 } else {
                     Log.log("Found unknown ClassLoader type, cannot scan classes: " + cl.getClass().getName());
                 }
