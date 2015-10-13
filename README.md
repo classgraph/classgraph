@@ -446,11 +446,11 @@ If FastClasspathScanner is not finding the classes, interfaces or files you thin
 public FastClasspathScanner verbose()
 ```
 
-### Scanning the classpath under Maven, Tomcat etc.
+### Working in platforms with non-standard ClassLoaders (JBoss/WildFly, WebLogic, Maven, Tomcat etc.)
 
-Some Java application launching platforms do not properly set java.class.path and/or don't expose their ClassLoader (from which classpath URLs can be obtained). [Maven](https://github.com/sonatype/plexus-classworlds) and [Tomcat](https://www.mulesoft.com/tcat/tomcat-classpath) are examples of this, and their custom classpath handling mechanisms may or may not work with FastClasspathScanner (YMMV). Patches to support these systems would be appreciated.
+FastClasspathScanner handles a number of non-standard ClassLoaders. There is [basic support](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/scanner/classloaderhandler) for JBoss and WebLogic, which implement their own ClassLoaders. Maven works when it sets `java.class.path`, but YMMV, since it [has its own](https://github.com/sonatype/plexus-classworlds) unique ClassLoader system. Tomcat has a [complex](https://www.mulesoft.com/tcat/tomcat-classpath) classloading system, and is less likely to work, but you might get lucky. Any patches improving support for these non-standard systems would be appreciated.
 
-Meanwhile, you can override the system classpath with your own path using the following call after calling the constructor, and before calling .scan():
+Note that you can always override the system classpath with your own path, using the following call after calling the constructor, and before calling .scan():
 
 ```java
 public FastClasspathScanner overrideClasspath(String classpath)
