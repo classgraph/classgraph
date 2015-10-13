@@ -304,28 +304,27 @@ public class ClasspathFinder {
         // classpath entry URLs employed by the classloader. 
         for (final ClassLoader cl : classLoaders) {
             if (cl != null) {
-                final ArrayList<String> clSuperclasses = new ArrayList<>();
+                final ArrayList<Class<?>> clSuperclasses = new ArrayList<>();
                 for (Class<?> c = cl.getClass(); c != null && c != Object.class; c = c.getSuperclass()) {
-                    clSuperclasses.add(c.getName());
+                    clSuperclasses.add(c);
                 }
                 boolean classloaderFound = false;
                 for (final String[] classloaderInfo : SUPPORTED_CLASSLOADERS) {
                     final String currClassName = classloaderInfo[0], currMethodName = classloaderInfo[1];
                     // Check to see if any of the superclasses of the classloader match a supported classloader 
-                    String matchingSuperclassName = null;
-                    for (String superclassName : clSuperclasses) {
-                        if (currClassName.equals(superclassName)) {
-                            matchingSuperclassName = superclassName;
+                    Class<?> matchingSuperclass = null;
+                    for (Class<?> superclass : clSuperclasses) {
+                        if (currClassName.equals(superclass.getName())) {
+                            matchingSuperclass = superclass;
                             break;
                         }
                     }
-                    if (matchingSuperclassName != null) {
+                    if (matchingSuperclass != null) {
                         // Found a matching ClassLoader
                         classloaderFound = true;
                         try {
                             // Call the method in the classloader that returns the classpath contribution
-                            final Method currMethod = Class.forName(matchingSuperclassName) //
-                                    .getDeclaredMethod(currMethodName);
+                            final Method currMethod = matchingSuperclass.getDeclaredMethod(currMethodName);
                             if (!currMethod.isAccessible()) {
                                 currMethod.setAccessible(true);
                             }
