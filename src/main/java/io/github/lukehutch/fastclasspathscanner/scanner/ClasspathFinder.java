@@ -90,14 +90,6 @@ public class ClasspathFinder {
         // Ignore "jar:", we look for ".jar" on the end of filenames instead
         String pathStr = pathElementStr;
         if (pathStr.startsWith("jar:")) {
-            // Everything after '!' in a "jar:" URL refers to a path within the jar.
-            // Don't allow this for classpath scanning.
-            if (pathStr.indexOf('!') >= 0) {
-                if (FastClasspathScanner.verbose) {
-                    Log.log("Ignoring direct jar-internal URL reference in classpath: " + pathStr);
-                }
-                return null;
-            }
             // Convert "jar:" to "file:" URL, so that URL -> URI -> Path works
             pathStr = pathStr.substring(4);
             if (!pathStr.startsWith("file:") && !pathStr.startsWith("http:") && !pathStr.startsWith("https:")) {
@@ -145,9 +137,20 @@ public class ClasspathFinder {
         final Path currDirPath = Paths.get("").toAbsolutePath();
         final Path path = urlToPath(currDirPath, pathElement);
         if (path != null) {
-            final File pathFile = path.toFile();
+            // Everything after '!' in a "jar:" URL refers to a path within the jar.
+            final String pathStr = path.toString();
+            final int bangPos = pathStr.indexOf('!');
+            final String suffix;
+            final File pathFile;
+            if (bangPos > 0) {
+                // If present, remove the '!' path suffix so that the .exists() test below won't fail
+                pathFile = new File(pathStr.substring(0, bangPos));
+                suffix = pathStr.substring(bangPos);
+            } else {
+                pathFile = path.toFile();
+                suffix = "";
+            }
             if (pathFile.exists()) {
-                final String pathStr = path.toString();
                 if (classpathElementsSet.add(pathStr)) {
                     // This is the first time this classpath element has been encountered
                     boolean isValidClasspathElement = true;
@@ -156,13 +159,14 @@ public class ClasspathFinder {
                     // file. OpenJDK scans manifest-defined classpath elements after the jar that listed them, so
                     // we recursively call addClasspathElement if needed each time a jar is encountered. 
                     if (pathFile.isFile() && Utils.isJar(pathStr)) {
-                        // Don't scan system jars
                         if (isJREJar(pathFile, /* ancestralScanDepth = */2)) {
+                            // Don't scan system jars
                             isValidClasspathElement = false;
                             if (FastClasspathScanner.verbose) {
                                 Log.log("Skipping JRE jar: " + pathStr);
                             }
                         } else {
+                            // Recursively check for Class-Path entries in jar manifests
                             final String manifestUrlStr = "jar:" + pathFile.toURI() + "!/META-INF/MANIFEST.MF";
                             try (InputStream stream = new URL(manifestUrlStr).openStream()) {
                                 // Look for Class-Path keys within manifest files
@@ -193,10 +197,18 @@ public class ClasspathFinder {
                     }
 
                     if (isValidClasspathElement) {
+                        // Add the classpath element to the ordered list
                         if (FastClasspathScanner.verbose) {
                             Log.log("Found classpath element: " + path);
                         }
-                        classpathElements.add(pathFile);
+                        if (suffix.isEmpty()) {
+                            // For regular files, add the File object to classpathElements.
+                            classpathElements.add(pathFile);
+                        } else {
+                            // For jar-internal paths, add the '!' path suffix to the end of the path,
+                            // and create a new (non-existent) File object to hold the path.
+                            classpathElements.add(new File(pathFile.getPath() + suffix));
+                        }
                     }
                 }
             } else if (FastClasspathScanner.verbose) {
