@@ -67,6 +67,7 @@ public class ClasspathFinder {
     /** The set of JRE paths found so far in the classpath, cached for speed. */
     private final HashSet<String> knownJREPaths = new HashSet<>();
 
+    /** Whether or not classpath has been read (supporting lazy reading of classpath). */
     private boolean initialized = false;
 
     /** Clear the classpath. */
