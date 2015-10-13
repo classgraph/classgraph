@@ -28,21 +28,23 @@
  */
 package io.github.lukehutch.fastclasspathscanner.scanner;
 
-import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-import io.github.lukehutch.fastclasspathscanner.utils.Log;
-import io.github.lukehutch.fastclasspathscanner.utils.Utils;
-
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.reflect.Array;
-import java.lang.reflect.Method;
 import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.jar.Manifest;
+
+import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
+import io.github.lukehutch.fastclasspathscanner.scanner.classloader.ClassLoaderHandler;
+import io.github.lukehutch.fastclasspathscanner.scanner.classloader.JBossClassLoaderHandler;
+import io.github.lukehutch.fastclasspathscanner.scanner.classloader.URLClassLoaderHandler;
+import io.github.lukehutch.fastclasspathscanner.scanner.classloader.WeblogicClassLoaderHandler;
+import io.github.lukehutch.fastclasspathscanner.utils.Log;
+import io.github.lukehutch.fastclasspathscanner.utils.Utils;
 
 public class ClasspathFinder {
     /**
@@ -51,11 +53,10 @@ public class ClasspathFinder {
      * separate classpath entries (i.e. the method should return a String if it consists of a classpath with entries
      * separated by the system path separator character).
      */
-    private static final String[][] SUPPORTED_CLASSLOADERS = {
-            //
-            { "java.net.URLClassLoader", "getURLs" }, //
-            { "org.jboss.modules.ModuleClassLoader", "getPaths" }, //
-            { "weblogic.utils.classloaders.ChangeAwareClassLoader", "getClassPath" }, //        
+    private final ClassLoaderHandler[] CLASSLOADER_HANDLERS = { //
+            new URLClassLoaderHandler(this), //
+            new JBossClassLoaderHandler(this), //
+            new WeblogicClassLoaderHandler(this), //
     };
 
     /** The unique elements of the classpath, as an ordered list. */
@@ -140,7 +141,7 @@ public class ClasspathFinder {
     }
 
     /** Add a classpath element. */
-    private void addClasspathElement(final String pathElement) {
+    public void addClasspathElement(final String pathElement) {
         final Path currDirPath = Paths.get("").toAbsolutePath();
         final Path path = urlToPath(currDirPath, pathElement);
         if (path != null) {
@@ -205,7 +206,7 @@ public class ClasspathFinder {
     }
 
     /** Add classpath elements, separated by the system path separator character. */
-    private void addClasspathElements(final String pathStr) {
+    public void addClasspathElements(final String pathStr) {
         if (pathStr != null && !pathStr.isEmpty()) {
             for (final String pathElement : pathStr.split(File.pathSeparator)) {
                 addClasspathElement(pathElement);
@@ -301,61 +302,25 @@ public class ClasspathFinder {
         }
 
         // For each classloader, call the appropriate message to get the classpath or Set/List of
-        // classpath entry URLs employed by the classloader. 
-        for (final ClassLoader cl : classLoaders) {
-            if (cl != null) {
-                final ArrayList<Class<?>> clSuperclasses = new ArrayList<>();
-                for (Class<?> c = cl.getClass(); c != null && c != Object.class; c = c.getSuperclass()) {
-                    clSuperclasses.add(c);
-                }
-                boolean classloaderFound = false;
-                for (final String[] classloaderInfo : SUPPORTED_CLASSLOADERS) {
-                    final String currClassName = classloaderInfo[0], currMethodName = classloaderInfo[1];
-                    // Check to see if any of the superclasses of the classloader match a supported classloader 
-                    Class<?> matchingSuperclass = null;
-                    for (Class<?> superclass : clSuperclasses) {
-                        if (currClassName.equals(superclass.getName())) {
-                            matchingSuperclass = superclass;
+        // classpath entry URLs employed by the classloader.
+        boolean classloaderFound = false;
+        for (final ClassLoader classloader : classLoaders) {
+            if (classloader != null) {
+                for (ClassLoaderHandler classLoaderHandler : CLASSLOADER_HANDLERS) {
+                    try {
+                        if (classLoaderHandler.match(classloader)) {
+                            // Sucessfully matched
+                            classloaderFound = true;
                             break;
                         }
-                    }
-                    if (matchingSuperclass != null) {
-                        // Found a matching ClassLoader
-                        classloaderFound = true;
-                        try {
-                            // Call the method in the classloader that returns the classpath contribution
-                            final Method currMethod = matchingSuperclass.getDeclaredMethod(currMethodName);
-                            if (!currMethod.isAccessible()) {
-                                currMethod.setAccessible(true);
-                            }
-                            Object result = currMethod.invoke(cl);
-                            if (result != null) {
-                                if (result instanceof String) {
-                                    // If return type is String, assume it's a classpath delimited by the
-                                    // system path separator character
-                                    addClasspathElements((String) result);
-                                } else if (Iterable.class.isAssignableFrom(result.getClass())) {
-                                    // If return type is Set/List (or anything else that implements Iterable),
-                                    // iterate through elements, calling toString() on each element, adding
-                                    // each separate element to the classpath. (This works for Set<URL> as
-                                    // returned by URLClassLoader.)
-                                    for (Object elt : (Iterable<?>) result) {
-                                        addClasspathElement(elt.toString());
-                                    }
-                                } else if (result.getClass().isArray()) {
-                                    // (Arrays don't implement Iterable, so have to be handled separately)
-                                    for (int i = 0; i < Array.getLength(result); i++) {
-                                        addClasspathElement(Array.get(result, i).toString());
-                                    }
-                                }
-                            }
-                        } catch (final Exception e) {
-                            Log.log("Was not able to call " + currMethodName + "() in " + currClassName + ": " + e);
-                        }
+                    } catch (final Exception e) {
+                        Log.log("Was not able to call getPaths() in " + classloader.getClass().getName() + ": "
+                                + e.toString());
                     }
                 }
                 if (!classloaderFound) {
-                    Log.log("Found unknown ClassLoader type, cannot scan classes: " + cl.getClass().getName());
+                    Log.log("Found unknown ClassLoader type, cannot scan classes: "
+                            + classloader.getClass().getName());
                 }
             }
         }
