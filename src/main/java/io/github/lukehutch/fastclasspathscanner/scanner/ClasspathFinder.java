@@ -305,7 +305,7 @@ public class ClasspathFinder {
         boolean classloaderFound = false;
         for (final ClassLoader classloader : classLoaders) {
             if (classloader != null) {
-                for (ClassLoaderHandler classLoaderHandler : CLASSLOADER_HANDLERS) {
+                for (final ClassLoaderHandler classLoaderHandler : CLASSLOADER_HANDLERS) {
                     try {
                         if (classLoaderHandler.handle(classloader)) {
                             // Sucessfully handled

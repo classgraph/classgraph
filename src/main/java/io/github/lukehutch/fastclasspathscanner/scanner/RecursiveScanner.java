@@ -28,11 +28,6 @@
  */
 package io.github.lukehutch.fastclasspathscanner.scanner;
 
-import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchProcessor;
-import io.github.lukehutch.fastclasspathscanner.utils.Log;
-import io.github.lukehutch.fastclasspathscanner.utils.Utils;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -43,6 +38,11 @@ import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
+
+import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
+import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchProcessor;
+import io.github.lukehutch.fastclasspathscanner.utils.Log;
+import io.github.lukehutch.fastclasspathscanner.utils.Utils;
 
 public class RecursiveScanner {
     /** Whether to scan jarfiles. */
@@ -288,8 +288,7 @@ public class RecursiveScanner {
                     // classpath. USE_ZIPFILE_ENTRY_MODIFICATION_TIMES is set to false by default,
                     // as zipfile entry timestamps are less trustworthy than filesystem timestamps.
                     final long entryTime = USE_ZIPFILE_ENTRY_MODIFICATION_TIMES //
-                    ? entry.getTime()
-                            : zipFileLastModified;
+                            ? entry.getTime() : zipFileLastModified;
                     lastModified = Math.max(lastModified, entryTime);
                     if (entryTime > System.currentTimeMillis() && !timestampWarning) {
                         Log.log(zipfilePath + " contains modification timestamps after the current time");
@@ -382,8 +381,8 @@ public class RecursiveScanner {
                             scanDir(subFileReal, ignorePrefixLen, inWhitelistedPath, scanTimestampsOnly);
                         } else if (inWhitelistedPath && subFileReal.isFile()) {
                             // Scan file
-                            scanFile(subFileReal, relativePath.equals("/") ? subFileReal.getName() : relativePath
-                                    + subFileReal.getName(), scanTimestampsOnly);
+                            scanFile(subFileReal, relativePath.equals("/") ? subFileReal.getName()
+                                    : relativePath + subFileReal.getName(), scanTimestampsOnly);
                         }
                     }
                 }

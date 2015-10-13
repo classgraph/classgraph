@@ -28,14 +28,14 @@
  */
 package io.github.lukehutch.fastclasspathscanner.classgraph;
 
-import io.github.lukehutch.fastclasspathscanner.utils.LazyMap;
-import io.github.lukehutch.fastclasspathscanner.utils.MultiSet;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+
+import io.github.lukehutch.fastclasspathscanner.utils.LazyMap;
+import io.github.lukehutch.fastclasspathscanner.utils.MultiSet;
 
 public class ClassGraphBuilder {
     private final ArrayList<ClassInfo> allClassInfo;
@@ -341,7 +341,7 @@ public class ClassGraphBuilder {
     /** A map from the names of classes to the names of annotations and meta-annotations on the classes. */
     private final LazyMap<String, ArrayList<String>> classNameToAnnotationNames = //
     LazyMap.convertToMultiMap( //
-    LazyMap.invertMultiSet(annotationNameToAnnotatedClassNamesSet, annotationNameToAnnotationNode));
+            LazyMap.invertMultiSet(annotationNameToAnnotatedClassNamesSet, annotationNameToAnnotationNode));
 
     /** Return the names of all annotations and meta-annotations on the named class. */
     public List<String> getNamesOfAnnotationsOnClass(final String classOrInterfaceName) {
@@ -373,7 +373,8 @@ public class ClassGraphBuilder {
     /** Mapping from annotation name to the names of annotations and meta-annotations on the annotation. */
     private final LazyMap<String, ArrayList<String>> annotationNameToMetaAnnotationNames = //
     LazyMap.convertToMultiMap( //
-    LazyMap.invertMultiSet(metaAnnotationNameToAnnotatedAnnotationNamesSet, annotationNameToAnnotationNode));
+            LazyMap.invertMultiSet(metaAnnotationNameToAnnotatedAnnotationNamesSet,
+                    annotationNameToAnnotationNode));
 
     /** Return the names of all meta-annotations on the named annotation. */
     public List<String> getNamesOfMetaAnnotationsOnAnnotation(final String annotationName) {

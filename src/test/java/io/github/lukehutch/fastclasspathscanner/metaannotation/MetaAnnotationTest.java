@@ -29,9 +29,10 @@
 package io.github.lukehutch.fastclasspathscanner.metaannotation;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 
 import org.junit.Test;
+
+import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 
 public class MetaAnnotationTest {
     FastClasspathScanner scanner = new FastClasspathScanner(getClass().getPackage().getName()).scan();
@@ -61,15 +62,15 @@ public class MetaAnnotationTest {
         assertThat(scanner.getNamesOfClassesWithAnnotation(H.class)).containsOnly(A.class.getName());
         assertThat(scanner.getNamesOfClassesWithAnnotation(K.class)).containsOnly(A.class.getName());
         assertThat(scanner.getNamesOfClassesWithAnnotation(M.class)).containsOnly(A.class.getName());
-        assertThat(scanner.getNamesOfAnnotationsOnClass(A.class)).containsOnly(E.class.getName(),
-                F.class.getName(), H.class.getName(), I.class.getName(), J.class.getName(), K.class.getName(),
-                L.class.getName(), M.class.getName());
+        assertThat(scanner.getNamesOfAnnotationsOnClass(A.class)).containsOnly(E.class.getName(), F.class.getName(),
+                H.class.getName(), I.class.getName(), J.class.getName(), K.class.getName(), L.class.getName(),
+                M.class.getName());
     }
 
     @Test
     public void namesOfMetaAnnotations() {
-        assertThat(scanner.getNamesOfAnnotationsOnClass(B.class))
-                .containsOnly(J.class.getName(), F.class.getName());
+        assertThat(scanner.getNamesOfAnnotationsOnClass(B.class)).containsOnly(J.class.getName(),
+                F.class.getName());
         assertThat(scanner.getNamesOfAnnotationsOnClass(C.class)).containsOnly(G.class.getName());
         assertThat(scanner.getNamesOfAnnotationsOnClass(D.class)).isEmpty();
     }

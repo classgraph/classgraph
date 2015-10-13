@@ -7,7 +7,7 @@ import java.lang.reflect.Method;
 import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
 
 public class JBossClassLoaderHandler extends ClassLoaderHandler {
-    public JBossClassLoaderHandler(ClasspathFinder classpathFinder) {
+    public JBossClassLoaderHandler(final ClasspathFinder classpathFinder) {
         super(classpathFinder);
     }
 
@@ -15,14 +15,14 @@ public class JBossClassLoaderHandler extends ClassLoaderHandler {
     // https://github.com/jboss-modules/jboss-modules/blob/master/src/main/java/org/jboss/modules/ ...
     // ModuleClassLoader.java
     @Override
-    public boolean handle(ClassLoader classloader) throws Exception {
+    public boolean handle(final ClassLoader classloader) throws Exception {
         for (Class<?> c = classloader.getClass(); c != null && c != Object.class; c = c.getSuperclass()) {
             if (c.getName().equals("org.jboss.modules.ModuleClassLoader")) {
                 final Method getResourceLoaders = c.getDeclaredMethod("getResourceLoaders");
                 if (!getResourceLoaders.isAccessible()) {
                     getResourceLoaders.setAccessible(true);
                 }
-                Object result = getResourceLoaders.invoke(classloader);
+                final Object result = getResourceLoaders.invoke(classloader);
                 for (int i = 0, n = Array.getLength(result); i < n; i++) {
                     final Object resourceLoader = Array.get(result, i); // type VFSResourceLoader
                     final Field root = resourceLoader.getClass().getDeclaredField("root");
@@ -34,7 +34,7 @@ public class JBossClassLoaderHandler extends ClassLoaderHandler {
                     if (!getPathName.isAccessible()) {
                         getPathName.setAccessible(true);
                     }
-                    String pathName = (String) getPathName.invoke(rootVal);
+                    final String pathName = (String) getPathName.invoke(rootVal);
                     classpathFinder.addClasspathElement(pathName);
                 }
                 return true;

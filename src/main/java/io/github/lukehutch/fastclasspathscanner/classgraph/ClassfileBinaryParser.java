@@ -1,9 +1,5 @@
 package io.github.lukehutch.fastclasspathscanner.classgraph;
 
-import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-import io.github.lukehutch.fastclasspathscanner.matchprocessor.StaticFinalFieldMatchProcessor;
-import io.github.lukehutch.fastclasspathscanner.utils.Log;
-
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
@@ -12,11 +8,16 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 
+import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
+import io.github.lukehutch.fastclasspathscanner.matchprocessor.StaticFinalFieldMatchProcessor;
+import io.github.lukehutch.fastclasspathscanner.utils.Log;
+
 public class ClassfileBinaryParser {
     /**
      * Read annotation entry from classfile.
      */
-    private static String readAnnotation(final DataInputStream inp, final Object[] constantPool) throws IOException {
+    private static String readAnnotation(final DataInputStream inp, final Object[] constantPool)
+            throws IOException {
         final String annotationFieldDescriptor = readRefdString(inp, constantPool);
         String annotationClassName;
         if (annotationFieldDescriptor.charAt(0) == 'L'
@@ -98,7 +99,7 @@ public class ClassfileBinaryParser {
     public static ClassInfo readClassInfoFromClassfileHeader(final String relativePath,
             final InputStream inputStream, final HashMap<String, HashMap<String, StaticFinalFieldMatchProcessor>> // 
             classNameToStaticFieldnameToMatchProcessor) {
-        
+
         try (final DataInputStream inp = new DataInputStream(new BufferedInputStream(inputStream, 8192))) {
             // Magic number
             if (inp.readInt() != 0xCAFEBABE) {

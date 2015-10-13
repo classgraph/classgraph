@@ -5,7 +5,7 @@ import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
 public abstract class ClassLoaderHandler {
     protected final ClasspathFinder classpathFinder;
 
-    public ClassLoaderHandler(ClasspathFinder classpathFinder) {
+    public ClassLoaderHandler(final ClasspathFinder classpathFinder) {
         this.classpathFinder = classpathFinder;
     }
 
