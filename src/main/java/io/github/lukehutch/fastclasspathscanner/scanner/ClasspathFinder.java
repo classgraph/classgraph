@@ -35,17 +35,29 @@ import io.github.lukehutch.fastclasspathscanner.utils.Utils;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Array;
 import java.lang.reflect.Method;
 import java.net.URL;
-import java.net.URLClassLoader;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.Set;
 import java.util.jar.Manifest;
 
 public class ClasspathFinder {
+    /**
+     * The set of supported ClassLoader classes. They should return an iterable (e.g. Set or List) or array of
+     * classpath entries, either URL or String-typed, or a single String in the case of a classpath rather than
+     * separate classpath entries (i.e. the method should return a String if it consists of a classpath with entries
+     * separated by the system path separator character).
+     */
+    private static final String[][] SUPPORTED_CLASSLOADERS = {
+            //
+            { "java.net.URLClassLoader", "getURLs" }, //
+            { "org.jboss.modules.ModuleClassLoader", "getPaths" }, //
+            { "weblogic.utils.classloaders.ChangeAwareClassLoader", "getClassPath" }, //        
+    };
+
     /** The unique elements of the classpath, as an ordered list. */
     private final ArrayList<File> classpathElements = new ArrayList<>();
 
@@ -287,34 +299,62 @@ public class ClasspathFinder {
             classLoaders.add(Thread.currentThread().getContextClassLoader());
         }
 
-        // Get file paths for URLs of each classloader.
+        // For each classloader, call the appropriate message to get the classpath or Set/List of
+        // classpath entry URLs employed by the classloader. 
         for (final ClassLoader cl : classLoaders) {
             if (cl != null) {
-                if (cl instanceof URLClassLoader) {
-                    for (final URL url : ((URLClassLoader) cl).getURLs()) {
-                        final String protocol = url.getProtocol();
-                        if (protocol == null || protocol.equalsIgnoreCase("file")) {
-                            // "file:" URL found in classpath
-                            addClasspathElement(url.getFile());
+                final ArrayList<String> clSuperclasses = new ArrayList<>();
+                for (Class<?> c = cl.getClass(); c != null && c != Object.class; c = c.getSuperclass()) {
+                    clSuperclasses.add(c.getName());
+                }
+                boolean classloaderFound = false;
+                for (final String[] classloaderInfo : SUPPORTED_CLASSLOADERS) {
+                    final String currClassName = classloaderInfo[0], currMethodName = classloaderInfo[1];
+                    // Check to see if any of the superclasses of the classloader match a supported classloader 
+                    String matchingSuperclassName = null;
+                    for (String superclassName : clSuperclasses) {
+                        if (currClassName.equals(superclassName)) {
+                            matchingSuperclassName = superclassName;
+                            break;
                         }
                     }
-                } else if (cl.getClass().getName().equals("org.jboss.modules.ModuleClassLoader")) {
-                    // This is brittle, but it's the simplest way to support the JBoss ModuleClassLoader. See:
-                    // https://github.com/jboss-modules/jboss-modules/blob/master/src/ ...
-                    // main/java/org/jboss/modules/ModuleClassLoader.java
-                    try {
-                        final Method getPaths = cl.getClass().getDeclaredMethod("getPaths");
-                        getPaths.setAccessible(true);
-                        @SuppressWarnings("unchecked")
-                        final Set<String> paths = (Set<String>) getPaths.invoke(cl);
-                        for (final String path : paths) {
-                            addClasspathElement(path);
+                    if (matchingSuperclassName != null) {
+                        // Found a matching ClassLoader
+                        classloaderFound = true;
+                        try {
+                            // Call the method in the classloader that returns the classpath contribution
+                            final Method currMethod = Class.forName(matchingSuperclassName) //
+                                    .getDeclaredMethod(currMethodName);
+                            if (!currMethod.isAccessible()) {
+                                currMethod.setAccessible(true);
+                            }
+                            Object result = currMethod.invoke(cl);
+                            if (result != null) {
+                                if (result instanceof String) {
+                                    // If return type is String, assume it's a classpath delimited by the
+                                    // system path separator character
+                                    addClasspathElements((String) result);
+                                } else if (Iterable.class.isAssignableFrom(result.getClass())) {
+                                    // If return type is Set/List (or anything else that implements Iterable),
+                                    // iterate through elements, calling toString() on each element, adding
+                                    // each separate element to the classpath. (This works for Set<URL> as
+                                    // returned by URLClassLoader.)
+                                    for (Object elt : (Iterable<?>) result) {
+                                        addClasspathElement(elt.toString());
+                                    }
+                                } else if (result.getClass().isArray()) {
+                                    // (Arrays don't implement Iterable, so have to be handled separately)
+                                    for (int i = 0; i < Array.getLength(result); i++) {
+                                        addClasspathElement(Array.get(result, i).toString());
+                                    }
+                                }
+                            }
+                        } catch (final Exception e) {
+                            Log.log("Was not able to call " + currMethodName + "() in " + currClassName + ": " + e);
                         }
-                    } catch (final Exception e) {
-                        Log.log("Was not able to call getPaths() in " + cl.getClass().getName() + ": "
-                                + e.getMessage());
                     }
-                } else {
+                }
+                if (!classloaderFound) {
                     Log.log("Found unknown ClassLoader type, cannot scan classes: " + cl.getClass().getName());
                 }
             }
