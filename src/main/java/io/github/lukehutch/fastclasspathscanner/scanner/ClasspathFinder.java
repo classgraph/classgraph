@@ -191,6 +191,15 @@ public class ClasspathFinder {
         }
     }
 
+    /** Add classpath elements, separated by the system path separator character. */
+    private void addClasspathElements(final String pathStr) {
+        if (pathStr != null && !pathStr.isEmpty()) {
+            for (final String pathElement : pathStr.split(File.pathSeparator)) {
+                addClasspathElement(pathElement);
+            }
+        }
+    }
+
     /**
      * Recursively search within ancestral directories of a jarfile to see if rt.jar is present, in order to
      * determine if the given jarfile is part of the JRE. This would typically be called with an initial
@@ -311,13 +320,9 @@ public class ClasspathFinder {
             }
         }
 
-        // Add entries found in java.class.path
-        final String classpathProperty = System.getProperty("java.class.path");
-        if (classpathProperty == null || classpathProperty.isEmpty()) {
-            for (final String pathElement : classpathProperty.split(File.pathSeparator)) {
-                addClasspathElement(pathElement);
-            }
-        }
+        // Add entries found in java.class.path, in case those entries were missed above due to some
+        // non-standard classloader that uses this property
+        addClasspathElements(System.getProperty("java.class.path"));
 
         initialized = true;
     }
@@ -325,9 +330,7 @@ public class ClasspathFinder {
     /** Override the system classpath with a custom classpath to search. */
     public void overrideClasspath(final String classpath) {
         clearClasspath();
-        for (final String pathElement : classpath.split(File.pathSeparator)) {
-            addClasspathElement(pathElement);
-        }
+        addClasspathElements(classpath);
         initialized = true;
     }
 
