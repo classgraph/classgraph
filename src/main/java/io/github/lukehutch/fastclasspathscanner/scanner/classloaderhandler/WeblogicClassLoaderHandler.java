@@ -9,9 +9,6 @@ public class WeblogicClassLoaderHandler extends ClassLoaderHandler {
         super(classpathFinder);
     }
 
-    // See:
-    // https://github.com/jboss-modules/jboss-modules/blob/master/src/main/java/org/jboss/modules/ ...
-    // ModuleClassLoader.java
     @Override
     public boolean handle(final ClassLoader classloader) throws Exception {
         for (Class<?> c = classloader.getClass(); c != null && c != Object.class; c = c.getSuperclass()) {
