@@ -9,5 +9,5 @@ public abstract class ClassLoaderHandler {
         this.classpathFinder = classpathFinder;
     }
 
-    public abstract boolean match(ClassLoader classloader) throws Exception;
+    public abstract boolean handle(ClassLoader classloader) throws Exception;
 }

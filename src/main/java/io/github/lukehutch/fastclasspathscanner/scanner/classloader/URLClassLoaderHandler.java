@@ -11,7 +11,7 @@ public class URLClassLoaderHandler extends ClassLoaderHandler {
     }
 
     @Override
-    public boolean match(ClassLoader classloader) {
+    public boolean handle(ClassLoader classloader) {
         if (classloader instanceof URLClassLoader) {
             for (final URL url : ((URLClassLoader) classloader).getURLs()) {
                 classpathFinder.addClasspathElement(url.toString());

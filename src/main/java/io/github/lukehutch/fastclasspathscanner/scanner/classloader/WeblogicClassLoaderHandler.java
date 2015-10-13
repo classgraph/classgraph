@@ -13,7 +13,7 @@ public class WeblogicClassLoaderHandler extends ClassLoaderHandler {
     // https://github.com/jboss-modules/jboss-modules/blob/master/src/main/java/org/jboss/modules/ ...
     // ModuleClassLoader.java
     @Override
-    public boolean match(ClassLoader classloader) throws Exception {
+    public boolean handle(ClassLoader classloader) throws Exception {
         for (Class<?> c = classloader.getClass(); c != null && c != Object.class; c = c.getSuperclass()) {
             if (c.getName().equals("weblogic.utils.classloaders.ChangeAwareClassLoader")) {
                 final Method getClassPath = c.getDeclaredMethod("getClassPath");

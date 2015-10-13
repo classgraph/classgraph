@@ -301,15 +301,14 @@ public class ClasspathFinder {
             classLoaders.add(Thread.currentThread().getContextClassLoader());
         }
 
-        // For each classloader, call the appropriate message to get the classpath or Set/List of
-        // classpath entry URLs employed by the classloader.
+        // Try finding a handler for each of the classloaders discovered above
         boolean classloaderFound = false;
         for (final ClassLoader classloader : classLoaders) {
             if (classloader != null) {
                 for (ClassLoaderHandler classLoaderHandler : CLASSLOADER_HANDLERS) {
                     try {
-                        if (classLoaderHandler.match(classloader)) {
-                            // Sucessfully matched
+                        if (classLoaderHandler.handle(classloader)) {
+                            // Sucessfully handled
                             classloaderFound = true;
                             break;
                         }
