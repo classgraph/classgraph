@@ -251,6 +251,9 @@ public class RecursiveScanner {
      */
     private void scanZipfile(final String zipfilePath, final ZipFile zipFile, final long zipFileLastModified,
             final boolean scanTimestampsOnly) {
+        if (FastClasspathScanner.verbose) {
+            Log.log("Opening Zipfile: " + zipfilePath);
+        }
         final long startTime = System.currentTimeMillis();
         boolean timestampWarning = false;
         for (final Enumeration<? extends ZipEntry> entries = zipFile.entries(); entries.hasMoreElements();) {
@@ -312,7 +315,7 @@ public class RecursiveScanner {
             }
         }
         if (FastClasspathScanner.verbose) {
-            Log.log("Scanned jar " + zipfilePath + " in " + (System.currentTimeMillis() - startTime) + " msec");
+            Log.log("Scanned zipfile " + zipfilePath + " in " + (System.currentTimeMillis() - startTime) + " msec");
         }
     }
 
