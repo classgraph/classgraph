@@ -1,4 +1,4 @@
-package io.github.lukehutch.fastclasspathscanner.scanner.classloader;
+package io.github.lukehutch.fastclasspathscanner.scanner.classloaderhandler;
 
 import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
 

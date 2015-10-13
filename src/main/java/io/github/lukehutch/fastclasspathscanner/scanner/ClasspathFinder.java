@@ -39,10 +39,10 @@ import java.util.HashSet;
 import java.util.jar.Manifest;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-import io.github.lukehutch.fastclasspathscanner.scanner.classloader.ClassLoaderHandler;
-import io.github.lukehutch.fastclasspathscanner.scanner.classloader.JBossClassLoaderHandler;
-import io.github.lukehutch.fastclasspathscanner.scanner.classloader.URLClassLoaderHandler;
-import io.github.lukehutch.fastclasspathscanner.scanner.classloader.WeblogicClassLoaderHandler;
+import io.github.lukehutch.fastclasspathscanner.scanner.classloaderhandler.ClassLoaderHandler;
+import io.github.lukehutch.fastclasspathscanner.scanner.classloaderhandler.JBossClassLoaderHandler;
+import io.github.lukehutch.fastclasspathscanner.scanner.classloaderhandler.URLClassLoaderHandler;
+import io.github.lukehutch.fastclasspathscanner.scanner.classloaderhandler.WeblogicClassLoaderHandler;
 import io.github.lukehutch.fastclasspathscanner.utils.Log;
 import io.github.lukehutch.fastclasspathscanner.utils.Utils;
 

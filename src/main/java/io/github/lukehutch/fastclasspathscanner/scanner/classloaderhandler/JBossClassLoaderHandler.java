@@ -1,4 +1,4 @@
-package io.github.lukehutch.fastclasspathscanner.scanner.classloader;
+package io.github.lukehutch.fastclasspathscanner.scanner.classloaderhandler;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
