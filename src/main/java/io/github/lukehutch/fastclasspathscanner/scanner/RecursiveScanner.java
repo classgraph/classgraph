@@ -249,63 +249,93 @@ public class RecursiveScanner {
     /**
      * Scan a zipfile for matching file path patterns. (Does not recurse into zipfiles within zipfiles.)
      */
-    private void scanZipfile(final String zipfilePath, final ZipFile zipFile, final long zipFileLastModified,
-            final boolean scanTimestampsOnly) {
+    private void scanZipfile(final String zipfilePath, final String zipInternalRootPath, final ZipFile zipFile,
+            final long zipFileLastModified, final boolean scanTimestampsOnly) {
         if (FastClasspathScanner.verbose) {
-            Log.log("Opening Zipfile: " + zipfilePath);
+            Log.log("Scanning jarfile: " + zipfilePath + (zipInternalRootPath.isEmpty() ? ""
+                    : " ; classpath root within jarfile: " + zipInternalRootPath));
         }
         final long startTime = System.currentTimeMillis();
         boolean timestampWarning = false;
+
+        // Find the root prefix, which is "" in the case of a jarfile listed as normal on the classpath,
+        // but will be "root/prefix" in the case of an entry "jar:/path/file.jar!/root/prefix". This can be
+        // used by some classloaders to specify a resource root inside a jarfile, e.g. "META-INF/classfiles".
+        String rootPrefix = zipInternalRootPath;
+        if (rootPrefix.startsWith("/")) {
+            rootPrefix = rootPrefix.substring(1);
+        }
+        if (!rootPrefix.isEmpty() && !rootPrefix.endsWith("/")) {
+            rootPrefix = rootPrefix + "/";
+        }
+        final int rootPrefixLen = rootPrefix.length();
+
         for (final Enumeration<? extends ZipEntry> entries = zipFile.entries(); entries.hasMoreElements();) {
             // Scan for matching filenames
             final ZipEntry entry = entries.nextElement();
-            if (!entry.isDirectory()) {
-                // Only process file entries (zipfile indices contain both directory entries and
-                // separate file entries for files within each directory, in lexicographic order)
-                final String path = entry.getName();
-                boolean scanFile = false;
-                for (final String whitelistedPath : whitelistedPaths) {
-                    if (path.startsWith(whitelistedPath) //
-                            || whitelistedPath.equals("/")) {
-                        // File path has a whitelisted path as a prefix -- can scan file
-                        scanFile = true;
-                        break;
-                    }
+            if (entry.isDirectory()) {
+                continue;
+            }
+
+            // Only process file entries (zipfile indices contain both directory entries and
+            // separate file entries for files within each directory, in lexicographic order)
+            String path = entry.getName();
+            if (path.startsWith("/")) {
+                // Shouldn't happen with the standard Java zipfile implementation (but just to be safe)
+                path = path.substring(1);
+            }
+            // Check if this zip entry is within the classfile root, if specified using
+            // "jar:/.../file.jar!/path" syntax (rootPrefix is "" if there is no zip-internal root path )
+            if (!path.startsWith(rootPrefix)) {
+                continue;
+            }
+            if (rootPrefixLen > 0) {
+                // Strip off root prefix to relativize path
+                path = path.substring(rootPrefixLen);
+            }
+
+            boolean scanFile = false;
+            for (final String whitelistedPath : whitelistedPaths) {
+                if (path.startsWith(whitelistedPath) //
+                        || whitelistedPath.equals("/")) {
+                    // File path has a whitelisted path as a prefix -- can scan file
+                    scanFile = true;
+                    break;
                 }
-                for (final String blacklistedPath : blacklistedPaths) {
-                    if (path.startsWith(blacklistedPath)) {
-                        // File path has a blacklisted path as a prefix -- don't scan it
-                        scanFile = false;
-                        break;
-                    }
+            }
+            for (final String blacklistedPath : blacklistedPaths) {
+                if (path.startsWith(blacklistedPath)) {
+                    // File path has a blacklisted path as a prefix -- don't scan it
+                    scanFile = false;
+                    break;
                 }
-                if (scanFile) {
-                    // If USE_ZIPFILE_ENTRY_MODIFICATION_TIMES is true, use zipfile entry timestamps,
-                    // otherwise use the modification time of the zipfile itself. Using zipfile entry
-                    // timestamps assumes that the timestamp on zipfile entries was properly added, and
-                    // that the clock of the machine adding the zipfile entries is in sync with the 
-                    // clock used to timestamp regular file and directory entries in the current
-                    // classpath. USE_ZIPFILE_ENTRY_MODIFICATION_TIMES is set to false by default,
-                    // as zipfile entry timestamps are less trustworthy than filesystem timestamps.
-                    final long entryTime = USE_ZIPFILE_ENTRY_MODIFICATION_TIMES //
-                            ? entry.getTime() : zipFileLastModified;
-                    lastModified = Math.max(lastModified, entryTime);
-                    if (entryTime > System.currentTimeMillis() && !timestampWarning) {
-                        Log.log(zipfilePath + " contains modification timestamps after the current time");
-                        // Only warn once
-                        timestampWarning = true;
-                    }
-                    if (!scanTimestampsOnly) {
-                        // Match file paths against path patterns
-                        for (final FilePathMatcher fileMatcher : filePathMatchers) {
-                            if (fileMatcher.filePathMatches(path)) {
-                                // There's a match -- open the file as a stream and call the match processor
-                                try (final InputStream inputStream = zipFile.getInputStream(entry)) {
-                                    fileMatcher.processMatch(path, inputStream, (int) entry.getSize());
-                                } catch (final IOException e) {
-                                    if (FastClasspathScanner.verbose) {
-                                        Log.log(e.getMessage() + " while processing file " + entry.getName());
-                                    }
+            }
+            if (scanFile) {
+                // If USE_ZIPFILE_ENTRY_MODIFICATION_TIMES is true, use zipfile entry timestamps,
+                // otherwise use the modification time of the zipfile itself. Using zipfile entry
+                // timestamps assumes that the timestamp on zipfile entries was properly added, and
+                // that the clock of the machine adding the zipfile entries is in sync with the 
+                // clock used to timestamp regular file and directory entries in the current
+                // classpath. USE_ZIPFILE_ENTRY_MODIFICATION_TIMES is set to false by default,
+                // as zipfile entry timestamps are less trustworthy than filesystem timestamps.
+                final long entryTime = USE_ZIPFILE_ENTRY_MODIFICATION_TIMES //
+                        ? entry.getTime() : zipFileLastModified;
+                lastModified = Math.max(lastModified, entryTime);
+                if (entryTime > System.currentTimeMillis() && !timestampWarning) {
+                    Log.log(zipfilePath + " contains modification timestamps after the current time");
+                    // Only warn once
+                    timestampWarning = true;
+                }
+                if (!scanTimestampsOnly) {
+                    // Match file paths against path patterns
+                    for (final FilePathMatcher fileMatcher : filePathMatchers) {
+                        if (fileMatcher.filePathMatches(path)) {
+                            // There's a match -- open the file as a stream and call the match processor
+                            try (final InputStream inputStream = zipFile.getInputStream(entry)) {
+                                fileMatcher.processMatch(path, inputStream, (int) entry.getSize());
+                            } catch (final IOException e) {
+                                if (FastClasspathScanner.verbose) {
+                                    Log.log(e.getMessage() + " while processing file " + entry.getName());
                                 }
                             }
                         }
@@ -314,7 +344,29 @@ public class RecursiveScanner {
             }
         }
         if (FastClasspathScanner.verbose) {
-            Log.log("Scanned zipfile " + zipfilePath + " in " + (System.currentTimeMillis() - startTime) + " msec");
+            Log.log("Scanned jarfile " + zipfilePath + " in " + (System.currentTimeMillis() - startTime) + " msec");
+        }
+    }
+
+    /**
+     * Scan a zipfile for matching file path patterns.
+     */
+    private void scanZipfile(final File pathElt, final String path, final String zipInternalRootPath,
+            final boolean scanTimestampsOnly) {
+        final String jarName = pathElt.getName();
+        if ((whitelistedJars.isEmpty() || whitelistedJars.contains(jarName))
+                && !blacklistedJars.contains(jarName)) {
+            try (ZipFile zipfile = new ZipFile(pathElt)) {
+                scanZipfile(path, zipInternalRootPath, zipfile, pathElt.lastModified(), scanTimestampsOnly);
+            } catch (final IOException e) {
+                if (FastClasspathScanner.verbose) {
+                    Log.log("Error while opening zipfile " + pathElt + " : " + e.toString());
+                }
+            }
+        } else {
+            if (FastClasspathScanner.verbose) {
+                Log.log("Jarfile did not match whitelist/blacklist criteria: " + jarName);
+            }
         }
     }
 
@@ -412,31 +464,53 @@ public class RecursiveScanner {
             if (FastClasspathScanner.verbose) {
                 Log.log("=> Scanning classpath element: " + path);
             }
-            if (pathElt.isDirectory() && scanNonJars) {
-                // Scan within dir path element
-                scanDir(pathElt, path.length() + 1, false, scanTimestampsOnly);
-            } else if (pathElt.isFile()) {
-                if (Utils.isJar(path) && scanJars) {
-                    // Scan within jar/zipfile path element
-                    final String jarName = pathElt.getName();
-                    if ((whitelistedJars.isEmpty() || whitelistedJars.contains(jarName))
-                            && !blacklistedJars.contains(jarName)) {
-                        try (ZipFile zipfile = new ZipFile(pathElt)) {
-                            scanZipfile(path, zipfile, pathElt.lastModified(), scanTimestampsOnly);
-                        } catch (final IOException e) {
+            if (!pathElt.exists()) {
+                // Path element should exist (otherwise it would not have been added to the list of classpath
+                // elements) unless it is a relative path within a jarfile, starting with '!'. 
+                final String pathStr = pathElt.getPath();
+
+                final int bangPos = pathStr.indexOf('!');
+                if (bangPos > 0) {
+                    // If present, remove the '!' path suffix so that the .exists() test below won't fail
+                    final File zipFile = new File(pathStr.substring(0, bangPos));
+                    final String zipInternalRootPath = pathStr.substring(bangPos + 1);
+                    if (zipFile.exists()) {
+                        if (Utils.isJar(path)) {
+                            if (scanJars) {
+                                // Scan within jar/zipfile
+                                scanZipfile(zipFile, path, zipInternalRootPath, scanTimestampsOnly);
+                            }
+                        } else {
                             if (FastClasspathScanner.verbose) {
-                                Log.log(e.getMessage() + " while opening zipfile " + pathElt);
+                                Log.log("Not a jarfile, but illegal '!' character in classpath entry: " + pathStr);
                             }
                         }
                     } else {
                         if (FastClasspathScanner.verbose) {
-                            Log.log("Jarfile did not match whitelist/blacklist criteria: " + jarName);
+                            // Should only happen if something is deleted from classpath during scanning
+                            Log.log("Jarfile on classpath no longer exists: " + zipFile);
                         }
                     }
+                } else {
+                    if (FastClasspathScanner.verbose) {
+                        // Should only happen if something is deleted from classpath during scanning
+                        Log.log("Classpath element no longer exists: " + path);
+                    }
+                }
+
+            } else if (pathElt.isDirectory() && scanNonJars) {
+                // Scan within directory
+                scanDir(pathElt, path.length() + 1, false, scanTimestampsOnly);
+
+            } else if (pathElt.isFile()) {
+                if (Utils.isJar(path) && scanJars) {
+                    // Scan within jar/zipfile
+                    scanZipfile(pathElt, path, "", scanTimestampsOnly);
                 } else if (scanNonJars) {
                     // File listed directly on classpath
                     scanFile(pathElt, pathElt.getName(), scanTimestampsOnly);
                 }
+
             } else if (FastClasspathScanner.verbose) {
                 Log.log("Skipping non-file/non-dir on classpath: " + pathElt.getPath());
             }
