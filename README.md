@@ -144,7 +144,10 @@ The constructor accepts a list of whitelisted package prefixes / jar names to sc
 * `new FastClasspathScanner("com.x", "jar:")` limits scanning to `com.x` and all sub-packages, but only looks in jarfiles on the classpath -- directories are not scanned. (i.e. `"jar:"` is a wildcard to indicate that all jars are whitelisted, and as in the example above, whitelisting jarfiles prevents non-jars (directories) from being scanned.)
 * `new FastClasspathScanner("com.x", "-jar:")` limits scanning to `com.x` and all sub-packages, but only looks in directories on the classpath -- jarfiles are not scanned. (i.e. `"-jar:"` is a wildcard to indicate that all jars are blacklisted.)
 * `new FastClasspathScanner()`: If you don't specify any whitelisted package prefixes, all jarfiles and all directories on the classpath will be scanned.
-* N.B. System, bootstrap and extension jarfiles (i.e. the JRE jarfiles) are never scanned.
+
+Notes on blacklisting / whitelisting:
+* Even if you blacklist a file or package, it may show up in one of the lists returned by the `.getNamesOf...()` methods because it is referenced by a whitelisted class. For example, if you blacklist package `xyz` and whitelist package `abc`, if class `abc.MyClass` is a subclass of `xyz.MySuperclass`, then when you call `.scan()` and then `.getNamesOfAllClasses()` or `.getNamesOfSuperclassesOf("abc.MyClass")`, one of the items in the returned list will be `xyz.MySuperclass`. 
+* For efficiency, system, bootstrap and extension jarfiles (i.e. the jarfiles distributed with the JRE) are never scanned. If you put custom classes into the `lib/ext` directory in your JRE folder (which is a valid but rare way of adding jarfiles to the classpath), they will be ignored by association with the JRE.
 
 ```java
 // Constructor for FastClasspathScanner
