@@ -144,7 +144,7 @@ public class ClasspathFinder {
             final File pathFile;
             if (bangPos > 0) {
                 // If present, remove the '!' path suffix so that the .exists() test below won't fail
-                pathFile = new File(pathStr.substring(0, bangPos));
+                pathFile = Paths.get(pathStr.substring(0, bangPos)).toFile();
                 suffix = pathStr.substring(bangPos);
             } else {
                 pathFile = path.toFile();
