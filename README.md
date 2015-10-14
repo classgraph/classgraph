@@ -21,7 +21,7 @@ FastClasspathScanner is able to:
 FastClasspathScanner parses the classfile binary format directly, rather than by using reflection, which makes it particularly fast. (Reflection causes the classloader to load each class, which can take an order of magnitude more time than parsing the classfile directly, and can lead to unexpected behavior due to static initializer blocks of classes being called on class load.) FastClasspathScanner does not depend on any classfile/bytecode parsing or manipulation libraries like [Javassist](http://jboss-javassist.github.io/javassist/) or [ObjectWeb ASM](http://asm.ow2.org/), which makes it lightweight.
 
 FastClasspathScanner handles a number of classpath specification mechanisms, including some non-standard ClassLoader implementations:
-* The `java.class.path` system property, supporting specification of the classpath using the usual `-cp` switch on the JRE commandline.
+* The `java.class.path` system property, supporting specification of the classpath using the `-cp` JRE commandline switch.
 * The standard Java `URLClassLoader` and its subclasses. (Some runtime environments override URLClassLoader for their own purposes, and do not set `java.class.path` -- FastClasspathScanner fetches classpath URLs from all visible URLClassLoaders.)
 * [Class-Path references](https://docs.oracle.com/javase/tutorial/deployment/jar/downman.html) in a jarfile's `META-INF/MANIFEST.MF`, whereby jarfiles may add other external jarfiles to their own classpaths. FastClasspathScanner is able to follow the transitive closure of these references, breaking cycles if necessary.
 * The JBoss/WildFly custom classloader mechanism.
