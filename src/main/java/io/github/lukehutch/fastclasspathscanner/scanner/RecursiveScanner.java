@@ -290,11 +290,12 @@ public class RecursiveScanner {
             }
             // Check if this zip entry is within the classfile root, if specified using
             // "jar:/.../file.jar!/path" syntax (rootPrefix is "" if there is no zip-internal root path )
-            if (!path.startsWith(rootPrefix)) {
-                continue;
-            }
             if (rootPrefixLen > 0) {
-                // Strip off root prefix to relativize path
+                if (!path.startsWith(rootPrefix)) {
+                    // Not a child of rootPrefix, skip entry
+                    continue;
+                }
+                // Strip off rootPrefix to relativize path
                 path = path.substring(rootPrefixLen);
             }
 
