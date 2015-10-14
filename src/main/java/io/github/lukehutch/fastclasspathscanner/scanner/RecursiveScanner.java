@@ -32,6 +32,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Enumeration;
@@ -262,10 +263,6 @@ public class RecursiveScanner {
         // but will be "root/prefix" in the case of an entry "jar:/path/file.jar!/root/prefix". This can be
         // used by some classloaders to specify a resource root inside a jarfile, e.g. "META-INF/classfiles".
         String rootPrefix = zipInternalRootPath;
-        if (!rootPrefix.isEmpty() && File.separatorChar != '/') {
-            // In case a system-specific path was provided: ZipEntry always uses '/' as the path separator
-            rootPrefix = rootPrefix.replace(File.separatorChar, '/');
-        }
         if (rootPrefix.startsWith("/")) {
             rootPrefix = rootPrefix.substring(1);
         }
@@ -473,8 +470,9 @@ public class RecursiveScanner {
                 final int bangPos = pathStr.indexOf('!');
                 if (bangPos > 0) {
                     // If present, remove the '!' path suffix so that the .exists() test below won't fail
-                    final File zipFile = new File(pathStr.substring(0, bangPos));
-                    final String zipInternalRootPath = pathStr.substring(bangPos + 1);
+                    final File zipFile = Paths.get(pathStr.substring(0, bangPos)).toFile();
+                    final String zipInternalRootPath = pathStr.substring(bangPos + 1) //
+                            .replace(File.separatorChar, '/');
                     if (zipFile.exists()) {
                         if (Utils.isJar(path)) {
                             if (scanJars) {
