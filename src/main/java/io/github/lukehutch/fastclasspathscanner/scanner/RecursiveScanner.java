@@ -262,6 +262,10 @@ public class RecursiveScanner {
         // but will be "root/prefix" in the case of an entry "jar:/path/file.jar!/root/prefix". This can be
         // used by some classloaders to specify a resource root inside a jarfile, e.g. "META-INF/classfiles".
         String rootPrefix = zipInternalRootPath;
+        if (!rootPrefix.isEmpty() && File.separatorChar != '/') {
+            // In case a system-specific path was provided: ZipEntry always uses '/' as the path separator
+            rootPrefix = rootPrefix.replace(File.separatorChar, '/');
+        }
         if (rootPrefix.startsWith("/")) {
             rootPrefix = rootPrefix.substring(1);
         }
@@ -377,12 +381,8 @@ public class RecursiveScanner {
      */
     private void scanDir(final File dir, final int ignorePrefixLen, boolean inWhitelistedPath,
             final boolean scanTimestampsOnly) {
-        String relativePath = (ignorePrefixLen > dir.getPath().length() ? "" : dir.getPath() //
-                .substring(ignorePrefixLen)) + "/";
-        if (File.separatorChar != '/') {
-            // Fix scanning on Windows
-            relativePath = relativePath.replace(File.separatorChar, '/');
-        }
+        String relativePath = (ignorePrefixLen > dir.getPath().length() ? "" //
+                : dir.getPath().substring(ignorePrefixLen).replace(File.separatorChar, '/')) + "/";
         if (FastClasspathScanner.verbose) {
             Log.log("Scanning path: " + relativePath);
         }
