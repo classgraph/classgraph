@@ -19,8 +19,10 @@ public interface ClassLoaderHandler {
      * classpathFinder.addClasspathElements(path).
      * 
      * @param classloader
-     *            The ClassLoader class to attempt to handle. You should iterate through its superclass line to
-     *            determine if any superclasses can be handled by this ClassLoaderHandler.
+     *            The ClassLoader class to attempt to handle. If you can't directly use instanceof (because you are
+     *            using introspection so that your ClassLoaderHandler implementation can be added to the upstream
+     *            FastClasspathScanner project), you should iterate through the ClassLoader's superclass lineage to
+     *            ensure subclasses of the target ClassLoader are correctly detected.
      * @param classpathFinder
      *            The ClasspathFinder to register any discovered classpath elements with.
      * @return true if the passed ClassLoader was handled by this ClassLoaderHandler, else false.
