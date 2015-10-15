@@ -379,7 +379,7 @@ public class RecursiveScanner {
      */
     private void scanDir(final File dir, final int ignorePrefixLen, boolean inWhitelistedPath,
             final boolean scanTimestampsOnly) {
-        String relativePath = (ignorePrefixLen > dir.getPath().length() ? "" //
+        final String relativePath = (ignorePrefixLen > dir.getPath().length() ? "" //
                 : dir.getPath().substring(ignorePrefixLen).replace(File.separatorChar, '/')) + "/";
         if (FastClasspathScanner.verbose) {
             Log.log("Scanning path: " + relativePath);
