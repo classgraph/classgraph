@@ -5,13 +5,9 @@ import java.net.URLClassLoader;
 
 import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
 
-public class URLClassLoaderHandler extends ClassLoaderHandler {
-    public URLClassLoaderHandler(final ClasspathFinder classpathFinder) {
-        super(classpathFinder);
-    }
-
+public class URLClassLoaderHandler implements ClassLoaderHandler {
     @Override
-    public boolean handle(final ClassLoader classloader) {
+    public boolean handle(final ClassLoader classloader, final ClasspathFinder classpathFinder) {
         if (classloader instanceof URLClassLoader) {
             for (final URL url : ((URLClassLoader) classloader).getURLs()) {
                 classpathFinder.addClasspathElement(url.toString());

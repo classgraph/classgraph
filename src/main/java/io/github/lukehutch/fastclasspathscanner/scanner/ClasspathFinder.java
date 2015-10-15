@@ -36,29 +36,15 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.ServiceLoader;
 import java.util.jar.Manifest;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.scanner.classloaderhandler.ClassLoaderHandler;
-import io.github.lukehutch.fastclasspathscanner.scanner.classloaderhandler.JBossClassLoaderHandler;
-import io.github.lukehutch.fastclasspathscanner.scanner.classloaderhandler.URLClassLoaderHandler;
-import io.github.lukehutch.fastclasspathscanner.scanner.classloaderhandler.WeblogicClassLoaderHandler;
 import io.github.lukehutch.fastclasspathscanner.utils.Log;
 import io.github.lukehutch.fastclasspathscanner.utils.Utils;
 
 public class ClasspathFinder {
-    /**
-     * The set of supported ClassLoader classes. They should return an iterable (e.g. Set or List) or array of
-     * classpath entries, either URL or String-typed, or a single String in the case of a classpath rather than
-     * separate classpath entries (i.e. the method should return a String if it consists of a classpath with entries
-     * separated by the system path separator character).
-     */
-    private final ClassLoaderHandler[] CLASSLOADER_HANDLERS = { //
-            new URLClassLoaderHandler(this), //
-            new JBossClassLoaderHandler(this), //
-            new WeblogicClassLoaderHandler(this), //
-    };
-
     /** The unique elements of the classpath, as an ordered list. */
     private final ArrayList<File> classpathElements = new ArrayList<>();
 
@@ -70,6 +56,13 @@ public class ClasspathFinder {
 
     /** Whether or not classpath has been read (supporting lazy reading of classpath). */
     private boolean initialized = false;
+
+    /**
+     * The ClassLoaderHandler ServiceLoader. See:
+     * https://docs.oracle.com/javase/6/docs/api/java/util/ServiceLoader.html
+     */
+    private static ServiceLoader<ClassLoaderHandler> classLoaderHandlerLoader = ServiceLoader
+            .load(ClassLoaderHandler.class);
 
     /** Clear the classpath. */
     private void clearClasspath() {
@@ -317,9 +310,10 @@ public class ClasspathFinder {
         boolean classloaderFound = false;
         for (final ClassLoader classloader : classLoaders) {
             if (classloader != null) {
-                for (final ClassLoaderHandler classLoaderHandler : CLASSLOADER_HANDLERS) {
+                // Iterate through registered ClassLoaderHandlers
+                for (final ClassLoaderHandler handler : classLoaderHandlerLoader) {
                     try {
-                        if (classLoaderHandler.handle(classloader)) {
+                        if (handler.handle(classloader, this)) {
                             // Sucessfully handled
                             classloaderFound = true;
                             break;

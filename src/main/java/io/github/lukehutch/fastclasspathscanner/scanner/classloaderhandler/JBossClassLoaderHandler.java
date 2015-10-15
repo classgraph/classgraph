@@ -6,16 +6,11 @@ import java.lang.reflect.Method;
 
 import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
 
-public class JBossClassLoaderHandler extends ClassLoaderHandler {
-    public JBossClassLoaderHandler(final ClasspathFinder classpathFinder) {
-        super(classpathFinder);
-    }
-
-    // See:
-    // https://github.com/jboss-modules/jboss-modules/blob/master/src/main/java/org/jboss/modules/ ...
-    // ModuleClassLoader.java
+// See:
+// https://github.com/jboss-modules/jboss-modules/blob/master/src/main/java/org/jboss/modules/ModuleClassLoader.java
+public class JBossClassLoaderHandler implements ClassLoaderHandler {
     @Override
-    public boolean handle(final ClassLoader classloader) throws Exception {
+    public boolean handle(final ClassLoader classloader, final ClasspathFinder classpathFinder) throws Exception {
         for (Class<?> c = classloader.getClass(); c != Object.class; c = c.getSuperclass()) {
             if (c.getName().equals("org.jboss.modules.ModuleClassLoader")) {
                 final Method getResourceLoaders = c.getDeclaredMethod("getResourceLoaders");
@@ -34,8 +29,8 @@ public class JBossClassLoaderHandler extends ClassLoaderHandler {
                     if (!getPathName.isAccessible()) {
                         getPathName.setAccessible(true);
                     }
-                    final String pathName = (String) getPathName.invoke(rootVal);
-                    classpathFinder.addClasspathElement(pathName);
+                    final String pathElement = (String) getPathName.invoke(rootVal);
+                    classpathFinder.addClasspathElement(pathElement);
                 }
                 return true;
             }
