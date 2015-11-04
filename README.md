@@ -134,6 +134,11 @@ Note that the `|` character is used below to compactly describe overloaded metho
 
 You can pass a scanning specification to the constructor of `FastClasspathScanner` to describe what should be scanned. This prevents irrelevant classpath entries from being unecessarily scanned, which can be time-consuming. (Note that calling the constructor does not start the scan, you must separately call `.scan()` to perform the actual scan.)
 
+```java
+// Constructor for FastClasspathScanner
+public FastClasspathScanner(String... scanSpec)
+```
+
 The constructor accepts a list of whitelisted package prefixes / jar names to scan, as well as blacklisted packages/jars not to scan, where blacklisted entries are prefixed with the `'-'` character. For example:
 * `new FastClasspathScanner("com.x")` limits scanning to the package `com.x` and its sub-packages in all jarfiles and all directory entries on the classpath.
 * `new FastClasspathScanner("com.x", "-com.x.y")` limits scanning to `com.x` and all sub-packages *except* `com.x.y` in all jars and directories on the classpath.
@@ -148,11 +153,6 @@ The constructor accepts a list of whitelisted package prefixes / jar names to sc
 Notes on blacklisting / whitelisting:
 * Even if you blacklist a file or package, it may show up in one of the lists returned by the `.getNamesOf...()` methods because it is referenced by a whitelisted class. For example, if you blacklist package `xyz` and whitelist package `abc`, if class `abc.MyClass` is a subclass of `xyz.MySuperclass`, then when you call `.scan()` and then `.getNamesOfAllClasses()` or `.getNamesOfSuperclassesOf("abc.MyClass")`, one of the items in the returned list will be `xyz.MySuperclass`. 
 * For efficiency, system, bootstrap and extension jarfiles (i.e. the jarfiles distributed with the JRE) are never scanned. If you put custom classes into the `lib/ext` directory in your JRE folder (which is a valid but rare way of adding jarfiles to the classpath), they will be ignored by association with the JRE.
-
-```java
-// Constructor for FastClasspathScanner
-public FastClasspathScanner(String... scanSpec)
-```
 
 ### 1. Matching the subclasses (or finding the superclasses) of a class
 
