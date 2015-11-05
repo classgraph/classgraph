@@ -7,7 +7,7 @@ import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
 public class WeblogicClassLoaderHandler implements ClassLoaderHandler {
     @Override
     public boolean handle(final ClassLoader classloader, final ClasspathFinder classpathFinder) throws Exception {
-        for (Class<?> c = classloader.getClass(); c != Object.class; c = c.getSuperclass()) {
+        for (Class<?> c = classloader.getClass(); c != null; c = c.getSuperclass()) {
             if (c.getName().equals("weblogic.utils.classloaders.ChangeAwareClassLoader")) {
                 final Method getClassPath = c.getDeclaredMethod("getClassPath");
                 if (!getClassPath.isAccessible()) {
