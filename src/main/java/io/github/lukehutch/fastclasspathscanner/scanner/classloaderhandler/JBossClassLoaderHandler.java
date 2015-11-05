@@ -11,7 +11,7 @@ import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
 public class JBossClassLoaderHandler implements ClassLoaderHandler {
     @Override
     public boolean handle(final ClassLoader classloader, final ClasspathFinder classpathFinder) throws Exception {
-        for (Class<?> c = classloader.getClass(); c != Object.class; c = c.getSuperclass()) {
+        for (Class<?> c = classloader.getClass(); c != null; c = c.getSuperclass()) {
             if (c.getName().equals("org.jboss.modules.ModuleClassLoader")) {
                 final Method getResourceLoaders = c.getDeclaredMethod("getResourceLoaders");
                 if (!getResourceLoaders.isAccessible()) {
