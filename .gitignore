@@ -17,5 +17,6 @@ hs_err_pid*
 .loadpath
 .externalToolBuilders/
 *.launch
+.idea
 
 TODO-local
