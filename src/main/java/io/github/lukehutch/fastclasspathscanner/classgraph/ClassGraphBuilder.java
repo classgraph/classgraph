@@ -31,17 +31,103 @@ package io.github.lukehutch.fastclasspathscanner.classgraph;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 
 import io.github.lukehutch.fastclasspathscanner.utils.LazyMap;
+import io.github.lukehutch.fastclasspathscanner.utils.Log;
 import io.github.lukehutch.fastclasspathscanner.utils.MultiSet;
 
 public class ClassGraphBuilder {
     private final ArrayList<ClassInfo> allClassInfo;
 
-    public ClassGraphBuilder(final Collection<ClassInfo> relativePathToClassInfo) {
-        this.allClassInfo = new ArrayList<>(relativePathToClassInfo);
+    public ClassGraphBuilder(final Collection<ClassInfo> classInfoFromScan) {
+        this.allClassInfo = new ArrayList<>(handleScalaAuxClasses(classInfoFromScan));
+    }
+
+    /**
+     * Merge ClassInfo for Scala's companion objects (ending in "$") and trait methods class (ending in "$class")
+     * into the ClassInfo object for the base class that they are associated with.
+     * 
+     * N.B. it's possible that some of these cases will never be needed (e.g. the base class seems to have the
+     * annotations, while the "$" class gets the annotations). For now, just be exhaustive and merge all Scala
+     * auxiliary classes into one ClassInfo node.
+     */
+    private static Collection<ClassInfo> handleScalaAuxClasses(final Collection<ClassInfo> classInfoFromScan) {
+        final HashMap<String, ClassInfo> classNameToClassInfo = new HashMap<>();
+        final ArrayList<ClassInfo> companionObjectClassInfo = new ArrayList<>();
+        for (final ClassInfo classInfo : classInfoFromScan) {
+            // Remove "$" and "$class" suffix from names of superclasses, interfaces and annotations of all classes
+            if (classInfo.superclassName != null && classInfo.superclassName.endsWith("$")) {
+                classInfo.superclassName = classInfo.superclassName.substring(0,
+                        classInfo.superclassName.length() - 1);
+            }
+            if (classInfo.interfaceNames != null) {
+                for (int i = 0; i < classInfo.interfaceNames.size(); i++) {
+                    final String ifaceName = classInfo.interfaceNames.get(i);
+                    if (ifaceName.endsWith("$")) {
+                        classInfo.interfaceNames.set(i, ifaceName.substring(0, ifaceName.length() - 1));
+                    } else if (ifaceName.endsWith("$class")) {
+                        classInfo.interfaceNames.set(i, ifaceName.substring(0, ifaceName.length() - 6));
+                    }
+
+                }
+            }
+            if (classInfo.annotationNames != null) {
+                for (int i = 0; i < classInfo.annotationNames.size(); i++) {
+                    final String annName = classInfo.annotationNames.get(i);
+                    if (annName.endsWith("$")) {
+                        classInfo.annotationNames.set(i, annName.substring(0, annName.length() - 1));
+                    } else if (annName.endsWith("$class")) {
+                        classInfo.annotationNames.set(i, annName.substring(0, annName.length() - 6));
+                    }
+                }
+            }
+            if (classInfo.className.endsWith("$") || classInfo.className.endsWith("$class")) {
+                companionObjectClassInfo.add(classInfo);
+            } else {
+                classNameToClassInfo.put(classInfo.className, classInfo);
+            }
+        }
+        // Merge ClassInfo for classes with suffix "$" and "$class" into base class that doesn't have the suffix  
+        for (final ClassInfo companionClassInfo : companionObjectClassInfo) {
+            final String classNameRaw = companionClassInfo.className;
+            final String className = classNameRaw.endsWith("$class")
+                    ? classNameRaw.substring(0, classNameRaw.length() - 6)
+                    : classNameRaw.substring(0, classNameRaw.length() - 1);
+            if (!classNameToClassInfo.containsKey(className)) {
+                // Couldn't find base class -- rename companion object and store it in place of base class
+                companionClassInfo.className = className;
+                classNameToClassInfo.put(className, companionClassInfo);
+            } else {
+                // Otherwise Merge companion class fields into base class' ClassInfo
+                final ClassInfo baseClassInfo = classNameToClassInfo.get(className);
+                baseClassInfo.isInterface |= companionClassInfo.isInterface;
+                baseClassInfo.isAnnotation |= companionClassInfo.isAnnotation;
+                if (baseClassInfo.superclassName == null && companionClassInfo.superclassName != null) {
+                    baseClassInfo.superclassName = companionClassInfo.superclassName;
+                } else if (baseClassInfo.superclassName != null && companionClassInfo.superclassName != null
+                        && !baseClassInfo.superclassName.equals(companionClassInfo.superclassName)) {
+                    Log.log("Could not fully merge Scala companion class and base class: " + baseClassInfo.className
+                            + " has superclass " + baseClassInfo.superclassName + "; "
+                            + companionClassInfo.className + " has superclass "
+                            + companionClassInfo.superclassName);
+                }
+                // Reuse or merge the interface and annotation lists
+                if (baseClassInfo.interfaceNames == null) {
+                    baseClassInfo.interfaceNames = companionClassInfo.interfaceNames;
+                } else if (companionClassInfo.interfaceNames != null) {
+                    baseClassInfo.interfaceNames.addAll(companionClassInfo.interfaceNames);
+                }
+                if (baseClassInfo.annotationNames == null) {
+                    baseClassInfo.annotationNames = companionClassInfo.annotationNames;
+                } else if (companionClassInfo.annotationNames != null) {
+                    baseClassInfo.annotationNames.addAll(companionClassInfo.annotationNames);
+                }
+            }
+        }
+        return classNameToClassInfo.values();
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -64,7 +150,7 @@ public class ClassGraphBuilder {
                     }
                     if (classInfo.superclassName != null) {
                         // Look up or create ClassNode object for superclass, and connect it to this class
-                        DAGNode.getOrNew(map, classInfo.superclassName, classNode);
+                        DAGNode.getOrNew(map, classInfo.superclassName).addSubNode(classNode);
                     }
                 }
             }
@@ -78,14 +164,16 @@ public class ClassGraphBuilder {
         @Override
         public void initialize() {
             for (final ClassInfo classInfo : allClassInfo) {
-                if (classInfo.isInterface) {
-                    // Look up or create InterfaceNode for this interface
-                    final DAGNode interfaceNode = DAGNode.getOrNew(map, classInfo.className);
-                    if (classInfo.interfaceNames != null) {
-                        // Look up or create InterfaceNode objects for superinterfaces,
-                        // and connect them to this interface
-                        for (final String superInterfaceName : classInfo.interfaceNames) {
-                            DAGNode.getOrNew(map, superInterfaceName, interfaceNode);
+                // Look up or create interface node if this is an interface
+                final DAGNode classNodeIfInterface = classInfo.isInterface
+                        ? DAGNode.getOrNew(map, classInfo.className) : null;
+                if (classInfo.interfaceNames != null) {
+                    // Look up or create InterfaceNode objects for superinterfaces
+                    for (final String implementedInterfaceName : classInfo.interfaceNames) {
+                        final DAGNode implementedInterfaceNode = DAGNode.getOrNew(map, implementedInterfaceName);
+                        // If the class implementing the interface is itself an interface, it is a subinterface.
+                        if (classNodeIfInterface != null) {
+                            implementedInterfaceNode.addSubNode(classNodeIfInterface);
                         }
                     }
                 }
@@ -100,15 +188,21 @@ public class ClassGraphBuilder {
         @Override
         public void initialize() {
             for (final ClassInfo classInfo : allClassInfo) {
-                if (classInfo.annotationNames != null) {
-                    // Iterate through annotations on each scanned class
-                    for (final String annotationName : classInfo.annotationNames) {
-                        if (classInfo.isAnnotation) {
-                            // If the annotated class is itself an annotation: look up or create AnnotationNode
-                            // for the meta-annotation, and link it to a sub-node for the annotated annotation.
-                            DAGNode.getOrNew(map, annotationName, DAGNode.getOrNew(map, classInfo.className));
-                        } else {
-                            // Link annotation to class
+                if (classInfo.isAnnotation) {
+                    // If the current class is an annotation
+                    final DAGNode classNode = DAGNode.getOrNew(map, classInfo.className);
+                    if (classInfo.annotationNames != null) {
+                        // This is an annotation with meta-annotations
+                        for (final String annotationName : classInfo.annotationNames) {
+                            // Add the meta-annotation as a super-node of the annotation it annotates
+                            DAGNode.getOrNew(map, annotationName).addSubNode(classNode);
+                        }
+                    }
+                } else {
+                    if (classInfo.annotationNames != null) {
+                        // If the current class is not an annotation, but has its own annotations
+                        for (final String annotationName : classInfo.annotationNames) {
+                            // Cross-link annotation to the current class
                             DAGNode.getOrNew(map, annotationName).addCrossLink(classInfo.className);
                         }
                     }

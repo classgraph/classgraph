@@ -79,29 +79,21 @@ class DAGNode {
     }
 
     /**
-     * Get the named node from the map, or create a new node with this name and store it in the map if there isn't
-     * yet a node in the map with this name. Returns the found or created node, after connecting it as a super-node
-     * to the specified sub-node.
+     * Connect this node to a sub-node and vice versa.
      */
-    public static DAGNode getOrNew(final HashMap<String, DAGNode> map, final String name, final DAGNode subNode) {
-        DAGNode node = map.get(name);
-        if (node == null) {
-            map.put(name, node = new DAGNode(name));
-        }
-
-        // Connect node to subnode
-        subNode.directSuperNodes.add(node);
-        node.directSubNodes.add(subNode);
-
-        return node;
+    public DAGNode addSubNode(final DAGNode subNode) {
+        subNode.directSuperNodes.add(this);
+        this.directSubNodes.add(subNode);
+        return this;
     }
 
     /**
      * Connect this node to a different node type (for annotations, the cross-linked class is a class annotated by
      * this annotation; for regular classes, the cross-linked class is an interface that the class implements).
      */
-    public void addCrossLink(final String crossLinkedClassName) {
+    public DAGNode addCrossLink(final String crossLinkedClassName) {
         this.crossLinkedClassNames.add(crossLinkedClassName);
+        return this;
     }
 
     // -------------------------------------------------------------------------------------------------------------
