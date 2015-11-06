@@ -13,20 +13,12 @@ FastClasspathScanner is able to:
 4. [find classes that have a specific class annotation or meta-annotation](#4-matching-classes-with-a-specific-annotation-or-meta-annotation);
 5. find the constant literal initializer value in a classfile's constant pool for a [specified static final field](#5-fetching-the-constant-initializer-values-of-static-final-fields);
 6. find files (even non-classfiles) anywhere on the classpath that have a [path that matches a given string or regular expression](#6-finding-files-even-non-classfiles-anywhere-on-the-classpath-whose-path-matches-a-given-string-or-regular-expression);
-7. perform the actual [classpath scan](#7-performing-the-actual-scan);
+7. perform the actual [classpath scan](#7-performing-the-actual-scan) while handling the many [diverse and complicated means](#classpath-mechanisms-handled-by-fastclasspathscanner) that may have been used to specify the classpath;
 8. [detect changes](#8-detecting-changes-to-classpath-contents-after-the-scan) to the files within the classpath since the first time the classpath was scanned, or alternatively, calculate the MD5 hash of classfiles while scanning, in case using timestamps is insufficiently rigorous for change detection;
-9. return a list of the [names of all classes and interfaces on the classpath](#9-get-a-list-of-all-whitelisted-and-non-blacklisted-classes-and-interfaces-on-the-classpath) (after whitelist and blacklist filtering).
-10. return a list of [all directories and files on the classpath](#10-get-all-unique-directories-and-files-on-the-classpath) (i.e. all classpath elements) as a list of File objects, with the list deduplicated and filtered to include only classpath directories and files that actually exist, saving you the trouble of parsing and filtering the classpath; and
+9. return a list of the [names of all classes and interfaces on the classpath](#9-get-a-list-of-all-whitelisted-and-non-blacklisted-classes-and-interfaces-on-the-classpath) (after whitelist and blacklist filtering); and
+10. return a list of [all directories and files on the classpath](#10-get-all-unique-directories-and-files-on-the-classpath) (i.e. all classpath elements) as a list of File objects, with the list deduplicated and filtered to include only classpath directories and files that actually exist, saving you from the complexities of working with the classpath and classloaders.
 
-FastClasspathScanner parses the classfile binary format directly, rather than by using reflection, which makes it particularly fast. (Reflection causes the classloader to load each class, which can take an order of magnitude more time than parsing the classfile directly, and can lead to unexpected behavior due to static initializer blocks of classes being called on class load.) FastClasspathScanner does not depend on any classfile/bytecode parsing or manipulation libraries like [Javassist](http://jboss-javassist.github.io/javassist/) or [ObjectWeb ASM](http://asm.ow2.org/), which makes it lightweight.
-
-FastClasspathScanner handles a number of classpath specification mechanisms, including some non-standard ClassLoader implementations:
-* The `java.class.path` system property, supporting specification of the classpath using the `-cp` JRE commandline switch.
-* The standard Java `URLClassLoader` and its subclasses. (Some runtime environments override URLClassLoader for their own purposes, and do not set `java.class.path` -- FastClasspathScanner fetches classpath URLs from all visible URLClassLoaders.)
-* [Class-Path references](https://docs.oracle.com/javase/tutorial/deployment/jar/downman.html) in a jarfile's `META-INF/MANIFEST.MF`, whereby jarfiles may add other external jarfiles to their own classpaths. FastClasspathScanner is able to follow the transitive closure of these references, breaking cycles if necessary.
-* The JBoss/WildFly custom classloader mechanism.
-* The WebLogic custom classloader mechanism.
-
+FastClasspathScanner parses the classfile binary format directly, instead of using reflection, which makes scanning particularly fast. (Reflection causes the classloader to load each class, which can take an order of magnitude more time than parsing the classfile directly, and can lead to unexpected behavior due to static initializer blocks of classes being called on class load.) FastClasspathScanner is extremely lightweight, as it does not depend on any classfile/bytecode parsing or manipulation libraries like [Javassist](http://jboss-javassist.github.io/javassist/) or [ObjectWeb ASM](http://asm.ow2.org/).
 
 ### Usage
 
@@ -124,6 +116,17 @@ new FastClasspathScanner("com.xyz.widget")
     .scan();
 ```
 
+### Classpath mechanisms handled by FastClasspathScanner
+
+FastClasspathScanner handles a number of classpath specification mechanisms, including some non-standard ClassLoader implementations:
+* The `java.class.path` system property, supporting specification of the classpath using the `-cp` JRE commandline switch.
+* The standard Java `URLClassLoader`, and both standard and custom subclasses. (Some runtime environments override URLClassLoader for their own purposes, but do not set `java.class.path` -- FastClasspathScanner fetches classpath URLs from all visible URLClassLoaders.)
+* [Class-Path references](https://docs.oracle.com/javase/tutorial/deployment/jar/downman.html) in a jarfile's `META-INF/MANIFEST.MF`, whereby jarfiles may add other external jarfiles to their own classpaths. FastClasspathScanner is able to follow the transitive closure of these references, breaking cycles if necessary.
+* The JBoss/WildFly custom classloader mechanism.
+* The WebLogic custom classloader mechanism.
+
+[Note that if you have a custom classloader in your runtime that is not covered by one of the above cases, you can add your own [ClassLoaderHandler](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/scanner/classloaderhandler), which will be loaded from your own project's jarfile by FastClasspathScanner using the Java ServiceLoader framework.]
+
 # API
 
 Most of the methods in the API return `this` (of type `FastClasspathScanner`), so that you can use the [method chaining](http://en.wikipedia.org/wiki/Method_chaining) calling style, as shown in the example above.
@@ -133,6 +136,11 @@ Note that the `|` character is used below to compactly describe overloaded metho
 ## Constructor
 
 You can pass a scanning specification to the constructor of `FastClasspathScanner` to describe what should be scanned. This prevents irrelevant classpath entries from being unecessarily scanned, which can be time-consuming. (Note that calling the constructor does not start the scan, you must separately call `.scan()` to perform the actual scan.)
+
+```java
+// Constructor for FastClasspathScanner
+public FastClasspathScanner(String... scanSpec)
+```
 
 The constructor accepts a list of whitelisted package prefixes / jar names to scan, as well as blacklisted packages/jars not to scan, where blacklisted entries are prefixed with the `'-'` character. For example:
 * `new FastClasspathScanner("com.x")` limits scanning to the package `com.x` and its sub-packages in all jarfiles and all directory entries on the classpath.
@@ -148,11 +156,6 @@ The constructor accepts a list of whitelisted package prefixes / jar names to sc
 Notes on blacklisting / whitelisting:
 * Even if you blacklist a file or package, it may show up in one of the lists returned by the `.getNamesOf...()` methods because it is referenced by a whitelisted class. For example, if you blacklist package `xyz` and whitelist package `abc`, if class `abc.MyClass` is a subclass of `xyz.MySuperclass`, then when you call `.scan()` and then `.getNamesOfAllClasses()` or `.getNamesOfSuperclassesOf("abc.MyClass")`, one of the items in the returned list will be `xyz.MySuperclass`. 
 * For efficiency, system, bootstrap and extension jarfiles (i.e. the jarfiles distributed with the JRE) are never scanned. If you put custom classes into the `lib/ext` directory in your JRE folder (which is a valid but rare way of adding jarfiles to the classpath), they will be ignored by association with the JRE.
-
-```java
-// Constructor for FastClasspathScanner
-public FastClasspathScanner(String... scanSpec)
-```
 
 ### 1. Matching the subclasses (or finding the superclasses) of a class
 
