@@ -28,21 +28,22 @@
  */
 package io.github.lukehutch.fastclasspathscanner.scanner;
 
+import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
+import io.github.lukehutch.fastclasspathscanner.scanner.classloaderhandler.ClassLoaderHandler;
+import io.github.lukehutch.fastclasspathscanner.utils.Log;
+import io.github.lukehutch.fastclasspathscanner.utils.Utils;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.ServiceLoader;
 import java.util.jar.Manifest;
-
-import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-import io.github.lukehutch.fastclasspathscanner.scanner.classloaderhandler.ClassLoaderHandler;
-import io.github.lukehutch.fastclasspathscanner.utils.Log;
-import io.github.lukehutch.fastclasspathscanner.utils.Utils;
 
 public class ClasspathFinder {
     /** The unique elements of the classpath, as an ordered list. */
@@ -103,15 +104,18 @@ public class ClasspathFinder {
             // https://weblogs.java.net/blog/kohsuke/archive/2007/04/how_to_convert.html
             // http://stackoverflow.com/a/17870390/3950982
             // i.e. the recommended way to do this is URL -> URI -> Path, especially to handle weirdness on Windows.
-            return resolveBasePath.resolve(Paths.get(new URL(pathStr).toURI())).toRealPath();
+            // N.B. we need NOFOLLOW_LINKS, because otherwise resolved paths may no longer appear as a child of
+            // a classpath element, and/or the path tree may no longer conform to the package tree. 
+            return resolveBasePath.resolve(Paths.get(new URL(pathStr).toURI())) //
+                    .toRealPath(LinkOption.NOFOLLOW_LINKS);
         } catch (final Exception e) {
             try {
-                return resolveBasePath.resolve(pathStr).toRealPath();
+                return resolveBasePath.resolve(pathStr).toRealPath(LinkOption.NOFOLLOW_LINKS);
             } catch (final Exception e2) {
                 try {
                     final File file = new File(pathElementStr);
                     if (file.exists()) {
-                        return file.toPath().toRealPath();
+                        return file.toPath().toRealPath(LinkOption.NOFOLLOW_LINKS);
                     }
                 } catch (final Exception e3) {
                     // One of the above should have worked, so if we got here, the path element is junk.

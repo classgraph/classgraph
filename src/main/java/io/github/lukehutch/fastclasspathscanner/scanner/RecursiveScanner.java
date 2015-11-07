@@ -32,6 +32,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.LinkOption;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -419,7 +420,10 @@ public class RecursiveScanner {
                 for (final File subFile : subFiles) {
                     File subFileReal = null;
                     try {
-                        subFileReal = subFile.toPath().toRealPath().toFile();
+                        // N.B. we need NOFOLLOW_LINKS, because otherwise resolved paths may no longer appear
+                        // as a child of a classpath element, and/or the path tree may no longer conform to
+                        // the package tree. 
+                        subFileReal = subFile.toPath().toRealPath(LinkOption.NOFOLLOW_LINKS).toFile();
                     } catch (IOException | SecurityException e) {
                         if (FastClasspathScanner.verbose) {
                             Log.log("Could not access file " + subFile + ": " + e.getMessage());
