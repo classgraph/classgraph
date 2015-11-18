@@ -28,6 +28,9 @@
  */
 package io.github.lukehutch.fastclasspathscanner.classgraph;
 
+import io.github.lukehutch.fastclasspathscanner.utils.LazyMap;
+import io.github.lukehutch.fastclasspathscanner.utils.MultiSet;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -35,15 +38,23 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 
-import io.github.lukehutch.fastclasspathscanner.utils.LazyMap;
-import io.github.lukehutch.fastclasspathscanner.utils.Log;
-import io.github.lukehutch.fastclasspathscanner.utils.MultiSet;
-
 public class ClassGraphBuilder {
     private final ArrayList<ClassInfo> allClassInfo;
 
     public ClassGraphBuilder(final Collection<ClassInfo> classInfoFromScan) {
         this.allClassInfo = new ArrayList<>(handleScalaAuxClasses(classInfoFromScan));
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    private static String scalaBaseClassName(String scalaClassName) {
+        if (scalaClassName != null && scalaClassName.endsWith("$")) {
+            return scalaClassName.substring(0, scalaClassName.length() - 1);
+        } else if (scalaClassName != null && scalaClassName.endsWith("$class")) {
+            return scalaClassName.substring(0, scalaClassName.length() - 6);
+        } else {
+            return scalaClassName;
+        }
     }
 
     /**
@@ -59,29 +70,17 @@ public class ClassGraphBuilder {
         final ArrayList<ClassInfo> companionObjectClassInfo = new ArrayList<>();
         for (final ClassInfo classInfo : classInfoFromScan) {
             // Remove "$" and "$class" suffix from names of superclasses, interfaces and annotations of all classes
-            if (classInfo.superclassName != null && classInfo.superclassName.endsWith("$")) {
-                classInfo.superclassName = classInfo.superclassName.substring(0,
-                        classInfo.superclassName.length() - 1);
+            for (int i = 0; i < classInfo.superclassNames.size(); i++) {
+                classInfo.superclassNames.set(i, scalaBaseClassName(classInfo.superclassNames.get(i)));
             }
             if (classInfo.interfaceNames != null) {
                 for (int i = 0; i < classInfo.interfaceNames.size(); i++) {
-                    final String ifaceName = classInfo.interfaceNames.get(i);
-                    if (ifaceName.endsWith("$")) {
-                        classInfo.interfaceNames.set(i, ifaceName.substring(0, ifaceName.length() - 1));
-                    } else if (ifaceName.endsWith("$class")) {
-                        classInfo.interfaceNames.set(i, ifaceName.substring(0, ifaceName.length() - 6));
-                    }
-
+                    classInfo.interfaceNames.set(i, scalaBaseClassName(classInfo.interfaceNames.get(i)));
                 }
             }
             if (classInfo.annotationNames != null) {
                 for (int i = 0; i < classInfo.annotationNames.size(); i++) {
-                    final String annName = classInfo.annotationNames.get(i);
-                    if (annName.endsWith("$")) {
-                        classInfo.annotationNames.set(i, annName.substring(0, annName.length() - 1));
-                    } else if (annName.endsWith("$class")) {
-                        classInfo.annotationNames.set(i, annName.substring(0, annName.length() - 6));
-                    }
+                    classInfo.annotationNames.set(i, scalaBaseClassName(classInfo.annotationNames.get(i)));
                 }
             }
             if (classInfo.className.endsWith("$") || classInfo.className.endsWith("$class")) {
@@ -93,9 +92,8 @@ public class ClassGraphBuilder {
         // Merge ClassInfo for classes with suffix "$" and "$class" into base class that doesn't have the suffix  
         for (final ClassInfo companionClassInfo : companionObjectClassInfo) {
             final String classNameRaw = companionClassInfo.className;
-            final String className = classNameRaw.endsWith("$class")
-                    ? classNameRaw.substring(0, classNameRaw.length() - 6)
-                    : classNameRaw.substring(0, classNameRaw.length() - 1);
+            final String className = classNameRaw.endsWith("$class") ? classNameRaw.substring(0,
+                    classNameRaw.length() - 6) : classNameRaw.substring(0, classNameRaw.length() - 1);
             if (!classNameToClassInfo.containsKey(className)) {
                 // Couldn't find base class -- rename companion object and store it in place of base class
                 companionClassInfo.className = className;
@@ -105,15 +103,7 @@ public class ClassGraphBuilder {
                 final ClassInfo baseClassInfo = classNameToClassInfo.get(className);
                 baseClassInfo.isInterface |= companionClassInfo.isInterface;
                 baseClassInfo.isAnnotation |= companionClassInfo.isAnnotation;
-                if (baseClassInfo.superclassName == null && companionClassInfo.superclassName != null) {
-                    baseClassInfo.superclassName = companionClassInfo.superclassName;
-                } else if (baseClassInfo.superclassName != null && companionClassInfo.superclassName != null
-                        && !baseClassInfo.superclassName.equals(companionClassInfo.superclassName)) {
-                    Log.log("Could not fully merge Scala companion class and base class: " + baseClassInfo.className
-                            + " has superclass " + baseClassInfo.superclassName + "; "
-                            + companionClassInfo.className + " has superclass "
-                            + companionClassInfo.superclassName);
-                }
+                baseClassInfo.superclassNames.addAll(companionClassInfo.superclassNames);
                 // Reuse or merge the interface and annotation lists
                 if (baseClassInfo.interfaceNames == null) {
                     baseClassInfo.interfaceNames = companionClassInfo.interfaceNames;
@@ -148,9 +138,9 @@ public class ClassGraphBuilder {
                             classNode.addCrossLink(interfaceName);
                         }
                     }
-                    if (classInfo.superclassName != null) {
+                    for (String superclassName : classInfo.superclassNames) {
                         // Look up or create ClassNode object for superclass, and connect it to this class
-                        DAGNode.getOrNew(map, classInfo.superclassName).addSubNode(classNode);
+                        DAGNode.getOrNew(map, superclassName).addSubNode(classNode);
                     }
                 }
             }
@@ -165,8 +155,8 @@ public class ClassGraphBuilder {
         public void initialize() {
             for (final ClassInfo classInfo : allClassInfo) {
                 // Look up or create interface node if this is an interface
-                final DAGNode classNodeIfInterface = classInfo.isInterface
-                        ? DAGNode.getOrNew(map, classInfo.className) : null;
+                final DAGNode classNodeIfInterface = classInfo.isInterface ? DAGNode.getOrNew(map,
+                        classInfo.className) : null;
                 if (classInfo.interfaceNames != null) {
                     // Look up or create InterfaceNode objects for superinterfaces
                     for (final String implementedInterfaceName : classInfo.interfaceNames) {
@@ -435,7 +425,7 @@ public class ClassGraphBuilder {
     /** A map from the names of classes to the names of annotations and meta-annotations on the classes. */
     private final LazyMap<String, ArrayList<String>> classNameToAnnotationNames = //
     LazyMap.convertToMultiMap( //
-            LazyMap.invertMultiSet(annotationNameToAnnotatedClassNamesSet, annotationNameToAnnotationNode));
+    LazyMap.invertMultiSet(annotationNameToAnnotatedClassNamesSet, annotationNameToAnnotationNode));
 
     /** Return the names of all annotations and meta-annotations on the named class. */
     public List<String> getNamesOfAnnotationsOnClass(final String classOrInterfaceName) {
@@ -467,8 +457,7 @@ public class ClassGraphBuilder {
     /** Mapping from annotation name to the names of annotations and meta-annotations on the annotation. */
     private final LazyMap<String, ArrayList<String>> annotationNameToMetaAnnotationNames = //
     LazyMap.convertToMultiMap( //
-            LazyMap.invertMultiSet(metaAnnotationNameToAnnotatedAnnotationNamesSet,
-                    annotationNameToAnnotationNode));
+    LazyMap.invertMultiSet(metaAnnotationNameToAnnotatedAnnotationNamesSet, annotationNameToAnnotationNode));
 
     /** Return the names of all meta-annotations on the named annotation. */
     public List<String> getNamesOfMetaAnnotationsOnAnnotation(final String annotationName) {

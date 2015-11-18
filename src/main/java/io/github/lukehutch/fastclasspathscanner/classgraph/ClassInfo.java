@@ -34,7 +34,8 @@ public class ClassInfo {
     public String className;
     public boolean isInterface;
     public boolean isAnnotation;
-    public String superclassName;
+    // There will usually only be one superclass, except in the case of Scala, which compiles companion objects
+    public ArrayList<String> superclassNames = new ArrayList<>(1);
 
     public ArrayList<String> interfaceNames;
     public ArrayList<String> annotationNames;
@@ -44,6 +45,6 @@ public class ClassInfo {
         this.className = className;
         this.isInterface = isInterface;
         this.isAnnotation = isAnnotation;
-        this.superclassName = superclassName;
+        this.superclassNames.add(superclassName);
     }
 }
