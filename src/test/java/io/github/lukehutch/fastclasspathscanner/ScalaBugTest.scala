@@ -1,29 +1,25 @@
-package io.github.lukehutch.fastclasspathscanner {
-
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
-import org.junit.Assert._
 
+import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner
 
-object F extends someothersillypackage.Outside
+package io.github.lukehutch.fastclasspathscanner {
+  trait Inside
+  object G extends Inside
+  object F extends otherpackage.Outside
 
-class ScalaBugTest {
-
-  @Test
-  def findObjectsTraitOtherPackage = {
-    //This reroduces #29. The line below should work, but we have to add the outside trait's package to make it all compile
-    val scanner = new FastClasspathScanner("io.github.lukehutch.fastclasspathscanner")
-//    val scanner = new FastClasspathScanner("io.github.lukehutch.fastclasspathscanner", "someothersillypackage")
-    assertFalse(
-      scanner.verbose().scan()
-      .getNamesOfClassesImplementing("someothersillypackage.Outside").isEmpty
-    )
+  class ScalaBugTest {
+    @Test
+    def findObjectsTraitOtherPackage = {
+      val scanner = new FastClasspathScanner("io.github.lukehutch.fastclasspathscanner").scan()
+      assertTrue(scanner.getNamesOfClassesImplementing("io.github.lukehutch.fastclasspathscanner.Inside") //
+        .contains("io.github.lukehutch.fastclasspathscanner.G"))
+      assertFalse(scanner.getNamesOfClassesImplementing("otherpackage.Outside").isEmpty)
+    }
   }
 }
 
-}
-
-package someothersillypackage {
-
-trait Outside
-
+package otherpackage {
+  trait Outside
 }
