@@ -47,6 +47,7 @@ public class ClassGraphBuilder {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /** Strip Scala companion class suffixes from class name. */
     private static String scalaBaseClassName(String scalaClassName) {
         if (scalaClassName != null && scalaClassName.endsWith("$")) {
             return scalaClassName.substring(0, scalaClassName.length() - 1);
