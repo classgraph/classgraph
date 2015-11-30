@@ -18,11 +18,12 @@ FastClasspathScanner is able to:
 9. return a list of the [names of all classes and interfaces on the classpath](#9-get-a-list-of-all-whitelisted-and-non-blacklisted-classes-and-interfaces-on-the-classpath) (after whitelist and blacklist filtering); and
 10. return a list of [all directories and files on the classpath](#10-get-all-unique-directories-and-files-on-the-classpath) (i.e. all classpath elements) as a list of File objects, with the list deduplicated and filtered to include only classpath directories and files that actually exist, saving you from the complexities of working with the classpath and classloaders.
 
-FastClasspathScanner parses the classfile binary format directly, instead of using reflection, which makes scanning particularly fast. (Reflection causes the classloader to load each class, which can take an order of magnitude more time than parsing the classfile directly, and can lead to unexpected behavior due to static initializer blocks of classes being called on class load.)
+**Benefits of FastClasspathScanner over other classpath scanning methods:**
 
-FastClasspathScanner is extremely lightweight, as it does not depend on any classfile/bytecode parsing or manipulation libraries like [Javassist](http://jboss-javassist.github.io/javassist/) or [ObjectWeb ASM](http://asm.ow2.org/).
-
-In the general case, finding all classpath elements is not as simple as reading the `java.class.path` system property and/or getting the path URLs from the system `URLClassLoader`. FastClasspathScanner handles many [diverse and complicated means](#classpath-mechanisms-handled-by-fastclasspathscanner) used to specify the classpath, and has a pluggable architecture for handling other classpath specification methods.
+1. FastClasspathScanner parses the classfile binary format directly, instead of using reflection, which makes scanning particularly fast. (Reflection causes the classloader to load each class, which can take an order of magnitude more time than parsing the classfile directly, and can lead to unexpected behavior due to static initializer blocks of classes being called on class load.)
+2. FastClasspathScanner is extremely lightweight, as it does not depend on any classfile/bytecode parsing or manipulation libraries like [Javassist](http://jboss-javassist.github.io/javassist/) or [ObjectWeb ASM](http://asm.ow2.org/).
+3. FastClasspathScanner handles many [diverse and complicated means](#classpath-mechanisms-handled-by-fastclasspathscanner) used to specify the classpath, and has a pluggable architecture for handling other classpath specification methods (in the general case, finding all classpath elements is not as simple as reading the `java.class.path` system property and/or getting the path URLs from the system `URLClassLoader`).
+4. FastClasspathScanner can find classes not just by annotation, but also by [meta-annotation](#4-matching-classes-with-a-specific-annotation-or-meta-annotation) (e.g. if AnnotationA annotates AnnotationB, and AnnotationB annotates class C, you can find class C by searching for classes annotated by AnnotationA). This makes annotations more powerful, as they can be used as a hierarchy of inherited traits.
 
 ### Usage
 
