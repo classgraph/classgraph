@@ -631,11 +631,13 @@ You can get a pre-built JAR from [Sonatype](https://oss.sonatype.org/#nexus-sear
 </dependency>
 ```
 
-## Credits
+## References
 
 ### Classfile format documentation
 
 See Oracle's documentation on the [classfile format](http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html).
+
+## Credits
 
 ### Inspiration
 
