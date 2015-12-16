@@ -29,14 +29,13 @@
  */
 
 import static org.assertj.core.api.Assertions.assertThat;
+import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
+import io.github.lukehutch.fastclasspathscanner.whitelisted.Cls;
+import io.github.lukehutch.fastclasspathscanner.whitelisted.blacklistedsub.BlacklistedSub;
 
 import java.util.List;
 
 import org.junit.Test;
-
-import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-import io.github.lukehutch.fastclasspathscanner.whitelisted.Cls;
-import io.github.lukehutch.fastclasspathscanner.whitelisted.blacklisted.Blacklisted;
 
 public class DefaultPackageTest {
     private static final String WHITELIST_PACKAGE = Cls.class.getPackage().getName();
@@ -48,8 +47,7 @@ public class DefaultPackageTest {
         assertThat(allClasses).contains(FastClasspathScanner.class.getName());
         assertThat(allClasses).contains(DefaultPackageTest.class.getName());
         assertThat(allClasses).doesNotContain(String.class.getName());
-        assertThat(allClasses).contains(Object.class.getName());
-        assertThat(allClasses).contains(Blacklisted.class.getName());
+        assertThat(allClasses).contains(BlacklistedSub.class.getName());
         assertThat(allClasses).contains(ClassInDefaultPackage.class.getName());
     }
 
@@ -60,8 +58,7 @@ public class DefaultPackageTest {
         assertThat(allClasses).doesNotContain(FastClasspathScanner.class.getName());
         assertThat(allClasses).doesNotContain(DefaultPackageTest.class.getName());
         assertThat(allClasses).doesNotContain(String.class.getName());
-        assertThat(allClasses).contains(Object.class.getName());
-        assertThat(allClasses).contains(Blacklisted.class.getName());
+        assertThat(allClasses).contains(BlacklistedSub.class.getName());
         assertThat(allClasses).doesNotContain(ClassInDefaultPackage.class.getName());
     }
 }

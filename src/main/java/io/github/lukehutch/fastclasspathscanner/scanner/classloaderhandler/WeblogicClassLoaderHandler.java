@@ -1,8 +1,8 @@
 package io.github.lukehutch.fastclasspathscanner.scanner.classloaderhandler;
 
-import java.lang.reflect.Method;
-
 import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
+
+import java.lang.reflect.Method;
 
 public class WeblogicClassLoaderHandler implements ClassLoaderHandler {
     @Override

@@ -1,10 +1,10 @@
 package io.github.lukehutch.fastclasspathscanner.scanner.classloaderhandler;
 
+import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
+
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-
-import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
 
 // See:
 // https://github.com/jboss-modules/jboss-modules/blob/master/src/main/java/org/jboss/modules/ModuleClassLoader.java

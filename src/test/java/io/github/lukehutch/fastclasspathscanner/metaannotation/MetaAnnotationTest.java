@@ -29,10 +29,9 @@
 package io.github.lukehutch.fastclasspathscanner.metaannotation;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 
 import org.junit.Test;
-
-import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 
 public class MetaAnnotationTest {
     FastClasspathScanner scanner = new FastClasspathScanner(getClass().getPackage().getName()).scan();

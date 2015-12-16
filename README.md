@@ -161,8 +161,8 @@ The constructor accepts a list of whitelisted package prefixes / jar names to sc
 * `new FastClasspathScanner()`: If you don't specify any whitelisted package prefixes, all jarfiles and all directories on the classpath will be scanned.
 
 Notes on blacklisting / whitelisting:
-* Even if you blacklist a file or package, it may show up in one of the lists returned by the `.getNamesOf...()` methods because it is referenced by a whitelisted class. For example, if you blacklist package `xyz` and whitelist package `abc`, if class `abc.MyClass` is a subclass of `xyz.MySuperclass`, then when you call `.scan()` and then `.getNamesOfAllClasses()` or `.getNamesOfSuperclassesOf("abc.MyClass")`, one of the items in the returned list will be `xyz.MySuperclass`. 
-* For efficiency, system, bootstrap and extension jarfiles (i.e. the jarfiles distributed with the JRE) are never scanned. If you put custom classes into the `lib/ext` directory in your JRE folder (which is a valid but rare way of adding jarfiles to the classpath), they will be ignored by association with the JRE.
+* Superclasses, subclasses etc. that are in a package that is not whitelisted (or that is blacklisted) will not be returned in the results of .getAllSuperclassesOf(classX), .getAllSubclassesOf(classX) etc., even if classX is in a whitelisted (and non-blacklisted) package.
+* For efficiency, system, bootstrap and extension jarfiles (i.e. the jarfiles distributed with the JRE) are always blacklisted, i.e. they are never scanned. If you put custom classes into the `lib/ext` directory in your JRE folder (which is a valid but rare way of adding jarfiles to the classpath), they will be ignored by association with the JRE.
 
 ### 1. Matching the subclasses (or finding the superclasses) of a class
 
@@ -437,9 +437,7 @@ If you need more careful change detection than is afforded by checking timestamp
 
 ### 9. Get a list of all whitelisted (and non-blacklisted) classes, interfaces and/or annotations on the classpath
 
-The names of all whitelisted classes, interfaces and/or annotations reached during the scan (or referenced by a class reached during the scan) can be returned by calling one of the methods below. This can be helpful for debugging purposes. In the case of the getNamesOfAll...() methods, the list is returned sorted.
-
-Note that system classes (e.g. java.lang.String) do not need to be explicitly included on the classpath, so they are not typically returned in this list (and system packages are automatically blacklisted during scanning). However, any classes *referenced* as a superclass or superinterface of classes in whitelisted packages will be returned in this list (with the exception of java.lang.Object, which is not included since it is the superclass of all classes).
+The names of all classes, interfaces and/or annotations in whitelisted (and non-blacklisted) packages can be returned using the methods shown below. Note that system classes (e.g. java.lang.String and java.lang.Object) are not enumerated or returned by any of these methods.
 
 ```java
 // Mechanism 1: Attach a MatchProcessor before calling .scan():
@@ -449,32 +447,34 @@ public interface ClassEnumerationMatchProcessor {
     public void processMatch(Class<?> klass);
 }
 
+// Enumerate all standard classes, interfaces and annotations
 public FastClasspathScanner matchAllClasses(
     ClassEnumerationMatchProcessor classEnumerationMatchProcessor)
 
+// Enumerate all standard classes (not interfaces/annotations)
 public FastClasspathScanner matchAllStandardClasses(
     ClassEnumerationMatchProcessor classEnumerationMatchProcessor)
 
+// Enumerate all interfaces
 public FastClasspathScanner matchAllInterfaceClasses(
     ClassEnumerationMatchProcessor classEnumerationMatchProcessor)
 
+// Enumerate all annotations
 public FastClasspathScanner matchAllAnnotationClasses(
     ClassEnumerationMatchProcessor classEnumerationMatchProcessor)
 
 // Mechanism 2: Call one of the following after calling .scan():
 
-// Get sorted names of all encountered or referenced standard classes,
-// interface classes and annotation classes
+// Get sorted names of all standard classes, interfaces and annotations
 public List<String> getNamesOfAllClasses()
 
-// Get sorted names of all encountered or referenced standard classes
-// (i.e. non-interface, non-annotation classes)
+// Get sorted names of all standard classes (not interfaces/annotations)
 public List<String> getNamesOfAllStandardClasses()
 
-// Get names of all encountered or referenced interface classes
+// Get names of all interfaces
 public List<String> getNamesOfAllInterfaceClasses()
 
-// Get names of all encountered or referenced annotation classes
+// Get names of all annotations
 public List<String> getNamesOfAllAnnotationClasses()
 ```
 

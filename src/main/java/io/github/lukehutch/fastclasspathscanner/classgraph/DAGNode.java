@@ -30,7 +30,6 @@ package io.github.lukehutch.fastclasspathscanner.classgraph;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.HashSet;
 
 /**
@@ -53,29 +52,17 @@ class DAGNode {
     HashSet<DAGNode> allSubNodes = new HashSet<>(4);
 
     /**
-     * For annotations: the names of classes annotated by this annotation.
+     * For annotation classes: the nodes corresponding to classes annotated by this annotation.
      * 
-     * For regular classes: the name of interfaces that the class implements.
+     * For standard classes: the nodes corresponding to the interfaces that the class implements.
      */
-    ArrayList<String> crossLinkedClassNames = new ArrayList<>(2);
+    ArrayList<DAGNode> crossLinkedNodes = new ArrayList<>(2);
 
     // -------------------------------------------------------------------------------------------------------------
 
     /** A node representing a class, interface or annotation. */
     public DAGNode(final String name) {
         this.name = name;
-    }
-
-    /**
-     * Get the named node from the map, or create a new node with this name and store it in the map if there isn't
-     * yet a node in the map with this name. Returns the found or created node.
-     */
-    public static DAGNode getOrNew(final HashMap<String, DAGNode> map, final String name) {
-        DAGNode node = map.get(name);
-        if (node == null) {
-            map.put(name, node = new DAGNode(name));
-        }
-        return node;
     }
 
     /**
@@ -91,17 +78,12 @@ class DAGNode {
      * Connect this node to a different node type (for annotations, the cross-linked class is a class annotated by
      * this annotation; for regular classes, the cross-linked class is an interface that the class implements).
      */
-    public DAGNode addCrossLink(final String crossLinkedClassName) {
-        this.crossLinkedClassNames.add(crossLinkedClassName);
+    public DAGNode addCrossLink(final DAGNode crossLinkedNode) {
+        this.crossLinkedNodes.add(crossLinkedNode);
         return this;
     }
 
     // -------------------------------------------------------------------------------------------------------------
-
-    @Override
-    public String toString() {
-        return name;
-    }
 
     /**
      * Find the upwards and downwards transitive closure for each node in a graph. Assumes the graph is a DAG in
@@ -156,5 +138,12 @@ class DAGNode {
             }
             activeBottomUpNodes = activeBottomUpNodesNext;
         }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    @Override
+    public String toString() {
+        return name;
     }
 }

@@ -269,17 +269,46 @@ public class FastClasspathScanner {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Calls the provided ClassEnumerationMatchProcessor for all classes, interfaces and annotations found in
-     * whitelisted packages on the classpath, as well as classes that those classes directly reference as
-     * superclasses, superinterfaces or meta-annotations (which may not themselves be in a whitelisted package).
-     * Calls the class loader on each matching class (using Class.forName()) before calling the
-     * ClassEnumerationMatchProcessor.
+     * Returns the sorted names of all standard classes, interface classes and annotation classes found in a
+     * whitelisted (and non-blacklisted) package during the scan.
+     */
+    public List<String> getNamesOfAllClasses() {
+        return getScanResults().getNamesOfAllClasses();
+    }
+
+    /**
+     * Returns the sorted names of all standard classes found in a whitelisted (and non-blacklisted) package during
+     * the scan.
+     */
+    public List<String> getNamesOfAllStandardClasses() {
+        return getScanResults().getNamesOfAllStandardClasses();
+    }
+
+    /**
+     * Returns the sorted names of all interface classes (interfaces) found in a whitelisted (and non-blacklisted)
+     * package during the scan.
+     */
+    public List<String> getNamesOfAllInterfaceClasses() {
+        return getScanResults().getNamesOfAllInterfaceClasses();
+    }
+
+    /**
+     * Returns the sorted names of all annotation classes found in a whitelisted (and non-blacklisted) package
+     * during the scan.
+     */
+    public List<String> getNamesOfAllAnnotationClasses() {
+        return getScanResults().getNamesOfAllAnnotationClasses();
+    }
+
+    /**
+     * Calls the provided ClassEnumerationMatchProcessor for all standard classes, interfaces and annotations found
+     * in whitelisted packages on the classpath. Calls the class loader on each matching class (using
+     * Class.forName()) before calling the ClassEnumerationMatchProcessor.
      * 
      * @param classEnumerationMatchProcessor
      *            the ClassEnumerationMatchProcessor to call when a match is found.
      */
-    public FastClasspathScanner matchAllClasses(
-            final ClassEnumerationMatchProcessor classEnumerationMatchProcessor) {
+    public FastClasspathScanner matchAllClasses(final ClassEnumerationMatchProcessor classEnumerationMatchProcessor) {
         classMatchers.add(new ClassMatcher() {
             @Override
             public void lookForMatches() {
@@ -299,10 +328,8 @@ public class FastClasspathScanner {
 
     /**
      * Calls the provided ClassEnumerationMatchProcessor for all standard classes (i.e. non-interface,
-     * non-annotation classes) found in whitelisted packages on the classpath, as well as classes that those classes
-     * directly reference as superclasses, superinterfaces or meta-annotations (which may not themselves be in a
-     * whitelisted package). Calls the class loader on each matching class (using Class.forName()) before calling
-     * the ClassEnumerationMatchProcessor.
+     * non-annotation classes) found in whitelisted packages on the classpath. Calls the class loader on each
+     * matching class (using Class.forName()) before calling the ClassEnumerationMatchProcessor.
      * 
      * @param classEnumerationMatchProcessor
      *            the ClassEnumerationMatchProcessor to call when a match is found.
@@ -328,8 +355,7 @@ public class FastClasspathScanner {
 
     /**
      * Calls the provided ClassEnumerationMatchProcessor for all interface classes (interface definitions) found in
-     * whitelisted packages on the classpath, as well as directly-referenced superinterfaces (which may not
-     * themselves be in a whitelisted package). Calls the class loader on each matching interface class (using
+     * whitelisted packages on the classpath. Calls the class loader on each matching interface class (using
      * Class.forName()) before calling the ClassEnumerationMatchProcessor.
      * 
      * @param classEnumerationMatchProcessor
@@ -356,8 +382,7 @@ public class FastClasspathScanner {
 
     /**
      * Calls the provided ClassEnumerationMatchProcessor for all annotation classes (annotation definitions) found
-     * in whitelisted packages on the classpath, as well as meta-annotations on those annotations (which may not
-     * themselves be in a whitelisted package). Calls the class loader on each matching annotation class (using
+     * in whitelisted packages on the classpath. Calls the class loader on each matching annotation class (using
      * Class.forName()) before calling the ClassEnumerationMatchProcessor.
      * 
      * @param classEnumerationMatchProcessor
@@ -1127,44 +1152,6 @@ public class FastClasspathScanner {
     public FastClasspathScanner matchFilenameExtension(final String extensionToMatch,
             final FileMatchContentsProcessor fileMatchContentsProcessor) {
         return matchFilenameExtension(extensionToMatch, wrapFileMatchContentsProcessor(fileMatchContentsProcessor));
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Returns the sorted names of all classes, interface classes and annotation classes reached or referenced
-     * during the scan, i.e. all classes reachable after taking into account the package whitelist and blacklist
-     * criteria.
-     */
-    public List<String> getNamesOfAllClasses() {
-        return getScanResults().getNamesOfAllClasses();
-    }
-
-    /**
-     * Returns the sorted names of all standard classes (non-interface, non-annotation classes) reached or
-     * referenced during the scan, i.e. all classes reachable after taking into account the package whitelist and
-     * blacklist criteria, and their superclasses, superinterfaces and meta-annotations.
-     */
-    public List<String> getNamesOfAllStandardClasses() {
-        return getScanResults().getNamesOfAllStandardClasses();
-    }
-
-    /**
-     * Returns the sorted names of all interface classes (interface definitons) reached or referenced during the
-     * scan, i.e. all interfaces reachable after taking into account the package whitelist and blacklist criteria,
-     * and their superinterfaces.
-     */
-    public List<String> getNamesOfAllInterfaceClasses() {
-        return getScanResults().getNamesOfAllInterfaceClasses();
-    }
-
-    /**
-     * Returns the sorted names of all annotation classes (annotation definitons) reached or referenced during the
-     * scan, i.e. all annotations reachable after taking into account the package whitelist and blacklist criteria,
-     * and their meta-annotations.
-     */
-    public List<String> getNamesOfAllAnnotationClasses() {
-        return getScanResults().getNamesOfAllAnnotationClasses();
     }
 
     // -------------------------------------------------------------------------------------------------------------

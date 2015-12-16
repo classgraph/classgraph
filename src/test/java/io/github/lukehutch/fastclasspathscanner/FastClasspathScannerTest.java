@@ -30,6 +30,11 @@ package io.github.lukehutch.fastclasspathscanner;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.StrictAssertions.assertThat;
+import io.github.lukehutch.fastclasspathscanner.blacklisted.BlacklistedAnnotation;
+import io.github.lukehutch.fastclasspathscanner.blacklisted.BlacklistedInterface;
+import io.github.lukehutch.fastclasspathscanner.blacklisted.BlacklistedSubclass;
+import io.github.lukehutch.fastclasspathscanner.blacklisted.BlacklistedSubinterface;
+import io.github.lukehutch.fastclasspathscanner.blacklisted.BlacklistedSuperclass;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchContentsProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.StaticFinalFieldMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubclassMatchProcessor;
@@ -48,7 +53,9 @@ import io.github.lukehutch.fastclasspathscanner.whitelisted.Impl2;
 import io.github.lukehutch.fastclasspathscanner.whitelisted.Impl2Sub;
 import io.github.lukehutch.fastclasspathscanner.whitelisted.Impl2SubSub;
 import io.github.lukehutch.fastclasspathscanner.whitelisted.StaticField;
-import io.github.lukehutch.fastclasspathscanner.whitelisted.blacklisted.Blacklisted;
+import io.github.lukehutch.fastclasspathscanner.whitelisted.Whitelisted;
+import io.github.lukehutch.fastclasspathscanner.whitelisted.WhitelistedInterface;
+import io.github.lukehutch.fastclasspathscanner.whitelisted.blacklistedsub.BlacklistedSub;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -60,8 +67,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Test;
 
 public class FastClasspathScannerTest {
-    private static final String WHITELIST_PACKAGE = Cls.class.getPackage().getName();
-    private static final String BLACKLIST_PACKAGE = Blacklisted.class.getPackage().getName();
+    private static final String ROOT_PACKAGE = FastClasspathScanner.class.getPackage().getName();
+    private static final String WHITELIST_PACKAGE = Whitelisted.class.getPackage().getName();
 
     @Test
     public void scan() throws Exception {
@@ -70,8 +77,7 @@ public class FastClasspathScannerTest {
         assertThat(allClasses).contains(FastClasspathScanner.class.getName());
         assertThat(allClasses).contains(FastClasspathScannerTest.class.getName());
         assertThat(allClasses).doesNotContain(String.class.getName());
-        assertThat(allClasses).contains(Object.class.getName());
-        assertThat(allClasses).contains(Blacklisted.class.getName());
+        assertThat(allClasses).contains(BlacklistedSub.class.getName());
     }
 
     @Test
@@ -81,27 +87,25 @@ public class FastClasspathScannerTest {
         assertThat(allClasses).doesNotContain(FastClasspathScanner.class.getName());
         assertThat(allClasses).doesNotContain(FastClasspathScannerTest.class.getName());
         assertThat(allClasses).doesNotContain(String.class.getName());
-        assertThat(allClasses).contains(Object.class.getName());
-        assertThat(allClasses).contains(Blacklisted.class.getName());
+        assertThat(allClasses).contains(BlacklistedSub.class.getName());
     }
 
     @Test
     public void scanWithWhitelistAndBlacklist() throws Exception {
-        final List<String> allClasses = new FastClasspathScanner(WHITELIST_PACKAGE, "-" + BLACKLIST_PACKAGE).scan()
-                .getNamesOfAllClasses();
+        final List<String> allClasses = new FastClasspathScanner(WHITELIST_PACKAGE, "-"
+                + BlacklistedSub.class.getPackage().getName()).scan().getNamesOfAllClasses();
         assertThat(allClasses).contains(Cls.class.getName());
         assertThat(allClasses).doesNotContain(FastClasspathScanner.class.getName());
         assertThat(allClasses).doesNotContain(FastClasspathScannerTest.class.getName());
         assertThat(allClasses).doesNotContain(String.class.getName());
-        assertThat(allClasses).contains(Object.class.getName());
-        assertThat(allClasses).doesNotContain(Blacklisted.class.getName());
+        assertThat(allClasses).doesNotContain(BlacklistedSub.class.getName());
     }
 
     @Test
     public void scanSubAndSuperclass() throws Exception {
         final HashSet<String> subclasses = new HashSet<>();
-        final FastClasspathScanner scanner = new FastClasspathScanner(WHITELIST_PACKAGE)
-                .matchSubclassesOf(Cls.class, new SubclassMatchProcessor<Cls>() {
+        final FastClasspathScanner scanner = new FastClasspathScanner(WHITELIST_PACKAGE).matchSubclassesOf(
+                Cls.class, new SubclassMatchProcessor<Cls>() {
                     @Override
                     public void processMatch(final Class<? extends Cls> matchingClass) {
                         subclasses.add(matchingClass.getName());
@@ -121,8 +125,8 @@ public class FastClasspathScannerTest {
     @Test
     public void scanSubAndSuperinterface() throws Exception {
         final HashSet<String> subinterfaces = new HashSet<>();
-        final FastClasspathScanner scanner = new FastClasspathScanner(WHITELIST_PACKAGE)
-                .matchSubinterfacesOf(Iface.class, new SubinterfaceMatchProcessor<Iface>() {
+        final FastClasspathScanner scanner = new FastClasspathScanner(WHITELIST_PACKAGE).matchSubinterfacesOf(
+                Iface.class, new SubinterfaceMatchProcessor<Iface>() {
                     @Override
                     public void processMatch(final Class<? extends Iface> matchingInterface) {
                         subinterfaces.add(matchingInterface.getName());
@@ -134,8 +138,8 @@ public class FastClasspathScannerTest {
         assertThat(scanner.getNamesOfSubinterfacesOf(Iface.class)).doesNotContain(Iface.class.getName());
         assertThat(scanner.getNamesOfSubinterfacesOf(Iface.class)).contains(IfaceSub.class.getName());
         assertThat(scanner.getNamesOfSubinterfacesOf(Iface.class)).contains(IfaceSubSub.class.getName());
-        assertThat(scanner.getNamesOfSuperinterfacesOf(IfaceSubSub.class))
-                .doesNotContain(IfaceSubSub.class.getName());
+        assertThat(scanner.getNamesOfSuperinterfacesOf(IfaceSubSub.class)).doesNotContain(
+                IfaceSubSub.class.getName());
         assertThat(scanner.getNamesOfSuperinterfacesOf(IfaceSubSub.class)).contains(IfaceSub.class.getName());
         assertThat(scanner.getNamesOfSuperinterfacesOf(IfaceSubSub.class)).contains(Iface.class.getName());
     }
@@ -161,18 +165,54 @@ public class FastClasspathScannerTest {
         assertThat(scanner.getNamesOfClassesImplementing(IfaceSubSub.class)).doesNotContain(Impl2.class.getName());
         assertThat(scanner.getNamesOfClassesImplementing(Iface.class)).contains(Impl2Sub.class.getName());
         assertThat(scanner.getNamesOfClassesImplementing(IfaceSub.class)).doesNotContain(Impl2Sub.class.getName());
-        assertThat(scanner.getNamesOfClassesImplementing(IfaceSubSub.class))
-                .doesNotContain(Impl2Sub.class.getName());
+        assertThat(scanner.getNamesOfClassesImplementing(IfaceSubSub.class)).doesNotContain(
+                Impl2Sub.class.getName());
         assertThat(scanner.getNamesOfClassesImplementing(Iface.class)).contains(Impl2SubSub.class.getName());
         assertThat(scanner.getNamesOfClassesImplementing(IfaceSub.class)).contains(Impl2SubSub.class.getName());
         assertThat(scanner.getNamesOfClassesImplementing(IfaceSubSub.class)).contains(Impl2SubSub.class.getName());
     }
 
     @Test
+    public void testNotVisibleIfNotWhitelisted() throws Exception {
+        final FastClasspathScanner scanner = new FastClasspathScanner(WHITELIST_PACKAGE).scan();
+        assertThat(scanner.getNamesOfSuperclassesOf(Whitelisted.class)).isEmpty();
+        assertThat(scanner.getNamesOfSubclassesOf(Whitelisted.class)).isEmpty();
+        assertThat(scanner.getNamesOfSuperinterfacesOf(WhitelistedInterface.class)).isEmpty();
+        assertThat(scanner.getNamesOfSubinterfacesOf(WhitelistedInterface.class)).isEmpty();
+        assertThat(scanner.getNamesOfClassesWithAnnotation(BlacklistedAnnotation.class)).isEmpty();
+    }
+
+    @Test
+    public void testNotVisibleIfBlacklisted() throws Exception {
+        final FastClasspathScanner scanner = new FastClasspathScanner(ROOT_PACKAGE, "-"
+                + BlacklistedSuperclass.class.getPackage().getName()).scan();
+        assertThat(scanner.getNamesOfSuperclassesOf(Whitelisted.class)).isEmpty();
+        assertThat(scanner.getNamesOfSubclassesOf(Whitelisted.class)).isEmpty();
+        assertThat(scanner.getNamesOfSuperinterfacesOf(WhitelistedInterface.class)).isEmpty();
+        assertThat(scanner.getNamesOfSubinterfacesOf(WhitelistedInterface.class)).isEmpty();
+        assertThat(scanner.getNamesOfClassesWithAnnotation(BlacklistedAnnotation.class)).isEmpty();
+    }
+
+    @Test
+    public void testVisibleIfNotBlacklisted() throws Exception {
+        final FastClasspathScanner scanner = new FastClasspathScanner(ROOT_PACKAGE).scan();
+        assertThat(scanner.getNamesOfSuperclassesOf(Whitelisted.class)).containsExactly(
+                BlacklistedSuperclass.class.getName());
+        assertThat(scanner.getNamesOfSubclassesOf(Whitelisted.class)).containsExactly(
+                BlacklistedSubclass.class.getName());
+        assertThat(scanner.getNamesOfSuperinterfacesOf(WhitelistedInterface.class)).containsExactly(
+                BlacklistedInterface.class.getName());
+        assertThat(scanner.getNamesOfSubinterfacesOf(WhitelistedInterface.class)).containsExactly(
+                BlacklistedSubinterface.class.getName());
+        assertThat(scanner.getNamesOfClassesWithAnnotation(BlacklistedAnnotation.class)).containsExactly(
+                Whitelisted.class.getName());
+    }
+
+    @Test
     public void scanFilePattern() throws Exception {
         final AtomicBoolean readFileContents = new AtomicBoolean(false);
-        new FastClasspathScanner()
-                .matchFilenamePattern("[[^/]*/]*file-content-test\\.txt", new FileMatchContentsProcessor() {
+        new FastClasspathScanner().matchFilenamePattern("[[^/]*/]*file-content-test\\.txt",
+                new FileMatchContentsProcessor() {
                     @Override
                     public void processMatch(final String relativePath, final byte[] contents) throws IOException {
                         readFileContents.set("File contents".equals(new String(contents, "UTF-8")));
@@ -189,8 +229,8 @@ public class FastClasspathScannerTest {
                 "integerField", "booleanField" }) {
             fieldNames.add(StaticField.class.getName() + "." + fieldName);
         }
-        new FastClasspathScanner(WHITELIST_PACKAGE)
-                .matchStaticFinalFieldNames(fieldNames, new StaticFinalFieldMatchProcessor() {
+        new FastClasspathScanner(WHITELIST_PACKAGE).matchStaticFinalFieldNames(fieldNames,
+                new StaticFinalFieldMatchProcessor() {
                     @Override
                     public void processMatch(final String className, final String fieldName,
                             final Object fieldConstantValue) {
@@ -221,8 +261,8 @@ public class FastClasspathScannerTest {
 
     @Test
     public void hashContents() throws Exception {
-        final HashMap<String, String> classNameToClassfileHash = new HashClassfileContents(WHITELIST_PACKAGE).scan()
-                .getClassNameToClassfileHash();
+        final HashMap<String, String> classNameToClassfileHash = new HashClassfileContents(WHITELIST_PACKAGE)
+                .scan().getClassNameToClassfileHash();
         final String hash = classNameToClassfileHash.get(Cls.class.getName());
         assertThat(hash).isNotNull();
         assertThat(hash.length()).isEqualTo(32);

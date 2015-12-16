@@ -1,5 +1,9 @@
 package io.github.lukehutch.fastclasspathscanner.classgraph;
 
+import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
+import io.github.lukehutch.fastclasspathscanner.matchprocessor.StaticFinalFieldMatchProcessor;
+import io.github.lukehutch.fastclasspathscanner.utils.Log;
+
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
@@ -8,16 +12,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 
-import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-import io.github.lukehutch.fastclasspathscanner.matchprocessor.StaticFinalFieldMatchProcessor;
-import io.github.lukehutch.fastclasspathscanner.utils.Log;
-
 public class ClassfileBinaryParser {
     /**
      * Read annotation entry from classfile.
      */
-    private static String readAnnotation(final DataInputStream inp, final Object[] constantPool)
-            throws IOException {
+    private static String readAnnotation(final DataInputStream inp, final Object[] constantPool) throws IOException {
         final String annotationFieldDescriptor = readRefdString(inp, constantPool);
         String annotationClassName;
         if (annotationFieldDescriptor.charAt(0) == 'L'
@@ -204,7 +203,12 @@ public class ClassfileBinaryParser {
             }
 
             // Allocate result object
-            final ClassInfo classInfo = new ClassInfo(className, isInterface, isAnnotation, superclassName);
+            final ClassInfo classInfo = new ClassInfo( //
+                    className,
+                    // Annotations are marked as both interfaces and annotations
+                    /* isInterface = */isInterface && !isAnnotation,
+                    /* isAnnotation = */isAnnotation, //
+                    superclassName);
 
             // Interfaces
             final int interfaceCount = inp.readUnsignedShort();

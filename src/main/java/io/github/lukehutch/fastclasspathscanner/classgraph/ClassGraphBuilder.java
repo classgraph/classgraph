@@ -40,113 +40,89 @@ import java.util.HashSet;
 import java.util.List;
 
 public class ClassGraphBuilder {
-    private final ArrayList<ClassInfo> allClassInfo;
+    ArrayList<DAGNode> standardClassNodes = new ArrayList<>();
+    ArrayList<DAGNode> interfaceNodes = new ArrayList<>();
+    ArrayList<DAGNode> annotationNodes = new ArrayList<>();
 
     public ClassGraphBuilder(final Collection<ClassInfo> classInfoFromScan) {
-        this.allClassInfo = new ArrayList<>(handleScalaAuxClasses(classInfoFromScan));
-    }
+        // Take care of Scala quirks
+        final ArrayList<ClassInfo> allClassInfo = new ArrayList<>(Utils.mergeScalaAuxClasses(classInfoFromScan));
 
-    // -------------------------------------------------------------------------------------------------------------
+        // Build class graph:
 
-    /** Strip Scala companion class suffixes from class name. */
-    private static String scalaBaseClassName(String scalaClassName) {
-        if (scalaClassName != null && scalaClassName.endsWith("$")) {
-            return scalaClassName.substring(0, scalaClassName.length() - 1);
-        } else if (scalaClassName != null && scalaClassName.endsWith("$class")) {
-            return scalaClassName.substring(0, scalaClassName.length() - 6);
-        } else {
-            return scalaClassName;
+        // Create DAG node for each class
+        final HashMap<String, DAGNode> classNameToDAGNode = new HashMap<>();
+        for (final ClassInfo classInfo : allClassInfo) {
+            final String className = classInfo.className;
+            classNameToDAGNode.put(className, new DAGNode(className));
         }
-    }
 
-    /**
-     * Merge ClassInfo for Scala's companion objects (ending in "$") and trait methods class (ending in "$class")
-     * into the ClassInfo object for the base class that they are associated with.
-     * 
-     * N.B. it's possible that some of these cases will never be needed (e.g. the base class seems to have the
-     * annotations, while the "$" class gets the annotations). For now, just be exhaustive and merge all Scala
-     * auxiliary classes into one ClassInfo node.
-     */
-    private static Collection<ClassInfo> handleScalaAuxClasses(final Collection<ClassInfo> classInfoFromScan) {
-        final HashMap<String, ClassInfo> classNameToClassInfo = new HashMap<>();
-        final ArrayList<ClassInfo> companionObjectClassInfo = new ArrayList<>();
-        for (final ClassInfo classInfo : classInfoFromScan) {
-            // Remove "$" and "$class" suffix from names of superclasses, interfaces and annotations of all classes
-            for (int i = 0; i < classInfo.superclassNames.size(); i++) {
-                classInfo.superclassNames.set(i, scalaBaseClassName(classInfo.superclassNames.get(i)));
-            }
+        // Connect DAG nodes based on class connectivity
+        for (final ClassInfo classInfo : allClassInfo) {
+            final String className = classInfo.className;
+            final DAGNode classNode = classNameToDAGNode.get(className);
+            (classInfo.isAnnotation ? annotationNodes : classInfo.isInterface ? interfaceNodes : standardClassNodes)
+                    .add(classNode);
+
+            // Connect classes to the interfaces they implement, and interfaces to their superinterfaces
             if (classInfo.interfaceNames != null) {
-                for (int i = 0; i < classInfo.interfaceNames.size(); i++) {
-                    classInfo.interfaceNames.set(i, scalaBaseClassName(classInfo.interfaceNames.get(i)));
+                for (final String interfaceName : classInfo.interfaceNames) {
+                    DAGNode interfaceNode = classNameToDAGNode.get(interfaceName);
+                    if (interfaceNode != null) {
+                        if (!classInfo.isAnnotation && !classInfo.isInterface) {
+                            // Cross-link standard classes to the interfaces they implement
+                            classNode.addCrossLink(interfaceNode);
+                        } else if (classInfo.isInterface) {
+                            // If the class implementing the interface is itself an interface,
+                            // then it is a subinterface of the implemented interface.
+                            interfaceNode.addSubNode(classNode);
+                        }
+                    }
                 }
             }
+
+            // Connect classes to their superclass
+            // (there should only be one superclass after handling the Scala quirks above)
+            for (String superclassName : classInfo.superclassNames) {
+                DAGNode superclassNode = classNameToDAGNode.get(superclassName);
+                if (superclassNode != null) {
+                    superclassNode.addSubNode(classNode);
+                }
+            }
+
             if (classInfo.annotationNames != null) {
-                for (int i = 0; i < classInfo.annotationNames.size(); i++) {
-                    classInfo.annotationNames.set(i, scalaBaseClassName(classInfo.annotationNames.get(i)));
-                }
-            }
-            if (classInfo.className.endsWith("$") || classInfo.className.endsWith("$class")) {
-                companionObjectClassInfo.add(classInfo);
-            } else {
-                classNameToClassInfo.put(classInfo.className, classInfo);
-            }
-        }
-        // Merge ClassInfo for classes with suffix "$" and "$class" into base class that doesn't have the suffix  
-        for (final ClassInfo companionClassInfo : companionObjectClassInfo) {
-            final String classNameRaw = companionClassInfo.className;
-            final String className = classNameRaw.endsWith("$class") ? classNameRaw.substring(0,
-                    classNameRaw.length() - 6) : classNameRaw.substring(0, classNameRaw.length() - 1);
-            if (!classNameToClassInfo.containsKey(className)) {
-                // Couldn't find base class -- rename companion object and store it in place of base class
-                companionClassInfo.className = className;
-                classNameToClassInfo.put(className, companionClassInfo);
-            } else {
-                // Otherwise Merge companion class fields into base class' ClassInfo
-                final ClassInfo baseClassInfo = classNameToClassInfo.get(className);
-                baseClassInfo.isInterface |= companionClassInfo.isInterface;
-                baseClassInfo.isAnnotation |= companionClassInfo.isAnnotation;
-                baseClassInfo.superclassNames.addAll(companionClassInfo.superclassNames);
-                // Reuse or merge the interface and annotation lists
-                if (baseClassInfo.interfaceNames == null) {
-                    baseClassInfo.interfaceNames = companionClassInfo.interfaceNames;
-                } else if (companionClassInfo.interfaceNames != null) {
-                    baseClassInfo.interfaceNames.addAll(companionClassInfo.interfaceNames);
-                }
-                if (baseClassInfo.annotationNames == null) {
-                    baseClassInfo.annotationNames = companionClassInfo.annotationNames;
-                } else if (companionClassInfo.annotationNames != null) {
-                    baseClassInfo.annotationNames.addAll(companionClassInfo.annotationNames);
+                for (final String annotationName : classInfo.annotationNames) {
+                    DAGNode annotationNode = classNameToDAGNode.get(annotationName);
+                    if (annotationNode != null) {
+                        if (classInfo.isAnnotation) {
+                            // If this class is an annotation, then its annotations are meta-annotations
+                            annotationNode.addSubNode(classNode);
+                        } else {
+                            // For regular classes, add annotations as cross-links.
+                            annotationNode.addCrossLink(classNode);
+                        }
+                    }
                 }
             }
         }
-        return classNameToClassInfo.values();
+
+        // Find transitive closure of DAG nodes for each of the three class types
+        DAGNode.findTransitiveClosure(standardClassNodes);
+        DAGNode.findTransitiveClosure(interfaceNodes);
+        DAGNode.findTransitiveClosure(annotationNodes);
     }
 
     // -------------------------------------------------------------------------------------------------------------
     // DAGs
 
     /** A map from class name to the corresponding DAGNode object. */
-    private final LazyMap<String, DAGNode> classNameToClassNode = //
+    private final LazyMap<String, DAGNode> classNameToStandardClassNode = //
     new LazyMap<String, DAGNode>() {
         @Override
         public void initialize() {
-            for (final ClassInfo classInfo : allClassInfo) {
-                if (!classInfo.isAnnotation && !classInfo.isInterface) {
-                    // Look up or create ClassNode object for this class
-                    final DAGNode classNode = DAGNode.getOrNew(map, classInfo.className);
-                    if (classInfo.interfaceNames != null) {
-                        for (final String interfaceName : classInfo.interfaceNames) {
-                            // Cross-link classes to the interfaces they implement
-                            classNode.addCrossLink(interfaceName);
-                        }
-                    }
-                    for (String superclassName : classInfo.superclassNames) {
-                        // Look up or create ClassNode object for superclass, and connect it to this class
-                        DAGNode.getOrNew(map, superclassName).addSubNode(classNode);
-                    }
-                }
+            for (final DAGNode classNode : standardClassNodes) {
+                map.put(classNode.name, classNode);
             }
-            DAGNode.findTransitiveClosure(map.values());
         }
     };
 
@@ -155,22 +131,9 @@ public class ClassGraphBuilder {
     new LazyMap<String, DAGNode>() {
         @Override
         public void initialize() {
-            for (final ClassInfo classInfo : allClassInfo) {
-                // Look up or create interface node if this is an interface
-                final DAGNode classNodeIfInterface = classInfo.isInterface ? DAGNode.getOrNew(map,
-                        classInfo.className) : null;
-                if (classInfo.interfaceNames != null) {
-                    // Look up or create InterfaceNode objects for superinterfaces
-                    for (final String implementedInterfaceName : classInfo.interfaceNames) {
-                        final DAGNode implementedInterfaceNode = DAGNode.getOrNew(map, implementedInterfaceName);
-                        // If the class implementing the interface is itself an interface, it is a subinterface.
-                        if (classNodeIfInterface != null) {
-                            implementedInterfaceNode.addSubNode(classNodeIfInterface);
-                        }
-                    }
-                }
+            for (final DAGNode interfaceNode : interfaceNodes) {
+                map.put(interfaceNode.name, interfaceNode);
             }
-            DAGNode.findTransitiveClosure(map.values());
         }
     };
 
@@ -179,49 +142,30 @@ public class ClassGraphBuilder {
     new LazyMap<String, DAGNode>() {
         @Override
         public void initialize() {
-            for (final ClassInfo classInfo : allClassInfo) {
-                if (classInfo.isAnnotation) {
-                    // If the current class is an annotation
-                    final DAGNode classNode = DAGNode.getOrNew(map, classInfo.className);
-                    if (classInfo.annotationNames != null) {
-                        // This is an annotation with meta-annotations
-                        for (final String annotationName : classInfo.annotationNames) {
-                            // Add the meta-annotation as a super-node of the annotation it annotates
-                            DAGNode.getOrNew(map, annotationName).addSubNode(classNode);
-                        }
-                    }
-                } else {
-                    if (classInfo.annotationNames != null) {
-                        // If the current class is not an annotation, but has its own annotations
-                        for (final String annotationName : classInfo.annotationNames) {
-                            // Cross-link annotation to the current class
-                            DAGNode.getOrNew(map, annotationName).addCrossLink(classInfo.className);
-                        }
-                    }
-                }
+            for (final DAGNode annotationNode : annotationNodes) {
+                map.put(annotationNode.name, annotationNode);
             }
-            DAGNode.findTransitiveClosure(map.values());
         }
     };
 
     // -------------------------------------------------------------------------------------------------------------
     // Classes
 
-    /** The sorted unique names of all classes, interfaces and annotations reached or referenced during the scan. */
+    /** The sorted unique names of all classes, interfaces and annotations found during the scan. */
     private final LazyMap<String, ArrayList<String>> namesOfAllClasses = //
     new LazyMap<String, ArrayList<String>>() {
         @Override
         protected ArrayList<String> generateValue(final String ignored) {
             // Return same value for all keys -- just always use the key "" to fetch the list so that
             // work is not duplicated if you call twice with different keys.
-            return Utils.sortedCopy(classNameToClassNode.keySet(), interfaceNameToInterfaceNode.keySet(),
+            return Utils.sortedCopy(classNameToStandardClassNode.keySet(), interfaceNameToInterfaceNode.keySet(),
                     annotationNameToAnnotationNode.keySet());
         };
     };
 
     /**
-     * The sorted unique names of all standard classes (non-interface, non-annotation classes) reached or referenced
-     * during the scan.
+     * The sorted unique names of all standard classes (non-interface, non-annotation classes) found during the
+     * scan.
      */
     private final LazyMap<String, ArrayList<String>> namesOfAllStandardClasses = //
     new LazyMap<String, ArrayList<String>>() {
@@ -229,11 +173,11 @@ public class ClassGraphBuilder {
         protected ArrayList<String> generateValue(final String ignored) {
             // Return same value for all keys -- just always use the key "" to fetch the list so that
             // work is not duplicated if you call twice with different keys.
-            return Utils.sortedCopy(classNameToClassNode.keySet());
+            return Utils.sortedCopy(classNameToStandardClassNode.keySet());
         };
     };
 
-    /** The sorted unique names of all interfaces reached or referenced during the scan. */
+    /** The sorted unique names of all interfaces found during the scan. */
     private final LazyMap<String, ArrayList<String>> namesOfAllInterfaceClasses = //
     new LazyMap<String, ArrayList<String>>() {
         @Override
@@ -244,7 +188,7 @@ public class ClassGraphBuilder {
         };
     };
 
-    /** The sorted unique names of all annotation classes reached or referenced during the scan. */
+    /** The sorted unique names of all annotation classes found during the scan. */
     private final LazyMap<String, ArrayList<String>> namesOfAllAnnotationClasses = //
     new LazyMap<String, ArrayList<String>>() {
         @Override
@@ -256,28 +200,27 @@ public class ClassGraphBuilder {
     };
 
     /**
-     * Return the sorted unique names of all classes, interfaces and annotations reached or referenced during the
-     * scan.
+     * Return the sorted unique names of all classes, interfaces and annotations found during the scan.
      */
     public List<String> getNamesOfAllClasses() {
         return namesOfAllClasses.get("");
     }
 
     /**
-     * Return the sorted unique names of all standard classes (non-interface, non-annotation classes) reached or
-     * referenced during the scan.
+     * Return the sorted unique names of all standard classes (non-interface, non-annotation classes) found during
+     * the scan.
      */
     public List<String> getNamesOfAllStandardClasses() {
         return namesOfAllStandardClasses.get("");
     }
 
-    /** Return the sorted unique names of all interface classes reached or referenced during the scan. */
+    /** Return the sorted unique names of all interface classes found during the scan. */
     public List<String> getNamesOfAllInterfaceClasses() {
         return namesOfAllInterfaceClasses.get("");
     }
 
     /**
-     * Return the sorted unique names of all annotation classes reached or referenced during the scan.
+     * Return the sorted unique names of all annotation classes found during the scan.
      */
     public List<String> getNamesOfAllAnnotationClasses() {
         return namesOfAllAnnotationClasses.get("");
@@ -288,7 +231,7 @@ public class ClassGraphBuilder {
     new LazyMap<String, ArrayList<String>>() {
         @Override
         protected ArrayList<String> generateValue(final String className) {
-            final DAGNode classNode = classNameToClassNode.get(className);
+            final DAGNode classNode = classNameToStandardClassNode.get(className);
             if (classNode == null) {
                 return null;
             }
@@ -316,7 +259,7 @@ public class ClassGraphBuilder {
     new LazyMap<String, ArrayList<String>>() {
         @Override
         protected ArrayList<String> generateValue(final String className) {
-            final DAGNode classNode = classNameToClassNode.get(className);
+            final DAGNode classNode = classNameToStandardClassNode.get(className);
             if (classNode == null) {
                 return null;
             }
@@ -404,32 +347,27 @@ public class ClassGraphBuilder {
         @Override
         public void initialize() {
             // Create mapping from interface names to the names of classes that implement the interface.
-            for (final DAGNode classNode : classNameToClassNode.values()) {
-                // For regular classes, cross-linked class names are the names of implemented interfaces
-                final ArrayList<String> interfaceNames = classNode.crossLinkedClassNames;
-                if (interfaceNames != null) {
-                    // Create reverse mapping from interfaces and superinterfaces implemented by the class
-                    // back to the class the interface implements
-                    for (final String interfaceName : interfaceNames) {
-                        final DAGNode interfaceNode = interfaceNameToInterfaceNode.get(interfaceName);
-                        if (interfaceNode != null) {
-                            // Map from interface to implementing class
-                            MultiSet.put(map, interfaceName, classNode.name);
-                            // Classes that subclass another class that implements an interface
-                            // also implement the same interface.
-                            for (final DAGNode subclassNode : classNode.allSubNodes) {
-                                MultiSet.put(map, interfaceName, subclassNode.name);
-                            }
+            for (final DAGNode classNode : classNameToStandardClassNode.values()) {
+                // For regular classes, cross-linked class names are the names of implemented interfaces.
+                // Create reverse mapping from interfaces and superinterfaces implemented by the class
+                // back to the class the interface implements
+                final ArrayList<DAGNode> interfaceNodes = classNode.crossLinkedNodes;
+                for (final DAGNode interfaceNode : interfaceNodes) {
+                    // Map from interface to implementing class
+                    MultiSet.put(map, interfaceNode.name, classNode.name);
+                    // Classes that subclass another class that implements an interface
+                    // also implement the same interface.
+                    for (final DAGNode subclassNode : classNode.allSubNodes) {
+                        MultiSet.put(map, interfaceNode.name, subclassNode.name);
+                    }
 
-                            // Do the same for any superinterfaces of this interface: any class that
-                            // implements an interface also implements all its superinterfaces, and so
-                            // do all the subclasses of the class.
-                            for (final DAGNode superinterfaceNode : interfaceNode.allSuperNodes) {
-                                MultiSet.put(map, superinterfaceNode.name, classNode.name);
-                                for (final DAGNode subclassNode : classNode.allSubNodes) {
-                                    MultiSet.put(map, superinterfaceNode.name, subclassNode.name);
-                                }
-                            }
+                    // Do the same for any superinterfaces of this interface: any class that
+                    // implements an interface also implements all its superinterfaces, and so
+                    // do all the subclasses of the class.
+                    for (final DAGNode superinterfaceNode : interfaceNode.allSuperNodes) {
+                        MultiSet.put(map, superinterfaceNode.name, classNode.name);
+                        for (final DAGNode subclassNode : classNode.allSubNodes) {
+                            MultiSet.put(map, superinterfaceNode.name, subclassNode.name);
                         }
                     }
                 }
@@ -465,9 +403,13 @@ public class ClassGraphBuilder {
             }
             final HashSet<String> classNames = new HashSet<>();
             for (final DAGNode subNode : annotationNode.allSubNodes) {
-                classNames.addAll(subNode.crossLinkedClassNames);
+                for (final DAGNode crossLinkedNode : subNode.crossLinkedNodes) {
+                    classNames.add(crossLinkedNode.name);
+                }
             }
-            classNames.addAll(annotationNode.crossLinkedClassNames);
+            for (final DAGNode crossLinkedNode : annotationNode.crossLinkedNodes) {
+                classNames.add(crossLinkedNode.name);
+            }
             return classNames;
         };
     };
@@ -521,7 +463,10 @@ public class ClassGraphBuilder {
         }
     };
 
-    /** Mapping from annotation name to the sorted list of names of annotations and meta-annotations on the annotation. */
+    /**
+     * Mapping from annotation name to the sorted list of names of annotations and meta-annotations on the
+     * annotation.
+     */
     private final LazyMap<String, ArrayList<String>> annotationNameToMetaAnnotationNames = //
     LazyMap.convertToMultiMapSorted( //
     LazyMap.invertMultiSet(metaAnnotationNameToAnnotatedAnnotationNamesSet, annotationNameToAnnotationNode));

@@ -1,9 +1,9 @@
 package io.github.lukehutch.fastclasspathscanner.scanner.classloaderhandler;
 
+import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
+
 import java.net.URL;
 import java.net.URLClassLoader;
-
-import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
 
 public class URLClassLoaderHandler implements ClassLoaderHandler {
     @Override
