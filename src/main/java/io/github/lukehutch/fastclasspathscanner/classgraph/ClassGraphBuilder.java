@@ -206,22 +206,80 @@ public class ClassGraphBuilder {
     // -------------------------------------------------------------------------------------------------------------
     // Classes
 
-    /** The sorted unique names of all classes, interfaces and annotations reached during the scan. */
+    /** The sorted unique names of all classes, interfaces and annotations reached or referenced during the scan. */
     private final LazyMap<String, ArrayList<String>> namesOfAllClasses = //
     new LazyMap<String, ArrayList<String>>() {
         @Override
         protected ArrayList<String> generateValue(final String ignored) {
             // Return same value for all keys -- just always use the key "" to fetch the list so that
             // work is not duplicated if you call twice with different keys.
-            final ArrayList<String> classNames = new ArrayList<>(classNameToClassNode.keySet());
-            Collections.sort(classNames);
-            return classNames;
+            return sortedCopy(classNameToClassNode.keySet(), interfaceNameToInterfaceNode.keySet(),
+                    annotationNameToAnnotationNode.keySet());
         };
     };
 
-    /** Return the sorted unique names of all classes, interfaces and annotations reached during the scan. */
+    /**
+     * The sorted unique names of all standard classes (non-interface, non-annotation classes) reached or referenced
+     * during the scan.
+     */
+    private final LazyMap<String, ArrayList<String>> namesOfAllStandardClasses = //
+    new LazyMap<String, ArrayList<String>>() {
+        @Override
+        protected ArrayList<String> generateValue(final String ignored) {
+            // Return same value for all keys -- just always use the key "" to fetch the list so that
+            // work is not duplicated if you call twice with different keys.
+            return sortedCopy(classNameToClassNode.keySet());
+        };
+    };
+
+    /** The sorted unique names of all interfaces reached or referenced during the scan. */
+    private final LazyMap<String, ArrayList<String>> namesOfAllInterfaceClasses = //
+    new LazyMap<String, ArrayList<String>>() {
+        @Override
+        protected ArrayList<String> generateValue(final String ignored) {
+            // Return same value for all keys -- just always use the key "" to fetch the list so that
+            // work is not duplicated if you call twice with different keys.
+            return sortedCopy(interfaceNameToInterfaceNode.keySet());
+        };
+    };
+
+    /** The sorted unique names of all annotation classes reached or referenced during the scan. */
+    private final LazyMap<String, ArrayList<String>> namesOfAllAnnotationClasses = //
+    new LazyMap<String, ArrayList<String>>() {
+        @Override
+        protected ArrayList<String> generateValue(final String ignored) {
+            // Return same value for all keys -- just always use the key "" to fetch the list so that
+            // work is not duplicated if you call twice with different keys.
+            return sortedCopy(annotationNameToAnnotationNode.keySet());
+        };
+    };
+
+    /**
+     * Return the sorted unique names of all classes, interfaces and annotations reached or referenced during the
+     * scan.
+     */
     public List<String> getNamesOfAllClasses() {
         return namesOfAllClasses.get("");
+    }
+
+    /**
+     * Return the sorted unique names of all standard classes (non-interface, non-annotation classes) reached or
+     * referenced during the scan.
+     */
+    public List<String> getNamesOfAllStandardClasses() {
+        return namesOfAllStandardClasses.get("");
+    }
+
+    /** Return the sorted unique names of all interface classes reached or referenced during the scan. */
+    public List<String> getNamesOfAllInterfaceClasses() {
+        return namesOfAllInterfaceClasses.get("");
+    }
+
+    /**
+     * Return the sorted unique names of all annotation classes reached or referenced during the scan.
+     */
+    public List<String> getNamesOfAllAnnotationClasses() {
+        return namesOfAllAnnotationClasses.get("");
     }
 
     /** Return the names of all subclasses of the named class. */
@@ -483,5 +541,17 @@ public class ClassGraphBuilder {
         } else {
             return annotationNames;
         }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    @SafeVarargs
+    private static ArrayList<String> sortedCopy(Collection<String>... collections) {
+        final ArrayList<String> copy = new ArrayList<>();
+        for (Collection<String> collection : collections) {
+            copy.addAll(collection);
+        }
+        Collections.sort(copy);
+        return copy;
     }
 }

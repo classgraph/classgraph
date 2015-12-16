@@ -432,10 +432,24 @@ If you need more careful change detection than is afforded by checking timestamp
 
 The names of all classes and interfaces reached during the scan, after taking into account whitelist and blacklist criteria, can be returned by calling the method `.getNamesOfAllClasses()` after calling `.scan()`. This can be helpful for debugging purposes. The list is returned sorted.
 
-Note that system classes (e.g. java.lang.String) do not need to be explicitly included on the classpath, so they are not typically returned in this list. However, any classes *referenced* as a superclass or superinterface of classes on the classpath (and, more specifically, any classes referenced by whitelisted classes), will be returned in this list. For example, any classes encountered that do not extend another class will reference java.lang.Object, so java.lang.Object will be returned in this list. 
+Note that system classes (e.g. java.lang.String) do not need to be explicitly included on the classpath, so they are not typically returned in this list (and system packages are automatically blacklisted during scanning). However, any classes *referenced* as a superclass or superinterface of classes in whitelisted packages will be returned in this list (with the exception of java.lang.Object, which is not included since it is the superclass of all classes).
+
+There are several variants of this method:
 
 ```java
+// Get names of all encountered or referenced standard classes, interface classes
+// and annotation classes
 public List<String> getNamesOfAllClasses()
+
+// Get names of all encountered or referenced standard classes
+// (i.e. non-interface, non-annotation classes)
+public List<String> getNamesOfAllStandardClasses()
+
+// Get names of all encountered or referenced interface classes (interface defs)
+public List<String> getNamesOfAllInterfaceClasses()
+
+// Get names of all encountered or referenced annotation classes (annotation defs)
+public List<String> getNamesOfAllAnnotationClasses()
 ```
 
 ### 10. Get all unique directories and files on the classpath

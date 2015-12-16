@@ -152,8 +152,8 @@ public class FastClasspathScanner {
                 if (!relativePathToClassInfo.containsKey(relativePath)) {
                     // This is the first time we have encountered this relative path (and therefore this class)
                     // on the classpath. Read class info from classfile binary header.
-                    final ClassInfo classInfo = ClassfileBinaryParser.readClassInfoFromClassfileHeader(relativePath,
-                            inputStream, classNameToStaticFieldnameToMatchProcessor);
+                    final ClassInfo classInfo = ClassfileBinaryParser.readClassInfoFromClassfileHeader(
+                            relativePath, inputStream, classNameToStaticFieldnameToMatchProcessor);
                     if (classInfo != null) {
                         // If class info was successfully read, store a mapping from relative path to class info.
                         // (All classes with the same name should have the same relative path, although this is
@@ -246,8 +246,8 @@ public class FastClasspathScanner {
      */
     private static String classOrInterfaceName(final Class<?> classOrInterface) {
         if (classOrInterface.isAnnotation()) {
-            throw new IllegalArgumentException(
-                    classOrInterface.getName() + " is an annotation, not a regular class or interface");
+            throw new IllegalArgumentException(classOrInterface.getName()
+                    + " is an annotation, not a regular class or interface");
         }
         return classOrInterface.getName();
     }
@@ -464,8 +464,7 @@ public class FastClasspathScanner {
                 final String implementedInterfaceName = interfaceName(implementedInterface);
                 for (final String implClass : getNamesOfClassesImplementing(implementedInterfaceName)) {
                     if (verbose) {
-                        Log.log("Found class implementing interface " + implementedInterfaceName + ": "
-                                + implClass);
+                        Log.log("Found class implementing interface " + implementedInterfaceName + ": " + implClass);
                     }
                     // Call classloader
                     final Class<? extends T> cls = loadClass(implClass);
@@ -862,8 +861,8 @@ public class FastClasspathScanner {
                 final byte[] contents = new byte[lengthBytes];
                 final int bytesRead = Math.max(0, inputStream.read(contents));
                 // For safety, truncate the array if the file was truncated before we finish reading it
-                final byte[] contentsRead = bytesRead == lengthBytes ? contents
-                        : Arrays.copyOf(contents, bytesRead);
+                final byte[] contentsRead = bytesRead == lengthBytes ? contents : Arrays
+                        .copyOf(contents, bytesRead);
                 // Pass file contents to the wrapped FileMatchContentsProcessor
                 fileMatchContentsProcessor.processMatch(relativePath, contentsRead);
             }
@@ -1016,11 +1015,39 @@ public class FastClasspathScanner {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Returns the names of all classes and interfaces processed during the scan, i.e. all classes reachable after
-     * taking into account the package whitelist and blacklist criteria. List is sorted.
+     * Returns the sorted names of all classes, interface classes and annotation classes reached or referenced
+     * during the scan, i.e. all classes reachable after taking into account the package whitelist and blacklist
+     * criteria.
      */
     public List<String> getNamesOfAllClasses() {
         return getScanResults().getNamesOfAllClasses();
+    }
+
+    /**
+     * Returns the sorted names of all standard classes (non-interface, non-annotation classes) reached or
+     * referenced during the scan, i.e. all classes reachable after taking into account the package whitelist and
+     * blacklist criteria, and their superclasses, superinterfaces and meta-annotations.
+     */
+    public List<String> getNamesOfAllStandardClasses() {
+        return getScanResults().getNamesOfAllStandardClasses();
+    }
+
+    /**
+     * Returns the sorted names of all interface classes (interface definitons) reached or referenced during the
+     * scan, i.e. all interfaces reachable after taking into account the package whitelist and blacklist criteria,
+     * and their superinterfaces.
+     */
+    public List<String> getNamesOfAllInterfaceClasses() {
+        return getScanResults().getNamesOfAllInterfaceClasses();
+    }
+
+    /**
+     * Returns the sorted names of all annotation classes (annotation definitons) reached or referenced during the
+     * scan, i.e. all annotations reachable after taking into account the package whitelist and blacklist criteria,
+     * and their meta-annotations.
+     */
+    public List<String> getNamesOfAllAnnotationClasses() {
+        return getScanResults().getNamesOfAllAnnotationClasses();
     }
 
     // -------------------------------------------------------------------------------------------------------------
