@@ -83,7 +83,9 @@ boolean classpathContentsModified =
     fastClassPathScanner.classpathContentsModifiedSinceScan();
 ```
 
-**Mechanism 2:** Create a FastClasspathScanner instance, potentially without adding any MatchProcessors, then call scan() to scan the classpath, then call `.getNamesOf...()` methods to find classes and interfaces of interest without actually calling the classloader on any matching classes. The `.getNamesOf...()` methods return lists of strings, rather than lists of `Class<?>` references, and scanning is done by reading the classfile directly, so the classloader does not need to be called for these methods to return their results. This can be useful if the static initializer code for matching classes would trigger unwanted side effects if run during a classpath scan. An example of this usage pattern is:
+**Mechanism 2:** Create a FastClasspathScanner instance, potentially without adding any MatchProcessors, then call scan() to scan the classpath, then call `.getNamesOf...()` methods to get a list of classes, interfaces and annotations of interest without actually calling the classloader on any matching classes.
+
+The `.getNamesOf...()` methods return sorted lists of strings, rather than lists of `Class<?>` references, and scanning is done by reading the classfile directly, so the classloader does not need to be called for these methods to return their results. This can be useful if the static initializer code for matching classes would trigger unwanted side effects if run during a classpath scan. An example of this usage pattern is:
 
 ```java
 List<String> subclassesOfWidget = new FastClasspathScanner("com.xyz.widget")
@@ -95,7 +97,7 @@ List<String> subclassesOfWidget = new FastClasspathScanner("com.xyz.widget")
     .getNamesOfSubclassesOf("com.xyz.widget.Widget");
 ```
 
-Note that Mechanism 2 only works with class and interface matches; there are no corresponding `.getNamesOf...()` methods for filename pattern or static field matches, since these methods are only looking at the DAG of whitelisted classes and interfaces encountered during the scan.
+Note that Mechanism 2 only works with class, interface and annotation matches; there are no corresponding `.getNamesOf...()` methods for filename pattern or static field matches, since these methods are only looking at the DAG of whitelisted classes and interfaces encountered during the scan.
 
 ### Tips
 
@@ -435,7 +437,7 @@ If you need more careful change detection than is afforded by checking timestamp
 
 ### 9. Get a list of all whitelisted (and non-blacklisted) classes, interfaces and/or annotations on the classpath
 
-The names of all whitelisted classes, interfaces and/or annotations reached during the scan (or referenced by a class reached during the scan) can be returned by calling one of the methods below. This can be helpful for debugging purposes. The list is returned sorted.
+The names of all whitelisted classes, interfaces and/or annotations reached during the scan (or referenced by a class reached during the scan) can be returned by calling one of the methods below. This can be helpful for debugging purposes. In the case of the getNamesOfAll...() methods, the list is returned sorted.
 
 Note that system classes (e.g. java.lang.String) do not need to be explicitly included on the classpath, so they are not typically returned in this list (and system packages are automatically blacklisted during scanning). However, any classes *referenced* as a superclass or superinterface of classes in whitelisted packages will be returned in this list (with the exception of java.lang.Object, which is not included since it is the superclass of all classes).
 
