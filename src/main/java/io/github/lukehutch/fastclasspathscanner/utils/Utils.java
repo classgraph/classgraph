@@ -48,9 +48,9 @@ public class Utils {
 
     /** Convert a collection into a sorted list. */
     @SafeVarargs
-    public static <T extends Comparable<T>> ArrayList<T> sortedCopy(Collection<T>... collections) {
+    public static <T extends Comparable<T>> ArrayList<T> sortedCopy(final Collection<T>... collections) {
         final ArrayList<T> copy = new ArrayList<>();
-        for (Collection<T> collection : collections) {
+        for (final Collection<T> collection : collections) {
             copy.addAll(collection);
         }
         Collections.sort(copy);
@@ -60,7 +60,7 @@ public class Utils {
     // -------------------------------------------------------------------------------------------------------------
 
     /** Strip Scala companion class suffixes from class name. */
-    private static String scalaBaseClassName(String scalaClassName) {
+    private static String scalaBaseClassName(final String scalaClassName) {
         if (scalaClassName != null && scalaClassName.endsWith("$")) {
             return scalaClassName.substring(0, scalaClassName.length() - 1);
         } else if (scalaClassName != null && scalaClassName.endsWith("$class")) {

@@ -67,7 +67,7 @@ public class ClassGraphBuilder {
             // Connect classes to the interfaces they implement, and interfaces to their superinterfaces
             if (classInfo.interfaceNames != null) {
                 for (final String interfaceName : classInfo.interfaceNames) {
-                    DAGNode interfaceNode = classNameToDAGNode.get(interfaceName);
+                    final DAGNode interfaceNode = classNameToDAGNode.get(interfaceName);
                     if (interfaceNode != null) {
                         if (!classInfo.isAnnotation && !classInfo.isInterface) {
                             // Cross-link standard classes to the interfaces they implement
@@ -83,8 +83,8 @@ public class ClassGraphBuilder {
 
             // Connect classes to their superclass
             // (there should only be one superclass after handling the Scala quirks above)
-            for (String superclassName : classInfo.superclassNames) {
-                DAGNode superclassNode = classNameToDAGNode.get(superclassName);
+            for (final String superclassName : classInfo.superclassNames) {
+                final DAGNode superclassNode = classNameToDAGNode.get(superclassName);
                 if (superclassNode != null) {
                     superclassNode.addSubNode(classNode);
                 }
@@ -92,7 +92,7 @@ public class ClassGraphBuilder {
 
             if (classInfo.annotationNames != null) {
                 for (final String annotationName : classInfo.annotationNames) {
-                    DAGNode annotationNode = classNameToDAGNode.get(annotationName);
+                    final DAGNode annotationNode = classNameToDAGNode.get(annotationName);
                     if (annotationNode != null) {
                         if (classInfo.isAnnotation) {
                             // If this class is an annotation, then its annotations are meta-annotations
