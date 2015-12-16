@@ -28,20 +28,11 @@
  */
 package io.github.lukehutch.fastclasspathscanner;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.regex.Pattern;
-
 import io.github.lukehutch.fastclasspathscanner.classgraph.ClassGraphBuilder;
 import io.github.lukehutch.fastclasspathscanner.classgraph.ClassInfo;
 import io.github.lukehutch.fastclasspathscanner.classgraph.ClassfileBinaryParser;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.ClassAnnotationMatchProcessor;
+import io.github.lukehutch.fastclasspathscanner.matchprocessor.ClassEnumerationMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchContentsProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.InterfaceMatchProcessor;
@@ -53,6 +44,16 @@ import io.github.lukehutch.fastclasspathscanner.scanner.RecursiveScanner;
 import io.github.lukehutch.fastclasspathscanner.scanner.RecursiveScanner.FilePathMatcher;
 import io.github.lukehutch.fastclasspathscanner.scanner.RecursiveScanner.FilePathTester;
 import io.github.lukehutch.fastclasspathscanner.utils.Log;
+
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.regex.Pattern;
 
 /**
  * Uber-fast, ultra-lightweight Java classpath scanner. Scans the classpath by parsing the classfile binary format
@@ -268,8 +269,124 @@ public class FastClasspathScanner {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Calls the provided ClassEnumerationMatchProcessor for all classes, interfaces and annotations found in
+     * whitelisted packages on the classpath, as well as classes that those classes directly reference as
+     * superclasses, superinterfaces or meta-annotations (which may not themselves be in a whitelisted package).
+     * Calls the class loader on each matching class (using Class.forName()) before calling the
+     * ClassEnumerationMatchProcessor.
+     * 
+     * @param classEnumerationMatchProcessor
+     *            the ClassEnumerationMatchProcessor to call when a match is found.
+     */
+    public FastClasspathScanner matchAllClasses(
+            final ClassEnumerationMatchProcessor classEnumerationMatchProcessor) {
+        classMatchers.add(new ClassMatcher() {
+            @Override
+            public void lookForMatches() {
+                for (final String className : getNamesOfAllClasses()) {
+                    if (verbose) {
+                        Log.log("Enumerating class: " + className);
+                    }
+                    // Call classloader
+                    final Class<?> cls = loadClass(className);
+                    // Process match
+                    classEnumerationMatchProcessor.processMatch(cls);
+                }
+            }
+        });
+        return this;
+    }
+
+    /**
+     * Calls the provided ClassEnumerationMatchProcessor for all standard classes (i.e. non-interface,
+     * non-annotation classes) found in whitelisted packages on the classpath, as well as classes that those classes
+     * directly reference as superclasses, superinterfaces or meta-annotations (which may not themselves be in a
+     * whitelisted package). Calls the class loader on each matching class (using Class.forName()) before calling
+     * the ClassEnumerationMatchProcessor.
+     * 
+     * @param classEnumerationMatchProcessor
+     *            the ClassEnumerationMatchProcessor to call when a match is found.
+     */
+    public FastClasspathScanner matchAllStandardClasses(
+            final ClassEnumerationMatchProcessor classEnumerationMatchProcessor) {
+        classMatchers.add(new ClassMatcher() {
+            @Override
+            public void lookForMatches() {
+                for (final String className : getNamesOfAllStandardClasses()) {
+                    if (verbose) {
+                        Log.log("Enumerating standard class: " + className);
+                    }
+                    // Call classloader
+                    final Class<?> cls = loadClass(className);
+                    // Process match
+                    classEnumerationMatchProcessor.processMatch(cls);
+                }
+            }
+        });
+        return this;
+    }
+
+    /**
+     * Calls the provided ClassEnumerationMatchProcessor for all interface classes (interface definitions) found in
+     * whitelisted packages on the classpath, as well as directly-referenced superinterfaces (which may not
+     * themselves be in a whitelisted package). Calls the class loader on each matching interface class (using
+     * Class.forName()) before calling the ClassEnumerationMatchProcessor.
+     * 
+     * @param classEnumerationMatchProcessor
+     *            the ClassEnumerationMatchProcessor to call when a match is found.
+     */
+    public FastClasspathScanner matchAllInterfaceClasses(
+            final ClassEnumerationMatchProcessor classEnumerationMatchProcessor) {
+        classMatchers.add(new ClassMatcher() {
+            @Override
+            public void lookForMatches() {
+                for (final String className : getNamesOfAllInterfaceClasses()) {
+                    if (verbose) {
+                        Log.log("Enumerating interface class: " + className);
+                    }
+                    // Call classloader
+                    final Class<?> cls = loadClass(className);
+                    // Process match
+                    classEnumerationMatchProcessor.processMatch(cls);
+                }
+            }
+        });
+        return this;
+    }
+
+    /**
+     * Calls the provided ClassEnumerationMatchProcessor for all annotation classes (annotation definitions) found
+     * in whitelisted packages on the classpath, as well as meta-annotations on those annotations (which may not
+     * themselves be in a whitelisted package). Calls the class loader on each matching annotation class (using
+     * Class.forName()) before calling the ClassEnumerationMatchProcessor.
+     * 
+     * @param classEnumerationMatchProcessor
+     *            the ClassEnumerationMatchProcessor to call when a match is found.
+     */
+    public FastClasspathScanner matchAllAnnotationClasses(
+            final ClassEnumerationMatchProcessor classEnumerationMatchProcessor) {
+        classMatchers.add(new ClassMatcher() {
+            @Override
+            public void lookForMatches() {
+                for (final String className : getNamesOfAllAnnotationClasses()) {
+                    if (verbose) {
+                        Log.log("Enumerating annotation class: " + className);
+                    }
+                    // Call classloader
+                    final Class<?> cls = loadClass(className);
+                    // Process match
+                    classEnumerationMatchProcessor.processMatch(cls);
+                }
+            }
+        });
+        return this;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
      * Calls the provided SubclassMatchProcessor if classes are found on the classpath that extend the specified
-     * superclass. Will call the class loader on each matching class (using Class.forName()) before calling the
+     * superclass. Calls the class loader on each matching class (using Class.forName()) before calling the
      * SubclassMatchProcessor. Does not call the classloader on non-matching classes or interfaces.
      * 
      * @param superclass
