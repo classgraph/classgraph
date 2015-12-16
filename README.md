@@ -15,7 +15,7 @@ FastClasspathScanner is able to:
 6. find files (even non-classfiles) anywhere on the classpath that have a [path that matches a given string or regular expression](#6-finding-files-even-non-classfiles-anywhere-on-the-classpath-whose-path-matches-a-given-string-or-regular-expression);
 7. perform the actual [classpath scan](#7-performing-the-actual-scan);
 8. [detect changes](#8-detecting-changes-to-classpath-contents-after-the-scan) to the files within the classpath since the first time the classpath was scanned, or alternatively, calculate the MD5 hash of classfiles while scanning, in case using timestamps is insufficiently rigorous for change detection;
-9. return a list of the [names of all classes, interfaces and/or annotations on the classpath](#9-get-a-list-of-all-whitelisted-and-non-blacklisted-classes-interfaces-andor-annotations-on-the-classpath) (after whitelist and blacklist filtering); and
+9. return a list of the [names of all classes, interfaces and/or annotations on the classpath](#9-get-a-list-of-all-whitelisted-and-non-blacklisted-classes-interfaces-or-annotations-on-the-classpath) (after whitelist and blacklist filtering); and
 10. return a list of [all directories and files on the classpath](#10-get-all-unique-directories-and-files-on-the-classpath) (i.e. all classpath elements) as a list of File objects, with the list deduplicated and filtered to include only classpath directories and files that actually exist, saving you from the complexities of working with the classpath and classloaders.
 
 **Benefits of FastClasspathScanner over other classpath scanning methods:**
@@ -435,7 +435,7 @@ public long classpathContentsLastModifiedTime()
 
 If you need more careful change detection than is afforded by checking timestamps, you can also cause the contents of each classfile in a whitelisted package [to be MD5-hashed](https://github.com/lukehutch/fast-classpath-scanner/blob/master/src/main/java/io/github/lukehutch/fastclasspathscanner/utils/HashClassfileContents.java), and you can compare the HashMaps returned across different scans.
 
-### 9. Get a list of all whitelisted (and non-blacklisted) classes, interfaces and/or annotations on the classpath
+### 9. Get a list of all whitelisted (and non-blacklisted) classes, interfaces or annotations on the classpath
 
 The names of all classes, interfaces and/or annotations in whitelisted (and non-blacklisted) packages can be returned using the methods shown below. Note that system classes (e.g. java.lang.String and java.lang.Object) are not enumerated or returned by any of these methods.
 
