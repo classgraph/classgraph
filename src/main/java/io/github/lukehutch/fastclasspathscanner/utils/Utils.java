@@ -28,13 +28,29 @@
  */
 package io.github.lukehutch.fastclasspathscanner.utils;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+
 public class Utils {
 
     /** Returns true if the path ends with a JAR extension */
     public static boolean isJar(final String path) {
         final String pathLower = path.toLowerCase();
         return pathLower.endsWith(".jar") || pathLower.endsWith(".zip") || pathLower.endsWith(".war")
-                 || pathLower.endsWith(".car");
+                || pathLower.endsWith(".car");
     }
 
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** Convert a collection into a sorted list. */
+    @SafeVarargs
+    public static <T extends Comparable<T>> ArrayList<T> sortedCopy(Collection<T>... collections) {
+        final ArrayList<T> copy = new ArrayList<>();
+        for (Collection<T> collection : collections) {
+            copy.addAll(collection);
+        }
+        Collections.sort(copy);
+        return copy;
+    }
 }

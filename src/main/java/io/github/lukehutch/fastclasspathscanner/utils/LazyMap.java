@@ -136,13 +136,14 @@ public abstract class LazyMap<K, V> {
         };
     }
 
-    /** Convert a lazy MultiSet into a lazy MultiMap. */
-    public static <K, V> LazyMap<K, ArrayList<V>> convertToMultiMap(final LazyMap<K, HashSet<V>> lazyMap) {
+    /** Convert a lazy MultiSet into a lazy MultiMap. Value lists are sorted in the result. */
+    public static <K, V extends Comparable<V>> LazyMap<K, ArrayList<V>> convertToMultiMapSorted(
+            final LazyMap<K, HashSet<V>> lazyMap) {
         return new LazyMap<K, ArrayList<V>>() {
             @Override
             protected ArrayList<V> generateValue(final K key) {
                 final HashSet<V> setVals = lazyMap.get(key);
-                return setVals == null ? null : new ArrayList<>(setVals);
+                return setVals == null ? null : Utils.sortedCopy(setVals);
             }
         };
     }
