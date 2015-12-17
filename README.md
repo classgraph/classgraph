@@ -367,15 +367,15 @@ public FastClasspathScanner matchStaticFinalFieldNames(
 static final int w = 5;          // Literal ints, shorts, chars etc. are constant
 static final String x = "a";     // Literal Strings are constant
 static final String y = "a" + "b";  // Referentially equal to interned String "ab"
-static final byte b = 0x7f;      // StaticFinalFieldMatchProcessor is passed a Byte
-private static final int z = 1;  // Visibility is ignored; non-public also returned 
+static final byte b = 0x7f;      // StaticFinalFieldMatchProcessor is passed boxed types (here Byte)
+private static final int z = 1;  // Visibility is ignored; non-public constant fields also match 
 ```
 
 whereas the following fields are non-constant, non-static and/or non-final, so these fields cannot be matched:
 
 ```java
 static final Integer w = 5;         // Non-constant due to autoboxing
-static final String y = "a" + w;    // Non-constant because w is non-const
+static final String y = "a" + w;    // Non-constant because w is non-constant
 static final int[] arr = {1, 2, 3}; // Arrays are non-constant
 static int n = 100;                 // Non-final
 final int q = 5;                    // Non-static 
