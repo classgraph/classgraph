@@ -21,7 +21,7 @@ FastClasspathScanner is able to:
 
 ![Class graph visualization](/src/test/java/com/xyz/classgraph-fig.png)
 
-(Class graph visualizations can be useful in understanding complex codebases, and for finding architectural design issues 
+Class graph visualizations can be useful in understanding complex codebases, and for finding architectural design issues (e.g. in the graph above, you can see that `ShapeImpl` only needs to implement `Shape`, not `Renderable`, because `Renderable` is already a superinterface of `Shape`). 
 
 **Benefits of FastClasspathScanner over other classpath scanning methods:**
 
