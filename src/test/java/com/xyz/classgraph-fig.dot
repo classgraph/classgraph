@@ -1,5 +1,5 @@
 digraph {
-size="400,400";
+size="12,12";
 layout=neato;
 overlap=false;
 splines=true;
