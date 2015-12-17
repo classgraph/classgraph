@@ -21,12 +21,14 @@ FastClasspathScanner is able to:
 
 ![Class graph visualization](/src/test/java/com/xyz/classgraph-fig.png)
 
+(Class graph visualizations can be useful in understanding complex codebases, and for finding architectural design issues 
+
 **Benefits of FastClasspathScanner over other classpath scanning methods:**
 
 1. FastClasspathScanner parses the classfile binary format directly, instead of using reflection, which makes scanning particularly fast. (Reflection causes the classloader to load each class, which can take an order of magnitude more time than parsing the classfile directly, and can lead to unexpected behavior due to static initializer blocks of classes being called on class load.)
 2. FastClasspathScanner is extremely lightweight, as it does not depend on any classfile/bytecode parsing or manipulation libraries like [Javassist](http://jboss-javassist.github.io/javassist/) or [ObjectWeb ASM](http://asm.ow2.org/).
 3. FastClasspathScanner handles many [diverse and complicated means](#classpath-mechanisms-handled-by-fastclasspathscanner) used to specify the classpath, and has a pluggable architecture for handling other classpath specification methods (in the general case, finding all classpath elements is not as simple as reading the `java.class.path` system property and/or getting the path URLs from the system `URLClassLoader`).
-4. FastClasspathScanner can find classes not just by annotation, but also by [meta-annotation](#4-matching-classes-with-a-specific-annotation-or-meta-annotation) (e.g. if annotation `A` annotates annotation `B`, and annotation `B` annotates class `C`, you can find class `C` by scanning for classes annotated by annotation `A`). This makes annotations more powerful, as they can be used as a hierarchy of inherited traits (similar to how interfaces work in Java).
+4. FastClasspathScanner can find classes not just by annotation, but also by [meta-annotation](#4-matching-classes-with-a-specific-annotation-or-meta-annotation) (e.g. if annotation `A` annotates annotation `B`, and annotation `B` annotates class `C`, you can find class `C` by scanning for classes annotated by annotation `A`). This makes annotations more powerful, as they can be used as a hierarchy of inherited traits (similar to how interfaces work in Java). In the figure above, `UIElement` is a meta-annotation on `UIWidget` (i.e. the `UIWidget` annotation class is itself annotated with `UIElement`), and `UIWidget` is an annotation on the class `Figure`; this means that since `Figure` is directly annotated with `UIWidget`, it is also meta-annotated with `UIElement`. 
 5. FastClasspathScanner has built-in support for generating GraphViz visualizations of the classgraph, as shown above.
 
 ### Usage
