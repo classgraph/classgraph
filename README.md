@@ -348,8 +348,8 @@ public interface StaticFinalFieldMatchProcessor {
 
 public FastClasspathScanner matchStaticFinalFieldNames(
     HashSet<String> fullyQualifiedStaticFinalFieldNames
-        | String fullyQualifiedStaticFinalFieldName
-        | String[] fullyQualifiedStaticFinalFieldNames,
+    | String fullyQualifiedStaticFinalFieldName
+    | String[] fullyQualifiedStaticFinalFieldNames,
     StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor)
 ```
 
@@ -405,22 +405,22 @@ public interface FileMatchContentsProcessor {
 // Match a pattern, such as "^com/pkg/.*\\.html$"
 public FastClasspathScanner matchFilenamePattern(String pathRegexp,
         FileMatchProcessor fileMatchProcessor
-            | FileMatchContentsProcessor fileMatchContentsProcessor)
+        | FileMatchContentsProcessor fileMatchContentsProcessor)
         
 // Match a (non-regexp) relative path, such as "com/pkg/WidgetTemplate.html"
 public FastClasspathScanner matchFilenamePath(String relativePathToMatch,
         FileMatchProcessor fileMatchProcessor
-            | FileMatchContentsProcessor fileMatchContentsProcessor)
+        | FileMatchContentsProcessor fileMatchContentsProcessor)
         
 // Match a leafname, such as "WidgetTemplate.html"
 public FastClasspathScanner matchFilenameLeaf(String leafToMatch,
         FileMatchProcessor fileMatchProcessor
-            | FileMatchContentsProcessor fileMatchContentsProcessor)
+        | FileMatchContentsProcessor fileMatchContentsProcessor)
         
 // Match a file extension, e.g. "html" matches "WidgetTemplate.html"
 public FastClasspathScanner matchFilenameExtension(String extensionToMatch,
         FileMatchProcessor fileMatchProcessor
-            | FileMatchContentsProcessor fileMatchContentsProcessor)
+        | FileMatchContentsProcessor fileMatchContentsProcessor)
 ```
 
 ### 7. Performing the actual scan
@@ -506,15 +506,15 @@ Note that FastClasspathScanner does not scan [JRE system, bootstrap or extension
 public List<File> getUniqueClasspathElements()
 ```
 
-## More complex usage
-
-### Debugging ###
+## Debugging ##
 
 If FastClasspathScanner is not finding the classes, interfaces or files you think it should be finding, you can debug the scanning behavior by calling `.verbose()` before `.scan()`:
 
 ```java
 public FastClasspathScanner verbose()
 ```
+
+## More complex usage
 
 ### Working in platforms with non-standard ClassLoaders (JBoss/WildFly, WebLogic, Maven, Tomcat etc.)
 
