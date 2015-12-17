@@ -381,7 +381,7 @@ static int n = 100;                 // Non-final
 final int q = 5;                    // Non-static 
 ```
 
-Primitive types (int, long, short, float, double, boolean, char, byte) are wrapped in the corresponding wrapper class (Integer, Long etc.) before being passed to the provided StaticFinalFieldMatchProcessor.
+Primitive types (int, long, short, float, double, boolean, char, byte) are boxed in the corresponding wrapper class (Integer, Long etc.) before being passed to the provided StaticFinalFieldMatchProcessor.
 
 ### 6. Finding files (even non-classfiles) anywhere on the classpath whose path matches a given string or regular expression
 
