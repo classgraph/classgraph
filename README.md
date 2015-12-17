@@ -101,7 +101,7 @@ Note that Mechanism 2 only works with class, interface and annotation matches; t
 
 ## Downloading
 
-You can get a pre-built JAR from [Sonatype](https://oss.sonatype.org/#nexus-search;quick~fast-classpath-scanner), or add the following Maven Central dependency:
+You can get a pre-built JAR (usable in JRE 1.7 or later) from [Sonatype](https://oss.sonatype.org/#nexus-search;quick~fast-classpath-scanner), or add the following Maven Central dependency:
 
 ```xml
 <dependency>
@@ -113,7 +113,7 @@ You can get a pre-built JAR from [Sonatype](https://oss.sonatype.org/#nexus-sear
 
 ### Tips
 
-**Use with Java 7:** FastClasspathScanner needs to be built with JDK 8, since [`MatchProcessors`](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) are declared with a `@FunctionalInterface` annotation, which does not exist in JDK 7. However, the project can be compiled in Java 7 compatibility mode, which does not complain about these annotations. (There are no other Java 8 features in use in FastClasspathScanner currently.) If you need to build with JDK 1.7, you can always manually remove the `@FunctionalInterface` annotations from the MatchProcessors.
+**Use with Java 7:** FastClasspathScanner needs to be built with JDK 8, since [`MatchProcessors`](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) are declared with a `@FunctionalInterface` annotation, which does not exist in JDK 7. (There are no other Java 8 features in use in FastClasspathScanner currently.) If you need to build with JDK 1.7, you can always manually remove the `@FunctionalInterface` annotations from the MatchProcessors. However, the project can be compiled in Java 7 compatibility mode, which does not complain about these annotations, and can generate a jarfile that works with both Java 7 and Java 8. The jarfile available from [Maven Central](#downloading) is compatible with Java 7.
 
 The usage examples shown above use lambda expressions (functional interfaces) from Java 8 in the Mechanism 1 examples for syntactic simplicity. The Java 7 equivalent is as follows (note that there is a different [`MatchProcessor`](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) class corresponding to each `.match...()` method, e.g. `.matchSubclassesOf()` takes a `SubclassMatchProcessor`):
 
