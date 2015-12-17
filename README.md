@@ -113,7 +113,9 @@ You can get a pre-built JAR from [Sonatype](https://oss.sonatype.org/#nexus-sear
 
 ### Tips
 
-**Calling from Java 7:** The usage examples above use lambda expressions (functional interfaces) from Java 8 for simplicity. However, at least as of JDK 1.8.0 r20, Java 8 features like lambda expressions and Streams incur a one-time startup penalty of 30-40ms the first time they are used. If this overhead is prohibitive, you can use the Java 7 version of Mechanism 1 (note that there is a different [`MatchProcessor`](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) class corresponding to each `.match...()` method, e.g. `.matchSubclassesOf()` takes a `SubclassMatchProcessor`):
+**Use with Java 7:** FastClasspathScanner needs to be built with JDK 8, since [`MatchProcessors`](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) are declared with a `@FunctionalInterface` annotation, which does not exist in JDK 7. However, the project can be compiled in Java 7 compatibility mode, which does not complain about these annotations. (There are no other Java 8 features in use in FastClasspathScanner currently.) If you need to build with JDK 1.7, you can always manually remove the `@FunctionalInterface` annotations from the MatchProcessors.
+
+The usage examples shown above use lambda expressions (functional interfaces) from Java 8 in the Mechanism 1 examples for syntactic simplicity. The Java 7 equivalent is as follows (note that there is a different [`MatchProcessor`](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) class corresponding to each `.match...()` method, e.g. `.matchSubclassesOf()` takes a `SubclassMatchProcessor`):
 
 ```java
 new FastClasspathScanner("com.xyz.widget")  
@@ -125,6 +127,8 @@ new FastClasspathScanner("com.xyz.widget")
     })
     .scan();
 ```
+
+Note that Java 8 features like lambda expressions and Streams incur a one-time startup penalty of 30-40ms the first time they are used.
 
 **Protip: using Java 8 method references:** The `.match...()` methods (e.g. `.matchSubclassesOf()`) take a [`MatchProcessor`](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) as one of their arguments, which are single-method classes (i.e. FunctionalInterfaces). If you are using Java 8, you may find it useful to use Java 8 method references as FunctionalInterfaces in the place of MatchProcessors (assuming the number and types of arguments match), e.g. `list::add`:
 
