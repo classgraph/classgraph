@@ -50,7 +50,7 @@ public class HashClassfileContents {
     public HashClassfileContents(final String... packagePrefixesToScan) {
         this.classNameToClassfileHash = new HashMap<>();
         this.scanner = new FastClasspathScanner(packagePrefixesToScan)
-                // MD5-hash all files ending in ".class"
+        // MD5-hash all files ending in ".class"
                 .matchFilenameExtension("class", new FileMatchProcessor() {
                     @Override
                     public void processMatch(final String relativePath, final InputStream inputStream,

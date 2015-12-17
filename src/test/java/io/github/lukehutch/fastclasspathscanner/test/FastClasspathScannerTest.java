@@ -268,10 +268,10 @@ public class FastClasspathScannerTest {
         assertThat(hash).isNotNull();
         assertThat(hash.length()).isEqualTo(32);
     }
-    
+
     @Test
     public void generateGraphVizFile() {
-        String c = new FastClasspathScanner(ROOT_PACKAGE).scan().getClassGraphDot();
+        String c = new FastClasspathScanner(ROOT_PACKAGE).scan().generateClassGraphDotFile();
         System.out.println(c);
     }
 }

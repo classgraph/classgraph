@@ -495,4 +495,84 @@ public class ClassGraphBuilder {
             return annotationNames;
         }
     }
+
+    // -------------------------------------------------------------------------------------------------------------
+    // Class graph visualization
+
+    /**
+     * Splits a .dot node label into two text lines, putting the package on one line and the class name on the next.
+     */
+    private static String label(DAGNode node) {
+        String className = node.name;
+        int dotIdx = className.lastIndexOf('.');
+        if (dotIdx < 0) {
+            return className;
+        }
+        return className.substring(0, dotIdx + 1) + "\\n" + className.substring(dotIdx + 1);
+    }
+
+    /**
+     * Generates a .dot file which can be fed into GraphViz for layout and visualization of the class graph.
+     */
+    public String generateClassGraphDotFile() {
+        StringBuilder buf = new StringBuilder();
+        buf.append("digraph {\n");
+        buf.append("size=\"400,400\";\n");
+        buf.append("layout=neato;\n");
+        buf.append("overlap=false;\n");
+        buf.append("splines=true;\n");
+        buf.append("pack=true;\n");
+        buf.append("start=\"random\";\n");
+        buf.append("sep=0.1;\n");
+        buf.append("edge[len=2];\n");
+
+        buf.append("\nnode[shape=box,style=filled,fillcolor=\"#eeeeaa\"];\n");
+        for (DAGNode node : standardClassNodes) {
+            buf.append("  \"" + label(node) + "\"\n");
+        }
+
+        buf.append("\nnode[shape=diamond,style=filled,fillcolor=\"#aaeeee\"];\n");
+        for (DAGNode node : interfaceNodes) {
+            buf.append("  \"" + label(node) + "\"\n");
+        }
+
+        buf.append("\nnode[shape=oval,style=filled,fillcolor=\"#eeaaee\"];\n");
+        for (DAGNode node : annotationNodes) {
+            buf.append("  \"" + label(node) + "\"\n");
+        }
+
+        buf.append("\n");
+        for (DAGNode classNode : standardClassNodes) {
+            for (DAGNode superclassNode : classNode.directSuperNodes) {
+                // class --> superclass
+                buf.append("  \"" + label(classNode) + "\" -> \"" + label(superclassNode) + "\"\n");
+            }
+            for (DAGNode implementedInterfaceNode : classNode.crossLinkedNodes) {
+                // class --<> implemented interface
+                buf.append("  \"" + label(classNode) + "\" -> \"" + label(implementedInterfaceNode)
+                        + "\" [arrowhead=odiamond]\n");
+            }
+        }
+        for (DAGNode interfaceNode : interfaceNodes) {
+            for (DAGNode superinterfaceNode : interfaceNode.directSuperNodes) {
+                // interface --> superinterface
+                buf.append("  \"" + label(interfaceNode) + "\" -> \"" + label(superinterfaceNode)
+                        + "\" [arrowhead=diamond]\n");
+            }
+        }
+        for (DAGNode annotationNode : annotationNodes) {
+            for (DAGNode metaAnnotationNode : annotationNode.directSuperNodes) {
+                // annotation --o meta-annotation
+                buf.append("  \"" + label(annotationNode) + "\" -> \"" + label(metaAnnotationNode)
+                        + "\" [arrowhead=dot]\n");
+            }
+            for (DAGNode annotatedClassNode : annotationNode.crossLinkedNodes) {
+                // annotated class --o annotation
+                buf.append("  \"" + label(annotatedClassNode) + "\" -> \"" + label(annotationNode)
+                        + "\" [arrowhead=odot]\n");
+            }
+        }
+        buf.append("}");
+        return buf.toString();
+    }
 }

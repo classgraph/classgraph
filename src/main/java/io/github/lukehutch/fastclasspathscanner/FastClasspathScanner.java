@@ -1167,6 +1167,15 @@ public class FastClasspathScanner {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Generates a .dot file which can be fed into GraphViz for layout and visualization of the class graph.
+     */
+    public String generateClassGraphDotFile() {
+        return getScanResults().generateClassGraphDotFile();
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
      * Returns the ClassGraphBuilder created by calling .scan(), or throws RuntimeException if .scan() has not yet
      * been called.
      */

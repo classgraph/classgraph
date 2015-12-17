@@ -3,7 +3,7 @@ FastClasspathScanner
 
 Uber-fast, ultra-lightweight classpath scanner for Java, Scala and other JVM languages.
 
-**What is classpath scanning?** Classpath scanning involves scanning directories and jar/zip files on the classpath to find files (especially classfiles) that meet certain criteria. In many ways, classpath scanning offers the *inverse of the Java reflection API:* the reflection API can tell you the superclass of a given class, but classpath scanning can find all classes that extend a given superclass. The Java reflection API can give you the list of annotations on a given class, but classpath scanning can find all classes that are annotated with a given annotation.
+**What is classpath scanning?** Classpath scanning involves scanning directories and jar/zip files on the classpath to find files (especially classfiles) that meet certain criteria. In many ways, classpath scanning offers the *inverse of the Java reflection API:* the reflection API can tell you the superclass of a given class, but classpath scanning can find all classes that extend a given superclass. The Java reflection API can give you the list of annotations on a given class, but classpath scanning can find all classes that are annotated with a given annotation. Classpath scanning can also help with class graph visualization, as shown below.
 
 FastClasspathScanner is able to:
 
@@ -15,8 +15,11 @@ FastClasspathScanner is able to:
 6. find files (even non-classfiles) anywhere on the classpath that have a [path that matches a given string or regular expression](#6-finding-files-even-non-classfiles-anywhere-on-the-classpath-whose-path-matches-a-given-string-or-regular-expression);
 7. perform the actual [classpath scan](#7-performing-the-actual-scan);
 8. [detect changes](#8-detecting-changes-to-classpath-contents-after-the-scan) to the files within the classpath since the first time the classpath was scanned, or alternatively, calculate the MD5 hash of classfiles while scanning, in case using timestamps is insufficiently rigorous for change detection;
-9. return a list of the [names of all classes, interfaces and/or annotations on the classpath](#9-get-a-list-of-all-whitelisted-and-non-blacklisted-classes-interfaces-or-annotations-on-the-classpath) (after whitelist and blacklist filtering); and
-10. return a list of [all directories and files on the classpath](#10-get-all-unique-directories-and-files-on-the-classpath) (i.e. all classpath elements) as a list of File objects, with the list deduplicated and filtered to include only classpath directories and files that actually exist, saving you from the complexities of working with the classpath and classloaders.
+9. return a list of the [names of all classes, interfaces and/or annotations on the classpath](#9-get-a-list-of-all-whitelisted-and-non-blacklisted-classes-interfaces-or-annotations-on-the-classpath) (after whitelist and blacklist filtering);
+10. return a list of [all directories and files on the classpath](#10-get-all-unique-directories-and-files-on-the-classpath) (i.e. all classpath elements) as a list of File objects, with the list deduplicated and filtered to include only classpath directories and files that actually exist, saving you from the complexities of working with the classpath and classloaders; and
+11. [generate a GraphViz .dot file](#11-generate-a-graphviz-dot-file-from-the-classgraph) from the classgraph for visualization purposes:
+
+![Class graph visualization](/src/test/java/com/xyz/classgraph-fig.png)
 
 **Benefits of FastClasspathScanner over other classpath scanning methods:**
 
@@ -24,6 +27,7 @@ FastClasspathScanner is able to:
 2. FastClasspathScanner is extremely lightweight, as it does not depend on any classfile/bytecode parsing or manipulation libraries like [Javassist](http://jboss-javassist.github.io/javassist/) or [ObjectWeb ASM](http://asm.ow2.org/).
 3. FastClasspathScanner handles many [diverse and complicated means](#classpath-mechanisms-handled-by-fastclasspathscanner) used to specify the classpath, and has a pluggable architecture for handling other classpath specification methods (in the general case, finding all classpath elements is not as simple as reading the `java.class.path` system property and/or getting the path URLs from the system `URLClassLoader`).
 4. FastClasspathScanner can find classes not just by annotation, but also by [meta-annotation](#4-matching-classes-with-a-specific-annotation-or-meta-annotation) (e.g. if annotation `A` annotates annotation `B`, and annotation `B` annotates class `C`, you can find class `C` by scanning for classes annotated by annotation `A`). This makes annotations more powerful, as they can be used as a hierarchy of inherited traits (similar to how interfaces work in Java).
+5. FastClasspathScanner has built-in support for generating GraphViz visualizations of the classgraph, as shown above.
 
 ### Usage
 
@@ -505,6 +509,24 @@ Note that FastClasspathScanner does not scan [JRE system, bootstrap or extension
 ```java
 public List<File> getUniqueClasspathElements()
 ```
+
+### 11. Generate a GraphViz dot file from the classgraph
+
+During scanning, the classgraph (the graph of connections between classes, interfaces and annotations) is generated for all whitelisted (non-blacklisted) packages. This classgraph can be turned into a [GraphViz](http://www.graphviz.org/) .dot file for visualization purposes. Call the following after `.scan()`:
+
+```
+public String generateClassGraphDotFile()
+```
+
+The returned string can be saved to a .dot file and fed into GraphViz using `dot -Tsvg < graph.dot > graph.svg` or similar, [generating a graph](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/test/java/com/xyz), where:
+* yellow rectangles indicate classes
+* blue diamonds indicate interfaces
+* cyan ovals indicate annotations
+* triangular arrowheads represent "extends"
+* diamond arrowheads represent "implements"
+* circular arrowheads represent "has annotation"
+* filled arrowheads connect same-type nodes (e.g. interfaces to interfaces)
+* open arrowheads connect different-type nodes (e.g. classes to the interfaces they implement).
 
 ## Debugging ##
 
