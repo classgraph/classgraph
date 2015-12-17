@@ -30,8 +30,8 @@
 
 import static org.assertj.core.api.Assertions.assertThat;
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-import io.github.lukehutch.fastclasspathscanner.whitelisted.Cls;
-import io.github.lukehutch.fastclasspathscanner.whitelisted.blacklistedsub.BlacklistedSub;
+import io.github.lukehutch.fastclasspathscanner.test.whitelisted.Cls;
+import io.github.lukehutch.fastclasspathscanner.test.whitelisted.blacklistedsub.BlacklistedSub;
 
 import java.util.List;
 
