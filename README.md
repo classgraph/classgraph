@@ -541,7 +541,7 @@ public List<File> getUniqueClasspathElements()
 During scanning, the classgraph (the graph of connections between classes, interfaces and annotations, and between classes and the types of their fields) is generated for all whitelisted (non-blacklisted) packages. This classgraph can be turned into a [GraphViz](http://www.graphviz.org/) .dot file for visualization purposes. Call the following after `.scan()`, where the sizeX and sizeY params give the layout size in inches:
 
 ```
-public String generateClassGraphDotFile(int sizeX, int sizeY)
+public String generateClassGraphDotFile(float sizeX, float sizeY)
 ```
 
 The returned string can be saved to a .dot file and fed into GraphViz using `dot -Tsvg < graph.dot > graph.svg` or similar, [generating a graph](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/test/java/com/xyz), with these conventions:
