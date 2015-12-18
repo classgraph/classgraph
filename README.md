@@ -538,7 +538,7 @@ public List<File> getUniqueClasspathElements()
 
 ### 12. Generate a GraphViz dot file from the classgraph
 
-During scanning, the classgraph (the graph of connections between classes, interfaces and annotations, and between classes and the types of their fields) is generated for all whitelisted (non-blacklisted) packages. This classgraph can [very simply](https://github.com/lukehutch/fast-classpath-scanner/blob/master/src/test/java/com/xyz/GenerateGraphvizDotFile.java) be turned into a [GraphViz](http://www.graphviz.org/) .dot file for visualization purposes. Call the following after `.scan()`, where the `sizeX` and `sizeY` params give the layout size in inches:
+During scanning, the classgraph (the connectivity between classes, interfaces and annotations) is determined for all whitelisted (non-blacklisted) packages. This classgraph can [very simply](https://github.com/lukehutch/fast-classpath-scanner/blob/master/src/test/java/com/xyz/GenerateGraphvizDotFile.java) be turned into a [GraphViz](http://www.graphviz.org/) .dot file for visualization purposes. Call the following after `.scan()`, where the `sizeX` and `sizeY` params give the layout size in inches:
 
 ```
 public String generateClassGraphDotFile(float sizeX, float sizeY)
@@ -555,6 +555,8 @@ or similar, generating a graph with the following conventions.
 **Graph legend:**
 
 ![Class graph visualization](/src/test/java/com/xyz/classgraph-fig-legend.png)
+
+**Note:** Graph nodes will only be added for classes, interfaces and annotations that are within whitelisted (and non-blacklisted) packages. In particular, the Java standard libraries are excluded from classpath scanning for efficiency, so these classes will never appear in a class graph visualization.
 
 ## Debugging ##
 
