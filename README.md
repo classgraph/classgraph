@@ -556,7 +556,7 @@ or similar, generating a graph with the following conventions.
 
 ![Class graph visualization](/src/test/java/com/xyz/classgraph-fig-legend.png)
 
-**Note:** Graph nodes will only be added for classes, interfaces and annotations that are within whitelisted (and non-blacklisted) packages. In particular, the Java standard libraries are excluded from classpath scanning for efficiency, so these classes will never appear in a class graph visualization.
+**Note:** Graph nodes will only be added for classes, interfaces and annotations that are within whitelisted (non-blacklisted) packages. In particular, the Java standard libraries are excluded from classpath scanning for efficiency, so these classes will never appear in class graph visualizations.
 
 ## Debugging ##
 
