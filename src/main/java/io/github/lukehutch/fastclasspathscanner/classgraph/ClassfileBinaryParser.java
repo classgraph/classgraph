@@ -11,6 +11,9 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class ClassfileBinaryParser {
     /**
@@ -35,6 +38,13 @@ public class ClassfileBinaryParser {
         }
         return annotationClassName;
     }
+
+    /**
+     * Split a type param into type pieces, e.g. "Ljava/util/Map<Lcom/xyz/fig/shape/Shape;Ljava/lang/Integer;>;" ->
+     * ["Ljava/util/Map", "Lcom/xyz/fig/shape/Shape", "Ljava/lang/Integer", ">"]. Also removes array prefixes, e.g.
+     * "[[[com.xyz.Widget" -> ["com.xyz.Widget"].
+     */
+    private static final Pattern TYPE_PARAM_PATTERN = Pattern.compile("(^[\\[]*|[;<]+)[+-]?([^;<>*]+)");
 
     /**
      * Read annotation element value from classfile.
@@ -90,14 +100,58 @@ public class ClassfileBinaryParser {
     }
 
     /**
+     * Find whitelisted (non-blacklisted) type names in the given type descriptor, and add them to the set of
+     * whitelisted field types.
+     */
+    private static HashSet<String> findWhitelistedTypeDescriptorParts(final String typeDescriptor,
+            final ArrayList<String> whitelistClassRefPrefix, final ArrayList<String> blacklistClassRefPrefix,
+            HashSet<String> whitelistedFieldTypes) {
+        // Check if the type of this field falls within a whitelisted (non-blacklisted) package,
+        // and if so, record the field and its type
+        final Matcher matcher = TYPE_PARAM_PATTERN.matcher(typeDescriptor);
+        while (matcher.find()) {
+            final String descriptorPart = matcher.group(2);
+            // If whitelist is empty, match any package that is not blacklisted
+            boolean isWhitelisted = whitelistClassRefPrefix.isEmpty();
+            for (final String whitelistPrefix : whitelistClassRefPrefix) {
+                if (descriptorPart.startsWith(whitelistPrefix)) {
+                    // Descriptor has whitelisted package prefix
+                    isWhitelisted = true;
+                    break;
+                }
+            }
+            boolean isBlacklisted = false;
+            for (final String blacklistPrefix : blacklistClassRefPrefix) {
+                if (descriptorPart.startsWith(blacklistPrefix)) {
+                    // Descriptor has blacklisted package prefix
+                    isBlacklisted = true;
+                    break;
+                }
+            }
+            if (isWhitelisted && !isBlacklisted) {
+                if (whitelistedFieldTypes == null) {
+                    whitelistedFieldTypes = new HashSet<>();
+                }
+                // Remove "L" from beginning of type descriptor part and convert from type path to class name
+                final String fieldTypeName = descriptorPart.substring(1, descriptorPart.length()).replace('/', '.');
+                // Add field type to set of whitelisted field types encountered in class
+                whitelistedFieldTypes.add(fieldTypeName);
+            }
+        }
+        return whitelistedFieldTypes;
+    }
+
+    /**
      * Directly examine contents of classfile binary header to determine annotations, implemented interfaces, the
      * super-class etc.
      * 
      * @return the information obtained as a ClassInfo object, or null if the classfile is invalid.
      */
     public static ClassInfo readClassInfoFromClassfileHeader(final String relativePath,
-            final InputStream inputStream, final HashMap<String, HashMap<String, StaticFinalFieldMatchProcessor>> // 
-            classNameToStaticFieldnameToMatchProcessor) {
+            final InputStream inputStream,
+            final HashMap<String, HashMap<String, StaticFinalFieldMatchProcessor>> // 
+            classNameToStaticFieldnameToMatchProcessor, final ArrayList<String> whitelistClassRefPrefix,
+            final ArrayList<String> blacklistClassRefPrefix) {
 
         try (final DataInputStream inp = new DataInputStream(new BufferedInputStream(inputStream, 8192))) {
             // Magic number
@@ -220,6 +274,7 @@ public class ClassfileBinaryParser {
             // Fields
             final HashMap<String, StaticFinalFieldMatchProcessor> staticFieldnameToMatchProcessor //
             = classNameToStaticFieldnameToMatchProcessor.get(classInfo.className);
+            HashSet<String> whitelistedFieldTypes = null;
             final int fieldCount = inp.readUnsignedShort();
             for (int i = 0; i < fieldCount; i++) {
                 final int accessFlags = inp.readUnsignedShort();
@@ -228,81 +283,89 @@ public class ClassfileBinaryParser {
                 final String fieldName = readRefdString(inp, constantPool);
                 final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor //
                 = staticFieldnameToMatchProcessor != null ? staticFieldnameToMatchProcessor.get(fieldName) : null;
-                final String descriptor = readRefdString(inp, constantPool);
+                final String fieldTypeDescriptor = readRefdString(inp, constantPool);
                 final int attributesCount = inp.readUnsignedShort();
+
+                // Check if the type of this field falls within a whitelisted (non-blacklisted) package,
+                // and if so, record the field and its type
+                whitelistedFieldTypes = findWhitelistedTypeDescriptorParts(fieldTypeDescriptor,
+                        whitelistClassRefPrefix, blacklistClassRefPrefix, whitelistedFieldTypes);
+
+                // Check if field is static and final
                 if (!isStaticFinal && staticFinalFieldMatchProcessor != null) {
                     // Requested to match a field that is not static or not final
                     System.err.println(StaticFinalFieldMatchProcessor.class.getSimpleName()
                             + ": cannot match requested field " + classInfo.className + "." + fieldName
                             + " because it is either not static or not final");
-                } else if (!isStaticFinal || staticFinalFieldMatchProcessor == null) {
-                    // Not matching this static final field, just skip field attributes rather than parsing them
-                    for (int j = 0; j < attributesCount; j++) {
-                        inp.skipBytes(2); // attribute_name_index
-                        final int attributeLength = inp.readInt();
+                }
+                // See if field name matches one of the requested names for this class, and if it does,
+                // check if it is initialized with a constant value
+                boolean foundConstantValue = false;
+                for (int j = 0; j < attributesCount; j++) {
+                    final String attributeName = readRefdString(inp, constantPool);
+                    final int attributeLength = inp.readInt();
+                    if (attributeName.equals("ConstantValue") && isStaticFinal
+                            && staticFinalFieldMatchProcessor != null) {
+                        // http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.7.2
+                        Object constValue = constantPool[inp.readUnsignedShort()];
+                        // byte, char, short and boolean constants are all stored as 4-byte int
+                        // values -- coerce and wrap in the proper wrapper class with autoboxing
+                        switch (fieldTypeDescriptor) {
+                        case "B":
+                            // Convert byte store in Integer to Byte
+                            constValue = ((Integer) constValue).byteValue();
+                            break;
+                        case "C":
+                            // Convert char stored in Integer to Character
+                            constValue = (char) ((Integer) constValue).intValue();
+                            break;
+                        case "S":
+                            // Convert char stored in Integer to Short
+                            constValue = ((Integer) constValue).shortValue();
+                            break;
+                        case "Z":
+                            // Convert char stored in Integer to Boolean
+                            constValue = ((Integer) constValue).intValue() != 0;
+                            break;
+                        case "I":
+                        case "J":
+                        case "F":
+                        case "D":
+                        case "Ljava.lang.String;":
+                            // Field is int, long, float, double or String => object is already in correct
+                            // wrapper type (Integer, Long, Float, Double or String), nothing to do
+                            break;
+                        default:
+                            // Should never happen:
+                            // constant values can only be stored as an int, long, float, double or String
+                            break;
+                        }
+                        // Call static final field match processor
+                        if (FastClasspathScanner.verbose) {
+                            Log.log("Found static final field " + classInfo.className + "." + fieldName + " = "
+                                    + constValue);
+                        }
+                        staticFinalFieldMatchProcessor.processMatch(classInfo.className, fieldName, constValue);
+                        foundConstantValue = true;
+                    } else if (attributeName.equals("Signature")) {
+                        // Check if the type signature of this field falls within a whitelisted (non-blacklisted)
+                        // package, and if so, record the field type. The type signature contains type parameters,
+                        // whereas the type descriptor does not.
+                        final String fieldTypeSignature = readRefdString(inp, constantPool);
+                        whitelistedFieldTypes = findWhitelistedTypeDescriptorParts(fieldTypeSignature,
+                                whitelistClassRefPrefix, blacklistClassRefPrefix, whitelistedFieldTypes);
+                    } else {
                         inp.skipBytes(attributeLength);
                     }
-                } else {
-                    // Look for static final fields that match one of the requested names,
-                    // and that are initialized with a constant value
-                    boolean foundConstantValue = false;
-                    for (int j = 0; j < attributesCount; j++) {
-                        final String attributeName = readRefdString(inp, constantPool);
-                        final int attributeLength = inp.readInt();
-                        if (attributeName.equals("ConstantValue")) {
-                            // http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.7.2
-                            Object constValue = constantPool[inp.readUnsignedShort()];
-                            // byte, char, short and boolean constants are all stored as 4-byte int
-                            // values -- coerce and wrap in the proper wrapper class with autoboxing
-                            switch (descriptor) {
-                            case "B":
-                                // Convert byte store in Integer to Byte
-                                constValue = ((Integer) constValue).byteValue();
-                                break;
-                            case "C":
-                                // Convert char stored in Integer to Character
-                                constValue = (char) ((Integer) constValue).intValue();
-                                break;
-                            case "S":
-                                // Convert char stored in Integer to Short
-                                constValue = ((Integer) constValue).shortValue();
-                                break;
-                            case "Z":
-                                // Convert char stored in Integer to Boolean
-                                constValue = ((Integer) constValue).intValue() != 0;
-                                break;
-                            case "I":
-                            case "J":
-                            case "F":
-                            case "D":
-                            case "Ljava.lang.String;":
-                                // Field is int, long, float, double or String => object is already in correct
-                                // wrapper type (Integer, Long, Float, Double or String), nothing to do
-                                break;
-                            default:
-                                // Should never happen:
-                                // constant values can only be stored as an int, long, float, double or String
-                                break;
-                            }
-                            // Call static final field match processor
-                            if (FastClasspathScanner.verbose) {
-                                Log.log("Found static final field " + classInfo.className + "." + fieldName + " = "
-                                        + constValue);
-                            }
-                            staticFinalFieldMatchProcessor.processMatch(classInfo.className, fieldName, constValue);
-                            foundConstantValue = true;
-                        } else {
-                            inp.skipBytes(attributeLength);
-                        }
-                        if (!foundConstantValue) {
-                            System.err.println(StaticFinalFieldMatchProcessor.class.getSimpleName()
-                                    + ": Requested static final field " + classInfo.className + "." + fieldName
-                                    + "is not initialized with a constant literal value, so there is no "
-                                    + "initializer value in the constant pool of the classfile");
-                        }
+                    if (!foundConstantValue && isStaticFinal && staticFinalFieldMatchProcessor != null) {
+                        System.err.println(StaticFinalFieldMatchProcessor.class.getSimpleName()
+                                + ": Requested static final field " + classInfo.className + "." + fieldName
+                                + " is not initialized with a constant literal value, so there is no "
+                                + "initializer value in the constant pool of the classfile");
                     }
                 }
             }
+            classInfo.whitelistedFieldTypes = whitelistedFieldTypes;
 
             // Methods
             final int methodCount = inp.readUnsignedShort();

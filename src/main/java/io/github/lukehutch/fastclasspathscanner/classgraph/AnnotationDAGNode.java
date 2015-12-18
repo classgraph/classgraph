@@ -26,10 +26,38 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.lukehutch.fastclasspathscanner.matchprocessor;
+package io.github.lukehutch.fastclasspathscanner.classgraph;
 
-/** The method to run when any class, interface or annotation is found in a whitelisted package on the classpath. */
-@FunctionalInterface
-public interface ClassEnumerationMatchProcessor {
-    public void processMatch(Class<?> klass);
+import java.util.ArrayList;
+import java.util.HashMap;
+
+/** A DAG node representing an annotation class. */
+class AnnotationDAGNode extends DAGNode {
+    /** The nodes corresponding to classes annotated by this annotation. */
+    ArrayList<DAGNode> annotatedClassNodes = new ArrayList<>(2);
+
+    /** A DAG node representing an annotation class. */
+    public AnnotationDAGNode(final ClassInfo classInfo) {
+        super(classInfo);
+    }
+
+    /** Connect this annotation node to a class it annotates. */
+    public void addAnnotatedClass(final DAGNode annotatedClassNode) {
+        this.annotatedClassNodes.add(annotatedClassNode);
+    }
+
+    @Override
+    public void connect(final HashMap<String, DAGNode> classNameToDAGNode) {
+        super.connect(classNameToDAGNode);
+
+        if (classInfo.annotationNames != null) {
+            for (final String metaAnnotationName : classInfo.annotationNames) {
+                final DAGNode metaAnnotationNode = classNameToDAGNode.get(metaAnnotationName);
+                if (metaAnnotationNode != null) {
+                    // Annotations on an annotation class are meta-annotations -- add them as supernodes
+                    metaAnnotationNode.addSubNode(this);
+                }
+            }
+        }
+    }
 }

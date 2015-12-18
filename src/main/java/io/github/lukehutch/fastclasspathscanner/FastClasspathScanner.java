@@ -32,7 +32,7 @@ import io.github.lukehutch.fastclasspathscanner.classgraph.ClassGraphBuilder;
 import io.github.lukehutch.fastclasspathscanner.classgraph.ClassInfo;
 import io.github.lukehutch.fastclasspathscanner.classgraph.ClassfileBinaryParser;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.ClassAnnotationMatchProcessor;
-import io.github.lukehutch.fastclasspathscanner.matchprocessor.ClassEnumerationMatchProcessor;
+import io.github.lukehutch.fastclasspathscanner.matchprocessor.ClassMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchContentsProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.InterfaceMatchProcessor;
@@ -143,6 +143,30 @@ public class FastClasspathScanner {
     public FastClasspathScanner(final String... scanSpec) {
         this.recursiveScanner = new RecursiveScanner(classpathFinder, scanSpec);
 
+        // Come up with class reference prefixes for whitelist and blacklist packages (e.g. "com.x" -> "Lcom.x.")
+        // -- these are used for fast matching of field types
+        final ArrayList<String> whitelistClassRefPrefix = new ArrayList<>();
+        final ArrayList<String> blacklistClassRefPrefix = new ArrayList<>();
+        if (scanSpec.length == 0 || (scanSpec.length == 1 && scanSpec[0].isEmpty())) {
+            // If scanning all packages, blacklist Java types (they are always excluded from scanning,
+            // but may occur as the type of a field)
+            blacklistClassRefPrefix.add("Ljava.");
+            blacklistClassRefPrefix.add("Ljavax.");
+            blacklistClassRefPrefix.add("Lsun.");
+        } else {
+            for (final String spec : scanSpec) {
+                if (!(spec.startsWith("jar:") || spec.startsWith("-jar:"))) {
+                    if (spec.startsWith("-")) {
+                        final String descriptor = "L" + spec.substring(1).replace('.', '/') + "/";
+                        blacklistClassRefPrefix.add(descriptor);
+                    } else {
+                        final String descriptor = "L" + spec.replace('.', '/') + "/";
+                        whitelistClassRefPrefix.add(descriptor);
+                    }
+                }
+            }
+        }
+
         // Read classfile headers for all filenames ending in ".class" on classpath
         this.matchFilenameExtension("class", new FileMatchProcessor() {
             @Override
@@ -154,7 +178,8 @@ public class FastClasspathScanner {
                     // This is the first time we have encountered this relative path (and therefore this class)
                     // on the classpath. Read class info from classfile binary header.
                     final ClassInfo classInfo = ClassfileBinaryParser.readClassInfoFromClassfileHeader(
-                            relativePath, inputStream, classNameToStaticFieldnameToMatchProcessor);
+                            relativePath, inputStream, classNameToStaticFieldnameToMatchProcessor,
+                            whitelistClassRefPrefix, blacklistClassRefPrefix);
                     if (classInfo != null) {
                         // If class info was successfully read, store a mapping from relative path to class info.
                         // (All classes with the same name should have the same relative path, although this is
@@ -254,14 +279,14 @@ public class FastClasspathScanner {
     }
 
     /**
-     * Check a class is a regular class (not an interface or annotation -- throws an IllegalArgumentException if not
-     * a regular class), and return the name of the class.
+     * Check a class is a standard class (not an interface or annotation). Returns the name of the class if it is a
+     * standard class, otherwise throws an IllegalArgumentException.
      */
-    private static String className(final Class<?> cls) {
+    private static String standardClassName(final Class<?> cls) {
         if (cls.isAnnotation()) {
-            throw new IllegalArgumentException(cls.getName() + " is an annotation, not a regular class");
+            throw new IllegalArgumentException(cls.getName() + " is an annotation, not a standard class");
         } else if (cls.isInterface()) {
-            throw new IllegalArgumentException(cls.getName() + " is an interface, not a regular class");
+            throw new IllegalArgumentException(cls.getName() + " is an interface, not a standard class");
         }
         return cls.getName();
     }
@@ -308,7 +333,7 @@ public class FastClasspathScanner {
      * @param classEnumerationMatchProcessor
      *            the ClassEnumerationMatchProcessor to call when a match is found.
      */
-    public FastClasspathScanner matchAllClasses(final ClassEnumerationMatchProcessor classEnumerationMatchProcessor) {
+    public FastClasspathScanner matchAllClasses(final ClassMatchProcessor classEnumerationMatchProcessor) {
         classMatchers.add(new ClassMatcher() {
             @Override
             public void lookForMatches() {
@@ -334,8 +359,7 @@ public class FastClasspathScanner {
      * @param classEnumerationMatchProcessor
      *            the ClassEnumerationMatchProcessor to call when a match is found.
      */
-    public FastClasspathScanner matchAllStandardClasses(
-            final ClassEnumerationMatchProcessor classEnumerationMatchProcessor) {
+    public FastClasspathScanner matchAllStandardClasses(final ClassMatchProcessor classEnumerationMatchProcessor) {
         classMatchers.add(new ClassMatcher() {
             @Override
             public void lookForMatches() {
@@ -361,8 +385,7 @@ public class FastClasspathScanner {
      * @param classEnumerationMatchProcessor
      *            the ClassEnumerationMatchProcessor to call when a match is found.
      */
-    public FastClasspathScanner matchAllInterfaceClasses(
-            final ClassEnumerationMatchProcessor classEnumerationMatchProcessor) {
+    public FastClasspathScanner matchAllInterfaceClasses(final ClassMatchProcessor classEnumerationMatchProcessor) {
         classMatchers.add(new ClassMatcher() {
             @Override
             public void lookForMatches() {
@@ -388,8 +411,7 @@ public class FastClasspathScanner {
      * @param classEnumerationMatchProcessor
      *            the ClassEnumerationMatchProcessor to call when a match is found.
      */
-    public FastClasspathScanner matchAllAnnotationClasses(
-            final ClassEnumerationMatchProcessor classEnumerationMatchProcessor) {
+    public FastClasspathScanner matchAllAnnotationClasses(final ClassMatchProcessor classEnumerationMatchProcessor) {
         classMatchers.add(new ClassMatcher() {
             @Override
             public void lookForMatches() {
@@ -424,7 +446,7 @@ public class FastClasspathScanner {
         classMatchers.add(new ClassMatcher() {
             @Override
             public void lookForMatches() {
-                final String superclassName = className(superclass);
+                final String superclassName = standardClassName(superclass);
                 for (final String subclassName : getNamesOfSubclassesOf(superclassName)) {
                     if (verbose) {
                         Log.log("Found subclass of " + superclassName + ": " + subclassName);
@@ -449,7 +471,7 @@ public class FastClasspathScanner {
      * @return A list of the names of matching classes, or the empty list if none.
      */
     public List<String> getNamesOfSubclassesOf(final Class<?> superclass) {
-        return getNamesOfSubclassesOf(className(superclass));
+        return getNamesOfSubclassesOf(standardClassName(superclass));
     }
 
     /**
@@ -477,7 +499,7 @@ public class FastClasspathScanner {
      * @return A list of the names of matching classes, or the empty list if none.
      */
     public List<String> getNamesOfSuperclassesOf(final Class<?> subclass) {
-        return getNamesOfSuperclassesOf(className(subclass));
+        return getNamesOfSuperclassesOf(standardClassName(subclass));
     }
 
     /**
@@ -682,6 +704,59 @@ public class FastClasspathScanner {
             }
         }
         return new ArrayList<>(classNames);
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Calls the provided ClassMatchProcessor for classes on the classpath that have a field of the given type.
+     * Matches classes that have fields of the given type, array fields with an element type of the given type, and
+     * fields of parameterized type that have a type parameter of the given type. (Does not call the classloader on
+     * non-matching classes.) The field type must be declared in a package that is whitelisted (and not
+     * blacklisted).
+     * 
+     * @param implementedInterface
+     *            The interface that classes need to implement.
+     * @param classMatchProcessor
+     *            the ClassMatchProcessor to call when a match is found.
+     */
+    public <T> FastClasspathScanner matchClassesWithFieldOfType(final Class<T> fieldType,
+            final ClassMatchProcessor classMatchProcessor) {
+        classMatchers.add(new ClassMatcher() {
+            @Override
+            public void lookForMatches() {
+                for (final String klass : getNamesOfClassesWithFieldOfType(fieldType.getName())) {
+                    if (verbose) {
+                        Log.log("Found class with field of type " + fieldType.getName() + ": " + klass);
+                    }
+                    // Call classloader
+                    final Class<? extends T> cls = loadClass(klass);
+                    // Process match
+                    classMatchProcessor.processMatch(cls);
+                }
+            }
+        });
+        return this;
+    }
+
+    /**
+     * Returns the names of classes that have a field of the given type. Returns classes that have fields of the
+     * named type itself, array fields with an element type that matches the named type, and fields of parameterized
+     * type that have a type parameter of the named type. The field type must be declared in a package that is
+     * whitelisted (and not blacklisted).
+     */
+    public List<String> getNamesOfClassesWithFieldOfType(final String fieldTypeName) {
+        return getScanResults().getNamesOfClassesWithFieldOfType(fieldTypeName);
+    }
+
+    /**
+     * Returns the names of classes that have a field of the given type. Returns classes that have fields with the
+     * same type as the requested type, array fields with an element type that matches the requested type, and
+     * fields of parameterized type that have a type parameter of the requested type. The field type must be
+     * declared in a package that is whitelisted (and not blacklisted).
+     */
+    public List<String> getNamesOfClassesWithFieldOfType(final Class<?> fieldType) {
+        return getScanResults().getNamesOfClassesWithFieldOfType(fieldType.getName());
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -1167,10 +1242,12 @@ public class FastClasspathScanner {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Generates a .dot file which can be fed into GraphViz for layout and visualization of the class graph.
+     * Generates a .dot file which can be fed into GraphViz for layout and visualization of the class graph. The
+     * sizeX and sizeY parameters are the image output size to use (in inches) when GraphViz is asked to render the
+     * .dot file.
      */
-    public String generateClassGraphDotFile() {
-        return getScanResults().generateClassGraphDotFile();
+    public String generateClassGraphDotFile(final float sizeX, final float sizeY) {
+        return getScanResults().generateClassGraphDotFile(sizeX, sizeY);
     }
 
     // -------------------------------------------------------------------------------------------------------------

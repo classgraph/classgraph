@@ -26,27 +26,10 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.lukehutch.fastclasspathscanner.classgraph;
+package io.github.lukehutch.fastclasspathscanner.matchprocessor;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-
-public class ClassInfo {
-    public String className;
-    public boolean isInterface;
-    public boolean isAnnotation;
-    // There will usually only be one superclass, except in the case of Scala, which compiles companion objects
-    public ArrayList<String> superclassNames = new ArrayList<>(1);
-
-    public ArrayList<String> interfaceNames;
-    public ArrayList<String> annotationNames;
-    public HashSet<String> whitelistedFieldTypes;
-
-    public ClassInfo(final String className, final boolean isInterface, final boolean isAnnotation,
-            final String superclassName) {
-        this.className = className;
-        this.isInterface = isInterface;
-        this.isAnnotation = isAnnotation;
-        this.superclassNames.add(superclassName);
-    }
+/** The method to run when any class, interface or annotation is found in a whitelisted package on the classpath. */
+@FunctionalInterface
+public interface ClassMatchProcessor {
+    public void processMatch(Class<?> klass);
 }

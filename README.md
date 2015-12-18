@@ -13,23 +13,25 @@ FastClasspathScanner is able to:
 4. [find classes that have a specific class annotation or meta-annotation](#4-matching-classes-with-a-specific-annotation-or-meta-annotation);
 5. find the constant literal initializer value in a classfile's constant pool for a [specified static final field](#5-fetching-the-constant-initializer-values-of-static-final-fields);
 6. find files (even non-classfiles) anywhere on the classpath that have a [path that matches a given string or regular expression](#6-finding-files-even-non-classfiles-anywhere-on-the-classpath-whose-path-matches-a-given-string-or-regular-expression);
-7. perform the actual [classpath scan](#7-performing-the-actual-scan);
-8. [detect changes](#8-detecting-changes-to-classpath-contents-after-the-scan) to the files within the classpath since the first time the classpath was scanned, or alternatively, calculate the MD5 hash of classfiles while scanning, in case using timestamps is insufficiently rigorous for change detection;
-9. return a list of the [names of all classes, interfaces and/or annotations on the classpath](#9-get-a-list-of-all-whitelisted-and-non-blacklisted-classes-interfaces-or-annotations-on-the-classpath) (after whitelist and blacklist filtering);
-10. return a list of [all directories and files on the classpath](#10-get-all-unique-directories-and-files-on-the-classpath) (i.e. all classpath elements) as a list of File objects, with the list deduplicated and filtered to include only classpath directories and files that actually exist, saving you from the complexities of working with the classpath and classloaders; and
-11. [generate a GraphViz .dot file](#11-generate-a-graphviz-dot-file-from-the-classgraph) from the classgraph for visualization purposes:
+7. [find all classes that contain a field of a given type](#7-find-all-classes-that-contain-a-field-of-a-given-type) (including identifying fields based on array element type and generic parameter type); 
+8. perform the actual [classpath scan](#8-performing-the-actual-scan);
+9. [detect changes](#9-detecting-changes-to-classpath-contents-after-the-scan) to the files within the classpath since the first time the classpath was scanned, or alternatively, calculate the MD5 hash of classfiles while scanning, in case using timestamps is insufficiently rigorous for change detection;
+10. return a list of the [names of all classes, interfaces and/or annotations on the classpath](#10-get-a-list-of-all-whitelisted-and-non-blacklisted-classes-interfaces-or-annotations-on-the-classpath) (after whitelist and blacklist filtering);
+11. return a list of [all directories and files on the classpath](#11-get-all-unique-directories-and-files-on-the-classpath) (i.e. all classpath elements) as a list of File objects, with the list deduplicated and filtered to include only classpath directories and files that actually exist, saving you from the complexities of working with the classpath and classloaders; and
+12. [generate a GraphViz .dot file](#12-generate-a-graphviz-dot-file-from-the-classgraph) from the classgraph for visualization purposes, showing connections between classes, interfaces, annotations and meta-annotations, and showing connections between a class and the classes that constitute the type of its fields:
 
 ![Class graph visualization](/src/test/java/com/xyz/classgraph-fig.png)
 
-Class graph visualizations can be useful in understanding complex codebases, and for finding architectural design issues (e.g. in the graph above, you can see that `ShapeImpl` only needs to implement `Shape`, not `Renderable`, because `Renderable` is already a superinterface of `Shape`). 
+([See legend below](#12-generate-a-graphviz-dot-file-from-the-classgraph).) Class graph visualizations can be useful in understanding complex codebases, and for finding architectural design issues (e.g. in the graph above, you can see that `ShapeImpl` only needs to implement `Shape`, not `Renderable`, because `Renderable` is already a superinterface of `Shape`).
 
-**Benefits of FastClasspathScanner over other classpath scanning methods:**
+**Benefits of FastClasspathScanner compared to other classpath scanning methods:**
 
 1. FastClasspathScanner parses the classfile binary format directly, instead of using reflection, which makes scanning particularly fast. (Reflection causes the classloader to load each class, which can take an order of magnitude more time than parsing the classfile directly, and can lead to unexpected behavior due to static initializer blocks of classes being called on class load.)
 2. FastClasspathScanner is extremely lightweight, as it does not depend on any classfile/bytecode parsing or manipulation libraries like [Javassist](http://jboss-javassist.github.io/javassist/) or [ObjectWeb ASM](http://asm.ow2.org/).
 3. FastClasspathScanner handles many [diverse and complicated means](#classpath-mechanisms-handled-by-fastclasspathscanner) used to specify the classpath, and has a pluggable architecture for handling other classpath specification methods (in the general case, finding all classpath elements is not as simple as reading the `java.class.path` system property and/or getting the path URLs from the system `URLClassLoader`).
 4. FastClasspathScanner has built-in support for generating GraphViz visualizations of the classgraph, as shown above.
-5. FastClasspathScanner can find classes not just by annotation, but also by [meta-annotation](#4-matching-classes-with-a-specific-annotation-or-meta-annotation) (e.g. if annotation `A` annotates annotation `B`, and annotation `B` annotates class `C`, you can find class `C` by scanning for classes annotated by annotation `A`). This makes annotations more powerful, as they can be used as a hierarchy of inherited traits (similar to how interfaces work in Java). In the graph above, the class `Figure` has the annotation `@UIWidget`, and the annotation class `UIWidget` has the annotation `@UIElement`, so by transitivity, `Figure` also has the meta-annotation `@UIElement`. 
+5. FastClasspathScanner can find classes in the whitelisted packages that have fields of a given type, assuming those fields are also whitelisted.
+6. FastClasspathScanner can find classes not just by annotation, but also by [meta-annotation](#4-matching-classes-with-a-specific-annotation-or-meta-annotation) (e.g. if annotation `A` annotates annotation `B`, and annotation `B` annotates class `C`, you can find class `C` by scanning for classes annotated by annotation `A`). This makes annotations more powerful, as they can be used as a hierarchy of inherited traits (similar to how interfaces work in Java). In the graph above, the class `Figure` has the annotation `@UIWidget`, and the annotation class `UIWidget` has the annotation `@UIElement`, so by transitivity, `Figure` also has the meta-annotation `@UIElement`. 
 
 ### Usage
 
@@ -431,7 +433,28 @@ public FastClasspathScanner matchFilenameExtension(String extensionToMatch,
         | FileMatchContentsProcessor fileMatchContentsProcessor)
 ```
 
-### 7. Performing the actual scan
+### 7. Find all classes that contain a field of a given type
+
+One of the more unique capabilities of FastClasspathScanner is to find classes in the whitelisted (non-blacklisted) package hierarchy that have fields of a given type, assuming those fields are also whitelisted (non-blacklisted). This also matches type parameters and array types. For example, `.getNamesOfClassesWithFieldOfType("com.xyz.Widget")` will match classes that contain fields `Widget widget`, `Widget[] widgets`, `ArrayList<? extends Widget> widgetList`, `HashMap<String, Widget> idToWidget`, etc.: 
+
+```java
+// Mechanism 1: Attach a MatchProcessor before calling .scan():
+
+@FunctionalInterface
+public interface ClassMatchProcessor {
+    public void processMatch(Class<?> klass);
+}
+
+public <T> FastClasspathScanner matchClassesWithFieldOfType(Class<T> fieldType,
+        ClassMatchProcessor classMatchProcessor)
+
+// Mechanism 2: Call the following after calling .scan():
+
+public List<String> getNamesOfClassesWithFieldOfType(
+        Class<?> fieldType | String fieldTypeName)
+```
+
+### 8. Performing the actual scan
 
 The `.scan()` method performs the actual scan. This method may be called multiple times after the initialization steps shown above, although there is usually no point performing additional scans unless `classpathContentsModifiedSinceScan()` returns true.
 
@@ -441,7 +464,7 @@ public void scan()
 
 As the scan proceeds, for all match processors that deal with classfiles (i.e. for all but FileMatchProcessor), if the same fully-qualified class name is encountered more than once on the classpath, the second and subsequent definitions of the class are ignored, in order to follow Java's class masking behavior.
 
-### 8. Detecting changes to classpath contents after the scan
+### 9. Detecting changes to classpath contents after the scan
 
 When the classpath is scanned using `.scan()`, the "latest last modified timestamp" found anywhere on the classpath is recorded (i.e. the latest timestamp out of all last modified timestamps of all files found within the whitelisted package prefixes on the classpath).
 
@@ -459,7 +482,7 @@ public long classpathContentsLastModifiedTime()
 
 If you need more careful change detection than is afforded by checking timestamps, you can also cause the contents of each classfile in a whitelisted package [to be MD5-hashed](https://github.com/lukehutch/fast-classpath-scanner/blob/master/src/main/java/io/github/lukehutch/fastclasspathscanner/utils/HashClassfileContents.java), and you can compare the HashMaps returned across different scans.
 
-### 9. Get a list of all whitelisted (and non-blacklisted) classes, interfaces or annotations on the classpath
+### 10. Get a list of all whitelisted (and non-blacklisted) classes, interfaces or annotations on the classpath
 
 The names of all classes, interfaces and/or annotations in whitelisted (and non-blacklisted) packages can be returned using the methods shown below. Note that system classes (e.g. java.lang.String and java.lang.Object) are not enumerated or returned by any of these methods.
 
@@ -467,25 +490,25 @@ The names of all classes, interfaces and/or annotations in whitelisted (and non-
 // Mechanism 1: Attach a MatchProcessor before calling .scan():
 
 @FunctionalInterface
-public interface ClassEnumerationMatchProcessor {
+public interface ClassMatchProcessor {
     public void processMatch(Class<?> klass);
 }
 
 // Enumerate all standard classes, interfaces and annotations
 public FastClasspathScanner matchAllClasses(
-    ClassEnumerationMatchProcessor classEnumerationMatchProcessor)
+    ClassMatchProcessor classMatchProcessor)
 
 // Enumerate all standard classes (not interfaces/annotations)
 public FastClasspathScanner matchAllStandardClasses(
-    ClassEnumerationMatchProcessor classEnumerationMatchProcessor)
+    ClassMatchProcessor classMatchProcessor)
 
 // Enumerate all interfaces
 public FastClasspathScanner matchAllInterfaceClasses(
-    ClassEnumerationMatchProcessor classEnumerationMatchProcessor)
+    ClassMatchProcessor classMatchProcessor)
 
 // Enumerate all annotations
 public FastClasspathScanner matchAllAnnotationClasses(
-    ClassEnumerationMatchProcessor classEnumerationMatchProcessor)
+    ClassMatchProcessor classMatchProcessor)
 
 // Mechanism 2: Call one of the following after calling .scan():
 
@@ -502,7 +525,7 @@ public List<String> getNamesOfAllInterfaceClasses()
 public List<String> getNamesOfAllAnnotationClasses()
 ```
 
-### 10. Get all unique directories and files on the classpath
+### 11. Get all unique directories and files on the classpath
 
 The list of all directories and files on the classpath is returned by `.getUniqueClasspathElements()`. The resulting list is filtered to include only unique classpath elements (duplicates are eliminated), and to include only directories and files that actually exist. The elements in the list are in classpath order.
 
@@ -514,23 +537,22 @@ Note that FastClasspathScanner does not scan [JRE system, bootstrap or extension
 public List<File> getUniqueClasspathElements()
 ```
 
-### 11. Generate a GraphViz dot file from the classgraph
+### 12. Generate a GraphViz dot file from the classgraph
 
-During scanning, the classgraph (the graph of connections between classes, interfaces and annotations) is generated for all whitelisted (non-blacklisted) packages. This classgraph can be turned into a [GraphViz](http://www.graphviz.org/) .dot file for visualization purposes. Call the following after `.scan()`:
+During scanning, the classgraph (the graph of connections between classes, interfaces and annotations) is generated for all whitelisted (non-blacklisted) packages. This classgraph can be turned into a [GraphViz](http://www.graphviz.org/) .dot file for visualization purposes. Call the following after `.scan()`, where the sizeX and sizeY params give the layout size in inches:
 
 ```
-public String generateClassGraphDotFile()
+public String generateClassGraphDotFile(int sizeX, int sizeY)
 ```
 
 The returned string can be saved to a .dot file and fed into GraphViz using `dot -Tsvg < graph.dot > graph.svg` or similar, [generating a graph](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/test/java/com/xyz), where:
-* yellow rectangles indicate classes
-* blue diamonds indicate interfaces
-* cyan ovals indicate annotations
-* triangular arrowheads represent "extends"
-* diamond arrowheads represent "implements"
-* circular arrowheads represent "has annotation"
-* filled arrowheads connect same-type nodes (e.g. interfaces to interfaces)
-* open arrowheads connect different-type nodes (e.g. classes to the interfaces they implement).
+* Yellow rectangles indicate classes.
+* Blue diamonds indicate interfaces.
+* Purple ovals indicate annotations.
+* Regular arrowheads represent "extends" (and connect classes to classes).
+* Diamond arrowheads represent "implements" (when connecting classes to interfaces), or "extends" (when connecting interfaces to superinterfaces).
+* Circular arrowheads represent "has annotation" (when connecting classes to annotations), or "has meta-annotation" (when connecting annotations to meta-annotations).
+* Open-box arrowheads represent "has a field of type" (and connect classes to classes or interfaces).
 
 ## Debugging ##
 

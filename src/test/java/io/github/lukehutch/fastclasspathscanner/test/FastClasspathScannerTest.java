@@ -43,6 +43,7 @@ import io.github.lukehutch.fastclasspathscanner.test.blacklisted.BlacklistedSupe
 import io.github.lukehutch.fastclasspathscanner.test.whitelisted.Cls;
 import io.github.lukehutch.fastclasspathscanner.test.whitelisted.ClsSub;
 import io.github.lukehutch.fastclasspathscanner.test.whitelisted.ClsSubSub;
+import io.github.lukehutch.fastclasspathscanner.test.whitelisted.HasFieldWithTypeCls;
 import io.github.lukehutch.fastclasspathscanner.test.whitelisted.Iface;
 import io.github.lukehutch.fastclasspathscanner.test.whitelisted.IfaceSub;
 import io.github.lukehutch.fastclasspathscanner.test.whitelisted.IfaceSubSub;
@@ -271,7 +272,15 @@ public class FastClasspathScannerTest {
 
     @Test
     public void generateGraphVizFile() {
-        String c = new FastClasspathScanner(ROOT_PACKAGE).scan().generateClassGraphDotFile();
-        System.out.println(c);
+        assertThat(new FastClasspathScanner(ROOT_PACKAGE).scan().generateClassGraphDotFile(20, 20)).contains(
+                "\"io.github.lukehutch.fastclasspathscanner.test.whitelisted.\\nClsSub\" "
+                        + "-> \"io.github.lukehutch.fastclasspathscanner.test.whitelisted.\\nCls\"");
+    }
+
+    @Test
+    public void hasFieldWithRequestedType() {
+        assertThat(
+                new FastClasspathScanner(ROOT_PACKAGE).scan().getNamesOfClassesWithFieldOfType(Cls.class.getName()))
+                .containsOnly(HasFieldWithTypeCls.class.getName());
     }
 }

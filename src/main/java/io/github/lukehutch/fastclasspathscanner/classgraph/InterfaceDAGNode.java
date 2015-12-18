@@ -28,25 +28,37 @@
  */
 package io.github.lukehutch.fastclasspathscanner.classgraph;
 
-import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.HashMap;
 
-public class ClassInfo {
-    public String className;
-    public boolean isInterface;
-    public boolean isAnnotation;
-    // There will usually only be one superclass, except in the case of Scala, which compiles companion objects
-    public ArrayList<String> superclassNames = new ArrayList<>(1);
+/** A DAG node representing an interface class. */
+class InterfaceDAGNode extends DAGNode {
+    /** A DAG node representing an interface class. */
+    public InterfaceDAGNode(final ClassInfo classInfo) {
+        super(classInfo);
+    }
 
-    public ArrayList<String> interfaceNames;
-    public ArrayList<String> annotationNames;
-    public HashSet<String> whitelistedFieldTypes;
+    @Override
+    public void connect(final HashMap<String, DAGNode> classNameToDAGNode) {
+        super.connect(classNameToDAGNode);
 
-    public ClassInfo(final String className, final boolean isInterface, final boolean isAnnotation,
-            final String superclassName) {
-        this.className = className;
-        this.isInterface = isInterface;
-        this.isAnnotation = isAnnotation;
-        this.superclassNames.add(superclassName);
+        // Connect interfaces to their superinterfaces
+        if (classInfo.interfaceNames != null) {
+            for (final String superinterfaceName : classInfo.interfaceNames) {
+                final DAGNode superinterfaceNode = classNameToDAGNode.get(superinterfaceName);
+                if (superinterfaceNode != null) {
+                    superinterfaceNode.addSubNode(this);
+                }
+            }
+        }
+
+        // Connect any annotations on this interface to this interface 
+        if (classInfo.annotationNames != null) {
+            for (final String annotationName : classInfo.annotationNames) {
+                final AnnotationDAGNode annotationNode = (AnnotationDAGNode) classNameToDAGNode.get(annotationName);
+                if (annotationNode != null) {
+                    annotationNode.addAnnotatedClass(this);
+                }
+            }
+        }
     }
 }

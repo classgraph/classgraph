@@ -40,73 +40,39 @@ import java.util.HashSet;
 import java.util.List;
 
 public class ClassGraphBuilder {
-    ArrayList<DAGNode> standardClassNodes = new ArrayList<>();
-    ArrayList<DAGNode> interfaceNodes = new ArrayList<>();
-    ArrayList<DAGNode> annotationNodes = new ArrayList<>();
+    ArrayList<StandardClassDAGNode> standardClassNodes = new ArrayList<>();
+    ArrayList<InterfaceDAGNode> interfaceNodes = new ArrayList<>();
+    ArrayList<AnnotationDAGNode> annotationNodes = new ArrayList<>();
 
     public ClassGraphBuilder(final Collection<ClassInfo> classInfoFromScan) {
         // Take care of Scala quirks
         final ArrayList<ClassInfo> allClassInfo = new ArrayList<>(Utils.mergeScalaAuxClasses(classInfoFromScan));
 
-        // Build class graph:
-
         // Create DAG node for each class
         final HashMap<String, DAGNode> classNameToDAGNode = new HashMap<>();
         for (final ClassInfo classInfo : allClassInfo) {
             final String className = classInfo.className;
-            classNameToDAGNode.put(className, new DAGNode(className));
-        }
-
-        // Connect DAG nodes based on class connectivity
-        for (final ClassInfo classInfo : allClassInfo) {
-            final String className = classInfo.className;
-            final DAGNode classNode = classNameToDAGNode.get(className);
-            (classInfo.isAnnotation ? annotationNodes : classInfo.isInterface ? interfaceNodes : standardClassNodes)
-                    .add(classNode);
-
-            // Connect classes to the interfaces they implement, and interfaces to their superinterfaces
-            if (classInfo.interfaceNames != null) {
-                for (final String interfaceName : classInfo.interfaceNames) {
-                    final DAGNode interfaceNode = classNameToDAGNode.get(interfaceName);
-                    if (interfaceNode != null) {
-                        if (!classInfo.isAnnotation && !classInfo.isInterface) {
-                            // Cross-link standard classes to the interfaces they implement
-                            classNode.addCrossLink(interfaceNode);
-                        } else if (classInfo.isInterface) {
-                            // If the class implementing the interface is itself an interface,
-                            // then it is a subinterface of the implemented interface.
-                            interfaceNode.addSubNode(classNode);
-                        }
-                    }
-                }
-            }
-
-            // Connect classes to their superclass
-            // (there should only be one superclass after handling the Scala quirks above)
-            for (final String superclassName : classInfo.superclassNames) {
-                final DAGNode superclassNode = classNameToDAGNode.get(superclassName);
-                if (superclassNode != null) {
-                    superclassNode.addSubNode(classNode);
-                }
-            }
-
-            if (classInfo.annotationNames != null) {
-                for (final String annotationName : classInfo.annotationNames) {
-                    final DAGNode annotationNode = classNameToDAGNode.get(annotationName);
-                    if (annotationNode != null) {
-                        if (classInfo.isAnnotation) {
-                            // If this class is an annotation, then its annotations are meta-annotations
-                            annotationNode.addSubNode(classNode);
-                        } else {
-                            // For regular classes, add annotations as cross-links.
-                            annotationNode.addCrossLink(classNode);
-                        }
-                    }
-                }
+            if (classInfo.isAnnotation) {
+                final AnnotationDAGNode newNode = new AnnotationDAGNode(classInfo);
+                classNameToDAGNode.put(className, newNode);
+                annotationNodes.add(newNode);
+            } else if (classInfo.isInterface) {
+                final InterfaceDAGNode newNode = new InterfaceDAGNode(classInfo);
+                classNameToDAGNode.put(className, newNode);
+                interfaceNodes.add(newNode);
+            } else {
+                final StandardClassDAGNode newNode = new StandardClassDAGNode(classInfo);
+                classNameToDAGNode.put(className, newNode);
+                standardClassNodes.add(newNode);
             }
         }
 
-        // Find transitive closure of DAG nodes for each of the three class types
+        // Connect DAG nodes based on class inter-connectedness
+        for (final DAGNode node : classNameToDAGNode.values()) {
+            node.connect(classNameToDAGNode);
+        }
+
+        // Find transitive closure of DAG nodes for each of the class types
         DAGNode.findTransitiveClosure(standardClassNodes);
         DAGNode.findTransitiveClosure(interfaceNodes);
         DAGNode.findTransitiveClosure(annotationNodes);
@@ -282,6 +248,41 @@ public class ClassGraphBuilder {
         }
     }
 
+    /**
+     * A map from class name to the sorted list of unique names of types of fields in those classes, for fields
+     * whose type is in a whitelisted (non-blacklisted) package.
+     */
+    private final LazyMap<String, ArrayList<String>> fieldTypeToClassNames = //
+    LazyMap.convertToMultiMapSorted( //
+    LazyMap.invertMultiSet( //
+    new LazyMap<String, HashSet<String>>() {
+        @Override
+        public void initialize() {
+            for (final StandardClassDAGNode node : standardClassNodes) {
+                if (!node.whitelistedFieldTypeNodes.isEmpty()) {
+                    final HashSet<String> fieldTypeNames = new HashSet<>();
+                    for (final DAGNode fieldType : node.whitelistedFieldTypeNodes) {
+                        fieldTypeNames.add(fieldType.name);
+                    }
+                    map.put(node.name, fieldTypeNames);
+                }
+            }
+        };
+    }));
+
+    /**
+     * Return a sorted list of classes that have a field of the named type, where the field type is in a whitelisted
+     * (non-blacklisted) package.
+     */
+    public List<String> getNamesOfClassesWithFieldOfType(final String fieldTypeName) {
+        final List<String> classesWithFieldOfNamedType = fieldTypeToClassNames.get(fieldTypeName);
+        if (classesWithFieldOfNamedType == null) {
+            return Collections.emptyList();
+        } else {
+            return classesWithFieldOfNamedType;
+        }
+    }
+
     // -------------------------------------------------------------------------------------------------------------
     // Interfaces
 
@@ -347,11 +348,11 @@ public class ClassGraphBuilder {
         @Override
         public void initialize() {
             // Create mapping from interface names to the names of classes that implement the interface.
-            for (final DAGNode classNode : classNameToStandardClassNode.values()) {
+            for (final StandardClassDAGNode classNode : standardClassNodes) {
                 // For regular classes, cross-linked class names are the names of implemented interfaces.
                 // Create reverse mapping from interfaces and superinterfaces implemented by the class
                 // back to the class the interface implements
-                final ArrayList<DAGNode> interfaceNodes = classNode.crossLinkedNodes;
+                final ArrayList<InterfaceDAGNode> interfaceNodes = classNode.implementedInterfaceClassNodes;
                 for (final DAGNode interfaceNode : interfaceNodes) {
                     // Map from interface to implementing class
                     MultiSet.put(map, interfaceNode.name, classNode.name);
@@ -401,14 +402,16 @@ public class ClassGraphBuilder {
             if (annotationNode == null) {
                 return null;
             }
+            // Get the names of all classes annotated by this annotation, or by any sub-annotation
+            // (i.e. by any annotation meta-annotated by this one).
             final HashSet<String> classNames = new HashSet<>();
+            for (final DAGNode crossLinkedNode : ((AnnotationDAGNode) annotationNode).annotatedClassNodes) {
+                classNames.add(crossLinkedNode.name);
+            }
             for (final DAGNode subNode : annotationNode.allSubNodes) {
-                for (final DAGNode crossLinkedNode : subNode.crossLinkedNodes) {
+                for (final DAGNode crossLinkedNode : ((AnnotationDAGNode) subNode).annotatedClassNodes) {
                     classNames.add(crossLinkedNode.name);
                 }
-            }
-            for (final DAGNode crossLinkedNode : annotationNode.crossLinkedNodes) {
-                classNames.add(crossLinkedNode.name);
             }
             return classNames;
         };
@@ -481,7 +484,9 @@ public class ClassGraphBuilder {
         }
     }
 
-    /** Mapping from meta-annotation names to the sorted list of names of annotations that have the meta-annotation. */
+    /**
+     * Mapping from meta-annotation names to the sorted list of names of annotations that have the meta-annotation.
+     */
     private final LazyMap<String, ArrayList<String>> metaAnnotationNameToAnnotatedAnnotationNames = //
     LazyMap.convertToMultiMapSorted(metaAnnotationNameToAnnotatedAnnotationNamesSet);
 
@@ -502,9 +507,9 @@ public class ClassGraphBuilder {
     /**
      * Splits a .dot node label into two text lines, putting the package on one line and the class name on the next.
      */
-    private static String label(DAGNode node) {
-        String className = node.name;
-        int dotIdx = className.lastIndexOf('.');
+    private static String label(final DAGNode node) {
+        final String className = node.name;
+        final int dotIdx = className.lastIndexOf('.');
         if (dotIdx < 0) {
             return className;
         }
@@ -512,64 +517,68 @@ public class ClassGraphBuilder {
     }
 
     /**
-     * Generates a .dot file which can be fed into GraphViz for layout and visualization of the class graph.
+     * Generates a .dot file which can be fed into GraphViz for layout and visualization of the class graph. The
+     * sizeX and sizeY parameters are the image output size to use (in inches) when GraphViz is asked to render the
+     * .dot file.
      */
-    public String generateClassGraphDotFile() {
-        StringBuilder buf = new StringBuilder();
+    public String generateClassGraphDotFile(final float sizeX, final float sizeY) {
+        final StringBuilder buf = new StringBuilder();
         buf.append("digraph {\n");
-        buf.append("size=\"400,400\";\n");
-        buf.append("layout=neato;\n");
+        buf.append("size=\"" + sizeX + "," + sizeY + "\";\n");
+        buf.append("layout=dot;\n");
+        buf.append("rankdir=\"BT\";\n");
         buf.append("overlap=false;\n");
         buf.append("splines=true;\n");
         buf.append("pack=true;\n");
-        buf.append("start=\"random\";\n");
-        buf.append("sep=0.1;\n");
-        buf.append("edge[len=2];\n");
 
-        buf.append("\nnode[shape=box,style=filled,fillcolor=\"#eeeeaa\"];\n");
-        for (DAGNode node : standardClassNodes) {
+        buf.append("\nnode[shape=box,style=filled,fillcolor=\"#fff2b6\"];\n");
+        for (final DAGNode node : standardClassNodes) {
             buf.append("  \"" + label(node) + "\"\n");
         }
 
-        buf.append("\nnode[shape=diamond,style=filled,fillcolor=\"#aaeeee\"];\n");
-        for (DAGNode node : interfaceNodes) {
+        buf.append("\nnode[shape=diamond,style=filled,fillcolor=\"#b6e7ff\"];\n");
+        for (final DAGNode node : interfaceNodes) {
             buf.append("  \"" + label(node) + "\"\n");
         }
 
-        buf.append("\nnode[shape=oval,style=filled,fillcolor=\"#eeaaee\"];\n");
-        for (DAGNode node : annotationNodes) {
+        buf.append("\nnode[shape=oval,style=filled,fillcolor=\"#f3c9ff\"];\n");
+        for (final DAGNode node : annotationNodes) {
             buf.append("  \"" + label(node) + "\"\n");
         }
 
         buf.append("\n");
-        for (DAGNode classNode : standardClassNodes) {
-            for (DAGNode superclassNode : classNode.directSuperNodes) {
+        for (final StandardClassDAGNode classNode : standardClassNodes) {
+            for (final DAGNode superclassNode : classNode.directSuperNodes) {
                 // class --> superclass
                 buf.append("  \"" + label(classNode) + "\" -> \"" + label(superclassNode) + "\"\n");
             }
-            for (DAGNode implementedInterfaceNode : classNode.crossLinkedNodes) {
+            for (final DAGNode implementedInterfaceNode : classNode.implementedInterfaceClassNodes) {
                 // class --<> implemented interface
                 buf.append("  \"" + label(classNode) + "\" -> \"" + label(implementedInterfaceNode)
-                        + "\" [arrowhead=odiamond]\n");
+                        + "\" [arrowhead=diamond]\n");
+            }
+            for (final DAGNode fieldTypeNode : classNode.whitelistedFieldTypeNodes) {
+                // class --| whitelisted field type
+                buf.append("  \"" + label(classNode) + "\" -> \"" + label(fieldTypeNode) + "\" [arrowhead=obox]\n");
             }
         }
-        for (DAGNode interfaceNode : interfaceNodes) {
-            for (DAGNode superinterfaceNode : interfaceNode.directSuperNodes) {
+        for (final InterfaceDAGNode interfaceNode : interfaceNodes) {
+            for (final DAGNode superinterfaceNode : interfaceNode.directSuperNodes) {
                 // interface --> superinterface
                 buf.append("  \"" + label(interfaceNode) + "\" -> \"" + label(superinterfaceNode)
                         + "\" [arrowhead=diamond]\n");
             }
         }
-        for (DAGNode annotationNode : annotationNodes) {
-            for (DAGNode metaAnnotationNode : annotationNode.directSuperNodes) {
+        for (final AnnotationDAGNode annotationNode : annotationNodes) {
+            for (final DAGNode metaAnnotationNode : annotationNode.directSuperNodes) {
                 // annotation --o meta-annotation
                 buf.append("  \"" + label(annotationNode) + "\" -> \"" + label(metaAnnotationNode)
                         + "\" [arrowhead=dot]\n");
             }
-            for (DAGNode annotatedClassNode : annotationNode.crossLinkedNodes) {
+            for (final DAGNode annotatedClassNode : annotationNode.annotatedClassNodes) {
                 // annotated class --o annotation
                 buf.append("  \"" + label(annotatedClassNode) + "\" -> \"" + label(annotationNode)
-                        + "\" [arrowhead=odot]\n");
+                        + "\" [arrowhead=dot]\n");
             }
         }
         buf.append("}");

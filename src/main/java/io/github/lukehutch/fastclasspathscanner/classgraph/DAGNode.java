@@ -30,12 +30,16 @@ package io.github.lukehutch.fastclasspathscanner.classgraph;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 
 /**
  * A node representing classes, interfaces or annotations a tree or DAG structure.
  */
 class DAGNode {
+    /** The ClassInfo object corresponding to this DAG node. */
+    final ClassInfo classInfo;
+
     /** Class, interface or annotation name. */
     final String name;
 
@@ -51,18 +55,12 @@ class DAGNode {
     /** All sub-nodes. */
     HashSet<DAGNode> allSubNodes = new HashSet<>(4);
 
-    /**
-     * For annotation classes: the nodes corresponding to classes annotated by this annotation.
-     * 
-     * For standard classes: the nodes corresponding to the interfaces that the class implements.
-     */
-    ArrayList<DAGNode> crossLinkedNodes = new ArrayList<>(2);
-
     // -------------------------------------------------------------------------------------------------------------
 
     /** A node representing a class, interface or annotation. */
-    public DAGNode(final String name) {
-        this.name = name;
+    public DAGNode(final ClassInfo classInfo) {
+        this.classInfo = classInfo;
+        this.name = classInfo.className;
     }
 
     /**
@@ -75,12 +73,24 @@ class DAGNode {
     }
 
     /**
-     * Connect this node to a different node type (for annotations, the cross-linked class is a class annotated by
-     * this annotation; for regular classes, the cross-linked class is an interface that the class implements).
+     * Connect a DAGNode to other nodes by looking up the type name of connected classes, interfaces and
+     * annotations.
      */
-    public DAGNode addCrossLink(final DAGNode crossLinkedNode) {
-        this.crossLinkedNodes.add(crossLinkedNode);
-        return this;
+    public void connect(final HashMap<String, DAGNode> classNameToDAGNode) {
+        // Connect classes to their superclass (there should only be one superclass after handling Scala quirks)
+        for (final String superclassName : classInfo.superclassNames) {
+            final DAGNode superclassNode = classNameToDAGNode.get(superclassName);
+            if (superclassNode != null) {
+                superclassNode.addSubNode(this);
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    @Override
+    public String toString() {
+        return name;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -138,12 +148,5 @@ class DAGNode {
             }
             activeBottomUpNodes = activeBottomUpNodesNext;
         }
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    @Override
-    public String toString() {
-        return name;
     }
 }

@@ -123,7 +123,7 @@ public abstract class LazyMap<K, V> {
     /**
      * For all keys in templateLazyMap, generate the value for each key, then invert the map to find the preimage of
      * each unique value. The keySet in templateLazyMap is read the first time get() is called on the returned
-     * LazyMap.
+     * LazyMap. (i.e. the template is only needed so that even keySet generation happens lazily.)
      */
     public static <K, V, T> LazyMap<V, HashSet<K>> invertMultiSet(final LazyMap<K, HashSet<V>> lazyMap, //
             final LazyMap<K, T> templateLazyMap) {
@@ -131,6 +131,20 @@ public abstract class LazyMap<K, V> {
             @Override
             public void initialize() {
                 lazyMap.generateAllValues(templateLazyMap.keySet());
+                MultiSet.invert(lazyMap.map, this.map);
+            }
+        };
+    }
+
+    /**
+     * Invert the map to find the preimage of each unique value. The LazyMap should be defined by overriding
+     * initialize(), not using generateValue().
+     */
+    public static <K, V, T> LazyMap<V, HashSet<K>> invertMultiSet(final LazyMap<K, HashSet<V>> lazyMap) {
+        return new LazyMap<V, HashSet<K>>() {
+            @Override
+            public void initialize() {
+                lazyMap.checkInitialized();
                 MultiSet.invert(lazyMap.map, this.map);
             }
         };
