@@ -538,7 +538,7 @@ public List<File> getUniqueClasspathElements()
 
 ### 12. Generate a GraphViz dot file from the classgraph
 
-During scanning, the classgraph (the graph of connections between classes, interfaces and annotations, and between classes and the types of their fields) is generated for all whitelisted (non-blacklisted) packages. This classgraph can be turned into a [GraphViz](http://www.graphviz.org/) .dot file for visualization purposes. Call the following after `.scan()`, where the `sizeX` and `sizeY` params give the layout size in inches:
+During scanning, the classgraph (the graph of connections between classes, interfaces and annotations, and between classes and the types of their fields) is generated for all whitelisted (non-blacklisted) packages. This classgraph can [very simply](https://github.com/lukehutch/fast-classpath-scanner/blob/master/src/test/java/com/xyz/GenerateGraphvizDotFile.java) be turned into a [GraphViz](http://www.graphviz.org/) .dot file for visualization purposes. Call the following after `.scan()`, where the `sizeX` and `sizeY` params give the layout size in inches:
 
 ```
 public String generateClassGraphDotFile(float sizeX, float sizeY)
@@ -549,8 +549,6 @@ The returned string can be saved to a .dot file and fed into GraphViz using `dot
 **Graph legend:**
 
 ![Class graph visualization](/src/test/java/com/xyz/classgraph-fig-legend.png)
-
-This provides a very [simple mechanism](https://github.com/lukehutch/fast-classpath-scanner/blob/master/src/test/java/com/xyz/GenerateGraphvizDotFile.java) for visualizing all the interdependencies between classes in a project.
 
 ## Debugging ##
 
