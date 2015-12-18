@@ -450,8 +450,7 @@ public <T> FastClasspathScanner matchClassesWithFieldOfType(Class<T> fieldType,
 
 // Mechanism 2: Call the following after calling .scan():
 
-public List<String> getNamesOfClassesWithFieldOfType(
-        Class<?> fieldType | String fieldTypeName)
+public List<String> getNamesOfClassesWithFieldOfType(<?> fieldType | String fieldTypeName)
 ```
 
 ### 8. Performing the actual scan
@@ -545,14 +544,10 @@ During scanning, the classgraph (the graph of connections between classes, inter
 public String generateClassGraphDotFile(int sizeX, int sizeY)
 ```
 
-The returned string can be saved to a .dot file and fed into GraphViz using `dot -Tsvg < graph.dot > graph.svg` or similar, [generating a graph](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/test/java/com/xyz), where:
-* Yellow rectangles indicate classes.
-* Blue diamonds indicate interfaces.
-* Purple ovals indicate annotations.
-* Regular arrowheads represent "extends" (and connect classes to classes).
-* Diamond arrowheads represent "implements" (when connecting classes to interfaces), or "extends" (when connecting interfaces to superinterfaces).
-* Circular arrowheads represent "has annotation" (when connecting classes to annotations), or "has meta-annotation" (when connecting annotations to meta-annotations).
-* Open-box arrowheads represent "has a field of type" (and connect classes to classes or interfaces).
+The returned string can be saved to a .dot file and fed into GraphViz using `dot -Tsvg < graph.dot > graph.svg` or similar, [generating a graph](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/test/java/com/xyz), with these conventions:
+
+**Graph legend:**
+![Class graph visualization](/src/test/java/com/xyz/classgraph-fig-legend.png)
 
 ## Debugging ##
 
