@@ -156,7 +156,7 @@ FastClasspathScanner handles a number of classpath specification mechanisms, inc
 * The JBoss/WildFly custom classloader mechanism.
 * The WebLogic custom classloader mechanism.
 
-[Note that if you have a custom classloader in your runtime that is not covered by one of the above cases, you can add your own [ClassLoaderHandler](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/scanner/classloaderhandler), which will be loaded from your own project's jarfile by FastClasspathScanner using the Java ServiceLoader framework.]
+[Note that if you have a custom classloader in your runtime that is not covered by one of the above cases, you can add your own [ClassLoaderHandler](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/scanner/classloaderhandler), which will be loaded from your own project's jarfile by FastClasspathScanner using the Java [ServiceLoader](https://docs.oracle.com/javase/8/docs/api/java/util/ServiceLoader.html) framework, via entries in [META-INF/services/io.github.lukehutch.fastclasspathscanner.scanner.classloaderhandler.ClassLoaderHandler](https://github.com/lukehutch/fast-classpath-scanner/blob/master/src/main/resources/META-INF/services/io.github.lukehutch.fastclasspathscanner.scanner.classloaderhandler.ClassLoaderHandler).]
 
 # API
 
