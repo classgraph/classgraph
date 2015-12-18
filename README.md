@@ -547,6 +547,7 @@ public String generateClassGraphDotFile(int sizeX, int sizeY)
 The returned string can be saved to a .dot file and fed into GraphViz using `dot -Tsvg < graph.dot > graph.svg` or similar, [generating a graph](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/test/java/com/xyz), with these conventions:
 
 **Graph legend:**
+
 ![Class graph visualization](/src/test/java/com/xyz/classgraph-fig-legend.png)
 
 ## Debugging ##
