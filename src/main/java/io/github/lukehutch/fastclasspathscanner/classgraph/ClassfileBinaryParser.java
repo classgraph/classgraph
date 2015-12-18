@@ -41,7 +41,7 @@ public class ClassfileBinaryParser {
 
     /**
      * Split a type param into type pieces, e.g. "Ljava/util/Map<Lcom/xyz/fig/shape/Shape;Ljava/lang/Integer;>;" ->
-     * ["Ljava/util/Map", "Lcom/xyz/fig/shape/Shape", "Ljava/lang/Integer", ">"]. Also removes array prefixes, e.g.
+     * ["Ljava/util/Map", "Lcom/xyz/fig/shape/Shape", "Ljava/lang/Integer"]. Also removes array prefixes, e.g.
      * "[[[com.xyz.Widget" -> ["com.xyz.Widget"].
      */
     private static final Pattern TYPE_PARAM_PATTERN = Pattern.compile("(^[\\[]*|[;<]+)[+-]?([^;<>*]+)");
