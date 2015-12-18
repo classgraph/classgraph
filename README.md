@@ -550,7 +550,7 @@ The returned string can be saved to a .dot file and fed into GraphViz using
 dot -Tsvg < graph.dot > graph.svg
 ```
 
-or similar, generating a graph with these conventions:
+or similar, generating a graph with the following conventions.
 
 **Graph legend:**
 
