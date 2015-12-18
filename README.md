@@ -544,11 +544,13 @@ During scanning, the classgraph (the graph of connections between classes, inter
 public String generateClassGraphDotFile(float sizeX, float sizeY)
 ```
 
-The returned string can be saved to a .dot file and fed into GraphViz using `dot -Tsvg < graph.dot > graph.svg` or similar, [generating a graph](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/test/java/com/xyz), with these conventions:
+The returned string can be saved to a .dot file and fed into GraphViz using `dot -Tsvg < graph.dot > graph.svg` or similar, generating a graph with these conventions:
 
 **Graph legend:**
 
 ![Class graph visualization](/src/test/java/com/xyz/classgraph-fig-legend.png)
+
+This provides a very [simple mechanism](https://github.com/lukehutch/fast-classpath-scanner/blob/master/src/test/java/com/xyz/GenerateGraphvizDotFile.java) for visualizing all the interdependencies between classes in a project.
 
 ## Debugging ##
 
