@@ -30,7 +30,7 @@ FastClasspathScanner is able to:
 2. FastClasspathScanner is extremely lightweight, as it does not depend on any classfile/bytecode parsing or manipulation libraries like [Javassist](http://jboss-javassist.github.io/javassist/) or [ObjectWeb ASM](http://asm.ow2.org/).
 3. FastClasspathScanner handles many [diverse and complicated means](#classpath-mechanisms-handled-by-fastclasspathscanner) used to specify the classpath, and has a pluggable architecture for handling other classpath specification methods (in the general case, finding all classpath elements is not as simple as reading the `java.class.path` system property and/or getting the path URLs from the system `URLClassLoader`).
 4. FastClasspathScanner has built-in support for generating GraphViz visualizations of the classgraph, as shown above.
-5. FastClasspathScanner can find classes in the whitelisted packages that have fields of a given type, assuming those fields are also whitelisted.
+5. FastClasspathScanner can find all classes that have fields of a given type.
 6. FastClasspathScanner can find classes not just by annotation, but also by [meta-annotation](#4-matching-classes-with-a-specific-annotation-or-meta-annotation) (e.g. if annotation `A` annotates annotation `B`, and annotation `B` annotates class `C`, you can find class `C` by scanning for classes annotated by annotation `A`). This makes annotations more powerful, as they can be used as a hierarchy of inherited traits (similar to how interfaces work in Java). In the graph above, the class `Figure` has the annotation `@UIWidget`, and the annotation class `UIWidget` has the annotation `@UIElement`, so by transitivity, `Figure` also has the meta-annotation `@UIElement`. 
 
 ### Usage
@@ -435,7 +435,7 @@ public FastClasspathScanner matchFilenameExtension(String extensionToMatch,
 
 ### 7. Find all classes that contain a field of a given type
 
-One of the more unique capabilities of FastClasspathScanner is to find classes in the whitelisted (non-blacklisted) package hierarchy that have fields of a given type, assuming those fields are also whitelisted (non-blacklisted). This also matches type parameters and array types. For example, `.getNamesOfClassesWithFieldOfType("com.xyz.Widget")` will match classes that contain fields `Widget widget`, `Widget[] widgets`, `ArrayList<? extends Widget> widgetList`, `HashMap<String, Widget> idToWidget`, etc.: 
+One of the more unique capabilities of FastClasspathScanner is to find classes in the whitelisted (non-blacklisted) package hierarchy that have fields of a given type, assuming those fields are also whitelisted (non-blacklisted). This also matches type parameters and array types. For example, `.getNamesOfClassesWithFieldOfType("com.xyz.Widget")` will match classes that contain fields `Widget widget`, `Widget[] widgets`, `ArrayList<? extends Widget> widgetList`, `HashMap<String, Widget> idToWidget`, etc. (Note that both the field type and the class containing the field must be in a whitelisted (non-blacklisted) package for this to succeed.)
 
 ```java
 // Mechanism 1: Attach a MatchProcessor before calling .scan():
