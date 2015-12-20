@@ -5,7 +5,7 @@ Uber-fast, ultra-lightweight classpath scanner for Java, Scala and other JVM lan
 
 **What is classpath scanning?** Classpath scanning involves scanning directories and jar/zip files on the classpath to find files (especially classfiles) that meet certain criteria. In many ways, classpath scanning offers the *inverse of the Java reflection API:* the reflection API can tell you the superclass of a given class, but classpath scanning can find all classes that extend a given superclass. The Java reflection API can give you the list of annotations on a given class, but classpath scanning can find all classes that are annotated with a given annotation. Classpath scanning can also be used to produce a class graph visualization:<a name="visualization"></a>
 
-<div class="align-right">[(See graph legend here)](#12-generate-a-graphviz-dot-file-from-the-classgraph)</div>
+<div style="text-align:right;" markdown="1">[(See graph legend here)](#12-generate-a-graphviz-dot-file-from-the-classgraph)</div>
 ![Class graph visualization](/src/test/java/com/xyz/classgraph-fig.png)
 
 **FastClasspathScanner is able to:**
