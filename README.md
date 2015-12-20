@@ -3,11 +3,11 @@ FastClasspathScanner
 
 Uber-fast, ultra-lightweight classpath scanner for Java, Scala and other JVM languages.
 
-**What is classpath scanning?** Classpath scanning involves scanning directories and jar/zip files on the classpath to find files (especially classfiles) that meet certain criteria. In many ways, classpath scanning offers the *inverse of the Java reflection API:* the reflection API can tell you the superclass of a given class, but classpath scanning can find all classes that extend a given superclass. The Java reflection API can give you the list of annotations on a given class, but classpath scanning can find all classes that are annotated with a given annotation. Classpath scanning can also help with class graph [visualization](#visualization), as shown below. ([Link to legend](#12-generate-a-graphviz-dot-file-from-the-classgraph))
+**What is classpath scanning?** Classpath scanning involves scanning directories and jar/zip files on the classpath to find files (especially classfiles) that meet certain criteria. In many ways, classpath scanning offers the *inverse of the Java reflection API:* the reflection API can tell you the superclass of a given class, but classpath scanning can find all classes that extend a given superclass. The Java reflection API can give you the list of annotations on a given class, but classpath scanning can find all classes that are annotated with a given annotation. Classpath scanning can also help with class graph visualization, as shown below. ([Link to legend](#12-generate-a-graphviz-dot-file-from-the-classgraph))
 
-![Class graph visualization](/src/test/java/com/xyz/classgraph-fig.png)
+![Class graph visualization](/src/test/java/com/xyz/classgraph-fig.png)[visualization](#visualization)
 
-FastClasspathScanner is able to:
+**FastClasspathScanner is able to:**
 
 1. [find classes that subclass a given class](#1-matching-the-subclasses-or-finding-the-superclasses-of-a-class) or one of its subclasses;
 2. [find interfaces that extend a given interface](#2-matching-the-subinterfaces-or-finding-the-superinterfaces-of-an-interface) or one of its subinterfaces;
