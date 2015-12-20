@@ -153,6 +153,7 @@ FastClasspathScanner handles a number of classpath specification mechanisms, inc
 * [Class-Path references](https://docs.oracle.com/javase/tutorial/deployment/jar/downman.html) in a jarfile's `META-INF/MANIFEST.MF`, whereby jarfiles may add other external jarfiles to their own classpaths. FastClasspathScanner is able to follow the transitive closure of these references, breaking cycles if necessary.
 * The JBoss/WildFly custom classloader mechanism.
 * The WebLogic custom classloader mechanism.
+* Eventually, the Java 9 module system [work has not started on this yet -- patches are welcome].
 
 [Note that if you have a custom classloader in your runtime that is not covered by one of the above cases, you can add your own [ClassLoaderHandler](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/scanner/classloaderhandler), which will be loaded from your own project's jarfile by FastClasspathScanner using the Java [ServiceLoader](https://docs.oracle.com/javase/8/docs/api/java/util/ServiceLoader.html) framework, via an entry in [META-INF/services](https://github.com/lukehutch/fast-classpath-scanner/blob/master/src/main/resources/META-INF/services/io.github.lukehutch.fastclasspathscanner.scanner.classloaderhandler.ClassLoaderHandler).]
 
