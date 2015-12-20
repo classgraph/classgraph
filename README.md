@@ -20,7 +20,7 @@ Uber-fast, ultra-lightweight classpath scanner for Java, Scala and other JVM lan
 9. [detect changes](#9-detecting-changes-to-classpath-contents-after-the-scan) to the files within the classpath since the first time the classpath was scanned, or alternatively, calculate the MD5 hash of classfiles while scanning, in case using timestamps is insufficiently rigorous for change detection;
 10. return a list of the [names of all classes, interfaces and/or annotations on the classpath](#10-get-a-list-of-all-whitelisted-and-non-blacklisted-classes-interfaces-or-annotations-on-the-classpath) (after whitelist and blacklist filtering);
 11. return a list of [all directories and files on the classpath](#11-get-all-unique-directories-and-files-on-the-classpath) (i.e. all classpath elements) as a list of File objects, with the list deduplicated and filtered to include only classpath directories and files that actually exist, saving you from the complexities of working with the classpath and classloaders; and
-12. [generate a GraphViz .dot file](#12-generate-a-graphviz-dot-file-from-the-classgraph) from the classgraph for visualization purposes, showing connections between classes, interfaces, annotations and meta-annotations, and showing connections between classes and the types of their fields:
+12. [generate a GraphViz .dot file](#12-generate-a-graphviz-dot-file-from-the-classgraph) from the class graph for visualization purposes, as shown above. A class graph visualizatoin depicts connections between classes, interfaces, annotations and meta-annotations, and connections between classes and the types of their fields.
 
 **Benefits of FastClasspathScanner compared to other classpath scanning methods:**
 
