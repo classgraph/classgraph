@@ -467,7 +467,9 @@ public FastClasspathScanner matchFilenameExtension(String extensionToMatch,
 
 ### 7. Find all classes that contain a field of a given type
 
-One of the more unique capabilities of FastClasspathScanner is to find classes in the whitelisted (non-blacklisted) package hierarchy that have fields of a given type, assuming those fields are also whitelisted (non-blacklisted). This also matches type parameters and array types. For example, `.getNamesOfClassesWithFieldOfType("com.xyz.Widget")` will match classes that contain fields (note that both the field type and the class containing the field must be in a whitelisted (non-blacklisted) package for this to succeed):
+One of the more unique capabilities of FastClasspathScanner is to find classes in the whitelisted (non-blacklisted) package hierarchy that have fields of a given type, assuming both the class and the types of its fields are in whitelisted (non-blacklisted) packages.
+
+Matching field types also matches type parameters and array types. For example, `.getNamesOfClassesWithFieldOfType("com.xyz.Widget")` will match classes that contain fields of the form:
 
 * `Widget widget`
 * `Widget[] widgets`
