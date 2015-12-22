@@ -31,7 +31,7 @@ node[shape=oval,style=filled,fillcolor="#f3c9ff"];
   "com.xyz.fig.shape.\nShapeImpl" -> "com.xyz.fig.\nRenderable" [arrowhead=diamond]
   "com.xyz.fig.\nFigure" -> "com.xyz.fig.\nRenderable" [arrowhead=diamond]
   "com.xyz.fig.\nFigure" -> "com.xyz.fig.\nSaveable" [arrowhead=diamond]
-  "com.xyz.fig.\nFigure" -> "com.xyz.fig.shape.\nShape" [arrowhead=obox]
+  "com.xyz.fig.shape.\nShape" -> "com.xyz.fig.\nFigure" [arrowtail=obox, dir=back]
   "com.xyz.fig.shape.\nSquare" -> "com.xyz.fig.shape.\nShapeImpl"
   "com.xyz.fig.shape.\nTriangle" -> "com.xyz.fig.shape.\nShapeImpl"
   "com.xyz.fig.shape.\nCircle" -> "com.xyz.fig.shape.\nShapeImpl"

@@ -558,8 +558,9 @@ public class ClassGraphBuilder {
                         + "\" [arrowhead=diamond]\n");
             }
             for (final DAGNode fieldTypeNode : classNode.whitelistedFieldTypeNodes) {
-                // class --| whitelisted field type
-                buf.append("  \"" + label(classNode) + "\" -> \"" + label(fieldTypeNode) + "\" [arrowhead=obox]\n");
+                // class --[] whitelisted field type
+                buf.append("  \"" + label(fieldTypeNode) + "\" -> \"" + label(classNode)
+                        + "\" [arrowtail=obox, dir=back]\n");
             }
         }
         for (final InterfaceDAGNode interfaceNode : interfaceNodes) {
