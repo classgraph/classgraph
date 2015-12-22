@@ -159,10 +159,10 @@ public class FastClasspathScanner {
             for (final String spec : scanSpec) {
                 if (!(spec.startsWith("jar:") || spec.startsWith("-jar:"))) {
                     if (spec.startsWith("-")) {
-                        final String descriptor = "L" + spec.substring(1).replace('.', '/') + "/";
+                        final String descriptor = spec.substring(1).replace('.', '/') + "/";
                         blacklistClassRefPrefix.add(descriptor);
                     } else {
-                        final String descriptor = "L" + spec.replace('.', '/') + "/";
+                        final String descriptor = spec.replace('.', '/') + "/";
                         whitelistClassRefPrefix.add(descriptor);
                     }
                 }
@@ -1096,8 +1096,8 @@ public class FastClasspathScanner {
             final FileMatchProcessor fileMatchProcessor) {
         return new FileMatchProcessorWithContext() {
             @Override
-            public void processMatch(final File classpathElement, final String relativePath, final InputStream inputStream,
-                    final int lengthBytes) throws IOException {
+            public void processMatch(final File classpathElement, final String relativePath,
+                    final InputStream inputStream, final int lengthBytes) throws IOException {
                 fileMatchProcessor.processMatch(relativePath, inputStream, lengthBytes);
             }
         };
@@ -1111,8 +1111,8 @@ public class FastClasspathScanner {
             final FileMatchContentsProcessor fileMatchContentsProcessor) {
         return new FileMatchContentsProcessorWithContext() {
             @Override
-            public void processMatch(final File classpathElement, final String relativePath, final byte[] fileContents)
-                    throws IOException {
+            public void processMatch(final File classpathElement, final String relativePath,
+                    final byte[] fileContents) throws IOException {
                 fileMatchContentsProcessor.processMatch(relativePath, fileContents);
             }
         };

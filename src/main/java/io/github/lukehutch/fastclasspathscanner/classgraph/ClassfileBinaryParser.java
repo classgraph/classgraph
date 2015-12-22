@@ -41,10 +41,10 @@ public class ClassfileBinaryParser {
 
     /**
      * Split a type param into type pieces, e.g. "Ljava/util/Map<Lcom/xyz/fig/shape/Shape;Ljava/lang/Integer;>;" ->
-     * ["Ljava/util/Map", "Lcom/xyz/fig/shape/Shape", "Ljava/lang/Integer"]. Also removes array prefixes, e.g.
-     * "[[[com.xyz.Widget" -> ["com.xyz.Widget"].
+     * ["java/util/Map", "com/xyz/fig/shape/Shape", "java/lang/Integer"]. Also removes array prefixes, e.g.
+     * "[[[Lcom.xyz.Widget" -> ["com.xyz.Widget"].
      */
-    private static final Pattern TYPE_PARAM_PATTERN = Pattern.compile("(^[\\[]*|[;<]+)[+-]?([^;<>*]+)");
+    private static final Pattern TYPE_PARAM_PATTERN = Pattern.compile("(^[\\[]*|[;<]+)[+-]?L([^;<>*]+)");
 
     /**
      * Read annotation element value from classfile.
@@ -133,7 +133,7 @@ public class ClassfileBinaryParser {
                     whitelistedFieldTypes = new HashSet<>();
                 }
                 // Remove "L" from beginning of type descriptor part and convert from type path to class name
-                final String fieldTypeName = descriptorPart.substring(1, descriptorPart.length()).replace('/', '.');
+                final String fieldTypeName = descriptorPart.replace('/', '.');
                 // Add field type to set of whitelisted field types encountered in class
                 whitelistedFieldTypes.add(fieldTypeName);
             }

@@ -44,7 +44,12 @@ import io.github.lukehutch.fastclasspathscanner.test.blacklisted.BlacklistedSupe
 import io.github.lukehutch.fastclasspathscanner.test.whitelisted.Cls;
 import io.github.lukehutch.fastclasspathscanner.test.whitelisted.ClsSub;
 import io.github.lukehutch.fastclasspathscanner.test.whitelisted.ClsSubSub;
-import io.github.lukehutch.fastclasspathscanner.test.whitelisted.HasFieldWithTypeCls;
+import io.github.lukehutch.fastclasspathscanner.test.whitelisted.HasFieldWithTypeCls.HasFieldWithTypeCls1;
+import io.github.lukehutch.fastclasspathscanner.test.whitelisted.HasFieldWithTypeCls.HasFieldWithTypeCls2;
+import io.github.lukehutch.fastclasspathscanner.test.whitelisted.HasFieldWithTypeCls.HasFieldWithTypeCls3;
+import io.github.lukehutch.fastclasspathscanner.test.whitelisted.HasFieldWithTypeCls.HasFieldWithTypeCls4;
+import io.github.lukehutch.fastclasspathscanner.test.whitelisted.HasFieldWithTypeCls.HasFieldWithTypeCls5;
+import io.github.lukehutch.fastclasspathscanner.test.whitelisted.HasFieldWithTypeCls.HasFieldWithTypeCls6;
 import io.github.lukehutch.fastclasspathscanner.test.whitelisted.Iface;
 import io.github.lukehutch.fastclasspathscanner.test.whitelisted.IfaceSub;
 import io.github.lukehutch.fastclasspathscanner.test.whitelisted.IfaceSubSub;
@@ -295,6 +300,8 @@ public class FastClasspathScannerTest {
     public void hasFieldWithRequestedType() {
         assertThat(
                 new FastClasspathScanner(ROOT_PACKAGE).scan().getNamesOfClassesWithFieldOfType(Cls.class.getName()))
-                .containsOnly(HasFieldWithTypeCls.class.getName());
+                .containsExactly(HasFieldWithTypeCls1.class.getName(), HasFieldWithTypeCls2.class.getName(),
+                        HasFieldWithTypeCls3.class.getName(), HasFieldWithTypeCls4.class.getName(),
+                        HasFieldWithTypeCls5.class.getName(), HasFieldWithTypeCls6.class.getName());
     }
 }
