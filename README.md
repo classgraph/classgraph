@@ -43,7 +43,14 @@ Classpath scanning can also be used to produce a visualization of the class grap
 
 There are two different mechanisms for using FastClasspathScanner. (The two mechanisms can be used together.)
 
-**Mechanism 1:** Create a FastClasspathScanner instance, passing a [whitelist (or blacklist)](#constructor) of package prefixes to scan within (or not scan within) to the constructor, then add one or more [`MatchProcessor`](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) instances to the FastClasspathScanner by calling the FastClasspathScanner instance's `.match...()` methods, followed by calling `.scan()` to start the scan. This is the pattern shown in the following example. (Note: this example uses Java 8 lambda expressions to implicitly construct the appropriate type of MatchProcessor corresponding to each `.match...()` method; see the [Tips](#tips) section for the Java 7 equivalent.)
+**Mechanism 1:**
+
+1. Create a FastClasspathScanner instance, [passing the constructor](#constructor) a whitelist of package prefixes to scan within (and/or a blacklist of package prefixes to ignore);
+2. Add one or more [`MatchProcessor`](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) instances to the FastClasspathScanner by calling a `.match...()` method on the FastClasspathScanner instance;
+3. Optionally call `.verbose()` to give verbose output for debugging purposes; and
+4. Call `.scan()` to start the scan.
+
+This is the pattern shown in the following example. (Note: this example uses Java 8 lambda expressions to implicitly construct the appropriate type of MatchProcessor corresponding to each `.match...()` method; see the [Tips](#tips) section for the Java 7 equivalent.)
  
 ```java
 // Package prefixes to scan are listed in the constructor:
