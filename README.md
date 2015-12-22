@@ -50,7 +50,7 @@ There are two different mechanisms for using FastClasspathScanner. (The two mech
 3. Optionally call `.verbose()` to give verbose output for debugging purposes; and
 4. Call `.scan()` to start the scan.
 
-This is the pattern shown in the following example. (Note: this example uses Java 8 lambda expressions to implicitly construct the appropriate type of MatchProcessor corresponding to each `.match...()` method; see the [Tips](#tips) section for the Java 7 equivalent.)
+This is the pattern shown in the following example. (Note: this example uses Java 8 lambda expressions to automatically construct the appropriate type of MatchProcessor corresponding to each `.match...()` method, based on MatchProcessors being `FunctionalInterface`s; see the [Tips](#tips) section for the Java 7 equivalent.)
  
 ```java
 // Package prefixes to scan are listed in the constructor:
