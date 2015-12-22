@@ -43,11 +43,12 @@ Classpath scanning can also be used to produce a visualization of the class grap
 
 There are two different mechanisms for using FastClasspathScanner. (The two mechanisms can be used together.)
 
-**Mechanism 1:** Create a FastClasspathScanner instance, listing package prefixes to scan within, then add one or more [`MatchProcessor`](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) instances to the FastClasspathScanner by calling the FastClasspathScanner's `.match...()` methods, followed by calling `.scan()` to start the scan. This is the pattern shown in the following example: (Note: Java 8 lambda expressions are used below to implicitly create the appropriate type of MatchProcessor corresponding to each `.match...()` method, but see [Tips](#tips) below for the Java 7 equivalent of Mechanism 1; in particular, you might want to use the Java 7 syntax to avoid the 30-40ms startup cost incurred by the first encountered usage of lambda expressions in Java 8.)
+**Mechanism 1:** Create a FastClasspathScanner instance, passing a [whitelist (or blacklist)](#constructor) of package prefixes to scan within (or not scan within) to the constructor, then add one or more [`MatchProcessor`](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) instances to the FastClasspathScanner by calling the FastClasspathScanner instance's `.match...()` methods, followed by calling `.scan()` to start the scan. This is the pattern shown in the following example. (Note: this example uses Java 8 lambda expressions to implicitly construct the appropriate type of MatchProcessor corresponding to each `.match...()` method; see the [Tips](#tips) section for the Java 7 equivalent.)
  
 ```java
-// Package prefixes to scan are listed in the constructor. (See section
-// "Constructor" for info on whitelisting/blacklisting packages and/or jars)
+// Package prefixes to scan are listed in the constructor:
+// -- "com.xyz.widget" is whitelisted for scanning;
+// -- "com.xyz.widget.internal" is blacklisted (ignored), as it is prefixed by "-".
 new FastClasspathScanner("com.xyz.widget", "-com.xyz.widget.internal")  
     .matchSubclassesOf(Widget.class,
         // c is a subclass of Widget or a descendant subclass.
