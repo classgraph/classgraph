@@ -38,7 +38,7 @@ public interface FileMatchProcessor {
      * Process a matching file.
      * 
      * @param relativePath
-     *            The path of the matching file relative to the classpath entry that contained the match.
+     *            The path of the matching file relative to the classpath element that contained the match.
      * @param inputStream
      *            An InputStream (either a FileInputStream or a ZipEntry InputStream) opened on the file. You do not
      *            need to close this InputStream before returning, it is closed by the caller.

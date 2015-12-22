@@ -395,41 +395,66 @@ The value of `relativePath` is relative to the classpath entry that contained th
 ```java
 // Only Mechanism 1 is applicable -- attach a MatchProcessor before calling .scan():
 
-// Use this interface if you want to be passed an InputStream.
-// N.B. you do not need to close the InputStream before exiting, it is closed
-// by the caller.
+// Use this interface if you want to be passed an InputStream.  N.B. you do not
+// need to close the InputStream before exiting, it is closed by the caller.
 @FunctionalInterface
 public interface FileMatchProcessor {
     public void processMatch(String relativePath, InputStream inputStream,
-    int inputStreamLengthBytes) throws IOException;
+        int inputStreamLengthBytes) throws IOException;
 }
 
-// Use this interface if you want to be passed a byte array with the file contents
+// Use this interface if you want to be passed a byte array with the file contents.
 @FunctionalInterface
 public interface FileMatchContentsProcessor {
     public void processMatch(String relativePath, byte[] fileContents)
         throws IOException;
 }
 
+// The following two MatchProcessor variants are available if you need to know
+// which classpath element (i.e. which directory or zipfile) that the match was
+// found within. (File classpathElt is the root for relativePath.) 
+
+@FunctionalInterface
+public interface FileMatchProcessorWithContext {
+    public void processMatch(File classpathElt, String relativePath,
+        InputStream inputStream, int inputStreamLengthBytes) throws IOException;
+}
+
+@FunctionalInterface
+public interface FileMatchContentsProcessorWithContext {
+    public void processMatch(File classpathElt, String relativePath,
+        byte[] fileContents) throws IOException;
+}
+
+// Pass one of the above FileMatchProcessor variants to one of the following methods:
+
 // Match a pattern, such as "^com/pkg/.*\\.html$"
 public FastClasspathScanner matchFilenamePattern(String pathRegexp,
         FileMatchProcessor fileMatchProcessor
-        | FileMatchContentsProcessor fileMatchContentsProcessor)
+        | FileMatchProcessorWithContext fileMatchProcessorWithContext 
+        | FileMatchContentsProcessor fileMatchContentsProcessor
+        | FileMatchContentsProcessorWithContext fileMatchContentsProcessorWithContext)
         
 // Match a (non-regexp) relative path, such as "com/pkg/WidgetTemplate.html"
 public FastClasspathScanner matchFilenamePath(String relativePathToMatch,
         FileMatchProcessor fileMatchProcessor
-        | FileMatchContentsProcessor fileMatchContentsProcessor)
+        | FileMatchProcessorWithContext fileMatchProcessorWithContext 
+        | FileMatchContentsProcessor fileMatchContentsProcessor
+        | FileMatchContentsProcessorWithContext fileMatchContentsProcessorWithContext)
         
 // Match a leafname, such as "WidgetTemplate.html"
 public FastClasspathScanner matchFilenameLeaf(String leafToMatch,
         FileMatchProcessor fileMatchProcessor
-        | FileMatchContentsProcessor fileMatchContentsProcessor)
+        | FileMatchProcessorWithContext fileMatchProcessorWithContext 
+        | FileMatchContentsProcessor fileMatchContentsProcessor
+        | FileMatchContentsProcessorWithContext fileMatchContentsProcessorWithContext)
         
 // Match a file extension, e.g. "html" matches "WidgetTemplate.html"
 public FastClasspathScanner matchFilenameExtension(String extensionToMatch,
         FileMatchProcessor fileMatchProcessor
-        | FileMatchContentsProcessor fileMatchContentsProcessor)
+        | FileMatchProcessorWithContext fileMatchProcessorWithContext 
+        | FileMatchContentsProcessor fileMatchContentsProcessor
+        | FileMatchContentsProcessorWithContext fileMatchContentsProcessorWithContext)
 ```
 
 ### 7. Find all classes that contain a field of a given type

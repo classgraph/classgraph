@@ -32,6 +32,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.StrictAssertions.assertThat;
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchContentsProcessor;
+import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchContentsProcessorWithContext;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.StaticFinalFieldMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubclassMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubinterfaceMatchProcessor;
@@ -59,6 +60,7 @@ import io.github.lukehutch.fastclasspathscanner.test.whitelisted.WhitelistedInte
 import io.github.lukehutch.fastclasspathscanner.test.whitelisted.blacklistedsub.BlacklistedSub;
 import io.github.lukehutch.fastclasspathscanner.utils.HashClassfileContents;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -221,6 +223,18 @@ public class FastClasspathScannerTest {
                     }
                 }).scan();
         assertThat(readFileContents.get()).isTrue();
+    }
+
+    @Test
+    public void scanFilePatternWithContext() throws Exception {
+        new FastClasspathScanner().matchFilenamePattern("[[^/]*/]*file-content-test\\.txt",
+                new FileMatchContentsProcessorWithContext() {
+                    @Override
+                    public void processMatch(final File classpathElt, final String relativePath,
+                            final byte[] contents) throws IOException {
+                        assertThat(classpathElt.getPath()).isNotEmpty();
+                    }
+                }).scan();
     }
 
     @Test

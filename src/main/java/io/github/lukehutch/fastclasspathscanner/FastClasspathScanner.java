@@ -34,7 +34,9 @@ import io.github.lukehutch.fastclasspathscanner.classgraph.ClassfileBinaryParser
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.ClassAnnotationMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.ClassMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchContentsProcessor;
+import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchContentsProcessorWithContext;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchProcessor;
+import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchProcessorWithContext;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.InterfaceMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.StaticFinalFieldMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubclassMatchProcessor;
@@ -1067,13 +1069,16 @@ public class FastClasspathScanner {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Wrap a FileMatchContentsProcessor in a FileMatchProcessor that reads the file content from the stream. */
-    private static FileMatchProcessor wrapFileMatchContentsProcessor(
-            final FileMatchContentsProcessor fileMatchContentsProcessor) {
-        return new FileMatchProcessor() {
+    /**
+     * Wrap a FileMatchContentsProcessorWithContext in a FileMatchProcessorWithContext that reads the entire stream
+     * content and passes it to the wrapped class as a byte array.
+     */
+    private static FileMatchProcessorWithContext fetchStreamContentsAndSendTo(
+            final FileMatchContentsProcessorWithContext fileMatchContentsProcessorWithContext) {
+        return new FileMatchProcessorWithContext() {
             @Override
-            public void processMatch(final String relativePath, final InputStream inputStream, //
-                    final int lengthBytes) throws IOException {
+            public void processMatch(final File classpathElt, final String relativePath,
+                    final InputStream inputStream, final int lengthBytes) throws IOException {
                 // Read the file contents into a byte[] array
                 final byte[] contents = new byte[lengthBytes];
                 final int bytesRead = Math.max(0, inputStream.read(contents));
@@ -1081,9 +1086,58 @@ public class FastClasspathScanner {
                 final byte[] contentsRead = bytesRead == lengthBytes ? contents : Arrays
                         .copyOf(contents, bytesRead);
                 // Pass file contents to the wrapped FileMatchContentsProcessor
-                fileMatchContentsProcessor.processMatch(relativePath, contentsRead);
+                fileMatchContentsProcessorWithContext.processMatch(classpathElt, relativePath, contentsRead);
             }
         };
+    }
+
+    /** Wrap a FileMatchProcessor in a FileMatchProcessorWithContext, and ignore the classpath context. */
+    private static FileMatchProcessorWithContext ignoreClasspathContext( //
+            final FileMatchProcessor fileMatchProcessor) {
+        return new FileMatchProcessorWithContext() {
+            @Override
+            public void processMatch(final File classpathElement, final String relativePath, final InputStream inputStream,
+                    final int lengthBytes) throws IOException {
+                fileMatchProcessor.processMatch(relativePath, inputStream, lengthBytes);
+            }
+        };
+    }
+
+    /**
+     * Wrap a FileMatchContentsProcessor in a FileMatchContentsProcessorWithContext, and ignore the classpath
+     * context.
+     */
+    private static FileMatchContentsProcessorWithContext ignoreClasspathContext( //
+            final FileMatchContentsProcessor fileMatchContentsProcessor) {
+        return new FileMatchContentsProcessorWithContext() {
+            @Override
+            public void processMatch(final File classpathElement, final String relativePath, final byte[] fileContents)
+                    throws IOException {
+                fileMatchContentsProcessor.processMatch(relativePath, fileContents);
+            }
+        };
+    }
+
+    /**
+     * Calls the given FileMatchProcessorWithContext if files are found on the classpath with the given regexp
+     * pattern in their path.
+     * 
+     * @param pathRegexp
+     *            The regexp to match, e.g. "app/templates/.*\\.html"
+     * @param fileMatchProcessorWithContext
+     *            The FileMatchProcessorWithContext to call when each match is found.
+     */
+    public FastClasspathScanner matchFilenamePattern(final String pathRegexp,
+            final FileMatchProcessorWithContext fileMatchProcessorWithContext) {
+        recursiveScanner.addFilePathMatcher(new FilePathMatcher(new FilePathTester() {
+            private final Pattern pattern = Pattern.compile(pathRegexp);
+
+            @Override
+            public boolean filePathMatches(final File classpathElt, final String relativePath) {
+                return pattern.matcher(relativePath).matches();
+            }
+        }, fileMatchProcessorWithContext));
+        return this;
     }
 
     /**
@@ -1097,15 +1151,22 @@ public class FastClasspathScanner {
      */
     public FastClasspathScanner matchFilenamePattern(final String pathRegexp,
             final FileMatchProcessor fileMatchProcessor) {
-        recursiveScanner.addFilePathMatcher(new FilePathMatcher(new FilePathTester() {
-            private final Pattern pattern = Pattern.compile(pathRegexp);
+        return matchFilenamePattern(pathRegexp, ignoreClasspathContext(fileMatchProcessor));
+    }
 
-            @Override
-            public boolean filePathMatches(final String relativePath) {
-                return pattern.matcher(relativePath).matches();
-            }
-        }, fileMatchProcessor));
-        return this;
+    /**
+     * Calls the given FileMatchContentsProcessorWithContext if files are found on the classpath with the given
+     * regexp pattern in their path.
+     * 
+     * @param pathRegexp
+     *            The regexp to match, e.g. "app/templates/.*\\.html"
+     * @param fileMatchContentsProcessorWithContext
+     *            The FileMatchContentsProcessorWithContext to call when each match is found.
+     */
+    public FastClasspathScanner matchFilenamePattern(final String pathRegexp,
+            final FileMatchContentsProcessorWithContext fileMatchContentsProcessorWithContext) {
+        return matchFilenamePattern(pathRegexp, fetchStreamContentsAndSendTo( //
+                fileMatchContentsProcessorWithContext));
     }
 
     /**
@@ -1119,7 +1180,28 @@ public class FastClasspathScanner {
      */
     public FastClasspathScanner matchFilenamePattern(final String pathRegexp,
             final FileMatchContentsProcessor fileMatchContentsProcessor) {
-        return matchFilenamePattern(pathRegexp, wrapFileMatchContentsProcessor(fileMatchContentsProcessor));
+        return matchFilenamePattern(pathRegexp, ignoreClasspathContext(fileMatchContentsProcessor));
+    }
+
+    /**
+     * Calls the given FileMatchProcessorWithContext if files are found on the classpath that exactly match the
+     * given relative path.
+     * 
+     * @param relativePathToMatch
+     *            The complete path to match relative to the classpath entry, e.g.
+     *            "app/templates/WidgetTemplate.html"
+     * @param fileMatchProcessorWithContext
+     *            The FileMatchProcessorWithContext to call when each match is found.
+     */
+    public FastClasspathScanner matchFilenamePath(final String relativePathToMatch,
+            final FileMatchProcessorWithContext fileMatchProcessorWithContext) {
+        recursiveScanner.addFilePathMatcher(new FilePathMatcher(new FilePathTester() {
+            @Override
+            public boolean filePathMatches(final File classpathElt, final String relativePath) {
+                return relativePath.equals(relativePathToMatch);
+            }
+        }, fileMatchProcessorWithContext));
+        return this;
     }
 
     /**
@@ -1134,13 +1216,23 @@ public class FastClasspathScanner {
      */
     public FastClasspathScanner matchFilenamePath(final String relativePathToMatch,
             final FileMatchProcessor fileMatchProcessor) {
-        recursiveScanner.addFilePathMatcher(new FilePathMatcher(new FilePathTester() {
-            @Override
-            public boolean filePathMatches(final String relativePath) {
-                return relativePath.equals(relativePathToMatch);
-            }
-        }, fileMatchProcessor));
-        return this;
+        return matchFilenamePath(relativePathToMatch, ignoreClasspathContext(fileMatchProcessor));
+    }
+
+    /**
+     * Calls the given FileMatchContentsProcessorWithContext if files are found on the classpath that exactly match
+     * the given relative path.
+     * 
+     * @param relativePathToMatch
+     *            The complete path to match relative to the classpath entry, e.g.
+     *            "app/templates/WidgetTemplate.html"
+     * @param fileMatchContentsProcessorWithContext
+     *            The FileMatchContentsProcessorWithContext to call when each match is found.
+     */
+    public FastClasspathScanner matchFilenamePath(final String relativePathToMatch,
+            final FileMatchContentsProcessorWithContext fileMatchContentsProcessorWithContext) {
+        return matchFilenamePath(relativePathToMatch,
+                fetchStreamContentsAndSendTo(fileMatchContentsProcessorWithContext));
     }
 
     /**
@@ -1155,7 +1247,30 @@ public class FastClasspathScanner {
      */
     public FastClasspathScanner matchFilenamePath(final String relativePathToMatch,
             final FileMatchContentsProcessor fileMatchContentsProcessor) {
-        return matchFilenamePath(relativePathToMatch, wrapFileMatchContentsProcessor(fileMatchContentsProcessor));
+        return matchFilenamePath(relativePathToMatch, ignoreClasspathContext(fileMatchContentsProcessor));
+    }
+
+    /**
+     * Calls the given FileMatchProcessorWithContext if files are found on the classpath that exactly match the
+     * given path leafname.
+     * 
+     * @param pathLeafToMatch
+     *            The complete path leaf to match, e.g. "WidgetTemplate.html"
+     * @param fileMatchProcessorWithContext
+     *            The FileMatchProcessorWithContext to call when each match is found.
+     */
+    public FastClasspathScanner matchFilenamePathLeaf(final String pathLeafToMatch,
+            final FileMatchProcessorWithContext fileMatchProcessorWithContext) {
+        recursiveScanner.addFilePathMatcher(new FilePathMatcher(new FilePathTester() {
+            private final String leafToMatch = pathLeafToMatch.substring(pathLeafToMatch.lastIndexOf('/') + 1);
+
+            @Override
+            public boolean filePathMatches(final File classpathElt, final String relativePath) {
+                final String relativePathLeaf = relativePath.substring(relativePath.lastIndexOf('/') + 1);
+                return relativePathLeaf.equals(leafToMatch);
+            }
+        }, fileMatchProcessorWithContext));
+        return this;
     }
 
     /**
@@ -1169,16 +1284,22 @@ public class FastClasspathScanner {
      */
     public FastClasspathScanner matchFilenamePathLeaf(final String pathLeafToMatch,
             final FileMatchProcessor fileMatchProcessor) {
-        recursiveScanner.addFilePathMatcher(new FilePathMatcher(new FilePathTester() {
-            private final String leafToMatch = pathLeafToMatch.substring(pathLeafToMatch.lastIndexOf('/') + 1);
+        return matchFilenamePathLeaf(pathLeafToMatch, ignoreClasspathContext(fileMatchProcessor));
+    }
 
-            @Override
-            public boolean filePathMatches(final String relativePath) {
-                final String relativePathLeaf = relativePath.substring(relativePath.lastIndexOf('/') + 1);
-                return relativePathLeaf.equals(leafToMatch);
-            }
-        }, fileMatchProcessor));
-        return this;
+    /**
+     * Calls the given FileMatchContentsProcessorWithContext if files are found on the classpath that exactly match
+     * the given path leafname.
+     * 
+     * @param pathLeafToMatch
+     *            The complete path leaf to match, e.g. "WidgetTemplate.html"
+     * @param fileMatchContentsProcessorWithContext
+     *            The FileMatchContentsProcessorWithContext to call when each match is found.
+     */
+    public FastClasspathScanner matchFilenamePathLeaf(final String pathLeafToMatch,
+            final FileMatchContentsProcessorWithContext fileMatchContentsProcessorWithContext) {
+        return matchFilenamePathLeaf(pathLeafToMatch,
+                fetchStreamContentsAndSendTo(fileMatchContentsProcessorWithContext));
     }
 
     /**
@@ -1192,7 +1313,29 @@ public class FastClasspathScanner {
      */
     public FastClasspathScanner matchFilenamePathLeaf(final String pathLeafToMatch,
             final FileMatchContentsProcessor fileMatchContentsProcessor) {
-        return matchFilenamePathLeaf(pathLeafToMatch, wrapFileMatchContentsProcessor(fileMatchContentsProcessor));
+        return matchFilenamePathLeaf(pathLeafToMatch, ignoreClasspathContext(fileMatchContentsProcessor));
+    }
+
+    /**
+     * Calls the given FileMatchProcessorWithContext if files are found on the classpath that have the given file
+     * extension.
+     * 
+     * @param extensionToMatch
+     *            The extension to match, e.g. "html" matches "WidgetTemplate.html" and "WIDGET.HTML".
+     * @param fileMatchProcessorWithContext
+     *            The FileMatchProcessorWithContext to call when each match is found.
+     */
+    public FastClasspathScanner matchFilenameExtension(final String extensionToMatch,
+            final FileMatchProcessorWithContext fileMatchProcessorWithContext) {
+        recursiveScanner.addFilePathMatcher(new FilePathMatcher(new FilePathTester() {
+            private final String suffixToMatch = "." + extensionToMatch.toLowerCase();
+
+            @Override
+            public boolean filePathMatches(final File classpathElt, final String relativePath) {
+                return relativePath.toLowerCase().endsWith(suffixToMatch);
+            }
+        }, fileMatchProcessorWithContext));
+        return this;
     }
 
     /**
@@ -1205,15 +1348,22 @@ public class FastClasspathScanner {
      */
     public FastClasspathScanner matchFilenameExtension(final String extensionToMatch,
             final FileMatchProcessor fileMatchProcessor) {
-        recursiveScanner.addFilePathMatcher(new FilePathMatcher(new FilePathTester() {
-            private final String suffixToMatch = "." + extensionToMatch.toLowerCase();
+        return matchFilenameExtension(extensionToMatch, ignoreClasspathContext(fileMatchProcessor));
+    }
 
-            @Override
-            public boolean filePathMatches(final String relativePath) {
-                return relativePath.toLowerCase().endsWith(suffixToMatch);
-            }
-        }, fileMatchProcessor));
-        return this;
+    /**
+     * Calls the given FileMatchProcessorWithContext if files are found on the classpath that have the given file
+     * extension.
+     * 
+     * @param extensionToMatch
+     *            The extension to match, e.g. "html" matches "WidgetTemplate.html".
+     * @param fileMatchContentsProcessorWithContext
+     *            The FileMatchContentsProcessorWithContext to call when each match is found.
+     */
+    public FastClasspathScanner matchFilenameExtension(final String extensionToMatch,
+            final FileMatchContentsProcessorWithContext fileMatchContentsProcessorWithContext) {
+        return matchFilenameExtension(extensionToMatch,
+                fetchStreamContentsAndSendTo(fileMatchContentsProcessorWithContext));
     }
 
     /**
@@ -1226,7 +1376,7 @@ public class FastClasspathScanner {
      */
     public FastClasspathScanner matchFilenameExtension(final String extensionToMatch,
             final FileMatchContentsProcessor fileMatchContentsProcessor) {
-        return matchFilenameExtension(extensionToMatch, wrapFileMatchContentsProcessor(fileMatchContentsProcessor));
+        return matchFilenameExtension(extensionToMatch, ignoreClasspathContext(fileMatchContentsProcessor));
     }
 
     // -------------------------------------------------------------------------------------------------------------

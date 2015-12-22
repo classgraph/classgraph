@@ -29,7 +29,7 @@
 package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchProcessor;
+import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchProcessorWithContext;
 import io.github.lukehutch.fastclasspathscanner.utils.Log;
 import io.github.lukehutch.fastclasspathscanner.utils.Utils;
 
@@ -188,26 +188,33 @@ public class RecursiveScanner {
 
     /** An interface used to test whether a file's relative path matches a given specification. */
     public static interface FilePathTester {
-        public boolean filePathMatches(final String relativePath);
+        public boolean filePathMatches(final File classpathElt, final String relativePath);
     }
 
-    /** A class used for associating a FilePathTester with a FileMatchProcessor. */
+    /**
+     * A class used for associating a FilePathTester with a FileMatchProcessor.
+     * 
+     * filePathMatches() is separated from processMatch() to allow the caller to open a custom InputStream (zipfile
+     * entry or file) after finding a matching path and before processing the contents of the stream.
+     */
     public static class FilePathMatcher {
         private final FilePathTester filePathTester;
-        private final FileMatchProcessor fileMatchProcessor;
+        private final FileMatchProcessorWithContext fileMatchProcessorWithContext;
 
-        public FilePathMatcher(final FilePathTester filePathTester, final FileMatchProcessor fileMatchProcessor) {
+        public FilePathMatcher(final FilePathTester filePathTester,
+                final FileMatchProcessorWithContext fileMatchProcessorWithContext) {
             this.filePathTester = filePathTester;
-            this.fileMatchProcessor = fileMatchProcessor;
+            this.fileMatchProcessorWithContext = fileMatchProcessorWithContext;
         }
 
-        public boolean filePathMatches(final String relativePath) {
-            return filePathTester.filePathMatches(relativePath);
+        public boolean filePathMatches(final File classpathElt, final String relativePath) {
+            return filePathTester.filePathMatches(classpathElt, relativePath);
         }
 
-        public void processMatch(final String relativePath, final InputStream inputStream,
+        public void processMatch(final File classpathElt, final String relativePath, final InputStream inputStream,
                 final int inputStreamLengthBytes) throws IOException {
-            fileMatchProcessor.processMatch(relativePath, inputStream, inputStreamLengthBytes);
+            fileMatchProcessorWithContext.processMatch(classpathElt, relativePath, inputStream,
+                    inputStreamLengthBytes);
         }
     }
 
@@ -220,17 +227,18 @@ public class RecursiveScanner {
     /**
      * Scan a file.
      */
-    private void scanFile(final File file, final String relativePath, final boolean scanTimestampsOnly) {
+    private void scanFile(final File classpathElt, final File file, final String relativePath,
+            final boolean scanTimestampsOnly) {
         lastModified = Math.max(lastModified, file.lastModified());
         if (!scanTimestampsOnly) {
             final long startTime = System.currentTimeMillis();
             // Match file paths against path patterns
             boolean filePathMatches = false;
             for (final FilePathMatcher fileMatcher : filePathMatchers) {
-                if (fileMatcher.filePathMatches(relativePath)) {
+                if (fileMatcher.filePathMatches(classpathElt, relativePath)) {
                     // Open the file as a stream and call the match processor
                     try (final InputStream inputStream = new FileInputStream(file)) {
-                        fileMatcher.processMatch(relativePath, inputStream, (int) file.length());
+                        fileMatcher.processMatch(classpathElt, relativePath, inputStream, (int) file.length());
                     } catch (final IOException e) {
                         if (FastClasspathScanner.verbose) {
                             Log.log(e.getMessage() + " while processing file " + file.getPath());
@@ -251,8 +259,8 @@ public class RecursiveScanner {
     /**
      * Scan a zipfile for matching file path patterns. (Does not recurse into zipfiles within zipfiles.)
      */
-    private void scanZipfile(final String zipfilePath, final String zipInternalRootPath, final ZipFile zipFile,
-            final long zipFileLastModified, final boolean scanTimestampsOnly) {
+    private void scanZipfile(final File classpathElt, final ZipFile zipFile, final String zipfilePath,
+            final String zipInternalRootPath, final long zipFileLastModified, final boolean scanTimestampsOnly) {
         if (FastClasspathScanner.verbose) {
             Log.log("Scanning jarfile: "
                     + zipfilePath
@@ -335,10 +343,10 @@ public class RecursiveScanner {
                 if (!scanTimestampsOnly) {
                     // Match file paths against path patterns
                     for (final FilePathMatcher fileMatcher : filePathMatchers) {
-                        if (fileMatcher.filePathMatches(path)) {
+                        if (fileMatcher.filePathMatches(classpathElt, path)) {
                             // There's a match -- open the file as a stream and call the match processor
                             try (final InputStream inputStream = zipFile.getInputStream(entry)) {
-                                fileMatcher.processMatch(path, inputStream, (int) entry.getSize());
+                                fileMatcher.processMatch(classpathElt, path, inputStream, (int) entry.getSize());
                             } catch (final IOException e) {
                                 if (FastClasspathScanner.verbose) {
                                     Log.log(e.getMessage() + " while processing file " + entry.getName());
@@ -357,15 +365,16 @@ public class RecursiveScanner {
     /**
      * Scan a zipfile for matching file path patterns.
      */
-    private void scanZipfile(final File pathElt, final String path, final String zipInternalRootPath,
+    private void scanZipfile(final File classpathElt, final String path, final String zipInternalRootPath,
             final boolean scanTimestampsOnly) {
-        final String jarName = pathElt.getName();
+        final String jarName = classpathElt.getName();
         if ((whitelistedJars.isEmpty() || whitelistedJars.contains(jarName)) && !blacklistedJars.contains(jarName)) {
-            try (ZipFile zipfile = new ZipFile(pathElt)) {
-                scanZipfile(path, zipInternalRootPath, zipfile, pathElt.lastModified(), scanTimestampsOnly);
+            try (ZipFile zipfile = new ZipFile(classpathElt)) {
+                scanZipfile(classpathElt, zipfile, path, zipInternalRootPath, classpathElt.lastModified(),
+                        scanTimestampsOnly);
             } catch (final IOException e) {
                 if (FastClasspathScanner.verbose) {
-                    Log.log("Error while opening zipfile " + pathElt + " : " + e.toString());
+                    Log.log("Error while opening zipfile " + classpathElt + " : " + e.toString());
                 }
             }
         } else {
@@ -380,8 +389,8 @@ public class RecursiveScanner {
     /**
      * Scan a directory for matching file path patterns.
      */
-    private void scanDir(final File dir, final int ignorePrefixLen, boolean inWhitelistedPath,
-            final boolean scanTimestampsOnly) {
+    private void scanDir(final File classpathElt, final File dir, final int ignorePrefixLen,
+            boolean inWhitelistedPath, final boolean scanTimestampsOnly) {
         final String relativePath = (ignorePrefixLen > dir.getPath().length() ? "" //
                 : dir.getPath().substring(ignorePrefixLen).replace(File.separatorChar, '/')) + "/";
         if (FastClasspathScanner.verbose) {
@@ -434,11 +443,12 @@ public class RecursiveScanner {
                     if (subFileReal != null) {
                         if (subFileReal.isDirectory()) {
                             // Recurse into subdirectory
-                            scanDir(subFileReal, ignorePrefixLen, inWhitelistedPath, scanTimestampsOnly);
+                            scanDir(classpathElt, subFileReal, ignorePrefixLen, inWhitelistedPath,
+                                    scanTimestampsOnly);
                         } else if (inWhitelistedPath && subFileReal.isFile()) {
                             // Scan file
-                            scanFile(subFileReal, relativePath.equals("/") ? subFileReal.getName() : relativePath
-                                    + subFileReal.getName(), scanTimestampsOnly);
+                            scanFile(classpathElt, subFileReal, relativePath.equals("/") ? subFileReal.getName()
+                                    : relativePath + subFileReal.getName(), scanTimestampsOnly);
                         }
                     }
                 }
@@ -453,25 +463,25 @@ public class RecursiveScanner {
      * match is identified. If scanTimestampsOnly is false, only scans timestamps of files.
      */
     private void scan(final boolean scanTimestampsOnly) {
-        final ArrayList<File> uniqueClasspathElements = classpathFinder.getUniqueClasspathElements();
+        final ArrayList<File> uniqueClasspathElts = classpathFinder.getUniqueClasspathElements();
         if (FastClasspathScanner.verbose) {
             Log.log("*** Starting scan" + (scanTimestampsOnly ? " (scanning classpath timestamps only)" : "")
                     + " ***");
-            Log.log("Classpath elements: " + uniqueClasspathElements);
+            Log.log("Classpath elements: " + uniqueClasspathElts);
             Log.log("Whitelisted paths:  " + Arrays.toString(whitelistedPaths));
             Log.log("Blacklisted paths:  " + Arrays.toString(blacklistedPaths));
         }
 
         // Iterate through path elements and recursively scan within each directory and zipfile
-        for (final File pathElt : uniqueClasspathElements) {
-            final String path = pathElt.getPath();
+        for (final File classpathElt : uniqueClasspathElts) {
+            final String path = classpathElt.getPath();
             if (FastClasspathScanner.verbose) {
                 Log.log("=> Scanning classpath element: " + path);
             }
-            if (!pathElt.exists()) {
+            if (!classpathElt.exists()) {
                 // Path element should exist (otherwise it would not have been added to the list of classpath
                 // elements) unless it is a relative path within a jarfile, starting with '!'. 
-                final String pathStr = pathElt.getPath();
+                final String pathStr = classpathElt.getPath();
 
                 final int bangPos = pathStr.indexOf('!');
                 if (bangPos > 0) {
@@ -503,21 +513,21 @@ public class RecursiveScanner {
                     }
                 }
 
-            } else if (pathElt.isDirectory() && scanNonJars) {
+            } else if (classpathElt.isDirectory() && scanNonJars) {
                 // Scan within directory
-                scanDir(pathElt, path.length() + 1, false, scanTimestampsOnly);
+                scanDir(classpathElt, classpathElt, path.length() + 1, false, scanTimestampsOnly);
 
-            } else if (pathElt.isFile()) {
+            } else if (classpathElt.isFile()) {
                 if (Utils.isJar(path) && scanJars) {
                     // Scan within jar/zipfile
-                    scanZipfile(pathElt, path, "", scanTimestampsOnly);
+                    scanZipfile(classpathElt, path, "", scanTimestampsOnly);
                 } else if (scanNonJars) {
                     // File listed directly on classpath
-                    scanFile(pathElt, pathElt.getName(), scanTimestampsOnly);
+                    scanFile(classpathElt, classpathElt, classpathElt.getName(), scanTimestampsOnly);
                 }
 
             } else if (FastClasspathScanner.verbose) {
-                Log.log("Skipping non-file/non-dir on classpath: " + pathElt.getPath());
+                Log.log("Skipping non-file/non-dir on classpath: " + classpathElt.getPath());
             }
         }
     }
