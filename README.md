@@ -475,7 +475,7 @@ public FastClasspathScanner matchFilenameExtension(String extensionToMatch,
 
 ### 7. Find all classes that contain a field of a given type
 
-One of the more unique capabilities of FastClasspathScanner is to find classes in the whitelisted (non-blacklisted) package hierarchy that have fields of a given type, assuming both the class and the types of its fields are in whitelisted (non-blacklisted) packages.
+One of the more unique capabilities of FastClasspathScanner is to find classes in the whitelisted (non-blacklisted) package hierarchy that have fields of a given type, assuming both the class and the types of its fields are in whitelisted (non-blacklisted) packages. (In particular, you cannot search for fields of a type defined in a system package, e.g. `java.lang.String` or `java.lang.Object`, because system packages are always blacklisted.)
 
 Matching field types also matches type parameters and array types. For example, `.getNamesOfClassesWithFieldOfType("com.xyz.Widget")` will match classes that contain fields of the form:
 
@@ -531,7 +531,7 @@ If you need more careful change detection than is afforded by checking timestamp
 
 ### 10. Get a list of all whitelisted (and non-blacklisted) classes, interfaces or annotations on the classpath
 
-The names of all classes, interfaces and/or annotations in whitelisted (and non-blacklisted) packages can be returned using the methods shown below. Note that system classes (e.g. java.lang.String and java.lang.Object) are not enumerated or returned by any of these methods.
+The names of all classes, interfaces and/or annotations in whitelisted (and non-blacklisted) packages can be returned using the methods shown below. Note that system classes (e.g. `java.lang.String` and `java.lang.Object`) are not enumerated or returned by any of these methods.
 
 ```java
 // Mechanism 1: Attach a MatchProcessor before calling .scan():
@@ -545,7 +545,7 @@ public interface ClassMatchProcessor {
 public FastClasspathScanner matchAllClasses(
     ClassMatchProcessor classMatchProcessor)
 
-// Enumerate all standard classes (not interfaces/annotations)
+// Enumerate all standard classes (but not interfaces/annotations)
 public FastClasspathScanner matchAllStandardClasses(
     ClassMatchProcessor classMatchProcessor)
 
@@ -559,10 +559,10 @@ public FastClasspathScanner matchAllAnnotationClasses(
 
 // Mechanism 2: Call one of the following after calling .scan():
 
-// Get sorted names of all standard classes, interfaces and annotations
+// Get names of all standard classes, interfaces and annotations
 public List<String> getNamesOfAllClasses()
 
-// Get sorted names of all standard classes (not interfaces/annotations)
+// Get names of all standard classes (but not interfaces/annotations)
 public List<String> getNamesOfAllStandardClasses()
 
 // Get names of all interfaces
