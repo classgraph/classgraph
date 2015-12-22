@@ -152,12 +152,12 @@ new FastClasspathScanner("com.xyz.widget")
 
 Note that Java 8 features like lambda expressions and Streams incur a one-time startup penalty of 30-40ms the first time they are used.
 
-**Protip: using Java 8 method references:** The `.match...()` methods (e.g. `.matchSubclassesOf()`) take a [`MatchProcessor`](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) as one of their arguments, which are single-method classes (i.e. FunctionalInterfaces). If you are using Java 8, you may find it useful to use Java 8 method references as FunctionalInterfaces in the place of MatchProcessors (assuming the number and types of arguments match), e.g. `list::add`:
+**Protip: using Java 8 method references:** The `.match...()` methods (e.g. `.matchSubclassesOf()`) take a [`MatchProcessor`](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) as one of their arguments, which are single-method interfaces annotated with `@FunctionalInterface`. FunctionalInterfaces are interchangeable as long as the number and types of arguments match. You may find it useful to use Java 8 method references in the place of MatchProcessors, e.g. if you have a variable `List<Class<? extends Widget>> matchingClasses`, its `.add()` method can be referenced using `matchingClasses::add`, which has a single parameter of type `Class<? extends Widget>`. This method reference is interchangeable with `SubclassMatchProcessor<T>::processMatch(Class<? extends T> matchingClass)` assuming you call the `.matchSubclassesOf()` with `Widget.class` as the type parameter:
 
 ```java
 List<Class<? extends Widget>> matchingClasses = new ArrayList<>();
 new FastClasspathScanner("com.xyz.widget")
-    .matchSubclassesOf(Widget.class, matchingClasses::add)  // Ref to List.add()
+    .matchSubclassesOf(Widget.class, matchingClasses::add)  // Method ref for List.add()
     .scan();
 ```
 
