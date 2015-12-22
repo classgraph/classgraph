@@ -54,8 +54,8 @@
      fit-margin-right="0"
      fit-margin-bottom="0"
      inkscape:zoom="2.0053263"
-     inkscape:cx="87.836982"
-     inkscape:cy="93.359706"
+     inkscape:cx="-2.1733071"
+     inkscape:cy="92.362362"
      inkscape:window-x="0"
      inkscape:window-y="0"
      inkscape:window-maximized="1"
@@ -69,142 +69,136 @@
      x="0.89407867"
      y="1.0273442" />
   <g
-     id="g4399"
+     id="g4362"
      transform="translate(-13.702107,19.627773)">
     <g
-       id="g4362">
+       transform="translate(13.471541,39.91159)"
+       id="g4745">
       <g
-         id="g4745"
-         transform="translate(13.471541,39.91159)">
-        <g
-           id="g4880"
-           transform="matrix(0.96592583,0.25881905,-0.25881905,0.96592583,16.833327,0.83152542)">
-          <path
-             d="M 28.442865,75.621883 C 36.181694,67.883055 46.610068,57.454681 55.41085,48.653899"
-             id="path135"
-             inkscape:connector-curvature="0"
-             style="fill:none;stroke:#000000;stroke-width:0.6728;stroke-miterlimit:4;stroke-dasharray:none" />
-          <polygon
-             points="641.5,-82.9228 634.5,-82.9227 634.5,-82.9227 638,-92.9227 "
-             id="polygon137"
-             style="fill:#000000;stroke:#000000"
-             transform="matrix(0.47547486,0.47547486,-0.47547486,0.47547486,-287.12281,-215.51838)" />
-        </g>
-      </g>
-      <text
-         xml:space="preserve"
-         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:10.14247513px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-         x="102.55319"
-         y="112.35888"
-         id="text4761"
-         sodipodi:linespacing="125%"><tspan
-           sodipodi:role="line"
-           x="102.55319"
-           y="112.35888"
-           id="tspan4228"
-           style="font-size:9.5px">Connects a class to its superclass (&quot;extends&quot;)</tspan></text>
-    </g>
-    <g
-       transform="translate(0,0.63390329)"
-       id="g4370">
-      <g
-         id="g4741"
-         transform="matrix(0.96592583,0.25881905,-0.25881905,0.96592583,38.517787,44.877864)">
+         transform="matrix(0.96592583,0.25881905,-0.25881905,0.96592583,16.833327,0.83152542)"
+         id="g4880">
         <path
            style="fill:none;stroke:#000000;stroke-width:0.6728;stroke-miterlimit:4;stroke-dasharray:none"
            inkscape:connector-curvature="0"
-           id="path231"
-           d="M 28.773484,108.58805 55.826227,81.535295"
-           sodipodi:nodetypes="cc" />
+           id="path135"
+           d="M 28.442865,75.621883 C 36.181694,67.883055 46.610068,57.454681 55.41085,48.653899" />
         <polygon
-           transform="matrix(0.47547486,0.47547486,-0.47547486,0.47547486,-121.68579,177.26564)"
+           transform="matrix(0.47547486,0.47547486,-0.47547486,0.47547486,-287.12281,-215.51838)"
            style="fill:#000000;stroke:#000000"
-           id="polygon233"
-           points="86.0001,-285.797 86.0001,-285.797 90,-291.797 86,-297.797 82,-291.797 " />
+           id="polygon137"
+           points="634.5,-82.9227 638,-92.9227 641.5,-82.9228 634.5,-82.9227 " />
       </g>
-      <flowRoot
-         xml:space="preserve"
-         id="flowRoot4775"
-         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:10.14247513px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-         transform="translate(-10.699717,-60.63395)"><flowRegion
-           id="flowRegion4777"><rect
-             id="rect4779"
-             width="307.95654"
-             height="27.694792"
-             x="113.26343"
-             y="193.5518" /></flowRegion><flowPara
-           id="flowPara4781"
-           style="font-size:9.5px">Connects a class to its implemented interfaces (&quot;implements&quot;), or an interface to its superinterfaces (&quot;extends&quot;)</flowPara></flowRoot>    </g>
-    <g
-       transform="translate(0,-0.21695868)"
-       id="g4379">
-      <g
-         id="g4737"
-         transform="translate(13.307545,48.730912)">
-        <g
-           id="g4876"
-           transform="matrix(0.96592583,0.25881905,-0.25881905,0.96592583,36.500477,-6.9395505)">
-          <path
-             d="m 28.514894,151.24546 c 7.430723,-7.43072 18.352857,-18.35286 27.414452,-27.41445"
-             id="path103"
-             inkscape:connector-curvature="0"
-             style="fill:none;stroke:#000000;stroke-width:0.67242301" />
-          <circle
-             cx="127.10976"
-             cy="45.211731"
-             id="ellipse105"
-             r="2.689692"
-             style="fill:#000000;stroke:#000000;stroke-width:0.67242301"
-             transform="matrix(0.70710678,0.70710678,-0.70710678,0.70710678,0,0)" />
-        </g>
-      </g>
-      <flowRoot
-         transform="matrix(0.67616504,0,0,0.67616504,-0.07134294,114.0217)"
-         xml:space="preserve"
-         id="flowRoot4775-1"
-         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:15px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"><flowRegion
-           id="flowRegion4777-3"><rect
-             id="rect4779-6"
-             width="464.48816"
-             height="40.205078"
-             x="151.78995"
-             y="84.384247" /></flowRegion><flowPara
-           id="flowPara4781-2"
-           style="font-size:14.04982471px">Connects a class to its annotations (&quot;annotates&quot;)</flowPara><flowPara
-           id="flowPara4807"
-           style="font-size:14.04982471px">or an annotation to its meta-annotations (&quot;meta-annotates&quot;)</flowPara></flowRoot>    </g>
-    <g
-       id="g4390">
-      <g
-         id="g4733"
-         transform="matrix(0.96592583,0.25881905,-0.25881905,0.96592583,52.93165,67.258881)">
-        <path
-           style="fill:none;stroke:#000000;stroke-width:0.6728;stroke-miterlimit:4;stroke-dasharray:none"
-           inkscape:connector-curvature="0"
-           id="path85"
-           d="M 28.474058,163.16524 54.884029,136.93161"
-           sodipodi:nodetypes="cc" />
-        <polygon
-           transform="matrix(0.61093077,-0.28092041,0.28092041,0.61093077,-146.98458,378.98176)"
-           style="fill:none;stroke:#000000"
-           id="polygon87"
-           points="421.511,-205.256 424.171,-197.711 431.716,-200.371 431.716,-200.371 429.056,-207.916 " />
-      </g>
-      <flowRoot
-         xml:space="preserve"
-         id="flowRoot4775-1-3"
-         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:10.14247513px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-         transform="translate(-10.699717,-66.799342)"><flowRegion
-           id="flowRegion4777-3-4"><rect
-             id="rect4779-6-7"
-             width="313.56113"
-             height="31.770845"
-             x="113.25352"
-             y="274.49338" /></flowRegion><flowPara
-           id="flowPara4807-3"
-           style="font-size:9.5px">Connects a class to the types of its fields (&quot;has field of type&quot;) [this is the only arrow type to point downwards]</flowPara></flowRoot>    </g>
+    </g>
+    <text
+       sodipodi:linespacing="125%"
+       id="text4761"
+       y="112.35888"
+       x="102.55319"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:10.14247513px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       xml:space="preserve"><tspan
+         style="font-size:9.5px"
+         id="tspan4228"
+         y="112.35888"
+         x="102.55319"
+         sodipodi:role="line">Connects a class to its superclass (&quot;extends&quot;)</tspan></text>
   </g>
   <g
+     id="g4370"
+     transform="translate(-13.702107,20.261676)">
+    <g
+       transform="matrix(0.96592583,0.25881905,-0.25881905,0.96592583,38.517787,44.877864)"
+       id="g4741">
+      <path
+         sodipodi:nodetypes="cc"
+         d="M 28.773484,108.58805 55.826227,81.535295"
+         id="path231"
+         inkscape:connector-curvature="0"
+         style="fill:none;stroke:#000000;stroke-width:0.6728;stroke-miterlimit:4;stroke-dasharray:none" />
+      <polygon
+         points="90,-291.797 86,-297.797 82,-291.797 86.0001,-285.797 86.0001,-285.797 "
+         id="polygon233"
+         style="fill:#000000;stroke:#000000"
+         transform="matrix(0.47547486,0.47547486,-0.47547486,0.47547486,-121.68579,177.26564)" />
+    </g>
+    <flowRoot
+       transform="translate(-10.699717,-60.63395)"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:10.14247513px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       id="flowRoot4775"
+       xml:space="preserve"><flowRegion
+         id="flowRegion4777"><rect
+           y="193.5518"
+           x="113.26343"
+           height="27.694792"
+           width="307.95654"
+           id="rect4779" /></flowRegion><flowPara
+         style="font-size:9.5px"
+         id="flowPara4781">Connects a class to its implemented interfaces (&quot;implements&quot;), or an interface to its superinterfaces (&quot;extends&quot;)</flowPara></flowRoot>  </g>
+  <g
+     id="g4379"
+     transform="translate(-13.702107,19.410814)">
+    <g
+       transform="translate(13.307545,48.730912)"
+       id="g4737">
+      <g
+         transform="matrix(0.96592583,0.25881905,-0.25881905,0.96592583,36.500477,-6.9395505)"
+         id="g4876">
+        <path
+           style="fill:none;stroke:#000000;stroke-width:0.67242301"
+           inkscape:connector-curvature="0"
+           id="path103"
+           d="m 28.514894,151.24546 c 7.430723,-7.43072 18.352857,-18.35286 27.414452,-27.41445" />
+        <circle
+           transform="matrix(0.70710678,0.70710678,-0.70710678,0.70710678,0,0)"
+           style="fill:#000000;stroke:#000000;stroke-width:0.67242301"
+           r="2.689692"
+           id="ellipse105"
+           cy="45.211731"
+           cx="127.10976" />
+      </g>
+    </g>
+    <flowRoot
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:15px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       id="flowRoot4775-1"
+       xml:space="preserve"
+       transform="matrix(0.67616504,0,0,0.67616504,-0.07134294,114.0217)"><flowRegion
+         id="flowRegion4777-3"><rect
+           y="84.384247"
+           x="151.78995"
+           height="40.205078"
+           width="464.48816"
+           id="rect4779-6" /></flowRegion><flowPara
+         style="font-size:14.04982471px"
+         id="flowPara4781-2">Connects a class to its annotations (&quot;annotates&quot;)</flowPara><flowPara
+         style="font-size:14.04982471px"
+         id="flowPara4807">or an annotation to its meta-annotations (&quot;meta-annotates&quot;)</flowPara></flowRoot>  </g>
+  <g
+     id="g4733"
+     transform="matrix(0.96592583,-0.25881905,-0.25881905,-0.96592583,39.229543,393.33002)">
+    <path
+       style="fill:none;stroke:#000000;stroke-width:0.6728;stroke-miterlimit:4;stroke-dasharray:none"
+       inkscape:connector-curvature="0"
+       id="path85"
+       d="M 28.474058,163.16524 54.884029,136.93161"
+       sodipodi:nodetypes="cc" />
+    <polygon
+       transform="matrix(0.61093077,-0.28092041,0.28092041,0.61093077,-146.98458,378.98176)"
+       style="fill:none;stroke:#000000"
+       id="polygon87"
+       points="421.511,-205.256 424.171,-197.711 431.716,-200.371 431.716,-200.371 429.056,-207.916 " />
+  </g>
+  <flowRoot
+     xml:space="preserve"
+     id="flowRoot4775-1-3"
+     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:10.14247513px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+     transform="translate(-24.401824,-47.171569)"><flowRegion
+       id="flowRegion4777-3-4"><rect
+         id="rect4779-6-7"
+         width="313.56113"
+         height="31.770845"
+         x="113.25352"
+         y="274.49338" /></flowRegion><flowPara
+       id="flowPara4807-3"
+       style="font-size:9.5px">Connects a class to the types of its fields (&quot;has field of type&quot;) [this is the only arrow type to point downwards]</flowPara></flowRoot>  <g
      id="g4434"
      transform="translate(-13.702107,23.703856)">
     <g
