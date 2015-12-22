@@ -30,7 +30,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -53,9 +53,9 @@
      fit-margin-left="0"
      fit-margin-right="0"
      fit-margin-bottom="0"
-     inkscape:zoom="5.6719193"
-     inkscape:cx="-11.260856"
-     inkscape:cy="49.275068"
+     inkscape:zoom="1.4179798"
+     inkscape:cx="-11.254977"
+     inkscape:cy="24.186958"
      inkscape:window-x="0"
      inkscape:window-y="0"
      inkscape:window-maximized="1"
@@ -202,134 +202,127 @@
              x="113.25352"
              y="274.49338" /></flowRegion><flowPara
            id="flowPara4807-3"
-           style="font-size:9.5px">Connects a class to the types of its fields (&quot;has field of type&quot;) [this is the only arrow type that points downwards]</flowPara></flowRoot>    </g>
+           style="font-size:9.5px">Connects a class to the types of its fields (&quot;has field of type&quot;) [this is the only arrow type to point downwards]</flowPara></flowRoot>    </g>
   </g>
   <g
-     id="g4434"
-     transform="translate(-13.702107,23.703856)">
+     id="g4326"
+     transform="translate(-10.317009,23.628831)">
     <g
-       id="g4326">
-      <g
-         id="g4866"
-         transform="translate(13.931583,121.25399)">
-        <polygon
-           transform="matrix(0.78498506,0,0,0.78498506,-139.9407,3.076681)"
-           style="fill:#fff2b6;fill-opacity:1;stroke:#000000;stroke-width:0.85708636;stroke-miterlimit:4;stroke-dasharray:none"
-           id="polygon53"
-           points="208,-93 294,-93 294,-131 294,-131 208,-131 " />
-        <text
-           style="font-size:9.41392231px;font-family:Times, serif;text-anchor:middle"
-           id="text55"
-           font-size="14.00"
-           y="-87.396851"
-           x="57.090553">com.xyz.</text>
-        <text
-           style="font-size:9.41392231px;font-family:Times, serif;text-anchor:middle"
-           id="text57"
-           font-size="14.00"
-           y="-77.310516"
-           x="57.090553">MyClass</text>
-      </g>
+       transform="translate(13.931583,121.25399)"
+       id="g4866">
+      <polygon
+         points="208,-93 294,-93 294,-131 294,-131 208,-131 "
+         id="polygon53"
+         style="fill:#fff2b6;fill-opacity:1;stroke:#000000;stroke-width:0.85708636;stroke-miterlimit:4;stroke-dasharray:none"
+         transform="matrix(0.78498506,0,0,0.78498506,-139.9407,3.076681)" />
       <text
-         xml:space="preserve"
-         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:10.14247513px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-         x="54.659218"
+         x="57.090553"
+         y="-87.396851"
+         font-size="14.00"
+         id="text55"
+         style="font-size:9.41392231px;font-family:Times, serif;text-anchor:middle">com.xyz.</text>
+      <text
+         x="57.090553"
+         y="-77.310516"
+         font-size="14.00"
+         id="text57"
+         style="font-size:9.41392231px;font-family:Times, serif;text-anchor:middle">MyClass</text>
+    </g>
+    <text
+       sodipodi:linespacing="125%"
+       id="text4749"
+       y="68.637955"
+       x="54.659218"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:10.14247513px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       xml:space="preserve"><tspan
          y="68.637955"
-         id="text4749"
-         sodipodi:linespacing="125%"><tspan
-           style="font-size:9.5px"
-           sodipodi:role="line"
-           id="tspan4751"
-           x="54.659218"
-           y="68.637955">A class</tspan></text>
-    </g>
-    <g
-       transform="translate(-28.859083,0)"
-       id="g4318">
-      <g
-         id="g4702"
-         transform="translate(338.99228,127.7081)">
-        <ellipse
-           style="fill:#f3c9ff;fill-opacity:1;stroke:#000000;stroke-width:0.67242301"
-           id="ellipse245"
-           ry="17.981062"
-           rx="40.764301"
-           cy="-89.762672"
-           cx="52.973785" />
-        <text
-           style="font-size:9.41392231px;font-family:Times, serif;text-anchor:middle"
-           id="text247"
-           font-size="14.00"
-           y="-92.317871"
-           x="52.973785">com.xyz.</text>
-        <text
-           style="font-size:9.41392231px;font-family:Times, serif;text-anchor:middle"
-           id="text249"
-           font-size="14.00"
-           y="-82.231529"
-           x="52.973785">MyAnnotation</text>
-      </g>
-      <text
-         xml:space="preserve"
-         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:10.14247513px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-         x="358.83667"
-         y="70.171028"
-         id="text4757"
-         sodipodi:linespacing="125%"><tspan
-           style="font-size:9.5px"
-           sodipodi:role="line"
-           id="tspan4759"
-           x="358.83667"
-           y="70.171028">An annotation</tspan></text>
-    </g>
-    <g
-       transform="translate(-23.33863,0)"
-       id="g4308">
-      <g
-         id="g4871"
-         transform="translate(179.80775,73.565153)">
-        <polygon
-           transform="matrix(0.50403884,0,0,0.50403884,13.743214,134.32429)"
-           style="fill:#b6e7ff;fill-opacity:1;stroke:#000000;stroke-width:1.33481777;stroke-miterlimit:4;stroke-dasharray:none"
-           id="polygon222"
-           points="86,-374 1.42109e-14,-336 86,-298 172,-336 86,-374 " />
-        <text
-           style="font-size:9.41392231px;font-family:Times, serif;text-anchor:middle"
-           id="text224"
-           font-size="14.00"
-           y="-37.595474"
-           x="57.090557">com.xyz.</text>
-        <text
-           style="font-size:9.41392231px;font-family:Times, serif;text-anchor:middle"
-           id="text226"
-           font-size="14.00"
-           y="-27.509129"
-           x="57.090557">MyInterface</text>
-      </g>
-      <text
-         xml:space="preserve"
-         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:10.14247513px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-         x="208.14085"
-         y="70.78804"
-         id="text4753"
-         sodipodi:linespacing="125%"><tspan
-           style="font-size:9.5px"
-           sodipodi:role="line"
-           id="tspan4755"
-           x="208.14085"
-           y="70.78804">An interface</tspan></text>
-      <text
-         xml:space="preserve"
-         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:10.14247513px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-         x="178.39088"
-         y="1.1247057"
-         id="text4761-7"
-         sodipodi:linespacing="125%"><tspan
-           sodipodi:role="line"
-           x="178.39088"
-           y="1.1247057"
-           id="tspan4228-6"
-           style="font-weight:bold">Class Graph Legend:</tspan></text>
-    </g>
+         x="54.659218"
+         id="tspan4751"
+         sodipodi:role="line"
+         style="font-size:9.5px">A class</tspan></text>
   </g>
+  <g
+     id="g4318"
+     transform="translate(-49.331385,23.628831)">
+    <g
+       transform="translate(338.99228,127.7081)"
+       id="g4702">
+      <ellipse
+         cx="52.973785"
+         cy="-89.762672"
+         rx="40.764301"
+         ry="17.981062"
+         id="ellipse245"
+         style="fill:#f3c9ff;fill-opacity:1;stroke:#000000;stroke-width:0.67242301" />
+      <text
+         x="52.973785"
+         y="-92.317871"
+         font-size="14.00"
+         id="text247"
+         style="font-size:9.41392231px;font-family:Times, serif;text-anchor:middle">com.xyz.</text>
+      <text
+         x="52.973785"
+         y="-82.231529"
+         font-size="14.00"
+         id="text249"
+         style="font-size:9.41392231px;font-family:Times, serif;text-anchor:middle">MyAnnotation</text>
+    </g>
+    <text
+       sodipodi:linespacing="125%"
+       id="text4757"
+       y="70.171028"
+       x="358.83667"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:10.14247513px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       xml:space="preserve"><tspan
+         y="70.171028"
+         x="358.83667"
+         id="tspan4759"
+         sodipodi:role="line"
+         style="font-size:9.5px">An annotation</tspan></text>
+  </g>
+  <g
+     id="g4871"
+     transform="translate(142.76701,97.193984)">
+    <polygon
+       transform="matrix(0.50403884,0,0,0.50403884,13.743214,134.32429)"
+       style="fill:#b6e7ff;fill-opacity:1;stroke:#000000;stroke-width:1.33481777;stroke-miterlimit:4;stroke-dasharray:none"
+       id="polygon222"
+       points="1.42109e-14,-336 86,-298 172,-336 86,-374 86,-374 " />
+    <text
+       style="font-size:9.41392231px;font-family:Times, serif;text-anchor:middle"
+       id="text224"
+       font-size="14.00"
+       y="-37.595474"
+       x="57.090557">com.xyz.</text>
+    <text
+       style="font-size:9.41392231px;font-family:Times, serif;text-anchor:middle"
+       id="text226"
+       font-size="14.00"
+       y="-27.509129"
+       x="57.090557">MyInterface</text>
+  </g>
+  <text
+     xml:space="preserve"
+     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:10.14247513px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+     x="171.10011"
+     y="94.41687"
+     id="text4753"
+     sodipodi:linespacing="125%"><tspan
+       style="font-size:9.5px"
+       sodipodi:role="line"
+       id="tspan4755"
+       x="171.10011"
+       y="94.41687">An interface</tspan></text>
+  <text
+     xml:space="preserve"
+     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:10.14247513px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+     x="141.35014"
+     y="24.828562"
+     id="text4761-7"
+     sodipodi:linespacing="125%"><tspan
+       sodipodi:role="line"
+       x="141.35014"
+       y="24.828562"
+       id="tspan4228-6"
+       style="font-weight:bold">Class Graph Legend:</tspan></text>
 </svg>
