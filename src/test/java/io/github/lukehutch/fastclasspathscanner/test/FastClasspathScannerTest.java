@@ -50,6 +50,7 @@ import io.github.lukehutch.fastclasspathscanner.test.whitelisted.HasFieldWithTyp
 import io.github.lukehutch.fastclasspathscanner.test.whitelisted.HasFieldWithTypeCls.HasFieldWithTypeCls4;
 import io.github.lukehutch.fastclasspathscanner.test.whitelisted.HasFieldWithTypeCls.HasFieldWithTypeCls5;
 import io.github.lukehutch.fastclasspathscanner.test.whitelisted.HasFieldWithTypeCls.HasFieldWithTypeCls6;
+import io.github.lukehutch.fastclasspathscanner.test.whitelisted.HasFieldWithTypeCls.HasFieldWithTypeCls7;
 import io.github.lukehutch.fastclasspathscanner.test.whitelisted.Iface;
 import io.github.lukehutch.fastclasspathscanner.test.whitelisted.IfaceSub;
 import io.github.lukehutch.fastclasspathscanner.test.whitelisted.IfaceSubSub;
@@ -302,6 +303,7 @@ public class FastClasspathScannerTest {
                 new FastClasspathScanner(ROOT_PACKAGE).scan().getNamesOfClassesWithFieldOfType(Cls.class.getName()))
                 .containsExactly(HasFieldWithTypeCls1.class.getName(), HasFieldWithTypeCls2.class.getName(),
                         HasFieldWithTypeCls3.class.getName(), HasFieldWithTypeCls4.class.getName(),
-                        HasFieldWithTypeCls5.class.getName(), HasFieldWithTypeCls6.class.getName());
+                        HasFieldWithTypeCls5.class.getName(), HasFieldWithTypeCls6.class.getName(),
+                        HasFieldWithTypeCls7.class.getName());
     }
 }

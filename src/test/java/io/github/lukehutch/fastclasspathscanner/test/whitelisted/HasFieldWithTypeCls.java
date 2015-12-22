@@ -27,4 +27,8 @@ public class HasFieldWithTypeCls {
     public static class HasFieldWithTypeCls6 {
         ArrayList<Cls>[] field;
     }
+
+    public static class HasFieldWithTypeCls7 {
+        ArrayList<? extends Cls> field;
+    }
 }
