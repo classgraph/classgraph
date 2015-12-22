@@ -3,7 +3,9 @@ FastClasspathScanner
 
 Uber-fast, ultra-lightweight classpath scanner for Java, Scala and other JVM languages.
 
-**What is classpath scanning?** Classpath scanning involves scanning directories and jar/zip files on the classpath to find files (especially classfiles) that meet certain criteria. In many ways, classpath scanning offers the *inverse of the Java reflection API:* the reflection API can tell you the superclass of a given class, but classpath scanning can find all classes that extend a given superclass. The Java reflection API can give you the list of annotations on a given class, but classpath scanning can find all classes that are annotated with a given annotation. Classpath scanning can also be used to produce a visualization of the class graph (the "class hierarchy"): [[see graph legend here]](#12-generate-a-graphviz-dot-file-from-the-classgraph)<a name="visualization"></a>
+**What is classpath scanning?** Classpath scanning involves scanning directories and jar/zip files on the classpath to find files (especially classfiles) that meet certain criteria. In many ways, classpath scanning offers the *inverse of the Java reflection API:* the reflection API can tell you the superclass of a given class, but classpath scanning can find all classes that extend a given superclass. The Java reflection API can give you the list of annotations on a given class, but classpath scanning can find all classes that are annotated with a given annotation.
+
+Classpath scanning can also be used to produce a visualization of the class graph (the "class hierarchy"). Class graph visualizations can be useful in understanding complex codebases, and for finding architectural design issues (e.g. in the graph visualization below, you can see that `ShapeImpl` only needs to implement `Shape`, not `Renderable`, because `Renderable` is already a superinterface of `Shape`). [[see graph legend here]](#12-generate-a-graphviz-dot-file-from-the-classgraph)<a name="visualization"></a>
 
 ![Class graph visualization](/src/test/java/com/xyz/classgraph-fig.png)
 
@@ -562,9 +564,9 @@ public List<File> getUniqueClasspathElements()
 
 ### 12. Generate a GraphViz dot file from the classgraph
 
-During scanning, the class graph (the connectivity between classes, interfaces and annotations) is determined for all whitelisted (non-blacklisted) packages. Class graph visualizations can be useful in understanding complex codebases, and for finding architectural design issues (e.g. in the graph visualization [above](#visualization), you can see that `ShapeImpl` only needs to implement `Shape`, not `Renderable`, because `Renderable` is already a superinterface of `Shape`).
+During scanning, the class graph (the connectivity between classes, interfaces and annotations) is determined for all whitelisted (non-blacklisted) packages. The class graph can [very simply](https://github.com/lukehutch/fast-classpath-scanner/blob/master/src/test/java/com/xyz/GenerateGraphvizDotFile.java) be turned into a [GraphViz](http://www.graphviz.org/) .dot file for visualization purposes, as shown [above](#visualization).
 
-Te class graph can [very simply](https://github.com/lukehutch/fast-classpath-scanner/blob/master/src/test/java/com/xyz/GenerateGraphvizDotFile.java) be turned into a [GraphViz](http://www.graphviz.org/) .dot file for visualization purposes. Call the following after `.scan()`, where the `sizeX` and `sizeY` params give the layout size in inches:
+Call the following after `.scan()`, where the `sizeX` and `sizeY` params give the layout size in inches:
 
 ```java
 public String generateClassGraphDotFile(float sizeX, float sizeY)
