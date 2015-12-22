@@ -9,7 +9,7 @@ Uber-fast, ultra-lightweight classpath scanner for Java, Scala and other JVM lan
 
 * The Java reflection API can tell you the superclass of a given class, but classpath scanning can find all classes that extend a given superclass.
 * The Java reflection API can give you the list of annotations on a given class, but classpath scanning can find all classes that are annotated with a given annotation.
-* etc. (many other variants are listed below).
+* etc. (Many other classpath scanning objectives are listed below.)
 
 Classpath scanning can also be used to produce a visualization of the class graph (the "class hierarchy"). Class graph visualizations can be useful in understanding complex codebases, and for finding architectural design issues (e.g. in the graph visualization below, you can see that `ShapeImpl` only needs to implement `Shape`, not `Renderable`, because `Renderable` is already a superinterface of `Shape`). [[see graph legend here]](#12-generate-a-graphviz-dot-file-from-the-classgraph)<a name="visualization"></a>
 
