@@ -498,7 +498,7 @@ public <T> FastClasspathScanner matchClassesWithFieldOfType(Class<T> fieldType,
 
 // Mechanism 2: Call the following after calling .scan():
 
-public List<String> getNamesOfClassesWithFieldOfType(<?> fieldType | String fieldTypeName)
+public List<String> getNamesOfClassesWithFieldOfType(Class<?> fieldType | String fieldTypeName)
 ```
 
 ### 8. Performing the actual scan
