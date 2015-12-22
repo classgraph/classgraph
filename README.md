@@ -467,7 +467,13 @@ public FastClasspathScanner matchFilenameExtension(String extensionToMatch,
 
 ### 7. Find all classes that contain a field of a given type
 
-One of the more unique capabilities of FastClasspathScanner is to find classes in the whitelisted (non-blacklisted) package hierarchy that have fields of a given type, assuming those fields are also whitelisted (non-blacklisted). This also matches type parameters and array types. For example, `.getNamesOfClassesWithFieldOfType("com.xyz.Widget")` will match classes that contain fields `Widget widget`, `Widget[] widgets`, `ArrayList<? extends Widget> widgetList`, `HashMap<String, Widget> idToWidget`, etc. (Note that both the field type and the class containing the field must be in a whitelisted (non-blacklisted) package for this to succeed.)
+One of the more unique capabilities of FastClasspathScanner is to find classes in the whitelisted (non-blacklisted) package hierarchy that have fields of a given type, assuming those fields are also whitelisted (non-blacklisted). This also matches type parameters and array types. For example, `.getNamesOfClassesWithFieldOfType("com.xyz.Widget")` will match classes that contain fields (note that both the field type and the class containing the field must be in a whitelisted (non-blacklisted) package for this to succeed):
+
+* `Widget widget`
+* `Widget[] widgets`
+* `ArrayList<? extends Widget> widgetList`
+* `HashMap<String, Widget> idToWidget`
+* etc.
 
 ```java
 // Mechanism 1: Attach a MatchProcessor before calling .scan():
@@ -651,7 +657,7 @@ public class Test {
 
 Note that `SubclassMatchProcessor<Widget<?>>` can now be properly parameterized to match the type of `widgetClassRef`, and no cast is needed in the function call `registerSubclass(widgetClass)`.
 
-(Also note that it is valid to replace all occurrences of the generic type parameter `<?>` with a concrete type parameer, e.g. `<Integer>`.) 
+(Also note that it is valid to replace all occurrences of the generic type parameter `<?>` with a concrete type parameter, e.g. `<Integer>`.) 
 
 ```java
 public static void main(String[] args) {
