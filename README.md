@@ -300,13 +300,19 @@ FastClassPathScanner can detect classes that have a specified annotation. This i
 
 FastClassPathScanner also allows you to detect **meta-annotations** (annotations that annotate annotations that annotate a class of interest). Java's reflection methods (e.g. `Class.getAnnotations()`) do not directly return meta-annotations, they only look one level back up the annotation graph. FastClasspathScanner follows the annotation graph, allowing you to scan for both annotations and meta-annotations using the same API. This allows for the use of multi-level annotations as a means of implementing "multiple inheritance" of annotated traits. (Compare with [@dblevins](https://github.com/dblevins)' [metatypes](https://github.com/dblevins/metatypes/).)
 
-Consider the following graph of classes (`A`..`C`) and annotations (`D`..`L`). Class `B` is annotated or meta-annotated by `J` and `F`; class `A` is annonated or meta-annotated by all the depicted annotations except for `G` (since all annotations but `G` can be reached along a directed path of annotations from `A`); and class `C` is only annotated by `G`. (Note that the meta-annotation graph can contain cycles, and these are handled appropriately by FastClasspathScanner by following the transitive closure of the directed annotation graph.) 
+Consider the graph of classes (`A`, `B` and `C`) and annotations (`D`..`L`):
 
 ![Meta-annotation graph](/src/test/java/com/xyz/meta-annotation-fig.png)
 
+* Class `B` is annotated by `F` and meta-annotated by `J`.
+* Class `A` is annonated or meta-annotated by all the depicted annotations except for `G` (since all annotations but `G` can be reached along a directed path of annotations from `A`)
+* Class `C` is only annotated by `G`.
+
+(Note that the meta-annotation graph can contain cycles, and these are handled appropriately by FastClasspathScanner by following the transitive closure of the directed annotation graph.) 
+
 You can scan for classes with a given annotation or meta-annotation by calling `.matchClassesWithAnnotation()` with a `ClassAnnotationMatchProcessor` parameter before calling `.scan()`, as shown below, or by calling `.getNamesOfClassesWithAnnotation(String annotationClassName)` or similar methods after calling `.scan()`.
 
-Aspects of this API that are worth pointing out:
+Properties of the annotation scanning API:
 
 1. The method `getNamesOfAnnotationsOnClass()`, called after `.scan()`, is analogous to `Class.getAnnotations()` in the Java reflections API, but it returns not just direct annotations on a class, but also meta-annotations that are in the transitive closure of the annotation graph, starting at the class of interest. The method `getNamesOfMetaAnnotationsOnAnnotation()` returns the transitive closure of the annotation graph starting at just an annotation of interest.
 2. The method `getNamesOfMetaAnnotationsOnAnnotation()` (which maps from annotation to meta-annotations) is the reverse of the mapping returned by `getNamesOfAnnotationsWithMetaAnnotation()` (which maps from meta-annotations to annotations).
