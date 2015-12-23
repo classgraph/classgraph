@@ -1,0 +1,39 @@
+digraph {
+size="9.2,8.0";
+layout=dot;
+rankdir="BT";
+overlap=false;
+splines=true;
+pack=true;
+
+node[shape=box,style=filled,fillcolor="#fff2b6"];
+  "com.xyz.meta.\nB"
+  "com.xyz.meta.\nA"
+  "com.xyz.meta.\nC"
+
+node[shape=diamond,style=filled,fillcolor="#b6e7ff"];
+
+node[shape=oval,style=filled,fillcolor="#f3c9ff"];
+  "com.xyz.meta.\nD"
+  "com.xyz.meta.\nF"
+  "com.xyz.meta.\nE"
+  "com.xyz.meta.\nH"
+  "com.xyz.meta.\nG"
+  "com.xyz.meta.\nJ"
+  "com.xyz.meta.\nI"
+  "com.xyz.meta.\nL"
+  "com.xyz.meta.\nK"
+
+  "com.xyz.meta.\nF" -> "com.xyz.meta.\nJ" [arrowhead=dot]
+  "com.xyz.meta.\nB" -> "com.xyz.meta.\nF" [arrowhead=dot]
+  "com.xyz.meta.\nA" -> "com.xyz.meta.\nF" [arrowhead=dot]
+  "com.xyz.meta.\nE" -> "com.xyz.meta.\nI" [arrowhead=dot]
+  "com.xyz.meta.\nE" -> "com.xyz.meta.\nJ" [arrowhead=dot]
+  "com.xyz.meta.\nA" -> "com.xyz.meta.\nE" [arrowhead=dot]
+  "com.xyz.meta.\nH" -> "com.xyz.meta.\nK" [arrowhead=dot]
+  "com.xyz.meta.\nH" -> "com.xyz.meta.\nI" [arrowhead=dot]
+  "com.xyz.meta.\nC" -> "com.xyz.meta.\nG" [arrowhead=dot]
+  "com.xyz.meta.\nI" -> "com.xyz.meta.\nL" [arrowhead=dot]
+  "com.xyz.meta.\nI" -> "com.xyz.meta.\nH" [arrowhead=dot]
+  "com.xyz.meta.\nK" -> "com.xyz.meta.\nD" [arrowhead=dot]
+}

@@ -26,15 +26,32 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.lukehutch.fastclasspathscanner.test.metaannotation;
+package com.xyz;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 
 import org.junit.Test;
 
-public class MetaAnnotationTest {
-    FastClasspathScanner scanner = new FastClasspathScanner(getClass().getPackage().getName()).scan();
+import com.xyz.meta.A;
+import com.xyz.meta.B;
+import com.xyz.meta.C;
+import com.xyz.meta.D;
+import com.xyz.meta.E;
+import com.xyz.meta.F;
+import com.xyz.meta.G;
+import com.xyz.meta.H;
+import com.xyz.meta.I;
+import com.xyz.meta.J;
+import com.xyz.meta.K;
+import com.xyz.meta.L;
+
+public class GenerateMetaAnnotationFigDotFile {
+    FastClasspathScanner scanner = new FastClasspathScanner("com.xyz.meta").scan();
+
+    public static void main(String[] args) {
+        System.out.println(new GenerateMetaAnnotationFigDotFile().scanner.generateClassGraphDotFile(9.2f, 8.0f));
+    }
 
     @Test
     public void oneLevel() {
@@ -60,10 +77,10 @@ public class MetaAnnotationTest {
     public void acrossCycle() {
         assertThat(scanner.getNamesOfClassesWithAnnotation(H.class)).containsOnly(A.class.getName());
         assertThat(scanner.getNamesOfClassesWithAnnotation(K.class)).containsOnly(A.class.getName());
-        assertThat(scanner.getNamesOfClassesWithAnnotation(M.class)).containsOnly(A.class.getName());
+        assertThat(scanner.getNamesOfClassesWithAnnotation(D.class)).containsOnly(A.class.getName());
         assertThat(scanner.getNamesOfAnnotationsOnClass(A.class)).containsOnly(E.class.getName(),
                 F.class.getName(), H.class.getName(), I.class.getName(), J.class.getName(), K.class.getName(),
-                L.class.getName(), M.class.getName());
+                L.class.getName(), D.class.getName());
     }
 
     @Test
@@ -71,7 +88,6 @@ public class MetaAnnotationTest {
         assertThat(scanner.getNamesOfAnnotationsOnClass(B.class))
                 .containsOnly(J.class.getName(), F.class.getName());
         assertThat(scanner.getNamesOfAnnotationsOnClass(C.class)).containsOnly(G.class.getName());
-        assertThat(scanner.getNamesOfAnnotationsOnClass(D.class)).isEmpty();
     }
 
     @Test

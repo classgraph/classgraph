@@ -298,9 +298,11 @@ public List<String> getNamesOfClassesImplementingAllOf(
 
 FastClassPathScanner can detect classes that have a specified **class annotation** or **class meta-annotation**. This is the inverse of the Java reflection API, which allows you to find the annotations on a given class, not the classes that have a given annotation.
 
-A **meta-annotation** is an annotation that annotates another annotation. If annotation `A` annotates annotation `B`, and annotation `B` annotates class `C`, then annotation `A` is also resolved by FastClasspathScanner as annotating class `C`. Note that Java's reflection methods (e.g. `Class.getAnnotations()`) do not directly return meta-annotations (they only look one level back up the annotation graph), but FastClasspathScanner's methods follow the transitive closure of annotations, so you can scan for both annotations and meta-annotations using the same API. This allows for multi-level "multiple inheritance" of annotated traits. (Compare with [@dblevins](https://github.com/dblevins)' [metatypes](https://github.com/dblevins/metatypes/).)
+A **meta-annotation** is an annotation that annotates another annotation. Note that Java's reflection methods (e.g. `Class.getAnnotations()`) do not directly return meta-annotations (they only look one level back up the annotation graph), but FastClasspathScanner allows you to scan for both annotations and meta-annotations using the same API. This allows for the use of multi-level annotations as a means of implementing "multiple inheritance" of annotated traits. (Compare with [@dblevins](https://github.com/dblevins)' [metatypes](https://github.com/dblevins/metatypes/).)
 
-(N.B. Cycles in the annotation graph are also handled by FastClasspathScanner: if annotation `A` annotates annotation `B`, and annotation `B` meta-annotates annotation `A` but also directly annotates class `C`, then annotatons `A` and `B` are both resolved by FastClasspathScanner as annotating class `C`, because class `C` is reachable along some directed path of annotations from both `A` and `B`.)
+Consider the following graph of classes (`A`..`C`) and annotations (`D`..`L`). Class `B` is annotated or meta-annotated by `J` and `F`; class `A` is annonated or meta-annotated by all the depicted annotations except for `G` (since all annotations but G can be reached along a directed edge from 'A'); and class `C` is only annotated by `G`. Note that the meta-annotation graph can contain cycles, and these are handled appropriately by FastClasspathScanner by following the transitive closure of the directed annotation graph. 
+
+![Meta-annotation graph](/src/test/java/com/xyz/meta-annotation-fig.png)
 
 You can scan for classes with a given annotation or meta-annotation by calling `.matchClassesWithAnnotation()` with a `ClassAnnotationMatchProcessor` parameter before calling `.scan()`. This method will call the classloader on each matching class (using `Class.forName()`) so that a class reference can be passed into the match processor. There are also methods `List<String> getNamesOfClassesWithAnnotation(String annotationClassName)` and `List<String> getNamesOfClassesWithAnnotation(Class<?> annotationClass)` that can be called after `.scan()` to return the names of the classes that have a given annotation (whether or not a corresponding match processor was added to detect this) without calling the classloader.
 
@@ -586,7 +588,7 @@ public List<File> getUniqueClasspathElements()
 
 ### 12. Generate a GraphViz dot file from the classgraph
 
-During scanning, the class graph (the connectivity between classes, interfaces and annotations) is determined for all whitelisted (non-blacklisted) packages. The class graph can [very simply](https://github.com/lukehutch/fast-classpath-scanner/blob/master/src/test/java/com/xyz/GenerateGraphvizDotFile.java) be turned into a [GraphViz](http://www.graphviz.org/) .dot file for visualization purposes, as shown [above](#visualization).
+During scanning, the class graph (the connectivity between classes, interfaces and annotations) is determined for all whitelisted (non-blacklisted) packages. The class graph can [very simply](https://github.com/lukehutch/fast-classpath-scanner/blob/master/src/test/java/com/xyz/GenerateClassGraphFigDotFile.java) be turned into a [GraphViz](http://www.graphviz.org/) .dot file for visualization purposes, as shown [above](#visualization).
 
 Call the following after `.scan()`, where the `sizeX` and `sizeY` params give the layout size in inches:
 
@@ -602,7 +604,7 @@ dot -Tsvg < graph.dot > graph.svg
 
 or similar, generating a graph with the following conventions:
 
-![Class graph visualization](/src/test/java/com/xyz/classgraph-fig-legend.png)
+![Class graph figure legend](/src/test/java/com/xyz/classgraph-fig-legend.png)
 
 **Note:** Graph nodes will only be added for classes, interfaces and annotations that are within whitelisted (non-blacklisted) packages. In particular, the Java standard libraries are excluded from classpath scanning for efficiency, so these classes will never appear in class graph visualizations.
 
