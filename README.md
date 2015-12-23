@@ -302,7 +302,7 @@ FastClassPathScanner can detect classes that have a specified annotation. This i
 
 FastClassPathScanner also allows you to detect **meta-annotations** (annotations that annotate annotations that annotate a class of interest). Java's reflection methods (e.g. `Class.getAnnotations()`) do not directly return meta-annotations, they only look one level back up the annotation graph. FastClasspathScanner follows the annotation graph, allowing you to scan for both annotations and meta-annotations using the same API. This allows for the use of multi-level annotations as a means of implementing "multiple inheritance" of annotated traits. (Compare with [@dblevins](https://github.com/dblevins)' [metatypes](https://github.com/dblevins/metatypes/).)
 
-Consider this graph of classes (`A`, `B` and `C`) and annotations (`D`..`L`):
+Consider this graph of classes (`A`, `B` and `C`) and annotations (`D`..`L`): [[see graph legend here]](#12-generate-a-graphviz-dot-file-from-the-classgraph)<a name="visualization"></a>
 
 <p align="center">
   <img src="https://github.com/lukehutch/fast-classpath-scanner/blob/master/src/test/java/com/xyz/meta-annotation-fig.png" alt="Meta-annotation graph"/>
