@@ -54,8 +54,8 @@
      fit-margin-right="0"
      fit-margin-bottom="0"
      inkscape:zoom="1.5256566"
-     inkscape:cx="220.7143"
-     inkscape:cy="279.8496"
+     inkscape:cx="102.40458"
+     inkscape:cy="278.53869"
      inkscape:window-x="0"
      inkscape:window-y="0"
      inkscape:window-maximized="1"
@@ -86,7 +86,7 @@
        id="text16"
        font-size="14.00"
        y="-7.8000002"
-       x="69.296501">B</text>
+       x="69.296501">A</text>
   </g>
   <g
      class="node"
@@ -153,7 +153,7 @@
        id="text41"
        font-size="14.00"
        y="-7.8000002"
-       x="205.29601">A</text>
+       x="205.29601">B</text>
   </g>
   <g
      class="edge"
