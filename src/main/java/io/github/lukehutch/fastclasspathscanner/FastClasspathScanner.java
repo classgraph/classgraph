@@ -152,9 +152,9 @@ public class FastClasspathScanner {
         if (scanSpec.length == 0 || (scanSpec.length == 1 && scanSpec[0].isEmpty())) {
             // If scanning all packages, blacklist Java types (they are always excluded from scanning,
             // but may occur as the type of a field)
-            blacklistClassRefPrefix.add("Ljava.");
-            blacklistClassRefPrefix.add("Ljavax.");
-            blacklistClassRefPrefix.add("Lsun.");
+            blacklistClassRefPrefix.add("java/");
+            blacklistClassRefPrefix.add("javax/");
+            blacklistClassRefPrefix.add("sun/");
         } else {
             for (final String spec : scanSpec) {
                 if (!(spec.startsWith("jar:") || spec.startsWith("-jar:"))) {
