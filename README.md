@@ -13,7 +13,9 @@ FastClasspathScanner is an uber-fast, ultra-lightweight classpath scanner for Ja
 
 Classpath scanning can also be used to produce a visualization of the class graph (the "class hierarchy"). Class graph visualizations can be useful in understanding complex codebases, and for finding architectural design issues (e.g. in the graph visualization below, you can see that `ShapeImpl` only needs to implement `Shape`, not `Renderable`, because `Renderable` is already a superinterface of `Shape`). [[see graph legend here]](#12-generate-a-graphviz-dot-file-from-the-classgraph)<a name="visualization"></a>
 
-![Class graph visualization](/src/test/java/com/xyz/classgraph-fig.png)
+<p align="center">
+  <img src="https://github.com/lukehutch/fast-classpath-scanner/blob/master/src/test/java/com/xyz/classgraph-fig.png" alt="Class graph visualization"/>
+</p>
 
 **FastClasspathScanner is able to:**
 
@@ -300,9 +302,11 @@ FastClassPathScanner can detect classes that have a specified annotation. This i
 
 FastClassPathScanner also allows you to detect **meta-annotations** (annotations that annotate annotations that annotate a class of interest). Java's reflection methods (e.g. `Class.getAnnotations()`) do not directly return meta-annotations, they only look one level back up the annotation graph. FastClasspathScanner follows the annotation graph, allowing you to scan for both annotations and meta-annotations using the same API. This allows for the use of multi-level annotations as a means of implementing "multiple inheritance" of annotated traits. (Compare with [@dblevins](https://github.com/dblevins)' [metatypes](https://github.com/dblevins/metatypes/).)
 
-Consider the graph of classes (`A`, `B` and `C`) and annotations (`D`..`L`):
+Consider this graph of classes (`A`, `B` and `C`) and annotations (`D`..`L`):
 
-![Meta-annotation graph](/src/test/java/com/xyz/meta-annotation-fig.png)
+<p align="center">
+  <img src="https://github.com/lukehutch/fast-classpath-scanner/blob/master/src/test/java/com/xyz/meta-annotation-fig.png" alt="Meta-annotation graph"/>
+</p>
 
 * Class `B` is annotated by `F` and meta-annotated by `J`.
 * Class `A` is annonated or meta-annotated by all the depicted annotations except for `G` (since all annotations but `G` can be reached along a directed path of annotations from `A`)
@@ -310,7 +314,7 @@ Consider the graph of classes (`A`, `B` and `C`) and annotations (`D`..`L`):
 
 (Note that the meta-annotation graph can contain cycles, and these are handled appropriately by FastClasspathScanner by following the transitive closure of the directed annotation graph.) 
 
-You can scan for classes with a given annotation or meta-annotation by calling `.matchClassesWithAnnotation()` with a `ClassAnnotationMatchProcessor` parameter before calling `.scan()`, as shown below, or by calling `.getNamesOfClassesWithAnnotation(String annotationClassName)` or similar methods after calling `.scan()`.
+You can scan for classes with a given annotation or meta-annotation by calling `.matchClassesWithAnnotation()` with a `ClassAnnotationMatchProcessor` parameter before calling `.scan()`, as shown below, or by calling `.getNamesOfClassesWithAnnotation()` or similar methods after calling `.scan()`.
 
 Properties of the annotation scanning API:
 
@@ -611,7 +615,9 @@ dot -Tsvg < graph.dot > graph.svg
 
 or similar, generating a graph with the following conventions:
 
-![Class graph figure legend](/src/test/java/com/xyz/classgraph-fig-legend.png)
+<p align="center">
+  <img src="https://github.com/lukehutch/fast-classpath-scanner/blob/master/src/test/java/com/xyz/classgraph-fig-legend.png" alt="Class graph legend"/>
+</p>
 
 **Note:** Graph nodes will only be added for classes, interfaces and annotations that are within whitelisted (non-blacklisted) packages. In particular, the Java standard libraries are excluded from classpath scanning for efficiency, so these classes will never appear in class graph visualizations.
 
