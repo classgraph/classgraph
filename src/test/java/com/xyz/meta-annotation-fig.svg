@@ -19,7 +19,7 @@
    version="1.1"
    inkscape:version="0.91 r13725"
    sodipodi:docname="meta-annotation-fig.svg"
-   inkscape:export-filename="/home/luke/Work/fast-classpath-scanner.repo/src/test/java/com/xyz/meta-annotation-fig.svg.png"
+   inkscape:export-filename="/home/luke/Work/fast-classpath-scanner.repo/src/test/java/com/xyz/meta-annotation-fig.png"
    inkscape:export-xdpi="93.559998"
    inkscape:export-ydpi="93.559998">
   <metadata
@@ -30,7 +30,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -54,8 +54,8 @@
      fit-margin-right="0"
      fit-margin-bottom="0"
      inkscape:zoom="1.5256566"
-     inkscape:cx="339.02402"
-     inkscape:cy="281.16051"
+     inkscape:cx="220.7143"
+     inkscape:cy="279.8496"
      inkscape:window-x="0"
      inkscape:window-y="0"
      inkscape:window-maximized="1"
