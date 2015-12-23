@@ -308,8 +308,8 @@ Consider this graph of classes (`A`, `B` and `C`) and annotations (`D`..`L`):
   <img src="https://github.com/lukehutch/fast-classpath-scanner/blob/master/src/test/java/com/xyz/meta-annotation-fig.png" alt="Meta-annotation graph"/>
 </p>
 
-* Class `B` is annotated by `F` and meta-annotated by `J`.
-* Class `A` is annonated or meta-annotated by all the depicted annotations except for `G` (since all annotations but `G` can be reached along a directed path of annotations from `A`)
+* Class `A` is annotated by `F` and meta-annotated by `J`.
+* Class `B` is annonated or meta-annotated by all the depicted annotations except for `G` (since all annotations but `G` can be reached along a directed path of annotations from `B`)
 * Class `C` is only annotated by `G`.
 
 (Note that the meta-annotation graph can contain cycles, and these are handled appropriately by FastClasspathScanner by following the transitive closure of the directed annotation graph.) 

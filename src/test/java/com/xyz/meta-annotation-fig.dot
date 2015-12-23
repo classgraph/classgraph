@@ -7,8 +7,8 @@ splines=true;
 pack=true;
 
 node[shape=box,style=filled,fillcolor="#fff2b6"];
-  "com.xyz.meta.\nB"
   "com.xyz.meta.\nA"
+  "com.xyz.meta.\nB"
   "com.xyz.meta.\nC"
 
 node[shape=diamond,style=filled,fillcolor="#b6e7ff"];
@@ -25,11 +25,11 @@ node[shape=oval,style=filled,fillcolor="#f3c9ff"];
   "com.xyz.meta.\nK"
 
   "com.xyz.meta.\nF" -> "com.xyz.meta.\nJ" [arrowhead=dot]
-  "com.xyz.meta.\nB" -> "com.xyz.meta.\nF" [arrowhead=dot]
   "com.xyz.meta.\nA" -> "com.xyz.meta.\nF" [arrowhead=dot]
+  "com.xyz.meta.\nB" -> "com.xyz.meta.\nF" [arrowhead=dot]
   "com.xyz.meta.\nE" -> "com.xyz.meta.\nI" [arrowhead=dot]
   "com.xyz.meta.\nE" -> "com.xyz.meta.\nJ" [arrowhead=dot]
-  "com.xyz.meta.\nA" -> "com.xyz.meta.\nE" [arrowhead=dot]
+  "com.xyz.meta.\nB" -> "com.xyz.meta.\nE" [arrowhead=dot]
   "com.xyz.meta.\nH" -> "com.xyz.meta.\nK" [arrowhead=dot]
   "com.xyz.meta.\nH" -> "com.xyz.meta.\nI" [arrowhead=dot]
   "com.xyz.meta.\nC" -> "com.xyz.meta.\nG" [arrowhead=dot]
