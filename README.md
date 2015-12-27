@@ -1,7 +1,7 @@
 FastClasspathScanner
 ====================
 
-[[Link to main repo, in case you're looking at a fork.]](https://github.com/lukehutch/fast-classpath-scanner)
+(The main repo is [here](https://github.com/lukehutch/fast-classpath-scanner), in case this is a GitHub fork.)
 
 FastClasspathScanner is an uber-fast, ultra-lightweight classpath scanner for Java, Scala and other JVM languages.
 
