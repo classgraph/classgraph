@@ -1,9 +1,9 @@
 FastClasspathScanner
 ====================
 
-(The main repo is [here](https://github.com/lukehutch/fast-classpath-scanner), in case this is a GitHub fork.)
-
 FastClasspathScanner is an uber-fast, ultra-lightweight classpath scanner for Java, Scala and other JVM languages.
+
+(The main repo is [here](https://github.com/lukehutch/fast-classpath-scanner), in case this is a GitHub fork.)
 
 **What is classpath scanning?** Classpath scanning involves scanning directories and jar/zip files on the classpath to find files (especially classfiles) that meet certain criteria. In many ways, classpath scanning offers the *inverse of the Java reflection API:*
 
