@@ -319,9 +319,9 @@ You can scan for classes with a given annotation or meta-annotation by calling `
 Properties of the annotation scanning API:
 
 1. The method `getNamesOfAnnotationsOnClass()`, called after `.scan()`, is analogous to `Class.getAnnotations()` in the Java reflections API, but it returns not just direct annotations on a class, but also meta-annotations that are in the transitive closure of the annotation graph, starting at the class of interest. The method `getNamesOfMetaAnnotationsOnAnnotation()` returns the transitive closure of the annotation graph starting at just an annotation of interest.
-2. The method `getNamesOfMetaAnnotationsOnAnnotation()` (which maps from annotation to meta-annotations) is the reverse of the mapping returned by `getNamesOfAnnotationsWithMetaAnnotation()` (which maps from meta-annotations to annotations).
+2. There are convenience methods for matching classes that have **AnyOf** a given list of annotations/meta-annotations (an **OR** operator), and methods for matching classes that have **AllOf** a given list of annotations/meta-annotations (an **AND** operator). 
 3. The method `getNamesOfAnnotationsOnClass()` (which maps from class to annotation/meta-annotations) is the reverse of the mapping returned by `getNamesOfClassesWithAnnotation()` (which maps from annotation/meta-annotation to classes).
-3. There are additional convenience methods for matching classes that have **AnyOf** a given list of annotations (an **OR** operator), and methods for matching classes that have **AllOf** a given list of annotations (an **AND** operator). 
+4. The method `getNamesOfMetaAnnotationsOnAnnotation()` (which maps from annotation to meta-annotations) is the reverse of the mapping returned by `getNamesOfAnnotationsWithMetaAnnotation()` (which maps from meta-annotations to annotations).
 
 ```java
 // Mechanism 1: Attach a MatchProcessor before calling .scan():
