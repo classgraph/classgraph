@@ -1,7 +1,7 @@
 /*
  * This file is part of FastClasspathScanner.
  * 
- * Author: Luke Hutchison <luke .dot. hutch .at. gmail .dot. com>
+ * Author: Luke Hutchison
  * 
  * Hosted at: https://github.com/lukehutch/fast-classpath-scanner
  * 
@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2015 Luke Hutchison
+ * Copyright (c) 2016 Luke Hutchison
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without

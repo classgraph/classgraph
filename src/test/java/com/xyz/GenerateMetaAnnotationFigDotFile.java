@@ -1,7 +1,7 @@
 /*
  * This file is part of FastClasspathScanner.
  * 
- * Author: Luke Hutchison <luke .dot. hutch .at. gmail .dot. com>
+ * Author: Luke Hutchison
  * 
  * Hosted at: https://github.com/lukehutch/fast-classpath-scanner
  * 
@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2015 Luke Hutchison
+ * Copyright (c) 2016 Luke Hutchison
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -33,8 +33,8 @@ import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 
 import org.junit.Test;
 
-import com.xyz.meta.B;
 import com.xyz.meta.A;
+import com.xyz.meta.B;
 import com.xyz.meta.C;
 import com.xyz.meta.D;
 import com.xyz.meta.E;
@@ -49,7 +49,7 @@ import com.xyz.meta.L;
 public class GenerateMetaAnnotationFigDotFile {
     FastClasspathScanner scanner = new FastClasspathScanner("com.xyz.meta").scan();
 
-    public static void main(String[] args) {
+    public static void main(final String[] args) {
         System.out.println(new GenerateMetaAnnotationFigDotFile().scanner.generateClassGraphDotFile(9.2f, 8.0f));
     }
 
