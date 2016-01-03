@@ -168,7 +168,7 @@ new FastClasspathScanner("com.xyz.widget")
 FastClasspathScanner handles a number of classpath specification mechanisms, including some non-standard ClassLoader implementations:
 * The `java.class.path` system property, supporting specification of the classpath using the `-cp` JRE commandline switch.
 * The standard Java `URLClassLoader`, and both standard and custom subclasses. (Some runtime environments override URLClassLoader for their own purposes, but do not set `java.class.path` -- FastClasspathScanner fetches classpath URLs from all visible URLClassLoaders.)
-* [Class-Path references](https://docs.oracle.com/javase/tutorial/deployment/jar/downman.html) in a jarfile's `META-INF/MANIFEST.MF`, whereby jarfiles may add other external jarfiles to their own classpaths. FastClasspathScanner is able to follow the transitive closure of these references, breaking cycles if necessary.
+* [Class-Path references](https://docs.oracle.com/javase/tutorial/deployment/jar/downman.html) in a jarfile's `META-INF/MANIFEST.MF`, whereby jarfiles may add other external jarfiles to their own classpaths. FastClasspathScanner is able to determine the transitive closure of these references, breaking cycles if necessary.
 * The JBoss/WildFly custom classloader mechanism.
 * The WebLogic custom classloader mechanism.
 * Eventually, the Java 9 module system [work has not started on this yet -- patches are welcome].
@@ -311,7 +311,7 @@ Consider this graph of classes (`A`, `B` and `C`) and annotations (`D`..`L`): [[
 * Class `A` is annotated by `F` and meta-annotated by `J`.
 * Class `B` is annonated or meta-annotated by all the depicted annotations except for `G` (since all annotations but `G` can be reached along a directed path of annotations from `B`)
 * Class `C` is only annotated by `G`.
-* Note that the annotation graph can contain cycles: here, `H` annotates `I` and `I` annotates `H`. These are handled appropriately by FastClasspathScanner by following the transitive closure of the directed annotation graph.
+* Note that the annotation graph can contain cycles: here, `H` annotates `I` and `I` annotates `H`. These are handled appropriately by FastClasspathScanner by determining the transitive closure of the directed annotation graph.
 
 You can scan for classes with a given annotation or meta-annotation by calling `.matchClassesWithAnnotation()` with a `ClassAnnotationMatchProcessor` parameter before calling `.scan()`, as shown below, or by calling `.getNamesOfClassesWithAnnotation()` or similar methods after calling `.scan()`.
 
@@ -361,7 +361,7 @@ Properties of the annotation scanning API:
 
 1. There are convenience methods for matching classes that have **AnyOf** a given list of annotations/meta-annotations (an **OR** operator), and methods for matching classes that have **AllOf** a given list of annotations/meta-annotations (an **AND** operator). 
 2. The method `getNamesOfClassesWithAnnotation()` (which maps from an annotation/meta-annotation to classes it annotates/meta-annotates) is the inverse of the method `getNamesOfAnnotationsOnClass()` (which maps from a class to annotations/meta-annotations on the class; this is related to `Class.getAnnotations()` in the Java reflections API, but it returns not just direct annotations on a class, but also meta-annotations that are in the transitive closure of the annotation graph, starting at the class of interest).
-3. The method `getNamesOfAnnotationsWithMetaAnnotation()` (which maps from meta-annotations to annotations they meta-annotate) is the inverse of the method `getNamesOfMetaAnnotationsOnAnnotation()` (which maps from annotations to the meta-annotations that annotate them; this also follows the transitive closure of the annotation graph, starting at an annotation of interest).
+3. The method `getNamesOfAnnotationsWithMetaAnnotation()` (which maps from meta-annotations to annotations they meta-annotate) is the inverse of the method `getNamesOfMetaAnnotationsOnAnnotation()` (which maps from annotations to the meta-annotations that annotate them; this also retuns the transitive closure of the annotation graph, starting at an annotation of interest).
 
 ### 5. Fetching the constant initializer values of static final fields
 
