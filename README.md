@@ -365,7 +365,7 @@ Properties of the annotation scanning API:
 
 ### 5. Fetching the constant initializer values of static final fields
 
-FastClassPathScanner is able to scan the classpath for matching fully-qualified static final fields, e.g. for the fully-qualified field name "com.xyz.Config.POLL_INTERVAL", FastClassPathScanner will look in the class com.xyz.Config for the static final field POLL_INTERVAL, and if it is found, and if it has a constant literal initializer value, that value will be read directly from the classfile and passed into a provided StaticFinalFieldMatchProcessor.
+FastClassPathScanner is able to scan the classpath for matching fully-qualified static final fields, e.g. for the fully-qualified field name `com.xyz.Config.POLL_INTERVAL`, FastClassPathScanner will look in the class `com.xyz.Config` for the static final field `POLL_INTERVAL`, and if it is found, and if it has a constant literal initializer value, that value will be read directly from the classfile and passed into a provided `StaticFinalFieldMatchProcessor`.
 
 Field values are obtained directly from the constant pool in a classfile, not from a loaded class using reflection. This allows you to detect changes to the classpath and then run another scan that picks up the new values of selected static constants without reloading the class. [(Class reloading is fraught with issues.)](http://tutorials.jenkov.com/java-reflection/dynamic-class-loading-reloading.html)
 
