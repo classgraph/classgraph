@@ -67,6 +67,12 @@ public class FastClasspathScanner {
     /** The classpath finder. */
     private final ClasspathFinder classpathFinder = new ClasspathFinder();
 
+    /** Whitelisted package prefixes with "." appended, or the empty list if all packages are whitelisted. */
+    private final ArrayList<String> whitelistedPackagePrefixes = new ArrayList<>();
+
+    /** Blacklisted package prefixes with "." appended. */
+    private final ArrayList<String> blacklistedPackagePrefixes = new ArrayList<>();
+
     /** The class that recursively scans the classpath. */
     private final RecursiveScanner recursiveScanner;
 
@@ -159,9 +165,16 @@ public class FastClasspathScanner {
             for (final String spec : scanSpec) {
                 if (!(spec.startsWith("jar:") || spec.startsWith("-jar:"))) {
                     if (spec.startsWith("-")) {
-                        final String descriptor = spec.substring(1).replace('.', '/') + "/";
+                        String pkgPrefix = spec.substring(1);
+                        if (!pkgPrefix.isEmpty()) {
+                            blacklistedPackagePrefixes.add(pkgPrefix + ".");
+                        }
+                        final String descriptor = pkgPrefix.replace('.', '/') + "/";
                         blacklistClassRefPrefix.add(descriptor);
                     } else {
+                        if (!spec.isEmpty()) {
+                            whitelistedPackagePrefixes.add(spec + ".");
+                        }
                         final String descriptor = spec.replace('.', '/') + "/";
                         whitelistClassRefPrefix.add(descriptor);
                     }
@@ -223,21 +236,47 @@ public class FastClasspathScanner {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Check a class is an annotation (throws an IllegalArgumentException if not), and return the name of the
-     * annotation.
+     * Checks that the named class is in a whitelisted (non-blacklisted) package. Throws IllegalArgumentException
+     * otherwise.
      */
-    private static String annotationName(final Class<?> annotation) {
+    private void checkClassNameIsInWhitelistedPackage(String className) {
+        boolean isWhitelisted = whitelistedPackagePrefixes.isEmpty();
+        for (String pkgPrefix : whitelistedPackagePrefixes) {
+            if (className.startsWith(pkgPrefix)) {
+                isWhitelisted = true;
+                break;
+            }
+        }
+        boolean isBlacklisted = false;
+        for (String pkgPrefix : blacklistedPackagePrefixes) {
+            if (className.startsWith(pkgPrefix)) {
+                isBlacklisted = true;
+                break;
+            }
+        }
+        if (!isWhitelisted || isBlacklisted) {
+            throw new IllegalArgumentException(className + " is not in a whitelisted (non-blacklisted) package");
+        }
+    }
+
+    /**
+     * Check a class is an annotation, and that it is in a whitelisted package. Throws IllegalArgumentException
+     * otherwise. Returns the name of the annotation.
+     */
+    private String annotationName(final Class<?> annotation) {
+        String annotationName = annotation.getName();
+        checkClassNameIsInWhitelistedPackage(annotationName);
         if (!annotation.isAnnotation()) {
-            throw new IllegalArgumentException("Class " + annotation.getName() + " is not an annotation");
+            throw new IllegalArgumentException(annotationName + " is not an annotation");
         }
         return annotation.getName();
     }
 
     /**
-     * Check each element of an array of classes is an annotation (throws an IllegalArgumentException if not), and
-     * return the names of the classes as an array of strings.
+     * Check each element of an array of classes is an annotation, and that it is in a whitelisted package. Throws
+     * IllegalArgumentException otherwise. Returns the names of the classes as an array of strings.
      */
-    private static String[] annotationNames(final Class<?>[] annotations) {
+    private String[] annotationNames(final Class<?>[] annotations) {
         final String[] annotationNames = new String[annotations.length];
         for (int i = 0; i < annotations.length; i++) {
             annotationNames[i] = annotationName(annotations[i]);
@@ -246,21 +285,23 @@ public class FastClasspathScanner {
     }
 
     /**
-     * Check a class is an interface (throws an IllegalArgumentException if not), and return the name of the
-     * interface.
+     * Check a class is an interface, and that it is in a whitelisted package. Throws IllegalArgumentException
+     * otherwise. Returns the name of the interface.
      */
-    private static String interfaceName(final Class<?> iface) {
+    private String interfaceName(final Class<?> iface) {
+        String ifaceName = iface.getName();
+        checkClassNameIsInWhitelistedPackage(ifaceName);
         if (!iface.isInterface()) {
-            throw new IllegalArgumentException("Class " + iface.getName() + " is not an interface");
+            throw new IllegalArgumentException(ifaceName + " is not an interface");
         }
         return iface.getName();
     }
 
     /**
-     * Check each element of an array of classes is an interface (throws an IllegalArgumentException if not), and
-     * return the names of the classes as an array of strings.
+     * Check each element of an array of classes is an interface, and that it is in a whitelisted package. Throws
+     * IllegalArgumentException otherwise. Returns the names of the classes as an array of strings.
      */
-    private static String[] interfaceNames(final Class<?>[] interfaces) {
+    private String[] interfaceNames(final Class<?>[] interfaces) {
         final String[] interfaceNames = new String[interfaces.length];
         for (int i = 0; i < interfaces.length; i++) {
             interfaceNames[i] = interfaceName(interfaces[i]);
@@ -269,28 +310,43 @@ public class FastClasspathScanner {
     }
 
     /**
-     * Check a class is a regular class or interface (not an annotation -- throws an IllegalArgumentException
-     * otherwise), and return the name of the class or interface.
+     * Check a class is a regular class or interface and not an annotation, and that it is in a whitelisted package.
+     * Throws IllegalArgumentException otherwise. Returns the name of the class or interface.
      */
-    private static String classOrInterfaceName(final Class<?> classOrInterface) {
+    private String classOrInterfaceName(final Class<?> classOrInterface) {
+        String classOrIfaceName = classOrInterface.getName();
+        checkClassNameIsInWhitelistedPackage(classOrIfaceName);
         if (classOrInterface.isAnnotation()) {
-            throw new IllegalArgumentException(classOrInterface.getName()
+            throw new IllegalArgumentException(classOrIfaceName
                     + " is an annotation, not a regular class or interface");
         }
         return classOrInterface.getName();
     }
 
     /**
-     * Check a class is a standard class (not an interface or annotation). Returns the name of the class if it is a
-     * standard class, otherwise throws an IllegalArgumentException.
+     * Check a class is a standard class (not an interface or annotation), and that it is in a whitelisted package.
+     * Returns the name of the class if it is a standard class and it is in a whitelisted package, otherwise throws
+     * an IllegalArgumentException.
      */
-    private static String standardClassName(final Class<?> cls) {
+    private String standardClassName(final Class<?> cls) {
+        String className = cls.getName();
+        checkClassNameIsInWhitelistedPackage(className);
         if (cls.isAnnotation()) {
-            throw new IllegalArgumentException(cls.getName() + " is an annotation, not a standard class");
+            throw new IllegalArgumentException(className + " is an annotation, not a standard class");
         } else if (cls.isInterface()) {
             throw new IllegalArgumentException(cls.getName() + " is an interface, not a standard class");
         }
-        return cls.getName();
+        return className;
+    }
+
+    /**
+     * Check a class is in a whitelisted package. Returns the name of the class if it is in a whitelisted package,
+     * otherwise throws an IllegalArgumentException.
+     */
+    private String className(final Class<?> cls) {
+        String className = cls.getName();
+        checkClassNameIsInWhitelistedPackage(className);
+        return className;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -727,9 +783,10 @@ public class FastClasspathScanner {
         classMatchers.add(new ClassMatcher() {
             @Override
             public void lookForMatches() {
-                for (final String klass : getNamesOfClassesWithFieldOfType(fieldType.getName())) {
+                String fieldTypeName = className(fieldType);
+                for (final String klass : getNamesOfClassesWithFieldOfType(fieldTypeName)) {
                     if (verbose) {
-                        Log.log("Found class with field of type " + fieldType.getName() + ": " + klass);
+                        Log.log("Found class with field of type " + fieldTypeName + ": " + klass);
                     }
                     // Call classloader
                     final Class<? extends T> cls = loadClass(klass);
@@ -758,7 +815,9 @@ public class FastClasspathScanner {
      * declared in a package that is whitelisted (and not blacklisted).
      */
     public List<String> getNamesOfClassesWithFieldOfType(final Class<?> fieldType) {
-        return getScanResults().getNamesOfClassesWithFieldOfType(fieldType.getName());
+        String fieldTypeName = fieldType.getName();
+        checkClassNameIsInWhitelistedPackage(fieldTypeName);
+        return getScanResults().getNamesOfClassesWithFieldOfType(fieldTypeName);
     }
 
     // -------------------------------------------------------------------------------------------------------------

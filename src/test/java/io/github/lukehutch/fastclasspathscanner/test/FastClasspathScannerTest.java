@@ -183,7 +183,16 @@ public class FastClasspathScannerTest {
     }
 
     @Test
-    public void testNotVisibleIfNotWhitelisted() throws Exception {
+    public void testWhitelistedWithoutException() throws Exception {
+        final FastClasspathScanner scanner = new FastClasspathScanner(WHITELIST_PACKAGE).scan();
+        assertThat(scanner.getNamesOfSuperclassesOf(Whitelisted.class)).isEmpty();
+        assertThat(scanner.getNamesOfSubclassesOf(Whitelisted.class)).isEmpty();
+        assertThat(scanner.getNamesOfSuperinterfacesOf(WhitelistedInterface.class)).isEmpty();
+        assertThat(scanner.getNamesOfSubinterfacesOf(WhitelistedInterface.class)).isEmpty();
+    }
+
+    @Test(expected=IllegalArgumentException.class)
+    public void testExceptionIfNotWhitelisted() throws Exception {
         final FastClasspathScanner scanner = new FastClasspathScanner(WHITELIST_PACKAGE).scan();
         assertThat(scanner.getNamesOfSuperclassesOf(Whitelisted.class)).isEmpty();
         assertThat(scanner.getNamesOfSubclassesOf(Whitelisted.class)).isEmpty();
@@ -193,14 +202,24 @@ public class FastClasspathScannerTest {
     }
 
     @Test
-    public void testNotVisibleIfBlacklisted() throws Exception {
+    public void testBlacklistedWithoutException() throws Exception {
         final FastClasspathScanner scanner = new FastClasspathScanner(ROOT_PACKAGE, "-"
                 + BlacklistedSuperclass.class.getPackage().getName()).scan();
         assertThat(scanner.getNamesOfSuperclassesOf(Whitelisted.class)).isEmpty();
         assertThat(scanner.getNamesOfSubclassesOf(Whitelisted.class)).isEmpty();
         assertThat(scanner.getNamesOfSuperinterfacesOf(WhitelistedInterface.class)).isEmpty();
         assertThat(scanner.getNamesOfSubinterfacesOf(WhitelistedInterface.class)).isEmpty();
-        assertThat(scanner.getNamesOfClassesWithAnnotation(BlacklistedAnnotation.class)).isEmpty();
+    }
+
+    @Test(expected=IllegalArgumentException.class)
+    public void testExceptionIfBlacklisted() throws Exception {
+        final FastClasspathScanner scanner = new FastClasspathScanner(ROOT_PACKAGE, "-"
+                + BlacklistedSuperclass.class.getPackage().getName()).scan();
+        assertThat(scanner.getNamesOfSuperclassesOf(Whitelisted.class)).isEmpty();
+        assertThat(scanner.getNamesOfSubclassesOf(Whitelisted.class)).isEmpty();
+        assertThat(scanner.getNamesOfSuperinterfacesOf(WhitelistedInterface.class)).isEmpty();
+        assertThat(scanner.getNamesOfSubinterfacesOf(WhitelistedInterface.class)).isEmpty();
+        assertThat(scanner.getNamesOfClassesWithAnnotation(BlacklistedAnnotation.class));
     }
 
     @Test
