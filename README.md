@@ -209,7 +209,7 @@ The constructor accepts a list of whitelisted package prefixes / jar names to sc
 * If you call a method like `.getAllSuperclassesOf("com.xyz.MySuperclass")` or `.getNamesOfClassesWithAnnotation("com.xyz.MyAnnotation")`, and `"com.xyz"` is not listed as a whitelisted package in the constructor, FastClasspathScanner will throw `IllegalArgumentException`.
 * For efficiency, system, bootstrap and extension jarfiles like `rt.jar` (i.e. the jarfiles distributed with the JRE) are always blacklisted, i.e. they are never scanned. If you put custom classes into the `lib/ext` directory in your JRE folder (which is a valid but rare way of adding jarfiles to the classpath), they will be ignored by association with the JRE.
 
-## Detecting annotations, superclasses and implemented interfaces outside of whitelisted packages:
+## Detecting annotations, superclasses and implemented interfaces outside of whitelisted packages
 
 By default, FashClasspathScanner is "hermetic" about its whitelisting: it will not return or match any class, interface or annotation that falls outside of a whitelisted (and non-blacklisted) package. The ability to detect that a class extends another class, or implements a given interface, or is annotated with a given annotation, depends upon the entire class reference path between the two classes being within one of the whitelisted package prefixes.
 
