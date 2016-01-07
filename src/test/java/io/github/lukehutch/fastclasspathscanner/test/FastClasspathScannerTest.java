@@ -191,7 +191,7 @@ public class FastClasspathScannerTest {
         assertThat(scanner.getNamesOfSubinterfacesOf(WhitelistedInterface.class)).isEmpty();
     }
 
-    @Test(expected=IllegalArgumentException.class)
+    @Test(expected = IllegalArgumentException.class)
     public void testExceptionIfNotWhitelisted() throws Exception {
         final FastClasspathScanner scanner = new FastClasspathScanner(WHITELIST_PACKAGE).scan();
         assertThat(scanner.getNamesOfSuperclassesOf(Whitelisted.class)).isEmpty();
@@ -211,7 +211,7 @@ public class FastClasspathScannerTest {
         assertThat(scanner.getNamesOfSubinterfacesOf(WhitelistedInterface.class)).isEmpty();
     }
 
-    @Test(expected=IllegalArgumentException.class)
+    @Test(expected = IllegalArgumentException.class)
     public void testExceptionIfBlacklisted() throws Exception {
         final FastClasspathScanner scanner = new FastClasspathScanner(ROOT_PACKAGE, "-"
                 + BlacklistedSuperclass.class.getPackage().getName()).scan();

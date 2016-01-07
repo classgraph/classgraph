@@ -33,7 +33,7 @@ package io.github.lukehutch.fastclasspathscanner.classgraph;
  * recommended, to implement an annotation as if it is an interface, see issue #38.)
  */
 class ImplementedInterfaceDAGNode extends DAGNode {
-    public ImplementedInterfaceDAGNode(ClassInfo classInfo) {
+    public ImplementedInterfaceDAGNode(final ClassInfo classInfo) {
         super(classInfo);
     }
 }

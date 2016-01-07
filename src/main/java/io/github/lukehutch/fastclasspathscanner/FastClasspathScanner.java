@@ -45,6 +45,7 @@ import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
 import io.github.lukehutch.fastclasspathscanner.scanner.RecursiveScanner;
 import io.github.lukehutch.fastclasspathscanner.scanner.RecursiveScanner.FilePathMatcher;
 import io.github.lukehutch.fastclasspathscanner.scanner.RecursiveScanner.FilePathTester;
+import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
 import io.github.lukehutch.fastclasspathscanner.utils.Log;
 
 import java.io.File;
@@ -64,14 +65,11 @@ import java.util.regex.Pattern;
  * documentation.
  */
 public class FastClasspathScanner {
+    /** The scanning specification (whitelisted and blacklisted packages, etc.). */
+    private final ScanSpec scanSpec;
+
     /** The classpath finder. */
-    private final ClasspathFinder classpathFinder = new ClasspathFinder();
-
-    /** Whitelisted package prefixes with "." appended, or the empty list if all packages are whitelisted. */
-    private final ArrayList<String> whitelistedPackagePrefixes = new ArrayList<>();
-
-    /** Blacklisted package prefixes with "." appended. */
-    private final ArrayList<String> blacklistedPackagePrefixes = new ArrayList<>();
+    private final ClasspathFinder classpathFinder;
 
     /** The class that recursively scans the classpath. */
     private final RecursiveScanner recursiveScanner;
@@ -103,12 +101,6 @@ public class FastClasspathScanner {
 
     /** If set to true, print info while scanning */
     public static boolean verbose = false;
-
-    /**
-     * Blacklist all java.* and sun.* packages. (The Java standard library jars, e.g rt.jar, are also blacklisted by
-     * the file/directory scanner.)
-     */
-    public static String[] BLACKLISTED_PACKAGES = { "java", "sun" };
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -155,43 +147,15 @@ public class FastClasspathScanner {
      *            N.B. System, bootstrap and extension jarfiles (i.e. the JRE jarfiles) are never scanned.
      */
     public FastClasspathScanner(final String... scanSpec) {
-        this.recursiveScanner = new RecursiveScanner(classpathFinder, scanSpec);
-
-        // Come up with class reference prefixes for whitelist and blacklist packages (e.g. "com.x" -> "Lcom.x.")
-        // -- these are used for fast matching of field types
-        final ArrayList<String> whitelistClassRefPrefix = new ArrayList<>();
-        final ArrayList<String> blacklistClassRefPrefix = new ArrayList<>();
-        if (scanSpec.length == 0 || (scanSpec.length == 1 && scanSpec[0].isEmpty())) {
-            // If scanning all packages, blacklist Java types (they are always excluded from scanning,
-            // but may occur as the type of a field)
-            for (String pkg : BLACKLISTED_PACKAGES) {
-                String pkgPrefix = pkg + ".";
-                blacklistedPackagePrefixes.add(pkgPrefix);
-                blacklistClassRefPrefix.add(pkgPrefix.replace('.', '/'));
-            }
-        } else {
-            for (final String spec : scanSpec) {
-                if (!(spec.startsWith("jar:") || spec.startsWith("-jar:"))) {
-                    if (spec.startsWith("-")) {
-                        String pkgPrefix = spec.substring(1) + ".";
-                        if (!pkgPrefix.isEmpty()) {
-                            blacklistedPackagePrefixes.add(pkgPrefix);
-                        }
-                        final String descriptor = pkgPrefix.replace('.', '/');
-                        blacklistClassRefPrefix.add(descriptor);
-                    } else {
-                        String pkgPrefix = spec + ".";
-                        if (!spec.isEmpty()) {
-                            whitelistedPackagePrefixes.add(pkgPrefix);
-                        }
-                        final String descriptor = spec.replace('.', '/');
-                        whitelistClassRefPrefix.add(descriptor);
-                    }
-                }
-            }
+        this.classpathFinder = new ClasspathFinder();
+        if (FastClasspathScanner.verbose) {
+            Log.log("Classpath elements: " + this.classpathFinder.getUniqueClasspathElements());
         }
+        this.scanSpec = new ScanSpec(scanSpec);
+        this.recursiveScanner = new RecursiveScanner(classpathFinder, this.scanSpec);
 
         // Read classfile headers for all filenames ending in ".class" on classpath
+        final ScanSpec scanSpecParsed = this.scanSpec;
         this.matchFilenameExtension("class", new FileMatchProcessor() {
             @Override
             public void processMatch(final String relativePath, final InputStream inputStream, //
@@ -202,8 +166,7 @@ public class FastClasspathScanner {
                     // This is the first time we have encountered this relative path (and therefore this class)
                     // on the classpath. Read class info from classfile binary header.
                     final ClassInfo classInfo = ClassfileBinaryParser.readClassInfoFromClassfileHeader(
-                            relativePath, inputStream, classNameToStaticFieldnameToMatchProcessor,
-                            whitelistClassRefPrefix, blacklistClassRefPrefix);
+                            relativePath, inputStream, classNameToStaticFieldnameToMatchProcessor, scanSpecParsed);
                     if (classInfo != null) {
                         // If class info was successfully read, store a mapping from relative path to class info.
                         // (All classes with the same name should have the same relative path, although this is
@@ -248,27 +211,10 @@ public class FastClasspathScanner {
      * Checks that the named class is in a whitelisted (non-blacklisted) package. Throws IllegalArgumentException
      * otherwise.
      */
-    private void checkClassNameIsInWhitelistedPackage(String className) {
-        boolean isWhitelisted = whitelistedPackagePrefixes.isEmpty();
-        for (String pkgPrefix : whitelistedPackagePrefixes) {
-            if (className.startsWith(pkgPrefix)) {
-                isWhitelisted = true;
-                break;
-            }
-        }
-        boolean isBlacklisted = false;
-        for (String pkgPrefix : blacklistedPackagePrefixes) {
-            if (className.startsWith(pkgPrefix)) {
-                isBlacklisted = true;
-                break;
-            }
-        }
-        if (isBlacklisted) {
-            throw new IllegalArgumentException("Can't scan for " + className + ", it is in a blacklisted package");
-        }
-        if (!isWhitelisted) {
+    private void checkClassNameIsInWhitelistedPackage(final String className) {
+        if (!scanSpec.classIsInWhitelistedPackage(className)) {
             throw new IllegalArgumentException("Can't scan for " + className
-                    + ", it is not in a whitelisted package");
+                    + ", it is in a package that is either blacklisted or not whitelisted");
         }
     }
 
@@ -277,7 +223,7 @@ public class FastClasspathScanner {
      * otherwise. Returns the name of the annotation.
      */
     private String annotationName(final Class<?> annotation) {
-        String annotationName = annotation.getName();
+        final String annotationName = annotation.getName();
         checkClassNameIsInWhitelistedPackage(annotationName);
         if (!annotation.isAnnotation()) {
             throw new IllegalArgumentException(annotationName + " is not an annotation");
@@ -302,7 +248,7 @@ public class FastClasspathScanner {
      * otherwise. Returns the name of the interface.
      */
     private String interfaceName(final Class<?> iface) {
-        String ifaceName = iface.getName();
+        final String ifaceName = iface.getName();
         checkClassNameIsInWhitelistedPackage(ifaceName);
         if (!iface.isInterface()) {
             throw new IllegalArgumentException(ifaceName + " is not an interface");
@@ -327,7 +273,7 @@ public class FastClasspathScanner {
      * Throws IllegalArgumentException otherwise. Returns the name of the class or interface.
      */
     private String classOrInterfaceName(final Class<?> classOrInterface) {
-        String classOrIfaceName = classOrInterface.getName();
+        final String classOrIfaceName = classOrInterface.getName();
         checkClassNameIsInWhitelistedPackage(classOrIfaceName);
         if (classOrInterface.isAnnotation()) {
             throw new IllegalArgumentException(classOrIfaceName
@@ -342,7 +288,7 @@ public class FastClasspathScanner {
      * an IllegalArgumentException.
      */
     private String standardClassName(final Class<?> cls) {
-        String className = cls.getName();
+        final String className = cls.getName();
         checkClassNameIsInWhitelistedPackage(className);
         if (cls.isAnnotation()) {
             throw new IllegalArgumentException(className + " is an annotation, not a standard class");
@@ -357,7 +303,7 @@ public class FastClasspathScanner {
      * otherwise throws an IllegalArgumentException.
      */
     private String className(final Class<?> cls) {
-        String className = cls.getName();
+        final String className = cls.getName();
         checkClassNameIsInWhitelistedPackage(className);
         return className;
     }
@@ -796,7 +742,7 @@ public class FastClasspathScanner {
         classMatchers.add(new ClassMatcher() {
             @Override
             public void lookForMatches() {
-                String fieldTypeName = className(fieldType);
+                final String fieldTypeName = className(fieldType);
                 for (final String klass : getNamesOfClassesWithFieldOfType(fieldTypeName)) {
                     if (verbose) {
                         Log.log("Found class with field of type " + fieldTypeName + ": " + klass);
@@ -828,7 +774,7 @@ public class FastClasspathScanner {
      * declared in a package that is whitelisted (and not blacklisted).
      */
     public List<String> getNamesOfClassesWithFieldOfType(final Class<?> fieldType) {
-        String fieldTypeName = fieldType.getName();
+        final String fieldTypeName = fieldType.getName();
         checkClassNameIsInWhitelistedPackage(fieldTypeName);
         return getScanResults().getNamesOfClassesWithFieldOfType(fieldTypeName);
     }

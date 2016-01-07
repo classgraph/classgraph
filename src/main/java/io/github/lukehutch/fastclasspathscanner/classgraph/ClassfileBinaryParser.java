@@ -2,6 +2,7 @@ package io.github.lukehutch.fastclasspathscanner.classgraph;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.StaticFinalFieldMatchProcessor;
+import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
 import io.github.lukehutch.fastclasspathscanner.utils.Log;
 
 import java.io.BufferedInputStream;
@@ -104,35 +105,17 @@ public class ClassfileBinaryParser {
      * whitelisted field types.
      */
     private static HashSet<String> findWhitelistedTypeDescriptorParts(final String typeDescriptor,
-            final ArrayList<String> whitelistClassRefPrefix, final ArrayList<String> blacklistClassRefPrefix,
-            HashSet<String> whitelistedFieldTypes) {
+            final ScanSpec scanSpec, HashSet<String> whitelistedFieldTypes) {
         // Check if the type of this field falls within a whitelisted (non-blacklisted) package,
         // and if so, record the field and its type
         final Matcher matcher = TYPE_PARAM_PATTERN.matcher(typeDescriptor);
         while (matcher.find()) {
             final String descriptorPart = matcher.group(2);
-            // If whitelist is empty, match any package that is not blacklisted
-            boolean isWhitelisted = whitelistClassRefPrefix.isEmpty();
-            for (final String whitelistPrefix : whitelistClassRefPrefix) {
-                if (descriptorPart.startsWith(whitelistPrefix)) {
-                    // Descriptor has whitelisted package prefix
-                    isWhitelisted = true;
-                    break;
-                }
-            }
-            boolean isBlacklisted = false;
-            for (final String blacklistPrefix : blacklistClassRefPrefix) {
-                if (descriptorPart.startsWith(blacklistPrefix)) {
-                    // Descriptor has blacklisted package prefix
-                    isBlacklisted = true;
-                    break;
-                }
-            }
-            if (isWhitelisted && !isBlacklisted) {
+            if (scanSpec.pathIsWhitelisted(descriptorPart)) {
                 if (whitelistedFieldTypes == null) {
                     whitelistedFieldTypes = new HashSet<>();
                 }
-                // Remove "L" from beginning of type descriptor part and convert from type path to class name
+                // Convert from type path to class name
                 final String fieldTypeName = descriptorPart.replace('/', '.');
                 // Add field type to set of whitelisted field types encountered in class
                 whitelistedFieldTypes.add(fieldTypeName);
@@ -148,10 +131,8 @@ public class ClassfileBinaryParser {
      * @return the information obtained as a ClassInfo object, or null if the classfile is invalid.
      */
     public static ClassInfo readClassInfoFromClassfileHeader(final String relativePath,
-            final InputStream inputStream,
-            final HashMap<String, HashMap<String, StaticFinalFieldMatchProcessor>> // 
-            classNameToStaticFieldnameToMatchProcessor, final ArrayList<String> whitelistClassRefPrefix,
-            final ArrayList<String> blacklistClassRefPrefix) {
+            final InputStream inputStream, final HashMap<String, HashMap<String, StaticFinalFieldMatchProcessor>> // 
+            classNameToStaticFieldnameToMatchProcessor, final ScanSpec scanSpec) {
 
         try (final DataInputStream inp = new DataInputStream(new BufferedInputStream(inputStream, 8192))) {
             // Magic number
@@ -288,8 +269,8 @@ public class ClassfileBinaryParser {
 
                 // Check if the type of this field falls within a whitelisted (non-blacklisted) package,
                 // and if so, record the field and its type
-                whitelistedFieldTypes = findWhitelistedTypeDescriptorParts(fieldTypeDescriptor,
-                        whitelistClassRefPrefix, blacklistClassRefPrefix, whitelistedFieldTypes);
+                whitelistedFieldTypes = findWhitelistedTypeDescriptorParts(fieldTypeDescriptor, scanSpec,
+                        whitelistedFieldTypes);
 
                 // Check if field is static and final
                 if (!isStaticFinal && staticFinalFieldMatchProcessor != null) {
@@ -352,8 +333,8 @@ public class ClassfileBinaryParser {
                         // package, and if so, record the field type. The type signature contains type parameters,
                         // whereas the type descriptor does not.
                         final String fieldTypeSignature = readRefdString(inp, constantPool);
-                        whitelistedFieldTypes = findWhitelistedTypeDescriptorParts(fieldTypeSignature,
-                                whitelistClassRefPrefix, blacklistClassRefPrefix, whitelistedFieldTypes);
+                        whitelistedFieldTypes = findWhitelistedTypeDescriptorParts(fieldTypeSignature, scanSpec,
+                                whitelistedFieldTypes);
                     } else {
                         inp.skipBytes(attributeLength);
                     }

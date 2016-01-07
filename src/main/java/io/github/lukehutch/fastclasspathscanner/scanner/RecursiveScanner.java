@@ -40,33 +40,16 @@ import java.io.InputStream;
 import java.nio.file.LinkOption;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Enumeration;
-import java.util.HashSet;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 public class RecursiveScanner {
-    /** Whether to scan jarfiles. */
-    private boolean scanJars = true;
-
-    /** Whether to scan classpath entries that are not jarfiles (i.e. that are directories or files). */
-    private boolean scanNonJars = true;
-
-    /** List of jars to scan. */
-    private final HashSet<String> whitelistedJars = new HashSet<>();
-
-    /** List of jars to not scan. */
-    private final HashSet<String> blacklistedJars = new HashSet<>();
-
-    /** List of directory path prefixes to scan. */
-    private final String[] whitelistedPaths;
-
-    /** List of directory path prefixes to not scan. */
-    private final String[] blacklistedPaths;
-
     /** The classpath finder. */
     private final ClasspathFinder classpathFinder;
+
+    /** The scanspec (whitelisted and blacklisted packages, etc.). */
+    private final ScanSpec scanSpec;
 
     /**
      * A list of file path matchers to call when a directory or subdirectory on the classpath matches a given
@@ -116,72 +99,9 @@ public class RecursiveScanner {
      * ["com.x", "-jar:"] => scans "com.x" and all sub-packages, but only looks in directories on the classpath,
      * doesn't scan jarfiles (i.e. all jars are blacklisted.)
      */
-    public RecursiveScanner(final ClasspathFinder classpathFinder, final String[] scanSpecs) {
+    public RecursiveScanner(final ClasspathFinder classpathFinder, final ScanSpec scanSpec) {
         this.classpathFinder = classpathFinder;
-        final HashSet<String> uniqueWhitelistedPaths = new HashSet<>();
-        final HashSet<String> uniqueBlacklistedPaths = new HashSet<>();
-        for (final String scanSpecEntry : scanSpecs) {
-            String spec = scanSpecEntry;
-            final boolean blacklisted = spec.startsWith("-");
-            if (blacklisted) {
-                // Strip off "-"
-                spec = spec.substring(1);
-            }
-            final boolean isJar = spec.startsWith("jar:");
-            if (isJar) {
-                // Strip off "jar:"
-                spec = spec.substring(4);
-                if (spec.isEmpty()) {
-                    if (blacklisted) {
-                        // Specifying "-jar:" blacklists all jars for scanning
-                        scanJars = false;
-                    } else {
-                        // Specifying "jar:" causes only jarfiles to be scanned, while whitelisting all jarfiles
-                        scanNonJars = false;
-                    }
-                } else {
-                    if (blacklisted) {
-                        blacklistedJars.add(spec);
-                    } else {
-                        whitelistedJars.add(spec);
-                    }
-                }
-            } else {
-                // Convert package name to path prefix
-                spec = spec.replace('.', '/') + "/";
-                if (blacklisted) {
-                    if (spec.equals("/") || spec.isEmpty()) {
-                        Log.log("Ignoring blacklist of root package, it would prevent all scanning");
-                    } else {
-                        uniqueBlacklistedPaths.add(spec);
-                    }
-                } else {
-                    uniqueWhitelistedPaths.add(spec);
-                }
-            }
-        }
-        uniqueWhitelistedPaths.removeAll(uniqueBlacklistedPaths);
-        whitelistedJars.removeAll(blacklistedJars);
-        if (!whitelistedJars.isEmpty()) {
-            // Specifying "jar:somejar.jar" causes only the specified jarfile to be scanned
-            scanNonJars = false;
-        }
-        if (uniqueWhitelistedPaths.isEmpty() || uniqueWhitelistedPaths.contains("/")) {
-            // Scan all packages
-            whitelistedPaths = new String[] { "/" };
-        } else {
-            // Scan whitelisted packages minus blacklisted sub-packages
-            whitelistedPaths = new String[uniqueWhitelistedPaths.size()];
-            int i = 0;
-            for (final String path : uniqueWhitelistedPaths) {
-                whitelistedPaths[i++] = path;
-            }
-        }
-        blacklistedPaths = new String[uniqueBlacklistedPaths.size()];
-        int i = 0;
-        for (final String path : uniqueBlacklistedPaths) {
-            blacklistedPaths[i++] = path;
-        }
+        this.scanSpec = scanSpec;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -307,23 +227,7 @@ public class RecursiveScanner {
                 path = path.substring(rootPrefixLen);
             }
 
-            boolean scanFile = false;
-            for (final String whitelistedPath : whitelistedPaths) {
-                if (path.startsWith(whitelistedPath) //
-                        || whitelistedPath.equals("/")) {
-                    // File path has a whitelisted path as a prefix -- can scan file
-                    scanFile = true;
-                    break;
-                }
-            }
-            for (final String blacklistedPath : blacklistedPaths) {
-                if (path.startsWith(blacklistedPath)) {
-                    // File path has a blacklisted path as a prefix -- don't scan it
-                    scanFile = false;
-                    break;
-                }
-            }
-            if (scanFile) {
+            if (scanSpec.pathIsWhitelisted(path)) {
                 // If USE_ZIPFILE_ENTRY_MODIFICATION_TIMES is true, use zipfile entry timestamps,
                 // otherwise use the modification time of the zipfile itself. Using zipfile entry
                 // timestamps assumes that the timestamp on zipfile entries was properly added, and
@@ -368,7 +272,7 @@ public class RecursiveScanner {
     private void scanZipfile(final File classpathElt, final String path, final String zipInternalRootPath,
             final boolean scanTimestampsOnly) {
         final String jarName = classpathElt.getName();
-        if ((whitelistedJars.isEmpty() || whitelistedJars.contains(jarName)) && !blacklistedJars.contains(jarName)) {
+        if (scanSpec.jarIsWhitelisted(jarName)) {
             try (ZipFile zipfile = new ZipFile(classpathElt)) {
                 scanZipfile(classpathElt, zipfile, path, zipInternalRootPath, classpathElt.lastModified(),
                         scanTimestampsOnly);
@@ -396,33 +300,30 @@ public class RecursiveScanner {
         if (FastClasspathScanner.verbose) {
             Log.log("Scanning path: " + relativePath);
         }
-        for (final String blacklistedPath : blacklistedPaths) {
-            if (relativePath.equals(blacklistedPath)) {
-                if (FastClasspathScanner.verbose) {
-                    Log.log("Reached blacklisted path: " + relativePath);
-                }
-                // Reached a blacklisted path -- stop scanning files and dirs
-                return;
-            }
-        }
         boolean keepRecursing = false;
-        if (!inWhitelistedPath) {
-            // If not yet within a subtree of a whitelisted path, see if the current path is at least a prefix of
-            // a whitelisted path, and if so, keep recursing until we hit a whitelisted path.
-            for (final String whitelistedPath : whitelistedPaths) {
-                if (relativePath.equals(whitelistedPath)) {
-                    // Reached a whitelisted path -- can start scanning directories and files from this point
-                    if (FastClasspathScanner.verbose) {
-                        Log.log("Reached whitelisted path: " + relativePath);
-                    }
-                    inWhitelistedPath = true;
-                    break;
-                } else if (whitelistedPath.startsWith(relativePath) || relativePath.equals("/")) {
-                    // In a path that is a prefix of a whitelisted path -- keep recursively scanning dirs
-                    // in case we can reach a whitelisted path.
-                    keepRecursing = true;
-                }
+        switch (scanSpec.pathWhitelistMatchStatus(relativePath)) {
+        case WITHIN_BLACKLISTED_PATH:
+            // Reached a blacklisted path -- stop scanning files and dirs
+            if (FastClasspathScanner.verbose) {
+                Log.log("Reached blacklisted path: " + relativePath);
             }
+            return;
+        case WITHIN_WHITELISTED_PATH:
+            // Reached a whitelisted path -- can start scanning directories and files from this point
+            if (FastClasspathScanner.verbose) {
+                Log.log("Reached whitelisted path: " + relativePath);
+            }
+            inWhitelistedPath = true;
+            break;
+        case ANCESTOR_OF_WHITELISTED_PATH:
+            // In a path that is a prefix of a whitelisted path -- keep recursively scanning dirs
+            // in case we can reach a whitelisted path.
+            keepRecursing = true;
+            break;
+        case NOT_WITHIN_WHITELISTED_PATH:
+            break;
+        default:
+            throw new RuntimeException("Unknown match status");
         }
         if (keepRecursing || inWhitelistedPath) {
             lastModified = Math.max(lastModified, dir.lastModified());
@@ -467,9 +368,6 @@ public class RecursiveScanner {
         if (FastClasspathScanner.verbose) {
             Log.log("*** Starting scan" + (scanTimestampsOnly ? " (scanning classpath timestamps only)" : "")
                     + " ***");
-            Log.log("Classpath elements: " + uniqueClasspathElts);
-            Log.log("Whitelisted paths:  " + Arrays.toString(whitelistedPaths));
-            Log.log("Blacklisted paths:  " + Arrays.toString(blacklistedPaths));
         }
 
         // Iterate through path elements and recursively scan within each directory and zipfile
@@ -491,7 +389,7 @@ public class RecursiveScanner {
                             .replace(File.separatorChar, '/');
                     if (zipFile.exists()) {
                         if (Utils.isJar(path)) {
-                            if (scanJars) {
+                            if (scanSpec.scanJars) {
                                 // Scan within jar/zipfile
                                 scanZipfile(zipFile, path, zipInternalRootPath, scanTimestampsOnly);
                             }
@@ -513,15 +411,15 @@ public class RecursiveScanner {
                     }
                 }
 
-            } else if (classpathElt.isDirectory() && scanNonJars) {
+            } else if (classpathElt.isDirectory() && scanSpec.scanNonJars) {
                 // Scan within directory
                 scanDir(classpathElt, classpathElt, path.length() + 1, false, scanTimestampsOnly);
 
             } else if (classpathElt.isFile()) {
-                if (Utils.isJar(path) && scanJars) {
+                if (Utils.isJar(path) && scanSpec.scanJars) {
                     // Scan within jar/zipfile
                     scanZipfile(classpathElt, path, "", scanTimestampsOnly);
-                } else if (scanNonJars) {
+                } else if (scanSpec.scanNonJars) {
                     // File listed directly on classpath
                     scanFile(classpathElt, classpathElt, classpathElt.getName(), scanTimestampsOnly);
                 }
