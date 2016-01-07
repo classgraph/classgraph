@@ -43,6 +43,9 @@ class DAGNode {
     /** Class, interface or annotation name. */
     final String name;
 
+    /** If true, this is a placeholder node, representing a reference to a class outside a whitelisted package. */
+    final boolean isPlaceholder;
+
     /** Direct super-nodes. */
     ArrayList<DAGNode> directSuperNodes = new ArrayList<>(4);
 
@@ -61,6 +64,14 @@ class DAGNode {
     public DAGNode(final ClassInfo classInfo) {
         this.classInfo = classInfo;
         this.name = classInfo.className;
+        this.isPlaceholder = false;
+    }
+
+    /** Creates a placeholder node for a reference to a class outside a whitelisted package. */
+    public DAGNode(final String name) {
+        this.classInfo = null;
+        this.name = name;
+        this.isPlaceholder = true;
     }
 
     /**
@@ -78,10 +89,12 @@ class DAGNode {
      */
     public void connect(final HashMap<String, DAGNode> classNameToDAGNode) {
         // Connect classes to their superclass (there should only be one superclass after handling Scala quirks)
-        for (final String superclassName : classInfo.superclassNames) {
-            final DAGNode superclassNode = classNameToDAGNode.get(superclassName);
-            if (superclassNode != null) {
-                superclassNode.addSubNode(this);
+        if (classInfo != null && classInfo.superclassNames != null) {
+            for (final String superclassName : classInfo.superclassNames) {
+                final DAGNode superclassNode = classNameToDAGNode.get(superclassName);
+                if (superclassNode != null) {
+                    superclassNode.addSubNode(this);
+                }
             }
         }
     }

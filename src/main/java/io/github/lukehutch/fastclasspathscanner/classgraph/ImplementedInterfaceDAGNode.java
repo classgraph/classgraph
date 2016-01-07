@@ -36,4 +36,8 @@ class ImplementedInterfaceDAGNode extends DAGNode {
     public ImplementedInterfaceDAGNode(final ClassInfo classInfo) {
         super(classInfo);
     }
+
+    public ImplementedInterfaceDAGNode(final String name) {
+        super(name);
+    }
 }

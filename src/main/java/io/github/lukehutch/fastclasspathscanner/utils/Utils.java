@@ -32,8 +32,8 @@ import io.github.lukehutch.fastclasspathscanner.classgraph.ClassInfo;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 
 public class Utils {
 
@@ -46,15 +46,14 @@ public class Utils {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Convert a collection into a sorted list. */
+    /** Take the union of a list of collections. */
     @SafeVarargs
-    public static <T extends Comparable<T>> ArrayList<T> sortedCopy(final Collection<T>... collections) {
-        final ArrayList<T> copy = new ArrayList<>();
+    public static <T extends Comparable<T>> HashSet<T> union(final Collection<T>... collections) {
+        final HashSet<T> union = new HashSet<>();
         for (final Collection<T> collection : collections) {
-            copy.addAll(collection);
+            union.addAll(collection);
         }
-        Collections.sort(copy);
-        return copy;
+        return union;
     }
 
     // -------------------------------------------------------------------------------------------------------------

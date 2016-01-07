@@ -193,6 +193,8 @@ public FastClasspathScanner(String... scanSpec)
 The constructor accepts a list of whitelisted package prefixes / jar names to scan, as well as blacklisted packages/jars not to scan, where blacklisted entries are prefixed with the `'-'` character. For example:
 * `new FastClasspathScanner("com.x")` limits scanning to the package `com.x` and its sub-packages in all jarfiles and all directory entries on the classpath.
 * `new FastClasspathScanner("com.x", "-com.x.y")` limits scanning to `com.x` and all sub-packages *except* `com.x.y` in all jars and directories on the classpath.
+* `new FastClasspathScanner("com.x", "javax.persistence.Entity")` limits scanning to `com.x` but also records links between whitelisted classes and the "external" annotation class `javax.persistence.Entity`, even though it is not in the whitelisted package `com.x` -- [see below](#detecting-annotations-superclasses-and-implemented-interfaces-outside-of-the-whitelisted-path) for more info.
+* `new FastClasspathScanner("com.x", "-com.x.BadClass")` scans within `com.x`, but blacklists the one class `com.x.BadClass`. Note that a capital letter after the final '.' indicates a whitelisted class.
 * `new FastClasspathScanner("com.x", "-com.x.y", "jar:deploy.jar")` limits scanning to `com.x` and all its sub-packages except `com.x.y`, but only looks in jars named `deploy.jar` on the classpath. Note:
   1. Whitelisting one or more jar entries prevents non-jar entries (directories) on the classpath from being scanned.
   2. Only the leafname of a jarfile can be specified in a `jar:` or `-jar:` entry, so if there is a chance of conflict, make sure the jarfile's leaf name is unique.
@@ -201,17 +203,30 @@ The constructor accepts a list of whitelisted package prefixes / jar names to sc
 * `new FastClasspathScanner("com.x", "-jar:")` limits scanning to `com.x` and all sub-packages, but only looks in directories on the classpath -- jarfiles are not scanned. (i.e. `"-jar:"` is a wildcard to indicate that all jars are blacklisted.)
 * `new FastClasspathScanner()`: If you don't specify any whitelisted package prefixes, all jarfiles and all directories on the classpath will be scanned.
 
-Notes on scan specs:
+**Notes on scan specs:**
 * Scan spec entries can use either `.` or `/` as the package/directory separator, i.e. `new FastClasspathScanner("com.x.y")` and `new FastClasspathScanner("com/x/y")` are equivalent.
-* Superclasses, subclasses etc. that are in a package that is not whitelisted (or that is blacklisted) will not be returned in the results of `.getAllSuperclassesOf("com.xyz.X")`, `.getAllSubclassesOf("com.xyz.X")` etc., even if `com.xyz.X` is itself in a whitelisted, non-blacklisted package.
+* Superclasses, subclasses etc. that are in a package that is not whitelisted (or that is blacklisted) will not be returned in the results of `.getNamesOfSuperclassesOf("com.xyz.X")`, `.getNamesOfSubclassesOf("com.xyz.X")` etc., even if `com.xyz.X` is itself in a whitelisted, non-blacklisted package.
 * If you call a method like `.getAllSuperclassesOf("com.xyz.MySuperclass")` or `.getNamesOfClassesWithAnnotation("com.xyz.MyAnnotation")`, and `"com.xyz"` is not listed as a whitelisted package in the constructor, FastClasspathScanner will throw `IllegalArgumentException`.
 * For efficiency, system, bootstrap and extension jarfiles like `rt.jar` (i.e. the jarfiles distributed with the JRE) are always blacklisted, i.e. they are never scanned. If you put custom classes into the `lib/ext` directory in your JRE folder (which is a valid but rare way of adding jarfiles to the classpath), they will be ignored by association with the JRE.
+
+## Detecting annotations, superclasses and implemented interfaces outside of the whitelisted path:
+
+By default, FashClasspathScanner is "hermetic" about its whitelisting: it will not return or match any class, interface or annotation that falls outside of a whitelisted (and non-blacklisted) package. The ability to detect that a class extends another class, or implements a given interface, or is annotated with a given annotation, depends upon the entire class reference path between the two classes being within one of the whitelisted package prefixes.
+
+This can be problematic if you want to find all classes annotated with an annotation outside of a whitelisted package, e.g. you want to scan package `com.x` for classes annotated with `javax.persistence.Entity`, but you don't want to scan the whole package `javax.persistence` just to be able to match the annotation.
+
+There are two ways to enable "external" class/annotation/interface references to be returned/matched, i.e. references to classes/annotations/interfaces that are not in a whitelisted package:
+ 
+1. Specifically whitelist an external class name in the scan spec, e.g. `new FastClasspathScanner("com.x", "javax.persistence.Entity")`. (Note that a capital letter after the final '.' indicates a whitelisted class.) This limits scanning to `com.x`, but also whitelists individual classes outside of whitelisted packages. These class references can only be used as match criteria, e.g. in `getNamesOfClassesWithAnnotation("javax.persistence.Entity")`, but the full relationship between these classes and other classes (e.g. "extends"/"implements" links) is not determined, because the classfiles for the referenced classes is never read. However, whitelisted classes will be returned in lists such as `.getNamesOfAllAnnotations()`. 
+2. Call `.matchReferencedClasses()` before calling `.scan()`. This will allow any superclass, implemented interface, superinterface, or annotation of a whitelisted class/interface/annotation to be used for matching, even if it is not itself whitelisted. However, in this case, any such "external classes" are not returned in lists such as `.getNamesOfAllAnnotations()`, because they are not actually whitelisted.
+
+Both methods effectively allow for matching based on classes that are at most one reference away from classes within whitelisted packages.
 
 ### 1. Matching the subclasses (or finding the superclasses) of a class
 
 FastClasspathScanner can find all classes on the classpath within whitelisted package prefixes that extend a given superclass.
 
-*Important note:* the ability to detect that a class extends another depends upon the entire ancestral path between the two classes being within one of the whitelisted package prefixes.
+*Important note:* the ability to detect that a class extends another depends upon the entire ancestral path between the two classes being within one of the whitelisted package prefixes. (However, [see above](#detecting-annotations-superclasses-and-implemented-interfaces-outside-of-the-whitelisted-path) for info on "external" class references.)
 
 You can scan for classes that extend a specified superclass by calling `.matchSubclassesOf()` with a `SubclassMatchProcessor` parameter before calling `.scan()`. This method will call the classloader on each matching class (using `Class.forName()`) so that a class reference can be passed into the match processor. There are also methods `List<String> getNamesOfSubclassesOf(String superclassName)` and `List<String> getNamesOfSubclassesOf(Class<?> superclass)` that can be called after `.scan()` to find the names of the subclasses of a given class (whether or not a corresponding match processor was added to detect this) without calling the classloader.
 
@@ -241,7 +256,7 @@ public List<String> getNamesOfSuperclassesOf(
 
 FastClasspathScanner can find all interfaces on the classpath within whitelisted package prefixes that that extend a given interface or its subinterfaces.
 
-*Important note:* The ability to detect that an interface extends another interface depends upon the entire ancestral path between the two interfaces being within one of the whitelisted package prefixes.
+*Important note:* The ability to detect that an interface extends another interface depends upon the entire ancestral path between the two interfaces being within one of the whitelisted package prefixes. (However, [see above](#detecting-annotations-superclasses-and-implemented-interfaces-outside-of-the-whitelisted-path) for info on "external" class references.)
 
 You can scan for interfaces that extend a specified superinterface by calling `.matchSubinterfacesOf()` with a `SubinterfaceMatchProcessor` parameter before calling `.scan()`. This method will call the classloader on each matching class (using `Class.forName()`) so that a class reference can be passed into the match processor. There are also methods `List<String> getNamesOfSubinterfacesOf(String ifaceName)` and `List<String> getNamesOfSubinterfacesOf(Class<?> iface)` that can be called after `.scan()` to find the names of the subinterfaces of a given interface (whether or not a corresponding match processor was added to detect this) without calling the classloader.
 
@@ -271,7 +286,7 @@ public List<String> getNamesOfSuperinterfacesOf(
 
 FastClasspathScanner can find all classes on the classpath within whitelisted package prefixes that that implement a given interface. The matching logic here is trickier than it would seem, because FastClassPathScanner also has to match classes whose superclasses implement the target interface, or classes that implement a sub-interface (descendant interface) of the target interface, or classes whose superclasses implement a sub-interface of the target interface.
 
-*Important note:* The ability to detect that a class implements an interface depends upon the entire ancestral path between the class and the interface (and any relevant sub-interfaces or superclasses along the path between the two) being within one of the whitelisted package prefixes.
+*Important note:* The ability to detect that a class implements an interface depends upon the entire ancestral path between the class and the interface (and any relevant sub-interfaces or superclasses along the path between the two) being within one of the whitelisted package prefixes. (However, [see above](#detecting-annotations-superclasses-and-implemented-interfaces-outside-of-the-whitelisted-path) for info on "external" class references.)
 
 You can scan for classes that implement a specified interface by calling `.matchClassesImplementing()` with a `InterfaceMatchProcessor` parameter before calling `.scan()`. This method will call the classloader on each matching class (using `Class.forName()`) so that a class reference can be passed into the match processor. There are also methods `List<String> getNamesOfClassesImplementing(String ifaceName)` and `List<String> getNamesOfClassesImplementing(Class<?> iface)` that can be called after `.scan()` to find the names of the classes implementing a given interface (whether or not a corresponding match processor was added to detect this) without calling the classloader.
 
@@ -301,6 +316,8 @@ public List<String> getNamesOfClassesImplementingAllOf(
 ### 4. Matching classes with a specific annotation or meta-annotation
 
 FastClassPathScanner can detect classes that have a specified annotation. This is the inverse of the Java reflection API: the Java reflection API allows you to find the annotations on a given class, but FastClasspathScanner allows you to find all classes that have a given annotation.
+
+*Important note:* The ability to detect that an annotation annotates or meta-annotates a class depends upon the annotation and the class being within one of the whitelisted package prefixes. (However, [see above](#detecting-annotations-superclasses-and-implemented-interfaces-outside-of-the-whitelisted-path) for info on "external" class references.)
 
 FastClassPathScanner also allows you to detect **meta-annotations** (annotations that annotate annotations that annotate a class of interest). Java's reflection methods (e.g. `Class.getAnnotations()`) do not directly return meta-annotations, they only look one level back up the annotation graph. FastClasspathScanner follows the annotation graph, allowing you to scan for both annotations and meta-annotations using the same API. This allows for the use of multi-level annotations as a means of implementing "multiple inheritance" of annotated traits. (Compare with [@dblevins](https://github.com/dblevins)' [metatypes](https://github.com/dblevins/metatypes/).)
 

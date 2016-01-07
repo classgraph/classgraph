@@ -41,6 +41,11 @@ class AnnotationDAGNode extends ImplementedInterfaceDAGNode {
         super(classInfo);
     }
 
+    /** Creates a placeholder node for a reference to a class outside a whitelisted package. */
+    public AnnotationDAGNode(final String name) {
+        super(name);
+    }
+
     /** Connect this annotation node to a class it annotates. */
     public void addAnnotatedClass(final DAGNode annotatedClassNode) {
         this.annotatedClassNodes.add(annotatedClassNode);
@@ -50,7 +55,7 @@ class AnnotationDAGNode extends ImplementedInterfaceDAGNode {
     public void connect(final HashMap<String, DAGNode> classNameToDAGNode) {
         super.connect(classNameToDAGNode);
 
-        if (classInfo.annotationNames != null) {
+        if (classInfo != null && classInfo.annotationNames != null) {
             for (final String metaAnnotationName : classInfo.annotationNames) {
                 final DAGNode metaAnnotationNode = classNameToDAGNode.get(metaAnnotationName);
                 if (metaAnnotationNode != null) {

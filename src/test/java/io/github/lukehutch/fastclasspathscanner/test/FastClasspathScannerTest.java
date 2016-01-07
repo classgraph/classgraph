@@ -320,7 +320,7 @@ public class FastClasspathScannerTest {
     public void hasFieldWithRequestedType() {
         assertThat(
                 new FastClasspathScanner(ROOT_PACKAGE).scan().getNamesOfClassesWithFieldOfType(Cls.class.getName()))
-                .containsExactly(HasFieldWithTypeCls1.class.getName(), HasFieldWithTypeCls2.class.getName(),
+                .containsOnly(HasFieldWithTypeCls1.class.getName(), HasFieldWithTypeCls2.class.getName(),
                         HasFieldWithTypeCls3.class.getName(), HasFieldWithTypeCls4.class.getName(),
                         HasFieldWithTypeCls5.class.getName(), HasFieldWithTypeCls6.class.getName(),
                         HasFieldWithTypeCls7.class.getName());

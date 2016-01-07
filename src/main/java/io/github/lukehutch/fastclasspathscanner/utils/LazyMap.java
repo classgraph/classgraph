@@ -28,7 +28,6 @@
  */
 package io.github.lukehutch.fastclasspathscanner.utils;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -146,18 +145,6 @@ public abstract class LazyMap<K, V> {
             public void initialize() {
                 lazyMap.checkInitialized();
                 MultiSet.invert(lazyMap.map, this.map);
-            }
-        };
-    }
-
-    /** Convert a lazy MultiSet into a lazy MultiMap. Value lists are sorted in the result. */
-    public static <K, V extends Comparable<V>> LazyMap<K, ArrayList<V>> convertToMultiMapSorted(
-            final LazyMap<K, HashSet<V>> lazyMap) {
-        return new LazyMap<K, ArrayList<V>>() {
-            @Override
-            protected ArrayList<V> generateValue(final K key) {
-                final HashSet<V> setVals = lazyMap.get(key);
-                return setVals == null ? null : Utils.sortedCopy(setVals);
             }
         };
     }

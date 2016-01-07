@@ -40,12 +40,17 @@ class InterfaceDAGNode extends ImplementedInterfaceDAGNode {
         super(classInfo);
     }
 
+    /** Creates a placeholder node for a reference to a class outside a whitelisted package. */
+    public InterfaceDAGNode(final String name) {
+        super(name);
+    }
+
     @Override
     public void connect(final HashMap<String, DAGNode> classNameToDAGNode) {
         super.connect(classNameToDAGNode);
 
         // Connect interfaces to their superinterfaces
-        if (classInfo.interfaceNames != null) {
+        if (classInfo != null && classInfo.interfaceNames != null) {
             for (final String superinterfaceName : classInfo.interfaceNames) {
                 final DAGNode superinterfaceNode = classNameToDAGNode.get(superinterfaceName);
                 if (superinterfaceNode != null) {
@@ -55,7 +60,7 @@ class InterfaceDAGNode extends ImplementedInterfaceDAGNode {
         }
 
         // Connect any annotations on this interface to this interface 
-        if (classInfo.annotationNames != null) {
+        if (classInfo != null && classInfo.annotationNames != null) {
             for (final String annotationName : classInfo.annotationNames) {
                 final AnnotationDAGNode annotationNode = (AnnotationDAGNode) classNameToDAGNode.get(annotationName);
                 if (annotationNode != null) {

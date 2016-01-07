@@ -28,6 +28,7 @@
  */
 package io.github.lukehutch.fastclasspathscanner.classgraph;
 
+import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
 import io.github.lukehutch.fastclasspathscanner.utils.LazyMap;
 import io.github.lukehutch.fastclasspathscanner.utils.MultiSet;
 import io.github.lukehutch.fastclasspathscanner.utils.Utils;
@@ -38,18 +39,63 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class ClassGraphBuilder {
-    ArrayList<StandardClassDAGNode> standardClassNodes = new ArrayList<>();
-    ArrayList<InterfaceDAGNode> interfaceNodes = new ArrayList<>();
-    ArrayList<AnnotationDAGNode> annotationNodes = new ArrayList<>();
+    private final ArrayList<StandardClassDAGNode> standardClassNodes = new ArrayList<>();
+    private final ArrayList<InterfaceDAGNode> interfaceNodes = new ArrayList<>();
+    private final ArrayList<AnnotationDAGNode> annotationNodes = new ArrayList<>();
+    private final HashMap<String, DAGNode> classNameToDAGNode = new HashMap<>();
 
-    public ClassGraphBuilder(final Collection<ClassInfo> classInfoFromScan) {
+    public ClassGraphBuilder(final Collection<ClassInfo> classInfoFromScan, final ScanSpec scanSpec) {
         // Take care of Scala quirks
         final ArrayList<ClassInfo> allClassInfo = new ArrayList<>(Utils.mergeScalaAuxClasses(classInfoFromScan));
 
+        // Create placeholder DAGNodes for all "external" classes that are referenced but don't occur in a
+        // whitelisted class, so that when creating DAGNodes for whitelisted classes below, they can connect
+        // themselves to these placeholders. 
+        final HashSet<String> externalSuperclasses = new HashSet<>();
+        final HashSet<String> externalInterfaces = new HashSet<>();
+        final HashSet<String> externalAnnotations = new HashSet<>();
+        if (scanSpec.matchReferencedClasses) {
+            final ArrayList<String> whitelistedClasses = new ArrayList<>();
+            for (final ClassInfo classInfo : allClassInfo) {
+                if (classInfo.superclassNames != null) {
+                    externalSuperclasses.addAll(classInfo.superclassNames);
+                }
+                if (classInfo.interfaceNames != null) {
+                    externalInterfaces.addAll(classInfo.interfaceNames);
+                }
+                if (classInfo.annotationNames != null) {
+                    externalAnnotations.addAll(classInfo.annotationNames);
+                }
+            }
+            externalSuperclasses.removeAll(whitelistedClasses);
+            externalInterfaces.removeAll(whitelistedClasses);
+            externalAnnotations.removeAll(whitelistedClasses);
+            // If an external annotation is also extended as an interface, just display it as an annotation
+            // in graph visualization
+            externalAnnotations.removeAll(externalInterfaces);
+
+            // Create placeholder nodes
+            for (final String externalSuperclassName : externalSuperclasses) {
+                final StandardClassDAGNode newNode = new StandardClassDAGNode(externalSuperclassName);
+                classNameToDAGNode.put(externalSuperclassName, newNode);
+                standardClassNodes.add(newNode);
+            }
+            for (final String externalInterfaceName : externalInterfaces) {
+                final InterfaceDAGNode newNode = new InterfaceDAGNode(externalInterfaceName);
+                classNameToDAGNode.put(externalInterfaceName, newNode);
+                interfaceNodes.add(newNode);
+            }
+            for (final String externalAnnotationName : externalAnnotations) {
+                final AnnotationDAGNode newNode = new AnnotationDAGNode(externalAnnotationName);
+                classNameToDAGNode.put(externalAnnotationName, newNode);
+                annotationNodes.add(newNode);
+            }
+        }
+
         // Create DAG node for each class
-        final HashMap<String, DAGNode> classNameToDAGNode = new HashMap<>();
         for (final ClassInfo classInfo : allClassInfo) {
             final String className = classInfo.className;
             if (classInfo.isAnnotation) {
@@ -76,6 +122,47 @@ public class ClassGraphBuilder {
         DAGNode.findTransitiveClosure(standardClassNodes);
         DAGNode.findTransitiveClosure(interfaceNodes);
         DAGNode.findTransitiveClosure(annotationNodes);
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * For all class names in the values list of the underlying map, look up the DAG node for the class name, and
+     * ensure the class is not simply a placeholder class (indicating the class was referenced by a class in a
+     * whitelisted package, but is not itself in a whitelisted package). Return a list of only the names of classes
+     * that correspond to non-placeholder nodes.
+     */
+    private LazyMap<String, ArrayList<String>> removePlaceholders( //
+            final LazyMap<String, ? extends Collection<String>> underlyingMap) {
+        return new LazyMap<String, ArrayList<String>>() {
+            @Override
+            public ArrayList<String> get(final String key) {
+                final Collection<String> classNameList = underlyingMap.get(key);
+                if (classNameList == null) {
+                    return null;
+                } else {
+                    final ArrayList<String> listWithoutPlaceholders = new ArrayList<>();
+                    for (final String className : classNameList) {
+                        final DAGNode dagNode = classNameToDAGNode.get(className);
+                        if (!dagNode.isPlaceholder) {
+                            listWithoutPlaceholders.add(dagNode.name);
+                        }
+                    }
+                    return listWithoutPlaceholders;
+                }
+            }
+        };
+    }
+
+    /**
+     * For all class names in the values list of the underlying map, look up the DAG node for the class name, and
+     * ensure the class is not simply a placeholder class (indicating the class was referenced by a class in a
+     * whitelisted package, but is not itself in a whitelisted package). Return a list of only the names of classes
+     * that correspond to non-placeholder nodes.
+     */
+    private LazyMap<String, ArrayList<String>> removePlaceholdersAndSort( //
+            final LazyMap<String, ? extends Collection<String>> underlyingMap) {
+        return removePlaceholders(underlyingMap);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -119,51 +206,51 @@ public class ClassGraphBuilder {
 
     /** The sorted unique names of all classes, interfaces and annotations found during the scan. */
     private final LazyMap<String, ArrayList<String>> namesOfAllClasses = //
-    new LazyMap<String, ArrayList<String>>() {
+    removePlaceholdersAndSort(new LazyMap<String, HashSet<String>>() {
         @Override
-        protected ArrayList<String> generateValue(final String ignored) {
+        protected HashSet<String> generateValue(final String ignored) {
             // Return same value for all keys -- just always use the key "" to fetch the list so that
             // work is not duplicated if you call twice with different keys.
-            return Utils.sortedCopy(classNameToStandardClassNode.keySet(), interfaceNameToInterfaceNode.keySet(),
+            return Utils.union(classNameToStandardClassNode.keySet(), interfaceNameToInterfaceNode.keySet(),
                     annotationNameToAnnotationNode.keySet());
         };
-    };
+    });
 
     /**
      * The sorted unique names of all standard classes (non-interface, non-annotation classes) found during the
      * scan.
      */
     private final LazyMap<String, ArrayList<String>> namesOfAllStandardClasses = //
-    new LazyMap<String, ArrayList<String>>() {
+    removePlaceholdersAndSort(new LazyMap<String, Set<String>>() {
         @Override
-        protected ArrayList<String> generateValue(final String ignored) {
+        protected Set<String> generateValue(final String ignored) {
             // Return same value for all keys -- just always use the key "" to fetch the list so that
             // work is not duplicated if you call twice with different keys.
-            return Utils.sortedCopy(classNameToStandardClassNode.keySet());
+            return classNameToStandardClassNode.keySet();
         };
-    };
+    });
 
     /** The sorted unique names of all interfaces found during the scan. */
     private final LazyMap<String, ArrayList<String>> namesOfAllInterfaceClasses = //
-    new LazyMap<String, ArrayList<String>>() {
+    removePlaceholdersAndSort(new LazyMap<String, Set<String>>() {
         @Override
-        protected ArrayList<String> generateValue(final String ignored) {
+        protected Set<String> generateValue(final String ignored) {
             // Return same value for all keys -- just always use the key "" to fetch the list so that
             // work is not duplicated if you call twice with different keys.
-            return Utils.sortedCopy(interfaceNameToInterfaceNode.keySet());
+            return interfaceNameToInterfaceNode.keySet();
         };
-    };
+    });
 
     /** The sorted unique names of all annotation classes found during the scan. */
     private final LazyMap<String, ArrayList<String>> namesOfAllAnnotationClasses = //
-    new LazyMap<String, ArrayList<String>>() {
+    removePlaceholdersAndSort(new LazyMap<String, Set<String>>() {
         @Override
-        protected ArrayList<String> generateValue(final String ignored) {
+        protected Set<String> generateValue(final String ignored) {
             // Return same value for all keys -- just always use the key "" to fetch the list so that
             // work is not duplicated if you call twice with different keys.
-            return Utils.sortedCopy(annotationNameToAnnotationNode.keySet());
+            return annotationNameToAnnotationNode.keySet();
         };
-    };
+    });
 
     /**
      * Return the sorted unique names of all classes, interfaces and annotations found during the scan.
@@ -194,7 +281,7 @@ public class ClassGraphBuilder {
 
     /** Return the sorted list of names of all subclasses of the named class. */
     private final LazyMap<String, ArrayList<String>> classNameToSubclassNames = //
-    new LazyMap<String, ArrayList<String>>() {
+    removePlaceholdersAndSort(new LazyMap<String, ArrayList<String>>() {
         @Override
         protected ArrayList<String> generateValue(final String className) {
             final DAGNode classNode = classNameToStandardClassNode.get(className);
@@ -205,10 +292,9 @@ public class ClassGraphBuilder {
             for (final DAGNode subNode : classNode.allSubNodes) {
                 subclasses.add(subNode.name);
             }
-            Collections.sort(subclasses);
             return subclasses;
         };
-    };
+    });
 
     /** Return the sorted list of names of all subclasses of the named class. */
     public List<String> getNamesOfSubclassesOf(final String className) {
@@ -222,7 +308,7 @@ public class ClassGraphBuilder {
 
     /** Return the sorted list of names of all superclasses of the named class. */
     private final LazyMap<String, ArrayList<String>> classNameToSuperclassNames = //
-    new LazyMap<String, ArrayList<String>>() {
+    removePlaceholdersAndSort(new LazyMap<String, ArrayList<String>>() {
         @Override
         protected ArrayList<String> generateValue(final String className) {
             final DAGNode classNode = classNameToStandardClassNode.get(className);
@@ -233,10 +319,9 @@ public class ClassGraphBuilder {
             for (final DAGNode superNode : classNode.allSuperNodes) {
                 superclasses.add(superNode.name);
             }
-            Collections.sort(superclasses);
             return superclasses;
         };
-    };
+    });
 
     /** Return the sorted list of names of all superclasses of the named class. */
     public List<String> getNamesOfSuperclassesOf(final String className) {
@@ -253,7 +338,7 @@ public class ClassGraphBuilder {
      * whose type is in a whitelisted (non-blacklisted) package.
      */
     private final LazyMap<String, ArrayList<String>> fieldTypeToClassNames = //
-    LazyMap.convertToMultiMapSorted( //
+    removePlaceholdersAndSort( //
     LazyMap.invertMultiSet( //
     new LazyMap<String, HashSet<String>>() {
         @Override
@@ -288,7 +373,7 @@ public class ClassGraphBuilder {
 
     /** Return the sorted list of names of all subinterfaces of the named interface. */
     private final LazyMap<String, ArrayList<String>> interfaceNameToSubinterfaceNames = //
-    new LazyMap<String, ArrayList<String>>() {
+    removePlaceholdersAndSort(new LazyMap<String, ArrayList<String>>() {
         @Override
         protected ArrayList<String> generateValue(final String interfaceName) {
             final DAGNode interfaceNode = interfaceNameToInterfaceNode.get(interfaceName);
@@ -299,10 +384,9 @@ public class ClassGraphBuilder {
             for (final DAGNode subNode : interfaceNode.allSubNodes) {
                 subinterfaces.add(subNode.name);
             }
-            Collections.sort(subinterfaces);
             return subinterfaces;
         };
-    };
+    });
 
     /** Return the sorted list of names of all subinterfaces of the named interface. */
     public List<String> getNamesOfSubinterfacesOf(final String interfaceName) {
@@ -316,7 +400,7 @@ public class ClassGraphBuilder {
 
     /** Return the sorted list of names of all superinterfaces of the named interface. */
     private final LazyMap<String, ArrayList<String>> interfaceNameToSuperinterfaceNames = //
-    new LazyMap<String, ArrayList<String>>() {
+    removePlaceholdersAndSort(new LazyMap<String, ArrayList<String>>() {
         @Override
         protected ArrayList<String> generateValue(final String interfaceName) {
             final DAGNode interfaceNode = interfaceNameToInterfaceNode.get(interfaceName);
@@ -327,10 +411,9 @@ public class ClassGraphBuilder {
             for (final DAGNode superNode : interfaceNode.allSuperNodes) {
                 superinterfaces.add(superNode.name);
             }
-            Collections.sort(superinterfaces);
             return superinterfaces;
         };
-    };
+    });
 
     /** Return the names of all superinterfaces of the named interface. */
     public List<String> getNamesOfSuperinterfacesOf(final String interfaceName) {
@@ -379,7 +462,7 @@ public class ClassGraphBuilder {
 
     /** Mapping from interface names to the sorted list of unique names of classes that implement the interface. */
     private final LazyMap<String, ArrayList<String>> interfaceNameToClassNames = //
-    LazyMap.convertToMultiMapSorted(interfaceNameToClassNamesSet);
+    removePlaceholdersAndSort(interfaceNameToClassNamesSet);
 
     /** Return the sorted list of names of all classes implementing the named interface. */
     public List<String> getNamesOfClassesImplementing(final String interfaceName) {
@@ -419,8 +502,8 @@ public class ClassGraphBuilder {
     };
 
     /** A MultiMap mapping from annotation name to the sorted list of names of the classes they annotate. */
-    private final LazyMap<String, ArrayList<String>> annotationNameToAnnotatedClassNames = LazyMap
-            .convertToMultiMapSorted(annotationNameToAnnotatedClassNamesSet);
+    private final LazyMap<String, ArrayList<String>> annotationNameToAnnotatedClassNames = //
+    removePlaceholdersAndSort(annotationNameToAnnotatedClassNamesSet);
 
     /** Return the sorted list of names of all classes with the named class annotation or meta-annotation. */
     public List<String> getNamesOfClassesWithAnnotation(final String annotationName) {
@@ -437,8 +520,8 @@ public class ClassGraphBuilder {
      * classes.
      */
     private final LazyMap<String, ArrayList<String>> classNameToAnnotationNames = //
-    LazyMap.convertToMultiMapSorted( //
-    LazyMap.invertMultiSet(annotationNameToAnnotatedClassNamesSet, annotationNameToAnnotationNode));
+    removePlaceholdersAndSort(LazyMap.invertMultiSet(annotationNameToAnnotatedClassNamesSet,
+            annotationNameToAnnotationNode));
 
     /** Return the sorted list of names of all annotations and meta-annotations on the named class. */
     public List<String> getNamesOfAnnotationsOnClass(final String classOrInterfaceName) {
@@ -472,8 +555,8 @@ public class ClassGraphBuilder {
      * annotation.
      */
     private final LazyMap<String, ArrayList<String>> annotationNameToMetaAnnotationNames = //
-    LazyMap.convertToMultiMapSorted( //
-    LazyMap.invertMultiSet(metaAnnotationNameToAnnotatedAnnotationNamesSet, annotationNameToAnnotationNode));
+    removePlaceholdersAndSort(LazyMap.invertMultiSet(metaAnnotationNameToAnnotatedAnnotationNamesSet,
+            annotationNameToAnnotationNode));
 
     /** Return the sorted list of names of all meta-annotations on the named annotation. */
     public List<String> getNamesOfMetaAnnotationsOnAnnotation(final String annotationName) {
@@ -489,7 +572,7 @@ public class ClassGraphBuilder {
      * Mapping from meta-annotation names to the sorted list of names of annotations that have the meta-annotation.
      */
     private final LazyMap<String, ArrayList<String>> metaAnnotationNameToAnnotatedAnnotationNames = //
-    LazyMap.convertToMultiMapSorted(metaAnnotationNameToAnnotatedAnnotationNamesSet);
+    removePlaceholdersAndSort(metaAnnotationNameToAnnotatedAnnotationNamesSet);
 
     /** Return the names of all annotations that have the named meta-annotation. */
     public List<String> getNamesOfAnnotationsWithMetaAnnotation(final String metaAnnotationName) {

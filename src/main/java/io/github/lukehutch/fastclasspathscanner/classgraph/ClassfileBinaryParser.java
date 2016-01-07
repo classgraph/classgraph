@@ -110,14 +110,14 @@ public class ClassfileBinaryParser {
         // and if so, record the field and its type
         final Matcher matcher = TYPE_PARAM_PATTERN.matcher(typeDescriptor);
         while (matcher.find()) {
+            // Convert from type path to class name
             final String descriptorPart = matcher.group(2);
-            if (scanSpec.pathIsWhitelisted(descriptorPart)) {
+            final String fieldTypeName = descriptorPart.replace('/', '.');
+            if (scanSpec.classIsWhitelisted(fieldTypeName)) {
+                // Add field type to set of whitelisted field types encountered in class
                 if (whitelistedFieldTypes == null) {
                     whitelistedFieldTypes = new HashSet<>();
                 }
-                // Convert from type path to class name
-                final String fieldTypeName = descriptorPart.replace('/', '.');
-                // Add field type to set of whitelisted field types encountered in class
                 whitelistedFieldTypes.add(fieldTypeName);
             }
         }

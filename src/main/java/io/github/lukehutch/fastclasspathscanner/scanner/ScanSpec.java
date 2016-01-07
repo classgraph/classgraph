@@ -13,6 +13,12 @@ public class ScanSpec {
     /** Blacklisted package prefixes with "." appended. */
     private final ArrayList<String> blacklistedPackagePrefixes = new ArrayList<>();
 
+    /** Whitelisted class names, or the empty list if none. */
+    private final HashSet<String> whitelistedClassNames = new HashSet<>();
+
+    /** Blacklisted class names. */
+    private final HashSet<String> blacklistedClassNames = new HashSet<>();
+
     /** Whitelisted package paths with "/" appended, or the empty list if all packages are whitelisted. */
     private final ArrayList<String> whitelistedPathPrefixes = new ArrayList<>();
 
@@ -30,6 +36,12 @@ public class ScanSpec {
 
     /** True if non-jarfiles (directories) should be scanned. */
     public final boolean scanNonJars;
+
+    /**
+     * If true, include referenced classes (superclasses, implemented interfaces or annotations) that are not
+     * themselves in a whitelisted package.
+     */
+    public boolean matchReferencedClasses;
 
     /**
      * Blacklist all java.* and sun.* packages. (The Java standard library jars, e.g rt.jar, are also blacklisted by
@@ -89,14 +101,30 @@ public class ScanSpec {
                 if (spec.startsWith(".")) {
                     spec = spec.substring(1);
                 }
-                // Convert package name to path prefix
-                spec = spec + ".";
-                if (blacklisted) {
-                    uniqueBlacklistedPackagePrefixes.add(spec);
-                    uniqueBlacklistedPathPrefixes.add(spec.replace('.', '/'));
+                // See if a class name was specified, rather than a package name. Relies on the Java convention
+                // that package names should be lower case and class names should be upper case.
+                boolean isClassName = false;
+                final int lastDotIdx = spec.lastIndexOf('.');
+                if (lastDotIdx > 0 && lastDotIdx < spec.length() - 1) {
+                    isClassName = Character.isUpperCase(spec.charAt(lastDotIdx + 1));
+                }
+                if (isClassName) {
+                    // This is a class name
+                    if (blacklisted) {
+                        blacklistedClassNames.add(spec);
+                    } else {
+                        whitelistedClassNames.add(spec);
+                    }
                 } else {
-                    uniqueWhitelistedPackagePrefixes.add(spec);
-                    uniqueWhitelistedPathPrefixes.add(spec.replace('.', '/'));
+                    // This is a package name: convert into a prefix by adding '.', and also convert to path prefix
+                    spec = spec + ".";
+                    if (blacklisted) {
+                        uniqueBlacklistedPackagePrefixes.add(spec);
+                        uniqueBlacklistedPathPrefixes.add(spec.replace('.', '/'));
+                    } else {
+                        uniqueWhitelistedPackagePrefixes.add(spec);
+                        uniqueWhitelistedPathPrefixes.add(spec.replace('.', '/'));
+                    }
                 }
             }
         }
@@ -125,6 +153,7 @@ public class ScanSpec {
         }
         blacklistedPathPrefixes.addAll(uniqueBlacklistedPathPrefixes);
         blacklistedPackagePrefixes.addAll(uniqueBlacklistedPackagePrefixes);
+        whitelistedClassNames.removeAll(blacklistedClassNames);
         this.scanJars = scanJars;
         this.scanNonJars = scanNonJars;
 
@@ -168,9 +197,13 @@ public class ScanSpec {
         return isWhitelisted && !isBlacklisted;
     }
 
-    /** Returns true if the given class name is in a whitelisted, non-blacklisted package. */
-    public boolean classIsInWhitelistedPackage(final String className) {
-        return isWhitelisted(className, whitelistedPackagePrefixes, blacklistedPackagePrefixes);
+    /**
+     * Returns true if the given class name is whitelisted and not blacklisted, or if it is in a whitelisted,
+     * non-blacklisted package.
+     */
+    public boolean classIsWhitelisted(final String className) {
+        return whitelistedClassNames.contains(className) && !blacklistedClassNames.contains(className)
+                || isWhitelisted(className, whitelistedPackagePrefixes, blacklistedPackagePrefixes);
     }
 
     /** Returns true if the given path is within a whitelisted, non-blacklisted package. */

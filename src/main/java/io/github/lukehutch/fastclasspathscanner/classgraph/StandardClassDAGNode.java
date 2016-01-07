@@ -46,6 +46,11 @@ class StandardClassDAGNode extends DAGNode {
         super(classInfo);
     }
 
+    /** Creates a placeholder node for a reference to a class outside a whitelisted package. */
+    public StandardClassDAGNode(final String name) {
+        super(name);
+    }
+
     /** Connect this standard class node to the node corresponding to an interface it implements. */
     public void addImplementedInterface(final ImplementedInterfaceDAGNode implementedInterfaceNode) {
         this.implementedInterfaceClassNodes.add(implementedInterfaceNode);
@@ -61,7 +66,7 @@ class StandardClassDAGNode extends DAGNode {
         super.connect(classNameToDAGNode);
 
         // Connect classes to the interfaces they implement
-        if (classInfo.interfaceNames != null) {
+        if (classInfo != null && classInfo.interfaceNames != null) {
             for (final String interfaceName : classInfo.interfaceNames) {
                 // interfaceNode will usually be of type InterfaceDAGNode, but it could be of type AnnotationDAGNode
                 // if the code implements an annotation (annotations are actually interfaces, see issue #38).
@@ -74,7 +79,7 @@ class StandardClassDAGNode extends DAGNode {
         }
 
         // Connect any annotations on this class to this class 
-        if (classInfo.annotationNames != null) {
+        if (classInfo != null && classInfo.annotationNames != null) {
             for (final String annotationName : classInfo.annotationNames) {
                 final AnnotationDAGNode annotationNode = (AnnotationDAGNode) classNameToDAGNode.get(annotationName);
                 if (annotationNode != null) {
@@ -84,7 +89,7 @@ class StandardClassDAGNode extends DAGNode {
         }
 
         // Connect class to types of fields that are within a whitelisted (non-blacklisted) package prefix
-        if (classInfo.whitelistedFieldTypes != null) {
+        if (classInfo != null && classInfo.whitelistedFieldTypes != null) {
             for (final String whitelistedFieldTypeName : classInfo.whitelistedFieldTypes) {
                 final DAGNode typeNode = classNameToDAGNode.get(whitelistedFieldTypeName);
                 if (typeNode != null) {

@@ -113,38 +113,7 @@ public class FastClasspathScanner {
      * @param scanSpec
      *            The constructor accepts a list of whitelisted package prefixes / jar names to scan, as well as
      *            blacklisted packages/jars not to scan, where blacklisted entries are prefixed with the '-'
-     *            character. For example:
-     * 
-     *            new FastClasspathScanner("com.x"): limits scanning to the package com.x and its sub-packages in
-     *            all jarfiles and all directory entries on the classpath.
-     * 
-     *            new FastClasspathScanner("com.x", "-com.x.y"): limits scanning to com.x and all sub-packages
-     *            *except* com.x.y in all jars and directories on the classpath.
-     * 
-     *            new FastClasspathScanner("com.x", "-com.x.y", "jar:deploy.jar"): limits scanning to com.x and all
-     *            its sub-packages except com.x.y, but only looks in jars named deploy.jar on the classpath. Note:
-     *            1. Whitelisting one or more jar entries prevents non-jar entries (directories) on the classpath
-     *            from being scanned. 2. Only the leafname of a jarfile can be specified in a "jar:" or "-jar:"
-     *            entry, so if there is a chance of conflict, make sure the jarfile's leaf name is unique.
-     * 
-     *            new FastClasspathScanner("com.x", "-jar:irrelevant.jar"): limits scanning to com.x and all
-     *            sub-packages in all directories on the classpath, and in all jars except irrelevant.jar. (i.e.
-     *            blacklisting a jarfile only excludes the specified jarfile, it doesn't prevent all directories
-     *            from being scanned, as with whitelisting a jarfile.)
-     * 
-     *            new FastClasspathScanner("com.x", "jar:"): limits scanning to com.x and all sub-packages, but only
-     *            looks in jarfiles on the classpath -- directories are not scanned. (i.e. "jar:" is a wildcard to
-     *            indicate that all jars are whitelisted, and as in the example above, whitelisting jarfiles
-     *            prevents non-jars (directories) from being scanned.)
-     * 
-     *            new FastClasspathScanner("com.x", "-jar:"): limits scanning to com.x and all sub-packages, but
-     *            only looks in directories on the classpath -- jarfiles are not scanned. (i.e. "-jar:" is a
-     *            wildcard to indicate that all jars are blacklisted.)
-     * 
-     *            new FastClasspathScanner(): If you don't specify any whitelisted package prefixes, all jarfiles
-     *            and all directories on the classpath will be scanned.
-     * 
-     *            N.B. System, bootstrap and extension jarfiles (i.e. the JRE jarfiles) are never scanned.
+     *            character. See https://github.com/lukehutch/fast-classpath-scanner#constructor for info.
      */
     public FastClasspathScanner(final String... scanSpec) {
         this.classpathFinder = new ClasspathFinder();
@@ -208,11 +177,11 @@ public class FastClasspathScanner {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Checks that the named class is in a whitelisted (non-blacklisted) package. Throws IllegalArgumentException
-     * otherwise.
+     * Checks that the named class is itself whitelisted (and not blacklisted), or that it is found within a
+     * whitelisted (non-blacklisted) package. Throws IllegalArgumentException otherwise.
      */
     private void checkClassNameIsInWhitelistedPackage(final String className) {
-        if (!scanSpec.classIsInWhitelistedPackage(className)) {
+        if (!scanSpec.classIsWhitelisted(className)) {
             throw new IllegalArgumentException("Can't scan for " + className
                     + ", it is in a package that is either blacklisted or not whitelisted");
         }
@@ -1449,7 +1418,7 @@ public class FastClasspathScanner {
         recursiveScanner.scan();
 
         // Build class, interface and annotation graph out of all the ClassInfo objects.
-        classGraphBuilder = new ClassGraphBuilder(relativePathToClassInfo.values());
+        classGraphBuilder = new ClassGraphBuilder(relativePathToClassInfo.values(), scanSpec);
 
         // Call any class, interface and annotation MatchProcessors
         for (final ClassMatcher classMatcher : classMatchers) {
@@ -1496,6 +1465,15 @@ public class FastClasspathScanner {
     /** Switch on verbose mode (prints debug info to System.out). */
     public FastClasspathScanner verbose() {
         verbose = true;
+        return this;
+    }
+
+    /**
+     * Allow matching of "external" referenced classes (superclasses, implemented interfaces or annotations that are
+     * not themselves in a whitelisted package).
+     */
+    public FastClasspathScanner matchReferencedClasses() {
+        scanSpec.matchReferencedClasses = true;
         return this;
     }
 }
