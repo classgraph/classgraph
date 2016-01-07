@@ -42,12 +42,15 @@ import java.util.List;
 import java.util.Set;
 
 public class ClassGraphBuilder {
+    private final ScanSpec scanSpec;
     private final ArrayList<StandardClassDAGNode> standardClassNodes = new ArrayList<>();
     private final ArrayList<InterfaceDAGNode> interfaceNodes = new ArrayList<>();
     private final ArrayList<AnnotationDAGNode> annotationNodes = new ArrayList<>();
     private final HashMap<String, DAGNode> classNameToDAGNode = new HashMap<>();
 
     public ClassGraphBuilder(final Collection<ClassInfo> classInfoFromScan, final ScanSpec scanSpec) {
+        this.scanSpec = scanSpec;
+        
         // Take care of Scala quirks
         final ArrayList<ClassInfo> allClassInfo = new ArrayList<>(Utils.mergeScalaAuxClasses(classInfoFromScan));
 
@@ -144,7 +147,8 @@ public class ClassGraphBuilder {
                     final ArrayList<String> listWithoutPlaceholders = new ArrayList<>();
                     for (final String className : classNameList) {
                         final DAGNode dagNode = classNameToDAGNode.get(className);
-                        if (!dagNode.isPlaceholder) {
+                        // Strip out placeholder nodes, unless the class was whitelisted by name
+                        if (!dagNode.isPlaceholder || scanSpec.classIsWhitelisted(className)) {
                             listWithoutPlaceholders.add(dagNode.name);
                         }
                     }
