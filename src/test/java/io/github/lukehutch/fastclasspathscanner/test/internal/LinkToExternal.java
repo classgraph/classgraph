@@ -21,23 +21,10 @@ public class LinkToExternal {
     }
 
     @Test
-    public void testExternalNotNormallyVisible() {
-        FastClasspathScanner scanner = new FastClasspathScanner(LinkToExternal.class.getPackage().getName()).scan();
-        assertThat(scanner.getNamesOfAllStandardClasses()).doesNotContain(ExternalSuperclass.class.getName());
-        assertThat(scanner.getNamesOfSubclassesOf(ExternalSuperclass.class.getName())).isEmpty();
-        assertThat(scanner.getNamesOfAllInterfaceClasses()).doesNotContain(ExternalInterface.class.getName());
-        assertThat(scanner.getNamesOfClassesImplementing(ExternalInterface.class.getName())).isEmpty();
-        assertThat(scanner.getNamesOfAllAnnotationClasses()).doesNotContain(ExternalAnnotation.class.getName());
-        assertThat(scanner.getNamesOfClassesWithAnnotation(ExternalAnnotation.class.getName())).isEmpty();
-    }
-
-    @Test
     public void testWhitelistingExternalClasses() {
         FastClasspathScanner scanner = new FastClasspathScanner(LinkToExternal.class.getPackage().getName(),
                 ExtendsExternal.class.getName(), ImplementsExternal.class.getName(),
-                AnnotatedByExternal.class.getName()) //
-                .matchReferencedClasses() //
-                .scan();
+                AnnotatedByExternal.class.getName()).scan();
         assertThat(scanner.getNamesOfAllStandardClasses()).doesNotContain(ExternalSuperclass.class.getName());
         assertThat(scanner.getNamesOfSubclassesOf(ExternalSuperclass.class.getName())).containsExactly(
                 ExtendsExternal.class.getName());
@@ -51,9 +38,7 @@ public class LinkToExternal {
 
     @Test
     public void testIncludeReferencedClasses() {
-        FastClasspathScanner scanner = new FastClasspathScanner(LinkToExternal.class.getPackage().getName())
-                .matchReferencedClasses() //
-                .scan();
+        FastClasspathScanner scanner = new FastClasspathScanner(LinkToExternal.class.getPackage().getName()).scan();
         assertThat(scanner.getNamesOfAllStandardClasses()).doesNotContain(ExternalSuperclass.class.getName());
         assertThat(scanner.getNamesOfSubclassesOf(ExternalSuperclass.class.getName())).containsExactly(
                 ExtendsExternal.class.getName());

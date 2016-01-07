@@ -96,8 +96,10 @@ new FastClasspathScanner("com.xyz.widget", "-com.xyz.widget.internal")
         // This lambda expression is of type FileMatchContentProcessor.
         (relativePath, fileContentBytes) ->
             registerTemplate(relativePath, new String(fileContentBytes, "UTF-8")))
-    .verbose()  // Optional, in case you want to debug any issues with scanning
-    .scan();    // Actually perform the scan
+    // Optional, in case you want to debug any issues with scanning
+    .verbose()
+    // Actually perform the scan
+    .scan();
 
 // [...Some time later...]
 // See if any timestamps on the classpath are more recent than the time of the
@@ -211,16 +213,31 @@ The constructor accepts a list of whitelisted package prefixes / jar names to sc
 
 ## Detecting annotations, superclasses and implemented interfaces outside of whitelisted packages
 
-By default, FashClasspathScanner is "hermetic" about its whitelisting: it will not return or match any class, interface or annotation that falls outside of a whitelisted (and non-blacklisted) package. The ability to detect that a class extends another class, or implements a given interface, or is annotated with a given annotation, depends upon the entire class reference path between the two classes being within one of the whitelisted package prefixes.
+In general, FashClasspathScanner cannot find relationships between classes, interfaces and annotations unless the entire path of references between them falls within a whitelisted (and non-blacklisted) package.
 
-This can be problematic if you want to find all classes annotated with an annotation outside of a whitelisted package, e.g. you want to scan package `com.x` for classes annotated with `javax.persistence.Entity`, but you don't want to scan the whole package `javax.persistence` just to be able to match the annotation.
+An exception is made for references to "external" classes, defined as superclasses, implemented interfaces, superinterfaces and annotations/meta-annotations that are defined outside of the whitelisted packages but that are referred to by a class defined within a whitelisted package. External classes may be used as matching criteria, as shown below.
 
-There are two ways to enable the use of references to "external" classes / interfaces / annotations, i.e. to enable matching of a superclasses / implemented interface / annotation that is not in a whitelisted package:
- 
-1. Specifically whitelist the external class name in the scan spec, e.g. `new FastClasspathScanner("com.x", "javax.persistence.Entity")`. (Note that a capital letter after the final '.' indicates a whitelisted class.) This limits scanning to `com.x`, but also whitelists individual classes outside of whitelisted packages. These class references can only be used as match criteria, e.g. in `getNamesOfClassesWithAnnotation("javax.persistence.Entity")`, but the full relationship between these classes and other classes (e.g. "extends"/"implements" links) is not determined, because the classfiles for the external referenced classes are never read. However, the names of whitelisted external classes will still be returned in lists such as `.getNamesOfAllAnnotations()`. 
-2. Call `.matchReferencedClasses()` before calling `.scan()`. This will allow any superclass, implemented interface, superinterface, or annotation of a whitelisted class/interface/annotation to be used for matching, even if it is not itself whitelisted. However, in this case, any such "external classes" are not returned in lists such as `.getNamesOfAllAnnotations()`, because they are not actually whitelisted.
+You may also explicitly whitelist an external class name in the constructor, which will cause the external class to be returned by `.getNamesOf...()` methods.
 
-Both methods effectively allow for matching based on classes that are at most one reference away from classes within whitelisted packages.
+```java
+// Given a class com.xyz.MyEntity that is annotated with javax.persistence.Entity:
+
+// Result: ["com.xyz.MyEntity"],
+// because "com.xyz.MyEntity" is in the whitelisted path "com.xyz"
+List<String> matches1 = new FastClasspathScanner("com.xyz").scan()
+    .getNamesOfClassesAnnotatedWith("javax.persistence.Entity");
+
+// Result: [],
+// because javax.persistence.Entity is not explicitly whitelisted
+List<String> matches2 = new FastClasspathScanner("com.xyz").scan()
+    .getNamesOfAllAnnotationClasses();
+
+// Result: ["javax.persistence.Entity"],
+// because javax.persistence.Entity is explicitly whitelisted
+List<String> matches3 = new FastClasspathScanner(
+        .xyz", "javax.persistence.Entity").scan()
+    .getNamesOfAllAnnotationClasses();
+```   
 
 ### 1. Matching the subclasses (or finding the superclasses) of a class
 

@@ -1467,13 +1467,4 @@ public class FastClasspathScanner {
         verbose = true;
         return this;
     }
-
-    /**
-     * Allow matching of "external" referenced classes (superclasses, implemented interfaces or annotations that are
-     * not themselves in a whitelisted package).
-     */
-    public FastClasspathScanner matchReferencedClasses() {
-        scanSpec.matchReferencedClasses = true;
-        return this;
-    }
 }

@@ -57,7 +57,7 @@ public class ClassGraphBuilder {
         final HashSet<String> externalSuperclasses = new HashSet<>();
         final HashSet<String> externalInterfaces = new HashSet<>();
         final HashSet<String> externalAnnotations = new HashSet<>();
-        if (scanSpec.matchReferencedClasses) {
+        if (scanSpec.MATCH_REFERENCED_CLASSES) {
             final ArrayList<String> whitelistedClasses = new ArrayList<>();
             for (final ClassInfo classInfo : allClassInfo) {
                 if (classInfo.superclassNames != null) {
