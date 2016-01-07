@@ -222,11 +222,12 @@ You may also explicitly whitelist an external class name in the constructor, whi
 ```java
 // Given a class com.xyz.MyEntity that is annotated with javax.persistence.Entity:
 
-// Result: ["com.xyz.MyEntity"], because "com.xyz.MyEntity" is in the whitelisted path "com.xyz"
+// Result: ["com.xyz.MyEntity"], because com.xyz.MyEntity is in the whitelisted path com.xyz
 List<String> matches1 = new FastClasspathScanner("com.xyz").scan()
     .getNamesOfClassesAnnotatedWith("javax.persistence.Entity");
 
-// Result: [], because javax.persistence.Entity is not explicitly whitelisted
+// Result: [], because javax.persistence.Entity is not explicitly whitelisted, and is not defined
+// in a whitelisted package
 List<String> matches2 = new FastClasspathScanner("com.xyz").scan()
     .getNamesOfAllAnnotationClasses();
 
