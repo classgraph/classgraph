@@ -263,8 +263,12 @@ public class FastClasspathScanner {
                 break;
             }
         }
-        if (!isWhitelisted || isBlacklisted) {
-            throw new IllegalArgumentException(className + " is not in a whitelisted (non-blacklisted) package");
+        if (isBlacklisted) {
+            throw new IllegalArgumentException("Can't scan for " + className + ", it is in a blacklisted package");
+        }
+        if (!isWhitelisted) {
+            throw new IllegalArgumentException("Can't scan for " + className
+                    + ", it is not in a whitelisted package");
         }
     }
 
