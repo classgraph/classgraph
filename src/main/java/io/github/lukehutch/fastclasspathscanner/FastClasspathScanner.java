@@ -159,7 +159,6 @@ public class FastClasspathScanner {
             // If scanning all packages, blacklist Java types (they are always excluded from scanning,
             // but may occur as the type of a field)
             blacklistClassRefPrefix.add("java/");
-            blacklistClassRefPrefix.add("javax/");
             blacklistClassRefPrefix.add("sun/");
         } else {
             for (final String spec : scanSpec) {

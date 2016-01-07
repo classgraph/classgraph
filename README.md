@@ -202,8 +202,9 @@ The constructor accepts a list of whitelisted package prefixes / jar names to sc
 * `new FastClasspathScanner()`: If you don't specify any whitelisted package prefixes, all jarfiles and all directories on the classpath will be scanned.
 
 Notes on blacklisting / whitelisting:
-* Superclasses, subclasses etc. that are in a package that is not whitelisted (or that is blacklisted) will not be returned in the results of .getAllSuperclassesOf(classX), .getAllSubclassesOf(classX) etc., even if classX is in a whitelisted (and non-blacklisted) package.
-* For efficiency, system, bootstrap and extension jarfiles (i.e. the jarfiles distributed with the JRE) are always blacklisted, i.e. they are never scanned. If you put custom classes into the `lib/ext` directory in your JRE folder (which is a valid but rare way of adding jarfiles to the classpath), they will be ignored by association with the JRE.
+* Superclasses, subclasses etc. that are in a package that is not whitelisted (or that is blacklisted) will not be returned in the results of `.getAllSuperclassesOf("com.xyz.X")`, `.getAllSubclassesOf("com.xyz.X")` etc., even if `com.xyz.X` is itself in a whitelisted, non-blacklisted package.
+* If you call a method like `.getAllSuperclassesOf("com.xyz.MySuperclass")` or `.getNamesOfClassesWithAnnotation("com.xyz.MyAnnotation")`, and `"com.xyz"` is not listed as a whitelisted package in the constructor, FastClasspathScanner will throw `IllegalArgumentException`.
+* For efficiency, system, bootstrap and extension jarfiles like `rt.jar` (i.e. the jarfiles distributed with the JRE) are always blacklisted, i.e. they are never scanned. If you put custom classes into the `lib/ext` directory in your JRE folder (which is a valid but rare way of adding jarfiles to the classpath), they will be ignored by association with the JRE.
 
 ### 1. Matching the subclasses (or finding the superclasses) of a class
 
