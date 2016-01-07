@@ -104,6 +104,12 @@ public class FastClasspathScanner {
     /** If set to true, print info while scanning */
     public static boolean verbose = false;
 
+    /**
+     * Blacklist all java.* and sun.* packages. (The Java standard library jars, e.g rt.jar, are also blacklisted by
+     * the file/directory scanner.)
+     */
+    public static String[] BLACKLISTED_PACKAGES = { "java", "sun" };
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
@@ -158,23 +164,27 @@ public class FastClasspathScanner {
         if (scanSpec.length == 0 || (scanSpec.length == 1 && scanSpec[0].isEmpty())) {
             // If scanning all packages, blacklist Java types (they are always excluded from scanning,
             // but may occur as the type of a field)
-            blacklistClassRefPrefix.add("java/");
-            blacklistClassRefPrefix.add("sun/");
+            for (String pkg : BLACKLISTED_PACKAGES) {
+                String pkgPrefix = pkg + ".";
+                blacklistedPackagePrefixes.add(pkgPrefix);
+                blacklistClassRefPrefix.add(pkgPrefix.replace('.', '/'));
+            }
         } else {
             for (final String spec : scanSpec) {
                 if (!(spec.startsWith("jar:") || spec.startsWith("-jar:"))) {
                     if (spec.startsWith("-")) {
-                        String pkgPrefix = spec.substring(1);
+                        String pkgPrefix = spec.substring(1) + ".";
                         if (!pkgPrefix.isEmpty()) {
-                            blacklistedPackagePrefixes.add(pkgPrefix + ".");
+                            blacklistedPackagePrefixes.add(pkgPrefix);
                         }
-                        final String descriptor = pkgPrefix.replace('.', '/') + "/";
+                        final String descriptor = pkgPrefix.replace('.', '/');
                         blacklistClassRefPrefix.add(descriptor);
                     } else {
+                        String pkgPrefix = spec + ".";
                         if (!spec.isEmpty()) {
-                            whitelistedPackagePrefixes.add(spec + ".");
+                            whitelistedPackagePrefixes.add(pkgPrefix);
                         }
-                        final String descriptor = spec.replace('.', '/') + "/";
+                        final String descriptor = spec.replace('.', '/');
                         whitelistClassRefPrefix.add(descriptor);
                     }
                 }
