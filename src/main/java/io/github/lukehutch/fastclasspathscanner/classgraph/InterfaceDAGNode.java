@@ -30,8 +30,11 @@ package io.github.lukehutch.fastclasspathscanner.classgraph;
 
 import java.util.HashMap;
 
-/** A DAG node representing an interface class. */
-class InterfaceDAGNode extends DAGNode {
+/**
+ * A DAG node representing a class that is an interface and not an annotation. (Annotations are actually interfaces,
+ * so they can be implemented.)
+ */
+class InterfaceDAGNode extends ImplementedInterfaceDAGNode {
     /** A DAG node representing an interface class. */
     public InterfaceDAGNode(final ClassInfo classInfo) {
         super(classInfo);

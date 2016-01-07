@@ -36,7 +36,7 @@ import java.util.HashSet;
 class StandardClassDAGNode extends DAGNode {
 
     /** The nodes corresponding to interfaces implemented by this class. */
-    ArrayList<InterfaceDAGNode> implementedInterfaceClassNodes = new ArrayList<>(2);
+    ArrayList<ImplementedInterfaceDAGNode> implementedInterfaceClassNodes = new ArrayList<>(2);
 
     /** The nodes corresponding to classes annotated by this annotation. */
     HashSet<DAGNode> whitelistedFieldTypeNodes = new HashSet<>(2);
@@ -47,7 +47,7 @@ class StandardClassDAGNode extends DAGNode {
     }
 
     /** Connect this standard class node to the node corresponding to an interface it implements. */
-    public void addImplementedInterface(final InterfaceDAGNode implementedInterfaceNode) {
+    public void addImplementedInterface(final ImplementedInterfaceDAGNode implementedInterfaceNode) {
         this.implementedInterfaceClassNodes.add(implementedInterfaceNode);
     }
 
@@ -63,7 +63,10 @@ class StandardClassDAGNode extends DAGNode {
         // Connect classes to the interfaces they implement
         if (classInfo.interfaceNames != null) {
             for (final String interfaceName : classInfo.interfaceNames) {
-                final InterfaceDAGNode interfaceNode = (InterfaceDAGNode) classNameToDAGNode.get(interfaceName);
+                // interfaceNode will usually be of type InterfaceDAGNode, but it could be of type AnnotationDAGNode
+                // if the code implements an annotation (annotations are actually interfaces, see issue #38).
+                final ImplementedInterfaceDAGNode interfaceNode = (ImplementedInterfaceDAGNode) classNameToDAGNode
+                        .get(interfaceName);
                 if (interfaceNode != null) {
                     this.addImplementedInterface(interfaceNode);
                 }

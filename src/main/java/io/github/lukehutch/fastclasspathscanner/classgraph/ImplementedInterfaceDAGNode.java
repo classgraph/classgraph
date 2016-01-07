@@ -28,36 +28,12 @@
  */
 package io.github.lukehutch.fastclasspathscanner.classgraph;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-
-/** A DAG node representing an annotation class. */
-class AnnotationDAGNode extends ImplementedInterfaceDAGNode {
-    /** The nodes corresponding to classes annotated by this annotation. */
-    ArrayList<DAGNode> annotatedClassNodes = new ArrayList<>(2);
-
-    /** A DAG node representing an annotation class. */
-    public AnnotationDAGNode(final ClassInfo classInfo) {
+/**
+ * A DAG node representing an interface class or an annotation class. (It turns out it is possible, but not
+ * recommended, to implement an annotation as if it is an interface, see issue #38.)
+ */
+class ImplementedInterfaceDAGNode extends DAGNode {
+    public ImplementedInterfaceDAGNode(ClassInfo classInfo) {
         super(classInfo);
-    }
-
-    /** Connect this annotation node to a class it annotates. */
-    public void addAnnotatedClass(final DAGNode annotatedClassNode) {
-        this.annotatedClassNodes.add(annotatedClassNode);
-    }
-
-    @Override
-    public void connect(final HashMap<String, DAGNode> classNameToDAGNode) {
-        super.connect(classNameToDAGNode);
-
-        if (classInfo.annotationNames != null) {
-            for (final String metaAnnotationName : classInfo.annotationNames) {
-                final DAGNode metaAnnotationNode = classNameToDAGNode.get(metaAnnotationName);
-                if (metaAnnotationNode != null) {
-                    // Annotations on an annotation class are meta-annotations -- add them as supernodes
-                    metaAnnotationNode.addSubNode(this);
-                }
-            }
-        }
     }
 }

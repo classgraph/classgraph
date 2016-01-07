@@ -352,7 +352,8 @@ public class ClassGraphBuilder {
                 // For regular classes, cross-linked class names are the names of implemented interfaces.
                 // Create reverse mapping from interfaces and superinterfaces implemented by the class
                 // back to the class the interface implements
-                final ArrayList<InterfaceDAGNode> interfaceNodes = classNode.implementedInterfaceClassNodes;
+                final ArrayList<ImplementedInterfaceDAGNode> interfaceNodes = //
+                classNode.implementedInterfaceClassNodes;
                 for (final DAGNode interfaceNode : interfaceNodes) {
                     // Map from interface to implementing class
                     MultiSet.put(map, interfaceNode.name, classNode.name);
