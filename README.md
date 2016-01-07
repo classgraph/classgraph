@@ -224,7 +224,7 @@ ou may also whitelist an external class name in the scan spec passed to the cons
 
 // Result: ["com.xyz.MyEntity"], because com.xyz.MyEntity is in the whitelisted path com.xyz
 List<String> matches1 = new FastClasspathScanner("com.xyz").scan()
-    .getNamesOfClassesAnnotatedWith("javax.persistence.Entity");
+    .getNamesOfClassesWithAnnotation("javax.persistence.Entity");
 
 // Result: [], because javax.persistence.Entity is not explicitly whitelisted, and is not defined
 // in a whitelisted package
