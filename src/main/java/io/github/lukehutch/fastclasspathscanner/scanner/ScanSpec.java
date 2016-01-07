@@ -62,22 +62,33 @@ public class ScanSpec {
             if (isJar) {
                 // Strip off "jar:"
                 spec = spec.substring(4);
-                if (spec.isEmpty()) {
-                    if (blacklisted) {
-                        // Specifying "-jar:" blacklists all jars for scanning
-                        scanJars = false;
-                    } else {
-                        // Specifying "jar:" causes only jarfiles to be scanned, while whitelisting all jarfiles
-                        scanNonJars = false;
-                    }
+                if (spec.indexOf('/') >= 0) {
+                    Log.log("Only a leaf filename may be used with a \"jar:\" entry in the scan spec, got \""
+                            + spec + "\" -- ignoring");
                 } else {
-                    if (blacklisted) {
-                        blacklistedJars.add(spec);
+                    if (spec.isEmpty()) {
+                        if (blacklisted) {
+                            // Specifying "-jar:" blacklists all jars for scanning
+                            scanJars = false;
+                        } else {
+                            // Specifying "jar:" causes only jarfiles to be scanned, while whitelisting all jarfiles
+                            scanNonJars = false;
+                        }
                     } else {
-                        whitelistedJars.add(spec);
+                        if (blacklisted) {
+                            blacklistedJars.add(spec);
+                        } else {
+                            whitelistedJars.add(spec);
+                        }
                     }
                 }
             } else {
+                // Support using either '.' or '/' as package separator
+                spec = spec.replace('/', '.');
+                // Strip initial '.', in case scan spec started with '/'
+                if (spec.startsWith(".")) {
+                    spec = spec.substring(1);
+                }
                 // Convert package name to path prefix
                 spec = spec + ".";
                 if (blacklisted) {
@@ -138,7 +149,8 @@ public class ScanSpec {
     }
 
     /** Check against a whitelist and blacklist. */
-    private static boolean isWhitelisted(final String str, final ArrayList<String> whitelist, final ArrayList<String> blacklist) {
+    private static boolean isWhitelisted(final String str, final ArrayList<String> whitelist,
+            final ArrayList<String> blacklist) {
         boolean isWhitelisted = false;
         for (final String whitelistPrefix : whitelist) {
             if (str.startsWith(whitelistPrefix)) {
