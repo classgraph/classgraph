@@ -46,7 +46,7 @@ public class ClassGraphBuilder {
     private final ArrayList<InterfaceDAGNode> interfaceNodes = new ArrayList<>();
     private final ArrayList<AnnotationDAGNode> annotationNodes = new ArrayList<>();
     private final HashMap<String, DAGNode> classNameToDAGNode = new HashMap<>();
-    private final HashSet<String> nonWhitelistedPlaceholderClassNames = new HashSet<>();
+    private final HashSet<String> nonWhitelistedExternalClassNames = new HashSet<>();
 
     public ClassGraphBuilder(final Collection<ClassInfo> classInfoFromScan, final ScanSpec scanSpec) {
         // Take care of Scala quirks
@@ -61,7 +61,7 @@ public class ClassGraphBuilder {
         final HashSet<String> externalSuperclasses = new HashSet<>();
         final HashSet<String> externalInterfaces = new HashSet<>();
         final HashSet<String> externalAnnotations = new HashSet<>();
-        final ArrayList<String> whitelistedClasses = new ArrayList<>();
+        final ArrayList<String> scannedClasses = new ArrayList<>();
         for (final ClassInfo classInfo : allClassInfo) {
             if (classInfo.superclassNames != null) {
                 externalSuperclasses.addAll(classInfo.superclassNames);
@@ -72,21 +72,23 @@ public class ClassGraphBuilder {
             if (classInfo.annotationNames != null) {
                 externalAnnotations.addAll(classInfo.annotationNames);
             }
+            scannedClasses.add(classInfo.className);
         }
-        externalSuperclasses.removeAll(whitelistedClasses);
-        externalInterfaces.removeAll(whitelistedClasses);
-        externalAnnotations.removeAll(whitelistedClasses);
+        externalSuperclasses.removeAll(scannedClasses);
+        externalInterfaces.removeAll(scannedClasses);
+        externalAnnotations.removeAll(scannedClasses);
         // If an external annotation is also extended as an interface, just display it as an interface
         // in graph visualizations
         externalAnnotations.removeAll(externalInterfaces);
 
-        // Create placeholder nodes
+        // Create placeholder nodes for external classes, and find non-whitelisted external classes,
+        // which should never be returned to the user in a result list, but can be used for matching. 
         for (final String externalSuperclassName : externalSuperclasses) {
             final StandardClassDAGNode newNode = new StandardClassDAGNode(externalSuperclassName);
             classNameToDAGNode.put(externalSuperclassName, newNode);
             standardClassNodes.add(newNode);
             if (!scanSpec.classIsWhitelisted(externalSuperclassName)) {
-                nonWhitelistedPlaceholderClassNames.add(externalSuperclassName);
+                nonWhitelistedExternalClassNames.add(externalSuperclassName);
             }
         }
         for (final String externalInterfaceName : externalInterfaces) {
@@ -94,7 +96,7 @@ public class ClassGraphBuilder {
             classNameToDAGNode.put(externalInterfaceName, newNode);
             interfaceNodes.add(newNode);
             if (!scanSpec.classIsWhitelisted(externalInterfaceName)) {
-                nonWhitelistedPlaceholderClassNames.add(externalInterfaceName);
+                nonWhitelistedExternalClassNames.add(externalInterfaceName);
             }
         }
         for (final String externalAnnotationName : externalAnnotations) {
@@ -102,7 +104,7 @@ public class ClassGraphBuilder {
             classNameToDAGNode.put(externalAnnotationName, newNode);
             annotationNodes.add(newNode);
             if (!scanSpec.classIsWhitelisted(externalAnnotationName)) {
-                nonWhitelistedPlaceholderClassNames.add(externalAnnotationName);
+                nonWhitelistedExternalClassNames.add(externalAnnotationName);
             }
         }
 
@@ -158,8 +160,9 @@ public class ClassGraphBuilder {
                     // if it was a placeholder.
                     final HashSet<String> listWithoutPlaceholders = new HashSet<>();
                     for (final String className : classNameList) {
-                        // Strip out placeholder nodes, unless the class was whitelisted by name
-                        if (!nonWhitelistedPlaceholderClassNames.contains(className)) {
+                        // Strip out names of "placeholder nodes", DAGNodes created to hold the place of
+                        // an external class that is not itself whitelisted.
+                        if (!nonWhitelistedExternalClassNames.contains(className)) {
                             listWithoutPlaceholders.add(className);
                         }
                     }
