@@ -38,15 +38,6 @@ public class ScanSpec {
     public final boolean scanNonJars;
 
     /**
-     * If true (which is the default), allow matching based on referenced classes (superclasses, implemented
-     * interfaces or annotations) that are not themselves in a whitelisted package.
-     * 
-     * There is no API to override this currently, since if you don't want to match based on external class
-     * references, you should just not use external class references.
-     */
-    public boolean MATCH_REFERENCED_CLASSES = true;
-
-    /**
      * Blacklist all java.* and sun.* packages. (The Java standard library jars, e.g rt.jar, are also blacklisted by
      * the file/directory scanner.)
      */

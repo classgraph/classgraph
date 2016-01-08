@@ -55,7 +55,7 @@ public class MultiSet {
         }
     }
 
-    /** Invert the mapping of the map, storing teh result in inv */
+    /** Invert the mapping of the map, storing the result in inv */
     public static <K, V> HashMap<V, HashSet<K>> invert(final HashMap<K, HashSet<V>> map,
             final HashMap<V, HashSet<K>> inv) {
         for (final Entry<K, HashSet<V>> ent : map.entrySet()) {
