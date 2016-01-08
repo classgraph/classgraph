@@ -79,7 +79,7 @@ public abstract class LazyMap<K, V> {
      * contain the key, generateValue(key) will be called, and the result will be stored in the map. If there is
      * still no value corresponding to the key in the map, null will be returned.
      */
-    public V get(final K key) {
+    public final V get(final K key) {
         checkInitialized();
         V cachedVal = map.get(key);
         if (cachedVal == null) {
@@ -124,8 +124,8 @@ public abstract class LazyMap<K, V> {
      * each unique value. The keySet in templateLazyMap is read the first time get() is called on the returned
      * LazyMap. (i.e. the template is only needed so that even keySet generation happens lazily.)
      */
-    public static <K, V, T> LazyMap<V, HashSet<K>> invertMultiSet(final LazyMap<K, HashSet<V>> lazyMap, //
-            final LazyMap<K, T> templateLazyMap) {
+    public static <K, V, T> LazyMap<V, HashSet<K>> invertMultiSet( //
+            final LazyMap<K, ? extends Collection<V>> lazyMap, final LazyMap<K, T> templateLazyMap) {
         return new LazyMap<V, HashSet<K>>() {
             @Override
             public void initialize() {
@@ -139,7 +139,8 @@ public abstract class LazyMap<K, V> {
      * Invert the map to find the preimage of each unique value. The LazyMap should be defined by overriding
      * initialize(), not using generateValue().
      */
-    public static <K, V, T> LazyMap<V, HashSet<K>> invertMultiSet(final LazyMap<K, HashSet<V>> lazyMap) {
+    public static <K, V, T> LazyMap<V, HashSet<K>> invertMultiSet( //
+            final LazyMap<K, ? extends Collection<V>> lazyMap) {
         return new LazyMap<V, HashSet<K>>() {
             @Override
             public void initialize() {

@@ -34,6 +34,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Set;
 
 public class Utils {
 
@@ -48,7 +49,10 @@ public class Utils {
 
     /** Take the union of a list of collections. */
     @SafeVarargs
-    public static <T extends Comparable<T>> HashSet<T> union(final Collection<T>... collections) {
+    public static <T extends Comparable<T>> Set<T> union(final Collection<T>... collections) {
+        if (collections.length == 1 && collections[0] instanceof Set) {
+            return (Set<T>) collections[0];
+        }
         final HashSet<T> union = new HashSet<>();
         for (final Collection<T> collection : collections) {
             union.addAll(collection);

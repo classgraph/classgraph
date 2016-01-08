@@ -28,6 +28,7 @@
  */
 package io.github.lukehutch.fastclasspathscanner.utils;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map.Entry;
@@ -56,9 +57,9 @@ public class MultiSet {
     }
 
     /** Invert the mapping of the map, storing the result in inv */
-    public static <K, V> HashMap<V, HashSet<K>> invert(final HashMap<K, HashSet<V>> map,
+    public static <K, V> HashMap<V, HashSet<K>> invert(final HashMap<K, ? extends Collection<V>> map,
             final HashMap<V, HashSet<K>> inv) {
-        for (final Entry<K, HashSet<V>> ent : map.entrySet()) {
+        for (final Entry<K, ? extends Collection<V>> ent : map.entrySet()) {
             final K key = ent.getKey();
             for (final V val : ent.getValue()) {
                 put(inv, val, key);
@@ -68,7 +69,7 @@ public class MultiSet {
     }
 
     /** Invert the mapping */
-    public static <K, V> HashMap<V, HashSet<K>> invert(final HashMap<K, HashSet<V>> map) {
+    public static <K, V> HashMap<V, HashSet<K>> invert(final HashMap<K, ? extends Collection<V>> map) {
         final HashMap<V, HashSet<K>> inv = new HashMap<V, HashSet<K>>();
         return invert(map, inv);
     }
