@@ -133,7 +133,7 @@ You can get a pre-built JAR (usable in JRE 1.7 or later) from [Sonatype](https:/
 <dependency>
     <groupId>io.github.lukehutch</groupId>
     <artifactId>fast-classpath-scanner</artifactId>
-    <version>latest_version</version>
+    <version>LATEST</version>
 </dependency>
 ```
 
