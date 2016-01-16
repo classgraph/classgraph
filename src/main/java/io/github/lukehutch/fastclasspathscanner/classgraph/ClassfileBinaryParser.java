@@ -103,8 +103,8 @@ public class ClassfileBinaryParser {
     /**
      * Find non-blacklisted type names in the given type descriptor, and add them to the set of field types.
      */
-    private static HashSet<String> findTypeDescriptorParts(final String typeDescriptor,
-            final ScanSpec scanSpec, HashSet<String> fieldTypes) {
+    private static HashSet<String> findTypeDescriptorParts(final String typeDescriptor, final ScanSpec scanSpec,
+            HashSet<String> fieldTypes) {
         // Check if the type of this field falls within a whitelisted (non-blacklisted) package,
         // and if so, record the field and its type
         final Matcher matcher = TYPE_PARAM_PATTERN.matcher(typeDescriptor);

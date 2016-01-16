@@ -22,7 +22,7 @@ public class LinkToExternal {
 
     @Test
     public void testWhitelistingExternalClasses() {
-        FastClasspathScanner scanner = new FastClasspathScanner(LinkToExternal.class.getPackage().getName(),
+        final FastClasspathScanner scanner = new FastClasspathScanner(LinkToExternal.class.getPackage().getName(),
                 ExternalSuperclass.class.getPackage().getName(), ExternalInterface.class.getName(),
                 AnnotatedByExternal.class.getName()).scan();
         assertThat(scanner.getNamesOfAllStandardClasses()).containsOnly(LinkToExternal.class.getName(),
@@ -40,7 +40,7 @@ public class LinkToExternal {
 
     @Test
     public void testIncludeReferencedClasses() {
-        FastClasspathScanner scanner = new FastClasspathScanner(LinkToExternal.class.getPackage().getName()).scan();
+        final FastClasspathScanner scanner = new FastClasspathScanner(LinkToExternal.class.getPackage().getName()).scan();
         assertThat(scanner.getNamesOfAllStandardClasses()).doesNotContain(ExternalSuperclass.class.getName());
         assertThat(scanner.getNamesOfSubclassesOf(ExternalSuperclass.class.getName())).containsExactly(
                 ExtendsExternal.class.getName());
