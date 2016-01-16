@@ -46,7 +46,7 @@ public class ClassGraphBuilder {
     private final ArrayList<InterfaceDAGNode> interfaceNodes = new ArrayList<>();
     private final ArrayList<AnnotationDAGNode> annotationNodes = new ArrayList<>();
     private final HashMap<String, DAGNode> classNameToDAGNode = new HashMap<>();
-    private final HashSet<String> nonWhitelistedExternalClassNames = new HashSet<>();
+    private final HashSet<String> blacklistedExternalClassNames = new HashSet<>();
 
     public ClassGraphBuilder(final Collection<ClassInfo> classInfoFromScan, final ScanSpec scanSpec) {
         // Take care of Scala quirks
@@ -87,24 +87,24 @@ public class ClassGraphBuilder {
             final StandardClassDAGNode newNode = new StandardClassDAGNode(externalSuperclassName);
             classNameToDAGNode.put(externalSuperclassName, newNode);
             standardClassNodes.add(newNode);
-            if (!scanSpec.classIsWhitelisted(externalSuperclassName)) {
-                nonWhitelistedExternalClassNames.add(externalSuperclassName);
+            if (!scanSpec.classIsNotBlacklisted(externalSuperclassName)) {
+                blacklistedExternalClassNames.add(externalSuperclassName);
             }
         }
         for (final String externalInterfaceName : externalInterfaces) {
             final InterfaceDAGNode newNode = new InterfaceDAGNode(externalInterfaceName);
             classNameToDAGNode.put(externalInterfaceName, newNode);
             interfaceNodes.add(newNode);
-            if (!scanSpec.classIsWhitelisted(externalInterfaceName)) {
-                nonWhitelistedExternalClassNames.add(externalInterfaceName);
+            if (!scanSpec.classIsNotBlacklisted(externalInterfaceName)) {
+                blacklistedExternalClassNames.add(externalInterfaceName);
             }
         }
         for (final String externalAnnotationName : externalAnnotations) {
             final AnnotationDAGNode newNode = new AnnotationDAGNode(externalAnnotationName);
             classNameToDAGNode.put(externalAnnotationName, newNode);
             annotationNodes.add(newNode);
-            if (!scanSpec.classIsWhitelisted(externalAnnotationName)) {
-                nonWhitelistedExternalClassNames.add(externalAnnotationName);
+            if (!scanSpec.classIsNotBlacklisted(externalAnnotationName)) {
+                blacklistedExternalClassNames.add(externalAnnotationName);
             }
         }
 
@@ -161,8 +161,8 @@ public class ClassGraphBuilder {
                     final HashSet<String> listWithoutPlaceholders = new HashSet<>();
                     for (final String className : classNameList) {
                         // Strip out names of "placeholder nodes", DAGNodes created to hold the place of
-                        // an external class that is not itself whitelisted.
-                        if (!nonWhitelistedExternalClassNames.contains(className)) {
+                        // an external class that is blacklisted and not whitelisted.
+                        if (!blacklistedExternalClassNames.contains(className)) {
                             listWithoutPlaceholders.add(className);
                         }
                     }
@@ -339,7 +339,7 @@ public class ClassGraphBuilder {
         @Override
         public void initialize() {
             for (final StandardClassDAGNode node : standardClassNodes) {
-                for (final DAGNode fieldType : node.whitelistedFieldTypeNodes) {
+                for (final DAGNode fieldType : node.fieldTypeNodes) {
                     MultiSet.put(map, fieldType.name, node.name);
                 }
             }
@@ -541,7 +541,7 @@ public class ClassGraphBuilder {
                 buf.append("  \"" + label(classNode) + "\" -> \"" + label(implementedInterfaceNode)
                         + "\" [arrowhead=diamond]\n");
             }
-            for (final DAGNode fieldTypeNode : classNode.whitelistedFieldTypeNodes) {
+            for (final DAGNode fieldTypeNode : classNode.fieldTypeNodes) {
                 // class --[] whitelisted field type
                 buf.append("  \"" + label(fieldTypeNode) + "\" -> \"" + label(classNode)
                         + "\" [arrowtail=obox, dir=back]\n");

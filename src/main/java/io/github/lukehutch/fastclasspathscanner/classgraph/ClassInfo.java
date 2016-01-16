@@ -40,7 +40,7 @@ public class ClassInfo {
 
     public ArrayList<String> interfaceNames;
     public ArrayList<String> annotationNames;
-    public HashSet<String> whitelistedFieldTypes;
+    public HashSet<String> fieldTypes;
 
     public ClassInfo(final String className, final boolean isInterface, final boolean isAnnotation,
             final String superclassName) {

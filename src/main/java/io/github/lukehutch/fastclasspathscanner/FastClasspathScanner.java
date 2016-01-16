@@ -177,13 +177,14 @@ public class FastClasspathScanner {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Checks that the named class is itself whitelisted (and not blacklisted), or that it is found within a
-     * whitelisted (non-blacklisted) package. Throws IllegalArgumentException otherwise.
+     * Checks that the named class is not blacklisted. Throws IllegalArgumentException otherwise. (This is to
+     * prevent significant overhead of tracking fields of common types like java.lang.String etc.)
      */
-    private void checkClassNameIsInWhitelistedPackage(final String className) {
-        if (!scanSpec.classIsWhitelisted(className)) {
-            throw new IllegalArgumentException("Can't scan for " + className
-                    + ", it is in a package that is either blacklisted or not whitelisted");
+    private void checkClassNameIsNotBlacklisted(final String className) {
+        if (!scanSpec.classIsNotBlacklisted(className)) {
+            throw new IllegalArgumentException("Can't scan for " + className + ", it is in a blacklisted package. "
+                    + "You can explicitly override this by naming the class in the scan spec when you call the "
+                    + FastClasspathScanner.class.getSimpleName() + " constructor.");
         }
     }
 
@@ -193,7 +194,7 @@ public class FastClasspathScanner {
      */
     private String annotationName(final Class<?> annotation) {
         final String annotationName = annotation.getName();
-        checkClassNameIsInWhitelistedPackage(annotationName);
+        checkClassNameIsNotBlacklisted(annotationName);
         if (!annotation.isAnnotation()) {
             throw new IllegalArgumentException(annotationName + " is not an annotation");
         }
@@ -218,7 +219,7 @@ public class FastClasspathScanner {
      */
     private String interfaceName(final Class<?> iface) {
         final String ifaceName = iface.getName();
-        checkClassNameIsInWhitelistedPackage(ifaceName);
+        checkClassNameIsNotBlacklisted(ifaceName);
         if (!iface.isInterface()) {
             throw new IllegalArgumentException(ifaceName + " is not an interface");
         }
@@ -243,7 +244,7 @@ public class FastClasspathScanner {
      */
     private String classOrInterfaceName(final Class<?> classOrInterface) {
         final String classOrIfaceName = classOrInterface.getName();
-        checkClassNameIsInWhitelistedPackage(classOrIfaceName);
+        checkClassNameIsNotBlacklisted(classOrIfaceName);
         if (classOrInterface.isAnnotation()) {
             throw new IllegalArgumentException(classOrIfaceName
                     + " is an annotation, not a regular class or interface");
@@ -258,7 +259,7 @@ public class FastClasspathScanner {
      */
     private String standardClassName(final Class<?> cls) {
         final String className = cls.getName();
-        checkClassNameIsInWhitelistedPackage(className);
+        checkClassNameIsNotBlacklisted(className);
         if (cls.isAnnotation()) {
             throw new IllegalArgumentException(className + " is an annotation, not a standard class");
         } else if (cls.isInterface()) {
@@ -273,7 +274,7 @@ public class FastClasspathScanner {
      */
     private String className(final Class<?> cls) {
         final String className = cls.getName();
-        checkClassNameIsInWhitelistedPackage(className);
+        checkClassNameIsNotBlacklisted(className);
         return className;
     }
 
@@ -744,7 +745,7 @@ public class FastClasspathScanner {
      */
     public List<String> getNamesOfClassesWithFieldOfType(final Class<?> fieldType) {
         final String fieldTypeName = fieldType.getName();
-        checkClassNameIsInWhitelistedPackage(fieldTypeName);
+        checkClassNameIsNotBlacklisted(fieldTypeName);
         return getScanResults().getNamesOfClassesWithFieldOfType(fieldTypeName);
     }
 

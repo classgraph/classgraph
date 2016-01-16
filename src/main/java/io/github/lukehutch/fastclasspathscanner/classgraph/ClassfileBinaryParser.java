@@ -101,11 +101,10 @@ public class ClassfileBinaryParser {
     }
 
     /**
-     * Find whitelisted (non-blacklisted) type names in the given type descriptor, and add them to the set of
-     * whitelisted field types.
+     * Find non-blacklisted type names in the given type descriptor, and add them to the set of field types.
      */
-    private static HashSet<String> findWhitelistedTypeDescriptorParts(final String typeDescriptor,
-            final ScanSpec scanSpec, HashSet<String> whitelistedFieldTypes) {
+    private static HashSet<String> findTypeDescriptorParts(final String typeDescriptor,
+            final ScanSpec scanSpec, HashSet<String> fieldTypes) {
         // Check if the type of this field falls within a whitelisted (non-blacklisted) package,
         // and if so, record the field and its type
         final Matcher matcher = TYPE_PARAM_PATTERN.matcher(typeDescriptor);
@@ -113,15 +112,15 @@ public class ClassfileBinaryParser {
             // Convert from type path to class name
             final String descriptorPart = matcher.group(2);
             final String fieldTypeName = descriptorPart.replace('/', '.');
-            if (scanSpec.classIsWhitelisted(fieldTypeName)) {
-                // Add field type to set of whitelisted field types encountered in class
-                if (whitelistedFieldTypes == null) {
-                    whitelistedFieldTypes = new HashSet<>();
+            if (scanSpec.classIsNotBlacklisted(fieldTypeName)) {
+                // Add field type to set of non-blacklisted field types encountered in class
+                if (fieldTypes == null) {
+                    fieldTypes = new HashSet<>();
                 }
-                whitelistedFieldTypes.add(fieldTypeName);
+                fieldTypes.add(fieldTypeName);
             }
         }
-        return whitelistedFieldTypes;
+        return fieldTypes;
     }
 
     /**
@@ -255,7 +254,7 @@ public class ClassfileBinaryParser {
             // Fields
             final HashMap<String, StaticFinalFieldMatchProcessor> staticFieldnameToMatchProcessor //
             = classNameToStaticFieldnameToMatchProcessor.get(classInfo.className);
-            HashSet<String> whitelistedFieldTypes = null;
+            HashSet<String> fieldTypes = null;
             final int fieldCount = inp.readUnsignedShort();
             for (int i = 0; i < fieldCount; i++) {
                 final int accessFlags = inp.readUnsignedShort();
@@ -269,8 +268,7 @@ public class ClassfileBinaryParser {
 
                 // Check if the type of this field falls within a whitelisted (non-blacklisted) package,
                 // and if so, record the field and its type
-                whitelistedFieldTypes = findWhitelistedTypeDescriptorParts(fieldTypeDescriptor, scanSpec,
-                        whitelistedFieldTypes);
+                fieldTypes = findTypeDescriptorParts(fieldTypeDescriptor, scanSpec, fieldTypes);
 
                 // Check if field is static and final
                 if (!isStaticFinal && staticFinalFieldMatchProcessor != null) {
@@ -333,8 +331,7 @@ public class ClassfileBinaryParser {
                         // package, and if so, record the field type. The type signature contains type parameters,
                         // whereas the type descriptor does not.
                         final String fieldTypeSignature = readRefdString(inp, constantPool);
-                        whitelistedFieldTypes = findWhitelistedTypeDescriptorParts(fieldTypeSignature, scanSpec,
-                                whitelistedFieldTypes);
+                        fieldTypes = findTypeDescriptorParts(fieldTypeSignature, scanSpec, fieldTypes);
                     } else {
                         inp.skipBytes(attributeLength);
                     }
@@ -346,7 +343,7 @@ public class ClassfileBinaryParser {
                     }
                 }
             }
-            classInfo.whitelistedFieldTypes = whitelistedFieldTypes;
+            classInfo.fieldTypes = fieldTypes;
 
             // Methods
             final int methodCount = inp.readUnsignedShort();

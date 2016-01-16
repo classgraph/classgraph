@@ -39,7 +39,7 @@ class StandardClassDAGNode extends DAGNode {
     ArrayList<ImplementedInterfaceDAGNode> implementedInterfaceClassNodes = new ArrayList<>(2);
 
     /** The nodes corresponding to classes annotated by this annotation. */
-    HashSet<DAGNode> whitelistedFieldTypeNodes = new HashSet<>(2);
+    HashSet<DAGNode> fieldTypeNodes = new HashSet<>(2);
 
     /** A DAG node representing a standard class (a non-interface, non-annotation class). */
     public StandardClassDAGNode(final ClassInfo classInfo) {
@@ -57,8 +57,8 @@ class StandardClassDAGNode extends DAGNode {
     }
 
     /** Connect this standard class node to the node corresponding to an interface it implements. */
-    public void addWhitelistedFieldType(final DAGNode whitelistedFieldTypeNode) {
-        this.whitelistedFieldTypeNodes.add(whitelistedFieldTypeNode);
+    public void addWhitelistedFieldType(final DAGNode fieldTypeNode) {
+        this.fieldTypeNodes.add(fieldTypeNode);
     }
 
     @Override
@@ -89,9 +89,9 @@ class StandardClassDAGNode extends DAGNode {
         }
 
         // Connect class to types of fields that are within a whitelisted (non-blacklisted) package prefix
-        if (classInfo != null && classInfo.whitelistedFieldTypes != null) {
-            for (final String whitelistedFieldTypeName : classInfo.whitelistedFieldTypes) {
-                final DAGNode typeNode = classNameToDAGNode.get(whitelistedFieldTypeName);
+        if (classInfo != null && classInfo.fieldTypes != null) {
+            for (final String fieldTypeName : classInfo.fieldTypes) {
+                final DAGNode typeNode = classNameToDAGNode.get(fieldTypeName);
                 if (typeNode != null) {
                     this.addWhitelistedFieldType(typeNode);
                 }
