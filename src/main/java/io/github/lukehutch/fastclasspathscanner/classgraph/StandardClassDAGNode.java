@@ -65,35 +65,36 @@ class StandardClassDAGNode extends DAGNode {
     public void connect(final HashMap<String, DAGNode> classNameToDAGNode) {
         super.connect(classNameToDAGNode);
 
-        // Connect classes to the interfaces they implement
-        if (classInfo != null && classInfo.interfaceNames != null) {
-            for (final String interfaceName : classInfo.interfaceNames) {
-                // interfaceNode will usually be of type InterfaceDAGNode, but it could be of type AnnotationDAGNode
-                // if the code implements an annotation (annotations are actually interfaces, see issue #38).
-                final ImplementedInterfaceDAGNode interfaceNode = (ImplementedInterfaceDAGNode) classNameToDAGNode
-                        .get(interfaceName);
-                if (interfaceNode != null) {
-                    this.addImplementedInterface(interfaceNode);
+        if (classInfo != null) {
+            // Connect classes to the interfaces they implement
+            if (classInfo.interfaceNames != null) {
+                for (final String interfaceName : classInfo.interfaceNames) {
+                    // interfaceNode will usually be of type InterfaceDAGNode, but it could be of type AnnotationDAGNode
+                    // if the code implements an annotation (annotations are actually interfaces, see issue #38).
+                    final ImplementedInterfaceDAGNode interfaceNode = (ImplementedInterfaceDAGNode) classNameToDAGNode
+                            .get(interfaceName);
+                    if (interfaceNode != null) {
+                        this.addImplementedInterface(interfaceNode);
+                    }
                 }
             }
-        }
-
-        // Connect any annotations on this class to this class 
-        if (classInfo != null && classInfo.annotationNames != null) {
-            for (final String annotationName : classInfo.annotationNames) {
-                final AnnotationDAGNode annotationNode = (AnnotationDAGNode) classNameToDAGNode.get(annotationName);
-                if (annotationNode != null) {
-                    annotationNode.addAnnotatedClass(this);
+            // Connect any annotations on this class to this class 
+            if (classInfo.annotationNames != null) {
+                for (final String annotationName : classInfo.annotationNames) {
+                    final AnnotationDAGNode annotationNode = (AnnotationDAGNode) classNameToDAGNode
+                            .get(annotationName);
+                    if (annotationNode != null) {
+                        annotationNode.addAnnotatedClass(this);
+                    }
                 }
             }
-        }
-
-        // Connect class to types of fields that are within a whitelisted (non-blacklisted) package prefix
-        if (classInfo != null && classInfo.fieldTypes != null) {
-            for (final String fieldTypeName : classInfo.fieldTypes) {
-                final DAGNode typeNode = classNameToDAGNode.get(fieldTypeName);
-                if (typeNode != null) {
-                    this.addWhitelistedFieldType(typeNode);
+            // Connect class to types of fields that are within a whitelisted (non-blacklisted) package prefix
+            if (classInfo.fieldTypes != null) {
+                for (final String fieldTypeName : classInfo.fieldTypes) {
+                    final DAGNode typeNode = classNameToDAGNode.get(fieldTypeName);
+                    if (typeNode != null) {
+                        this.addWhitelistedFieldType(typeNode);
+                    }
                 }
             }
         }

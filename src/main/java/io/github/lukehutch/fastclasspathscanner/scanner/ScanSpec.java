@@ -171,8 +171,41 @@ public class ScanSpec {
         }
     }
 
-    /** Check against a whitelist and blacklist. */
-    private static boolean isWhitelisted(final String str, final ArrayList<String> whitelist,
+    /** Returns true if a class' package is not blacklisted or is explicitly whitelisted. */
+    private static boolean packageIsNotBlacklisted(final String str, final ArrayList<String> whitelist,
+            final ArrayList<String> blacklist) {
+        boolean isWhitelisted = false;
+        for (final String whitelistPrefix : whitelist) {
+            if (str.startsWith(whitelistPrefix)) {
+                isWhitelisted = true;
+                break;
+            }
+        }
+        boolean isBlacklisted = false;
+        for (final String blacklistPrefix : blacklist) {
+            if (str.startsWith(blacklistPrefix)) {
+                isBlacklisted = true;
+                break;
+            }
+        }
+        return !isBlacklisted || isWhitelisted;
+    }
+
+    /**
+     * Returns true if the given class name is not blacklisted or is explicitly whitelisted.
+     * 
+     * This does not apply the normal logic of "if (whitelisted && !blacklisted)", but instead
+     * "if (whitelisted || !blacklisted)", because it is used for links that may come from outside a whitelisted
+     * path, but still may need to be used as a query criterion (e.g. a class name to match against, or a field type
+     * to look up containing classes from).
+     */
+    public boolean classIsNotBlacklisted(final String className) {
+        return !blacklistedClassNames.contains(className) || whitelistedClassNames.contains(className)
+                || packageIsNotBlacklisted(className, whitelistedPackagePrefixes, blacklistedPackagePrefixes);
+    }
+
+    /** Returns true if a class' package is whitelisted and not blacklisted. */
+    private static boolean packageIsWhitelisted(final String str, final ArrayList<String> whitelist,
             final ArrayList<String> blacklist) {
         boolean isWhitelisted = false;
         for (final String whitelistPrefix : whitelist) {
@@ -200,14 +233,15 @@ public class ScanSpec {
      * path, but still may need to be used as a query criterion (e.g. a class name to match against, or a field type
      * to look up containing classes from).
      */
-    public boolean classIsNotBlacklisted(final String className) {
-        return !blacklistedClassNames.contains(className) || whitelistedClassNames.contains(className)
-                || isWhitelisted(className, whitelistedPackagePrefixes, blacklistedPackagePrefixes);
+    public boolean classIsWhitelisted(final String className) {
+        return (whitelistedClassNames.contains(className) || packageIsWhitelisted(className,
+                whitelistedPackagePrefixes, blacklistedPackagePrefixes))
+                && !blacklistedClassNames.contains(className);
     }
 
     /** Returns true if the given path is within a whitelisted, non-blacklisted package. */
     public boolean pathIsWhitelisted(final String relativePath) {
-        return isWhitelisted(relativePath, whitelistedPathPrefixes, blacklistedPathPrefixes);
+        return packageIsWhitelisted(relativePath, whitelistedPathPrefixes, blacklistedPathPrefixes);
     }
 
     /**

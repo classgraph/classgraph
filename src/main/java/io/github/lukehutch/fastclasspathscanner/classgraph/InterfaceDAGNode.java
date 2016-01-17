@@ -49,22 +49,24 @@ class InterfaceDAGNode extends ImplementedInterfaceDAGNode {
     public void connect(final HashMap<String, DAGNode> classNameToDAGNode) {
         super.connect(classNameToDAGNode);
 
-        // Connect interfaces to their superinterfaces
-        if (classInfo != null && classInfo.interfaceNames != null) {
-            for (final String superinterfaceName : classInfo.interfaceNames) {
-                final DAGNode superinterfaceNode = classNameToDAGNode.get(superinterfaceName);
-                if (superinterfaceNode != null) {
-                    superinterfaceNode.addSubNode(this);
+        if (classInfo != null) {
+            // Connect interfaces to their superinterfaces
+            if (classInfo.interfaceNames != null) {
+                for (final String superinterfaceName : classInfo.interfaceNames) {
+                    final DAGNode superinterfaceNode = classNameToDAGNode.get(superinterfaceName);
+                    if (superinterfaceNode != null) {
+                        superinterfaceNode.addSubNode(this);
+                    }
                 }
             }
-        }
-
-        // Connect any annotations on this interface to this interface 
-        if (classInfo != null && classInfo.annotationNames != null) {
-            for (final String annotationName : classInfo.annotationNames) {
-                final AnnotationDAGNode annotationNode = (AnnotationDAGNode) classNameToDAGNode.get(annotationName);
-                if (annotationNode != null) {
-                    annotationNode.addAnnotatedClass(this);
+            // Connect any annotations on this interface to this interface 
+            if (classInfo.annotationNames != null) {
+                for (final String annotationName : classInfo.annotationNames) {
+                    final AnnotationDAGNode annotationNode = (AnnotationDAGNode) classNameToDAGNode
+                            .get(annotationName);
+                    if (annotationNode != null) {
+                        annotationNode.addAnnotatedClass(this);
+                    }
                 }
             }
         }

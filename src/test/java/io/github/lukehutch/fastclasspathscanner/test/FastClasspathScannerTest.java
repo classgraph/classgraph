@@ -191,28 +191,37 @@ public class FastClasspathScannerTest {
         assertThat(scanner.getNamesOfSubinterfacesOf(WhitelistedInterface.class)).isEmpty();
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void testExceptionIfNotWhitelisted() throws Exception {
+    public void testCanQueryWithBlacklistedAnnotation() throws Exception {
         final FastClasspathScanner scanner = new FastClasspathScanner(WHITELIST_PACKAGE).scan();
         assertThat(scanner.getNamesOfSuperclassesOf(Whitelisted.class)).isEmpty();
-        assertThat(scanner.getNamesOfSubclassesOf(Whitelisted.class)).isEmpty();
-        assertThat(scanner.getNamesOfSuperinterfacesOf(WhitelistedInterface.class)).isEmpty();
-        assertThat(scanner.getNamesOfSubinterfacesOf(WhitelistedInterface.class)).isEmpty();
-        assertThat(scanner.getNamesOfClassesWithAnnotation(BlacklistedAnnotation.class)).isEmpty();
+        assertThat(scanner.getNamesOfClassesWithAnnotation(BlacklistedAnnotation.class)).containsExactly(
+                Whitelisted.class.getName());
     }
 
     @Test
-    public void testBlacklistedWithoutException() throws Exception {
+    public void testBlacklistedPlaceholderNotReturned() throws Exception {
         final FastClasspathScanner scanner = new FastClasspathScanner(ROOT_PACKAGE, "-"
-                + BlacklistedSuperclass.class.getPackage().getName()).scan();
+                + BlacklistedAnnotation.class.getPackage().getName()).scan();
         assertThat(scanner.getNamesOfSuperclassesOf(Whitelisted.class)).isEmpty();
         assertThat(scanner.getNamesOfSubclassesOf(Whitelisted.class)).isEmpty();
         assertThat(scanner.getNamesOfSuperinterfacesOf(WhitelistedInterface.class)).isEmpty();
         assertThat(scanner.getNamesOfSubinterfacesOf(WhitelistedInterface.class)).isEmpty();
+        assertThat(scanner.getNamesOfAnnotationsOnClass(WhitelistedInterface.class)).isEmpty();
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void testExceptionIfBlacklisted() throws Exception {
+    @Test
+    public void testBlacklistedPlaceholderWithWhitelistedOverrideReturned() throws Exception {
+        final FastClasspathScanner scanner = new FastClasspathScanner(ROOT_PACKAGE, "-"
+                + BlacklistedAnnotation.class.getPackage().getName(), BlacklistedAnnotation.class.getName()).scan();
+        assertThat(scanner.getNamesOfSuperclassesOf(Whitelisted.class)).isEmpty();
+        assertThat(scanner.getNamesOfSubclassesOf(Whitelisted.class)).isEmpty();
+        assertThat(scanner.getNamesOfSuperinterfacesOf(WhitelistedInterface.class)).isEmpty();
+        assertThat(scanner.getNamesOfSubinterfacesOf(WhitelistedInterface.class)).isEmpty();
+        assertThat(scanner.getNamesOfAnnotationsOnClass(Whitelisted.class)).containsExactly(
+                BlacklistedAnnotation.class.getName());
+    }
+
+    public void testBlacklistedPackage() throws Exception {
         final FastClasspathScanner scanner = new FastClasspathScanner(ROOT_PACKAGE, "-"
                 + BlacklistedSuperclass.class.getPackage().getName()).scan();
         assertThat(scanner.getNamesOfSuperclassesOf(Whitelisted.class)).isEmpty();
@@ -220,6 +229,19 @@ public class FastClasspathScannerTest {
         assertThat(scanner.getNamesOfSuperinterfacesOf(WhitelistedInterface.class)).isEmpty();
         assertThat(scanner.getNamesOfSubinterfacesOf(WhitelistedInterface.class)).isEmpty();
         assertThat(scanner.getNamesOfClassesWithAnnotation(BlacklistedAnnotation.class));
+    }
+
+    public void testNoExceptionIfQueryingBlacklisted() throws Exception {
+        final FastClasspathScanner scanner = new FastClasspathScanner(WHITELIST_PACKAGE, "-"
+                + BlacklistedSuperclass.class.getPackage().getName()).scan();
+        assertThat(scanner.getNamesOfSuperclassesOf(BlacklistedSuperclass.class)).isEmpty();
+    }
+
+    public void testNoExceptionIfExplicitlyWhitelistedClassInBlacklistedPackage() throws Exception {
+        final FastClasspathScanner scanner = new FastClasspathScanner(WHITELIST_PACKAGE, "-"
+                + BlacklistedSuperclass.class.getPackage().getName() + BlacklistedSuperclass.class.getName())
+                .scan();
+        assertThat(scanner.getNamesOfSuperclassesOf(BlacklistedSuperclass.class)).isEmpty();
     }
 
     @Test

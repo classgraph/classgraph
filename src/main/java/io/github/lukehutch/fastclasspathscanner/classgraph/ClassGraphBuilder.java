@@ -46,7 +46,7 @@ public class ClassGraphBuilder {
     private final ArrayList<InterfaceDAGNode> interfaceNodes = new ArrayList<>();
     private final ArrayList<AnnotationDAGNode> annotationNodes = new ArrayList<>();
     private final HashMap<String, DAGNode> classNameToDAGNode = new HashMap<>();
-    private final HashSet<String> blacklistedExternalClassNames = new HashSet<>();
+    private final HashSet<String> nonWhitelistedExternalClassNames = new HashSet<>();
 
     public ClassGraphBuilder(final Collection<ClassInfo> classInfoFromScan, final ScanSpec scanSpec) {
         // Take care of Scala quirks
@@ -87,28 +87,28 @@ public class ClassGraphBuilder {
             final StandardClassDAGNode newNode = new StandardClassDAGNode(externalSuperclassName);
             classNameToDAGNode.put(externalSuperclassName, newNode);
             standardClassNodes.add(newNode);
-            if (!scanSpec.classIsNotBlacklisted(externalSuperclassName)) {
-                blacklistedExternalClassNames.add(externalSuperclassName);
+            if (!scanSpec.classIsWhitelisted(externalSuperclassName)) {
+                nonWhitelistedExternalClassNames.add(externalSuperclassName);
             }
         }
         for (final String externalInterfaceName : externalInterfaces) {
             final InterfaceDAGNode newNode = new InterfaceDAGNode(externalInterfaceName);
             classNameToDAGNode.put(externalInterfaceName, newNode);
             interfaceNodes.add(newNode);
-            if (!scanSpec.classIsNotBlacklisted(externalInterfaceName)) {
-                blacklistedExternalClassNames.add(externalInterfaceName);
+            if (!scanSpec.classIsWhitelisted(externalInterfaceName)) {
+                nonWhitelistedExternalClassNames.add(externalInterfaceName);
             }
         }
         for (final String externalAnnotationName : externalAnnotations) {
             final AnnotationDAGNode newNode = new AnnotationDAGNode(externalAnnotationName);
             classNameToDAGNode.put(externalAnnotationName, newNode);
             annotationNodes.add(newNode);
-            if (!scanSpec.classIsNotBlacklisted(externalAnnotationName)) {
-                blacklistedExternalClassNames.add(externalAnnotationName);
+            if (!scanSpec.classIsWhitelisted(externalAnnotationName)) {
+                nonWhitelistedExternalClassNames.add(externalAnnotationName);
             }
         }
 
-        // Create DAG node for each class
+        // Create DAG node for each whitelisted class
         for (final ClassInfo classInfo : allClassInfo) {
             final String className = classInfo.className;
             if (classInfo.isAnnotation) {
@@ -162,7 +162,7 @@ public class ClassGraphBuilder {
                     for (final String className : classNameList) {
                         // Strip out names of "placeholder nodes", DAGNodes created to hold the place of
                         // an external class that is blacklisted and not whitelisted.
-                        if (!blacklistedExternalClassNames.contains(className)) {
+                        if (!nonWhitelistedExternalClassNames.contains(className)) {
                             listWithoutPlaceholders.add(className);
                         }
                     }
