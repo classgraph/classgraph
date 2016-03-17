@@ -36,7 +36,7 @@ import java.util.HashSet;
 class StandardClassDAGNode extends DAGNode {
 
     /** The nodes corresponding to interfaces implemented by this class. */
-    ArrayList<ImplementedInterfaceDAGNode> implementedInterfaceClassNodes = new ArrayList<>(2);
+    ArrayList<InterfaceDAGNode> implementedInterfaceClassNodes = new ArrayList<>(2);
 
     /** The nodes corresponding to classes annotated by this annotation. */
     HashSet<DAGNode> fieldTypeNodes = new HashSet<>(2);
@@ -52,7 +52,7 @@ class StandardClassDAGNode extends DAGNode {
     }
 
     /** Connect this standard class node to the node corresponding to an interface it implements. */
-    public void addImplementedInterface(final ImplementedInterfaceDAGNode implementedInterfaceNode) {
+    public void addImplementedInterface(final InterfaceDAGNode implementedInterfaceNode) {
         this.implementedInterfaceClassNodes.add(implementedInterfaceNode);
     }
 
@@ -69,10 +69,10 @@ class StandardClassDAGNode extends DAGNode {
             // Connect classes to the interfaces they implement
             if (classInfo.interfaceNames != null) {
                 for (final String interfaceName : classInfo.interfaceNames) {
-                    // interfaceNode will usually be of type InterfaceDAGNode, but it could be of type AnnotationDAGNode
-                    // if the code implements an annotation (annotations are actually interfaces, see issue #38).
-                    final ImplementedInterfaceDAGNode interfaceNode = (ImplementedInterfaceDAGNode) classNameToDAGNode
-                            .get(interfaceName);
+                    // interfaceNode will usually be of type InterfaceDAGNode, but it could be of type
+                    // AnnotationDAGNode if the code implements an annotation (annotations are actually
+                    // interfaces, see issue #38).
+                    final InterfaceDAGNode interfaceNode = (InterfaceDAGNode) classNameToDAGNode.get(interfaceName);
                     if (interfaceNode != null) {
                         this.addImplementedInterface(interfaceNode);
                     }
@@ -81,10 +81,14 @@ class StandardClassDAGNode extends DAGNode {
             // Connect any annotations on this class to this class 
             if (classInfo.annotationNames != null) {
                 for (final String annotationName : classInfo.annotationNames) {
-                    final AnnotationDAGNode annotationNode = (AnnotationDAGNode) classNameToDAGNode
-                            .get(annotationName);
-                    if (annotationNode != null) {
-                        annotationNode.addAnnotatedClass(this);
+                    try {
+                        final AnnotationDAGNode annotationNode = (AnnotationDAGNode) classNameToDAGNode
+                                .get(annotationName);
+                        if (annotationNode != null) {
+                            annotationNode.addAnnotatedClass(this);
+                        }
+                    } catch (ClassCastException e) {
+                        throw new RuntimeException(e);
                     }
                 }
             }

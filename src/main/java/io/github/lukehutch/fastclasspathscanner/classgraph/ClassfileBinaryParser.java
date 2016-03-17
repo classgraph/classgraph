@@ -237,12 +237,7 @@ public class ClassfileBinaryParser {
             }
 
             // Allocate result object
-            final ClassInfo classInfo = new ClassInfo( //
-                    className,
-                    // Annotations are marked as both interfaces and annotations
-                    /* isInterface = */isInterface && !isAnnotation,
-                    /* isAnnotation = */isAnnotation, //
-                    superclassName);
+            final ClassInfo classInfo = new ClassInfo(className, isInterface, isAnnotation, superclassName);
 
             // Interfaces
             final int interfaceCount = inp.readUnsignedShort();

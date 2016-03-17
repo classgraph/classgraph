@@ -32,7 +32,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 
 /** A DAG node representing an annotation class. */
-class AnnotationDAGNode extends ImplementedInterfaceDAGNode {
+class AnnotationDAGNode extends InterfaceDAGNode {
     /** The nodes corresponding to classes annotated by this annotation. */
     ArrayList<DAGNode> annotatedClassNodes = new ArrayList<>(2);
 
@@ -48,7 +48,10 @@ class AnnotationDAGNode extends ImplementedInterfaceDAGNode {
 
     /** Connect this annotation node to a class it annotates. */
     public void addAnnotatedClass(final DAGNode annotatedClassNode) {
-        this.annotatedClassNodes.add(annotatedClassNode);
+        // Meta-annotations are added as sub-nodes in connect() below, rather than as annotations.
+        if (!(annotatedClassNode instanceof AnnotationDAGNode)) {
+            this.annotatedClassNodes.add(annotatedClassNode);
+        }
     }
 
     @Override
