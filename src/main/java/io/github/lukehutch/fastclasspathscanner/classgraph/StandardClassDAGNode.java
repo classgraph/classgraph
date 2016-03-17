@@ -81,14 +81,10 @@ class StandardClassDAGNode extends DAGNode {
             // Connect any annotations on this class to this class 
             if (classInfo.annotationNames != null) {
                 for (final String annotationName : classInfo.annotationNames) {
-                    try {
-                        final AnnotationDAGNode annotationNode = (AnnotationDAGNode) classNameToDAGNode
-                                .get(annotationName);
-                        if (annotationNode != null) {
-                            annotationNode.addAnnotatedClass(this);
-                        }
-                    } catch (ClassCastException e) {
-                        throw new RuntimeException(e);
+                    final AnnotationDAGNode annotationNode = (AnnotationDAGNode) classNameToDAGNode
+                            .get(annotationName);
+                    if (annotationNode != null) {
+                        annotationNode.addAnnotatedClass(this);
                     }
                 }
             }
