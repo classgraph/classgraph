@@ -3,7 +3,7 @@ FastClasspathScanner
 
 FastClasspathScanner is an uber-fast, ultra-lightweight classpath scanner for Java, Scala and other JVM languages.
 
-(The main repo is [here](https://github.com/lukehutch/fast-classpath-scanner), in case this is a GitHub fork.)
+See the [Downloading](#Downloading) section for how to get the binary jar via Maven or direct download, or clone [the main git repo](https://github.com/lukehutch/fast-classpath-scanner) for source.
 
 **What is classpath scanning?** Classpath scanning involves scanning directories and jar/zip files on the classpath to find files (especially classfiles) that meet certain criteria. In many ways, classpath scanning offers the *inverse of the Java reflection API:*
 
@@ -124,20 +124,6 @@ List<String> subclassesOfWidget = new FastClasspathScanner("com.xyz.widget")
 ```
 
 Note that Mechanism 2 only works with class, interface and annotation matches; there are no corresponding `.getNamesOf...()` methods for filename pattern or static field matches, since these methods are only looking at the DAG of whitelisted classes and interfaces encountered during the scan.
-
-## Downloading
-
-You can get a pre-built JAR (usable in JRE 1.7 or later) from [Sonatype](https://oss.sonatype.org/#nexus-search;quick~fast-classpath-scanner), or add the following Maven Central dependency:
-
-```xml
-<dependency>
-    <groupId>io.github.lukehutch</groupId>
-    <artifactId>fast-classpath-scanner</artifactId>
-    <version>LATEST</version>
-</dependency>
-```
-
-### Tips
 
 **Use with Java 7:** FastClasspathScanner needs to be built with JDK 8, since [`MatchProcessors`](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) are declared with a `@FunctionalInterface` annotation, which does not exist in JDK 7. (There are no other Java 8 features in use in FastClasspathScanner currently.) If you need to build with JDK 1.7, you can always manually remove the `@FunctionalInterface` annotations from the MatchProcessors. However, the project can be compiled in Java 7 compatibility mode, which does not complain about these annotations, and can generate a jarfile that works with both Java 7 and Java 8. The jarfile available from [Maven Central](#downloading) is compatible with Java 7.
 
@@ -769,6 +755,18 @@ public static void main(String[] args) {
         .scan();
 }
 ``` 
+
+## Downloading
+
+You can get a pre-built JAR (usable in JRE 1.7 or later) from [Sonatype](https://oss.sonatype.org/#nexus-search;quick~fast-classpath-scanner), or add the following Maven Central dependency:
+
+```xml
+<dependency>
+    <groupId>io.github.lukehutch</groupId>
+    <artifactId>fast-classpath-scanner</artifactId>
+    <version>LATEST</version>
+</dependency>
+```
 
 ## License
 
