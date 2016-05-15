@@ -33,6 +33,8 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 
+import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassInfo;
+
 /**
  * A node representing classes, interfaces or annotations a tree or DAG structure.
  */

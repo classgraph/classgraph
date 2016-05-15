@@ -1,4 +1,4 @@
-package io.github.lukehutch.fastclasspathscanner.classgraph;
+package io.github.lukehutch.fastclasspathscanner.classfileparser;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.StaticFinalFieldMatchProcessor;

@@ -28,13 +28,13 @@
  */
 package io.github.lukehutch.fastclasspathscanner.utils;
 
-import io.github.lukehutch.fastclasspathscanner.classgraph.ClassInfo;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
+
+import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassInfo;
 
 public class Utils {
 

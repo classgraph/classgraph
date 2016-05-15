@@ -26,21 +26,25 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.lukehutch.fastclasspathscanner.scanner.classloaderhandler;
+package io.github.lukehutch.fastclasspathscanner.classpath.classloaderhandler;
 
-import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
+import java.lang.reflect.Method;
 
-import java.net.URL;
-import java.net.URLClassLoader;
+import io.github.lukehutch.fastclasspathscanner.classpath.ClasspathFinder;
 
-public class URLClassLoaderHandler implements ClassLoaderHandler {
+public class WeblogicClassLoaderHandler implements ClassLoaderHandler {
     @Override
-    public boolean handle(final ClassLoader classloader, final ClasspathFinder classpathFinder) {
-        if (classloader instanceof URLClassLoader) {
-            for (final URL url : ((URLClassLoader) classloader).getURLs()) {
-                classpathFinder.addClasspathElement(url.toString());
+    public boolean handle(final ClassLoader classloader, final ClasspathFinder classpathFinder) throws Exception {
+        for (Class<?> c = classloader.getClass(); c != null; c = c.getSuperclass()) {
+            if (c.getName().equals("weblogic.utils.classloaders.ChangeAwareClassLoader")) {
+                final Method getClassPath = c.getDeclaredMethod("getClassPath");
+                if (!getClassPath.isAccessible()) {
+                    getClassPath.setAccessible(true);
+                }
+                final String classpath = (String) getClassPath.invoke(classloader);
+                classpathFinder.addClasspathElements(classpath);
+                return true;
             }
-            return true;
         }
         return false;
     }

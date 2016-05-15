@@ -30,6 +30,8 @@ package io.github.lukehutch.fastclasspathscanner.classgraph;
 
 import java.util.HashMap;
 
+import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassInfo;
+
 /**
  * A DAG node representing a class that is an interface and not an annotation. (Annotations are actually interfaces,
  * so they can be implemented.)

@@ -31,6 +31,8 @@ package io.github.lukehutch.fastclasspathscanner.classgraph;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassInfo;
+
 /** A DAG node representing an annotation class. */
 class AnnotationDAGNode extends InterfaceDAGNode {
     /** The nodes corresponding to classes annotated by this annotation. */

@@ -28,6 +28,7 @@
  */
 package io.github.lukehutch.fastclasspathscanner.classgraph;
 
+import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassInfo;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
 import io.github.lukehutch.fastclasspathscanner.utils.LazyMap;
 import io.github.lukehutch.fastclasspathscanner.utils.MultiSet;

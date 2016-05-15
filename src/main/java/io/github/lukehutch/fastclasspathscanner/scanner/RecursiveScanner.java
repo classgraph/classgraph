@@ -29,6 +29,7 @@
 package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
+import io.github.lukehutch.fastclasspathscanner.classpath.ClasspathFinder;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchProcessorWithContext;
 import io.github.lukehutch.fastclasspathscanner.utils.Log;
 import io.github.lukehutch.fastclasspathscanner.utils.Utils;

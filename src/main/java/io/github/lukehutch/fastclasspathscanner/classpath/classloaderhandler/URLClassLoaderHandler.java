@@ -26,27 +26,22 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.lukehutch.fastclasspathscanner.classgraph;
+package io.github.lukehutch.fastclasspathscanner.classpath.classloaderhandler;
 
-import java.util.ArrayList;
-import java.util.HashSet;
+import java.net.URL;
+import java.net.URLClassLoader;
 
-public class ClassInfo {
-    public String className;
-    public boolean isInterface;
-    public boolean isAnnotation;
-    // There will usually only be one superclass, except in the case of Scala, which compiles companion objects
-    public ArrayList<String> superclassNames = new ArrayList<>(1);
+import io.github.lukehutch.fastclasspathscanner.classpath.ClasspathFinder;
 
-    public ArrayList<String> interfaceNames;
-    public ArrayList<String> annotationNames;
-    public HashSet<String> fieldTypes;
-
-    public ClassInfo(final String className, final boolean isInterface, final boolean isAnnotation,
-            final String superclassName) {
-        this.className = className;
-        this.isInterface = isInterface;
-        this.isAnnotation = isAnnotation;
-        this.superclassNames.add(superclassName);
+public class URLClassLoaderHandler implements ClassLoaderHandler {
+    @Override
+    public boolean handle(final ClassLoader classloader, final ClasspathFinder classpathFinder) {
+        if (classloader instanceof URLClassLoader) {
+            for (final URL url : ((URLClassLoader) classloader).getURLs()) {
+                classpathFinder.addClasspathElement(url.toString());
+            }
+            return true;
+        }
+        return false;
     }
 }

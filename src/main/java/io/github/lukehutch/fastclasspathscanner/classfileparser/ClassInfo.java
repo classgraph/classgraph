@@ -26,26 +26,27 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.lukehutch.fastclasspathscanner.scanner.classloaderhandler;
+package io.github.lukehutch.fastclasspathscanner.classfileparser;
 
-import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
+import java.util.ArrayList;
+import java.util.HashSet;
 
-import java.lang.reflect.Method;
+public class ClassInfo {
+    public String className;
+    public boolean isInterface;
+    public boolean isAnnotation;
+    // There will usually only be one superclass, except in the case of Scala, which compiles companion objects
+    public ArrayList<String> superclassNames = new ArrayList<>(1);
 
-public class WeblogicClassLoaderHandler implements ClassLoaderHandler {
-    @Override
-    public boolean handle(final ClassLoader classloader, final ClasspathFinder classpathFinder) throws Exception {
-        for (Class<?> c = classloader.getClass(); c != null; c = c.getSuperclass()) {
-            if (c.getName().equals("weblogic.utils.classloaders.ChangeAwareClassLoader")) {
-                final Method getClassPath = c.getDeclaredMethod("getClassPath");
-                if (!getClassPath.isAccessible()) {
-                    getClassPath.setAccessible(true);
-                }
-                final String classpath = (String) getClassPath.invoke(classloader);
-                classpathFinder.addClasspathElements(classpath);
-                return true;
-            }
-        }
-        return false;
+    public ArrayList<String> interfaceNames;
+    public ArrayList<String> annotationNames;
+    public HashSet<String> fieldTypes;
+
+    public ClassInfo(final String className, final boolean isInterface, final boolean isAnnotation,
+            final String superclassName) {
+        this.className = className;
+        this.isInterface = isInterface;
+        this.isAnnotation = isAnnotation;
+        this.superclassNames.add(superclassName);
     }
 }

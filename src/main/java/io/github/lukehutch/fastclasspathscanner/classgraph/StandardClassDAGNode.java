@@ -32,6 +32,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 
+import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassInfo;
+
 /** A DAG node representing a standard class (a non-interface, non-annotation class). */
 class StandardClassDAGNode extends DAGNode {
 
