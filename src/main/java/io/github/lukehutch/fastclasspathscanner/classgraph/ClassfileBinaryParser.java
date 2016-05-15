@@ -20,7 +20,8 @@ public class ClassfileBinaryParser {
     /**
      * Read annotation entry from classfile.
      */
-    private static String readAnnotation(final DataInputStream inp, final Object[] constantPool) throws IOException {
+    private static String readAnnotation(final DataInputStream inp, final Object[] constantPool)
+            throws IOException {
         final String annotationFieldDescriptor = readRefdString(inp, constantPool);
         String annotationClassName;
         if (annotationFieldDescriptor.charAt(0) == 'L'
@@ -236,6 +237,16 @@ public class ClassfileBinaryParser {
                 return null;
             }
 
+            if (FastClasspathScanner.verbose) {
+                Log.log("Found " //
+                        + (isAnnotation ? "annotation" : isInterface ? "interface" : "class") + " " + className //
+                        + (superclassName == null || superclassName.equals("java.lang.Object") ? ""
+                                : (" with "
+                                        + (isAnnotation ? "superclass"
+                                                : isInterface ? "superinterface" : "superclass")
+                                        + " " + superclassName)));
+            }
+
             // Allocate result object
             final ClassInfo classInfo = new ClassInfo(className, isInterface, isAnnotation, superclassName);
 
@@ -248,7 +259,7 @@ public class ClassfileBinaryParser {
 
             // Fields
             final HashMap<String, StaticFinalFieldMatchProcessor> staticFieldnameToMatchProcessor //
-            = classNameToStaticFieldnameToMatchProcessor.get(classInfo.className);
+                    = classNameToStaticFieldnameToMatchProcessor.get(classInfo.className);
             HashSet<String> fieldTypes = null;
             final int fieldCount = inp.readUnsignedShort();
             for (int i = 0; i < fieldCount; i++) {
@@ -257,7 +268,8 @@ public class ClassfileBinaryParser {
                 final boolean isStaticFinal = (accessFlags & 0x0018) == 0x0018;
                 final String fieldName = readRefdString(inp, constantPool);
                 final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor //
-                = staticFieldnameToMatchProcessor != null ? staticFieldnameToMatchProcessor.get(fieldName) : null;
+                        = staticFieldnameToMatchProcessor != null ? staticFieldnameToMatchProcessor.get(fieldName)
+                                : null;
                 final String fieldTypeDescriptor = readRefdString(inp, constantPool);
                 final int attributesCount = inp.readUnsignedShort();
 
