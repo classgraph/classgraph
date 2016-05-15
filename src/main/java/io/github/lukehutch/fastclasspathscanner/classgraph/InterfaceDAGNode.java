@@ -62,8 +62,8 @@ class InterfaceDAGNode extends DAGNode {
             // Connect any annotations on this interface to this interface 
             if (classInfo.annotationNames != null) {
                 for (final String annotationName : classInfo.annotationNames) {
-                    final AnnotationDAGNode annotationNode = (AnnotationDAGNode) classNameToDAGNode
-                            .get(annotationName);
+                    final AnnotationDAGNode annotationNode = getDAGNodeOfType(classNameToDAGNode, annotationName,
+                            AnnotationDAGNode.class);
                     if (annotationNode != null) {
                         annotationNode.addAnnotatedClass(this);
                     }

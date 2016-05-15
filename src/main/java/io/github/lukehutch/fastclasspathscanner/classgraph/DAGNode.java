@@ -83,6 +83,18 @@ class DAGNode {
         return this;
     }
 
+    /** Get DAGNode by name, and convert to expected subclass type. */
+    @SuppressWarnings("unchecked")
+    protected static <T extends DAGNode> T getDAGNodeOfType(final HashMap<String, DAGNode> classNameToDAGNode,
+            String className, Class<T> type) {
+        DAGNode node = classNameToDAGNode.get(className);
+        if (node != null && !type.isAssignableFrom(node.getClass())) {
+            throw new RuntimeException("Expected DAGNode for class " + className + " to be of type "
+                    + type.getName() + " but got type " + node.getClass().getName());
+        }
+        return (T) node;
+    }
+
     /**
      * Connect a DAGNode to other nodes by looking up the type name of connected classes, interfaces and
      * annotations.
