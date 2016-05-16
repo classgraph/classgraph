@@ -383,6 +383,11 @@ Properties of the annotation scanning API:
 2. The method `getNamesOfClassesWithAnnotation()` (which maps from an annotation/meta-annotation to classes it annotates/meta-annotates) is the inverse of the method `getNamesOfAnnotationsOnClass()` (which maps from a class to annotations/meta-annotations on the class; this is related to `Class.getAnnotations()` in the Java reflections API, but it returns not just direct annotations on a class, but also meta-annotations that are in the transitive closure of the annotation graph, starting at the class of interest).
 3. The method `getNamesOfAnnotationsWithMetaAnnotation()` (which maps from meta-annotations to annotations they meta-annotate) is the inverse of the method `getNamesOfMetaAnnotationsOnAnnotation()` (which maps from annotations to the meta-annotations that annotate them; this also retuns the transitive closure of the annotation graph, starting at an annotation of interest).
 
+Note that meta-annotations are inherited between annotations (a meta-meta-annotation is still a meta-annotation), but neither annotations nor meta-annotations are passed from annotated classes to the sub-classes of those annotated classes:
+
+* If annotation `A` meta-annotates annotation `B`, and annotation `B` meta-annotates class `C`, then annotation `A` meta-annotates class `C`.
+* However, as per the regular Java annotation system, if class `P` is a superclass of class `Q`, and class `P` has annotation `R`, subclass `Q` does *not* inherit the annotation `R` from its superclass (or any of `R`'s meta-annotations). 
+
 ### 5. Fetching the constant initializer values of static final fields
 
 FastClassPathScanner is able to scan the classpath for matching fully-qualified static final fields, e.g. for the fully-qualified field name `com.xyz.Config.POLL_INTERVAL`, FastClassPathScanner will look in the class `com.xyz.Config` for the static final field `POLL_INTERVAL`, and if it is found, and if it has a constant literal initializer value, that value will be read directly from the classfile and passed into a provided `StaticFinalFieldMatchProcessor`.
