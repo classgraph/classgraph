@@ -329,8 +329,8 @@ public class ClasspathFinder {
                     if (handler.handle(classLoader, this)) {
                         // Sucessfully handled
                         if (FastClasspathScanner.verbose) {
-                            Log.log("ClassLoader " + classLoader.getClass().getName()
-                                    + " will be handled by ClassLoaderHandler " + handler.getClass().getName());
+                            Log.log("Classpath elements from ClassLoader " + classLoader.getClass().getName()
+                                    + " were extracted by ClassLoaderHandler " + handler.getClass().getName());
                         }
                         classloaderFound = true;
                         break;
