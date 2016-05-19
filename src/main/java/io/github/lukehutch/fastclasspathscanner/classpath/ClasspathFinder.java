@@ -30,6 +30,7 @@ package io.github.lukehutch.fastclasspathscanner.classpath;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.classpath.classloaderhandler.ClassLoaderHandler;
+import io.github.lukehutch.fastclasspathscanner.utils.AdditionOrderedSet;
 import io.github.lukehutch.fastclasspathscanner.utils.Log;
 import io.github.lukehutch.fastclasspathscanner.utils.Utils;
 
@@ -57,13 +58,6 @@ public class ClasspathFinder {
 
     /** Whether or not classpath has been read (supporting lazy reading of classpath). */
     private boolean initialized = false;
-
-    /**
-     * The ClassLoaderHandler ServiceLoader. See:
-     * https://docs.oracle.com/javase/6/docs/api/java/util/ServiceLoader.html
-     */
-    private static ServiceLoader<ClassLoaderHandler> classLoaderHandlerLoader = ServiceLoader
-            .load(ClassLoaderHandler.class);
 
     /** Clear the classpath. */
     private void clearClasspath() {
@@ -267,11 +261,10 @@ public class ClasspathFinder {
         clearClasspath();
 
         // Look for all unique classloaders.
-        // Keep them in an order that (hopefully) reflects the order in which the JDK calls classloaders.
-        final ArrayList<ClassLoader> classLoaders = new ArrayList<>();
-        final HashSet<ClassLoader> classLoadersSet = new HashSet<>();
+        // Need both a set and a list so we can keep them unique, but in an order that (hopefully) reflects
+        // the order in which the JDK calls classloaders.
+        final AdditionOrderedSet<ClassLoader> classLoadersSet = new AdditionOrderedSet<>();
         classLoadersSet.add(ClassLoader.getSystemClassLoader());
-        classLoaders.add(ClassLoader.getSystemClassLoader());
         // Dirty method for looking for other classloaders on the call stack
         try {
             // Generate stacktrace
@@ -287,10 +280,7 @@ public class ClasspathFinder {
                 }
                 // OpenJDK calls classloaders in a top-down order
                 for (int i = callerClassLoaders.size() - 1; i >= 0; --i) {
-                    final ClassLoader cl = callerClassLoaders.get(i);
-                    if (classLoadersSet.add(cl)) {
-                        classLoaders.add(cl);
-                    }
+                    classLoadersSet.add(callerClassLoaders.get(i));
                 }
 
                 // Simpler version of this block that does not look up parent classloaders (in most runtime
@@ -306,31 +296,52 @@ public class ClasspathFinder {
                 //    }
             }
         }
-        if (classLoadersSet.add(Thread.currentThread().getContextClassLoader())) {
-            classLoaders.add(Thread.currentThread().getContextClassLoader());
+        classLoadersSet.add(ClasspathFinder.class.getClassLoader());
+        classLoadersSet.add(Thread.currentThread().getContextClassLoader());
+        final ArrayList<ClassLoader> classLoaders = classLoadersSet.getList();
+        classLoaders.remove(null);
+
+        // Find all ClassLoaderHandlers registered using ServiceLoader, given known ClassLoaders 
+        final HashSet<ClassLoaderHandler> classLoaderHandlers = new HashSet<>();
+        for (final ClassLoader classLoader : classLoaders) {
+            // Use ServiceLoader to find registered ClassLoaderHandlers, see:
+            // https://docs.oracle.com/javase/6/docs/api/java/util/ServiceLoader.html
+            final ServiceLoader<ClassLoaderHandler> classLoaderHandlerLoader = ServiceLoader
+                    .load(ClassLoaderHandler.class, classLoader);
+            // Iterate through registered ClassLoaderHandlers
+            for (final ClassLoaderHandler handler : classLoaderHandlerLoader) {
+                classLoaderHandlers.add(handler);
+            }
+        }
+        if (classLoaderHandlers.isEmpty()) {
+            // Should not happen, since FastClasspathScanner ships with several of these, registered in
+            // src/main/resources/META-INF/services
+            throw new RuntimeException("Could not find any " + ClassLoaderHandler.class.getSimpleName()
+                    + " subclasses registered on the classpath using the ServiceLoader mechanism");
         }
 
         // Try finding a handler for each of the classloaders discovered above
         boolean classloaderFound = false;
-        for (final ClassLoader classloader : classLoaders) {
-            if (classloader != null) {
-                // Iterate through registered ClassLoaderHandlers
-                for (final ClassLoaderHandler handler : classLoaderHandlerLoader) {
-                    try {
-                        if (handler.handle(classloader, this)) {
-                            // Sucessfully handled
-                            classloaderFound = true;
-                            break;
+        for (final ClassLoader classLoader : classLoaders) {
+            // Iterate through registered ClassLoaderHandlers
+            for (final ClassLoaderHandler handler : classLoaderHandlers) {
+                try {
+                    if (handler.handle(classLoader, this)) {
+                        // Sucessfully handled
+                        if (FastClasspathScanner.verbose) {
+                            Log.log("ClassLoader " + classLoader.getClass().getName()
+                                    + " will be handled by ClassLoaderHandler " + handler.getClass().getName());
                         }
-                    } catch (final Exception e) {
-                        Log.log("Was not able to call getPaths() in " + classloader.getClass().getName() + ": "
-                                + e.toString());
+                        classloaderFound = true;
+                        break;
                     }
+                } catch (final Exception e) {
+                    Log.log("Was not able to call getPaths() in " + classLoader.getClass().getName() + ": "
+                            + e.toString());
                 }
-                if (!classloaderFound) {
-                    Log.log("Found unknown ClassLoader type, cannot scan classes: "
-                            + classloader.getClass().getName());
-                }
+            }
+            if (!classloaderFound) {
+                Log.log("Found unknown ClassLoader type, cannot scan classes: " + classLoader.getClass().getName());
             }
         }
 
@@ -358,5 +369,4 @@ public class ClasspathFinder {
         }
         return classpathElements;
     }
-
 }
