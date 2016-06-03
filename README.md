@@ -200,7 +200,7 @@ The constructor accepts a list of whitelisted package prefixes / jar names to sc
 
 ## Detecting annotations, superclasses and implemented interfaces outside of whitelisted packages
 
-In general, FashClasspathScanner cannot find relationships between classes, interfaces and annotations unless the entire path of references between them falls within a whitelisted (and non-blacklisted) package. This is intentional, to avoid calling the classloader on classes that fall outside the whitelisted path (as class loading is time consuming, and triggers a class' static initializer code to run, which may have unintended consequences).
+In general, FashClasspathScanner cannot find relationships between classes, interfaces and annotations unless the entire path of references between them falls within a whitelisted (and non-blacklisted) package. This is intentional, to avoid calling the classloader on classes that fall outside the whitelisted path (class loading is time consuming, and triggers a class' static initializer code to run, which may have unintended consequences).
 
 However, as shown below, it is possible to match classes based on references to other "external" classes, defined as superclasses, implemented interfaces, superinterfaces and annotations/meta-annotations that are defined outside of the whitelisted packages but that are *directly* referred to by a class defined within a whitelisted package. (An external class is a class that is *exactly one reference link away* from a class in a whitelisted package.) External classes are not whitelisted by default, so are not returned by `.getNamesOf...()` methods. 
 
