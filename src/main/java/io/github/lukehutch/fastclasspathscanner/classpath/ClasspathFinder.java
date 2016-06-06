@@ -256,6 +256,19 @@ public class ClasspathFinder {
         }
     }
 
+    /** Add all parent classloaders of a class in top-down order, the same as in the JRE. */
+    private static void addAllParentClassloaders(final Class<?> klass,
+            final AdditionOrderedSet<ClassLoader> classLoadersSetOut) {
+        final ArrayList<ClassLoader> callerClassLoaders = new ArrayList<>();
+        for (ClassLoader cl = klass.getClassLoader(); cl != null; cl = cl.getParent()) {
+            callerClassLoaders.add(cl);
+        }
+        // OpenJDK calls classloaders in a top-down order
+        for (int i = callerClassLoaders.size() - 1; i >= 0; --i) {
+            classLoadersSetOut.add(callerClassLoaders.get(i));
+        }
+    }
+
     /** Parse the system classpath. */
     private void parseSystemClasspath() {
         clearClasspath();
@@ -263,41 +276,29 @@ public class ClasspathFinder {
         // Look for all unique classloaders.
         // Need both a set and a list so we can keep them unique, but in an order that (hopefully) reflects
         // the order in which the JDK calls classloaders.
+        //
+        // See:
+        // https://docs.oracle.com/javase/8/docs/technotes/tools/findingclasses.html
+        //
         final AdditionOrderedSet<ClassLoader> classLoadersSet = new AdditionOrderedSet<>();
         classLoadersSet.add(ClassLoader.getSystemClassLoader());
-        // Dirty method for looking for other classloaders on the call stack
+        // Look for classloaders on the call stack
         try {
             // Generate stacktrace
             throw new Exception();
         } catch (final Exception e) {
             final StackTraceElement[] stacktrace = e.getStackTrace();
-            if (stacktrace.length >= 3) {
-                // Visit parent classloaders in top-down order, the same as in the JRE
-                final ArrayList<ClassLoader> callerClassLoaders = new ArrayList<>();
-                final StackTraceElement caller = stacktrace[2];
-                for (ClassLoader cl = caller.getClass().getClassLoader(); cl != null; cl = cl.getParent()) {
-                    callerClassLoaders.add(cl);
+            if (stacktrace.length >= 1) {
+                for (StackTraceElement ste : stacktrace) {
+                    try {
+                        addAllParentClassloaders(Class.forName(ste.getClassName()), classLoadersSet);
+                    } catch (ClassNotFoundException e1) {
+                    }
                 }
-                // OpenJDK calls classloaders in a top-down order
-                for (int i = callerClassLoaders.size() - 1; i >= 0; --i) {
-                    classLoadersSet.add(callerClassLoaders.get(i));
-                }
-
-                // Simpler version of this block that does not look up parent classloaders (in most runtime
-                // environments, the only parent classloader will be the one that loads the Java extension
-                // classes, and those are not scanned anyway), see:
-                // https://docs.oracle.com/javase/8/docs/technotes/tools/findingclasses.html
-
-                //    // Add the classloader from the calling class
-                //    final StackTraceElement caller = stacktrace[2];
-                //    final ClassLoader cl = caller.getClass().getClassLoader();
-                //    if (classLoadersSet.add(cl)) {
-                //        classLoaders.add(cl);
-                //    }
             }
         }
-        classLoadersSet.add(ClasspathFinder.class.getClassLoader());
         classLoadersSet.add(Thread.currentThread().getContextClassLoader());
+        addAllParentClassloaders(ClasspathFinder.class, classLoadersSet);
         final ArrayList<ClassLoader> classLoaders = classLoadersSet.getList();
         classLoaders.remove(null);
 
