@@ -183,7 +183,7 @@ public FastClasspathScanner(String... scanSpec)
 The constructor accepts a list of whitelisted package prefixes / jar names to scan, as well as blacklisted packages/jars not to scan, where blacklisted entries are prefixed with the `'-'` character. For example:
 * `new FastClasspathScanner("com.x")` limits scanning to the package `com.x` and its sub-packages in all jarfiles and all directory entries on the classpath.
 * `new FastClasspathScanner("com.x", "-com.x.y")` limits scanning to `com.x` and all sub-packages *except* `com.x.y` in all jars and directories on the classpath.
-* `new FastClasspathScanner("com.x", "javax.persistence.Entity")` limits scanning to `com.x` but also returns links between whitelisted classes and the non-whitelisted annotation class `javax.persistence.Entity` -- [see below](#detecting-annotations-superclasses-and-implemented-interfaces-outside-of-whitelisted-packages) for more info.
+* `new FastClasspathScanner("com.x", "javax.persistence.Entity")` limits scanning to `com.x` but also whitelists a specific external class `javax.persistence.Entity`. This makes it possible to search for classes annotated with the otherwise-non-whitelisted annotation class `javax.persistence.Entity` -- [see below](#detecting-annotations-superclasses-and-implemented-interfaces-outside-of-whitelisted-packages) for more info.
 * `new FastClasspathScanner("com.x", "-com.x.BadClass")` scans within `com.x`, but blacklists the class `com.x.BadClass`. Note that a capital letter after the final '.' indicates a whitelisted or blacklisted class, as opposed to a package.
 * `new FastClasspathScanner("com.x", "-com.x.y", "jar:deploy.jar")` limits scanning to `com.x` and all its sub-packages except `com.x.y`, but only looks in jars named `deploy.jar` on the classpath. Note:
   1. Whitelisting one or more jar entries prevents non-jar entries (directories) on the classpath from being scanned.
@@ -200,11 +200,11 @@ The constructor accepts a list of whitelisted package prefixes / jar names to sc
 
 ## Detecting annotations, superclasses and implemented interfaces outside of whitelisted packages
 
-In general, FashClasspathScanner cannot find relationships between classes, interfaces and annotations unless the entire path of references between them falls within a whitelisted (and non-blacklisted) package.
+In general, FashClasspathScanner cannot find relationships between classes, interfaces and annotations unless the entire path of references between them falls within a whitelisted (and non-blacklisted) package. This is intentional, to avoid calling the classloader on classes that fall outside the whitelisted path (class loading is time consuming, and triggers a class' static initializer code to run, which may have unintended consequences).
 
-However, as shown below, it is possible to match based on references to "external" classes, defined as superclasses, implemented interfaces, superinterfaces and annotations/meta-annotations that are defined outside of the whitelisted packages but that are referred to by a class defined within a whitelisted package. (An external class is a class that is exactly one reference link away from a class in a whitelisted package.) External classes are not whitelisted by default, so are not returned by `.getNamesOf...()` methods. 
+However, as shown below, it is possible to match classes based on references to other "external" classes, defined as superclasses, implemented interfaces, superinterfaces and annotations/meta-annotations that are defined outside of the whitelisted packages but that are *directly* referred to by a class defined within a whitelisted package: an external class is a class that is *exactly one reference link away* from a class in a whitelisted package.
 
-ou may also whitelist an external class name in the scan spec passed to the constructor. This will cause the external class to be returned by `.getNamesOf...()` methods. The constructor determines that a passed string is a class name and not a package name if the letter after the last '.' is in upper case, as per standard Java conventions for package and class names.
+External classes are not whitelisted by default, so are not returned by `.getNamesOf...()` methods. However, you may whitelist external class names (in addition to package names) in the scan spec passed to the constructor. The FastClasspathScanner constructor determines that a passed string is a class name and not a package name if the letter after the last `'.'` is in upper case, as per standard Java conventions for package and class names. This will cause the external class to be returned by `.getNamesOf...()` methods.
 
 ```java
 // Given a class com.xyz.MyEntity that is annotated with javax.persistence.Entity:
@@ -803,4 +803,6 @@ FastClasspathScanner was inspired by Ronald Muller's [annotation-detector](https
 
 Fast Classpath Scanner was written by Luke Hutchison -- https://github.com/lukehutch
 
-Please [![Donate](https://www.paypalobjects.com/en_US/i/btn/btn_donate_SM.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=8XNBMBYA8EC4Y) if this library makes your life easier.
+Please donate if this library makes your life easier:
+
+[![](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=luke.hutch@gmail.com&lc=US&item_name=Luke%20Hutchison&item_number=FastClasspathScanner&no_note=0&currency_code=USD&bn=PP-DonationsBF:btn_donateCC_LG.gif:NonHostedGuest)
