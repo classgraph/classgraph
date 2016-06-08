@@ -28,12 +28,6 @@
  */
 package io.github.lukehutch.fastclasspathscanner.scanner;
 
-import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-import io.github.lukehutch.fastclasspathscanner.classpath.ClasspathFinder;
-import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchProcessorWithContext;
-import io.github.lukehutch.fastclasspathscanner.utils.Log;
-import io.github.lukehutch.fastclasspathscanner.utils.Utils;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -44,6 +38,11 @@ import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
+
+import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
+import io.github.lukehutch.fastclasspathscanner.classpath.ClasspathFinder;
+import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchProcessorWithContext;
+import io.github.lukehutch.fastclasspathscanner.utils.Log;
 
 public class RecursiveScanner {
     /** The classpath finder. */
@@ -183,10 +182,8 @@ public class RecursiveScanner {
     private void scanZipfile(final File classpathElt, final ZipFile zipFile, final String zipfilePath,
             final String zipInternalRootPath, final long zipFileLastModified, final boolean scanTimestampsOnly) {
         if (FastClasspathScanner.verbose) {
-            Log.log("Scanning jarfile: "
-                    + zipfilePath
-                    + (zipInternalRootPath.isEmpty() ? "" : " ; classpath root within jarfile: "
-                            + zipInternalRootPath));
+            Log.log("Scanning jarfile: " + zipfilePath + (zipInternalRootPath.isEmpty() ? ""
+                    : " ; classpath root within jarfile: " + zipInternalRootPath));
         }
         final long startTime = System.currentTimeMillis();
         boolean timestampWarning = false;
@@ -237,8 +234,7 @@ public class RecursiveScanner {
                 // classpath. USE_ZIPFILE_ENTRY_MODIFICATION_TIMES is set to false by default,
                 // as zipfile entry timestamps are less trustworthy than filesystem timestamps.
                 final long entryTime = USE_ZIPFILE_ENTRY_MODIFICATION_TIMES //
-                ? entry.getTime()
-                        : zipFileLastModified;
+                        ? entry.getTime() : zipFileLastModified;
                 lastModified = Math.max(lastModified, entryTime);
                 if (entryTime > System.currentTimeMillis() && !timestampWarning) {
                     Log.log(zipfilePath + " contains modification timestamps after the current time");
@@ -302,6 +298,7 @@ public class RecursiveScanner {
             Log.log("Scanning path: " + relativePath);
         }
         boolean keepRecursing = false;
+        boolean atWhitelistedClassPackage = false;
         switch (scanSpec.pathWhitelistMatchStatus(relativePath)) {
         case WITHIN_BLACKLISTED_PATH:
             // Reached a blacklisted path -- stop scanning files and dirs
@@ -321,12 +318,16 @@ public class RecursiveScanner {
             // in case we can reach a whitelisted path.
             keepRecursing = true;
             break;
+        case AT_WHITELISTED_CLASS_PACKAGE:
+            // Reached a package that is itself not whitelisted, but contains a specifically-whitelisted class.
+            atWhitelistedClassPackage = true;
+            break;
         case NOT_WITHIN_WHITELISTED_PATH:
             break;
         default:
             throw new RuntimeException("Unknown match status");
         }
-        if (keepRecursing || inWhitelistedPath) {
+        if (keepRecursing || inWhitelistedPath || atWhitelistedClassPackage) {
             lastModified = Math.max(lastModified, dir.lastModified());
             final File[] subFiles = dir.listFiles();
             if (subFiles != null) {
@@ -344,13 +345,29 @@ public class RecursiveScanner {
                     }
                     if (subFileReal != null) {
                         if (subFileReal.isDirectory()) {
-                            // Recurse into subdirectory
-                            scanDir(classpathElt, subFileReal, ignorePrefixLen, inWhitelistedPath,
-                                    scanTimestampsOnly);
-                        } else if (inWhitelistedPath && subFileReal.isFile()) {
-                            // Scan file
-                            scanFile(classpathElt, subFileReal, relativePath.equals("/") ? subFileReal.getName()
-                                    : relativePath + subFileReal.getName(), scanTimestampsOnly);
+                            if (inWhitelistedPath || keepRecursing) {
+                                // Recurse into subdirectory
+                                scanDir(classpathElt, subFileReal, ignorePrefixLen, inWhitelistedPath,
+                                        scanTimestampsOnly);
+                            }
+                        } else if (subFileReal.isFile()) {
+                            final String subFileName = subFileReal.getName();
+                            // If in whitelisted path, or in the same non-whitelisted package as a whitelisted class
+                            boolean fileIsWhitelisted = false;
+                            if (inWhitelistedPath) {
+                                fileIsWhitelisted = true;
+                            } else if (atWhitelistedClassPackage && subFileName.endsWith(".class")) {
+                                // Look for specifically-whitelisted classes in non-whitelisted packages
+                                final String className = (relativePath
+                                        + subFileName.substring(0, subFileName.length() - 6)).replace('/', '.');
+                                fileIsWhitelisted = scanSpec.classIsWhitelisted(className);
+                            }
+                            if (fileIsWhitelisted) {
+                                // Scan whitelisted file
+                                scanFile(classpathElt, subFileReal,
+                                        relativePath.equals("/") ? subFileName : relativePath + subFileName,
+                                        scanTimestampsOnly);
+                            }
                         }
                     }
                 }
@@ -389,7 +406,7 @@ public class RecursiveScanner {
                     final String zipInternalRootPath = pathStr.substring(bangPos + 1) //
                             .replace(File.separatorChar, '/');
                     if (zipFile.exists()) {
-                        if (Utils.isJar(path)) {
+                        if (ClasspathFinder.isJar(path)) {
                             if (scanSpec.scanJars) {
                                 // Scan within jar/zipfile
                                 scanZipfile(zipFile, path, zipInternalRootPath, scanTimestampsOnly);
@@ -417,7 +434,7 @@ public class RecursiveScanner {
                 scanDir(classpathElt, classpathElt, path.length() + 1, false, scanTimestampsOnly);
 
             } else if (classpathElt.isFile()) {
-                if (Utils.isJar(path) && scanSpec.scanJars) {
+                if (ClasspathFinder.isJar(path) && scanSpec.scanJars) {
                     // Scan within jar/zipfile
                     scanZipfile(classpathElt, path, "", scanTimestampsOnly);
                 } else if (scanSpec.scanNonJars) {

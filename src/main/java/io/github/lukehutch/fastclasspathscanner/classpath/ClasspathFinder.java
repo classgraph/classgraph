@@ -28,12 +28,6 @@
  */
 package io.github.lukehutch.fastclasspathscanner.classpath;
 
-import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-import io.github.lukehutch.fastclasspathscanner.classpath.classloaderhandler.ClassLoaderHandler;
-import io.github.lukehutch.fastclasspathscanner.utils.AdditionOrderedSet;
-import io.github.lukehutch.fastclasspathscanner.utils.Log;
-import io.github.lukehutch.fastclasspathscanner.utils.Utils;
-
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -45,6 +39,11 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.ServiceLoader;
 import java.util.jar.Manifest;
+
+import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
+import io.github.lukehutch.fastclasspathscanner.classpath.classloaderhandler.ClassLoaderHandler;
+import io.github.lukehutch.fastclasspathscanner.utils.AdditionOrderedSet;
+import io.github.lukehutch.fastclasspathscanner.utils.Log;
 
 public class ClasspathFinder {
     /** The unique elements of the classpath, as an ordered list. */
@@ -64,6 +63,13 @@ public class ClasspathFinder {
         classpathElements.clear();
         classpathElementsSet.clear();
         initialized = false;
+    }
+
+    /** Returns true if the path ends with a JAR extension */
+    public static boolean isJar(final String path) {
+        final String pathLower = path.toLowerCase();
+        return pathLower.endsWith(".jar") || pathLower.endsWith(".zip") || pathLower.endsWith(".war")
+                || pathLower.endsWith(".car");
     }
 
     /**
@@ -149,7 +155,7 @@ public class ClasspathFinder {
                     // If this classpath element is a jar or zipfile, look for Class-Path entries in the manifest
                     // file. OpenJDK scans manifest-defined classpath elements after the jar that listed them, so
                     // we recursively call addClasspathElement if needed each time a jar is encountered. 
-                    if (pathFile.isFile() && Utils.isJar(pathStr)) {
+                    if (pathFile.isFile() && isJar(pathStr)) {
                         if (isJREJar(pathFile, /* ancestralScanDepth = */2)) {
                             // Don't scan system jars
                             isValidClasspathElement = false;
@@ -289,10 +295,10 @@ public class ClasspathFinder {
         } catch (final Exception e) {
             final StackTraceElement[] stacktrace = e.getStackTrace();
             if (stacktrace.length >= 1) {
-                for (StackTraceElement ste : stacktrace) {
+                for (final StackTraceElement ste : stacktrace) {
                     try {
                         addAllParentClassloaders(Class.forName(ste.getClassName()), classLoadersSet);
-                    } catch (ClassNotFoundException e1) {
+                    } catch (final ClassNotFoundException e1) {
                     }
                 }
             }

@@ -350,7 +350,8 @@ public FastClasspathScanner matchClassesWithAnnotation(
 // Mechanism 2: Call one of the following after calling .scan():
 
 // (a) Get names of classes that have the specified annotation(s)
-// or meta-annotation(s)
+// or meta-annotation(s). Only returns non-annotation classes
+// (i.e. standard classes or interfaces with the annotation).
 
 public List<String> getNamesOfClassesWithAnnotation(
     Class<?> annotation | String annotationName)
@@ -380,7 +381,7 @@ public List<String> getNamesOfMetaAnnotationsOnAnnotation(
 Properties of the annotation scanning API:
 
 1. There are convenience methods for matching classes that have **AnyOf** a given list of annotations/meta-annotations (an **OR** operator), and methods for matching classes that have **AllOf** a given list of annotations/meta-annotations (an **AND** operator). 
-2. The method `getNamesOfClassesWithAnnotation()` (which maps from an annotation/meta-annotation to classes it annotates/meta-annotates) is the inverse of the method `getNamesOfAnnotationsOnClass()` (which maps from a class to annotations/meta-annotations on the class; this is related to `Class.getAnnotations()` in the Java reflections API, but it returns not just direct annotations on a class, but also meta-annotations that are in the transitive closure of the annotation graph, starting at the class of interest).
+2. The method `getNamesOfClassesWithAnnotation()` (which maps from an annotation/meta-annotation to classes it annotates/meta-annotates) is the inverse of the method `getNamesOfAnnotationsOnClass()` (which maps from a class to annotations/meta-annotations on the class; this is related to `Class.getAnnotations()` in the Java reflections API, but it returns not just direct annotations on a class, but also meta-annotations that are in the transitive closure of the annotation graph, starting at the class of interest). Note that this method does not return annotations that are meta-annotated with the requested (meta-)annotation, it only returns standard classes or interfaces that have the requested (meta-)annotation.
 3. The method `getNamesOfAnnotationsWithMetaAnnotation()` (which maps from meta-annotations to annotations they meta-annotate) is the inverse of the method `getNamesOfMetaAnnotationsOnAnnotation()` (which maps from annotations to the meta-annotations that annotate them; this also retuns the transitive closure of the annotation graph, starting at an annotation of interest).
 
 Note that meta-annotations are inherited between annotations (a meta-meta-annotation is still a meta-annotation), but neither annotations nor meta-annotations are passed from annotated classes to the sub-classes of those annotated classes:

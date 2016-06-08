@@ -28,6 +28,17 @@
  */
 package io.github.lukehutch.fastclasspathscanner;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map.Entry;
+import java.util.regex.Pattern;
+
 import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassInfo;
 import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassfileBinaryParser;
 import io.github.lukehutch.fastclasspathscanner.classgraph.ClassGraphBuilder;
@@ -48,16 +59,6 @@ import io.github.lukehutch.fastclasspathscanner.scanner.RecursiveScanner.FilePat
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
 import io.github.lukehutch.fastclasspathscanner.utils.Log;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.regex.Pattern;
-
 /**
  * Uber-fast, ultra-lightweight Java classpath scanner. Scans the classpath by parsing the classfile binary format
  * directly rather than by using reflection. (Reflection causes the classloader to load each class, which can take
@@ -75,18 +76,22 @@ public class FastClasspathScanner {
     private final RecursiveScanner recursiveScanner;
 
     /**
-     * A map from classname, to static final field name, to a StaticFinalFieldMatchProcessor that should be called
-     * if that class name and static final field name is encountered during scan.
+     * A map from (className + "." + staticFinalFieldName) to StaticFinalFieldMatchProcessor(s) that should be
+     * called if that class name and static final field name is encountered with a static constant initializer
+     * during scan.
      */
-    private final HashMap<String, HashMap<String, StaticFinalFieldMatchProcessor>> //
-    classNameToStaticFieldnameToMatchProcessor = new HashMap<>();
+    private final HashMap<String, ArrayList<StaticFinalFieldMatchProcessor>> //
+    fullyQualifiedFieldNameToStaticFinalFieldMatchProcessors = new HashMap<>();
+
+    /** A map from className to a list of static final fields to match with StaticFinalFieldMatchProcessors. */
+    private final HashMap<String, HashSet<String>> classNameToStaticFinalFieldsToMatch = new HashMap<>();
 
     /**
-     * A map from relative path to the information extracted from the class. If the class name is encountered more
-     * than once (i.e. if the same class is defined in multiple classpath elements), the second and subsequent class
+     * A map from class name to the information extracted from the class. If the class name is encountered more than
+     * once (i.e. if the same class is defined in multiple classpath elements), the second and subsequent class
      * definitions are ignored, because they are masked by the earlier definition.
      */
-    private final HashMap<String, ClassInfo> relativePathToClassInfo = new HashMap<>();
+    private final HashMap<String, ClassInfo> classNameToClassInfo = new HashMap<>();
 
     /** The class, interface and annotation graph builder. */
     private ClassGraphBuilder classGraphBuilder;
@@ -117,11 +122,9 @@ public class FastClasspathScanner {
      */
     public FastClasspathScanner(final String... scanSpec) {
         this.classpathFinder = new ClasspathFinder();
-        if (FastClasspathScanner.verbose) {
-            Log.log("Classpath elements: " + this.classpathFinder.getUniqueClasspathElements());
-        }
         this.scanSpec = new ScanSpec(scanSpec);
         this.recursiveScanner = new RecursiveScanner(classpathFinder, this.scanSpec);
+        FastClasspathScanner.verbose = false; // By default
 
         // Read classfile headers for all filenames ending in ".class" on classpath
         final ScanSpec scanSpecParsed = this.scanSpec;
@@ -129,26 +132,8 @@ public class FastClasspathScanner {
             @Override
             public void processMatch(final String relativePath, final InputStream inputStream, //
                     final int lengthBytes) throws IOException {
-                // Make sure this was the first occurrence of the given relativePath on the classpath,
-                // to enable masking of classes
-                if (!relativePathToClassInfo.containsKey(relativePath)) {
-                    // This is the first time we have encountered this relative path (and therefore this class)
-                    // on the classpath. Read class info from classfile binary header.
-                    final ClassInfo classInfo = ClassfileBinaryParser.readClassInfoFromClassfileHeader(
-                            relativePath, inputStream, classNameToStaticFieldnameToMatchProcessor, scanSpecParsed);
-                    if (classInfo != null) {
-                        // If class info was successfully read, store a mapping from relative path to class info.
-                        // (All classes with the same name should have the same relative path, although this is
-                        // checked when the classfile is read.)
-                        relativePathToClassInfo.put(relativePath, classInfo);
-                    }
-                } else {
-                    // The new class was masked by a class with the same name earlier in the classpath.
-                    if (verbose) {
-                        Log.log(relativePath.replace('/', '.')
-                                + " occurs more than once on classpath, ignoring all but first instance");
-                    }
-                }
+                ClassfileBinaryParser.readClassInfoFromClassfileHeader(relativePath, inputStream,
+                        classNameToStaticFinalFieldsToMatch, scanSpecParsed, classNameToClassInfo);
             }
         });
     }
@@ -246,8 +231,8 @@ public class FastClasspathScanner {
         final String classOrIfaceName = classOrInterface.getName();
         checkClassNameIsNotBlacklisted(classOrIfaceName);
         if (classOrInterface.isAnnotation()) {
-            throw new IllegalArgumentException(classOrIfaceName
-                    + " is an annotation, not a regular class or interface");
+            throw new IllegalArgumentException(
+                    classOrIfaceName + " is an annotation, not a regular class or interface");
         }
         return classOrInterface.getName();
     }
@@ -398,7 +383,8 @@ public class FastClasspathScanner {
      * @param classEnumerationMatchProcessor
      *            the ClassEnumerationMatchProcessor to call when a match is found.
      */
-    public FastClasspathScanner matchAllAnnotationClasses(final ClassMatchProcessor classEnumerationMatchProcessor) {
+    public FastClasspathScanner matchAllAnnotationClasses(
+            final ClassMatchProcessor classEnumerationMatchProcessor) {
         classMatchers.add(new ClassMatcher() {
             @Override
             public void lookForMatches() {
@@ -615,7 +601,8 @@ public class FastClasspathScanner {
                 final String implementedInterfaceName = interfaceName(implementedInterface);
                 for (final String implClass : getNamesOfClassesImplementing(implementedInterfaceName)) {
                     if (verbose) {
-                        Log.log("Found class implementing interface " + implementedInterfaceName + ": " + implClass);
+                        Log.log("Found class implementing interface " + implementedInterfaceName + ": "
+                                + implClass);
                     }
                     // Call classloader
                     final Class<? extends T> cls = loadClass(implClass);
@@ -661,7 +648,7 @@ public class FastClasspathScanner {
      * whether or not an InterfaceMatchProcessor was added to the scanner before the call to scan(). Does not call
      * the classloader on the matching classes, just returns their names.
      * 
-     * @param implementedInterfaceNames
+     * @param implementedInterfaces
      *            The name of the interfaces that classes need to implement.
      * @return A list of the names of matching classes, or the empty list if none.
      */
@@ -702,8 +689,8 @@ public class FastClasspathScanner {
      * non-matching classes.) The field type must be declared in a package that is whitelisted (and not
      * blacklisted).
      * 
-     * @param implementedInterface
-     *            The interface that classes need to implement.
+     * @param fieldType
+     *            The type of the field to match..
      * @param classMatchProcessor
      *            the ClassMatchProcessor to call when a match is found.
      */
@@ -948,16 +935,23 @@ public class FastClasspathScanner {
 
     /**
      * Add a StaticFinalFieldMatchProcessor that should be called if a static final field with the given name is
-     * encountered in a class with the given fully-qualified classname while reading a classfile header.
+     * encountered with a constant initializer value while reading a classfile header.
      */
     private void addStaticFinalFieldProcessor(final String className, final String fieldName,
             final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor) {
-        HashMap<String, StaticFinalFieldMatchProcessor> fieldNameToMatchProcessor = //
-        classNameToStaticFieldnameToMatchProcessor.get(className);
-        if (fieldNameToMatchProcessor == null) {
-            classNameToStaticFieldnameToMatchProcessor.put(className, fieldNameToMatchProcessor = new HashMap<>(2));
+        final String fullyQualifiedFieldName = className + "." + fieldName;
+        ArrayList<StaticFinalFieldMatchProcessor> matchProcessorList = //
+                fullyQualifiedFieldNameToStaticFinalFieldMatchProcessors.get(fullyQualifiedFieldName);
+        if (matchProcessorList == null) {
+            fullyQualifiedFieldNameToStaticFinalFieldMatchProcessors.put(fullyQualifiedFieldName,
+                    matchProcessorList = new ArrayList<>(1));
         }
-        fieldNameToMatchProcessor.put(fieldName, staticFinalFieldMatchProcessor);
+        matchProcessorList.add(staticFinalFieldMatchProcessor);
+        HashSet<String> staticFinalFieldsToMatch = classNameToStaticFinalFieldsToMatch.get(className);
+        if (staticFinalFieldsToMatch == null) {
+            classNameToStaticFinalFieldsToMatch.put(className, staticFinalFieldsToMatch = new HashSet<>());
+        }
+        staticFinalFieldsToMatch.add(fieldName);
     }
 
     /**
@@ -1071,8 +1065,8 @@ public class FastClasspathScanner {
                 final byte[] contents = new byte[lengthBytes];
                 final int bytesRead = Math.max(0, inputStream.read(contents));
                 // For safety, truncate the array if the file was truncated before we finish reading it
-                final byte[] contentsRead = bytesRead == lengthBytes ? contents : Arrays
-                        .copyOf(contents, bytesRead);
+                final byte[] contentsRead = bytesRead == lengthBytes ? contents
+                        : Arrays.copyOf(contents, bytesRead);
                 // Pass file contents to the wrapped FileMatchContentsProcessor
                 fileMatchContentsProcessorWithContext.processMatch(classpathElt, relativePath, contentsRead);
             }
@@ -1409,9 +1403,13 @@ public class FastClasspathScanner {
      * This method should be called before any "getNamesOf" methods (e.g. getNamesOfSubclassesOf()).
      */
     public FastClasspathScanner scan() {
+        if (FastClasspathScanner.verbose) {
+            Log.log("Classpath elements: " + this.classpathFinder.getUniqueClasspathElements());
+        }
+
         final long scanStart = System.currentTimeMillis();
 
-        relativePathToClassInfo.clear();
+        classNameToClassInfo.clear();
 
         // Scan classpath, calling FilePathMatchers if any matching paths are found, including the matcher
         // that calls the classfile binary parser when the extension ".class" is found on a filename,
@@ -1419,11 +1417,34 @@ public class FastClasspathScanner {
         recursiveScanner.scan();
 
         // Build class, interface and annotation graph out of all the ClassInfo objects.
-        classGraphBuilder = new ClassGraphBuilder(relativePathToClassInfo.values(), scanSpec);
+        classGraphBuilder = new ClassGraphBuilder(classNameToClassInfo);
 
         // Call any class, interface and annotation MatchProcessors
         for (final ClassMatcher classMatcher : classMatchers) {
             classMatcher.lookForMatches();
+        }
+
+        // Call static final field match processors on matching fields
+        for (final ClassInfo classInfo : classNameToClassInfo.values()) {
+            if (classInfo.fieldValues != null) {
+                for (final Entry<String, Object> ent : classInfo.fieldValues.entrySet()) {
+                    final String fieldName = ent.getKey();
+                    final Object constValue = ent.getValue();
+                    final String fullyQualifiedFieldName = classInfo.className + "." + fieldName;
+                    final ArrayList<StaticFinalFieldMatchProcessor> staticFinalFieldMatchProcessors = //
+                            fullyQualifiedFieldNameToStaticFinalFieldMatchProcessors.get(fullyQualifiedFieldName);
+                    if (staticFinalFieldMatchProcessors != null) {
+                        if (FastClasspathScanner.verbose) {
+                            Log.log("Found static final field " + classInfo.className + "." + fieldName + " = "
+                                    + constValue);
+                        }
+                        for (final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor : //
+                        staticFinalFieldMatchProcessors) {
+                            staticFinalFieldMatchProcessor.processMatch(classInfo.className, fieldName, constValue);
+                        }
+                    }
+                }
+            }
         }
 
         if (FastClasspathScanner.verbose) {

@@ -35,11 +35,11 @@ import java.util.HashSet;
  * A simplified set that has O(1) add time, but also preserves a list of elements in the order they were added.
  */
 public class AdditionOrderedSet<T> {
-    private HashSet<T> set = new HashSet<>();
-    private ArrayList<T> list = new ArrayList<>();
+    private final HashSet<T> set = new HashSet<>();
+    private final ArrayList<T> list = new ArrayList<>();
 
     /** Add an element to the set. Returns true if the element was added; false if it was already in the set. */
-    public boolean add(T elt) {
+    public boolean add(final T elt) {
         if (set.add(elt)) {
             list.add(elt);
             return true;

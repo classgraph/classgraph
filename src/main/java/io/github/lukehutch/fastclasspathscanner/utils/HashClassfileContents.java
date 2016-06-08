@@ -28,15 +28,15 @@
  */
 package io.github.lukehutch.fastclasspathscanner.utils;
 
-import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchProcessor;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
+
+import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
+import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchProcessor;
 
 /**
  * An example wrapper for FastClasspathScanner that hashes the content of classfiles encontered on the classpath in
@@ -50,7 +50,7 @@ public class HashClassfileContents {
     public HashClassfileContents(final String... packagePrefixesToScan) {
         this.classNameToClassfileHash = new HashMap<>();
         this.scanner = new FastClasspathScanner(packagePrefixesToScan)
-        // MD5-hash all files ending in ".class"
+                // MD5-hash all files ending in ".class"
                 .matchFilenameExtension("class", new FileMatchProcessor() {
                     @Override
                     public void processMatch(final String relativePath, final InputStream inputStream,

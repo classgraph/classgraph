@@ -29,7 +29,6 @@
 package com.xyz;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 
 import org.junit.Test;
 
@@ -46,12 +45,10 @@ import com.xyz.meta.J;
 import com.xyz.meta.K;
 import com.xyz.meta.L;
 
-public class GenerateMetaAnnotationFigDotFile {
-    FastClasspathScanner scanner = new FastClasspathScanner("com.xyz.meta").scan();
+import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 
-    public static void main(final String[] args) {
-        System.out.println(new GenerateMetaAnnotationFigDotFile().scanner.generateClassGraphDotFile(9.2f, 8.0f));
-    }
+public class MetaAnnotationTest {
+    FastClasspathScanner scanner = new FastClasspathScanner("com.xyz.meta").scan();
 
     @Test
     public void oneLevel() {
@@ -70,6 +67,14 @@ public class GenerateMetaAnnotationFigDotFile {
 
     @Test
     public void threeLevels() {
+        //        for (Class<?> c : new Class<?>[] { A.class, B.class, C.class }) {
+        //            System.out.println(c.getSimpleName() + " " + scanner.getNamesOfAnnotationsOnClass(c));
+        //        }
+        //        for (Class<?> c : new Class<?>[] { D.class, E.class, F.class, G.class, H.class, I.class, J.class,
+        //                 K.class, L.class }) {
+        //            System.out.println(c.getSimpleName() + " " +
+        //                     scanner.getNamesOfMetaAnnotationsOnAnnotation(c));
+        //        }
         assertThat(scanner.getNamesOfClassesWithAnnotation(L.class)).containsOnly(B.class.getName());
     }
 
@@ -78,15 +83,15 @@ public class GenerateMetaAnnotationFigDotFile {
         assertThat(scanner.getNamesOfClassesWithAnnotation(H.class)).containsOnly(B.class.getName());
         assertThat(scanner.getNamesOfClassesWithAnnotation(K.class)).containsOnly(B.class.getName());
         assertThat(scanner.getNamesOfClassesWithAnnotation(D.class)).containsOnly(B.class.getName());
-        assertThat(scanner.getNamesOfAnnotationsOnClass(B.class)).containsOnly(E.class.getName(),
-                F.class.getName(), H.class.getName(), I.class.getName(), J.class.getName(), K.class.getName(),
-                L.class.getName(), D.class.getName());
+        assertThat(scanner.getNamesOfAnnotationsOnClass(B.class)).containsOnly(E.class.getName(), F.class.getName(),
+                H.class.getName(), I.class.getName(), J.class.getName(), K.class.getName(), L.class.getName(),
+                D.class.getName());
     }
 
     @Test
     public void namesOfMetaAnnotations() {
-        assertThat(scanner.getNamesOfAnnotationsOnClass(A.class))
-                .containsOnly(J.class.getName(), F.class.getName());
+        assertThat(scanner.getNamesOfAnnotationsOnClass(A.class)).containsOnly(J.class.getName(),
+                F.class.getName());
         assertThat(scanner.getNamesOfAnnotationsOnClass(C.class)).containsOnly(G.class.getName());
     }
 

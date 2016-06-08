@@ -4,8 +4,6 @@ import java.lang.annotation.Annotation;
 
 import javax.inject.Named;
 
-import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-
 @SuppressWarnings("all")
 public class ImplementsNamed implements Named {
     @Override

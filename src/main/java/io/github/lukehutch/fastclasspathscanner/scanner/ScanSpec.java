@@ -1,10 +1,10 @@
 package io.github.lukehutch.fastclasspathscanner.scanner;
 
-import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-import io.github.lukehutch.fastclasspathscanner.utils.Log;
-
 import java.util.ArrayList;
 import java.util.HashSet;
+
+import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
+import io.github.lukehutch.fastclasspathscanner.utils.Log;
 
 public class ScanSpec {
     /** Whitelisted package prefixes with "." appended, or the empty list if all packages are whitelisted. */
@@ -15,6 +15,9 @@ public class ScanSpec {
 
     /** Whitelisted class names, or the empty list if none. */
     private final HashSet<String> whitelistedClassNames = new HashSet<>();
+
+    /** Path prefixes of whitelisted classes, or the empty list if none. */
+    private final HashSet<String> whitelistedClassPathPrefixes = new HashSet<>();
 
     /** Blacklisted class names. */
     private final HashSet<String> blacklistedClassNames = new HashSet<>();
@@ -69,8 +72,8 @@ public class ScanSpec {
                 // Strip off "jar:"
                 spec = spec.substring(4);
                 if (spec.indexOf('/') >= 0) {
-                    Log.log("Only a leaf filename may be used with a \"jar:\" entry in the scan spec, got \""
-                            + spec + "\" -- ignoring");
+                    Log.log("Only a leaf filename may be used with a \"jar:\" entry in the scan spec, got \"" + spec
+                            + "\" -- ignoring");
                 } else {
                     if (spec.isEmpty()) {
                         if (blacklisted) {
@@ -89,6 +92,10 @@ public class ScanSpec {
                     }
                 }
             } else {
+                // Strip final ".class", in case classfiles are listed directly
+                if (spec.endsWith(".class")) {
+                    spec = spec.substring(0, spec.length() - 6);
+                }
                 // Support using either '.' or '/' as package separator
                 spec = spec.replace('/', '.');
                 // Strip initial '.', in case scan spec started with '/'
@@ -99,7 +106,7 @@ public class ScanSpec {
                 // that package names should be lower case and class names should be upper case.
                 boolean isClassName = false;
                 final int lastDotIdx = spec.lastIndexOf('.');
-                if (lastDotIdx > 0 && lastDotIdx < spec.length() - 1) {
+                if (lastDotIdx < spec.length() - 1) {
                     isClassName = Character.isUpperCase(spec.charAt(lastDotIdx + 1));
                 }
                 if (isClassName) {
@@ -108,6 +115,7 @@ public class ScanSpec {
                         blacklistedClassNames.add(spec);
                     } else {
                         whitelistedClassNames.add(spec);
+                        whitelistedClassPathPrefixes.add(spec.substring(0, lastDotIdx + 1).replace('.', '/'));
                     }
                 } else {
                     // This is a package name: convert into a prefix by adding '.', and also convert to path prefix
@@ -234,8 +242,8 @@ public class ScanSpec {
      * to look up containing classes from).
      */
     public boolean classIsWhitelisted(final String className) {
-        return (whitelistedClassNames.contains(className) || packageIsWhitelisted(className,
-                whitelistedPackagePrefixes, blacklistedPackagePrefixes))
+        return (whitelistedClassNames.contains(className)
+                || packageIsWhitelisted(className, whitelistedPackagePrefixes, blacklistedPackagePrefixes))
                 && !blacklistedClassNames.contains(className);
     }
 
@@ -246,9 +254,13 @@ public class ScanSpec {
 
     /**
      * Whether a path is a descendant of a blacklisted path, or an ancestor or descendant of a whitelisted path.
+     * 
+     * TODO: need an enum value for when within the path of a whitelisted class that is not itself in a whitelisted
+     * package (so that whitelisted classes get scanned, even if their packages are not scanned).
      */
     public enum ScanSpecPathMatch {
-        WITHIN_BLACKLISTED_PATH, WITHIN_WHITELISTED_PATH, ANCESTOR_OF_WHITELISTED_PATH, NOT_WITHIN_WHITELISTED_PATH;
+        WITHIN_BLACKLISTED_PATH, WITHIN_WHITELISTED_PATH, ANCESTOR_OF_WHITELISTED_PATH, //
+        AT_WHITELISTED_CLASS_PACKAGE, NOT_WITHIN_WHITELISTED_PATH;
     }
 
     /**
@@ -266,6 +278,11 @@ public class ScanSpec {
                 return ScanSpecPathMatch.WITHIN_WHITELISTED_PATH;
             } else if (whitelistedPath.startsWith(path) || path.equals("/")) {
                 return ScanSpecPathMatch.ANCESTOR_OF_WHITELISTED_PATH;
+            }
+        }
+        for (final String whitelistedClassPathPrefix : whitelistedClassPathPrefixes) {
+            if (path.equals(whitelistedClassPathPrefix)) {
+                return ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE;
             }
         }
         return ScanSpecPathMatch.NOT_WITHIN_WHITELISTED_PATH;

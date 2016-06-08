@@ -1,3 +1,4 @@
+
 /*
  * This file is part of FastClasspathScanner.
  * 
@@ -28,13 +29,14 @@
  */
 
 import static org.assertj.core.api.Assertions.assertThat;
-import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-import io.github.lukehutch.fastclasspathscanner.test.whitelisted.Cls;
-import io.github.lukehutch.fastclasspathscanner.test.whitelisted.blacklistedsub.BlacklistedSub;
 
 import java.util.List;
 
 import org.junit.Test;
+
+import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
+import io.github.lukehutch.fastclasspathscanner.test.whitelisted.Cls;
+import io.github.lukehutch.fastclasspathscanner.test.whitelisted.blacklistedsub.BlacklistedSub;
 
 public class DefaultPackageTest {
     private static final String WHITELIST_PACKAGE = Cls.class.getPackage().getName();

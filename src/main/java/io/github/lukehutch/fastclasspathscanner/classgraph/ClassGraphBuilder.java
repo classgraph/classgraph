@@ -28,475 +28,301 @@
  */
 package io.github.lukehutch.fastclasspathscanner.classgraph;
 
-import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassInfo;
-import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
-import io.github.lukehutch.fastclasspathscanner.utils.LazyMap;
-import io.github.lukehutch.fastclasspathscanner.utils.MultiSet;
-import io.github.lukehutch.fastclasspathscanner.utils.Utils;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
+
+import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassInfo;
+import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassInfo.ClassType;
+import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassInfo.RelType;
 
 public class ClassGraphBuilder {
-    private final ArrayList<StandardClassDAGNode> standardClassNodes = new ArrayList<>();
-    private final ArrayList<InterfaceDAGNode> interfaceNodes = new ArrayList<>();
-    private final ArrayList<AnnotationDAGNode> annotationNodes = new ArrayList<>();
-    private final HashMap<String, DAGNode> classNameToDAGNode = new HashMap<>();
-    private final HashSet<String> nonWhitelistedExternalClassNames = new HashSet<>();
+    private final HashMap<String, ClassInfo> classNameToClassInfo;
+    private final HashMap<String, ArrayList<ClassInfo>> fieldTypeToContainingClassClassInfo = new HashMap<>();
 
-    public ClassGraphBuilder(final Collection<ClassInfo> classInfoFromScan, final ScanSpec scanSpec) {
-        // Take care of Scala quirks
-        final ArrayList<ClassInfo> allClassInfo = new ArrayList<>(Utils.mergeScalaAuxClasses(classInfoFromScan));
+    public ClassGraphBuilder(final HashMap<String, ClassInfo> classNameToClassInfo) {
+        this.classNameToClassInfo = classNameToClassInfo;
+        final ArrayList<ClassInfo> allClassInfo = new ArrayList<>(classNameToClassInfo.values());
 
-        // Create placeholder DAGNodes for all "external" classes that are referenced but don't occur in a
-        // whitelisted class, so that when creating DAGNodes for whitelisted classes below, they can connect
-        // themselves to these placeholders. Without this, the call to node.connect(classNameToDAGNode)
-        // will not be able to find a DAGNode for external referenced classes, because there was no ClassInfo
-        // object if a class' classfile binary was never read, because the class was not in a whitelisted
-        // package.
-        final HashSet<String> externalSuperclasses = new HashSet<>();
-        final HashSet<String> externalInterfaces = new HashSet<>();
-        final HashSet<String> externalAnnotations = new HashSet<>();
-        final ArrayList<String> scannedClasses = new ArrayList<>();
+        // Classes: --------------------------------------------------------------------------------------------
+
+        // Find all reachable subclasses of each class
+        findTransitiveClosure(allClassInfo, RelType.SUPERCLASSES, RelType.SUBCLASSES, RelType.ALL_SUBCLASSES);
+
+        // Find all reachable superclasses of each class (not including java.lang.Object)
+        findTransitiveClosure(allClassInfo, RelType.SUBCLASSES, RelType.SUPERCLASSES, RelType.ALL_SUPERCLASSES);
+
+        // Interfaces: -----------------------------------------------------------------------------------------
+
+        // Find all classes implementing a given interface, and all subinterfaces implementing a superinterface 
+        findTransitiveClosure(allClassInfo, RelType.IMPLEMENTED_INTERFACES, RelType.CLASSES_IMPLEMENTING,
+                RelType.ALL_CLASSES_IMPLEMENTING);
+
+        // Find all superinterfaces implementing a subinterface
+        findTransitiveClosure(allClassInfo, RelType.CLASSES_IMPLEMENTING, RelType.IMPLEMENTED_INTERFACES,
+                RelType.ALL_IMPLEMENTED_INTERFACES);
+
+        // Annotations: ----------------------------------------------------------------------------------------
+
+        // N.B. don't need to propagate annotations to/from sub-classes, as with interfaces above, because
+        // regular Java annotations don't get passed from classes to sub-classes the way interfaces do.
+        // So even though we do pass meta-annotations to their meta-meta-annotated annotations, once we
+        // hit the regular class hierarchy, we stop at the first annotated class.
+
+        findTransitiveClosure(allClassInfo, RelType.ANNOTATIONS, RelType.ANNOTATED_CLASSES,
+                RelType.ALL_ANNOTATED_CLASSES);
+
+        findTransitiveClosure(allClassInfo, RelType.ANNOTATED_CLASSES, RelType.ANNOTATIONS,
+                RelType.ALL_ANNOTATIONS);
+
+        // Postprocessing: -------------------------------------------------------------------------------------
+
         for (final ClassInfo classInfo : allClassInfo) {
-            if (classInfo.superclassNames != null) {
-                externalSuperclasses.addAll(classInfo.superclassNames);
-            }
-            if (classInfo.interfaceNames != null) {
-                externalInterfaces.addAll(classInfo.interfaceNames);
-            }
-            if (classInfo.annotationNames != null) {
-                externalAnnotations.addAll(classInfo.annotationNames);
-            }
-            scannedClasses.add(classInfo.className);
-        }
-        externalSuperclasses.removeAll(scannedClasses);
-        externalInterfaces.removeAll(scannedClasses);
-        externalAnnotations.removeAll(scannedClasses);
-
-        // Create placeholder nodes for external classes, and find non-whitelisted external classes,
-        // which should never be returned to the user in a result list, but can be used for matching. 
-        for (final String externalSuperclassName : externalSuperclasses) {
-            final StandardClassDAGNode newNode = new StandardClassDAGNode(externalSuperclassName);
-            classNameToDAGNode.put(externalSuperclassName, newNode);
-            standardClassNodes.add(newNode);
-            if (!scanSpec.classIsWhitelisted(externalSuperclassName)) {
-                nonWhitelistedExternalClassNames.add(externalSuperclassName);
-            }
-        }
-        for (final String externalAnnotationName : externalAnnotations) {
-            final AnnotationDAGNode newNode = new AnnotationDAGNode(externalAnnotationName);
-            classNameToDAGNode.put(externalAnnotationName, newNode);
-            annotationNodes.add(newNode);
-            if (!scanSpec.classIsWhitelisted(externalAnnotationName)) {
-                nonWhitelistedExternalClassNames.add(externalAnnotationName);
-            }
-        }
-        for (final String externalInterfaceName : externalInterfaces) {
-            // You can implement an annotation, since it is an interface, so check first if an AnnotationDAGNode
-            // has already been added for this class name.
-            InterfaceDAGNode interfaceNode = (InterfaceDAGNode) classNameToDAGNode.get(externalInterfaceName);
-            if (interfaceNode == null) {
-                interfaceNode = new InterfaceDAGNode(externalInterfaceName);
-                classNameToDAGNode.put(externalInterfaceName, interfaceNode);
-            }
-            interfaceNodes.add(interfaceNode);
-            if (!scanSpec.classIsWhitelisted(externalInterfaceName)) {
-                nonWhitelistedExternalClassNames.add(externalInterfaceName);
-            }
-        }
-
-        // Create DAG node for each whitelisted class. Need to add all annotations first, and then only add new
-        // InterfaceDAGNodes if there isn't already an AnnotationDAGNode for the class name, since you can
-        // implement annotations.
-        for (final ClassInfo classInfo : allClassInfo) {
-            final String className = classInfo.className;
-            if (classInfo.isAnnotation) {
-                final AnnotationDAGNode newNode = new AnnotationDAGNode(classInfo);
-                classNameToDAGNode.put(className, newNode);
-                annotationNodes.add(newNode);
-            }
-        }
-        for (final ClassInfo classInfo : allClassInfo) {
-            final String className = classInfo.className;
-            if (classInfo.isInterface && !classInfo.isAnnotation) {
-                // Get AnnotationDAGNode that was added above, if this implemented interface is also an annotation 
-                InterfaceDAGNode interfaceNode = (InterfaceDAGNode) classNameToDAGNode.get(className);
-                if (interfaceNode == null) {
-                    interfaceNode = new InterfaceDAGNode(classInfo);
-                    classNameToDAGNode.put(className, interfaceNode);
-                }
-                interfaceNodes.add(interfaceNode);
-            }
-            if (!classInfo.isAnnotation && !classInfo.isInterface) {
-                final StandardClassDAGNode newNode = new StandardClassDAGNode(classInfo);
-                classNameToDAGNode.put(className, newNode);
-                standardClassNodes.add(newNode);
-            }
-        }
-
-        // Connect DAG nodes based on class inter-connectedness
-        for (final DAGNode node : classNameToDAGNode.values()) {
-            node.connect(classNameToDAGNode);
-        }
-
-        // Find transitive closure of DAG nodes for each of the class types
-        DAGNode.findTransitiveClosure(standardClassNodes);
-        DAGNode.findTransitiveClosure(interfaceNodes);
-        DAGNode.findTransitiveClosure(annotationNodes);
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-    // Utility methods
-
-    /**
-     * Wrap a lazy multimap so that when a key is looked up, if there is no correspoding value, the empty list is
-     * returned. Otherwise, filter the list of values associated with the key to remove the names of placeholder
-     * DAGNodes (indicating a class was not itself in a whitelisted package, but was referenced by a class in a
-     * whitelisted package). Dedup, sort and return the filtered list.
-     */
-    private LazyMap<String, List<String>> sortedNonNullWithoutPlaceholders( //
-            final LazyMap<String, ? extends Collection<String>> underlyingMap) {
-        return new LazyMap<String, List<String>>() {
-            @Override
-            public List<String> generateValue(final String key) {
-                final Collection<String> classNameList = underlyingMap.get(key);
-                if (classNameList == null) {
-                    // Return empty list if the map contains no value for a given key.
-                    return Collections.emptyList();
-                } else {
-                    // Filter out placeholder nodes -- need to look up each class in the list by name to see
-                    // if it was a placeholder.
-                    final HashSet<String> listWithoutPlaceholders = new HashSet<>();
-                    for (final String className : classNameList) {
-                        // Strip out names of "placeholder nodes", DAGNodes created to hold the place of
-                        // an external class that is blacklisted and not whitelisted.
-                        if (!nonWhitelistedExternalClassNames.contains(className)) {
-                            listWithoutPlaceholders.add(className);
+            // Create a bridge between interface and class hierarchy: when a class implements an interface,
+            // it also implements all the interface's super-interfaces, and so do all of its subclasses.
+            if (classInfo.isImplementedInterface()) {
+                for (final ClassInfo classImplementing : classInfo
+                        .getRelatedClasses(RelType.CLASSES_IMPLEMENTING)) {
+                    final List<ClassInfo> allSuperInterfaces = classInfo
+                            .getRelatedClasses(RelType.ALL_IMPLEMENTED_INTERFACES);
+                    final List<ClassInfo> allSubClasses = classImplementing
+                            .getRelatedClasses(RelType.ALL_SUBCLASSES);
+                    for (final ClassInfo superInterface : allSuperInterfaces) {
+                        superInterface.addRelatedClass(RelType.ALL_CLASSES_IMPLEMENTING, classImplementing);
+                        classImplementing.addRelatedClass(RelType.ALL_IMPLEMENTED_INTERFACES, superInterface);
+                    }
+                    for (final ClassInfo subClass : allSubClasses) {
+                        classInfo.addRelatedClass(RelType.ALL_CLASSES_IMPLEMENTING, subClass);
+                        subClass.addRelatedClass(RelType.ALL_IMPLEMENTED_INTERFACES, classInfo);
+                    }
+                    for (final ClassInfo superInterface : allSuperInterfaces) {
+                        for (final ClassInfo subClass : allSubClasses) {
+                            superInterface.addRelatedClass(RelType.ALL_CLASSES_IMPLEMENTING, subClass);
+                            subClass.addRelatedClass(RelType.ALL_IMPLEMENTED_INTERFACES, superInterface);
                         }
                     }
-                    // Dedup and sort the resulting list.
-                    final ArrayList<String> result = new ArrayList<>(listWithoutPlaceholders);
-                    Collections.sort(result);
-                    return result;
                 }
             }
-        };
-    }
 
-    /**
-     * Create a LazyMap that maps from any value to the sorted, uniquified union of the keySets of the passed maps.
-     */
-    @SafeVarargs
-    private final LazyMap<String, List<String>> lazyGetKeys(final LazyMap<String, DAGNode>... maps) {
-        return sortedNonNullWithoutPlaceholders(new LazyMap<String, Set<String>>() {
-            private Set<String> union = null;
-
-            @Override
-            protected Set<String> generateValue(final String ignored) {
-                if (union != null) {
-                    return union;
-                } else {
-                    @SuppressWarnings("unchecked")
-                    final Set<String>[] keySets = new Set[maps.length];
-                    for (int i = 0; i < maps.length; i++) {
-                        keySets[i] = maps[i].keySet();
-                    }
-                    union = Utils.union(keySets);
-                    return union;
+            // Split classes that implement an interface into subinterfaces and standard classes.
+            for (final ClassInfo implementingClass : classInfo
+                    .getRelatedClasses(RelType.ALL_CLASSES_IMPLEMENTING)) {
+                if (implementingClass.isImplementedInterface()) {
+                    classInfo.addRelatedClass(RelType.ALL_SUBINTERFACES, implementingClass);
+                } else if (implementingClass.isStandardClass()) {
+                    classInfo.addRelatedClass(RelType.ALL_STANDARD_CLASSES_IMPLEMENTING, implementingClass);
                 }
-            };
-        });
-    }
+            }
 
-    /** Get the names of a collection of DAGNodes. (Result may contain duplicates, and is not sorted.) */
-    @SafeVarargs
-    private static List<String> getDAGNodeNames(final Collection<DAGNode>... nodeCollections) {
-        int totSize = 0;
-        for (final Collection<DAGNode> coll : nodeCollections) {
-            totSize += coll.size();
-        }
-        final ArrayList<String> names = new ArrayList<>(totSize);
-        for (final Collection<DAGNode> coll : nodeCollections) {
-            for (final DAGNode node : coll) {
-                names.add(node.name);
+            // Find super-classes and implemented interfaces for all field types, and add those to
+            // the set of field types, so that you can search for field types using supertypes.
+            final List<ClassInfo> fieldTypes = classInfo.getRelatedClasses(RelType.FIELD_TYPES);
+            if (!fieldTypes.isEmpty()) {
+                final HashSet<ClassInfo> expandedFieldTypes = new HashSet<>();
+                for (final ClassInfo fieldType : fieldTypes) {
+                    expandedFieldTypes.addAll(fieldType.getRelatedClasses(RelType.ALL_SUPERCLASSES));
+                    expandedFieldTypes.addAll(fieldType.getRelatedClasses(RelType.ALL_IMPLEMENTED_INTERFACES));
+                }
+                classInfo.addRelatedClasses(RelType.FIELD_TYPES, expandedFieldTypes);
+            }
+
+            // Find annotations and meta-annotations on standard classes
+            for (final ClassInfo classWithAnnotation : classInfo.getRelatedClasses(RelType.ALL_ANNOTATED_CLASSES)) {
+                if (!classWithAnnotation.isAnnotation()) {
+                    classInfo.addRelatedClass(RelType.ALL_ANNOTATED_STANDARD_CLASSES_OR_INTERFACES,
+                            classWithAnnotation);
+                }
             }
         }
-        return names;
-    }
 
-    /**
-     * Lazily create a mapping from the name of a DAGNode to the DAGNode. The entire map is built the first time
-     * get() is called.
-     */
-    private LazyMap<String, DAGNode> lazyGetDAGNodeNames(final List<? extends DAGNode> nodes) {
-        return new LazyMap<String, DAGNode>() {
-            @Override
-            public void initialize() {
-                for (final DAGNode node : nodes) {
-                    map.put(node.name, node);
+        // Create reverse index from field types to classes with fields of that type
+        for (final ClassInfo classInfo : allClassInfo) {
+            for (final ClassInfo fieldType : classInfo.getRelatedClasses(RelType.FIELD_TYPES)) {
+                ArrayList<ClassInfo> containingClassClassInfo = fieldTypeToContainingClassClassInfo
+                        .get(fieldType.className);
+                if (containingClassClassInfo == null) {
+                    fieldTypeToContainingClassClassInfo.put(fieldType.className,
+                            containingClassClassInfo = new ArrayList<>());
                 }
+                containingClassClassInfo.add(classInfo);
             }
-        };
-    }
-
-    /** Class that returns a list of Strings given a DAGNode */
-    private static interface MapToConnectedClassNames {
-        public Collection<String> getConnectedClassNames(DAGNode node);
-    }
-
-    /** Return the sorted list of names of all subclasses of the named class. */
-    private LazyMap<String, List<String>> lazyGetConnectedClassNames(
-            final LazyMap<String, DAGNode> classNameToDAGNode, final MapToConnectedClassNames connectedClassNames) {
-        return sortedNonNullWithoutPlaceholders(new LazyMap<String, Collection<String>>() {
-            @Override
-            protected Collection<String> generateValue(final String className) {
-                final DAGNode classNode = classNameToDAGNode.get(className);
-                if (classNode == null) {
-                    return null;
-                }
-                return connectedClassNames.getConnectedClassNames(classNode);
-            };
-        });
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
-    // DAGs
+    // Build transitive closure of class graph
 
-    /** A map from class name to the corresponding DAGNode object. */
-    private final LazyMap<String, DAGNode> classNameToStandardClassNode = lazyGetDAGNodeNames(standardClassNodes);
+    /**
+     * Find the transitive closure (reachability) in one direction through the class graph (move in the forward
+     * direction, using the backlinks to propagate the set of all reachable back-linked nodes, starting with nodes
+     * that are leaves in the backwards direction). Assumes the graph is a DAG in general, but handles cycles too,
+     * since these may occur in the case of meta-annotations.
+     */
+    private static void findTransitiveClosure(final ArrayList<ClassInfo> allNodes,
+            final RelType directForwardLinkType, final RelType directBackLinkType,
+            final RelType reachableBackLinkTypeToBuild) {
+        // Find extrema of DAG (nodes without direct connections) as initial active set
+        HashSet<ClassInfo> activeNodes = new HashSet<>();
+        for (final ClassInfo node : allNodes) {
+            final List<ClassInfo> directBackLinks = node.getRelatedClasses(directBackLinkType);
+            if (directBackLinks.isEmpty()) {
+                // There are no back-links from this node, so it is an extremum;
+                // add all forward-linked nodes to the active set
+                activeNodes.addAll(node.getRelatedClasses(directForwardLinkType));
+            }
+        }
+        // Use DP-style "wavefront" to find transitive closure (i.e. all reachable nodes through back-links),
+        // also handling cycles if present.
+        while (!activeNodes.isEmpty()) {
+            // For each active node, propagate reachability, adding to the next set of active nodes
+            // if the set of reachable classes changes for any class.
+            final HashSet<ClassInfo> activeNodesNext = new HashSet<>(activeNodes.size());
+            for (final ClassInfo node : activeNodes) {
+                // Get the direct backlinks
+                final List<ClassInfo> directBackLinks = node.getRelatedClasses(directBackLinkType);
+                // Add direct backlinks to the set of reachable backlinked nodes
+                boolean changed = node.addRelatedClasses(reachableBackLinkTypeToBuild, directBackLinks);
+                // For each direct backlink
+                for (final ClassInfo directBackLink : directBackLinks) {
+                    // Add the set of reachable backlinked classes for each directly-backlinked class
+                    // to the set of reachable backlinked classes for the current node.
+                    final List<ClassInfo> reachableBacklinksOfBacklink = directBackLink
+                            .getRelatedClasses(reachableBackLinkTypeToBuild);
+                    changed |= node.addRelatedClasses(reachableBackLinkTypeToBuild, reachableBacklinksOfBacklink);
+                }
+                if (changed) {
+                    // If newly-reachable nodes were discovered, add them to the active set for next iteration 
+                    final List<ClassInfo> forwardRelatedClasses = node.getRelatedClasses(directForwardLinkType);
+                    activeNodesNext.addAll(forwardRelatedClasses);
+                }
+            }
+            activeNodes = activeNodesNext;
+        }
+    }
 
-    /** A map from interface name to the corresponding DAGNode object. */
-    private final LazyMap<String, DAGNode> interfaceNameToInterfaceNode = lazyGetDAGNodeNames(interfaceNodes);
+    // -------------------------------------------------------------------------------------------------------------
+    // Utility method
 
-    /** A map from annotation name to the corresponding DAGNode object. */
-    private final LazyMap<String, DAGNode> annotationNameToAnnotationNode = lazyGetDAGNodeNames(annotationNodes);
+    /**
+     * Look up a key, returning the empty list if the map is null, or the key isn't found in the map. Otherwise,
+     * optionally filter the list of values associated with the key to remove the names of ClassInfo objects for
+     * "external classes", i.e. classes that are referred to by whitelisted classes, but that themselves are not
+     * whitelisted (i.e. classes that are neither whitelisted nor blacklisted). (External classes are included in
+     * the first place so that you can search by external class names, but result lists only contain whitelisted
+     * classes.) Sort and return the optionally filtered list.
+     */
+    private List<String> getRelatedClassNames(final String className, final RelType relType,
+            final boolean removeExternalClasses, final ClassType classType) {
+        final ClassInfo classInfo = classNameToClassInfo.get(className);
+        return classInfo == null ? Collections.<String> emptyList()
+                : classInfo.getRelatedClassNames(relType, removeExternalClasses, classType);
+    }
 
     // -------------------------------------------------------------------------------------------------------------
     // Classes
 
-    /** The sorted unique names of all classes, interfaces and annotations found during the scan. */
-    private final LazyMap<String, List<String>> namesOfAllClasses = //
-            lazyGetKeys(classNameToStandardClassNode, interfaceNameToInterfaceNode, annotationNameToAnnotationNode);
-
-    /** The sorted unique names of all standard classes (non-interface, non-annotation) found during the scan. */
-    private final LazyMap<String, List<String>> namesOfAllStandardClasses = //
-            lazyGetKeys(classNameToStandardClassNode);
-
-    /** The sorted unique names of all interfaces found during the scan. */
-    private final LazyMap<String, List<String>> namesOfAllInterfaceClasses = //
-            lazyGetKeys(interfaceNameToInterfaceNode);
-
-    /** The sorted unique names of all annotation classes found during the scan. */
-    private final LazyMap<String, List<String>> namesOfAllAnnotationClasses = //
-            lazyGetKeys(annotationNameToAnnotationNode);
-
     /** Get the sorted unique names of all classes, interfaces and annotations found during the scan. */
     public List<String> getNamesOfAllClasses() {
-        return namesOfAllClasses.get("");
+        return ClassInfo.getClassNamesFiltered(classNameToClassInfo.values(), /* removeExternalClasses = */ true,
+                ClassType.ALL);
     }
 
     /** Get the sorted unique names of all standard (non-interface/annotation) classes found during the scan. */
     public List<String> getNamesOfAllStandardClasses() {
-        return namesOfAllStandardClasses.get("");
+        return ClassInfo.getClassNamesFiltered(classNameToClassInfo.values(), /* removeExternalClasses = */ true,
+                ClassType.STANDARD_CLASS);
     }
 
     /** Return the sorted unique names of all interface classes found during the scan. */
     public List<String> getNamesOfAllInterfaceClasses() {
-        return namesOfAllInterfaceClasses.get("");
+        return ClassInfo.getClassNamesFiltered(classNameToClassInfo.values(), /* removeExternalClasses = */ true,
+                ClassType.IMPLEMENTED_INTERFACE);
     }
 
     /** Return the sorted unique names of all annotation classes found during the scan. */
     public List<String> getNamesOfAllAnnotationClasses() {
-        return namesOfAllAnnotationClasses.get("");
+        return ClassInfo.getClassNamesFiltered(classNameToClassInfo.values(), /* removeExternalClasses = */ true,
+                ClassType.ANNOTATION);
     }
-
-    /** Return the sorted list of names of all subclasses of the named class. */
-    private final LazyMap<String, List<String>> classNameToSubclassNames = //
-            lazyGetConnectedClassNames(classNameToStandardClassNode, new MapToConnectedClassNames() {
-                @Override
-                public List<String> getConnectedClassNames(final DAGNode classNode) {
-                    return getDAGNodeNames(classNode.allSubNodes);
-                }
-            });
 
     /** Return the sorted list of names of all subclasses of the named class. */
     public List<String> getNamesOfSubclassesOf(final String className) {
-        return classNameToSubclassNames.get(className);
+        return getRelatedClassNames(className, RelType.ALL_SUBCLASSES, /* removeExternalClasses = */ true,
+                ClassType.ALL);
     }
-
-    /** Return the sorted list of names of all superclasses of the named class. */
-    private final LazyMap<String, List<String>> classNameToSuperclassNames = //
-            lazyGetConnectedClassNames(classNameToStandardClassNode, new MapToConnectedClassNames() {
-                @Override
-                public List<String> getConnectedClassNames(final DAGNode classNode) {
-                    return getDAGNodeNames(classNode.allSuperNodes);
-                }
-            });
 
     /** Return the sorted list of names of all superclasses of the named class. */
     public List<String> getNamesOfSuperclassesOf(final String className) {
-        return classNameToSuperclassNames.get(className);
+        return getRelatedClassNames(className, RelType.ALL_SUPERCLASSES, /* removeExternalClasses = */ true,
+                ClassType.ALL);
     }
-
-    /**
-     * A map from class name to the sorted list of unique names of types of fields in those classes, for fields
-     * whose type is in a whitelisted (non-blacklisted) package.
-     */
-    private final LazyMap<String, List<String>> fieldTypeToClassNames = //
-            sortedNonNullWithoutPlaceholders(new LazyMap<String, HashSet<String>>() {
-                @Override
-                public void initialize() {
-                    for (final StandardClassDAGNode node : standardClassNodes) {
-                        for (final DAGNode fieldType : node.fieldTypeNodes) {
-                            MultiSet.put(map, fieldType.name, node.name);
-                        }
-                    }
-                }
-            });
 
     /**
      * Return a sorted list of classes that have a field of the named type, where the field type is in a whitelisted
      * (non-blacklisted) package.
      */
     public List<String> getNamesOfClassesWithFieldOfType(final String fieldTypeName) {
-        return fieldTypeToClassNames.get(fieldTypeName);
+        final ArrayList<ClassInfo> containingClassClassInfo = fieldTypeToContainingClassClassInfo
+                .get(fieldTypeName);
+        if (containingClassClassInfo == null) {
+            return Collections.emptyList();
+        }
+        return ClassInfo.getClassNamesFiltered(containingClassClassInfo, /* removeExternalClasses = */ true,
+                ClassType.ALL);
     }
 
     // -------------------------------------------------------------------------------------------------------------
     // Interfaces
 
     /** Return the sorted list of names of all subinterfaces of the named interface. */
-    private final LazyMap<String, List<String>> interfaceNameToSubinterfaceNames = //
-            lazyGetConnectedClassNames(interfaceNameToInterfaceNode, new MapToConnectedClassNames() {
-                @Override
-                public List<String> getConnectedClassNames(final DAGNode interfaceNode) {
-                    return getDAGNodeNames(interfaceNode.allSubNodes);
-                }
-            });
-
-    /** Return the sorted list of names of all subinterfaces of the named interface. */
     public List<String> getNamesOfSubinterfacesOf(final String interfaceName) {
-        return interfaceNameToSubinterfaceNames.get(interfaceName);
+        return getRelatedClassNames(interfaceName, RelType.ALL_CLASSES_IMPLEMENTING,
+                /* removeExternalClasses = */ true, ClassType.IMPLEMENTED_INTERFACE);
     }
-
-    /** Return the sorted list of names of all superinterfaces of the named interface. */
-    private final LazyMap<String, List<String>> interfaceNameToSuperinterfaceNames = //
-            lazyGetConnectedClassNames(interfaceNameToInterfaceNode, new MapToConnectedClassNames() {
-                @Override
-                public List<String> getConnectedClassNames(final DAGNode interfaceNode) {
-                    return getDAGNodeNames(interfaceNode.allSuperNodes);
-                }
-            });
 
     /** Return the names of all superinterfaces of the named interface. */
     public List<String> getNamesOfSuperinterfacesOf(final String interfaceName) {
-        return interfaceNameToSuperinterfaceNames.get(interfaceName);
+        return getRelatedClassNames(interfaceName, RelType.ALL_IMPLEMENTED_INTERFACES,
+                /* removeExternalClasses = */ true, ClassType.IMPLEMENTED_INTERFACE);
     }
-
-    /** Mapping from interface names to the sorted list of unique names of classes that implement the interface. */
-    private final LazyMap<String, List<String>> interfaceNameToClassNames = //
-            sortedNonNullWithoutPlaceholders(new LazyMap<String, HashSet<String>>() {
-                @Override
-                public void initialize() {
-                    // Create mapping from interface names to the names of classes that implement the interface.
-                    for (final StandardClassDAGNode classNode : standardClassNodes) {
-                        // For regular classes, cross-linked class names are the names of implemented interfaces.
-                        // Create reverse mapping from interfaces and superinterfaces implemented by the class
-                        // back to the class the interface implements
-                        for (final DAGNode interfaceNode : classNode.implementedInterfaceClassNodes) {
-                            // Map from interface to implementing class
-                            MultiSet.put(map, interfaceNode.name, classNode.name);
-                            // Classes that subclass another class that implements an interface
-                            // also implement the same interface.
-                            for (final DAGNode subclassNode : classNode.allSubNodes) {
-                                MultiSet.put(map, interfaceNode.name, subclassNode.name);
-                            }
-
-                            // Do the same for any superinterfaces of this interface: any class that
-                            // implements an interface also implements all its superinterfaces, and so
-                            // do all the subclasses of the class.
-                            for (final DAGNode superinterfaceNode : interfaceNode.allSuperNodes) {
-                                MultiSet.put(map, superinterfaceNode.name, classNode.name);
-                                for (final DAGNode subclassNode : classNode.allSubNodes) {
-                                    MultiSet.put(map, superinterfaceNode.name, subclassNode.name);
-                                }
-                            }
-                        }
-                    }
-                }
-            });
 
     /** Return the sorted list of names of all classes implementing the named interface. */
     public List<String> getNamesOfClassesImplementing(final String interfaceName) {
-        return interfaceNameToClassNames.get(interfaceName);
+        return getRelatedClassNames(interfaceName, RelType.ALL_CLASSES_IMPLEMENTING,
+                /* removeExternalClasses = */ true, ClassType.STANDARD_CLASS);
     }
 
     // -------------------------------------------------------------------------------------------------------------
     // Annotations
 
-    /** A MultiMap mapping from annotation name to the sorted unique list of names of the classes they annotate. */
-    private final LazyMap<String, List<String>> annotationNameToAnnotatedClassNames = //
-            lazyGetConnectedClassNames(annotationNameToAnnotationNode, new MapToConnectedClassNames() {
-                @Override
-                public Collection<String> getConnectedClassNames(final DAGNode annotationNode) {
-                    final ArrayList<DAGNode> annotatedClassNodes = new ArrayList<>(
-                            ((AnnotationDAGNode) annotationNode).annotatedClassNodes);
-                    for (final DAGNode subNode : annotationNode.allSubNodes) {
-                        annotatedClassNodes.addAll(((AnnotationDAGNode) subNode).annotatedClassNodes);
-                    }
-                    return getDAGNodeNames(annotatedClassNodes);
-                }
-            });
-
-    /** Return the sorted list of names of all classes with the named class annotation or meta-annotation. */
-    public List<String> getNamesOfClassesWithAnnotation(final String annotationName) {
-        return annotationNameToAnnotatedClassNames.get(annotationName);
-    }
-
     /**
-     * A map from the names of classes to the sorted list of names of annotations and meta-annotations on the
-     * classes.
+     * Return the sorted list of names of all classes or interfaces with the named class annotation or
+     * meta-annotation.
      */
-    private final LazyMap<String, List<String>> classNameToAnnotationNames = //
-            sortedNonNullWithoutPlaceholders(
-                    LazyMap.invertMultiSet(annotationNameToAnnotatedClassNames, annotationNameToAnnotationNode));
+    public List<String> getNamesOfClassesWithAnnotation(final String annotationName) {
+        return getRelatedClassNames(annotationName, RelType.ALL_ANNOTATED_STANDARD_CLASSES_OR_INTERFACES,
+                /* removeExternalClasses = */ true, ClassType.ALL);
+    }
 
     /** Return the sorted list of names of all annotations and meta-annotations on the named class. */
     public List<String> getNamesOfAnnotationsOnClass(final String classOrInterfaceName) {
-        return classNameToAnnotationNames.get(classOrInterfaceName);
+        return getRelatedClassNames(classOrInterfaceName, RelType.ALL_ANNOTATIONS,
+                /* removeExternalClasses = */ true, ClassType.ALL);
     }
-
-    /** A map from meta-annotation name to the set of names of the annotations they annotate. */
-    private final LazyMap<String, List<String>> metaAnnotationNameToAnnotatedAnnotationNames = //
-            lazyGetConnectedClassNames(annotationNameToAnnotationNode, new MapToConnectedClassNames() {
-                @Override
-                public Collection<String> getConnectedClassNames(final DAGNode annotationNode) {
-                    return getDAGNodeNames(annotationNode.allSubNodes);
-                }
-            });
-
-    /**
-     * Mapping from annotation name to the sorted list of names of annotations and meta-annotations on the
-     * annotation.
-     */
-    private final LazyMap<String, List<String>> annotationNameToMetaAnnotationNames = //
-            sortedNonNullWithoutPlaceholders(LazyMap.invertMultiSet(metaAnnotationNameToAnnotatedAnnotationNames,
-                    annotationNameToAnnotationNode));
 
     /** Return the sorted list of names of all meta-annotations on the named annotation. */
     public List<String> getNamesOfMetaAnnotationsOnAnnotation(final String annotationName) {
-        return annotationNameToMetaAnnotationNames.get(annotationName);
+        return getRelatedClassNames(annotationName, RelType.ALL_ANNOTATIONS, /* removeExternalClasses = */ true,
+                ClassType.ALL);
     }
 
     /** Return the names of all annotations that have the named meta-annotation. */
     public List<String> getNamesOfAnnotationsWithMetaAnnotation(final String metaAnnotationName) {
-        return metaAnnotationNameToAnnotatedAnnotationNames.get(metaAnnotationName);
+        return getRelatedClassNames(metaAnnotationName, RelType.ALL_ANNOTATIONS, /* removeExternalClasses = */ true,
+                ClassType.ANNOTATION);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -505,8 +331,8 @@ public class ClassGraphBuilder {
     /**
      * Splits a .dot node label into two text lines, putting the package on one line and the class name on the next.
      */
-    private static String label(final DAGNode node) {
-        final String className = node.name;
+    private static String label(final ClassInfo node) {
+        final String className = node.className;
         final int dotIdx = className.lastIndexOf('.');
         if (dotIdx < 0) {
             return className;
@@ -529,52 +355,66 @@ public class ClassGraphBuilder {
         buf.append("splines=true;\n");
         buf.append("pack=true;\n");
 
+        final Collection<ClassInfo> allClassInfo = classNameToClassInfo.values();
+        final List<ClassInfo> standardClassNodes = ClassInfo.filterClassInfo(allClassInfo,
+                /* removeExternalClasses = */ false, ClassType.STANDARD_CLASS);
+        final List<ClassInfo> interfaceNodes = ClassInfo.filterClassInfo(allClassInfo,
+                /* removeExternalClasses = */ false, ClassType.IMPLEMENTED_INTERFACE);
+        final List<ClassInfo> annotationNodes = ClassInfo.filterClassInfo(allClassInfo,
+                /* removeExternalClasses = */ false, ClassType.ANNOTATION);
+
         buf.append("\nnode[shape=box,style=filled,fillcolor=\"#fff2b6\"];\n");
-        for (final DAGNode node : standardClassNodes) {
+        for (final ClassInfo node : standardClassNodes) {
             buf.append("  \"" + label(node) + "\"\n");
         }
 
         buf.append("\nnode[shape=diamond,style=filled,fillcolor=\"#b6e7ff\"];\n");
-        for (final DAGNode node : interfaceNodes) {
+        for (final ClassInfo node : interfaceNodes) {
             buf.append("  \"" + label(node) + "\"\n");
         }
 
         buf.append("\nnode[shape=oval,style=filled,fillcolor=\"#f3c9ff\"];\n");
-        for (final DAGNode node : annotationNodes) {
+        for (final ClassInfo node : annotationNodes) {
             buf.append("  \"" + label(node) + "\"\n");
         }
 
         buf.append("\n");
-        for (final StandardClassDAGNode classNode : standardClassNodes) {
-            for (final DAGNode superclassNode : classNode.directSuperNodes) {
+        for (final ClassInfo classNode : standardClassNodes) {
+            for (final ClassInfo superclassNode : classNode.getRelatedClasses(RelType.SUPERCLASSES,
+                    /* removeExternalClasses = */ false, ClassType.ALL)) {
                 // class --> superclass
                 buf.append("  \"" + label(classNode) + "\" -> \"" + label(superclassNode) + "\"\n");
             }
-            for (final DAGNode implementedInterfaceNode : classNode.implementedInterfaceClassNodes) {
+            for (final ClassInfo implementedInterfaceNode : classNode.getRelatedClasses(
+                    RelType.IMPLEMENTED_INTERFACES, /* removeExternalClasses = */ false, ClassType.ALL)) {
                 // class --<> implemented interface
                 buf.append("  \"" + label(classNode) + "\" -> \"" + label(implementedInterfaceNode)
                         + "\" [arrowhead=diamond]\n");
             }
-            for (final DAGNode fieldTypeNode : classNode.fieldTypeNodes) {
+            for (final ClassInfo fieldTypeNode : classNode.getRelatedClasses(RelType.FIELD_TYPES,
+                    /* removeExternalClasses = */ false, ClassType.ALL)) {
                 // class --[] whitelisted field type
                 buf.append("  \"" + label(fieldTypeNode) + "\" -> \"" + label(classNode)
                         + "\" [arrowtail=obox, dir=back]\n");
             }
         }
-        for (final InterfaceDAGNode interfaceNode : interfaceNodes) {
-            for (final DAGNode superinterfaceNode : interfaceNode.directSuperNodes) {
+        for (final ClassInfo interfaceNode : interfaceNodes) {
+            for (final ClassInfo superinterfaceNode : interfaceNode.getRelatedClasses(
+                    RelType.IMPLEMENTED_INTERFACES, /* removeExternalClasses = */ false, ClassType.ALL)) {
                 // interface --> superinterface
                 buf.append("  \"" + label(interfaceNode) + "\" -> \"" + label(superinterfaceNode)
                         + "\" [arrowhead=diamond]\n");
             }
         }
-        for (final AnnotationDAGNode annotationNode : annotationNodes) {
-            for (final DAGNode metaAnnotationNode : annotationNode.directSuperNodes) {
+        for (final ClassInfo annotationNode : annotationNodes) {
+            for (final ClassInfo metaAnnotationNode : annotationNode.getRelatedClasses(RelType.ANNOTATIONS,
+                    /* removeExternalClasses = */ false, ClassType.ALL)) {
                 // annotation --o meta-annotation
                 buf.append("  \"" + label(annotationNode) + "\" -> \"" + label(metaAnnotationNode)
                         + "\" [arrowhead=dot]\n");
             }
-            for (final DAGNode annotatedClassNode : annotationNode.annotatedClassNodes) {
+            for (final ClassInfo annotatedClassNode : annotationNode.getRelatedClasses(RelType.ANNOTATIONS,
+                    /* removeExternalClasses = */ false, ClassType.ALL)) {
                 // annotated class --o annotation
                 buf.append("  \"" + label(annotatedClassNode) + "\" -> \"" + label(annotationNode)
                         + "\" [arrowhead=dot]\n");
