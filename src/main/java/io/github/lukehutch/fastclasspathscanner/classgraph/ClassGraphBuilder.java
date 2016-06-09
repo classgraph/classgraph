@@ -41,7 +41,6 @@ import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassInfo.RelTyp
 
 public class ClassGraphBuilder {
     private final HashMap<String, ClassInfo> classNameToClassInfo;
-    private final HashMap<String, ArrayList<ClassInfo>> fieldTypeToContainingClassClassInfo = new HashMap<>();
 
     public ClassGraphBuilder(final HashMap<String, ClassInfo> classNameToClassInfo) {
         this.classNameToClassInfo = classNameToClassInfo;
@@ -141,13 +140,7 @@ public class ClassGraphBuilder {
         // Create reverse index from field types to classes with fields of that type
         for (final ClassInfo classInfo : allClassInfo) {
             for (final ClassInfo fieldType : classInfo.getRelatedClasses(RelType.FIELD_TYPES)) {
-                ArrayList<ClassInfo> containingClassClassInfo = fieldTypeToContainingClassClassInfo
-                        .get(fieldType.className);
-                if (containingClassClassInfo == null) {
-                    fieldTypeToContainingClassClassInfo.put(fieldType.className,
-                            containingClassClassInfo = new ArrayList<>());
-                }
-                containingClassClassInfo.add(classInfo);
+                fieldType.addRelatedClass(RelType.CLASSES_WITH_FIELD_OF_TYPE, classInfo);
             }
         }
     }
@@ -265,13 +258,8 @@ public class ClassGraphBuilder {
      * (non-blacklisted) package.
      */
     public List<String> getNamesOfClassesWithFieldOfType(final String fieldTypeName) {
-        final ArrayList<ClassInfo> containingClassClassInfo = fieldTypeToContainingClassClassInfo
-                .get(fieldTypeName);
-        if (containingClassClassInfo == null) {
-            return Collections.emptyList();
-        }
-        return ClassInfo.getClassNamesFiltered(containingClassClassInfo, /* removeExternalClasses = */ true,
-                ClassType.ALL);
+        return getRelatedClassNames(fieldTypeName, RelType.CLASSES_WITH_FIELD_OF_TYPE,
+                /* removeExternalClasses = */ true, ClassType.ALL);
     }
 
     // -------------------------------------------------------------------------------------------------------------

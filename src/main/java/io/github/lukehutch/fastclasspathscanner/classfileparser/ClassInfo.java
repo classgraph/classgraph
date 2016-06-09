@@ -127,6 +127,9 @@ public class ClassInfo implements Comparable<ClassInfo> {
 
         /** The types of fields, if this is a regular class. */
         FIELD_TYPES,
+
+        /** Classes with fields of a given type. */
+        CLASSES_WITH_FIELD_OF_TYPE,
     }
 
     /** The set of classes related to this one. */
