@@ -2,6 +2,7 @@ package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.regex.Pattern;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.utils.Log;
@@ -29,10 +30,16 @@ public class ScanSpec {
     private final ArrayList<String> blacklistedPathPrefixes = new ArrayList<>();
 
     /** Whitelisted jarfile names. (Leaf filename only.) */
-    private final ArrayList<String> whitelistedJars = new ArrayList<>();
+    private final HashSet<String> whitelistedJars = new HashSet<>();
 
     /** Blacklisted jarfile names. (Leaf filename only.) */
-    private final ArrayList<String> blacklistedJars = new ArrayList<>();
+    private final HashSet<String> blacklistedJars = new HashSet<>();
+
+    /** Whitelisted jarfile names containing a glob('*') character, converted to a regexp. (Leaf filename only.) */
+    private final ArrayList<Pattern> whitelistedJarPatterns = new ArrayList<>();
+
+    /** Blacklisted jarfile names containing a glob('*') character, converted to a regexp. (Leaf filename only.) */
+    private final ArrayList<Pattern> blacklistedJarPatterns = new ArrayList<>();
 
     /** True if jarfiles should be scanned. */
     public final boolean scanJars;
@@ -85,9 +92,17 @@ public class ScanSpec {
                         }
                     } else {
                         if (blacklisted) {
-                            blacklistedJars.add(spec);
+                            if (spec.contains("*")) {
+                                blacklistedJarPatterns.add(specToPattern(spec));
+                            } else {
+                                blacklistedJars.add(spec);
+                            }
                         } else {
-                            whitelistedJars.add(spec);
+                            if (spec.contains("*")) {
+                                whitelistedJarPatterns.add(specToPattern(spec));
+                            } else {
+                                whitelistedJars.add(spec);
+                            }
                         }
                     }
                 }
@@ -136,7 +151,7 @@ public class ScanSpec {
         }
         uniqueWhitelistedPathPrefixes.removeAll(uniqueBlacklistedPathPrefixes);
         whitelistedJars.removeAll(blacklistedJars);
-        if (!whitelistedJars.isEmpty()) {
+        if (!(whitelistedJars.isEmpty() && whitelistedJarPatterns.isEmpty())) {
             // Specifying "jar:somejar.jar" causes only the specified jarfile to be scanned
             scanNonJars = false;
         }
@@ -167,8 +182,14 @@ public class ScanSpec {
             if (!whitelistedJars.isEmpty()) {
                 Log.log("Whitelisted jars:  " + whitelistedJars);
             }
+            if (!whitelistedJarPatterns.isEmpty()) {
+                Log.log("Whitelisted jars with glob wildcards:  " + whitelistedJarPatterns);
+            }
             if (!blacklistedJars.isEmpty()) {
                 Log.log("Blacklisted jars:  " + blacklistedJars);
+            }
+            if (!blacklistedJarPatterns.isEmpty()) {
+                Log.log("Whitelisted jars with glob wildcards:  " + blacklistedJarPatterns);
             }
             if (!scanJars) {
                 Log.log("Scanning of jarfiles is disabled");
@@ -177,6 +198,14 @@ public class ScanSpec {
                 Log.log("Scanning of directories (i.e. non-jarfiles) is disabled");
             }
         }
+    }
+
+    /**
+     * Convert a spec with a '*' glob character into a regular expression. Replaces "." with "\." and "*" with ".*",
+     * then compiles a regulare expression.
+     */
+    private static Pattern specToPattern(String spec) {
+        return Pattern.compile("^" + spec.replace(".", "\\.").replace("*", ".*") + "$");
     }
 
     /** Returns true if a class' package is not blacklisted or is explicitly whitelisted. */
@@ -288,9 +317,24 @@ public class ScanSpec {
         return ScanSpecPathMatch.NOT_WITHIN_WHITELISTED_PATH;
     }
 
+    /** Test if a list of jar names contains the requested name, allowing for globs. */
+    private static boolean containsJarName(final HashSet<String> jarNames, ArrayList<Pattern> jarNamePatterns,
+            final String jarName) {
+        if (jarNames.contains(jarName)) {
+            return true;
+        }
+        for (Pattern jarNamePattern : jarNamePatterns) {
+            if (jarNamePattern.matcher(jarName).matches()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** Returns true if a jarfile is whitelisted and not blacklisted. */
     public boolean jarIsWhitelisted(final String jarName) {
-        return (whitelistedJars.isEmpty() || whitelistedJars.contains(jarName))
-                && !blacklistedJars.contains(jarName);
+        return ((whitelistedJars.isEmpty() && whitelistedJarPatterns.isEmpty())
+                || containsJarName(whitelistedJars, whitelistedJarPatterns, jarName))
+                && !containsJarName(blacklistedJars, blacklistedJarPatterns, jarName);
     }
 }
