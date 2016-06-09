@@ -1,11 +1,7 @@
 FastClasspathScanner
 ====================
 
-FastClasspathScanner is an uber-fast, ultra-lightweight classpath scanner for Java, Scala and other JVM languages.
-
-See the [Downloading](#downloading) section for how to get the binary jar via Maven or direct download, or clone [the main git repo](https://github.com/lukehutch/fast-classpath-scanner) for source.
-
-I would love to hear how you are using this -- tweet to [@LH](http://twitter.com/LH) and let me know!
+FastClasspathScanner is an uber-fast, ultra-lightweight classpath scanner for Java, Scala and other JVM languages. See the [Downloading](#downloading) section for how to obtain FastClasspathScanner.
 
 **What is classpath scanning?** Classpath scanning involves scanning directories and jar/zip files on the classpath to find files (especially classfiles) that meet certain criteria. In many ways, classpath scanning offers the *inverse of the Java reflection API:*
 
@@ -776,6 +772,8 @@ You can get a pre-built JAR (usable in JRE 1.7 or later) from [Sonatype](https:/
 </dependency>
 ```
 
+Or use the "Clone or download" button at the top right of this page.
+
 ## License
 
 The MIT License (MIT)
@@ -802,7 +800,7 @@ FastClasspathScanner was inspired by Ronald Muller's [annotation-detector](https
 
 ## Author
 
-Fast Classpath Scanner was written by Luke Hutchison -- https://github.com/lukehutch
+Fast Classpath Scanner was written by Luke Hutchison -- https://github.com/lukehutch / [@LH](http://twitter.com/LH) on Twitter
 
 Please donate if this library makes your life easier:
 
