@@ -117,23 +117,23 @@ public class ClassGraphBuilder {
                 }
             }
 
-            // Find super-classes and implemented interfaces for all field types, and add those to
-            // the set of field types, so that you can search for field types using supertypes.
-            final List<ClassInfo> fieldTypes = classInfo.getRelatedClasses(RelType.FIELD_TYPES);
-            if (!fieldTypes.isEmpty()) {
-                final HashSet<ClassInfo> expandedFieldTypes = new HashSet<>();
-                for (final ClassInfo fieldType : fieldTypes) {
-                    expandedFieldTypes.addAll(fieldType.getRelatedClasses(RelType.ALL_SUPERCLASSES));
-                    expandedFieldTypes.addAll(fieldType.getRelatedClasses(RelType.ALL_IMPLEMENTED_INTERFACES));
-                }
-                classInfo.addRelatedClasses(RelType.FIELD_TYPES, expandedFieldTypes);
-            }
-
             // Find annotations and meta-annotations on standard classes
             for (final ClassInfo classWithAnnotation : classInfo.getRelatedClasses(RelType.ALL_ANNOTATED_CLASSES)) {
                 if (!classWithAnnotation.isAnnotation()) {
                     classInfo.addRelatedClass(RelType.ALL_ANNOTATED_STANDARD_CLASSES_OR_INTERFACES,
                             classWithAnnotation);
+                }
+            }
+
+            // Find super-classes and implemented interfaces for all field types, and add those to
+            // the set of field types, so that you can search for field types using supertypes.
+            final List<ClassInfo> fieldTypes = classInfo.getRelatedClasses(RelType.FIELD_TYPES);
+            if (!fieldTypes.isEmpty()) {
+                for (final ClassInfo fieldType : fieldTypes) {
+                    classInfo.addRelatedClasses(RelType.FIELD_TYPES,
+                            fieldType.getRelatedClasses(RelType.ALL_SUPERCLASSES));
+                    classInfo.addRelatedClasses(RelType.FIELD_TYPES,
+                            fieldType.getRelatedClasses(RelType.ALL_IMPLEMENTED_INTERFACES));
                 }
             }
         }
