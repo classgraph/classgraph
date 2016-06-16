@@ -31,6 +31,7 @@ package io.github.lukehutch.fastclasspathscanner.classpath;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
@@ -108,16 +109,16 @@ public class ClasspathFinder {
             // a classpath element, and/or the path tree may no longer conform to the package tree. 
             return resolveBasePath.resolve(Paths.get(new URL(pathStr).toURI())) //
                     .toRealPath(LinkOption.NOFOLLOW_LINKS);
-        } catch (final Exception e) {
+        } catch (final IOException|URISyntaxException e) {
             try {
                 return resolveBasePath.resolve(pathStr).toRealPath(LinkOption.NOFOLLOW_LINKS);
-            } catch (final Exception e2) {
+            } catch (final IOException e2) {
                 try {
                     final File file = new File(pathElementStr);
                     if (file.exists()) {
                         return file.toPath().toRealPath(LinkOption.NOFOLLOW_LINKS);
                     }
-                } catch (final Exception e3) {
+                } catch (final IOException e3) {
                     // One of the above should have worked, so if we got here, the path element is junk.
                     if (FastClasspathScanner.verbose) {
                         Log.log("Exception while trying to read classpath element " + pathStr + " : "
