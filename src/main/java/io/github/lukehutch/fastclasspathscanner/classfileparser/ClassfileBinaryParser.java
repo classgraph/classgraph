@@ -224,7 +224,7 @@ public class ClassfileBinaryParser {
 
             // The fully-qualified class name of this class, with slashes replaced with dots
             final String className = readRefdClassName(inp, constantPool);
-            if (className.equals("java.lang.Object")) {
+            if ("java.lang.Object".equals(className)) {
                 // Don't process java.lang.Object
                 return;
             }
@@ -255,7 +255,7 @@ public class ClassfileBinaryParser {
             if (FastClasspathScanner.verbose) {
                 Log.log("Found " //
                         + (isAnnotation ? "annotation" : isInterface ? "interface" : "class") + " " + className //
-                        + (superclassName == null || superclassName.equals("java.lang.Object") ? ""
+                        + (superclassName == null || "java.lang.Object".equals(superclassName) ? ""
                                 : " with " + (isInterface && !isAnnotation ? "superinterface" : "superclass") + " "
                                         + superclassName));
             }
@@ -308,7 +308,7 @@ public class ClassfileBinaryParser {
                 for (int j = 0; j < attributesCount; j++) {
                     final String attributeName = readRefdString(inp, constantPool);
                     final int attributeLength = inp.readInt();
-                    if (isStaticFinal && isMatchedFieldName && attributeName.equals("ConstantValue")) {
+                    if (isStaticFinal && isMatchedFieldName && "ConstantValue".equals(attributeName)) {
                         // http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.7.2
                         Object constValue = constantPool[inp.readUnsignedShort()];
                         // byte, char, short and boolean constants are all stored as 4-byte int
@@ -350,7 +350,7 @@ public class ClassfileBinaryParser {
                         }
                         classInfo.addFieldConstantValue(fieldName, constValue);
                         foundConstantValue = true;
-                    } else if (attributeName.equals("Signature")) {
+                    } else if ("Signature".equals(attributeName)) {
                         // Check if the type signature of this field falls within a non-blacklisted
                         // package, and if so, record the field type. The type signature contains
                         // type parameters, whereas the type descriptor does not.

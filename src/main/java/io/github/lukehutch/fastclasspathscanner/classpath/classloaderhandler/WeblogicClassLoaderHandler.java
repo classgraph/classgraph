@@ -36,7 +36,7 @@ public class WeblogicClassLoaderHandler implements ClassLoaderHandler {
     @Override
     public boolean handle(final ClassLoader classloader, final ClasspathFinder classpathFinder) throws Exception {
         for (Class<?> c = classloader.getClass(); c != null; c = c.getSuperclass()) {
-            if (c.getName().equals("weblogic.utils.classloaders.ChangeAwareClassLoader")) {
+            if ("weblogic.utils.classloaders.ChangeAwareClassLoader".equals(c.getName())) {
                 final Method getClassPath = c.getDeclaredMethod("getClassPath");
                 if (!getClassPath.isAccessible()) {
                     getClassPath.setAccessible(true);

@@ -40,7 +40,7 @@ public class JBossClassLoaderHandler implements ClassLoaderHandler {
     @Override
     public boolean handle(final ClassLoader classloader, final ClasspathFinder classpathFinder) throws Exception {
         for (Class<?> c = classloader.getClass(); c != null; c = c.getSuperclass()) {
-            if (c.getName().equals("org.jboss.modules.ModuleClassLoader")) {
+            if ("org.jboss.modules.ModuleClassLoader".equals(c.getName())) {
                 final Method getResourceLoaders = c.getDeclaredMethod("getResourceLoaders");
                 if (!getResourceLoaders.isAccessible()) {
                     getResourceLoaders.setAccessible(true);
