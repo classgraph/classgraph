@@ -31,11 +31,7 @@ package io.github.lukehutch.fastclasspathscanner;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
+import java.util.*;
 import java.util.Map.Entry;
 import java.util.regex.Pattern;
 
@@ -977,7 +973,7 @@ public class FastClasspathScanner {
      *            the StaticFinalFieldMatchProcessor to call when a match is found.
      */
     public FastClasspathScanner matchStaticFinalFieldNames(
-            final HashSet<String> fullyQualifiedStaticFinalFieldNames,
+            final Set<String> fullyQualifiedStaticFinalFieldNames,
             final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor) {
         for (final String fullyQualifiedFieldName : fullyQualifiedStaticFinalFieldNames) {
             final int lastDotIdx = fullyQualifiedFieldName.lastIndexOf('.');

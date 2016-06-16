@@ -30,6 +30,7 @@ package io.github.lukehutch.fastclasspathscanner.utils;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 
 /**
  * A simplified set that has O(1) add time, but also preserves a list of elements in the order they were added.
@@ -49,7 +50,7 @@ public class AdditionOrderedSet<T> {
     }
 
     /** Get the elements in addition order (i.e. in the order they were added) */
-    public ArrayList<T> getList() {
+    public List<T> getList() {
         return list;
     }
 

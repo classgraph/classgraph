@@ -28,21 +28,16 @@
  */
 package io.github.lukehutch.fastclasspathscanner.classgraph;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
+import java.util.*;
 
 import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassInfo;
 import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassInfo.ClassType;
 import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassInfo.RelType;
 
 public class ClassGraphBuilder {
-    private final HashMap<String, ClassInfo> classNameToClassInfo;
+    private final Map<String, ClassInfo> classNameToClassInfo;
 
-    public ClassGraphBuilder(final HashMap<String, ClassInfo> classNameToClassInfo) {
+    public ClassGraphBuilder(final Map<String, ClassInfo> classNameToClassInfo) {
         this.classNameToClassInfo = classNameToClassInfo;
         final ArrayList<ClassInfo> allClassInfo = new ArrayList<>(classNameToClassInfo.values());
 
