@@ -305,7 +305,7 @@ public class ScanSpec {
         for (final String whitelistedPath : whitelistedPathPrefixes) {
             if (path.startsWith(whitelistedPath)) {
                 return ScanSpecPathMatch.WITHIN_WHITELISTED_PATH;
-            } else if (whitelistedPath.startsWith(path) || path.equals("/")) {
+            } else if (whitelistedPath.startsWith(path) || "/".equals(path)) {
                 return ScanSpecPathMatch.ANCESTOR_OF_WHITELISTED_PATH;
             }
         }

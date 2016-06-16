@@ -325,7 +325,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
     }
 
     public void addSuperclass(final String superclassName, final HashMap<String, ClassInfo> classNameToClassInfo) {
-        if (superclassName != null && !superclassName.equals("java.lang.Object")) {
+        if (superclassName != null && !"java.lang.Object".equals(superclassName)) {
             final ClassInfo superclassClassInfo = getOrCreateClassInfo(scalaBaseClassName(superclassName),
                     classNameToClassInfo);
             this.addRelatedClass(RelType.SUPERCLASSES, superclassClassInfo);

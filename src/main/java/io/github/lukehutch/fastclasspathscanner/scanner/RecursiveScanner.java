@@ -365,7 +365,7 @@ public class RecursiveScanner {
                             if (fileIsWhitelisted) {
                                 // Scan whitelisted file
                                 scanFile(classpathElt, subFileReal,
-                                        relativePath.equals("/") ? subFileName : relativePath + subFileName,
+                                        "/".equals(relativePath) ? subFileName : relativePath + subFileName,
                                         scanTimestampsOnly);
                             }
                         }
