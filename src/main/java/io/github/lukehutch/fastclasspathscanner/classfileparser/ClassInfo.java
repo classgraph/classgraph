@@ -403,6 +403,26 @@ public class ClassInfo implements Comparable<ClassInfo> {
     }
 
     @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (obj == null) {
+            return false;
+        }
+        if (this.getClass() == obj.getClass()) {
+            ClassInfo other = (ClassInfo) obj;
+            return className != null ? className.equals(other.className) : other.className == null;
+        }
+        return false;
+    }
+
+    @Override
+    public int hashCode() {
+        return className != null ? className.hashCode() : 33;
+    }
+
+    @Override
     public String toString() {
         return className;
     }
