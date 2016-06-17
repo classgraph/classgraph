@@ -34,6 +34,7 @@ import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
+import java.util.Map;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchProcessor;
@@ -86,7 +87,7 @@ public class HashClassfileContents {
     /**
      * Returns the mapping from class name to hash of classfile contents after the call to .scan().
      */
-    public HashMap<String, String> getClassNameToClassfileHash() {
+    public Map<String, String> getClassNameToClassfileHash() {
         return this.classNameToClassfileHash;
     }
 }

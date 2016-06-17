@@ -37,6 +37,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.ServiceLoader;
 import java.util.jar.Manifest;
 
@@ -305,7 +306,7 @@ public class ClasspathFinder {
         }
         classLoadersSet.add(Thread.currentThread().getContextClassLoader());
         addAllParentClassloaders(ClasspathFinder.class, classLoadersSet);
-        final ArrayList<ClassLoader> classLoaders = classLoadersSet.getList();
+        final List<ClassLoader> classLoaders = classLoadersSet.getList();
         classLoaders.remove(null);
 
         // Find all ClassLoaderHandlers registered using ServiceLoader, given known ClassLoaders 
@@ -370,7 +371,7 @@ public class ClasspathFinder {
      * Returns the list of all unique File objects representing directories or zip/jarfiles on the classpath, in
      * classloader resolution order. Classpath elements that do not exist are not included in the list.
      */
-    public ArrayList<File> getUniqueClasspathElements() {
+    public List<File> getUniqueClasspathElements() {
         if (!initialized) {
             parseSystemClasspath();
         }

@@ -28,12 +28,7 @@
  */
 package io.github.lukehutch.fastclasspathscanner.classfileparser;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
+import java.util.*;
 
 public class ClassInfo implements Comparable<ClassInfo> {
     /** Name of the class/interface/annotation. */
@@ -133,13 +128,13 @@ public class ClassInfo implements Comparable<ClassInfo> {
     }
 
     /** The set of classes related to this one. */
-    public HashMap<RelType, HashSet<ClassInfo>> relatedTypeToClassInfoSet = new HashMap<>();
+    public Map<RelType, HashSet<ClassInfo>> relatedTypeToClassInfoSet = new HashMap<>();
 
     /**
      * The static constant initializer values of static final fields, if a StaticFinalFieldMatchProcessor matched a
      * field in this class.
      */
-    public HashMap<String, Object> fieldValues;
+    public Map<String, Object> fieldValues;
 
     public ClassInfo(final String className) {
         this.className = className;
@@ -316,7 +311,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
     }
 
     private static ClassInfo getOrCreateClassInfo(final String className,
-            final HashMap<String, ClassInfo> classNameToClassInfo) {
+            final Map<String, ClassInfo> classNameToClassInfo) {
         ClassInfo classInfo = classNameToClassInfo.get(className);
         if (classInfo == null) {
             classNameToClassInfo.put(className, classInfo = new ClassInfo(className));
@@ -324,7 +319,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
         return classInfo;
     }
 
-    public void addSuperclass(final String superclassName, final HashMap<String, ClassInfo> classNameToClassInfo) {
+    public void addSuperclass(final String superclassName, final Map<String, ClassInfo> classNameToClassInfo) {
         if (superclassName != null && !"java.lang.Object".equals(superclassName)) {
             final ClassInfo superclassClassInfo = getOrCreateClassInfo(scalaBaseClassName(superclassName),
                     classNameToClassInfo);
@@ -333,7 +328,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
         }
     }
 
-    public void addAnnotation(final String annotationName, final HashMap<String, ClassInfo> classNameToClassInfo) {
+    public void addAnnotation(final String annotationName, final Map<String, ClassInfo> classNameToClassInfo) {
         final ClassInfo annotationClassInfo = getOrCreateClassInfo(scalaBaseClassName(annotationName),
                 classNameToClassInfo);
         annotationClassInfo.isAnnotation = true;
@@ -342,7 +337,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
     }
 
     public void addImplementedInterface(final String interfaceName,
-            final HashMap<String, ClassInfo> classNameToClassInfo) {
+            final Map<String, ClassInfo> classNameToClassInfo) {
         final ClassInfo interfaceClassInfo = getOrCreateClassInfo(scalaBaseClassName(interfaceName),
                 classNameToClassInfo);
         interfaceClassInfo.isInterface = true;
@@ -350,7 +345,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
         interfaceClassInfo.addRelatedClass(RelType.CLASSES_IMPLEMENTING, this);
     }
 
-    public void addFieldType(final String fieldTypeName, final HashMap<String, ClassInfo> classNameToClassInfo) {
+    public void addFieldType(final String fieldTypeName, final Map<String, ClassInfo> classNameToClassInfo) {
         final String fieldTypeBaseName = scalaBaseClassName(fieldTypeName);
         final ClassInfo fieldTypeClassInfo = getOrCreateClassInfo(fieldTypeBaseName, classNameToClassInfo);
         this.addRelatedClass(RelType.FIELD_TYPES, fieldTypeClassInfo);
@@ -365,7 +360,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
 
     /** Add a class that has just been scanned (as opposed to just referenced by a scanned class). */
     public static ClassInfo addScannedClass(final String className, final boolean isInterface,
-            final boolean isAnnotation, final HashMap<String, ClassInfo> classNameToClassInfo) {
+            final boolean isAnnotation, final Map<String, ClassInfo> classNameToClassInfo) {
         // Handle Scala auxiliary classes (companion objects ending in "$" and trait methods classes
         // ending in "$class")
         final boolean isCompanionObjectClass = className.endsWith("$");
