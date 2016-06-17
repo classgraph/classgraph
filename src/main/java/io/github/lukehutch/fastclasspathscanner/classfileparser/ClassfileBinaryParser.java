@@ -15,6 +15,9 @@ import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
 import io.github.lukehutch.fastclasspathscanner.utils.Log;
 
 public class ClassfileBinaryParser {
+    private ClassfileBinaryParser() {
+    }
+
     /**
      * Read annotation entry from classfile.
      */
