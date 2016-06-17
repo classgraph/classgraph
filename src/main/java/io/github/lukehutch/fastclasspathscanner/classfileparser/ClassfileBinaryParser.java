@@ -7,6 +7,7 @@ import java.io.InputStream;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -114,7 +115,7 @@ public class ClassfileBinaryParser {
      */
     private static void addFieldTypeDescriptorParts(final String className, final String typeDescriptor,
             final ScanSpec scanSpec, final ClassInfo classInfo,
-            final HashMap<String, ClassInfo> classNameToClassInfo) {
+            final Map<String, ClassInfo> classNameToClassInfo) {
         // Check if the type of this field falls within a non-blacklisted package,
         // and if so, record the field and its type
         final Matcher matcher = TYPE_PARAM_PATTERN.matcher(typeDescriptor);
@@ -141,8 +142,8 @@ public class ClassfileBinaryParser {
      * @return true, if this is the first time a class was encountered on the classpath.
      */
     public static void readClassInfoFromClassfileHeader(final String relativePath, final InputStream inputStream,
-            final HashMap<String, HashSet<String>> classNameToStaticFinalFieldsToMatch, final ScanSpec scanSpec, //
-            final HashMap<String, ClassInfo> classNameToClassInfo) {
+            final Map<String, HashSet<String>> classNameToStaticFinalFieldsToMatch, final ScanSpec scanSpec, //
+            final Map<String, ClassInfo> classNameToClassInfo) {
 
         try (final DataInputStream inp = new DataInputStream(new BufferedInputStream(inputStream, 8192))) {
             // Magic number

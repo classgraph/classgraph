@@ -36,6 +36,7 @@ import java.nio.file.LinkOption;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Enumeration;
+import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
@@ -382,7 +383,7 @@ public class RecursiveScanner {
      * match is identified. If scanTimestampsOnly is false, only scans timestamps of files.
      */
     private void scan(final boolean scanTimestampsOnly) {
-        final ArrayList<File> uniqueClasspathElts = classpathFinder.getUniqueClasspathElements();
+        final List<File> uniqueClasspathElts = classpathFinder.getUniqueClasspathElements();
         if (FastClasspathScanner.verbose) {
             Log.log("*** Starting scan" + (scanTimestampsOnly ? " (scanning classpath timestamps only)" : "")
                     + " ***");

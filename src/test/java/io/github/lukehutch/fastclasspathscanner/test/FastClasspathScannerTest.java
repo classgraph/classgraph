@@ -36,6 +36,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -327,7 +328,7 @@ public class FastClasspathScannerTest {
 
     @Test
     public void hashContents() throws Exception {
-        final HashMap<String, String> classNameToClassfileHash = new HashClassfileContents(WHITELIST_PACKAGE).scan()
+        final Map<String, String> classNameToClassfileHash = new HashClassfileContents(WHITELIST_PACKAGE).scan()
                 .getClassNameToClassfileHash();
         final String hash = classNameToClassfileHash.get(Cls.class.getName());
         assertThat(hash).isNotNull();
