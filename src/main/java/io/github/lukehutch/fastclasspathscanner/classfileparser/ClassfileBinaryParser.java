@@ -15,6 +15,10 @@ import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
 import io.github.lukehutch.fastclasspathscanner.utils.Log;
 
 public class ClassfileBinaryParser {
+    private ClassfileBinaryParser() {
+
+    }
+
     /**
      * Read annotation entry from classfile.
      */
@@ -63,15 +67,13 @@ public class ClassfileBinaryParser {
         case 'Z':
         case 's':
             // const_value_index
+        case 'c':
+            // class_info_index
             inp.skipBytes(2);
             break;
         case 'e':
             // enum_const_value
             inp.skipBytes(4);
-            break;
-        case 'c':
-            // class_info_index
-            inp.skipBytes(2);
             break;
         case '@':
             // Complex (nested) annotation
@@ -193,16 +195,15 @@ public class ClassfileBinaryParser {
                 case 10: // method ref
                 case 11: // interface ref
                 case 12: // name and type
-                    inp.skipBytes(4); // two shorts
+                    // two shorts
+                case 18: // invoke dynamic
+                    inp.skipBytes(4);
                     break;
                 case 15: // method handle
                     inp.skipBytes(3);
                     break;
                 case 16: // method type
                     inp.skipBytes(2);
-                    break;
-                case 18: // invoke dynamic
-                    inp.skipBytes(4);
                     break;
                 default:
                     throw new RuntimeException("Classfile " + relativePath + " has unknown constant pool tag " + tag
@@ -338,7 +339,6 @@ public class ClassfileBinaryParser {
                         case "Ljava.lang.String;":
                             // Field is int, long, float, double or String => object is already in correct
                             // wrapper type (Integer, Long, Float, Double or String), nothing to do
-                            break;
                         default:
                             // Should never happen:
                             // constant values can only be stored as an int, long, float, double or String
