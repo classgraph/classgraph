@@ -18,8 +18,8 @@ public class ClassfileBinaryParser {
     /**
      * Read annotation entry from classfile.
      */
-    private static String readAnnotation(final DataInputStream inp, final Object[] constantPool)
-            throws IOException {
+    private static String readAnnotation(final DataInputStream inp, final Object[] constantPool,
+            final String className) throws IOException {
         // Lcom/xyz/Annotation -> Lcom.xyz.Annotation
         final String annotationFieldDescriptor = readRefdClassName(inp, constantPool);
         String annotationClassName;
@@ -34,7 +34,7 @@ public class ClassfileBinaryParser {
         final int numElementValuePairs = inp.readUnsignedShort();
         for (int i = 0; i < numElementValuePairs; i++) {
             inp.skipBytes(2); // element_name_index
-            readAnnotationElementValue(inp, constantPool);
+            readAnnotationElementValue(inp, constantPool, className);
         }
         return annotationClassName;
     }
@@ -49,8 +49,8 @@ public class ClassfileBinaryParser {
     /**
      * Read annotation element value from classfile.
      */
-    private static void readAnnotationElementValue(final DataInputStream inp, final Object[] constantPool)
-            throws IOException {
+    private static void readAnnotationElementValue(final DataInputStream inp, final Object[] constantPool,
+            final String className) throws IOException {
         final int tag = inp.readUnsignedByte();
         switch (tag) {
         case 'B':
@@ -75,19 +75,20 @@ public class ClassfileBinaryParser {
             break;
         case '@':
             // Complex (nested) annotation
-            readAnnotation(inp, constantPool);
+            readAnnotation(inp, constantPool, className);
             break;
         case '[':
             // array_value
             final int count = inp.readUnsignedShort();
             for (int l = 0; l < count; ++l) {
                 // Nested annotation element value
-                readAnnotationElementValue(inp, constantPool);
+                readAnnotationElementValue(inp, constantPool, className);
             }
             break;
         default:
-            // System.err.println("Invalid annotation element type tag: 0x" + Integer.toHexString(tag));
-            break;
+            throw new RuntimeException("Class " + className + " has unknown annotation element type tag '"
+                    + ((char) tag) + "': element size unknown, cannot continue reading class. "
+                    + "Please report this on the FastClasspathScanner GitHub page.");
         }
     }
 
@@ -113,8 +114,7 @@ public class ClassfileBinaryParser {
      * Find non-blacklisted type names in the given type descriptor, and add them to the set of field types.
      */
     private static void addFieldTypeDescriptorParts(final String className, final String typeDescriptor,
-            final ScanSpec scanSpec, final ClassInfo classInfo,
-            final Map<String, ClassInfo> classNameToClassInfo) {
+            final ScanSpec scanSpec, final ClassInfo classInfo, final Map<String, ClassInfo> classNameToClassInfo) {
         // Check if the type of this field falls within a non-blacklisted package,
         // and if so, record the field and its type
         final Matcher matcher = TYPE_PARAM_PATTERN.matcher(typeDescriptor);
@@ -205,8 +205,9 @@ public class ClassfileBinaryParser {
                     inp.skipBytes(4);
                     break;
                 default:
-                    // System.err.println("Unkown tag value for constant pool entry: " + tag);
-                    break;
+                    throw new RuntimeException("Classfile " + relativePath + " has unknown constant pool tag " + tag
+                            + ": element size unknown, cannot continue reading class. Please report this on the "
+                            + "FastClasspathScanner GitHub page.");
                 }
             }
             // Resolve indirection of string references now that all the strings have been read
@@ -388,7 +389,7 @@ public class ClassfileBinaryParser {
                 if ("RuntimeVisibleAnnotations".equals(attributeName)) {
                     final int annotationCount = inp.readUnsignedShort();
                     for (int m = 0; m < annotationCount; m++) {
-                        final String annotationName = readAnnotation(inp, constantPool);
+                        final String annotationName = readAnnotation(inp, constantPool, className);
                         // Add non-blacklisted annotations; always ignore java.lang.annotation annotations
                         // (Target/Retention/Documented etc.)
                         if (scanSpec.classIsNotBlacklisted(annotationName)
