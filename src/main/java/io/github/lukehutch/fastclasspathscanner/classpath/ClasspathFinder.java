@@ -32,6 +32,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
+import java.net.URLClassLoader;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -311,11 +312,22 @@ public class ClasspathFinder {
         final List<ClassLoader> classLoaders = classLoadersSet.getList();
         classLoaders.remove(null);
 
-        // Always include URLClassLoaderHandler as a default, so that we can handle URLClassLoaders (the most
-        // common form of ClassLoader), even if ServiceLoader can't find  other ClassLoaderHandlers (this can
-        // happen if FastClasspathScanner's package is renamed using Maven Shade or similar).
+        // Always include a ClassLoaderHandler for URLClassLoader subclasses as a default, so that we can handle
+        // URLClassLoaders (the most common form of ClassLoader) even if ServiceLoader can't find other
+        // ClassLoaderHandlers (this can happen if FastClasspathScanner's package is renamed using Maven Shade).
         final HashSet<ClassLoaderHandler> classLoaderHandlers = new HashSet<>();
-        classLoaderHandlers.add(new URLClassLoaderHandler());
+        classLoaderHandlers.add(new ClassLoaderHandler() {
+            @Override
+            public boolean handle(final ClassLoader classloader, final ClasspathFinder classpathFinder) {
+                if (classloader instanceof URLClassLoader) {
+                    for (final URL url : ((URLClassLoader) classloader).getURLs()) {
+                        classpathFinder.addClasspathElement(url.toString());
+                    }
+                    return true;
+                }
+                return false;
+            }
+        });
 
         // Find all ClassLoaderHandlers registered using ServiceLoader, given known ClassLoaders. 
         // FastClasspathScanner ships with several of these, registered in:
@@ -364,7 +376,6 @@ public class ClasspathFinder {
 
         initialized = true;
     }
-
 
     /**
      * Add an extra ClassLoaderHandler. Needed if the ServiceLoader framework is not able to find the

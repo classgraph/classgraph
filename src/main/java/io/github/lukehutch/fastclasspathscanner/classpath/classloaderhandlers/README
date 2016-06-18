@@ -11,5 +11,5 @@ and listing the full package name of your own ClassLoaderHandler subclass in tha
 call .registerClassLoaderHandler() on your FastClasspathScanner instance before calling .scan() to manually
 register your own ClassLoaderHandler. 
 
-Note that URLClassLoaderHandler is always available by default (it is not dependent on ServiceLoader), so
-subclasses of URLClassLoader do not need a custom ClassLoaderHandler.
+Note that URLClassLoader subclasses do not need a custom ClassLoaderHandler, they are handled automatically
+by FastClasspathScanner.
