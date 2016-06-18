@@ -42,8 +42,6 @@ import java.util.ServiceLoader;
 import java.util.jar.Manifest;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-import io.github.lukehutch.fastclasspathscanner.classpath.classloaderhandler.ClassLoaderHandler;
-import io.github.lukehutch.fastclasspathscanner.classpath.classloaderhandler.URLClassLoaderHandler;
 import io.github.lukehutch.fastclasspathscanner.utils.AdditionOrderedSet;
 import io.github.lukehutch.fastclasspathscanner.utils.Log;
 
