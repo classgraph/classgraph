@@ -39,6 +39,7 @@ import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassInfo;
 import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassfileBinaryParser;
 import io.github.lukehutch.fastclasspathscanner.classgraph.ClassGraphBuilder;
 import io.github.lukehutch.fastclasspathscanner.classpath.ClasspathFinder;
+import io.github.lukehutch.fastclasspathscanner.classpath.classloaderhandler.ClassLoaderHandler;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.ClassAnnotationMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.ClassMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchContentsProcessor;
@@ -132,6 +133,15 @@ public class FastClasspathScanner {
                         classNameToStaticFinalFieldsToMatch, scanSpecParsed, classNameToClassInfo);
             }
         });
+    }
+
+    /**
+     * Add an extra ClassLoaderHandler. Needed if the ServiceLoader framework is not able to find the
+     * ClassLoaderHandler for your specific ClassLoader, or if you want to manually register your own
+     * ClassLoaderHandler rather than using the ServiceLoader framework.
+     */
+    public void registerClassLoaderHandler(ClassLoaderHandler extraClassLoaderHandler) {
+        classpathFinder.registerClassLoaderHandler(extraClassLoaderHandler);
     }
 
     /** Override the automatically-detected classpath with a custom search path. */
@@ -972,8 +982,7 @@ public class FastClasspathScanner {
      * @param staticFinalFieldMatchProcessor
      *            the StaticFinalFieldMatchProcessor to call when a match is found.
      */
-    public FastClasspathScanner matchStaticFinalFieldNames(
-            final Set<String> fullyQualifiedStaticFinalFieldNames,
+    public FastClasspathScanner matchStaticFinalFieldNames(final Set<String> fullyQualifiedStaticFinalFieldNames,
             final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor) {
         for (final String fullyQualifiedFieldName : fullyQualifiedStaticFinalFieldNames) {
             final int lastDotIdx = fullyQualifiedFieldName.lastIndexOf('.');

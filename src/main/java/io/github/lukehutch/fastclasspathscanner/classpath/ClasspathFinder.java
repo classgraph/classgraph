@@ -57,6 +57,9 @@ public class ClasspathFinder {
     /** The set of JRE paths found so far in the classpath, cached for speed. */
     private final HashSet<String> knownJREPaths = new HashSet<>();
 
+    /** Manually-registered ClassLoaderHandlers. */
+    private final HashSet<ClassLoaderHandler> extraClassLoaderHandlers = new HashSet<>();
+
     /** Whether or not classpath has been read (supporting lazy reading of classpath). */
     private boolean initialized = false;
 
@@ -315,7 +318,7 @@ public class ClasspathFinder {
         // happen if FastClasspathScanner's package is renamed using Maven Shade or similar).
         final HashSet<ClassLoaderHandler> classLoaderHandlers = new HashSet<>();
         classLoaderHandlers.add(new URLClassLoaderHandler());
-        
+
         // Find all ClassLoaderHandlers registered using ServiceLoader, given known ClassLoaders. 
         // FastClasspathScanner ships with several of these, registered in:
         // src/main/resources/META-INF/services
@@ -329,6 +332,8 @@ public class ClasspathFinder {
                 classLoaderHandlers.add(handler);
             }
         }
+        // Add manually-added ClassLoaderHandlers
+        classLoaderHandlers.addAll(extraClassLoaderHandlers);
 
         // Try finding a handler for each of the classloaders discovered above
         boolean classloaderFound = false;
@@ -360,6 +365,16 @@ public class ClasspathFinder {
         addClasspathElements(System.getProperty("java.class.path"));
 
         initialized = true;
+    }
+
+
+    /**
+     * Add an extra ClassLoaderHandler. Needed if the ServiceLoader framework is not able to find the
+     * ClassLoaderHandler for your specific ClassLoader, or if you want to manually register your own
+     * ClassLoaderHandler rather than using the ServiceLoader framework.
+     */
+    public void registerClassLoaderHandler(ClassLoaderHandler extraClassLoaderHandler) {
+        extraClassLoaderHandlers.add(extraClassLoaderHandler);
     }
 
     /** Override the system classpath with a custom classpath to search. */

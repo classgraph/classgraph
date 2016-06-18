@@ -655,6 +655,12 @@ public FastClasspathScanner verbose()
 
 FastClasspathScanner handles a number of non-standard ClassLoaders. There is [basic support](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/scanner/classloaderhandler) for JBoss/WildFly and WebLogic, which implement their own ClassLoaders. Maven works when it sets `java.class.path`, but YMMV, since it [has its own](https://github.com/sonatype/plexus-classworlds) unique ClassLoader system. Tomcat has a [complex](https://www.mulesoft.com/tcat/tomcat-classpath) classloading system, and is less likely to work, but you might get lucky. You can add custom [ClassLoader handlers](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/scanner/classloaderhandler/ClassLoaderHandler.java) to your project without modifying FastClasspathScanner if necessary, although patches that add or improve support for common non-standard ClassLoaders would be appreciated.
 
+If the ServiceLodaer framework cannot find your `ClassLoaderHandler`, or you want to write your own `ClassLoaderHandler` without registering it using the `ServiceLoader` mechanism, you can call the following after calling the constructor, and before calling .scan(): 
+
+```java
+public void registerClassLoaderHandler(ClassLoaderHandler extraClassLoaderHandler)
+```
+
 Note that you can always override the system classpath with your own path, using the following call after calling the constructor, and before calling .scan():
 
 ```java
