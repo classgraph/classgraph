@@ -43,6 +43,7 @@ import java.util.jar.Manifest;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.classpath.classloaderhandler.ClassLoaderHandler;
+import io.github.lukehutch.fastclasspathscanner.classpath.classloaderhandler.URLClassLoaderHandler;
 import io.github.lukehutch.fastclasspathscanner.utils.AdditionOrderedSet;
 import io.github.lukehutch.fastclasspathscanner.utils.Log;
 
@@ -309,8 +310,15 @@ public class ClasspathFinder {
         final List<ClassLoader> classLoaders = classLoadersSet.getList();
         classLoaders.remove(null);
 
-        // Find all ClassLoaderHandlers registered using ServiceLoader, given known ClassLoaders 
+        // Always include URLClassLoaderHandler as a default, so that we can handle URLClassLoaders (the most
+        // common form of ClassLoader), even if ServiceLoader can't find  other ClassLoaderHandlers (this can
+        // happen if FastClasspathScanner's package is renamed using Maven Shade or similar).
         final HashSet<ClassLoaderHandler> classLoaderHandlers = new HashSet<>();
+        classLoaderHandlers.add(new URLClassLoaderHandler());
+        
+        // Find all ClassLoaderHandlers registered using ServiceLoader, given known ClassLoaders. 
+        // FastClasspathScanner ships with several of these, registered in:
+        // src/main/resources/META-INF/services
         for (final ClassLoader classLoader : classLoaders) {
             // Use ServiceLoader to find registered ClassLoaderHandlers, see:
             // https://docs.oracle.com/javase/6/docs/api/java/util/ServiceLoader.html
@@ -320,12 +328,6 @@ public class ClasspathFinder {
             for (final ClassLoaderHandler handler : classLoaderHandlerLoader) {
                 classLoaderHandlers.add(handler);
             }
-        }
-        if (classLoaderHandlers.isEmpty()) {
-            // Should not happen, since FastClasspathScanner ships with several of these, registered in
-            // src/main/resources/META-INF/services
-            throw new RuntimeException("Could not find any " + ClassLoaderHandler.class.getSimpleName()
-                    + " subclasses registered on the classpath using the ServiceLoader mechanism");
         }
 
         // Try finding a handler for each of the classloaders discovered above
