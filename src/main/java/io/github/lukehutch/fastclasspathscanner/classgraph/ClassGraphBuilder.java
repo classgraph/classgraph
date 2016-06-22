@@ -55,7 +55,7 @@ public class ClassGraphBuilder {
         findTransitiveClosure(allClassInfo, RelType.IMPLEMENTED_INTERFACES, RelType.CLASSES_IMPLEMENTING,
                 RelType.ALL_CLASSES_IMPLEMENTING);
 
-        // Find all superinterfaces implementing a subinterface
+        // Find all superinterfaces of a subinterface
         findTransitiveClosure(allClassInfo, RelType.CLASSES_IMPLEMENTING, RelType.IMPLEMENTED_INTERFACES,
                 RelType.ALL_IMPLEMENTED_INTERFACES);
 
