@@ -121,14 +121,11 @@ public class ClassGraphBuilder {
 
             // Find super-classes and implemented interfaces for all field types, and add those to
             // the set of field types, so that you can search for field types using supertypes.
-            final List<ClassInfo> fieldTypes = classInfo.getRelatedClasses(RelType.FIELD_TYPES);
-            if (!fieldTypes.isEmpty()) {
-                for (final ClassInfo fieldType : fieldTypes) {
-                    classInfo.addRelatedClasses(RelType.FIELD_TYPES,
-                            fieldType.getRelatedClasses(RelType.ALL_SUPERCLASSES));
-                    classInfo.addRelatedClasses(RelType.FIELD_TYPES,
-                            fieldType.getRelatedClasses(RelType.ALL_IMPLEMENTED_INTERFACES));
-                }
+            for (final ClassInfo fieldType : classInfo.getRelatedClasses(RelType.FIELD_TYPES)) {
+                classInfo.addRelatedClasses(RelType.FIELD_TYPES,
+                        fieldType.getRelatedClasses(RelType.ALL_SUPERCLASSES));
+                classInfo.addRelatedClasses(RelType.FIELD_TYPES,
+                        fieldType.getRelatedClasses(RelType.ALL_IMPLEMENTED_INTERFACES));
             }
         }
 
