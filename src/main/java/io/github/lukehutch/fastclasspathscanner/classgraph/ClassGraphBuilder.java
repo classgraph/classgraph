@@ -245,7 +245,7 @@ public class ClassGraphBuilder {
         final Set<ClassInfo> implementingClasses = getRelatedClasses(interfaceName,
                 RelType.ALL_CLASSES_IMPLEMENTING, /* removeExternalClasses = */ true, ClassType.STANDARD_CLASS);
         // Subclasses of implementing classes also implement the interface
-        final HashSet<ClassInfo> allImplementingClasses = new HashSet<>();
+        final Set<ClassInfo> allImplementingClasses = new HashSet<>();
         for (final ClassInfo implementingClass : implementingClasses) {
             allImplementingClasses.add(implementingClass);
             allImplementingClasses.addAll(implementingClass.getRelatedClasses(RelType.ALL_SUBCLASSES));
