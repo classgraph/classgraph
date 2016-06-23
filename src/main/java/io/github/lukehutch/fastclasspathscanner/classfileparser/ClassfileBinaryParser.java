@@ -146,9 +146,10 @@ public class ClassfileBinaryParser {
      * Directly examine contents of classfile binary header to determine annotations, implemented interfaces, the
      * super-class etc.
      * 
-     * @return true, if this is the first time a class was encountered on the classpath.
+     * @return true, if this is a classfile, and it is the first time a class of this name was encountered on the
+     *         classpath. Otherwise returns false.
      */
-    public static void readClassInfoFromClassfileHeader(final String relativePath, final InputStream inputStream,
+    public static boolean readClassInfoFromClassfileHeader(final String relativePath, final InputStream inputStream,
             final Map<String, HashSet<String>> classNameToStaticFinalFieldsToMatch, final ScanSpec scanSpec, //
             final Map<String, ClassInfo> classNameToClassInfo) {
 
@@ -158,7 +159,7 @@ public class ClassfileBinaryParser {
                 if (FastClasspathScanner.verbose) {
                     Log.log(5, "File does not have correct classfile magic number: " + relativePath);
                 }
-                return;
+                return false;
             }
 
             // Minor version
@@ -235,7 +236,7 @@ public class ClassfileBinaryParser {
             final String className = readRefdClassName(inp, constantPool);
             if ("java.lang.Object".equals(className)) {
                 // Don't process java.lang.Object
-                return;
+                return false;
             }
 
             // Make sure classname matches relative path
@@ -245,7 +246,7 @@ public class ClassfileBinaryParser {
                     Log.log(4, "Class " + className + " is at incorrect relative path " + relativePath
                             + " -- ignoring");
                 }
-                return;
+                return false;
             }
 
             final ClassInfo classInfo = ClassInfo.addScannedClass(className, isInterface, isAnnotation,
@@ -255,7 +256,7 @@ public class ClassfileBinaryParser {
                 if (FastClasspathScanner.verbose) {
                     Log.log(4, className + " occurs more than once on classpath, ignoring all but first instance");
                 }
-                return;
+                return false;
             }
 
             // Superclass name, with slashes replaced with dots
@@ -422,5 +423,6 @@ public class ClassfileBinaryParser {
         } catch (final IOException e) {
             Log.log(4, "IOException while attempting to load classfile " + relativePath + ": " + e.getMessage());
         }
+        return true;
     }
 }

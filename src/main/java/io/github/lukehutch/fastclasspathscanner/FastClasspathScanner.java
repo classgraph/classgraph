@@ -79,10 +79,13 @@ public class FastClasspathScanner {
 
     /** The class that recursively scans the classpath. */
     private RecursiveScanner recursiveScanner;
-    
+
     /** The FilePathMatchers that have not yet been added to recursiveScanner. */
     private final List<FilePathMatcher> filePathMatchersToAdd = new ArrayList<>();
 
+    /** The number of classes scanned in the last call to .scan(). */
+    private int numClassfilesParsed;
+    
     /**
      * A map from (className + "." + staticFinalFieldName) to StaticFinalFieldMatchProcessor(s) that should be
      * called if that class name and static final field name is encountered with a static constant initializer
@@ -1409,7 +1412,7 @@ public class FastClasspathScanner {
     private boolean scanHasCompleted() {
         return classGraphBuilder != null;
     }
-    
+
     /**
      * Returns the ClassGraphBuilder created by calling .scan(), or throws RuntimeException if .scan() has not yet
      * been called.
@@ -1443,12 +1446,16 @@ public class FastClasspathScanner {
                 @Override
                 public void processMatch(final String relativePath, final InputStream inputStream, //
                         final int lengthBytes) throws IOException {
-                    ClassfileBinaryParser.readClassInfoFromClassfileHeader(relativePath, inputStream,
-                            classNameToStaticFinalFieldsToMatch, scanSpecParsed, classNameToClassInfo);
+                    boolean classScannedSuccessfully = ClassfileBinaryParser.readClassInfoFromClassfileHeader(
+                            relativePath, inputStream, classNameToStaticFinalFieldsToMatch, scanSpecParsed,
+                            classNameToClassInfo);
+                    if (classScannedSuccessfully) {
+                        numClassfilesParsed++;
+                    }
                 }
             });
         }
-        
+
         // Add FilePathMatchers to recursiveScanner (this is done at this point so that FilePathMatchers can
         // be added before a call to .scan() without having to already have initialized recursiveScanner, which
         // would cause the initialization of recursiveScanner, classpathFinder and scanSpec to all have to
@@ -1457,7 +1464,7 @@ public class FastClasspathScanner {
             recursiveScanner.addFilePathMatcher(filePathMatcher);
         }
         filePathMatchersToAdd.clear();
-        
+
         if (FastClasspathScanner.verbose) {
             Log.log("Classpath elements: " + this.classpathFinder.getUniqueClasspathElements());
         }
@@ -1465,6 +1472,7 @@ public class FastClasspathScanner {
         // Scan classpath, calling FilePathMatchers if any matching paths are found, including the matcher
         // that calls the classfile binary parser when the extension ".class" is found on a filename,
         // producing a ClassInfo object for each encountered class.
+        numClassfilesParsed = 0;
         classNameToClassInfo.clear();
         recursiveScanner.scan();
 
@@ -1501,6 +1509,7 @@ public class FastClasspathScanner {
 
         if (FastClasspathScanner.verbose) {
             Log.log("Finished .scan()", System.nanoTime() - scanStart);
+            Log.log("Parsed " + numClassfilesParsed + " classfiles on classpath");
         }
         return this;
     }
@@ -1519,7 +1528,7 @@ public class FastClasspathScanner {
         if (!scanHasCompleted()) {
             return true;
         }
-        
+
         final boolean modified = recursiveScanner.classpathContentsModifiedSinceScan();
 
         if (FastClasspathScanner.verbose) {
