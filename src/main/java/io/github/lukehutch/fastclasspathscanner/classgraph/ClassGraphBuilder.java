@@ -48,7 +48,7 @@ public class ClassGraphBuilder {
     public ClassGraphBuilder(final Map<String, ClassInfo> classNameToClassInfo) {
         this.classNameToClassInfo = classNameToClassInfo;
         this.allClassInfo = new HashSet<>(classNameToClassInfo.values());
-        long startTime = System.currentTimeMillis();
+        long startTime = System.nanoTime();
 
         // Build transitive closures:
 
@@ -84,8 +84,7 @@ public class ClassGraphBuilder {
                 RelType.ALL_ANNOTATIONS);
 
         if (FastClasspathScanner.verbose) {
-            Log.log(ClassGraphBuilder.class.getSimpleName() + " found transitive closures in "
-                    + (System.currentTimeMillis() - startTime) * .001 + " sec");
+            Log.log(1, "Built class graph", System.nanoTime() - startTime);
         }
     }
 

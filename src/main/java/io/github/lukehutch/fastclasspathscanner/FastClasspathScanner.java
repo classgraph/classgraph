@@ -68,14 +68,20 @@ import io.github.lukehutch.fastclasspathscanner.utils.Log;
  * documentation.
  */
 public class FastClasspathScanner {
-    /** The scanning specification (whitelisted and blacklisted packages, etc.). */
-    private final ScanSpec scanSpec;
+    /** THe scanning specification (whitelisted and blacklisted packages, etc.), as passed into the constructor. */
+    private final String[] scanSpecArgs;
+
+    /** The scanning specification, parsed. */
+    private ScanSpec scanSpec;
 
     /** The classpath finder. */
-    private final ClasspathFinder classpathFinder;
+    private ClasspathFinder classpathFinder;
 
     /** The class that recursively scans the classpath. */
-    private final RecursiveScanner recursiveScanner;
+    private RecursiveScanner recursiveScanner;
+    
+    /** The FilePathMatchers that have not yet been added to recursiveScanner. */
+    private final List<FilePathMatcher> filePathMatchersToAdd = new ArrayList<>();
 
     /**
      * A map from (className + "." + staticFinalFieldName) to StaticFinalFieldMatchProcessor(s) that should be
@@ -123,21 +129,8 @@ public class FastClasspathScanner {
      *            character. See https://github.com/lukehutch/fast-classpath-scanner#constructor for info.
      */
     public FastClasspathScanner(final String... scanSpec) {
-        this.classpathFinder = new ClasspathFinder();
-        this.scanSpec = new ScanSpec(scanSpec);
-        this.recursiveScanner = new RecursiveScanner(classpathFinder, this.scanSpec);
         FastClasspathScanner.verbose = false; // By default
-
-        // Read classfile headers for all filenames ending in ".class" on classpath
-        final ScanSpec scanSpecParsed = this.scanSpec;
-        this.matchFilenameExtension("class", new FileMatchProcessor() {
-            @Override
-            public void processMatch(final String relativePath, final InputStream inputStream, //
-                    final int lengthBytes) throws IOException {
-                ClassfileBinaryParser.readClassInfoFromClassfileHeader(relativePath, inputStream,
-                        classNameToStaticFinalFieldsToMatch, scanSpecParsed, classNameToClassInfo);
-            }
-        });
+        this.scanSpecArgs = scanSpec;
     }
 
     /**
@@ -309,25 +302,25 @@ public class FastClasspathScanner {
     }
 
     /**
-     * Calls the provided ClassEnumerationMatchProcessor for all standard classes, interfaces and annotations found
-     * in whitelisted packages on the classpath. Calls the class loader on each matching class (using
-     * Class.forName()) before calling the ClassEnumerationMatchProcessor.
+     * Calls the provided ClassMatchProcessor for all standard classes, interfaces and annotations found in
+     * whitelisted packages on the classpath. Calls the class loader on each matching class (using Class.forName())
+     * before calling the ClassMatchProcessor.
      * 
-     * @param classEnumerationMatchProcessor
-     *            the ClassEnumerationMatchProcessor to call when a match is found.
+     * @param classMatchProcessor
+     *            the ClassMatchProcessor to call when a match is found.
      */
-    public FastClasspathScanner matchAllClasses(final ClassMatchProcessor classEnumerationMatchProcessor) {
+    public FastClasspathScanner matchAllClasses(final ClassMatchProcessor classMatchProcessor) {
         classMatchers.add(new ClassMatcher() {
             @Override
             public void lookForMatches() {
                 for (final String className : getNamesOfAllClasses()) {
                     if (verbose) {
-                        Log.log("Enumerating class: " + className);
+                        Log.log(3, "Matched class: " + className);
                     }
                     // Call classloader
                     final Class<?> cls = loadClass(className);
                     // Process match
-                    classEnumerationMatchProcessor.processMatch(cls);
+                    classMatchProcessor.processMatch(cls);
                 }
             }
         });
@@ -335,25 +328,25 @@ public class FastClasspathScanner {
     }
 
     /**
-     * Calls the provided ClassEnumerationMatchProcessor for all standard classes (i.e. non-interface,
-     * non-annotation classes) found in whitelisted packages on the classpath. Calls the class loader on each
-     * matching class (using Class.forName()) before calling the ClassEnumerationMatchProcessor.
+     * Calls the provided ClassMatchProcessor for all standard classes (i.e. non-interface, non-annotation classes)
+     * found in whitelisted packages on the classpath. Calls the class loader on each matching class (using
+     * Class.forName()) before calling the ClassMatchProcessor.
      * 
-     * @param classEnumerationMatchProcessor
-     *            the ClassEnumerationMatchProcessor to call when a match is found.
+     * @param classMatchProcessor
+     *            the ClassMatchProcessor to call when a match is found.
      */
-    public FastClasspathScanner matchAllStandardClasses(final ClassMatchProcessor classEnumerationMatchProcessor) {
+    public FastClasspathScanner matchAllStandardClasses(final ClassMatchProcessor classMatchProcessor) {
         classMatchers.add(new ClassMatcher() {
             @Override
             public void lookForMatches() {
                 for (final String className : getNamesOfAllStandardClasses()) {
                     if (verbose) {
-                        Log.log("Enumerating standard class: " + className);
+                        Log.log(3, "Matched standard class: " + className);
                     }
                     // Call classloader
                     final Class<?> cls = loadClass(className);
                     // Process match
-                    classEnumerationMatchProcessor.processMatch(cls);
+                    classMatchProcessor.processMatch(cls);
                 }
             }
         });
@@ -361,25 +354,25 @@ public class FastClasspathScanner {
     }
 
     /**
-     * Calls the provided ClassEnumerationMatchProcessor for all interface classes (interface definitions) found in
-     * whitelisted packages on the classpath. Calls the class loader on each matching interface class (using
-     * Class.forName()) before calling the ClassEnumerationMatchProcessor.
+     * Calls the provided ClassMatchProcessor for all interface classes (interface definitions) found in whitelisted
+     * packages on the classpath. Calls the class loader on each matching interface class (using Class.forName())
+     * before calling the ClassMatchProcessor.
      * 
-     * @param classEnumerationMatchProcessor
-     *            the ClassEnumerationMatchProcessor to call when a match is found.
+     * @param ClassMatchProcessor
+     *            the ClassMatchProcessor to call when a match is found.
      */
-    public FastClasspathScanner matchAllInterfaceClasses(final ClassMatchProcessor classEnumerationMatchProcessor) {
+    public FastClasspathScanner matchAllInterfaceClasses(final ClassMatchProcessor ClassMatchProcessor) {
         classMatchers.add(new ClassMatcher() {
             @Override
             public void lookForMatches() {
                 for (final String className : getNamesOfAllInterfaceClasses()) {
                     if (verbose) {
-                        Log.log("Enumerating interface class: " + className);
+                        Log.log(3, "Matched interface class: " + className);
                     }
                     // Call classloader
                     final Class<?> cls = loadClass(className);
                     // Process match
-                    classEnumerationMatchProcessor.processMatch(cls);
+                    ClassMatchProcessor.processMatch(cls);
                 }
             }
         });
@@ -387,26 +380,25 @@ public class FastClasspathScanner {
     }
 
     /**
-     * Calls the provided ClassEnumerationMatchProcessor for all annotation classes (annotation definitions) found
-     * in whitelisted packages on the classpath. Calls the class loader on each matching annotation class (using
-     * Class.forName()) before calling the ClassEnumerationMatchProcessor.
+     * Calls the provided ClassMatchProcessor for all annotation classes (annotation definitions) found in
+     * whitelisted packages on the classpath. Calls the class loader on each matching annotation class (using
+     * Class.forName()) before calling the ClassMatchProcessor.
      * 
-     * @param classEnumerationMatchProcessor
-     *            the ClassEnumerationMatchProcessor to call when a match is found.
+     * @param ClassMatchProcessor
+     *            the ClassMatchProcessor to call when a match is found.
      */
-    public FastClasspathScanner matchAllAnnotationClasses(
-            final ClassMatchProcessor classEnumerationMatchProcessor) {
+    public FastClasspathScanner matchAllAnnotationClasses(final ClassMatchProcessor ClassMatchProcessor) {
         classMatchers.add(new ClassMatcher() {
             @Override
             public void lookForMatches() {
                 for (final String className : getNamesOfAllAnnotationClasses()) {
                     if (verbose) {
-                        Log.log("Enumerating annotation class: " + className);
+                        Log.log(3, "Matched annotation class: " + className);
                     }
                     // Call classloader
                     final Class<?> cls = loadClass(className);
                     // Process match
-                    classEnumerationMatchProcessor.processMatch(cls);
+                    ClassMatchProcessor.processMatch(cls);
                 }
             }
         });
@@ -433,7 +425,7 @@ public class FastClasspathScanner {
                 final String superclassName = standardClassName(superclass);
                 for (final String subclassName : getNamesOfSubclassesOf(superclassName)) {
                     if (verbose) {
-                        Log.log("Found subclass of " + superclassName + ": " + subclassName);
+                        Log.log(3, "Matched subclass of " + superclassName + ": " + subclassName);
                     }
                     // Call classloader
                     final Class<? extends T> cls = loadClass(subclassName);
@@ -521,7 +513,7 @@ public class FastClasspathScanner {
                 final String superinterfaceName = interfaceName(superinterface);
                 for (final String subinterfaceName : getNamesOfSubinterfacesOf(superinterfaceName)) {
                     if (verbose) {
-                        Log.log("Found subinterface of " + superinterfaceName + ": " + subinterfaceName);
+                        Log.log(3, "Matched subinterface of " + superinterfaceName + ": " + subinterfaceName);
                     }
                     // Call classloader
                     final Class<? extends T> cls = loadClass(subinterfaceName);
@@ -612,7 +604,7 @@ public class FastClasspathScanner {
                 final String implementedInterfaceName = interfaceName(implementedInterface);
                 for (final String implClass : getNamesOfClassesImplementing(implementedInterfaceName)) {
                     if (verbose) {
-                        Log.log("Found class implementing interface " + implementedInterfaceName + ": "
+                        Log.log(3, "Matched class implementing interface " + implementedInterfaceName + ": "
                                 + implClass);
                     }
                     // Call classloader
@@ -713,7 +705,7 @@ public class FastClasspathScanner {
                 final String fieldTypeName = className(fieldType);
                 for (final String klass : getNamesOfClassesWithFieldOfType(fieldTypeName)) {
                     if (verbose) {
-                        Log.log("Found class with field of type " + fieldTypeName + ": " + klass);
+                        Log.log(3, "Matched class with field of type " + fieldTypeName + ": " + klass);
                     }
                     // Call classloader
                     final Class<? extends T> cls = loadClass(klass);
@@ -766,7 +758,7 @@ public class FastClasspathScanner {
                 final String annotationName = annotationName(annotation);
                 for (final String classWithAnnotation : getNamesOfClassesWithAnnotation(annotationName)) {
                     if (verbose) {
-                        Log.log("Found class with annotation " + annotationName + ": " + classWithAnnotation);
+                        Log.log(3, "Matched class with annotation " + annotationName + ": " + classWithAnnotation);
                     }
                     // Call classloader
                     final Class<?> cls = loadClass(classWithAnnotation);
@@ -1121,12 +1113,16 @@ public class FastClasspathScanner {
      */
     public FastClasspathScanner matchFilenamePattern(final String pathRegexp,
             final FileMatchProcessorWithContext fileMatchProcessorWithContext) {
-        recursiveScanner.addFilePathMatcher(new FilePathMatcher(new FilePathTester() {
+        filePathMatchersToAdd.add(new FilePathMatcher(new FilePathTester() {
             private final Pattern pattern = Pattern.compile(pathRegexp);
 
             @Override
             public boolean filePathMatches(final File classpathElt, final String relativePath) {
-                return pattern.matcher(relativePath).matches();
+                boolean matched = pattern.matcher(relativePath).matches();
+                if (matched && verbose) {
+                    Log.log(3, "File " + relativePath + " matched filename pattern " + pathRegexp);
+                }
+                return matched;
             }
         }, fileMatchProcessorWithContext));
         return this;
@@ -1187,10 +1183,14 @@ public class FastClasspathScanner {
      */
     public FastClasspathScanner matchFilenamePath(final String relativePathToMatch,
             final FileMatchProcessorWithContext fileMatchProcessorWithContext) {
-        recursiveScanner.addFilePathMatcher(new FilePathMatcher(new FilePathTester() {
+        filePathMatchersToAdd.add(new FilePathMatcher(new FilePathTester() {
             @Override
             public boolean filePathMatches(final File classpathElt, final String relativePath) {
-                return relativePath.equals(relativePathToMatch);
+                boolean matched = relativePath.equals(relativePathToMatch);
+                if (matched && verbose) {
+                    Log.log(3, "Matched filename path " + relativePathToMatch);
+                }
+                return matched;
             }
         }, fileMatchProcessorWithContext));
         return this;
@@ -1253,13 +1253,17 @@ public class FastClasspathScanner {
      */
     public FastClasspathScanner matchFilenamePathLeaf(final String pathLeafToMatch,
             final FileMatchProcessorWithContext fileMatchProcessorWithContext) {
-        recursiveScanner.addFilePathMatcher(new FilePathMatcher(new FilePathTester() {
+        filePathMatchersToAdd.add(new FilePathMatcher(new FilePathTester() {
             private final String leafToMatch = pathLeafToMatch.substring(pathLeafToMatch.lastIndexOf('/') + 1);
 
             @Override
             public boolean filePathMatches(final File classpathElt, final String relativePath) {
                 final String relativePathLeaf = relativePath.substring(relativePath.lastIndexOf('/') + 1);
-                return relativePathLeaf.equals(leafToMatch);
+                boolean matched = relativePathLeaf.equals(leafToMatch);
+                if (matched && verbose) {
+                    Log.log(3, "File " + relativePath + " matched path leaf " + pathLeafToMatch);
+                }
+                return matched;
             }
         }, fileMatchProcessorWithContext));
         return this;
@@ -1319,12 +1323,16 @@ public class FastClasspathScanner {
      */
     public FastClasspathScanner matchFilenameExtension(final String extensionToMatch,
             final FileMatchProcessorWithContext fileMatchProcessorWithContext) {
-        recursiveScanner.addFilePathMatcher(new FilePathMatcher(new FilePathTester() {
+        filePathMatchersToAdd.add(new FilePathMatcher(new FilePathTester() {
             private final String suffixToMatch = "." + extensionToMatch.toLowerCase();
 
             @Override
             public boolean filePathMatches(final File classpathElt, final String relativePath) {
-                return relativePath.toLowerCase().endsWith(suffixToMatch);
+                boolean matched = relativePath.toLowerCase().endsWith(suffixToMatch);
+                if (matched && verbose) {
+                    Log.log(3, "File " + relativePath + " matched extension ." + extensionToMatch);
+                }
+                return matched;
             }
         }, fileMatchProcessorWithContext));
         return this;
@@ -1389,17 +1397,25 @@ public class FastClasspathScanner {
      * .dot file.
      */
     public String generateClassGraphDotFile(final float sizeX, final float sizeY) {
+        if (verbose) {
+            Log.log("Generating .dot file");
+        }
         return getScanResults().generateClassGraphDotFile(sizeX, sizeY);
     }
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /** Returns true if .scan() has been called at least once. */
+    private boolean scanHasCompleted() {
+        return classGraphBuilder != null;
+    }
+    
     /**
      * Returns the ClassGraphBuilder created by calling .scan(), or throws RuntimeException if .scan() has not yet
      * been called.
      */
     public ClassGraphBuilder getScanResults() {
-        if (classGraphBuilder == null) {
+        if (!scanHasCompleted()) {
             throw new RuntimeException("Must call .scan() before attempting to get the results of the scan");
         }
         return classGraphBuilder;
@@ -1413,17 +1429,43 @@ public class FastClasspathScanner {
      * This method should be called before any "getNamesOf" methods (e.g. getNamesOfSubclassesOf()).
      */
     public FastClasspathScanner scan() {
+        final long scanStart = System.nanoTime();
+        if (scanSpec == null) {
+            // This is the first scan -- initialize FastClasspathScanner in scan() so that initialization
+            // can be logged after a call to .verbose()
+            scanSpec = new ScanSpec(scanSpecArgs);
+            classpathFinder = new ClasspathFinder();
+            recursiveScanner = new RecursiveScanner(classpathFinder, this.scanSpec);
+
+            // Read classfile headers for all filenames ending in ".class" on classpath
+            final ScanSpec scanSpecParsed = this.scanSpec;
+            this.matchFilenameExtension("class", new FileMatchProcessor() {
+                @Override
+                public void processMatch(final String relativePath, final InputStream inputStream, //
+                        final int lengthBytes) throws IOException {
+                    ClassfileBinaryParser.readClassInfoFromClassfileHeader(relativePath, inputStream,
+                            classNameToStaticFinalFieldsToMatch, scanSpecParsed, classNameToClassInfo);
+                }
+            });
+        }
+        
+        // Add FilePathMatchers to recursiveScanner (this is done at this point so that FilePathMatchers can
+        // be added before a call to .scan() without having to already have initialized recursiveScanner, which
+        // would cause the initialization of recursiveScanner, classpathFinder and scanSpec to all have to
+        // occur before a possible call to .verbose()).
+        for (FilePathMatcher filePathMatcher : filePathMatchersToAdd) {
+            recursiveScanner.addFilePathMatcher(filePathMatcher);
+        }
+        filePathMatchersToAdd.clear();
+        
         if (FastClasspathScanner.verbose) {
             Log.log("Classpath elements: " + this.classpathFinder.getUniqueClasspathElements());
         }
 
-        final long scanStart = System.currentTimeMillis();
-
-        classNameToClassInfo.clear();
-
         // Scan classpath, calling FilePathMatchers if any matching paths are found, including the matcher
         // that calls the classfile binary parser when the extension ".class" is found on a filename,
         // producing a ClassInfo object for each encountered class.
+        classNameToClassInfo.clear();
         recursiveScanner.scan();
 
         // Build class, interface and annotation graph out of all the ClassInfo objects.
@@ -1445,8 +1487,8 @@ public class FastClasspathScanner {
                             fullyQualifiedFieldNameToStaticFinalFieldMatchProcessors.get(fullyQualifiedFieldName);
                     if (staticFinalFieldMatchProcessors != null) {
                         if (FastClasspathScanner.verbose) {
-                            Log.log("Found static final field " + classInfo.className + "." + fieldName + " = "
-                                    + constValue);
+                            Log.log(1, "Calling MatchProcessor for static final field " + classInfo.className + "."
+                                    + fieldName + " = " + constValue);
                         }
                         for (final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor : //
                         staticFinalFieldMatchProcessors) {
@@ -1458,8 +1500,7 @@ public class FastClasspathScanner {
         }
 
         if (FastClasspathScanner.verbose) {
-            Log.log("*** Total time taken by .scan(): " //
-                    + (System.currentTimeMillis() - scanStart) * .001 + " sec ***");
+            Log.log("Finished .scan()", System.nanoTime() - scanStart);
         }
         return this;
     }
@@ -1471,13 +1512,18 @@ public class FastClasspathScanner {
      * be opened.
      */
     public boolean classpathContentsModifiedSinceScan() {
-        final long scanStart = System.currentTimeMillis();
+        final long scanStart = System.nanoTime();
 
+        // Ensure scanning has happened at least once already -- if not, return true,
+        // as this is the most useful default value.
+        if (!scanHasCompleted()) {
+            return true;
+        }
+        
         final boolean modified = recursiveScanner.classpathContentsModifiedSinceScan();
 
         if (FastClasspathScanner.verbose) {
-            Log.log("*** Total time taken by .classpathContentsModifiedSinceScan(): "
-                    + (System.currentTimeMillis() - scanStart) * .001 + " sec ***");
+            Log.log("Finished .classpathContentsModifiedSinceScan()", System.nanoTime() - scanStart);
         }
         return modified;
     }
@@ -1491,6 +1537,8 @@ public class FastClasspathScanner {
      * should increase.
      */
     public long classpathContentsLastModifiedTime() {
+        // Verify scan() has been run at least once, else throw an exception
+        getScanResults();
         return recursiveScanner.classpathContentsLastModifiedTime();
     }
 

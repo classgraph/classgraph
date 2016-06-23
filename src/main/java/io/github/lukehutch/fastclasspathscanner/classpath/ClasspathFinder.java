@@ -279,6 +279,20 @@ public class ClasspathFinder {
         }
     }
 
+    /** ClassLoaderHandler that is able to extract the URLs from a URLClassLoader. */
+    private static class URLClassLoaderHandler implements ClassLoaderHandler {
+        @Override
+        public boolean handle(final ClassLoader classloader, final ClasspathFinder classpathFinder) {
+            if (classloader instanceof URLClassLoader) {
+                for (final URL url : ((URLClassLoader) classloader).getURLs()) {
+                    classpathFinder.addClasspathElement(url.toString());
+                }
+                return true;
+            }
+            return false;
+        }
+    }
+
     /** Parse the system classpath. */
     private void parseSystemClasspath() {
         clearClasspath();
@@ -316,18 +330,7 @@ public class ClasspathFinder {
         // URLClassLoaders (the most common form of ClassLoader) even if ServiceLoader can't find other
         // ClassLoaderHandlers (this can happen if FastClasspathScanner's package is renamed using Maven Shade).
         final HashSet<ClassLoaderHandler> classLoaderHandlers = new HashSet<>();
-        classLoaderHandlers.add(new ClassLoaderHandler() {
-            @Override
-            public boolean handle(final ClassLoader classloader, final ClasspathFinder classpathFinder) {
-                if (classloader instanceof URLClassLoader) {
-                    for (final URL url : ((URLClassLoader) classloader).getURLs()) {
-                        classpathFinder.addClasspathElement(url.toString());
-                    }
-                    return true;
-                }
-                return false;
-            }
-        });
+        classLoaderHandlers.add(new URLClassLoaderHandler());
 
         // Find all ClassLoaderHandlers registered using ServiceLoader, given known ClassLoaders. 
         // FastClasspathScanner ships with several of these, registered in:
@@ -366,7 +369,8 @@ public class ClasspathFinder {
                 }
             }
             if (!classloaderFound) {
-                Log.log("Found unknown ClassLoader type, cannot scan classes: " + classLoader.getClass().getName());
+                Log.log(4,
+                        "Found unknown ClassLoader type, cannot scan classes: " + classLoader.getClass().getName());
             }
         }
 
