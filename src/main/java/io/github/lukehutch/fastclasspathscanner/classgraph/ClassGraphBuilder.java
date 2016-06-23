@@ -28,7 +28,12 @@
  */
 package io.github.lukehutch.fastclasspathscanner.classgraph;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassInfo;
 import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassInfo.ClassType;
@@ -36,10 +41,13 @@ import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassInfo.RelTyp
 
 public class ClassGraphBuilder {
     private final Map<String, ClassInfo> classNameToClassInfo;
+    private final Set<ClassInfo> allClassInfo;
 
     public ClassGraphBuilder(final Map<String, ClassInfo> classNameToClassInfo) {
         this.classNameToClassInfo = classNameToClassInfo;
-        final ArrayList<ClassInfo> allClassInfo = new ArrayList<>(classNameToClassInfo.values());
+        this.allClassInfo = new HashSet<>(classNameToClassInfo.values());
+
+        // Build transitive closures:
 
         // Classes: --------------------------------------------------------------------------------------------
 
@@ -71,70 +79,6 @@ public class ClassGraphBuilder {
 
         findTransitiveClosure(allClassInfo, RelType.ANNOTATED_CLASSES, RelType.ANNOTATIONS,
                 RelType.ALL_ANNOTATIONS);
-
-        // Postprocessing: -------------------------------------------------------------------------------------
-
-        for (final ClassInfo classInfo : allClassInfo) {
-            // Create a bridge between interface and class hierarchy: when a class implements an interface,
-            // it also implements all the interface's super-interfaces, and so do all of its subclasses.
-            if (classInfo.isImplementedInterface()) {
-                for (final ClassInfo classImplementing : classInfo
-                        .getRelatedClasses(RelType.CLASSES_IMPLEMENTING)) {
-                    final List<ClassInfo> allSuperInterfaces = classInfo
-                            .getRelatedClasses(RelType.ALL_IMPLEMENTED_INTERFACES);
-                    final List<ClassInfo> allSubClasses = classImplementing
-                            .getRelatedClasses(RelType.ALL_SUBCLASSES);
-                    for (final ClassInfo superInterface : allSuperInterfaces) {
-                        superInterface.addRelatedClass(RelType.ALL_CLASSES_IMPLEMENTING, classImplementing);
-                        classImplementing.addRelatedClass(RelType.ALL_IMPLEMENTED_INTERFACES, superInterface);
-                    }
-                    for (final ClassInfo subClass : allSubClasses) {
-                        classInfo.addRelatedClass(RelType.ALL_CLASSES_IMPLEMENTING, subClass);
-                        subClass.addRelatedClass(RelType.ALL_IMPLEMENTED_INTERFACES, classInfo);
-                    }
-                    for (final ClassInfo superInterface : allSuperInterfaces) {
-                        for (final ClassInfo subClass : allSubClasses) {
-                            superInterface.addRelatedClass(RelType.ALL_CLASSES_IMPLEMENTING, subClass);
-                            subClass.addRelatedClass(RelType.ALL_IMPLEMENTED_INTERFACES, superInterface);
-                        }
-                    }
-                }
-            }
-
-            // Split classes that implement an interface into subinterfaces and standard classes.
-            for (final ClassInfo implementingClass : classInfo
-                    .getRelatedClasses(RelType.ALL_CLASSES_IMPLEMENTING)) {
-                if (implementingClass.isImplementedInterface()) {
-                    classInfo.addRelatedClass(RelType.ALL_SUBINTERFACES, implementingClass);
-                } else if (implementingClass.isStandardClass()) {
-                    classInfo.addRelatedClass(RelType.ALL_STANDARD_CLASSES_IMPLEMENTING, implementingClass);
-                }
-            }
-
-            // Find annotations and meta-annotations on standard classes
-            for (final ClassInfo classWithAnnotation : classInfo.getRelatedClasses(RelType.ALL_ANNOTATED_CLASSES)) {
-                if (!classWithAnnotation.isAnnotation()) {
-                    classInfo.addRelatedClass(RelType.ALL_ANNOTATED_STANDARD_CLASSES_OR_INTERFACES,
-                            classWithAnnotation);
-                }
-            }
-
-            // Find super-classes and implemented interfaces for all field types, and add those to
-            // the set of field types, so that you can search for field types using supertypes.
-            for (final ClassInfo fieldType : classInfo.getRelatedClasses(RelType.FIELD_TYPES)) {
-                classInfo.addRelatedClasses(RelType.FIELD_TYPES,
-                        fieldType.getRelatedClasses(RelType.ALL_SUPERCLASSES));
-                classInfo.addRelatedClasses(RelType.FIELD_TYPES,
-                        fieldType.getRelatedClasses(RelType.ALL_IMPLEMENTED_INTERFACES));
-            }
-        }
-
-        // Create reverse index from field types to classes with fields of that type
-        for (final ClassInfo classInfo : allClassInfo) {
-            for (final ClassInfo fieldType : classInfo.getRelatedClasses(RelType.FIELD_TYPES)) {
-                fieldType.addRelatedClass(RelType.CLASSES_WITH_FIELD_OF_TYPE, classInfo);
-            }
-        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -146,13 +90,12 @@ public class ClassGraphBuilder {
      * that are leaves in the backwards direction). Assumes the graph is a DAG in general, but handles cycles too,
      * since these may occur in the case of meta-annotations.
      */
-    private static void findTransitiveClosure(final ArrayList<ClassInfo> allNodes,
-            final RelType directForwardLinkType, final RelType directBackLinkType,
-            final RelType reachableBackLinkTypeToBuild) {
+    private static void findTransitiveClosure(final Set<ClassInfo> allNodes, final RelType directForwardLinkType,
+            final RelType directBackLinkType, final RelType reachableBackLinkTypeToBuild) {
         // Find extrema of DAG (nodes without direct connections) as initial active set
-        HashSet<ClassInfo> activeNodes = new HashSet<>();
+        Set<ClassInfo> activeNodes = new HashSet<>();
         for (final ClassInfo node : allNodes) {
-            final List<ClassInfo> directBackLinks = node.getRelatedClasses(directBackLinkType);
+            final Set<ClassInfo> directBackLinks = node.getRelatedClasses(directBackLinkType);
             if (directBackLinks.isEmpty()) {
                 // There are no back-links from this node, so it is an extremum;
                 // add all forward-linked nodes to the active set
@@ -164,23 +107,23 @@ public class ClassGraphBuilder {
         while (!activeNodes.isEmpty()) {
             // For each active node, propagate reachability, adding to the next set of active nodes
             // if the set of reachable classes changes for any class.
-            final HashSet<ClassInfo> activeNodesNext = new HashSet<>(activeNodes.size());
+            final Set<ClassInfo> activeNodesNext = new HashSet<>(activeNodes.size());
             for (final ClassInfo node : activeNodes) {
                 // Get the direct backlinks
-                final List<ClassInfo> directBackLinks = node.getRelatedClasses(directBackLinkType);
+                final Set<ClassInfo> directBackLinks = node.getRelatedClasses(directBackLinkType);
                 // Add direct backlinks to the set of reachable backlinked nodes
                 boolean changed = node.addRelatedClasses(reachableBackLinkTypeToBuild, directBackLinks);
                 // For each direct backlink
                 for (final ClassInfo directBackLink : directBackLinks) {
                     // Add the set of reachable backlinked classes for each directly-backlinked class
                     // to the set of reachable backlinked classes for the current node.
-                    final List<ClassInfo> reachableBacklinksOfBacklink = directBackLink
+                    final Set<ClassInfo> reachableBacklinksOfBacklink = directBackLink
                             .getRelatedClasses(reachableBackLinkTypeToBuild);
                     changed |= node.addRelatedClasses(reachableBackLinkTypeToBuild, reachableBacklinksOfBacklink);
                 }
                 if (changed) {
                     // If newly-reachable nodes were discovered, add them to the active set for next iteration 
-                    final List<ClassInfo> forwardRelatedClasses = node.getRelatedClasses(directForwardLinkType);
+                    final Set<ClassInfo> forwardRelatedClasses = node.getRelatedClasses(directForwardLinkType);
                     activeNodesNext.addAll(forwardRelatedClasses);
                 }
             }
@@ -189,7 +132,7 @@ public class ClassGraphBuilder {
     }
 
     // -------------------------------------------------------------------------------------------------------------
-    // Utility method
+    // Utility methods
 
     /**
      * Look up a key, returning the empty list if the map is null, or the key isn't found in the map. Otherwise,
@@ -200,10 +143,25 @@ public class ClassGraphBuilder {
      * classes.) Sort and return the optionally filtered list.
      */
     private List<String> getRelatedClassNames(final String className, final RelType relType,
-            final boolean removeExternalClasses, final ClassType classType) {
+            final boolean removeExternalClasses, final ClassType... classTypes) {
         final ClassInfo classInfo = classNameToClassInfo.get(className);
         return classInfo == null ? Collections.<String> emptyList()
-                : classInfo.getRelatedClassNames(relType, removeExternalClasses, classType);
+                : classInfo.getRelatedClassNames(relType, removeExternalClasses, classTypes);
+    }
+
+    /**
+     * Look up a key, returning the empty list if the map is null, or the key isn't found in the map. Otherwise,
+     * optionally filter the list of values associated with the key to remove the names of ClassInfo objects for
+     * "external classes", i.e. classes that are referred to by whitelisted classes, but that themselves are not
+     * whitelisted (i.e. classes that are neither whitelisted nor blacklisted). (External classes are included in
+     * the first place so that you can search by external class names, but result lists only contain whitelisted
+     * classes.) Sort and return the optionally filtered list.
+     */
+    private Set<ClassInfo> getRelatedClasses(final String className, final RelType relType,
+            final boolean removeExternalClasses, final ClassType... classTypes) {
+        final ClassInfo classInfo = classNameToClassInfo.get(className);
+        return classInfo == null ? Collections.<ClassInfo> emptySet()
+                : classInfo.getRelatedClasses(relType, removeExternalClasses, classTypes);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -211,26 +169,13 @@ public class ClassGraphBuilder {
 
     /** Get the sorted unique names of all classes, interfaces and annotations found during the scan. */
     public List<String> getNamesOfAllClasses() {
-        return ClassInfo.getClassNamesFiltered(classNameToClassInfo.values(), /* removeExternalClasses = */ true,
-                ClassType.ALL);
+        return ClassInfo.getClassNamesFiltered(allClassInfo, /* removeExternalClasses = */ true, ClassType.ALL);
     }
 
     /** Get the sorted unique names of all standard (non-interface/annotation) classes found during the scan. */
     public List<String> getNamesOfAllStandardClasses() {
-        return ClassInfo.getClassNamesFiltered(classNameToClassInfo.values(), /* removeExternalClasses = */ true,
+        return ClassInfo.getClassNamesFiltered(allClassInfo, /* removeExternalClasses = */ true,
                 ClassType.STANDARD_CLASS);
-    }
-
-    /** Return the sorted unique names of all interface classes found during the scan. */
-    public List<String> getNamesOfAllInterfaceClasses() {
-        return ClassInfo.getClassNamesFiltered(classNameToClassInfo.values(), /* removeExternalClasses = */ true,
-                ClassType.IMPLEMENTED_INTERFACE);
-    }
-
-    /** Return the sorted unique names of all annotation classes found during the scan. */
-    public List<String> getNamesOfAllAnnotationClasses() {
-        return ClassInfo.getClassNamesFiltered(classNameToClassInfo.values(), /* removeExternalClasses = */ true,
-                ClassType.ANNOTATION);
     }
 
     /** Return the sorted list of names of all subclasses of the named class. */
@@ -250,12 +195,30 @@ public class ClassGraphBuilder {
      * (non-blacklisted) package.
      */
     public List<String> getNamesOfClassesWithFieldOfType(final String fieldTypeName) {
-        return getRelatedClassNames(fieldTypeName, RelType.CLASSES_WITH_FIELD_OF_TYPE,
-                /* removeExternalClasses = */ true, ClassType.ALL);
+        // This method will not likely be used for a large number of different field types, so perform a linear
+        // search on each invocation, rather than building an index on classpath scan (so we don't slow down more
+        // common methods).
+        final ArrayList<String> namesOfClassesWithFieldOfType = new ArrayList<>();
+        for (final ClassInfo classInfo : allClassInfo) {
+            for (final ClassInfo fieldType : classInfo.getRelatedClasses(RelType.FIELD_TYPES)) {
+                if (fieldType.className.equals(fieldTypeName)) {
+                    namesOfClassesWithFieldOfType.add(classInfo.className);
+                    break;
+                }
+            }
+        }
+        Collections.sort(namesOfClassesWithFieldOfType);
+        return namesOfClassesWithFieldOfType;
     }
 
     // -------------------------------------------------------------------------------------------------------------
     // Interfaces
+
+    /** Return the sorted unique names of all interface classes found during the scan. */
+    public List<String> getNamesOfAllInterfaceClasses() {
+        return ClassInfo.getClassNamesFiltered(allClassInfo, /* removeExternalClasses = */ true,
+                ClassType.IMPLEMENTED_INTERFACE);
+    }
 
     /** Return the sorted list of names of all subinterfaces of the named interface. */
     public List<String> getNamesOfSubinterfacesOf(final String interfaceName) {
@@ -271,20 +234,34 @@ public class ClassGraphBuilder {
 
     /** Return the sorted list of names of all classes implementing the named interface. */
     public List<String> getNamesOfClassesImplementing(final String interfaceName) {
-        return getRelatedClassNames(interfaceName, RelType.ALL_CLASSES_IMPLEMENTING,
-                /* removeExternalClasses = */ true, ClassType.STANDARD_CLASS);
+        final Set<ClassInfo> implementingClasses = getRelatedClasses(interfaceName,
+                RelType.ALL_CLASSES_IMPLEMENTING, /* removeExternalClasses = */ true, ClassType.STANDARD_CLASS);
+        // Subclasses of implementing classes also implement the interface
+        final HashSet<ClassInfo> allImplementingClasses = new HashSet<>();
+        for (final ClassInfo implementingClass : implementingClasses) {
+            allImplementingClasses.add(implementingClass);
+            allImplementingClasses.addAll(implementingClass.getRelatedClasses(RelType.ALL_SUBCLASSES));
+        }
+        return ClassInfo.getClassNames(allImplementingClasses);
     }
 
     // -------------------------------------------------------------------------------------------------------------
     // Annotations
 
+    /** Return the sorted unique names of all annotation classes found during the scan. */
+    public List<String> getNamesOfAllAnnotationClasses() {
+        return ClassInfo.getClassNamesFiltered(allClassInfo, /* removeExternalClasses = */ true,
+                ClassType.ANNOTATION);
+    }
+
     /**
-     * Return the sorted list of names of all classes or interfaces with the named class annotation or
-     * meta-annotation.
+     * Return the sorted list of names of all standard classes or non-annotation interfaces with the named class
+     * annotation or meta-annotation.
      */
     public List<String> getNamesOfClassesWithAnnotation(final String annotationName) {
-        return getRelatedClassNames(annotationName, RelType.ALL_ANNOTATED_STANDARD_CLASSES_OR_INTERFACES,
-                /* removeExternalClasses = */ true, ClassType.ALL);
+        // Find annotations and meta-annotations on standard classes
+        return getRelatedClassNames(annotationName, RelType.ALL_ANNOTATED_CLASSES,
+                /* removeExternalClasses = */ true, ClassType.STANDARD_CLASS, ClassType.IMPLEMENTED_INTERFACE);
     }
 
     /** Return the sorted list of names of all annotations and meta-annotations on the named class. */
@@ -335,12 +312,11 @@ public class ClassGraphBuilder {
         buf.append("splines=true;\n");
         buf.append("pack=true;\n");
 
-        final Collection<ClassInfo> allClassInfo = classNameToClassInfo.values();
-        final List<ClassInfo> standardClassNodes = ClassInfo.filterClassInfo(allClassInfo,
+        final Set<ClassInfo> standardClassNodes = ClassInfo.filterClassInfo(allClassInfo,
                 /* removeExternalClasses = */ false, ClassType.STANDARD_CLASS);
-        final List<ClassInfo> interfaceNodes = ClassInfo.filterClassInfo(allClassInfo,
+        final Set<ClassInfo> interfaceNodes = ClassInfo.filterClassInfo(allClassInfo,
                 /* removeExternalClasses = */ false, ClassType.IMPLEMENTED_INTERFACE);
-        final List<ClassInfo> annotationNodes = ClassInfo.filterClassInfo(allClassInfo,
+        final Set<ClassInfo> annotationNodes = ClassInfo.filterClassInfo(allClassInfo,
                 /* removeExternalClasses = */ false, ClassType.ANNOTATION);
 
         buf.append("\nnode[shape=box,style=filled,fillcolor=\"#fff2b6\"];\n");

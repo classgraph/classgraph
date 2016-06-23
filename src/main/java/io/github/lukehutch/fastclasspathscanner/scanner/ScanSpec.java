@@ -204,7 +204,7 @@ public class ScanSpec {
      * Convert a spec with a '*' glob character into a regular expression. Replaces "." with "\." and "*" with ".*",
      * then compiles a regulare expression.
      */
-    private static Pattern specToPattern(String spec) {
+    private static Pattern specToPattern(final String spec) {
         return Pattern.compile("^" + spec.replace(".", "\\.").replace("*", ".*") + "$");
     }
 
@@ -318,12 +318,12 @@ public class ScanSpec {
     }
 
     /** Test if a list of jar names contains the requested name, allowing for globs. */
-    private static boolean containsJarName(final HashSet<String> jarNames, ArrayList<Pattern> jarNamePatterns,
+    private static boolean containsJarName(final HashSet<String> jarNames, final ArrayList<Pattern> jarNamePatterns,
             final String jarName) {
         if (jarNames.contains(jarName)) {
             return true;
         }
-        for (Pattern jarNamePattern : jarNamePatterns) {
+        for (final Pattern jarNamePattern : jarNamePatterns) {
             if (jarNamePattern.matcher(jarName).matches()) {
                 return true;
             }

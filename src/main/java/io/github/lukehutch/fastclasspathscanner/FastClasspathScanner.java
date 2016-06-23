@@ -31,8 +31,13 @@ package io.github.lukehutch.fastclasspathscanner;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassInfo;
@@ -140,7 +145,7 @@ public class FastClasspathScanner {
      * ClassLoaderHandler for your specific ClassLoader, or if you want to manually register your own
      * ClassLoaderHandler rather than using the ServiceLoader framework.
      */
-    public void registerClassLoaderHandler(ClassLoaderHandler extraClassLoaderHandler) {
+    public void registerClassLoaderHandler(final ClassLoaderHandler extraClassLoaderHandler) {
         classpathFinder.registerClassLoaderHandler(extraClassLoaderHandler);
     }
 

@@ -382,7 +382,7 @@ public class ClasspathFinder {
      * ClassLoaderHandler for your specific ClassLoader, or if you want to manually register your own
      * ClassLoaderHandler rather than using the ServiceLoader framework.
      */
-    public void registerClassLoaderHandler(ClassLoaderHandler extraClassLoaderHandler) {
+    public void registerClassLoaderHandler(final ClassLoaderHandler extraClassLoaderHandler) {
         extraClassLoaderHandlers.add(extraClassLoaderHandler);
     }
 
