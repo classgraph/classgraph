@@ -1458,8 +1458,8 @@ public class FastClasspathScanner {
         }
 
         if (FastClasspathScanner.verbose) {
-            Log.log("*** Time taken by .scan(): " //
-                    + (System.currentTimeMillis() - scanStart) + " ms ***");
+            Log.log("*** Total time taken by .scan(): " //
+                    + (System.currentTimeMillis() - scanStart) * .001 + " sec ***");
         }
         return this;
     }
@@ -1476,8 +1476,8 @@ public class FastClasspathScanner {
         final boolean modified = recursiveScanner.classpathContentsModifiedSinceScan();
 
         if (FastClasspathScanner.verbose) {
-            Log.log("*** Time taken by .classpathContentsModifiedSinceScan(): "
-                    + (System.currentTimeMillis() - scanStart) + " ms ***");
+            Log.log("*** Total time taken by .classpathContentsModifiedSinceScan(): "
+                    + (System.currentTimeMillis() - scanStart) * .001 + " sec ***");
         }
         return modified;
     }

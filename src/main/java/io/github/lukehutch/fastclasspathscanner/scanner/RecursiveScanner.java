@@ -169,8 +169,8 @@ public class RecursiveScanner {
                 }
             }
             if (FastClasspathScanner.verbose && filePathMatches) {
-                Log.log("Scanned file " + relativePath + " in " + (System.currentTimeMillis() - startTime)
-                        + " msec");
+                Log.log("Scanned file " + relativePath + " in " + (System.currentTimeMillis() - startTime) * .001
+                        + " sec");
             }
         }
     }
@@ -202,14 +202,15 @@ public class RecursiveScanner {
         final int rootPrefixLen = rootPrefix.length();
 
         for (final Enumeration<? extends ZipEntry> entries = zipFile.entries(); entries.hasMoreElements();) {
-            // Scan for matching filenames
+            final long entryStartTime = System.currentTimeMillis();
+
+            // Only process file entries (zipfile indices contain both directory entries and
+            // separate file entries for files within each directory, in lexicographic order)
             final ZipEntry entry = entries.nextElement();
             if (entry.isDirectory()) {
                 continue;
             }
 
-            // Only process file entries (zipfile indices contain both directory entries and
-            // separate file entries for files within each directory, in lexicographic order)
             String path = entry.getName();
             if (path.startsWith("/")) {
                 // Shouldn't happen with the standard Java zipfile implementation (but just to be safe)
@@ -258,9 +259,14 @@ public class RecursiveScanner {
                     }
                 }
             }
+            if (FastClasspathScanner.verbose) {
+                Log.log("Scanned jarfile entry " + zipfilePath + "!" + path + " in "
+                        + (System.currentTimeMillis() - entryStartTime) * .001 + " sec");
+            }
         }
         if (FastClasspathScanner.verbose) {
-            Log.log("Scanned jarfile " + zipfilePath + " in " + (System.currentTimeMillis() - startTime) + " msec");
+            Log.log("Scanned jarfile " + zipfilePath + " in " + (System.currentTimeMillis() - startTime) * .001
+                    + " sec");
         }
     }
 

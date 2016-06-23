@@ -35,9 +35,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassInfo;
 import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassInfo.ClassType;
 import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassInfo.RelType;
+import io.github.lukehutch.fastclasspathscanner.utils.Log;
 
 public class ClassGraphBuilder {
     private final Map<String, ClassInfo> classNameToClassInfo;
@@ -46,6 +48,7 @@ public class ClassGraphBuilder {
     public ClassGraphBuilder(final Map<String, ClassInfo> classNameToClassInfo) {
         this.classNameToClassInfo = classNameToClassInfo;
         this.allClassInfo = new HashSet<>(classNameToClassInfo.values());
+        long startTime = System.currentTimeMillis();
 
         // Build transitive closures:
 
@@ -79,6 +82,11 @@ public class ClassGraphBuilder {
 
         findTransitiveClosure(allClassInfo, RelType.ANNOTATED_CLASSES, RelType.ANNOTATIONS,
                 RelType.ALL_ANNOTATIONS);
+
+        if (FastClasspathScanner.verbose) {
+            Log.log(ClassGraphBuilder.class.getSimpleName() + " found transitive closures in "
+                    + (System.currentTimeMillis() - startTime) * .001 + " sec");
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
