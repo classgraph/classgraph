@@ -35,107 +35,29 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassInfo;
 import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassInfo.ClassType;
 import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassInfo.RelType;
-import io.github.lukehutch.fastclasspathscanner.utils.Log;
 
-public class ClassGraphBuilder {
+public class ClassGraphTracer {
     private final Map<String, ClassInfo> classNameToClassInfo;
     private final Set<ClassInfo> allClassInfo;
 
-    public ClassGraphBuilder(final Map<String, ClassInfo> classNameToClassInfo) {
+    public ClassGraphTracer(final Map<String, ClassInfo> classNameToClassInfo) {
         this.classNameToClassInfo = classNameToClassInfo;
         this.allClassInfo = new HashSet<>(classNameToClassInfo.values());
-        final long startTime = System.nanoTime();
-
-        // Build transitive closures:
-
-        // Classes: --------------------------------------------------------------------------------------------
-
-        // Find all reachable subclasses of each class
-        findTransitiveClosure(allClassInfo, RelType.SUPERCLASSES, RelType.SUBCLASSES, RelType.ALL_SUBCLASSES);
-
-        // Find all reachable superclasses of each class (not including java.lang.Object)
-        findTransitiveClosure(allClassInfo, RelType.SUBCLASSES, RelType.SUPERCLASSES, RelType.ALL_SUPERCLASSES);
-
-        // Interfaces: -----------------------------------------------------------------------------------------
-
-        // Find all classes implementing a given interface, and all subinterfaces implementing a superinterface 
-        findTransitiveClosure(allClassInfo, RelType.IMPLEMENTED_INTERFACES, RelType.CLASSES_IMPLEMENTING,
-                RelType.ALL_CLASSES_IMPLEMENTING);
-
-        // Find all superinterfaces of a subinterface
-        findTransitiveClosure(allClassInfo, RelType.CLASSES_IMPLEMENTING, RelType.IMPLEMENTED_INTERFACES,
-                RelType.ALL_IMPLEMENTED_INTERFACES);
-
-        // Annotations: ----------------------------------------------------------------------------------------
-
-        // N.B. don't need to propagate annotations to/from sub-classes, as with interfaces above, because
-        // regular Java annotations don't get passed from classes to sub-classes the way interfaces do.
-        // So even though we do pass meta-annotations to their meta-meta-annotated annotations, once we
-        // hit the regular class hierarchy, we stop at the first annotated class.
-
-        findTransitiveClosure(allClassInfo, RelType.ANNOTATIONS, RelType.ANNOTATED_CLASSES,
-                RelType.ALL_ANNOTATED_CLASSES);
-
-        findTransitiveClosure(allClassInfo, RelType.ANNOTATED_CLASSES, RelType.ANNOTATIONS,
-                RelType.ALL_ANNOTATIONS);
-
-        if (FastClasspathScanner.verbose) {
-            Log.log(1, "Built class graph", System.nanoTime() - startTime);
-        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
-    // Build transitive closure of class graph
+    // Find the transitive closure from a given node in the class graph
 
     /**
-     * Find the transitive closure (reachability) in one direction through the class graph (move in the forward
-     * direction, using the backlinks to propagate the set of all reachable back-linked nodes, starting with nodes
-     * that are leaves in the backwards direction). Assumes the graph is a DAG in general, but handles cycles too,
-     * since these may occur in the case of meta-annotations.
+     * Find all classes reachable from the named start class (not including the start class itself), given a certain
+     * relationship type.
      */
-    private static void findTransitiveClosure(final Set<ClassInfo> allNodes, final RelType directForwardLinkType,
-            final RelType directBackLinkType, final RelType reachableBackLinkTypeToBuild) {
-        // Find extrema of DAG (nodes without direct connections) as initial active set
-        Set<ClassInfo> activeNodes = new HashSet<>();
-        for (final ClassInfo node : allNodes) {
-            final Set<ClassInfo> directBackLinks = node.getRelatedClasses(directBackLinkType);
-            if (directBackLinks.isEmpty()) {
-                // There are no back-links from this node, so it is an extremum;
-                // add all forward-linked nodes to the active set
-                activeNodes.addAll(node.getRelatedClasses(directForwardLinkType));
-            }
-        }
-        // Use DP-style "wavefront" to find transitive closure (i.e. all reachable nodes through back-links),
-        // also handling cycles if present.
-        while (!activeNodes.isEmpty()) {
-            // For each active node, propagate reachability, adding to the next set of active nodes
-            // if the set of reachable classes changes for any class.
-            final Set<ClassInfo> activeNodesNext = new HashSet<>(activeNodes.size());
-            for (final ClassInfo node : activeNodes) {
-                // Get the direct backlinks
-                final Set<ClassInfo> directBackLinks = node.getRelatedClasses(directBackLinkType);
-                // Add direct backlinks to the set of reachable backlinked nodes
-                boolean changed = node.addRelatedClasses(reachableBackLinkTypeToBuild, directBackLinks);
-                // For each direct backlink
-                for (final ClassInfo directBackLink : directBackLinks) {
-                    // Add the set of reachable backlinked classes for each directly-backlinked class
-                    // to the set of reachable backlinked classes for the current node.
-                    final Set<ClassInfo> reachableBacklinksOfBacklink = directBackLink
-                            .getRelatedClasses(reachableBackLinkTypeToBuild);
-                    changed |= node.addRelatedClasses(reachableBackLinkTypeToBuild, reachableBacklinksOfBacklink);
-                }
-                if (changed) {
-                    // If newly-reachable nodes were discovered, add them to the active set for next iteration 
-                    final Set<ClassInfo> forwardRelatedClasses = node.getRelatedClasses(directForwardLinkType);
-                    activeNodesNext.addAll(forwardRelatedClasses);
-                }
-            }
-            activeNodes = activeNodesNext;
-        }
+    private Set<ClassInfo> getReachableClasses(final String startClassName, final RelType relType) {
+        final ClassInfo startClass = classNameToClassInfo.get(startClassName);
+        return startClass == null ? Collections.<ClassInfo> emptySet() : startClass.getReachableClasses(relType);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -156,16 +78,14 @@ public class ClassGraphBuilder {
     /** Return the sorted list of names of all subclasses of the named class. */
     public List<String> getNamesOfSubclassesOf(final String className) {
         return ClassInfo.getClassNames( //
-                ClassInfo.filterClassInfo(
-                        ClassInfo.getRelatedClasses(className, classNameToClassInfo, RelType.ALL_SUBCLASSES),
+                ClassInfo.filterClassInfo(getReachableClasses(className, RelType.SUBCLASSES),
                         /* removeExternalClasses = */ true, ClassType.ALL));
     }
 
     /** Return the sorted list of names of all superclasses of the named class. */
     public List<String> getNamesOfSuperclassesOf(final String className) {
         return ClassInfo.getClassNames( //
-                ClassInfo.filterClassInfo(
-                        ClassInfo.getRelatedClasses(className, classNameToClassInfo, RelType.ALL_SUPERCLASSES),
+                ClassInfo.filterClassInfo(getReachableClasses(className, RelType.SUPERCLASSES),
                         /* removeExternalClasses = */ true, ClassType.ALL));
     }
 
@@ -202,31 +122,27 @@ public class ClassGraphBuilder {
     /** Return the sorted list of names of all subinterfaces of the named interface. */
     public List<String> getNamesOfSubinterfacesOf(final String interfaceName) {
         return ClassInfo.getClassNames( //
-                ClassInfo.filterClassInfo(
-                        ClassInfo.getRelatedClasses(interfaceName, classNameToClassInfo,
-                                RelType.ALL_CLASSES_IMPLEMENTING),
+                ClassInfo.filterClassInfo(getReachableClasses(interfaceName, RelType.CLASSES_IMPLEMENTING),
                         /* removeExternalClasses = */ true, ClassType.IMPLEMENTED_INTERFACE));
     }
 
     /** Return the names of all superinterfaces of the named interface. */
     public List<String> getNamesOfSuperinterfacesOf(final String interfaceName) {
         return ClassInfo.getClassNames( //
-                ClassInfo.filterClassInfo(
-                        ClassInfo.getRelatedClasses(interfaceName, classNameToClassInfo,
-                                RelType.ALL_IMPLEMENTED_INTERFACES),
+                ClassInfo.filterClassInfo(getReachableClasses(interfaceName, RelType.IMPLEMENTED_INTERFACES),
                         /* removeExternalClasses = */ true, ClassType.IMPLEMENTED_INTERFACE));
     }
 
     /** Return the sorted list of names of all classes implementing the named interface. */
     public List<String> getNamesOfClassesImplementing(final String interfaceName) {
         final Set<ClassInfo> implementingClasses = ClassInfo.filterClassInfo(
-                ClassInfo.getRelatedClasses(interfaceName, classNameToClassInfo, RelType.ALL_CLASSES_IMPLEMENTING),
+                getReachableClasses(interfaceName, RelType.CLASSES_IMPLEMENTING),
                 /* removeExternalClasses = */ true, ClassType.STANDARD_CLASS);
         // Subclasses of implementing classes also implement the interface
         final Set<ClassInfo> allImplementingClasses = new HashSet<>();
         for (final ClassInfo implementingClass : implementingClasses) {
             allImplementingClasses.add(implementingClass);
-            allImplementingClasses.addAll(implementingClass.getRelatedClasses(RelType.ALL_SUBCLASSES));
+            allImplementingClasses.addAll(implementingClass.getReachableClasses(RelType.SUBCLASSES));
         }
         return ClassInfo.getClassNames(allImplementingClasses);
     }
@@ -246,21 +162,16 @@ public class ClassGraphBuilder {
      */
     public List<String> getNamesOfClassesWithAnnotation(final String annotationName) {
         return ClassInfo.getClassNames( //
-                ClassInfo.filterClassInfo(
-                        ClassInfo.getRelatedClasses(annotationName, classNameToClassInfo,
-                                RelType.ALL_ANNOTATED_CLASSES),
+                ClassInfo.filterClassInfo(getReachableClasses(annotationName, RelType.ANNOTATED_CLASSES),
                         /* removeExternalClasses = */ true, ClassType.STANDARD_CLASS,
                         ClassType.IMPLEMENTED_INTERFACE));
     }
 
     /** Return the sorted list of names of all annotations and meta-annotations on the named class. */
     public List<String> getNamesOfAnnotationsOnClass(final String classOrInterfaceName) {
-        return ClassInfo
-                .getClassNames( //
-                        ClassInfo.filterClassInfo(
-                                ClassInfo.getRelatedClasses(classOrInterfaceName, classNameToClassInfo,
-                                        RelType.ALL_ANNOTATIONS),
-                                /* removeExternalClasses = */ true, ClassType.ALL));
+        return ClassInfo.getClassNames( //
+                ClassInfo.filterClassInfo(getReachableClasses(classOrInterfaceName, RelType.ANNOTATIONS),
+                        /* removeExternalClasses = */ true, ClassType.ALL));
     }
 
     /** Return the sorted list of names of all meta-annotations on the named annotation. */
@@ -271,9 +182,7 @@ public class ClassGraphBuilder {
     /** Return the names of all annotations that have the named meta-annotation. */
     public List<String> getNamesOfAnnotationsWithMetaAnnotation(final String metaAnnotationName) {
         return ClassInfo.getClassNames( //
-                ClassInfo.filterClassInfo(
-                        ClassInfo.getRelatedClasses(metaAnnotationName, classNameToClassInfo,
-                                RelType.ALL_ANNOTATED_CLASSES),
+                ClassInfo.filterClassInfo(getReachableClasses(metaAnnotationName, RelType.ANNOTATED_CLASSES),
                         /* removeExternalClasses = */ true, ClassType.ANNOTATION));
     }
 

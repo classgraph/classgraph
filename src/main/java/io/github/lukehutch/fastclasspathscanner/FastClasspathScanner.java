@@ -42,7 +42,7 @@ import java.util.regex.Pattern;
 
 import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassInfo;
 import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassfileBinaryParser;
-import io.github.lukehutch.fastclasspathscanner.classgraph.ClassGraphBuilder;
+import io.github.lukehutch.fastclasspathscanner.classgraph.ClassGraphTracer;
 import io.github.lukehutch.fastclasspathscanner.classpath.ClassLoaderHandler;
 import io.github.lukehutch.fastclasspathscanner.classpath.ClasspathFinder;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.ClassAnnotationMatchProcessor;
@@ -105,7 +105,7 @@ public class FastClasspathScanner {
     private final HashMap<String, ClassInfo> classNameToClassInfo = new HashMap<>();
 
     /** The class, interface and annotation graph builder. */
-    private ClassGraphBuilder classGraphBuilder;
+    private ClassGraphTracer classGraphBuilder;
 
     /** An interface used for testing if a class matches specified criteria. */
     public static interface ClassMatcher {
@@ -1417,7 +1417,7 @@ public class FastClasspathScanner {
      * Returns the ClassGraphBuilder created by calling .scan(), or throws RuntimeException if .scan() has not yet
      * been called.
      */
-    public ClassGraphBuilder getScanResults() {
+    public ClassGraphTracer getScanResults() {
         if (!scanHasCompleted()) {
             throw new RuntimeException("Must call .scan() before attempting to get the results of the scan");
         }
@@ -1477,7 +1477,7 @@ public class FastClasspathScanner {
         recursiveScanner.scan();
 
         // Build class, interface and annotation graph out of all the ClassInfo objects.
-        classGraphBuilder = new ClassGraphBuilder(classNameToClassInfo);
+        classGraphBuilder = new ClassGraphTracer(classNameToClassInfo);
 
         // Call any class, interface and annotation MatchProcessors
         for (final ClassMatcher classMatcher : classMatchers) {

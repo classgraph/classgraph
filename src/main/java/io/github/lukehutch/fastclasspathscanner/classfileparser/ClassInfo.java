@@ -33,6 +33,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -77,14 +78,8 @@ public class ClassInfo implements Comparable<ClassInfo> {
          */
         SUPERCLASSES,
 
-        /** All reachable superclasses of this class, if this is a regular class. */
-        ALL_SUPERCLASSES,
-
         /** Subclasses of this class, if this is a regular class. */
         SUBCLASSES,
-
-        /** All reachable subclasses of this class, if this is a regular class. */
-        ALL_SUBCLASSES,
 
         /** The types of fields of regular classes, if this is a regular class. */
         FIELD_TYPES,
@@ -99,14 +94,8 @@ public class ClassInfo implements Comparable<ClassInfo> {
          */
         IMPLEMENTED_INTERFACES,
 
-        /** All reachable interfaces that this class implements. */
-        ALL_IMPLEMENTED_INTERFACES,
-
         /** Classes that implement this interface (including sub-interfaces), if this is an interface. */
         CLASSES_IMPLEMENTING,
-
-        /** All reachable classes that implement this interface. */
-        ALL_CLASSES_IMPLEMENTING,
 
         // Annotations:
 
@@ -116,14 +105,8 @@ public class ClassInfo implements Comparable<ClassInfo> {
          */
         ANNOTATIONS,
 
-        /** All annotations and reachable meta-annotations on this class. */
-        ALL_ANNOTATIONS,
-
         /** Classes annotated by this annotation, if this is an annotation. */
         ANNOTATED_CLASSES,
-
-        /** All reachable classes annotated or meta-annotated by this annotation, if this is an annotation. */
-        ALL_ANNOTATED_CLASSES,
     }
 
     /** The set of classes related to this one. */
@@ -237,14 +220,34 @@ public class ClassInfo implements Comparable<ClassInfo> {
         }
     }
 
-    /**
-     * Get the ClassInfo objects for the classes related to this one in the specified way.
-     * 
-     * Equivalent to getRelatedClasses(relType, false, ClassType.ALL)
-     */
+    /** Get the ClassInfo objects for the classes related to this one in the specified way. */
     public Set<ClassInfo> getRelatedClasses(final RelType relType) {
         final Set<ClassInfo> relatedClassClassInfo = relatedTypeToClassInfoSet.get(relType);
         return relatedClassClassInfo == null ? Collections.<ClassInfo> emptySet() : relatedClassClassInfo;
+    }
+
+    /**
+     * Find all ClassInfo nodes reachable from this ClassInfo node over the given relationship type links (not
+     * including this class itself).
+     */
+    public Set<ClassInfo> getReachableClasses(final RelType relType) {
+        Set<ClassInfo> directlyRelatedClasses = this.getRelatedClasses(relType);
+        if (directlyRelatedClasses.isEmpty()) {
+            return Collections.emptySet();
+        }
+        Set<ClassInfo> reachableClasses = new HashSet<>(directlyRelatedClasses);
+        LinkedList<ClassInfo> queue = new LinkedList<>();
+        queue.addAll(directlyRelatedClasses);
+        while (!queue.isEmpty()) {
+            ClassInfo head = queue.removeFirst();
+            for (ClassInfo directlyReachableFromHead : head.getRelatedClasses(relType)) {
+                // Don't get in cycle
+                if (reachableClasses.add(directlyReachableFromHead)) {
+                    queue.add(directlyReachableFromHead);
+                }
+            }
+        }
+        return reachableClasses;
     }
 
     /**
