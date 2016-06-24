@@ -85,7 +85,7 @@ public class FastClasspathScanner {
 
     /** The number of classes scanned in the last call to .scan(). */
     private int numClassfilesParsed;
-    
+
     /**
      * A map from (className + "." + staticFinalFieldName) to StaticFinalFieldMatchProcessor(s) that should be
      * called if that class name and static final field name is encountered with a static constant initializer
@@ -1121,7 +1121,7 @@ public class FastClasspathScanner {
 
             @Override
             public boolean filePathMatches(final File classpathElt, final String relativePath) {
-                boolean matched = pattern.matcher(relativePath).matches();
+                final boolean matched = pattern.matcher(relativePath).matches();
                 if (matched && verbose) {
                     Log.log(3, "File " + relativePath + " matched filename pattern " + pathRegexp);
                 }
@@ -1189,7 +1189,7 @@ public class FastClasspathScanner {
         filePathMatchersToAdd.add(new FilePathMatcher(new FilePathTester() {
             @Override
             public boolean filePathMatches(final File classpathElt, final String relativePath) {
-                boolean matched = relativePath.equals(relativePathToMatch);
+                final boolean matched = relativePath.equals(relativePathToMatch);
                 if (matched && verbose) {
                     Log.log(3, "Matched filename path " + relativePathToMatch);
                 }
@@ -1262,7 +1262,7 @@ public class FastClasspathScanner {
             @Override
             public boolean filePathMatches(final File classpathElt, final String relativePath) {
                 final String relativePathLeaf = relativePath.substring(relativePath.lastIndexOf('/') + 1);
-                boolean matched = relativePathLeaf.equals(leafToMatch);
+                final boolean matched = relativePathLeaf.equals(leafToMatch);
                 if (matched && verbose) {
                     Log.log(3, "File " + relativePath + " matched path leaf " + pathLeafToMatch);
                 }
@@ -1331,7 +1331,7 @@ public class FastClasspathScanner {
 
             @Override
             public boolean filePathMatches(final File classpathElt, final String relativePath) {
-                boolean matched = relativePath.toLowerCase().endsWith(suffixToMatch);
+                final boolean matched = relativePath.toLowerCase().endsWith(suffixToMatch);
                 if (matched && verbose) {
                     Log.log(3, "File " + relativePath + " matched extension ." + extensionToMatch);
                 }
@@ -1446,7 +1446,7 @@ public class FastClasspathScanner {
                 @Override
                 public void processMatch(final String relativePath, final InputStream inputStream, //
                         final int lengthBytes) throws IOException {
-                    boolean classScannedSuccessfully = ClassfileBinaryParser.readClassInfoFromClassfileHeader(
+                    final boolean classScannedSuccessfully = ClassfileBinaryParser.readClassInfoFromClassfileHeader(
                             relativePath, inputStream, classNameToStaticFinalFieldsToMatch, scanSpecParsed,
                             classNameToClassInfo);
                     if (classScannedSuccessfully) {
@@ -1460,7 +1460,7 @@ public class FastClasspathScanner {
         // be added before a call to .scan() without having to already have initialized recursiveScanner, which
         // would cause the initialization of recursiveScanner, classpathFinder and scanSpec to all have to
         // occur before a possible call to .verbose()).
-        for (FilePathMatcher filePathMatcher : filePathMatchersToAdd) {
+        for (final FilePathMatcher filePathMatcher : filePathMatchersToAdd) {
             recursiveScanner.addFilePathMatcher(filePathMatcher);
         }
         filePathMatchersToAdd.clear();

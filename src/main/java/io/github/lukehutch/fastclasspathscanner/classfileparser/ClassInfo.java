@@ -223,37 +223,6 @@ public class ClassInfo implements Comparable<ClassInfo> {
         }
     }
 
-    /** Get the ClassInfo objects for the classes related to this one in the specified way. */
-    public Set<ClassInfo> getRelatedClasses(final RelType relType, final boolean removeExternalClasses,
-            final ClassType... classTypes) {
-        final Set<ClassInfo> relatedClassClassInfo = relatedTypeToClassInfoSet.get(relType);
-        if (relatedClassClassInfo == null) {
-            return Collections.emptySet();
-        } else {
-            return filterClassInfo(relatedClassClassInfo, removeExternalClasses, classTypes);
-        }
-    }
-
-    /**
-     * Get the ClassInfo objects for the classes related to this one in the specified way.
-     * 
-     * Equivalent to getRelatedClasses(relType, false, ClassType.ALL)
-     */
-    public Set<ClassInfo> getRelatedClasses(final RelType relType) {
-        return getRelatedClasses(relType, /* removeExternalClasses = */ false, ClassType.ALL);
-    }
-
-    /**
-     * Get the sorted list of the names of classes given a set of ClassInfo objects, optionally removing classes
-     * that were referred to by whitelisted classes, but that were not themselves whitelisted (i.e. that were not
-     * scanned).
-     */
-    public static List<String> getClassNamesFiltered(final Set<ClassInfo> classInfoColl,
-            final boolean removeExternalClasses, final ClassType... classTypes) {
-        final Set<ClassInfo> filteredClasses = filterClassInfo(classInfoColl, removeExternalClasses, classTypes);
-        return getClassNames(filteredClasses);
-    }
-
     /** Get the sorted list of the names of classes given a set of ClassInfo objects. */
     public static List<String> getClassNames(final Collection<ClassInfo> classInfoColl) {
         if (classInfoColl.isEmpty()) {
@@ -269,22 +238,24 @@ public class ClassInfo implements Comparable<ClassInfo> {
     }
 
     /**
-     * Get the sorted list of the names of classes that are related to this one in the specified way, optionally
-     * removing classes that were referred to by whitelisted classes, but that were not themselves whitelisted (i.e.
-     * that were not scanned).
+     * Get the ClassInfo objects for the classes related to this one in the specified way.
+     * 
+     * Equivalent to getRelatedClasses(relType, false, ClassType.ALL)
      */
-    public List<String> getRelatedClassNames(final RelType relType, final boolean removeExternalClasses,
-            final ClassType... classTypes) {
-        return getClassNamesFiltered(relatedTypeToClassInfoSet.get(relType), removeExternalClasses, classTypes);
+    public Set<ClassInfo> getRelatedClasses(final RelType relType) {
+        final Set<ClassInfo> relatedClassClassInfo = relatedTypeToClassInfoSet.get(relType);
+        return relatedClassClassInfo == null ? Collections.<ClassInfo> emptySet() : relatedClassClassInfo;
     }
 
     /**
-     * Get the sorted list of the names of classes that are related to this one in the specified way.
+     * Get the ClassInfo objects for the classes related to the named class in the specified way.
      * 
-     * Equivalent to getRelatedClassNames(relType, false, ClassType.ALL)
+     * Equivalent to getRelatedClasses(relType, false, ClassType.ALL)
      */
-    public List<String> getRelatedClassNames(final RelType relType) {
-        return getRelatedClassNames(relType, /* removeExternalClasses = */ false, ClassType.ALL);
+    public static Set<ClassInfo> getRelatedClasses(final String className,
+            final Map<String, ClassInfo> classNameToClassInfo, final RelType relType) {
+        final ClassInfo classInfo = classNameToClassInfo.get(className);
+        return classInfo == null ? Collections.<ClassInfo> emptySet() : classInfo.getRelatedClasses(relType);
     }
 
     /**

@@ -48,7 +48,7 @@ public class ClassGraphBuilder {
     public ClassGraphBuilder(final Map<String, ClassInfo> classNameToClassInfo) {
         this.classNameToClassInfo = classNameToClassInfo;
         this.allClassInfo = new HashSet<>(classNameToClassInfo.values());
-        long startTime = System.nanoTime();
+        final long startTime = System.nanoTime();
 
         // Build transitive closures:
 
@@ -139,62 +139,34 @@ public class ClassGraphBuilder {
     }
 
     // -------------------------------------------------------------------------------------------------------------
-    // Utility methods
-
-    /**
-     * Look up a key, returning the empty list if the map is null, or the key isn't found in the map. Otherwise,
-     * optionally filter the list of values associated with the key to remove the names of ClassInfo objects for
-     * "external classes", i.e. classes that are referred to by whitelisted classes, but that themselves are not
-     * whitelisted (i.e. classes that are neither whitelisted nor blacklisted). (External classes are included in
-     * the first place so that you can search by external class names, but result lists only contain whitelisted
-     * classes.) Sort and return the optionally filtered list.
-     */
-    private List<String> getRelatedClassNames(final String className, final RelType relType,
-            final boolean removeExternalClasses, final ClassType... classTypes) {
-        final ClassInfo classInfo = classNameToClassInfo.get(className);
-        return classInfo == null ? Collections.<String> emptyList()
-                : classInfo.getRelatedClassNames(relType, removeExternalClasses, classTypes);
-    }
-
-    /**
-     * Look up a key, returning the empty list if the map is null, or the key isn't found in the map. Otherwise,
-     * optionally filter the list of values associated with the key to remove the names of ClassInfo objects for
-     * "external classes", i.e. classes that are referred to by whitelisted classes, but that themselves are not
-     * whitelisted (i.e. classes that are neither whitelisted nor blacklisted). (External classes are included in
-     * the first place so that you can search by external class names, but result lists only contain whitelisted
-     * classes.) Sort and return the optionally filtered list.
-     */
-    private Set<ClassInfo> getRelatedClasses(final String className, final RelType relType,
-            final boolean removeExternalClasses, final ClassType... classTypes) {
-        final ClassInfo classInfo = classNameToClassInfo.get(className);
-        return classInfo == null ? Collections.<ClassInfo> emptySet()
-                : classInfo.getRelatedClasses(relType, removeExternalClasses, classTypes);
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
     // Classes
 
     /** Get the sorted unique names of all classes, interfaces and annotations found during the scan. */
     public List<String> getNamesOfAllClasses() {
-        return ClassInfo.getClassNamesFiltered(allClassInfo, /* removeExternalClasses = */ true, ClassType.ALL);
+        return ClassInfo.getClassNames(
+                ClassInfo.filterClassInfo(allClassInfo, /* removeExternalClasses = */ true, ClassType.ALL));
     }
 
     /** Get the sorted unique names of all standard (non-interface/annotation) classes found during the scan. */
     public List<String> getNamesOfAllStandardClasses() {
-        return ClassInfo.getClassNamesFiltered(allClassInfo, /* removeExternalClasses = */ true,
-                ClassType.STANDARD_CLASS);
+        return ClassInfo.getClassNames(ClassInfo.filterClassInfo(allClassInfo, /* removeExternalClasses = */ true,
+                ClassType.STANDARD_CLASS));
     }
 
     /** Return the sorted list of names of all subclasses of the named class. */
     public List<String> getNamesOfSubclassesOf(final String className) {
-        return getRelatedClassNames(className, RelType.ALL_SUBCLASSES, /* removeExternalClasses = */ true,
-                ClassType.ALL);
+        return ClassInfo.getClassNames( //
+                ClassInfo.filterClassInfo(
+                        ClassInfo.getRelatedClasses(className, classNameToClassInfo, RelType.ALL_SUBCLASSES),
+                        /* removeExternalClasses = */ true, ClassType.ALL));
     }
 
     /** Return the sorted list of names of all superclasses of the named class. */
     public List<String> getNamesOfSuperclassesOf(final String className) {
-        return getRelatedClassNames(className, RelType.ALL_SUPERCLASSES, /* removeExternalClasses = */ true,
-                ClassType.ALL);
+        return ClassInfo.getClassNames( //
+                ClassInfo.filterClassInfo(
+                        ClassInfo.getRelatedClasses(className, classNameToClassInfo, RelType.ALL_SUPERCLASSES),
+                        /* removeExternalClasses = */ true, ClassType.ALL));
     }
 
     /**
@@ -223,26 +195,33 @@ public class ClassGraphBuilder {
 
     /** Return the sorted unique names of all interface classes found during the scan. */
     public List<String> getNamesOfAllInterfaceClasses() {
-        return ClassInfo.getClassNamesFiltered(allClassInfo, /* removeExternalClasses = */ true,
-                ClassType.IMPLEMENTED_INTERFACE);
+        return ClassInfo.getClassNames(ClassInfo.filterClassInfo(allClassInfo, /* removeExternalClasses = */ true,
+                ClassType.IMPLEMENTED_INTERFACE));
     }
 
     /** Return the sorted list of names of all subinterfaces of the named interface. */
     public List<String> getNamesOfSubinterfacesOf(final String interfaceName) {
-        return getRelatedClassNames(interfaceName, RelType.ALL_CLASSES_IMPLEMENTING,
-                /* removeExternalClasses = */ true, ClassType.IMPLEMENTED_INTERFACE);
+        return ClassInfo.getClassNames( //
+                ClassInfo.filterClassInfo(
+                        ClassInfo.getRelatedClasses(interfaceName, classNameToClassInfo,
+                                RelType.ALL_CLASSES_IMPLEMENTING),
+                        /* removeExternalClasses = */ true, ClassType.IMPLEMENTED_INTERFACE));
     }
 
     /** Return the names of all superinterfaces of the named interface. */
     public List<String> getNamesOfSuperinterfacesOf(final String interfaceName) {
-        return getRelatedClassNames(interfaceName, RelType.ALL_IMPLEMENTED_INTERFACES,
-                /* removeExternalClasses = */ true, ClassType.IMPLEMENTED_INTERFACE);
+        return ClassInfo.getClassNames( //
+                ClassInfo.filterClassInfo(
+                        ClassInfo.getRelatedClasses(interfaceName, classNameToClassInfo,
+                                RelType.ALL_IMPLEMENTED_INTERFACES),
+                        /* removeExternalClasses = */ true, ClassType.IMPLEMENTED_INTERFACE));
     }
 
     /** Return the sorted list of names of all classes implementing the named interface. */
     public List<String> getNamesOfClassesImplementing(final String interfaceName) {
-        final Set<ClassInfo> implementingClasses = getRelatedClasses(interfaceName,
-                RelType.ALL_CLASSES_IMPLEMENTING, /* removeExternalClasses = */ true, ClassType.STANDARD_CLASS);
+        final Set<ClassInfo> implementingClasses = ClassInfo.filterClassInfo(
+                ClassInfo.getRelatedClasses(interfaceName, classNameToClassInfo, RelType.ALL_CLASSES_IMPLEMENTING),
+                /* removeExternalClasses = */ true, ClassType.STANDARD_CLASS);
         // Subclasses of implementing classes also implement the interface
         final Set<ClassInfo> allImplementingClasses = new HashSet<>();
         for (final ClassInfo implementingClass : implementingClasses) {
@@ -257,8 +236,8 @@ public class ClassGraphBuilder {
 
     /** Return the sorted unique names of all annotation classes found during the scan. */
     public List<String> getNamesOfAllAnnotationClasses() {
-        return ClassInfo.getClassNamesFiltered(allClassInfo, /* removeExternalClasses = */ true,
-                ClassType.ANNOTATION);
+        return ClassInfo.getClassNames(
+                ClassInfo.filterClassInfo(allClassInfo, /* removeExternalClasses = */ true, ClassType.ANNOTATION));
     }
 
     /**
@@ -266,27 +245,36 @@ public class ClassGraphBuilder {
      * annotation or meta-annotation.
      */
     public List<String> getNamesOfClassesWithAnnotation(final String annotationName) {
-        // Find annotations and meta-annotations on standard classes
-        return getRelatedClassNames(annotationName, RelType.ALL_ANNOTATED_CLASSES,
-                /* removeExternalClasses = */ true, ClassType.STANDARD_CLASS, ClassType.IMPLEMENTED_INTERFACE);
+        return ClassInfo.getClassNames( //
+                ClassInfo.filterClassInfo(
+                        ClassInfo.getRelatedClasses(annotationName, classNameToClassInfo,
+                                RelType.ALL_ANNOTATED_CLASSES),
+                        /* removeExternalClasses = */ true, ClassType.STANDARD_CLASS,
+                        ClassType.IMPLEMENTED_INTERFACE));
     }
 
     /** Return the sorted list of names of all annotations and meta-annotations on the named class. */
     public List<String> getNamesOfAnnotationsOnClass(final String classOrInterfaceName) {
-        return getRelatedClassNames(classOrInterfaceName, RelType.ALL_ANNOTATIONS,
-                /* removeExternalClasses = */ true, ClassType.ALL);
+        return ClassInfo
+                .getClassNames( //
+                        ClassInfo.filterClassInfo(
+                                ClassInfo.getRelatedClasses(classOrInterfaceName, classNameToClassInfo,
+                                        RelType.ALL_ANNOTATIONS),
+                                /* removeExternalClasses = */ true, ClassType.ALL));
     }
 
     /** Return the sorted list of names of all meta-annotations on the named annotation. */
     public List<String> getNamesOfMetaAnnotationsOnAnnotation(final String annotationName) {
-        return getRelatedClassNames(annotationName, RelType.ALL_ANNOTATIONS, /* removeExternalClasses = */ true,
-                ClassType.ALL);
+        return getNamesOfAnnotationsOnClass(annotationName);
     }
 
     /** Return the names of all annotations that have the named meta-annotation. */
     public List<String> getNamesOfAnnotationsWithMetaAnnotation(final String metaAnnotationName) {
-        return getRelatedClassNames(metaAnnotationName, RelType.ALL_ANNOTATIONS, /* removeExternalClasses = */ true,
-                ClassType.ANNOTATION);
+        return ClassInfo.getClassNames( //
+                ClassInfo.filterClassInfo(
+                        ClassInfo.getRelatedClasses(metaAnnotationName, classNameToClassInfo,
+                                RelType.ALL_ANNOTATED_CLASSES),
+                        /* removeExternalClasses = */ true, ClassType.ANNOTATION));
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -343,41 +331,37 @@ public class ClassGraphBuilder {
 
         buf.append("\n");
         for (final ClassInfo classNode : standardClassNodes) {
-            for (final ClassInfo superclassNode : classNode.getRelatedClasses(RelType.SUPERCLASSES,
-                    /* removeExternalClasses = */ false, ClassType.ALL)) {
+            for (final ClassInfo superclassNode : classNode.getRelatedClasses(RelType.SUPERCLASSES)) {
                 // class --> superclass
                 buf.append("  \"" + label(classNode) + "\" -> \"" + label(superclassNode) + "\"\n");
             }
-            for (final ClassInfo implementedInterfaceNode : classNode.getRelatedClasses(
-                    RelType.IMPLEMENTED_INTERFACES, /* removeExternalClasses = */ false, ClassType.ALL)) {
+            for (final ClassInfo implementedInterfaceNode : classNode
+                    .getRelatedClasses(RelType.IMPLEMENTED_INTERFACES)) {
                 // class --<> implemented interface
                 buf.append("  \"" + label(classNode) + "\" -> \"" + label(implementedInterfaceNode)
                         + "\" [arrowhead=diamond]\n");
             }
-            for (final ClassInfo fieldTypeNode : classNode.getRelatedClasses(RelType.FIELD_TYPES,
-                    /* removeExternalClasses = */ false, ClassType.ALL)) {
+            for (final ClassInfo fieldTypeNode : classNode.getRelatedClasses(RelType.FIELD_TYPES)) {
                 // class --[] whitelisted field type
                 buf.append("  \"" + label(fieldTypeNode) + "\" -> \"" + label(classNode)
                         + "\" [arrowtail=obox, dir=back]\n");
             }
         }
         for (final ClassInfo interfaceNode : interfaceNodes) {
-            for (final ClassInfo superinterfaceNode : interfaceNode.getRelatedClasses(
-                    RelType.IMPLEMENTED_INTERFACES, /* removeExternalClasses = */ false, ClassType.ALL)) {
+            for (final ClassInfo superinterfaceNode : interfaceNode
+                    .getRelatedClasses(RelType.IMPLEMENTED_INTERFACES)) {
                 // interface --> superinterface
                 buf.append("  \"" + label(interfaceNode) + "\" -> \"" + label(superinterfaceNode)
                         + "\" [arrowhead=diamond]\n");
             }
         }
         for (final ClassInfo annotationNode : annotationNodes) {
-            for (final ClassInfo metaAnnotationNode : annotationNode.getRelatedClasses(RelType.ANNOTATIONS,
-                    /* removeExternalClasses = */ false, ClassType.ALL)) {
+            for (final ClassInfo metaAnnotationNode : annotationNode.getRelatedClasses(RelType.ANNOTATIONS)) {
                 // annotation --o meta-annotation
                 buf.append("  \"" + label(annotationNode) + "\" -> \"" + label(metaAnnotationNode)
                         + "\" [arrowhead=dot]\n");
             }
-            for (final ClassInfo annotatedClassNode : annotationNode.getRelatedClasses(RelType.ANNOTATIONS,
-                    /* removeExternalClasses = */ false, ClassType.ALL)) {
+            for (final ClassInfo annotatedClassNode : annotationNode.getRelatedClasses(RelType.ANNOTATIONS)) {
                 // annotated class --o annotation
                 buf.append("  \"" + label(annotatedClassNode) + "\" -> \"" + label(annotationNode)
                         + "\" [arrowhead=dot]\n");

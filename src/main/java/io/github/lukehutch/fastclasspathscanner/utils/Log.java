@@ -16,9 +16,9 @@ public class Log {
     private Log() {
     }
 
-    private static String indent(String msg, int indentLevel) {
-        int numIndentChars = 2 * indentLevel;
-        StringBuilder buf = new StringBuilder(msg.length() + numIndentChars);
+    private static String indent(final String msg, final int indentLevel) {
+        final int numIndentChars = 2 * indentLevel;
+        final StringBuilder buf = new StringBuilder(msg.length() + numIndentChars);
         for (int i = 0; i < numIndentChars - 1; i++) {
             buf.append('-');
         }

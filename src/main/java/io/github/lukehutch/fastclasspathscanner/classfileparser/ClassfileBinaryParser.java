@@ -118,7 +118,7 @@ public class ClassfileBinaryParser {
      */
     private static void addFieldTypeDescriptorParts(final String className, final String typeDescriptor,
             final ScanSpec scanSpec, final ClassInfo classInfo, final Map<String, ClassInfo> classNameToClassInfo,
-            HashSet<String> loggedFieldTypeNames) {
+            final HashSet<String> loggedFieldTypeNames) {
         // Check if the type of this field falls within a non-blacklisted package,
         // and if so, record the field and its type
         final Matcher matcher = TYPE_PARAM_PATTERN.matcher(typeDescriptor);
