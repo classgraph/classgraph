@@ -49,7 +49,7 @@ public class ClassGraphTracer {
     }
 
     // -------------------------------------------------------------------------------------------------------------
-    // Find the transitive closure from a given node in the class graph
+    // Find the transitive closure from a named node in the class graph
 
     /**
      * Find all classes reachable from the named start class (not including the start class itself), given a certain

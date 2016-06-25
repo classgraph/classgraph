@@ -142,13 +142,52 @@ public class FastClasspathScanner {
      * ClassLoaderHandler rather than using the ServiceLoader framework.
      */
     public void registerClassLoaderHandler(final ClassLoaderHandler extraClassLoaderHandler) {
-        classpathFinder.registerClassLoaderHandler(extraClassLoaderHandler);
+        getClasspathFinder().registerClassLoaderHandler(extraClassLoaderHandler);
     }
 
     /** Override the automatically-detected classpath with a custom search path. */
     public FastClasspathScanner overrideClasspath(final String classpath) {
-        classpathFinder.overrideClasspath(classpath);
+        getClasspathFinder().overrideClasspath(classpath);
         return this;
+    }
+
+    /** Lazy initializer for classpathFinder. */
+    private ClasspathFinder getClasspathFinder() {
+        if (classpathFinder == null) {
+            classpathFinder = new ClasspathFinder();
+        }
+        return classpathFinder;
+    }
+
+    /** Lazy initializer for recursiveScanner. */
+    private RecursiveScanner getRecursiveScanner() {
+        if (recursiveScanner == null) {
+            recursiveScanner = new RecursiveScanner(getClasspathFinder(), getScanSpec());
+        }
+        return recursiveScanner;
+    }
+
+    /** Lazy initializer for scanSpec. */
+    private ScanSpec getScanSpec() {
+        if (scanSpec == null) {
+            scanSpec = new ScanSpec(scanSpecArgs);
+
+            // Read classfile headers for all filenames ending in ".class" on classpath
+            final ScanSpec scanSpecParsed = this.scanSpec;
+            this.matchFilenameExtension("class", new FileMatchProcessor() {
+                @Override
+                public void processMatch(final String relativePath, final InputStream inputStream, //
+                        final int lengthBytes) throws IOException {
+                    final boolean classScannedSuccessfully = ClassfileBinaryParser.readClassInfoFromClassfileHeader(
+                            relativePath, inputStream, classNameToStaticFinalFieldsToMatch, scanSpecParsed,
+                            classNameToClassInfo);
+                    if (classScannedSuccessfully) {
+                        numClassfilesParsed++;
+                    }
+                }
+            });
+        }
+        return scanSpec;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -173,7 +212,7 @@ public class FastClasspathScanner {
      * prevent significant overhead of tracking fields of common types like java.lang.String etc.)
      */
     private void checkClassNameIsNotBlacklisted(final String className) {
-        if (!scanSpec.classIsNotBlacklisted(className)) {
+        if (!getScanSpec().classIsNotBlacklisted(className)) {
             throw new IllegalArgumentException("Can't scan for " + className + ", it is in a blacklisted package. "
                     + "You can explicitly override this by naming the class in the scan spec when you call the "
                     + FastClasspathScanner.class.getSimpleName() + " constructor.");
@@ -1389,7 +1428,7 @@ public class FastClasspathScanner {
      * classloader resolution order. Classpath elements that do not exist are not included in the list.
      */
     public List<File> getUniqueClasspathElements() {
-        return classpathFinder.getUniqueClasspathElements();
+        return getClasspathFinder().getUniqueClasspathElements();
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -1433,40 +1472,13 @@ public class FastClasspathScanner {
      */
     public FastClasspathScanner scan() {
         final long scanStart = System.nanoTime();
-        if (scanSpec == null) {
-            // This is the first scan -- initialize FastClasspathScanner in scan() so that initialization
-            // can be logged after a call to .verbose()
-            scanSpec = new ScanSpec(scanSpecArgs);
-            classpathFinder = new ClasspathFinder();
-            recursiveScanner = new RecursiveScanner(classpathFinder, this.scanSpec);
-
-            // Read classfile headers for all filenames ending in ".class" on classpath
-            final ScanSpec scanSpecParsed = this.scanSpec;
-            this.matchFilenameExtension("class", new FileMatchProcessor() {
-                @Override
-                public void processMatch(final String relativePath, final InputStream inputStream, //
-                        final int lengthBytes) throws IOException {
-                    final boolean classScannedSuccessfully = ClassfileBinaryParser.readClassInfoFromClassfileHeader(
-                            relativePath, inputStream, classNameToStaticFinalFieldsToMatch, scanSpecParsed,
-                            classNameToClassInfo);
-                    if (classScannedSuccessfully) {
-                        numClassfilesParsed++;
-                    }
-                }
-            });
-        }
-
-        // Add FilePathMatchers to recursiveScanner (this is done at this point so that FilePathMatchers can
-        // be added before a call to .scan() without having to already have initialized recursiveScanner, which
-        // would cause the initialization of recursiveScanner, classpathFinder and scanSpec to all have to
-        // occur before a possible call to .verbose()).
         for (final FilePathMatcher filePathMatcher : filePathMatchersToAdd) {
-            recursiveScanner.addFilePathMatcher(filePathMatcher);
+            getRecursiveScanner().addFilePathMatcher(filePathMatcher);
         }
         filePathMatchersToAdd.clear();
 
         if (FastClasspathScanner.verbose) {
-            Log.log("Classpath elements: " + this.classpathFinder.getUniqueClasspathElements());
+            Log.log("Classpath elements: " + getClasspathFinder().getUniqueClasspathElements());
         }
 
         // Scan classpath, calling FilePathMatchers if any matching paths are found, including the matcher
@@ -1474,7 +1486,7 @@ public class FastClasspathScanner {
         // producing a ClassInfo object for each encountered class.
         numClassfilesParsed = 0;
         classNameToClassInfo.clear();
-        recursiveScanner.scan();
+        getRecursiveScanner().scan();
 
         // Build class, interface and annotation graph out of all the ClassInfo objects.
         classGraphBuilder = new ClassGraphTracer(classNameToClassInfo);
@@ -1529,7 +1541,7 @@ public class FastClasspathScanner {
             return true;
         }
 
-        final boolean modified = recursiveScanner.classpathContentsModifiedSinceScan();
+        final boolean modified = getRecursiveScanner().classpathContentsModifiedSinceScan();
 
         if (FastClasspathScanner.verbose) {
             Log.log("Finished .classpathContentsModifiedSinceScan()", System.nanoTime() - scanStart);
@@ -1548,10 +1560,13 @@ public class FastClasspathScanner {
     public long classpathContentsLastModifiedTime() {
         // Verify scan() has been run at least once, else throw an exception
         getScanResults();
-        return recursiveScanner.classpathContentsLastModifiedTime();
+        return getRecursiveScanner().classpathContentsLastModifiedTime();
     }
 
-    /** Switch on verbose mode (prints debug info to System.out). */
+    /**
+     * Switch on verbose mode (prints debug info to System.out). Call immediately after the constructor if you want
+     * full log output.
+     */
     public FastClasspathScanner verbose() {
         verbose = true;
         return this;
