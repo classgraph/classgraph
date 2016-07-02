@@ -138,7 +138,7 @@ public class FastClasspathScanner {
         // Read classfile headers for all filenames ending in ".class" on classpath
         this.matchFilenameExtension("class", new FileMatchProcessor() {
             @Override
-            public void processMatch(final String relativePath, final InputStream inputStream, //
+            public synchronized void processMatch(final String relativePath, final InputStream inputStream, //
                     final int lengthBytes) throws IOException {
                 if (ClassfileBinaryParser.readClassInfoFromClassfileHeader(relativePath, inputStream,
                         classNameToStaticFinalFieldsToMatch, getScanSpec(), classNameToClassInfo)) {
@@ -153,18 +153,18 @@ public class FastClasspathScanner {
      * ClassLoaderHandler for your specific ClassLoader, or if you want to manually register your own
      * ClassLoaderHandler rather than using the ServiceLoader framework.
      */
-    public void registerClassLoaderHandler(final ClassLoaderHandler extraClassLoaderHandler) {
+    public synchronized void registerClassLoaderHandler(final ClassLoaderHandler extraClassLoaderHandler) {
         getClasspathFinder().registerClassLoaderHandler(extraClassLoaderHandler);
     }
 
     /** Override the automatically-detected classpath with a custom search path. */
-    public FastClasspathScanner overrideClasspath(final String classpath) {
+    public synchronized FastClasspathScanner overrideClasspath(final String classpath) {
         getClasspathFinder().overrideClasspath(classpath);
         return this;
     }
 
     /** Lazy initializer for classpathFinder. */
-    private ClasspathFinder getClasspathFinder() {
+    private synchronized ClasspathFinder getClasspathFinder() {
         if (classpathFinder == null) {
             classpathFinder = new ClasspathFinder();
         }
@@ -172,7 +172,7 @@ public class FastClasspathScanner {
     }
 
     /** Lazy initializer for recursiveScanner. */
-    private RecursiveScanner getRecursiveScanner() {
+    private synchronized RecursiveScanner getRecursiveScanner() {
         if (recursiveScanner == null) {
             recursiveScanner = new RecursiveScanner(getClasspathFinder(), getScanSpec());
         }
@@ -180,7 +180,7 @@ public class FastClasspathScanner {
     }
 
     /** Lazy initializer for scanSpec. */
-    private ScanSpec getScanSpec() {
+    private synchronized ScanSpec getScanSpec() {
         if (scanSpec == null) {
             scanSpec = new ScanSpec(scanSpecArgs);
         }
@@ -192,7 +192,7 @@ public class FastClasspathScanner {
     /**
      * Call the classloader using Class.forName(className). Re-throws classloading exceptions as RuntimeException.
      */
-    private <T> Class<? extends T> loadClass(final String className) {
+    private synchronized <T> Class<? extends T> loadClass(final String className) {
         try {
             @SuppressWarnings("unchecked")
             final Class<? extends T> cls = (Class<? extends T>) Class.forName(className);
@@ -208,7 +208,7 @@ public class FastClasspathScanner {
      * Checks that the named class is not blacklisted. Throws IllegalArgumentException otherwise. (This is to
      * prevent significant overhead of tracking fields of common types like java.lang.String etc.)
      */
-    private void checkClassNameIsNotBlacklisted(final String className) {
+    private synchronized void checkClassNameIsNotBlacklisted(final String className) {
         if (!getScanSpec().classIsNotBlacklisted(className)) {
             throw new IllegalArgumentException("Can't scan for " + className + ", it is in a blacklisted package. "
                     + "You can explicitly override this by naming the class in the scan spec when you call the "
@@ -220,7 +220,7 @@ public class FastClasspathScanner {
      * Check a class is an annotation, and that it is in a whitelisted package. Throws IllegalArgumentException
      * otherwise. Returns the name of the annotation.
      */
-    private String annotationName(final Class<?> annotation) {
+    private synchronized String annotationName(final Class<?> annotation) {
         final String annotationName = annotation.getName();
         checkClassNameIsNotBlacklisted(annotationName);
         if (!annotation.isAnnotation()) {
@@ -233,7 +233,7 @@ public class FastClasspathScanner {
      * Check each element of an array of classes is an annotation, and that it is in a whitelisted package. Throws
      * IllegalArgumentException otherwise. Returns the names of the classes as an array of strings.
      */
-    private String[] annotationNames(final Class<?>[] annotations) {
+    private synchronized String[] annotationNames(final Class<?>[] annotations) {
         final String[] annotationNames = new String[annotations.length];
         for (int i = 0; i < annotations.length; i++) {
             annotationNames[i] = annotationName(annotations[i]);
@@ -245,7 +245,7 @@ public class FastClasspathScanner {
      * Check a class is an interface, and that it is in a whitelisted package. Throws IllegalArgumentException
      * otherwise. Returns the name of the interface.
      */
-    private String interfaceName(final Class<?> iface) {
+    private synchronized String interfaceName(final Class<?> iface) {
         final String ifaceName = iface.getName();
         checkClassNameIsNotBlacklisted(ifaceName);
         if (!iface.isInterface()) {
@@ -258,7 +258,7 @@ public class FastClasspathScanner {
      * Check each element of an array of classes is an interface, and that it is in a whitelisted package. Throws
      * IllegalArgumentException otherwise. Returns the names of the classes as an array of strings.
      */
-    private String[] interfaceNames(final Class<?>[] interfaces) {
+    private synchronized String[] interfaceNames(final Class<?>[] interfaces) {
         final String[] interfaceNames = new String[interfaces.length];
         for (int i = 0; i < interfaces.length; i++) {
             interfaceNames[i] = interfaceName(interfaces[i]);
@@ -270,7 +270,7 @@ public class FastClasspathScanner {
      * Check a class is a regular class or interface and not an annotation, and that it is in a whitelisted package.
      * Throws IllegalArgumentException otherwise. Returns the name of the class or interface.
      */
-    private String classOrInterfaceName(final Class<?> classOrInterface) {
+    private synchronized String classOrInterfaceName(final Class<?> classOrInterface) {
         final String classOrIfaceName = classOrInterface.getName();
         checkClassNameIsNotBlacklisted(classOrIfaceName);
         if (classOrInterface.isAnnotation()) {
@@ -285,7 +285,7 @@ public class FastClasspathScanner {
      * Returns the name of the class if it is a standard class and it is in a whitelisted package, otherwise throws
      * an IllegalArgumentException.
      */
-    private String standardClassName(final Class<?> cls) {
+    private synchronized String standardClassName(final Class<?> cls) {
         final String className = cls.getName();
         checkClassNameIsNotBlacklisted(className);
         if (cls.isAnnotation()) {
@@ -300,7 +300,7 @@ public class FastClasspathScanner {
      * Check a class is in a whitelisted package. Returns the name of the class if it is in a whitelisted package,
      * otherwise throws an IllegalArgumentException.
      */
-    private String className(final Class<?> cls) {
+    private synchronized String className(final Class<?> cls) {
         final String className = cls.getName();
         checkClassNameIsNotBlacklisted(className);
         return className;
@@ -312,7 +312,7 @@ public class FastClasspathScanner {
      * Returns the sorted names of all standard classes, interface classes and annotation classes found in a
      * whitelisted (and non-blacklisted) package during the scan.
      */
-    public List<String> getNamesOfAllClasses() {
+    public synchronized List<String> getNamesOfAllClasses() {
         return getScanResults().getNamesOfAllClasses();
     }
 
@@ -320,7 +320,7 @@ public class FastClasspathScanner {
      * Returns the sorted names of all standard classes found in a whitelisted (and non-blacklisted) package during
      * the scan.
      */
-    public List<String> getNamesOfAllStandardClasses() {
+    public synchronized List<String> getNamesOfAllStandardClasses() {
         return getScanResults().getNamesOfAllStandardClasses();
     }
 
@@ -328,7 +328,7 @@ public class FastClasspathScanner {
      * Returns the sorted names of all interface classes (interfaces) found in a whitelisted (and non-blacklisted)
      * package during the scan.
      */
-    public List<String> getNamesOfAllInterfaceClasses() {
+    public synchronized List<String> getNamesOfAllInterfaceClasses() {
         return getScanResults().getNamesOfAllInterfaceClasses();
     }
 
@@ -336,7 +336,7 @@ public class FastClasspathScanner {
      * Returns the sorted names of all annotation classes found in a whitelisted (and non-blacklisted) package
      * during the scan.
      */
-    public List<String> getNamesOfAllAnnotationClasses() {
+    public synchronized List<String> getNamesOfAllAnnotationClasses() {
         return getScanResults().getNamesOfAllAnnotationClasses();
     }
 
@@ -348,10 +348,10 @@ public class FastClasspathScanner {
      * @param classMatchProcessor
      *            the ClassMatchProcessor to call when a match is found.
      */
-    public FastClasspathScanner matchAllClasses(final ClassMatchProcessor classMatchProcessor) {
+    public synchronized FastClasspathScanner matchAllClasses(final ClassMatchProcessor classMatchProcessor) {
         classMatchers.add(new ClassMatcher() {
             @Override
-            public void lookForMatches() {
+            public synchronized void lookForMatches() {
                 for (final String className : getNamesOfAllClasses()) {
                     if (verbose) {
                         Log.log(3, "Matched class: " + className);
@@ -374,10 +374,11 @@ public class FastClasspathScanner {
      * @param classMatchProcessor
      *            the ClassMatchProcessor to call when a match is found.
      */
-    public FastClasspathScanner matchAllStandardClasses(final ClassMatchProcessor classMatchProcessor) {
+    public synchronized FastClasspathScanner matchAllStandardClasses(
+            final ClassMatchProcessor classMatchProcessor) {
         classMatchers.add(new ClassMatcher() {
             @Override
-            public void lookForMatches() {
+            public synchronized void lookForMatches() {
                 for (final String className : getNamesOfAllStandardClasses()) {
                     if (verbose) {
                         Log.log(3, "Matched standard class: " + className);
@@ -400,10 +401,11 @@ public class FastClasspathScanner {
      * @param ClassMatchProcessor
      *            the ClassMatchProcessor to call when a match is found.
      */
-    public FastClasspathScanner matchAllInterfaceClasses(final ClassMatchProcessor ClassMatchProcessor) {
+    public synchronized FastClasspathScanner matchAllInterfaceClasses(
+            final ClassMatchProcessor ClassMatchProcessor) {
         classMatchers.add(new ClassMatcher() {
             @Override
-            public void lookForMatches() {
+            public synchronized void lookForMatches() {
                 for (final String className : getNamesOfAllInterfaceClasses()) {
                     if (verbose) {
                         Log.log(3, "Matched interface class: " + className);
@@ -426,10 +428,11 @@ public class FastClasspathScanner {
      * @param ClassMatchProcessor
      *            the ClassMatchProcessor to call when a match is found.
      */
-    public FastClasspathScanner matchAllAnnotationClasses(final ClassMatchProcessor ClassMatchProcessor) {
+    public synchronized FastClasspathScanner matchAllAnnotationClasses(
+            final ClassMatchProcessor ClassMatchProcessor) {
         classMatchers.add(new ClassMatcher() {
             @Override
-            public void lookForMatches() {
+            public synchronized void lookForMatches() {
                 for (final String className : getNamesOfAllAnnotationClasses()) {
                     if (verbose) {
                         Log.log(3, "Matched annotation class: " + className);
@@ -456,11 +459,11 @@ public class FastClasspathScanner {
      * @param subclassMatchProcessor
      *            the SubclassMatchProcessor to call when a match is found.
      */
-    public <T> FastClasspathScanner matchSubclassesOf(final Class<T> superclass,
+    public synchronized <T> FastClasspathScanner matchSubclassesOf(final Class<T> superclass,
             final SubclassMatchProcessor<T> subclassMatchProcessor) {
         classMatchers.add(new ClassMatcher() {
             @Override
-            public void lookForMatches() {
+            public synchronized void lookForMatches() {
                 final String superclassName = standardClassName(superclass);
                 for (final String subclassName : getNamesOfSubclassesOf(superclassName)) {
                     if (verbose) {
@@ -485,7 +488,7 @@ public class FastClasspathScanner {
      *            The superclass to match (i.e. the class that subclasses need to extend to match).
      * @return A list of the names of matching classes, or the empty list if none.
      */
-    public List<String> getNamesOfSubclassesOf(final Class<?> superclass) {
+    public synchronized List<String> getNamesOfSubclassesOf(final Class<?> superclass) {
         return getNamesOfSubclassesOf(standardClassName(superclass));
     }
 
@@ -498,7 +501,7 @@ public class FastClasspathScanner {
      *            The name of the superclass to match (i.e. the name of the class that subclasses need to extend).
      * @return A list of the names of matching classes, or the empty list if none.
      */
-    public List<String> getNamesOfSubclassesOf(final String superclassName) {
+    public synchronized List<String> getNamesOfSubclassesOf(final String superclassName) {
         return getScanResults().getNamesOfSubclassesOf(superclassName);
     }
 
@@ -513,7 +516,7 @@ public class FastClasspathScanner {
      *            match).
      * @return A list of the names of matching classes, or the empty list if none.
      */
-    public List<String> getNamesOfSuperclassesOf(final Class<?> subclass) {
+    public synchronized List<String> getNamesOfSuperclassesOf(final Class<?> subclass) {
         return getNamesOfSuperclassesOf(standardClassName(subclass));
     }
 
@@ -528,7 +531,7 @@ public class FastClasspathScanner {
      *            match).
      * @return A list of the names of matching classes, or the empty list if none.
      */
-    public List<String> getNamesOfSuperclassesOf(final String subclassName) {
+    public synchronized List<String> getNamesOfSuperclassesOf(final String subclassName) {
         return getScanResults().getNamesOfSuperclassesOf(subclassName);
     }
 
@@ -544,11 +547,11 @@ public class FastClasspathScanner {
      * @param subinterfaceMatchProcessor
      *            the SubinterfaceMatchProcessor to call when a match is found.
      */
-    public <T> FastClasspathScanner matchSubinterfacesOf(final Class<T> superinterface,
+    public synchronized <T> FastClasspathScanner matchSubinterfacesOf(final Class<T> superinterface,
             final SubinterfaceMatchProcessor<T> subinterfaceMatchProcessor) {
         classMatchers.add(new ClassMatcher() {
             @Override
-            public void lookForMatches() {
+            public synchronized void lookForMatches() {
                 final String superinterfaceName = interfaceName(superinterface);
                 for (final String subinterfaceName : getNamesOfSubinterfacesOf(superinterfaceName)) {
                     if (verbose) {
@@ -574,7 +577,7 @@ public class FastClasspathScanner {
      *            The superinterface to match (i.e. the interface that subinterfaces need to extend to match).
      * @return A list of the names of matching interfaces, or the empty list if none.
      */
-    public List<String> getNamesOfSubinterfacesOf(final Class<?> superInterface) {
+    public synchronized List<String> getNamesOfSubinterfacesOf(final Class<?> superInterface) {
         return getNamesOfSubinterfacesOf(interfaceName(superInterface));
     }
 
@@ -589,7 +592,7 @@ public class FastClasspathScanner {
      *            extend).
      * @return A list of the names of matching interfaces, or the empty list if none.
      */
-    public List<String> getNamesOfSubinterfacesOf(final String superInterfaceName) {
+    public synchronized List<String> getNamesOfSubinterfacesOf(final String superInterfaceName) {
         return getScanResults().getNamesOfSubinterfacesOf(superInterfaceName);
     }
 
@@ -603,7 +606,7 @@ public class FastClasspathScanner {
      *            The superinterface to match (i.e. the interface that subinterfaces need to extend to match).
      * @return A list of the names of matching interfaces, or the empty list if none.
      */
-    public List<String> getNamesOfSuperinterfacesOf(final Class<?> subInterface) {
+    public synchronized List<String> getNamesOfSuperinterfacesOf(final Class<?> subInterface) {
         return getNamesOfSuperinterfacesOf(interfaceName(subInterface));
     }
 
@@ -618,7 +621,7 @@ public class FastClasspathScanner {
      *            extend).
      * @return A list of the names of matching interfaces, or the empty list if none.
      */
-    public List<String> getNamesOfSuperinterfacesOf(final String subinterfaceName) {
+    public synchronized List<String> getNamesOfSuperinterfacesOf(final String subinterfaceName) {
         return getScanResults().getNamesOfSuperinterfacesOf(subinterfaceName);
     }
 
@@ -635,11 +638,11 @@ public class FastClasspathScanner {
      * @param interfaceMatchProcessor
      *            the ClassMatchProcessor to call when a match is found.
      */
-    public <T> FastClasspathScanner matchClassesImplementing(final Class<T> implementedInterface,
+    public synchronized <T> FastClasspathScanner matchClassesImplementing(final Class<T> implementedInterface,
             final InterfaceMatchProcessor<T> interfaceMatchProcessor) {
         classMatchers.add(new ClassMatcher() {
             @Override
-            public void lookForMatches() {
+            public synchronized void lookForMatches() {
                 final String implementedInterfaceName = interfaceName(implementedInterface);
                 for (final String implClass : getNamesOfClassesImplementing(implementedInterfaceName)) {
                     if (verbose) {
@@ -666,7 +669,7 @@ public class FastClasspathScanner {
      *            The interface that classes need to implement to match.
      * @return A list of the names of matching classes, or the empty list if none.
      */
-    public List<String> getNamesOfClassesImplementing(final Class<?> implementedInterface) {
+    public synchronized List<String> getNamesOfClassesImplementing(final Class<?> implementedInterface) {
         return getNamesOfClassesImplementing(interfaceName(implementedInterface));
     }
 
@@ -680,7 +683,7 @@ public class FastClasspathScanner {
      *            The name of the interface that classes need to implement.
      * @return A list of the names of matching classes, or the empty list if none.
      */
-    public List<String> getNamesOfClassesImplementing(final String implementedInterfaceName) {
+    public synchronized List<String> getNamesOfClassesImplementing(final String implementedInterfaceName) {
         return getScanResults().getNamesOfClassesImplementing(implementedInterfaceName);
     }
 
@@ -694,7 +697,7 @@ public class FastClasspathScanner {
      *            The name of the interfaces that classes need to implement.
      * @return A list of the names of matching classes, or the empty list if none.
      */
-    public List<String> getNamesOfClassesImplementingAllOf(final Class<?>... implementedInterfaces) {
+    public synchronized List<String> getNamesOfClassesImplementingAllOf(final Class<?>... implementedInterfaces) {
         return getNamesOfClassesImplementingAllOf(interfaceNames(implementedInterfaces));
     }
 
@@ -708,7 +711,7 @@ public class FastClasspathScanner {
      *            The name of the interfaces that classes need to implement.
      * @return A list of the names of matching classes, or the empty list if none.
      */
-    public List<String> getNamesOfClassesImplementingAllOf(final String... implementedInterfaceNames) {
+    public synchronized List<String> getNamesOfClassesImplementingAllOf(final String... implementedInterfaceNames) {
         final HashSet<String> classNames = new HashSet<>();
         for (int i = 0; i < implementedInterfaceNames.length; i++) {
             final String implementedInterfaceName = implementedInterfaceNames[i];
@@ -736,11 +739,11 @@ public class FastClasspathScanner {
      * @param classMatchProcessor
      *            the ClassMatchProcessor to call when a match is found.
      */
-    public <T> FastClasspathScanner matchClassesWithFieldOfType(final Class<T> fieldType,
+    public synchronized <T> FastClasspathScanner matchClassesWithFieldOfType(final Class<T> fieldType,
             final ClassMatchProcessor classMatchProcessor) {
         classMatchers.add(new ClassMatcher() {
             @Override
-            public void lookForMatches() {
+            public synchronized void lookForMatches() {
                 final String fieldTypeName = className(fieldType);
                 for (final String klass : getNamesOfClassesWithFieldOfType(fieldTypeName)) {
                     if (verbose) {
@@ -762,7 +765,7 @@ public class FastClasspathScanner {
      * type that have a type parameter of the named type. The field type must be declared in a package that is
      * whitelisted (and not blacklisted).
      */
-    public List<String> getNamesOfClassesWithFieldOfType(final String fieldTypeName) {
+    public synchronized List<String> getNamesOfClassesWithFieldOfType(final String fieldTypeName) {
         return getScanResults().getNamesOfClassesWithFieldOfType(fieldTypeName);
     }
 
@@ -772,7 +775,7 @@ public class FastClasspathScanner {
      * fields of parameterized type that have a type parameter of the requested type. The field type must be
      * declared in a package that is whitelisted (and not blacklisted).
      */
-    public List<String> getNamesOfClassesWithFieldOfType(final Class<?> fieldType) {
+    public synchronized List<String> getNamesOfClassesWithFieldOfType(final Class<?> fieldType) {
         final String fieldTypeName = fieldType.getName();
         checkClassNameIsNotBlacklisted(fieldTypeName);
         return getScanResults().getNamesOfClassesWithFieldOfType(fieldTypeName);
@@ -789,11 +792,11 @@ public class FastClasspathScanner {
      * @param classAnnotationMatchProcessor
      *            the ClassAnnotationMatchProcessor to call when a match is found.
      */
-    public FastClasspathScanner matchClassesWithAnnotation(final Class<?> annotation,
+    public synchronized FastClasspathScanner matchClassesWithAnnotation(final Class<?> annotation,
             final ClassAnnotationMatchProcessor classAnnotationMatchProcessor) {
         classMatchers.add(new ClassMatcher() {
             @Override
-            public void lookForMatches() {
+            public synchronized void lookForMatches() {
                 final String annotationName = annotationName(annotation);
                 for (final String classWithAnnotation : getNamesOfClassesWithAnnotation(annotationName)) {
                     if (verbose) {
@@ -818,7 +821,7 @@ public class FastClasspathScanner {
      *            The class annotation.
      * @return A list of the names of classes with the class annotation, or the empty list if none.
      */
-    public List<String> getNamesOfClassesWithAnnotation(final Class<?> annotation) {
+    public synchronized List<String> getNamesOfClassesWithAnnotation(final Class<?> annotation) {
         return getNamesOfClassesWithAnnotation(annotationName(annotation));
     }
 
@@ -831,7 +834,7 @@ public class FastClasspathScanner {
      *            The name of the class annotation.
      * @return A list of the names of classes that have the named annotation, or the empty list if none.
      */
-    public List<String> getNamesOfClassesWithAnnotation(final String annotationName) {
+    public synchronized List<String> getNamesOfClassesWithAnnotation(final String annotationName) {
         return getScanResults().getNamesOfClassesWithAnnotation(annotationName);
     }
 
@@ -845,7 +848,7 @@ public class FastClasspathScanner {
      *            The annotations.
      * @return A list of the names of classes that have all of the annotations, or the empty list if none.
      */
-    public List<String> getNamesOfClassesWithAnnotationsAllOf(final Class<?>... annotations) {
+    public synchronized List<String> getNamesOfClassesWithAnnotationsAllOf(final Class<?>... annotations) {
         return getNamesOfClassesWithAnnotationsAllOf(annotationNames(annotations));
     }
 
@@ -859,7 +862,7 @@ public class FastClasspathScanner {
      *            The annotation names.
      * @return A list of the names of classes that have all of the annotations, or the empty list if none.
      */
-    public List<String> getNamesOfClassesWithAnnotationsAllOf(final String... annotationNames) {
+    public synchronized List<String> getNamesOfClassesWithAnnotationsAllOf(final String... annotationNames) {
         final HashSet<String> classNames = new HashSet<>();
         for (int i = 0; i < annotationNames.length; i++) {
             final String annotationName = annotationNames[i];
@@ -883,7 +886,7 @@ public class FastClasspathScanner {
      *            The annotations.
      * @return A list of the names of classes that have one or more of the annotations, or the empty list if none.
      */
-    public List<String> getNamesOfClassesWithAnnotationsAnyOf(final Class<?>... annotations) {
+    public synchronized List<String> getNamesOfClassesWithAnnotationsAnyOf(final Class<?>... annotations) {
         return getNamesOfClassesWithAnnotationsAnyOf(annotationNames(annotations));
     }
 
@@ -897,7 +900,7 @@ public class FastClasspathScanner {
      *            The annotation names.
      * @return A list of the names of classes that have one or more of the annotations, or the empty list if none.
      */
-    public List<String> getNamesOfClassesWithAnnotationsAnyOf(final String... annotationNames) {
+    public synchronized List<String> getNamesOfClassesWithAnnotationsAnyOf(final String... annotationNames) {
         final HashSet<String> classNames = new HashSet<>();
         for (final String annotationName : annotationNames) {
             classNames.addAll(getNamesOfClassesWithAnnotation(annotationName));
@@ -913,7 +916,7 @@ public class FastClasspathScanner {
      * @return A list of the names of annotations that are annotated with the specified meta annotation, or the
      *         empty list if none.
      */
-    public List<String> getNamesOfAnnotationsWithMetaAnnotation(final Class<?> metaAnnotation) {
+    public synchronized List<String> getNamesOfAnnotationsWithMetaAnnotation(final Class<?> metaAnnotation) {
         return getNamesOfAnnotationsWithMetaAnnotation(annotationName(metaAnnotation));
     }
 
@@ -925,7 +928,7 @@ public class FastClasspathScanner {
      * @return A list of the names of annotations that are annotated with the specified meta annotation, or the
      *         empty list if none.
      */
-    public List<String> getNamesOfAnnotationsWithMetaAnnotation(final String metaAnnotationName) {
+    public synchronized List<String> getNamesOfAnnotationsWithMetaAnnotation(final String metaAnnotationName) {
         return getScanResults().getNamesOfAnnotationsWithMetaAnnotation(metaAnnotationName);
     }
 
@@ -936,7 +939,7 @@ public class FastClasspathScanner {
      *            The class or interface.
      * @return A list of the names of annotations and meta-annotations on the class, or the empty list if none.
      */
-    public List<String> getNamesOfAnnotationsOnClass(final Class<?> classOrInterface) {
+    public synchronized List<String> getNamesOfAnnotationsOnClass(final Class<?> classOrInterface) {
         return getNamesOfAnnotationsOnClass(classOrInterfaceName(classOrInterface));
     }
 
@@ -947,7 +950,7 @@ public class FastClasspathScanner {
      *            The name of the class or interface.
      * @return A list of the names of annotations and meta-annotations on the class, or the empty list if none.
      */
-    public List<String> getNamesOfAnnotationsOnClass(final String classOrInterfaceName) {
+    public synchronized List<String> getNamesOfAnnotationsOnClass(final String classOrInterfaceName) {
         return getScanResults().getNamesOfAnnotationsOnClass(classOrInterfaceName);
     }
 
@@ -958,7 +961,7 @@ public class FastClasspathScanner {
      *            The specified annotation.
      * @return A list of the names of meta-annotations on the specified annotation, or the empty list if none.
      */
-    public List<String> getNamesOfMetaAnnotationsOnAnnotation(final Class<?> annotation) {
+    public synchronized List<String> getNamesOfMetaAnnotationsOnAnnotation(final Class<?> annotation) {
         return getNamesOfMetaAnnotationsOnAnnotation(annotationName(annotation));
     }
 
@@ -969,7 +972,7 @@ public class FastClasspathScanner {
      *            The name of the specified annotation.
      * @return A list of the names of meta-annotations on the specified annotation, or the empty list if none.
      */
-    public List<String> getNamesOfMetaAnnotationsOnAnnotation(final String annotationName) {
+    public synchronized List<String> getNamesOfMetaAnnotationsOnAnnotation(final String annotationName) {
         return getScanResults().getNamesOfMetaAnnotationsOnAnnotation(annotationName);
     }
 
@@ -979,7 +982,7 @@ public class FastClasspathScanner {
      * Add a StaticFinalFieldMatchProcessor that should be called if a static final field with the given name is
      * encountered with a constant initializer value while reading a classfile header.
      */
-    private void addStaticFinalFieldProcessor(final String className, final String fieldName,
+    private synchronized void addStaticFinalFieldProcessor(final String className, final String fieldName,
             final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor) {
         final String fullyQualifiedFieldName = className + "." + fieldName;
         ArrayList<StaticFinalFieldMatchProcessor> matchProcessorList = //
@@ -1018,7 +1021,8 @@ public class FastClasspathScanner {
      * @param staticFinalFieldMatchProcessor
      *            the StaticFinalFieldMatchProcessor to call when a match is found.
      */
-    public FastClasspathScanner matchStaticFinalFieldNames(final Set<String> fullyQualifiedStaticFinalFieldNames,
+    public synchronized FastClasspathScanner matchStaticFinalFieldNames(
+            final Set<String> fullyQualifiedStaticFinalFieldNames,
             final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor) {
         for (final String fullyQualifiedFieldName : fullyQualifiedStaticFinalFieldNames) {
             final int lastDotIdx = fullyQualifiedFieldName.lastIndexOf('.');
@@ -1052,7 +1056,8 @@ public class FastClasspathScanner {
      * @param staticFinalFieldMatchProcessor
      *            the StaticFinalFieldMatchProcessor to call when a match is found.
      */
-    public FastClasspathScanner matchStaticFinalFieldNames(final String fullyQualifiedStaticFinalFieldName,
+    public synchronized FastClasspathScanner matchStaticFinalFieldNames(
+            final String fullyQualifiedStaticFinalFieldName,
             final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor) {
         final HashSet<String> fullyQualifiedStaticFinalFieldNamesSet = new HashSet<>();
         fullyQualifiedStaticFinalFieldNamesSet.add(fullyQualifiedStaticFinalFieldName);
@@ -1081,7 +1086,8 @@ public class FastClasspathScanner {
      * @param staticFinalFieldMatchProcessor
      *            the StaticFinalFieldMatchProcessor to call when a match is found.
      */
-    public FastClasspathScanner matchStaticFinalFieldNames(final String[] fullyQualifiedStaticFinalFieldNames,
+    public synchronized FastClasspathScanner matchStaticFinalFieldNames(
+            final String[] fullyQualifiedStaticFinalFieldNames,
             final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor) {
         final HashSet<String> fullyQualifiedStaticFinalFieldNamesSet = new HashSet<>();
         for (final String fullyQualifiedFieldName : fullyQualifiedStaticFinalFieldNames) {
@@ -1096,11 +1102,11 @@ public class FastClasspathScanner {
      * Wrap a FileMatchContentsProcessorWithContext in a FileMatchProcessorWithContext that reads the entire stream
      * content and passes it to the wrapped class as a byte array.
      */
-    private static FileMatchProcessorWithContext fetchStreamContentsAndSendTo(
+    private synchronized static FileMatchProcessorWithContext fetchStreamContentsAndSendTo(
             final FileMatchContentsProcessorWithContext fileMatchContentsProcessorWithContext) {
         return new FileMatchProcessorWithContext() {
             @Override
-            public void processMatch(final File classpathElt, final String relativePath,
+            public synchronized void processMatch(final File classpathElt, final String relativePath,
                     final InputStream inputStream, final int lengthBytes) throws IOException {
                 // Read the file contents into a byte[] array
                 final byte[] contents = new byte[lengthBytes];
@@ -1115,11 +1121,11 @@ public class FastClasspathScanner {
     }
 
     /** Wrap a FileMatchProcessor in a FileMatchProcessorWithContext, and ignore the classpath context. */
-    private static FileMatchProcessorWithContext ignoreClasspathContext( //
+    private synchronized static FileMatchProcessorWithContext ignoreClasspathContext( //
             final FileMatchProcessor fileMatchProcessor) {
         return new FileMatchProcessorWithContext() {
             @Override
-            public void processMatch(final File classpathElement, final String relativePath,
+            public synchronized void processMatch(final File classpathElement, final String relativePath,
                     final InputStream inputStream, final int lengthBytes) throws IOException {
                 fileMatchProcessor.processMatch(relativePath, inputStream, lengthBytes);
             }
@@ -1130,11 +1136,11 @@ public class FastClasspathScanner {
      * Wrap a FileMatchContentsProcessor in a FileMatchContentsProcessorWithContext, and ignore the classpath
      * context.
      */
-    private static FileMatchContentsProcessorWithContext ignoreClasspathContext( //
+    private synchronized static FileMatchContentsProcessorWithContext ignoreClasspathContext( //
             final FileMatchContentsProcessor fileMatchContentsProcessor) {
         return new FileMatchContentsProcessorWithContext() {
             @Override
-            public void processMatch(final File classpathElement, final String relativePath,
+            public synchronized void processMatch(final File classpathElement, final String relativePath,
                     final byte[] fileContents) throws IOException {
                 fileMatchContentsProcessor.processMatch(relativePath, fileContents);
             }
@@ -1150,13 +1156,13 @@ public class FastClasspathScanner {
      * @param fileMatchProcessorWithContext
      *            The FileMatchProcessorWithContext to call when each match is found.
      */
-    public FastClasspathScanner matchFilenamePattern(final String pathRegexp,
+    public synchronized FastClasspathScanner matchFilenamePattern(final String pathRegexp,
             final FileMatchProcessorWithContext fileMatchProcessorWithContext) {
         filePathMatchersToAdd.add(new FilePathMatcher(new FilePathTester() {
             private final Pattern pattern = Pattern.compile(pathRegexp);
 
             @Override
-            public boolean filePathMatches(final File classpathElt, final String relativePath) {
+            public synchronized boolean filePathMatches(final File classpathElt, final String relativePath) {
                 final boolean matched = pattern.matcher(relativePath).matches();
                 if (matched && verbose) {
                     Log.log(3, "File " + relativePath + " matched filename pattern " + pathRegexp);
@@ -1176,7 +1182,7 @@ public class FastClasspathScanner {
      * @param fileMatchProcessor
      *            The FileMatchProcessor to call when each match is found.
      */
-    public FastClasspathScanner matchFilenamePattern(final String pathRegexp,
+    public synchronized FastClasspathScanner matchFilenamePattern(final String pathRegexp,
             final FileMatchProcessor fileMatchProcessor) {
         return matchFilenamePattern(pathRegexp, ignoreClasspathContext(fileMatchProcessor));
     }
@@ -1190,7 +1196,7 @@ public class FastClasspathScanner {
      * @param fileMatchContentsProcessorWithContext
      *            The FileMatchContentsProcessorWithContext to call when each match is found.
      */
-    public FastClasspathScanner matchFilenamePattern(final String pathRegexp,
+    public synchronized FastClasspathScanner matchFilenamePattern(final String pathRegexp,
             final FileMatchContentsProcessorWithContext fileMatchContentsProcessorWithContext) {
         return matchFilenamePattern(pathRegexp, fetchStreamContentsAndSendTo( //
                 fileMatchContentsProcessorWithContext));
@@ -1205,7 +1211,7 @@ public class FastClasspathScanner {
      * @param fileMatchContentsProcessor
      *            The FileMatchContentsProcessor to call when each match is found.
      */
-    public FastClasspathScanner matchFilenamePattern(final String pathRegexp,
+    public synchronized FastClasspathScanner matchFilenamePattern(final String pathRegexp,
             final FileMatchContentsProcessor fileMatchContentsProcessor) {
         return matchFilenamePattern(pathRegexp, ignoreClasspathContext(fileMatchContentsProcessor));
     }
@@ -1220,11 +1226,11 @@ public class FastClasspathScanner {
      * @param fileMatchProcessorWithContext
      *            The FileMatchProcessorWithContext to call when each match is found.
      */
-    public FastClasspathScanner matchFilenamePath(final String relativePathToMatch,
+    public synchronized FastClasspathScanner matchFilenamePath(final String relativePathToMatch,
             final FileMatchProcessorWithContext fileMatchProcessorWithContext) {
         filePathMatchersToAdd.add(new FilePathMatcher(new FilePathTester() {
             @Override
-            public boolean filePathMatches(final File classpathElt, final String relativePath) {
+            public synchronized boolean filePathMatches(final File classpathElt, final String relativePath) {
                 final boolean matched = relativePath.equals(relativePathToMatch);
                 if (matched && verbose) {
                     Log.log(3, "Matched filename path " + relativePathToMatch);
@@ -1245,7 +1251,7 @@ public class FastClasspathScanner {
      * @param fileMatchProcessor
      *            The FileMatchProcessor to call when each match is found.
      */
-    public FastClasspathScanner matchFilenamePath(final String relativePathToMatch,
+    public synchronized FastClasspathScanner matchFilenamePath(final String relativePathToMatch,
             final FileMatchProcessor fileMatchProcessor) {
         return matchFilenamePath(relativePathToMatch, ignoreClasspathContext(fileMatchProcessor));
     }
@@ -1260,7 +1266,7 @@ public class FastClasspathScanner {
      * @param fileMatchContentsProcessorWithContext
      *            The FileMatchContentsProcessorWithContext to call when each match is found.
      */
-    public FastClasspathScanner matchFilenamePath(final String relativePathToMatch,
+    public synchronized FastClasspathScanner matchFilenamePath(final String relativePathToMatch,
             final FileMatchContentsProcessorWithContext fileMatchContentsProcessorWithContext) {
         return matchFilenamePath(relativePathToMatch,
                 fetchStreamContentsAndSendTo(fileMatchContentsProcessorWithContext));
@@ -1276,7 +1282,7 @@ public class FastClasspathScanner {
      * @param fileMatchContentsProcessor
      *            The FileMatchContentsProcessor to call when each match is found.
      */
-    public FastClasspathScanner matchFilenamePath(final String relativePathToMatch,
+    public synchronized FastClasspathScanner matchFilenamePath(final String relativePathToMatch,
             final FileMatchContentsProcessor fileMatchContentsProcessor) {
         return matchFilenamePath(relativePathToMatch, ignoreClasspathContext(fileMatchContentsProcessor));
     }
@@ -1290,13 +1296,13 @@ public class FastClasspathScanner {
      * @param fileMatchProcessorWithContext
      *            The FileMatchProcessorWithContext to call when each match is found.
      */
-    public FastClasspathScanner matchFilenamePathLeaf(final String pathLeafToMatch,
+    public synchronized FastClasspathScanner matchFilenamePathLeaf(final String pathLeafToMatch,
             final FileMatchProcessorWithContext fileMatchProcessorWithContext) {
         filePathMatchersToAdd.add(new FilePathMatcher(new FilePathTester() {
             private final String leafToMatch = pathLeafToMatch.substring(pathLeafToMatch.lastIndexOf('/') + 1);
 
             @Override
-            public boolean filePathMatches(final File classpathElt, final String relativePath) {
+            public synchronized boolean filePathMatches(final File classpathElt, final String relativePath) {
                 final String relativePathLeaf = relativePath.substring(relativePath.lastIndexOf('/') + 1);
                 final boolean matched = relativePathLeaf.equals(leafToMatch);
                 if (matched && verbose) {
@@ -1317,7 +1323,7 @@ public class FastClasspathScanner {
      * @param fileMatchProcessor
      *            The FileMatchProcessor to call when each match is found.
      */
-    public FastClasspathScanner matchFilenamePathLeaf(final String pathLeafToMatch,
+    public synchronized FastClasspathScanner matchFilenamePathLeaf(final String pathLeafToMatch,
             final FileMatchProcessor fileMatchProcessor) {
         return matchFilenamePathLeaf(pathLeafToMatch, ignoreClasspathContext(fileMatchProcessor));
     }
@@ -1331,7 +1337,7 @@ public class FastClasspathScanner {
      * @param fileMatchContentsProcessorWithContext
      *            The FileMatchContentsProcessorWithContext to call when each match is found.
      */
-    public FastClasspathScanner matchFilenamePathLeaf(final String pathLeafToMatch,
+    public synchronized FastClasspathScanner matchFilenamePathLeaf(final String pathLeafToMatch,
             final FileMatchContentsProcessorWithContext fileMatchContentsProcessorWithContext) {
         return matchFilenamePathLeaf(pathLeafToMatch,
                 fetchStreamContentsAndSendTo(fileMatchContentsProcessorWithContext));
@@ -1346,7 +1352,7 @@ public class FastClasspathScanner {
      * @param fileMatchContentsProcessor
      *            The FileMatchContentsProcessor to call when each match is found.
      */
-    public FastClasspathScanner matchFilenamePathLeaf(final String pathLeafToMatch,
+    public synchronized FastClasspathScanner matchFilenamePathLeaf(final String pathLeafToMatch,
             final FileMatchContentsProcessor fileMatchContentsProcessor) {
         return matchFilenamePathLeaf(pathLeafToMatch, ignoreClasspathContext(fileMatchContentsProcessor));
     }
@@ -1360,13 +1366,13 @@ public class FastClasspathScanner {
      * @param fileMatchProcessorWithContext
      *            The FileMatchProcessorWithContext to call when each match is found.
      */
-    public FastClasspathScanner matchFilenameExtension(final String extensionToMatch,
+    public synchronized FastClasspathScanner matchFilenameExtension(final String extensionToMatch,
             final FileMatchProcessorWithContext fileMatchProcessorWithContext) {
         filePathMatchersToAdd.add(new FilePathMatcher(new FilePathTester() {
             private final String suffixToMatch = "." + extensionToMatch.toLowerCase();
 
             @Override
-            public boolean filePathMatches(final File classpathElt, final String relativePath) {
+            public synchronized boolean filePathMatches(final File classpathElt, final String relativePath) {
                 final boolean matched = relativePath.toLowerCase().endsWith(suffixToMatch);
                 if (matched && verbose) {
                     Log.log(3, "File " + relativePath + " matched extension ." + extensionToMatch);
@@ -1385,7 +1391,7 @@ public class FastClasspathScanner {
      * @param fileMatchProcessor
      *            The FileMatchProcessor to call when each match is found.
      */
-    public FastClasspathScanner matchFilenameExtension(final String extensionToMatch,
+    public synchronized FastClasspathScanner matchFilenameExtension(final String extensionToMatch,
             final FileMatchProcessor fileMatchProcessor) {
         return matchFilenameExtension(extensionToMatch, ignoreClasspathContext(fileMatchProcessor));
     }
@@ -1399,7 +1405,7 @@ public class FastClasspathScanner {
      * @param fileMatchContentsProcessorWithContext
      *            The FileMatchContentsProcessorWithContext to call when each match is found.
      */
-    public FastClasspathScanner matchFilenameExtension(final String extensionToMatch,
+    public synchronized FastClasspathScanner matchFilenameExtension(final String extensionToMatch,
             final FileMatchContentsProcessorWithContext fileMatchContentsProcessorWithContext) {
         return matchFilenameExtension(extensionToMatch,
                 fetchStreamContentsAndSendTo(fileMatchContentsProcessorWithContext));
@@ -1413,7 +1419,7 @@ public class FastClasspathScanner {
      * @param fileMatchContentsProcessor
      *            The FileMatchContentsProcessor to call when each match is found.
      */
-    public FastClasspathScanner matchFilenameExtension(final String extensionToMatch,
+    public synchronized FastClasspathScanner matchFilenameExtension(final String extensionToMatch,
             final FileMatchContentsProcessor fileMatchContentsProcessor) {
         return matchFilenameExtension(extensionToMatch, ignoreClasspathContext(fileMatchContentsProcessor));
     }
@@ -1424,7 +1430,7 @@ public class FastClasspathScanner {
      * Returns the list of all unique File objects representing directories or zip/jarfiles on the classpath, in
      * classloader resolution order. Classpath elements that do not exist are not included in the list.
      */
-    public List<File> getUniqueClasspathElements() {
+    public synchronized List<File> getUniqueClasspathElements() {
         return getClasspathFinder().getUniqueClasspathElements();
     }
 
@@ -1435,7 +1441,7 @@ public class FastClasspathScanner {
      * sizeX and sizeY parameters are the image output size to use (in inches) when GraphViz is asked to render the
      * .dot file.
      */
-    public String generateClassGraphDotFile(final float sizeX, final float sizeY) {
+    public synchronized String generateClassGraphDotFile(final float sizeX, final float sizeY) {
         if (verbose) {
             Log.log("Generating .dot file");
         }
@@ -1445,7 +1451,7 @@ public class FastClasspathScanner {
     // -------------------------------------------------------------------------------------------------------------
 
     /** Returns true if .scan() has been called at least once. */
-    private boolean scanHasCompleted() {
+    private synchronized boolean scanHasCompleted() {
         return classGraphBuilder != null;
     }
 
@@ -1453,7 +1459,7 @@ public class FastClasspathScanner {
      * Returns the ClassGraphBuilder created by calling .scan(), or throws RuntimeException if .scan() has not yet
      * been called.
      */
-    public ClassGraphTracer getScanResults() {
+    public synchronized ClassGraphTracer getScanResults() {
         if (!scanHasCompleted()) {
             throw new RuntimeException("Must call .scan() before attempting to get the results of the scan");
         }
@@ -1467,7 +1473,7 @@ public class FastClasspathScanner {
      * 
      * This method should be called before any "getNamesOf" methods (e.g. getNamesOfSubclassesOf()).
      */
-    public FastClasspathScanner scan() {
+    public synchronized FastClasspathScanner scan() {
         final long scanStart = System.nanoTime();
         for (final FilePathMatcher filePathMatcher : filePathMatchersToAdd) {
             getRecursiveScanner().addFilePathMatcher(filePathMatcher);
@@ -1529,7 +1535,7 @@ public class FastClasspathScanner {
      * Much faster than standard classpath scanning, because only timestamps are checked, and jarfiles don't have to
      * be opened.
      */
-    public boolean classpathContentsModifiedSinceScan() {
+    public synchronized boolean classpathContentsModifiedSinceScan() {
         final long scanStart = System.nanoTime();
 
         // Ensure scanning has happened at least once already -- if not, return true,
@@ -1554,7 +1560,7 @@ public class FastClasspathScanner {
      * classpath and the system time are accurate. Therefore, if anything changes on the classpath, this value
      * should increase.
      */
-    public long classpathContentsLastModifiedTime() {
+    public synchronized long classpathContentsLastModifiedTime() {
         // Verify scan() has been run at least once, else throw an exception
         getScanResults();
         return getRecursiveScanner().classpathContentsLastModifiedTime();
@@ -1564,7 +1570,7 @@ public class FastClasspathScanner {
      * Switch on verbose mode (prints debug info to System.out). Call immediately after the constructor if you want
      * full log output.
      */
-    public FastClasspathScanner verbose() {
+    public synchronized FastClasspathScanner verbose() {
         verbose = true;
         return this;
     }
