@@ -231,16 +231,16 @@ public class ClassInfo implements Comparable<ClassInfo> {
      * including this class itself).
      */
     public Set<ClassInfo> getReachableClasses(final RelType relType) {
-        Set<ClassInfo> directlyRelatedClasses = this.getRelatedClasses(relType);
+        final Set<ClassInfo> directlyRelatedClasses = this.getRelatedClasses(relType);
         if (directlyRelatedClasses.isEmpty()) {
             return Collections.emptySet();
         }
-        Set<ClassInfo> reachableClasses = new HashSet<>(directlyRelatedClasses);
-        LinkedList<ClassInfo> queue = new LinkedList<>();
+        final Set<ClassInfo> reachableClasses = new HashSet<>(directlyRelatedClasses);
+        final LinkedList<ClassInfo> queue = new LinkedList<>();
         queue.addAll(directlyRelatedClasses);
         while (!queue.isEmpty()) {
-            ClassInfo head = queue.removeFirst();
-            for (ClassInfo directlyReachableFromHead : head.getRelatedClasses(relType)) {
+            final ClassInfo head = queue.removeFirst();
+            for (final ClassInfo directlyReachableFromHead : head.getRelatedClasses(relType)) {
                 // Don't get in cycle
                 if (reachableClasses.add(directlyReachableFromHead)) {
                     queue.add(directlyReachableFromHead);

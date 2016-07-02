@@ -290,7 +290,7 @@ public class FastClasspathScannerTest {
     @Test
     public void scanStaticFinalFieldName() throws Exception {
         final AtomicInteger readStaticFieldCount = new AtomicInteger(0);
-        final HashSet<String> fieldNames = new HashSet<String>();
+        final HashSet<String> fieldNames = new HashSet<>();
         for (final String fieldName : new String[] { "stringField", "intField", "boolField", "charField",
                 "integerField", "booleanField" }) {
             fieldNames.add(StaticField.class.getName() + "." + fieldName);

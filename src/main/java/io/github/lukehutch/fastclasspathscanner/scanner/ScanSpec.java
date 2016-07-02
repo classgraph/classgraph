@@ -231,10 +231,10 @@ public class ScanSpec {
     /**
      * Returns true if the given class name is not blacklisted or is explicitly whitelisted.
      * 
-     * This does not apply the normal logic of "if (whitelisted && !blacklisted)", but instead
-     * "if (whitelisted || !blacklisted)", because it is used for links that may come from outside a whitelisted
-     * path, but still may need to be used as a query criterion (e.g. a class name to match against, or a field type
-     * to look up containing classes from).
+     * This does not apply the normal logic of "if (whitelisted && !blacklisted)", but instead "if (whitelisted ||
+     * !blacklisted)", because it is used for links that may come from outside a whitelisted path, but still may
+     * need to be used as a query criterion (e.g. a class name to match against, or a field type to look up
+     * containing classes from).
      */
     public boolean classIsNotBlacklisted(final String className) {
         return !blacklistedClassNames.contains(className) || whitelistedClassNames.contains(className)
@@ -265,10 +265,10 @@ public class ScanSpec {
      * Returns true if the given class name is whitelisted and not blacklisted, or if it is in a whitelisted,
      * non-blacklisted package.
      * 
-     * This does not apply the normal logic of "if (whitelisted && !blacklisted)", but instead
-     * "if (whitelisted || !blacklisted)", because it is used for links that may come from outside a whitelisted
-     * path, but still may need to be used as a query criterion (e.g. a class name to match against, or a field type
-     * to look up containing classes from).
+     * This does not apply the normal logic of "if (whitelisted && !blacklisted)", but instead "if (whitelisted ||
+     * !blacklisted)", because it is used for links that may come from outside a whitelisted path, but still may
+     * need to be used as a query criterion (e.g. a class name to match against, or a field type to look up
+     * containing classes from).
      */
     public boolean classIsWhitelisted(final String className) {
         return (whitelistedClassNames.contains(className)

@@ -134,6 +134,18 @@ public class FastClasspathScanner {
     public FastClasspathScanner(final String... scanSpec) {
         FastClasspathScanner.verbose = false; // By default
         this.scanSpecArgs = scanSpec;
+
+        // Read classfile headers for all filenames ending in ".class" on classpath
+        this.matchFilenameExtension("class", new FileMatchProcessor() {
+            @Override
+            public void processMatch(final String relativePath, final InputStream inputStream, //
+                    final int lengthBytes) throws IOException {
+                if (ClassfileBinaryParser.readClassInfoFromClassfileHeader(relativePath, inputStream,
+                        classNameToStaticFinalFieldsToMatch, getScanSpec(), classNameToClassInfo)) {
+                    numClassfilesParsed++;
+                }
+            }
+        });
     }
 
     /**
@@ -171,21 +183,6 @@ public class FastClasspathScanner {
     private ScanSpec getScanSpec() {
         if (scanSpec == null) {
             scanSpec = new ScanSpec(scanSpecArgs);
-
-            // Read classfile headers for all filenames ending in ".class" on classpath
-            final ScanSpec scanSpecParsed = this.scanSpec;
-            this.matchFilenameExtension("class", new FileMatchProcessor() {
-                @Override
-                public void processMatch(final String relativePath, final InputStream inputStream, //
-                        final int lengthBytes) throws IOException {
-                    final boolean classScannedSuccessfully = ClassfileBinaryParser.readClassInfoFromClassfileHeader(
-                            relativePath, inputStream, classNameToStaticFinalFieldsToMatch, scanSpecParsed,
-                            classNameToClassInfo);
-                    if (classScannedSuccessfully) {
-                        numClassfilesParsed++;
-                    }
-                }
-            });
         }
         return scanSpec;
     }
