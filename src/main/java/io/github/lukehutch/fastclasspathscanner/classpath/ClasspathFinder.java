@@ -85,8 +85,8 @@ public class ClasspathFinder {
         if (pathElementStr.isEmpty()) {
             return null;
         }
-        // Ignore "jar:", we look for ".jar" on the end of filenames instead
         String pathStr = pathElementStr;
+        // Ignore "jar:", we look for ".jar" on the end of filenames instead
         if (pathStr.startsWith("jar:")) {
             // Convert "jar:" to "file:" URL, so that URL -> URI -> Path works
             pathStr = pathStr.substring(4);
@@ -117,10 +117,7 @@ public class ClasspathFinder {
                 return resolveBasePath.resolve(pathStr).toRealPath(LinkOption.NOFOLLOW_LINKS);
             } catch (final Exception e2) {
                 try {
-                    final File file = new File(pathElementStr);
-                    if (file.exists()) {
-                        return file.toPath().toRealPath(LinkOption.NOFOLLOW_LINKS);
-                    }
+                    return new File(pathElementStr).toPath().toRealPath(LinkOption.NOFOLLOW_LINKS);
                 } catch (final Exception e3) {
                     // One of the above should have worked, so if we got here, the path element is junk.
                     if (FastClasspathScanner.verbose) {
@@ -138,20 +135,9 @@ public class ClasspathFinder {
         final Path currDirPath = Paths.get("").toAbsolutePath();
         final Path path = urlToPath(currDirPath, pathElement);
         if (path != null) {
-            // Everything after '!' in a "jar:" URL refers to a path within the jar.
-            final String pathStr = path.toString();
-            final int bangPos = pathStr.indexOf('!');
-            final String suffix;
-            final File pathFile;
-            if (bangPos > 0) {
-                // If present, remove the '!' path suffix so that the .exists() test below won't fail
-                pathFile = Paths.get(pathStr.substring(0, bangPos)).toFile();
-                suffix = pathStr.substring(bangPos);
-            } else {
-                pathFile = path.toFile();
-                suffix = "";
-            }
+            final File pathFile = path.toFile();
             if (pathFile.exists()) {
+                final String pathStr = path.toString();
                 if (classpathElementsSet.add(pathStr)) {
                     // This is the first time this classpath element has been encountered
                     boolean isValidClasspathElement = true;
@@ -202,14 +188,8 @@ public class ClasspathFinder {
                         if (FastClasspathScanner.verbose) {
                             Log.log("Found classpath element: " + path);
                         }
-                        if (suffix.isEmpty()) {
-                            // For regular files, add the File object to classpathElements.
-                            classpathElements.add(pathFile);
-                        } else {
-                            // For jar-internal paths, add the '!' path suffix to the end of the path,
-                            // and create a new (non-existent) File object to hold the path.
-                            classpathElements.add(new File(pathFile.getPath() + suffix));
-                        }
+                        // Add the File object to classpathElements
+                        classpathElements.add(pathFile);
                     }
                 }
             } else if (FastClasspathScanner.verbose) {

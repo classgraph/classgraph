@@ -453,47 +453,14 @@ public class RecursiveScanner {
                 Log.log(1, "Scanning classpath element: " + path);
             }
             if (!classpathElt.exists()) {
-                // Path element should exist (otherwise it would not have been added to the list of classpath
-                // elements) unless it is a relative path within a jarfile, starting with '!'. 
-                final String pathStr = classpathElt.getPath();
-
-                final int bangPos = pathStr.indexOf('!');
-                if (bangPos > 0) {
-                    // If present, remove the '!' path suffix so that the .exists() test below won't fail
-                    final Path zipPath = Paths.get(pathStr.substring(0, bangPos));
-                    // Determine if the real path (following symlinks) has been scanned already
-                    final File zipFile = zipPath.toFile();
-                    final String zipInternalRootPath = pathStr.substring(bangPos + 1) //
-                            .replace(File.separatorChar, '/');
-                    if (zipFile.exists()) {
-                        if (ClasspathFinder.isJar(path)) {
-                            if (scanSpec.scanJars) {
-                                // Scan within jar/zipfile
-                                scanZipfile(zipFile, zipInternalRootPath, scanTimestampsOnly);
-                            }
-                        } else {
-                            if (FastClasspathScanner.verbose) {
-                                Log.log(2,
-                                        "Not a jarfile, but illegal '!' character in classpath entry: " + pathStr);
-                            }
-                        }
-                    } else {
-                        if (FastClasspathScanner.verbose) {
-                            // Should only happen if something is deleted from classpath during scanning
-                            Log.log(2, "Jarfile on classpath no longer exists: " + zipFile);
-                        }
-                    }
-                } else {
-                    if (FastClasspathScanner.verbose) {
-                        // Should only happen if something is deleted from classpath during scanning
-                        Log.log(2, "Classpath element no longer exists: " + path);
-                    }
+                // Path element should exist (otherwise it would not have been added to the list of classpath elements)
+                if (FastClasspathScanner.verbose) {
+                    // Should only happen if something is deleted from classpath during scanning
+                    Log.log(2, "Classpath element no longer exists: " + path);
                 }
-
             } else if (classpathElt.isDirectory() && scanSpec.scanNonJars) {
                 // Scan within directory
                 scanDir(classpathElt, classpathElt, path.length() + 1, false, scanTimestampsOnly);
-
             } else if (classpathElt.isFile()) {
                 if (ClasspathFinder.isJar(path) && scanSpec.scanJars) {
                     // Scan within jar/zipfile
@@ -502,7 +469,6 @@ public class RecursiveScanner {
                     // File listed directly on classpath
                     scanFile(classpathElt, classpathElt, classpathElt.getName(), scanTimestampsOnly);
                 }
-
             } else if (FastClasspathScanner.verbose) {
                 Log.log(2, "Skipping non-file/non-dir on classpath: " + classpathElt.getPath());
             }
