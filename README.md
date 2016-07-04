@@ -449,7 +449,7 @@ The value of `relativePath` is relative to the classpath entry that contained th
 @FunctionalInterface
 public interface FileMatchProcessor {
     public void processMatch(String relativePath, InputStream inputStream,
-        int inputStreamLengthBytes) throws IOException;
+        long inputStreamLengthBytes) throws IOException;
 }
 
 // Use this interface if you want to be passed a byte array with the file contents.
@@ -460,18 +460,18 @@ public interface FileMatchContentsProcessor {
 }
 
 // The following two MatchProcessor variants are available if you need to know
-// which classpath element (i.e. which directory or zipfile) that the match was
-// found within. (File classpathElt is the root for relativePath.) 
+// where on the classpath the match was found (the absolutePath object is a path
+// on a regular filesystem or a ZipFileSystem for jarfile classpath elements).
 
 @FunctionalInterface
 public interface FileMatchProcessorWithContext {
-    public void processMatch(File classpathElt, String relativePath,
-        InputStream inputStream, int inputStreamLengthBytes) throws IOException;
+    public void processMatch(Path absolutePath, String relativePath,
+        InputStream inputStream, long inputStreamLengthBytes) throws IOException;
 }
 
 @FunctionalInterface
 public interface FileMatchContentsProcessorWithContext {
-    public void processMatch(File classpathElt, String relativePath,
+    public void processMatch(Path absolutePath, String relativePath,
         byte[] fileContents) throws IOException;
 }
 

@@ -312,6 +312,8 @@ public class ScanSpec {
         for (final String whitelistedClassPathPrefix : whitelistedClassPathPrefixes) {
             if (path.equals(whitelistedClassPathPrefix)) {
                 return ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE;
+            } else if (whitelistedClassPathPrefix.startsWith(path) || "/".equals(path)) {
+                return ScanSpecPathMatch.ANCESTOR_OF_WHITELISTED_PATH;
             }
         }
         return ScanSpecPathMatch.NOT_WITHIN_WHITELISTED_PATH;

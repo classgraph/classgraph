@@ -55,7 +55,7 @@ public class HashClassfileContents {
                 .matchFilenameExtension("class", new FileMatchProcessor() {
                     @Override
                     public void processMatch(final String relativePath, final InputStream inputStream,
-                            final int length) throws IOException {
+                            final long length) throws IOException {
                         final MessageDigest digest;
                         try {
                             digest = MessageDigest.getInstance("MD5");

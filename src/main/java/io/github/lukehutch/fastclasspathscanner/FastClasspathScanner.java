@@ -28,11 +28,14 @@
  */
 package io.github.lukehutch.fastclasspathscanner;
 
+import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -56,7 +59,7 @@ import io.github.lukehutch.fastclasspathscanner.matchprocessor.StaticFinalFieldM
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubclassMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubinterfaceMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.scanner.RecursiveScanner;
-import io.github.lukehutch.fastclasspathscanner.scanner.RecursiveScanner.FilePathMatcher;
+import io.github.lukehutch.fastclasspathscanner.scanner.RecursiveScanner.FileMatchProcessorWrapper;
 import io.github.lukehutch.fastclasspathscanner.scanner.RecursiveScanner.FilePathTester;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
 import io.github.lukehutch.fastclasspathscanner.utils.Log;
@@ -79,9 +82,6 @@ public class FastClasspathScanner {
 
     /** The class that recursively scans the classpath. */
     private RecursiveScanner recursiveScanner;
-
-    /** The FilePathMatchers that have not yet been added to recursiveScanner. */
-    private final List<FilePathMatcher> filePathMatchersToAdd = new ArrayList<>();
 
     /** The number of classes scanned in the last call to .scan(). */
     private int numClassfilesParsed;
@@ -138,8 +138,8 @@ public class FastClasspathScanner {
         // Read classfile headers for all filenames ending in ".class" on classpath
         this.matchFilenameExtension("class", new FileMatchProcessor() {
             @Override
-            public synchronized void processMatch(final String relativePath, final InputStream inputStream, //
-                    final int lengthBytes) throws IOException {
+            public void processMatch(final String relativePath, final InputStream inputStream, //
+                    final long lengthBytes) throws IOException {
                 if (ClassfileBinaryParser.readClassInfoFromClassfileHeader(relativePath, inputStream,
                         classNameToStaticFinalFieldsToMatch, getScanSpec(), classNameToClassInfo)) {
                     numClassfilesParsed++;
@@ -351,7 +351,7 @@ public class FastClasspathScanner {
     public synchronized FastClasspathScanner matchAllClasses(final ClassMatchProcessor classMatchProcessor) {
         classMatchers.add(new ClassMatcher() {
             @Override
-            public synchronized void lookForMatches() {
+            public void lookForMatches() {
                 for (final String className : getNamesOfAllClasses()) {
                     if (verbose) {
                         Log.log(3, "Matched class: " + className);
@@ -378,7 +378,7 @@ public class FastClasspathScanner {
             final ClassMatchProcessor classMatchProcessor) {
         classMatchers.add(new ClassMatcher() {
             @Override
-            public synchronized void lookForMatches() {
+            public void lookForMatches() {
                 for (final String className : getNamesOfAllStandardClasses()) {
                     if (verbose) {
                         Log.log(3, "Matched standard class: " + className);
@@ -405,7 +405,7 @@ public class FastClasspathScanner {
             final ClassMatchProcessor ClassMatchProcessor) {
         classMatchers.add(new ClassMatcher() {
             @Override
-            public synchronized void lookForMatches() {
+            public void lookForMatches() {
                 for (final String className : getNamesOfAllInterfaceClasses()) {
                     if (verbose) {
                         Log.log(3, "Matched interface class: " + className);
@@ -432,7 +432,7 @@ public class FastClasspathScanner {
             final ClassMatchProcessor ClassMatchProcessor) {
         classMatchers.add(new ClassMatcher() {
             @Override
-            public synchronized void lookForMatches() {
+            public void lookForMatches() {
                 for (final String className : getNamesOfAllAnnotationClasses()) {
                     if (verbose) {
                         Log.log(3, "Matched annotation class: " + className);
@@ -463,7 +463,7 @@ public class FastClasspathScanner {
             final SubclassMatchProcessor<T> subclassMatchProcessor) {
         classMatchers.add(new ClassMatcher() {
             @Override
-            public synchronized void lookForMatches() {
+            public void lookForMatches() {
                 final String superclassName = standardClassName(superclass);
                 for (final String subclassName : getNamesOfSubclassesOf(superclassName)) {
                     if (verbose) {
@@ -551,7 +551,7 @@ public class FastClasspathScanner {
             final SubinterfaceMatchProcessor<T> subinterfaceMatchProcessor) {
         classMatchers.add(new ClassMatcher() {
             @Override
-            public synchronized void lookForMatches() {
+            public void lookForMatches() {
                 final String superinterfaceName = interfaceName(superinterface);
                 for (final String subinterfaceName : getNamesOfSubinterfacesOf(superinterfaceName)) {
                     if (verbose) {
@@ -642,7 +642,7 @@ public class FastClasspathScanner {
             final InterfaceMatchProcessor<T> interfaceMatchProcessor) {
         classMatchers.add(new ClassMatcher() {
             @Override
-            public synchronized void lookForMatches() {
+            public void lookForMatches() {
                 final String implementedInterfaceName = interfaceName(implementedInterface);
                 for (final String implClass : getNamesOfClassesImplementing(implementedInterfaceName)) {
                     if (verbose) {
@@ -743,7 +743,7 @@ public class FastClasspathScanner {
             final ClassMatchProcessor classMatchProcessor) {
         classMatchers.add(new ClassMatcher() {
             @Override
-            public synchronized void lookForMatches() {
+            public void lookForMatches() {
                 final String fieldTypeName = className(fieldType);
                 for (final String klass : getNamesOfClassesWithFieldOfType(fieldTypeName)) {
                     if (verbose) {
@@ -796,7 +796,7 @@ public class FastClasspathScanner {
             final ClassAnnotationMatchProcessor classAnnotationMatchProcessor) {
         classMatchers.add(new ClassMatcher() {
             @Override
-            public synchronized void lookForMatches() {
+            public void lookForMatches() {
                 final String annotationName = annotationName(annotation);
                 for (final String classWithAnnotation : getNamesOfClassesWithAnnotation(annotationName)) {
                     if (verbose) {
@@ -1098,51 +1098,68 @@ public class FastClasspathScanner {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /**
-     * Wrap a FileMatchContentsProcessorWithContext in a FileMatchProcessorWithContext that reads the entire stream
-     * content and passes it to the wrapped class as a byte array.
-     */
-    private synchronized static FileMatchProcessorWithContext fetchStreamContentsAndSendTo(
-            final FileMatchContentsProcessorWithContext fileMatchContentsProcessorWithContext) {
-        return new FileMatchProcessorWithContext() {
-            @Override
-            public synchronized void processMatch(final File classpathElt, final String relativePath,
-                    final InputStream inputStream, final int lengthBytes) throws IOException {
-                // Read the file contents into a byte[] array
-                final byte[] contents = new byte[lengthBytes];
-                final int bytesRead = Math.max(0, inputStream.read(contents));
-                // For safety, truncate the array if the file was truncated before we finish reading it
-                final byte[] contentsRead = bytesRead == lengthBytes ? contents
-                        : Arrays.copyOf(contents, bytesRead);
-                // Pass file contents to the wrapped FileMatchContentsProcessor
-                fileMatchContentsProcessorWithContext.processMatch(classpathElt, relativePath, contentsRead);
-            }
-        };
-    }
-
-    /** Wrap a FileMatchProcessor in a FileMatchProcessorWithContext, and ignore the classpath context. */
-    private synchronized static FileMatchProcessorWithContext ignoreClasspathContext( //
+    private static FileMatchProcessorWrapper makeFileMatchProcessorWrapper(
             final FileMatchProcessor fileMatchProcessor) {
-        return new FileMatchProcessorWithContext() {
+        return new FileMatchProcessorWrapper() {
             @Override
-            public synchronized void processMatch(final File classpathElement, final String relativePath,
-                    final InputStream inputStream, final int lengthBytes) throws IOException {
-                fileMatchProcessor.processMatch(relativePath, inputStream, lengthBytes);
+            public void processMatch(final Path absolutePath, final String relativePathStr) throws IOException {
+                try (BufferedInputStream inputStream = new BufferedInputStream(
+                        Files.newInputStream(absolutePath))) {
+                    fileMatchProcessor.processMatch(relativePathStr, inputStream,
+                            Files.readAttributes(absolutePath, BasicFileAttributes.class).size());
+                }
             }
         };
     }
 
-    /**
-     * Wrap a FileMatchContentsProcessor in a FileMatchContentsProcessorWithContext, and ignore the classpath
-     * context.
-     */
-    private synchronized static FileMatchContentsProcessorWithContext ignoreClasspathContext( //
-            final FileMatchContentsProcessor fileMatchContentsProcessor) {
-        return new FileMatchContentsProcessorWithContext() {
+    private static FileMatchProcessorWrapper makeFileMatchProcessorWrapper(
+            final FileMatchProcessorWithContext fileMatchProcessorWithContext) {
+        return new FileMatchProcessorWrapper() {
             @Override
-            public synchronized void processMatch(final File classpathElement, final String relativePath,
-                    final byte[] fileContents) throws IOException {
-                fileMatchContentsProcessor.processMatch(relativePath, fileContents);
+            public void processMatch(final Path absolutePath, final String relativePathStr) throws IOException {
+                try (BufferedInputStream inputStream = new BufferedInputStream(
+                        Files.newInputStream(absolutePath))) {
+                    fileMatchProcessorWithContext.processMatch(absolutePath, relativePathStr, inputStream,
+                            Files.readAttributes(absolutePath, BasicFileAttributes.class).size());
+                }
+            }
+        };
+    }
+
+    private static FileMatchProcessorWrapper makeFileMatchProcessorWrapper(
+            final FileMatchContentsProcessor fileMatchProcessor) {
+        return new FileMatchProcessorWrapper() {
+            @Override
+            public void processMatch(final Path absolutePath, final String relativePathStr) throws IOException {
+                fileMatchProcessor.processMatch(relativePathStr, Files.readAllBytes(absolutePath));
+            }
+        };
+    }
+
+    private static FileMatchProcessorWrapper makeFileMatchProcessorWrapper(
+            final FileMatchContentsProcessorWithContext fileMatchProcessorWithContext) {
+        return new FileMatchProcessorWrapper() {
+            @Override
+            public void processMatch(final Path absolutePath, final String relativePathStr) throws IOException {
+                fileMatchProcessorWithContext.processMatch(absolutePath, relativePathStr,
+                        Files.readAllBytes(absolutePath));
+            }
+        };
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    private static FilePathTester makeFilePathTesterMatchingRegexp(final String pathRegexp) {
+        return new FilePathTester() {
+            private final Pattern pattern = Pattern.compile(pathRegexp);
+
+            @Override
+            public boolean filePathMatches(final Path absolutePath, final String relativePathStr) {
+                final boolean matched = pattern.matcher(relativePathStr).matches();
+                if (matched && verbose) {
+                    Log.log(3, "File " + relativePathStr + " matched filename pattern " + pathRegexp);
+                }
+                return matched;
             }
         };
     }
@@ -1158,18 +1175,8 @@ public class FastClasspathScanner {
      */
     public synchronized FastClasspathScanner matchFilenamePattern(final String pathRegexp,
             final FileMatchProcessorWithContext fileMatchProcessorWithContext) {
-        filePathMatchersToAdd.add(new FilePathMatcher(new FilePathTester() {
-            private final Pattern pattern = Pattern.compile(pathRegexp);
-
-            @Override
-            public synchronized boolean filePathMatches(final File classpathElt, final String relativePath) {
-                final boolean matched = pattern.matcher(relativePath).matches();
-                if (matched && verbose) {
-                    Log.log(3, "File " + relativePath + " matched filename pattern " + pathRegexp);
-                }
-                return matched;
-            }
-        }, fileMatchProcessorWithContext));
+        getRecursiveScanner().addFilePathMatcher(makeFilePathTesterMatchingRegexp(pathRegexp),
+                makeFileMatchProcessorWrapper(fileMatchProcessorWithContext));
         return this;
     }
 
@@ -1184,7 +1191,9 @@ public class FastClasspathScanner {
      */
     public synchronized FastClasspathScanner matchFilenamePattern(final String pathRegexp,
             final FileMatchProcessor fileMatchProcessor) {
-        return matchFilenamePattern(pathRegexp, ignoreClasspathContext(fileMatchProcessor));
+        getRecursiveScanner().addFilePathMatcher(makeFilePathTesterMatchingRegexp(pathRegexp),
+                makeFileMatchProcessorWrapper(fileMatchProcessor));
+        return this;
     }
 
     /**
@@ -1198,8 +1207,9 @@ public class FastClasspathScanner {
      */
     public synchronized FastClasspathScanner matchFilenamePattern(final String pathRegexp,
             final FileMatchContentsProcessorWithContext fileMatchContentsProcessorWithContext) {
-        return matchFilenamePattern(pathRegexp, fetchStreamContentsAndSendTo( //
-                fileMatchContentsProcessorWithContext));
+        getRecursiveScanner().addFilePathMatcher(makeFilePathTesterMatchingRegexp(pathRegexp),
+                makeFileMatchProcessorWrapper(fileMatchContentsProcessorWithContext));
+        return this;
     }
 
     /**
@@ -1213,7 +1223,24 @@ public class FastClasspathScanner {
      */
     public synchronized FastClasspathScanner matchFilenamePattern(final String pathRegexp,
             final FileMatchContentsProcessor fileMatchContentsProcessor) {
-        return matchFilenamePattern(pathRegexp, ignoreClasspathContext(fileMatchContentsProcessor));
+        getRecursiveScanner().addFilePathMatcher(makeFilePathTesterMatchingRegexp(pathRegexp),
+                makeFileMatchProcessorWrapper(fileMatchContentsProcessor));
+        return this;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    private static FilePathTester makeFilePathTesterMatchingRelativePath(final String relativePathToMatch) {
+        return new FilePathTester() {
+            @Override
+            public boolean filePathMatches(final Path absolutePath, final String relativePathStr) {
+                final boolean matched = relativePathStr.equals(relativePathToMatch);
+                if (matched && verbose) {
+                    Log.log(3, "Matched filename path " + relativePathToMatch);
+                }
+                return matched;
+            }
+        };
     }
 
     /**
@@ -1228,16 +1255,8 @@ public class FastClasspathScanner {
      */
     public synchronized FastClasspathScanner matchFilenamePath(final String relativePathToMatch,
             final FileMatchProcessorWithContext fileMatchProcessorWithContext) {
-        filePathMatchersToAdd.add(new FilePathMatcher(new FilePathTester() {
-            @Override
-            public synchronized boolean filePathMatches(final File classpathElt, final String relativePath) {
-                final boolean matched = relativePath.equals(relativePathToMatch);
-                if (matched && verbose) {
-                    Log.log(3, "Matched filename path " + relativePathToMatch);
-                }
-                return matched;
-            }
-        }, fileMatchProcessorWithContext));
+        getRecursiveScanner().addFilePathMatcher(makeFilePathTesterMatchingRelativePath(relativePathToMatch),
+                makeFileMatchProcessorWrapper(fileMatchProcessorWithContext));
         return this;
     }
 
@@ -1253,7 +1272,9 @@ public class FastClasspathScanner {
      */
     public synchronized FastClasspathScanner matchFilenamePath(final String relativePathToMatch,
             final FileMatchProcessor fileMatchProcessor) {
-        return matchFilenamePath(relativePathToMatch, ignoreClasspathContext(fileMatchProcessor));
+        getRecursiveScanner().addFilePathMatcher(makeFilePathTesterMatchingRelativePath(relativePathToMatch),
+                makeFileMatchProcessorWrapper(fileMatchProcessor));
+        return this;
     }
 
     /**
@@ -1268,8 +1289,9 @@ public class FastClasspathScanner {
      */
     public synchronized FastClasspathScanner matchFilenamePath(final String relativePathToMatch,
             final FileMatchContentsProcessorWithContext fileMatchContentsProcessorWithContext) {
-        return matchFilenamePath(relativePathToMatch,
-                fetchStreamContentsAndSendTo(fileMatchContentsProcessorWithContext));
+        getRecursiveScanner().addFilePathMatcher(makeFilePathTesterMatchingRelativePath(relativePathToMatch),
+                makeFileMatchProcessorWrapper(fileMatchContentsProcessorWithContext));
+        return this;
     }
 
     /**
@@ -1284,7 +1306,27 @@ public class FastClasspathScanner {
      */
     public synchronized FastClasspathScanner matchFilenamePath(final String relativePathToMatch,
             final FileMatchContentsProcessor fileMatchContentsProcessor) {
-        return matchFilenamePath(relativePathToMatch, ignoreClasspathContext(fileMatchContentsProcessor));
+        getRecursiveScanner().addFilePathMatcher(makeFilePathTesterMatchingRelativePath(relativePathToMatch),
+                makeFileMatchProcessorWrapper(fileMatchContentsProcessor));
+        return this;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    private static FilePathTester makeFilePathTesterMatchingPathLeaf(final String pathLeafToMatch) {
+        return new FilePathTester() {
+            private final String leafToMatch = pathLeafToMatch.substring(pathLeafToMatch.lastIndexOf('/') + 1);
+
+            @Override
+            public boolean filePathMatches(final Path absolutePath, final String relativePathStr) {
+                final String relativePathLeaf = relativePathStr.substring(relativePathStr.lastIndexOf('/') + 1);
+                final boolean matched = relativePathLeaf.equals(leafToMatch);
+                if (matched && verbose) {
+                    Log.log(3, "File " + relativePathStr + " matched path leaf " + pathLeafToMatch);
+                }
+                return matched;
+            }
+        };
     }
 
     /**
@@ -1298,19 +1340,8 @@ public class FastClasspathScanner {
      */
     public synchronized FastClasspathScanner matchFilenamePathLeaf(final String pathLeafToMatch,
             final FileMatchProcessorWithContext fileMatchProcessorWithContext) {
-        filePathMatchersToAdd.add(new FilePathMatcher(new FilePathTester() {
-            private final String leafToMatch = pathLeafToMatch.substring(pathLeafToMatch.lastIndexOf('/') + 1);
-
-            @Override
-            public synchronized boolean filePathMatches(final File classpathElt, final String relativePath) {
-                final String relativePathLeaf = relativePath.substring(relativePath.lastIndexOf('/') + 1);
-                final boolean matched = relativePathLeaf.equals(leafToMatch);
-                if (matched && verbose) {
-                    Log.log(3, "File " + relativePath + " matched path leaf " + pathLeafToMatch);
-                }
-                return matched;
-            }
-        }, fileMatchProcessorWithContext));
+        getRecursiveScanner().addFilePathMatcher(makeFilePathTesterMatchingPathLeaf(pathLeafToMatch),
+                makeFileMatchProcessorWrapper(fileMatchProcessorWithContext));
         return this;
     }
 
@@ -1325,7 +1356,9 @@ public class FastClasspathScanner {
      */
     public synchronized FastClasspathScanner matchFilenamePathLeaf(final String pathLeafToMatch,
             final FileMatchProcessor fileMatchProcessor) {
-        return matchFilenamePathLeaf(pathLeafToMatch, ignoreClasspathContext(fileMatchProcessor));
+        getRecursiveScanner().addFilePathMatcher(makeFilePathTesterMatchingPathLeaf(pathLeafToMatch),
+                makeFileMatchProcessorWrapper(fileMatchProcessor));
+        return this;
     }
 
     /**
@@ -1339,8 +1372,9 @@ public class FastClasspathScanner {
      */
     public synchronized FastClasspathScanner matchFilenamePathLeaf(final String pathLeafToMatch,
             final FileMatchContentsProcessorWithContext fileMatchContentsProcessorWithContext) {
-        return matchFilenamePathLeaf(pathLeafToMatch,
-                fetchStreamContentsAndSendTo(fileMatchContentsProcessorWithContext));
+        getRecursiveScanner().addFilePathMatcher(makeFilePathTesterMatchingPathLeaf(pathLeafToMatch),
+                makeFileMatchProcessorWrapper(fileMatchContentsProcessorWithContext));
+        return this;
     }
 
     /**
@@ -1354,7 +1388,26 @@ public class FastClasspathScanner {
      */
     public synchronized FastClasspathScanner matchFilenamePathLeaf(final String pathLeafToMatch,
             final FileMatchContentsProcessor fileMatchContentsProcessor) {
-        return matchFilenamePathLeaf(pathLeafToMatch, ignoreClasspathContext(fileMatchContentsProcessor));
+        getRecursiveScanner().addFilePathMatcher(makeFilePathTesterMatchingPathLeaf(pathLeafToMatch),
+                makeFileMatchProcessorWrapper(fileMatchContentsProcessor));
+        return this;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    private static FilePathTester makeFilePathTesterMatchingFilenameExtension(final String extensionToMatch) {
+        return new FilePathTester() {
+            private final String suffixToMatch = "." + extensionToMatch.toLowerCase();
+
+            @Override
+            public boolean filePathMatches(final Path absolutePath, final String relativePath) {
+                final boolean matched = relativePath.toLowerCase().endsWith(suffixToMatch);
+                if (matched && verbose) {
+                    Log.log(3, "File " + relativePath + " matched extension ." + extensionToMatch);
+                }
+                return matched;
+            }
+        };
     }
 
     /**
@@ -1368,18 +1421,8 @@ public class FastClasspathScanner {
      */
     public synchronized FastClasspathScanner matchFilenameExtension(final String extensionToMatch,
             final FileMatchProcessorWithContext fileMatchProcessorWithContext) {
-        filePathMatchersToAdd.add(new FilePathMatcher(new FilePathTester() {
-            private final String suffixToMatch = "." + extensionToMatch.toLowerCase();
-
-            @Override
-            public synchronized boolean filePathMatches(final File classpathElt, final String relativePath) {
-                final boolean matched = relativePath.toLowerCase().endsWith(suffixToMatch);
-                if (matched && verbose) {
-                    Log.log(3, "File " + relativePath + " matched extension ." + extensionToMatch);
-                }
-                return matched;
-            }
-        }, fileMatchProcessorWithContext));
+        getRecursiveScanner().addFilePathMatcher(makeFilePathTesterMatchingFilenameExtension(extensionToMatch),
+                makeFileMatchProcessorWrapper(fileMatchProcessorWithContext));
         return this;
     }
 
@@ -1393,7 +1436,9 @@ public class FastClasspathScanner {
      */
     public synchronized FastClasspathScanner matchFilenameExtension(final String extensionToMatch,
             final FileMatchProcessor fileMatchProcessor) {
-        return matchFilenameExtension(extensionToMatch, ignoreClasspathContext(fileMatchProcessor));
+        getRecursiveScanner().addFilePathMatcher(makeFilePathTesterMatchingFilenameExtension(extensionToMatch),
+                makeFileMatchProcessorWrapper(fileMatchProcessor));
+        return this;
     }
 
     /**
@@ -1407,8 +1452,9 @@ public class FastClasspathScanner {
      */
     public synchronized FastClasspathScanner matchFilenameExtension(final String extensionToMatch,
             final FileMatchContentsProcessorWithContext fileMatchContentsProcessorWithContext) {
-        return matchFilenameExtension(extensionToMatch,
-                fetchStreamContentsAndSendTo(fileMatchContentsProcessorWithContext));
+        getRecursiveScanner().addFilePathMatcher(makeFilePathTesterMatchingFilenameExtension(extensionToMatch),
+                makeFileMatchProcessorWrapper(fileMatchContentsProcessorWithContext));
+        return this;
     }
 
     /**
@@ -1421,7 +1467,9 @@ public class FastClasspathScanner {
      */
     public synchronized FastClasspathScanner matchFilenameExtension(final String extensionToMatch,
             final FileMatchContentsProcessor fileMatchContentsProcessor) {
-        return matchFilenameExtension(extensionToMatch, ignoreClasspathContext(fileMatchContentsProcessor));
+        getRecursiveScanner().addFilePathMatcher(makeFilePathTesterMatchingFilenameExtension(extensionToMatch),
+                makeFileMatchProcessorWrapper(fileMatchContentsProcessor));
+        return this;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -1475,10 +1523,6 @@ public class FastClasspathScanner {
      */
     public synchronized FastClasspathScanner scan() {
         final long scanStart = System.nanoTime();
-        for (final FilePathMatcher filePathMatcher : filePathMatchersToAdd) {
-            getRecursiveScanner().addFilePathMatcher(filePathMatcher);
-        }
-        filePathMatchersToAdd.clear();
 
         if (FastClasspathScanner.verbose) {
             Log.log("Classpath elements: " + getClasspathFinder().getUniqueClasspathElements());

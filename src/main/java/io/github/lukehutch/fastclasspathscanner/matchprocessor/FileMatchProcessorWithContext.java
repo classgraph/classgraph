@@ -28,9 +28,9 @@
  */
 package io.github.lukehutch.fastclasspathscanner.matchprocessor;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Path;
 
 /** The method to run when a file with a matching path is found on the classpath. */
 @FunctionalInterface
@@ -38,9 +38,9 @@ public interface FileMatchProcessorWithContext {
     /**
      * Process a matching file.
      * 
-     * @param classpathElement
-     *            The classpath element (directory or zipfile) that contained the match.
-     * @param relativePath
+     * @param absolutePath
+     *            The absolute path (in a regular or zipfile filesystem) that contained the match.
+     * @param relativePathStr
      *            The path of the matching file relative to the classpath element that contained the match.
      * @param inputStream
      *            An InputStream (either a FileInputStream or a ZipEntry InputStream) opened on the file. You do not
@@ -48,6 +48,6 @@ public interface FileMatchProcessorWithContext {
      * @param lengthBytes
      *            The length of the InputStream in bytes.
      */
-    public void processMatch(File classpathElement, String relativePath, InputStream inputStream, int lengthBytes)
+    public void processMatch(Path absolutePath, String relativePathStr, InputStream inputStream, long lengthBytes)
             throws IOException;
 }

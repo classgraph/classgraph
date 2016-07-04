@@ -31,8 +31,8 @@ package io.github.lukehutch.fastclasspathscanner.test;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.StrictAssertions.assertThat;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -280,9 +280,9 @@ public class FastClasspathScannerTest {
         new FastClasspathScanner().matchFilenamePattern("[[^/]*/]*file-content-test\\.txt",
                 new FileMatchContentsProcessorWithContext() {
                     @Override
-                    public void processMatch(final File classpathElt, final String relativePath,
+                    public void processMatch(final Path absolutePath, final String relativePath,
                             final byte[] contents) throws IOException {
-                        assertThat(classpathElt.getPath()).isNotEmpty();
+                        assertThat(absolutePath.toString()).isNotEmpty();
                     }
                 }).scan();
     }

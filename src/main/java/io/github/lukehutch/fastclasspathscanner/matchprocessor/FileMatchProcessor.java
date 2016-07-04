@@ -45,5 +45,5 @@ public interface FileMatchProcessor {
      * @param lengthBytes
      *            The length of the InputStream in bytes.
      */
-    public void processMatch(String relativePath, InputStream inputStream, int lengthBytes) throws IOException;
+    public void processMatch(String relativePath, InputStream inputStream, long lengthBytes) throws IOException;
 }
