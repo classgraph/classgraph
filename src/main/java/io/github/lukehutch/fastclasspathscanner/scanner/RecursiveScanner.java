@@ -68,7 +68,7 @@ public class RecursiveScanner {
      * The set of absolute paths scanned (after symlink resolution), to prevent the same resource from being scanned
      * twice.
      */
-    private final Set<String> scannedAbsolutePaths = new HashSet<>();
+    private final Set<String> scannedNormalizedPathURIs = new HashSet<>();
 
     /** The total number of regular directories scanned. */
     private final AtomicInteger numDirsScanned = new AtomicInteger();
@@ -162,7 +162,13 @@ public class RecursiveScanner {
      */
     private boolean isNewUniqueRealPath(final Path path) {
         try {
-            return scannedAbsolutePaths.add(path.toRealPath().toString());
+            // Resolve symlinks, make the path absolute, then get the path as a URI
+            String normalizedPathURI = path.toRealPath().toUri().toString();
+            boolean isUnique = scannedNormalizedPathURIs.add(normalizedPathURI);
+            if (!isUnique && FastClasspathScanner.verbose) {
+                Log.log(3, "Reached duplicate classpath resource, ignoring: " + normalizedPathURI);
+            }
+            return isUnique;
         } catch (final IOException e) {
             // If something goes wrong while getting the real path, just return true.
             return true;
@@ -183,9 +189,6 @@ public class RecursiveScanner {
             Log.log(2, "Scanning file: " + absolutePath);
         }
         if (!isNewUniqueRealPath(absolutePath)) {
-            if (FastClasspathScanner.verbose) {
-                Log.log(3, "Reached duplicate file, ignoring: " + absolutePath);
-            }
             return;
         }
         updateLastModifiedTimestamp(absolutePath);
@@ -224,14 +227,11 @@ public class RecursiveScanner {
             public FileVisitResult preVisitDirectory(final Path dirPath, final BasicFileAttributes attrs)
                     throws IOException {
                 (isJar ? numJarfileDirsScanned : numDirsScanned).incrementAndGet();
-                final String relativePathStr = toRelativeUnixPathStr(base, dirPath) + "/";
+                final String relativePathStr = toRelativeUnixPathStr(base, dirPath);
                 if (FastClasspathScanner.verbose) {
                     Log.log(2, "Scanning directory: " + dirPath);
                 }
                 if (!isNewUniqueRealPath(dirPath)) {
-                    if (FastClasspathScanner.verbose) {
-                        Log.log(3, "Reached duplicate directory, ignoring: " + dirPath);
-                    }
                     return FileVisitResult.SKIP_SUBTREE;
                 }
                 switch (scanSpec.pathWhitelistMatchStatus(relativePathStr)) {
@@ -293,7 +293,7 @@ public class RecursiveScanner {
         final Map<String, String> env = new HashMap<>();
         env.put("create", "false");
 
-        scannedAbsolutePaths.clear();
+        scannedNormalizedPathURIs.clear();
         numDirsScanned.set(0);
         numFilesScanned.set(0);
         numJarfileDirsScanned.set(0);
@@ -311,12 +311,6 @@ public class RecursiveScanner {
                 }
             } else {
                 final Path classpathEltPath = classpathElt.toPath();
-                if (!isNewUniqueRealPath(classpathEltPath)) {
-                    if (FastClasspathScanner.verbose) {
-                        Log.log(3, "Reached duplicate classpath element, ignoring: " + classpathElt);
-                    }
-                    continue;
-                }
                 final boolean isJar = isFile && ClasspathFinder.isJar(path);
                 if (FastClasspathScanner.verbose) {
                     Log.log(1, "Found " + (isDirectory ? "directory" : isJar ? "jar" : "file") + " on classpath: "
@@ -329,6 +323,13 @@ public class RecursiveScanner {
                         numDirsScanned.incrementAndGet();
 
                     } else if (isJar && scanSpec.scanJars) {
+                        // Need to separately test if jarfiles have been scanned before, rather than testing
+                        // if their contained files have been scanned before, to avoid even opening a zipfile
+                        // a second time if it has already been scanned
+                        if (!isNewUniqueRealPath(classpathEltPath)) {
+                            continue;
+                        }
+
                         // For jar/zipfile, use the timestamp of the jar/zipfile as the timestamp for all files,
                         // since the timestamps within the zip directory may be unreliable.
                         updateLastModifiedTimestamp(classpathElt.toPath());
