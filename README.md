@@ -460,8 +460,10 @@ public interface FileMatchContentsProcessor {
 }
 
 // The following two MatchProcessor variants are available if you need to know
-// where on the classpath the match was found (the absolutePath object is a path
-// on a regular filesystem or a ZipFileSystem for jarfile classpath elements).
+// where on the classpath the match was found (the absolutePath object is
+// associated with either a regular filesystem, or a ZipFileSystem in the case
+// of jarfile classpath elements). You can determine the filesystem of the
+// match's classpath element by calling absolutePath.getFileSystem().
 
 @FunctionalInterface
 public interface FileMatchProcessorWithContext {
