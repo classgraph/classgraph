@@ -217,6 +217,8 @@ public class RecursiveScanner {
 
     private void recursiveScan(final Path base, final boolean isJar, final boolean scanTimestampsOnly)
             throws IOException {
+        // It's important not to resolve links when normalizing the base path of a classpath element,
+        // because pathnames are supposed to be correlated with the package hierarchy. 
         Files.walkFileTree(base.toRealPath(LinkOption.NOFOLLOW_LINKS), new SimpleFileVisitor<Path>() {
             @Override
             public FileVisitResult preVisitDirectory(final Path dirPath, final BasicFileAttributes attrs)
@@ -308,13 +310,19 @@ public class RecursiveScanner {
                     Log.log(2, "Skipping non-file/non-dir on classpath: " + classpathElt.getPath());
                 }
             } else {
+                final Path classpathEltPath = classpathElt.toPath();
+                if (!isNewUniqueRealPath(classpathEltPath)) {
+                    if (FastClasspathScanner.verbose) {
+                        Log.log(3, "Reached duplicate classpath element, ignoring: " + classpathElt);
+                    }
+                    continue;
+                }
                 final boolean isJar = isFile && ClasspathFinder.isJar(path);
                 if (FastClasspathScanner.verbose) {
                     Log.log(1, "Found " + (isDirectory ? "directory" : isJar ? "jar" : "file") + " on classpath: "
                             + path);
                 }
                 try {
-                    final Path classpathEltPath = classpathElt.toPath();
                     if (isDirectory && scanSpec.scanNonJars) {
                         // Scan within directory
                         recursiveScan(classpathEltPath, isJar, scanTimestampsOnly);
