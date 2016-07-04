@@ -293,94 +293,6 @@ public class ClasspathFinder {
         }
     }
 
-    /** Parse the system classpath. */
-    private void parseSystemClasspath() {
-        clearClasspath();
-
-        // Look for all unique classloaders.
-        // Need both a set and a list so we can keep them unique, but in an order that (hopefully) reflects
-        // the order in which the JDK calls classloaders.
-        //
-        // See:
-        // https://docs.oracle.com/javase/8/docs/technotes/tools/findingclasses.html
-        //
-        final AdditionOrderedSet<ClassLoader> classLoadersSet = new AdditionOrderedSet<>();
-        classLoadersSet.add(ClassLoader.getSystemClassLoader());
-        // Look for classloaders on the call stack
-        try {
-            // Generate stacktrace
-            throw new Exception();
-        } catch (final Exception e) {
-            final StackTraceElement[] stacktrace = e.getStackTrace();
-            if (stacktrace.length >= 1) {
-                for (final StackTraceElement ste : stacktrace) {
-                    try {
-                        addAllParentClassloaders(Class.forName(ste.getClassName()), classLoadersSet);
-                    } catch (final ClassNotFoundException e1) {
-                    }
-                }
-            }
-        }
-        classLoadersSet.add(Thread.currentThread().getContextClassLoader());
-        addAllParentClassloaders(ClasspathFinder.class, classLoadersSet);
-        final List<ClassLoader> classLoaders = classLoadersSet.getList();
-        classLoaders.remove(null);
-
-        // Always include a ClassLoaderHandler for URLClassLoader subclasses as a default, so that we can handle
-        // URLClassLoaders (the most common form of ClassLoader) even if ServiceLoader can't find other
-        // ClassLoaderHandlers (this can happen if FastClasspathScanner's package is renamed using Maven Shade).
-        final HashSet<ClassLoaderHandler> classLoaderHandlers = new HashSet<>();
-        classLoaderHandlers.add(new URLClassLoaderHandler());
-
-        // Find all ClassLoaderHandlers registered using ServiceLoader, given known ClassLoaders. 
-        // FastClasspathScanner ships with several of these, registered in:
-        // src/main/resources/META-INF/services
-        for (final ClassLoader classLoader : classLoaders) {
-            // Use ServiceLoader to find registered ClassLoaderHandlers, see:
-            // https://docs.oracle.com/javase/6/docs/api/java/util/ServiceLoader.html
-            final ServiceLoader<ClassLoaderHandler> classLoaderHandlerLoader = ServiceLoader
-                    .load(ClassLoaderHandler.class, classLoader);
-            // Iterate through registered ClassLoaderHandlers
-            for (final ClassLoaderHandler handler : classLoaderHandlerLoader) {
-                classLoaderHandlers.add(handler);
-            }
-        }
-        // Add manually-added ClassLoaderHandlers
-        classLoaderHandlers.addAll(extraClassLoaderHandlers);
-
-        // Try finding a handler for each of the classloaders discovered above
-        boolean classloaderFound = false;
-        for (final ClassLoader classLoader : classLoaders) {
-            // Iterate through registered ClassLoaderHandlers
-            for (final ClassLoaderHandler handler : classLoaderHandlers) {
-                try {
-                    if (handler.handle(classLoader, this)) {
-                        // Sucessfully handled
-                        if (FastClasspathScanner.verbose) {
-                            Log.log("Classpath elements from ClassLoader " + classLoader.getClass().getName()
-                                    + " were extracted by ClassLoaderHandler " + handler.getClass().getName());
-                        }
-                        classloaderFound = true;
-                        break;
-                    }
-                } catch (final Exception e) {
-                    Log.log("Was not able to call getPaths() in " + classLoader.getClass().getName() + ": "
-                            + e.toString());
-                }
-            }
-            if (!classloaderFound) {
-                Log.log(4,
-                        "Found unknown ClassLoader type, cannot scan classes: " + classLoader.getClass().getName());
-            }
-        }
-
-        // Add entries found in java.class.path, in case those entries were missed above due to some
-        // non-standard classloader that uses this property
-        addClasspathElements(System.getProperty("java.class.path"));
-
-        initialized = true;
-    }
-
     /**
      * Add an extra ClassLoaderHandler. Needed if the ServiceLoader framework is not able to find the
      * ClassLoaderHandler for your specific ClassLoader, or if you want to manually register your own
@@ -402,8 +314,92 @@ public class ClasspathFinder {
      * classloader resolution order. Classpath elements that do not exist are not included in the list.
      */
     public List<File> getUniqueClasspathElements() {
+        // Parse the system classpath if it hasn't been parsed yet
         if (!initialized) {
-            parseSystemClasspath();
+            clearClasspath();
+
+            // Look for all unique classloaders.
+            // Need both a set and a list so we can keep them unique, but in an order that (hopefully) reflects
+            // the order in which the JDK calls classloaders.
+            //
+            // See:
+            // https://docs.oracle.com/javase/8/docs/technotes/tools/findingclasses.html
+            //
+            final AdditionOrderedSet<ClassLoader> classLoadersSet = new AdditionOrderedSet<>();
+            classLoadersSet.add(ClassLoader.getSystemClassLoader());
+            // Look for classloaders on the call stack
+            try {
+                // Generate stacktrace
+                throw new Exception();
+            } catch (final Exception e) {
+                final StackTraceElement[] stacktrace = e.getStackTrace();
+                if (stacktrace.length >= 1) {
+                    for (final StackTraceElement ste : stacktrace) {
+                        try {
+                            addAllParentClassloaders(Class.forName(ste.getClassName()), classLoadersSet);
+                        } catch (final ClassNotFoundException e1) {
+                        }
+                    }
+                }
+            }
+            classLoadersSet.add(Thread.currentThread().getContextClassLoader());
+            addAllParentClassloaders(ClasspathFinder.class, classLoadersSet);
+            final List<ClassLoader> classLoaders = classLoadersSet.getList();
+            classLoaders.remove(null);
+
+            // Always include a ClassLoaderHandler for URLClassLoader subclasses as a default, so that we can handle
+            // URLClassLoaders (the most common form of ClassLoader) even if ServiceLoader can't find other
+            // ClassLoaderHandlers (this can happen if FastClasspathScanner's package is renamed using Maven Shade).
+            final HashSet<ClassLoaderHandler> classLoaderHandlers = new HashSet<>();
+            classLoaderHandlers.add(new URLClassLoaderHandler());
+
+            // Find all ClassLoaderHandlers registered using ServiceLoader, given known ClassLoaders. 
+            // FastClasspathScanner ships with several of these, registered in:
+            // src/main/resources/META-INF/services
+            for (final ClassLoader classLoader : classLoaders) {
+                // Use ServiceLoader to find registered ClassLoaderHandlers, see:
+                // https://docs.oracle.com/javase/6/docs/api/java/util/ServiceLoader.html
+                final ServiceLoader<ClassLoaderHandler> classLoaderHandlerLoader = ServiceLoader
+                        .load(ClassLoaderHandler.class, classLoader);
+                // Iterate through registered ClassLoaderHandlers
+                for (final ClassLoaderHandler handler : classLoaderHandlerLoader) {
+                    classLoaderHandlers.add(handler);
+                }
+            }
+            // Add manually-added ClassLoaderHandlers
+            classLoaderHandlers.addAll(extraClassLoaderHandlers);
+
+            // Try finding a handler for each of the classloaders discovered above
+            boolean classloaderFound = false;
+            for (final ClassLoader classLoader : classLoaders) {
+                // Iterate through registered ClassLoaderHandlers
+                for (final ClassLoaderHandler handler : classLoaderHandlers) {
+                    try {
+                        if (handler.handle(classLoader, this)) {
+                            // Sucessfully handled
+                            if (FastClasspathScanner.verbose) {
+                                Log.log("Classpath elements from ClassLoader " + classLoader.getClass().getName()
+                                        + " were extracted by ClassLoaderHandler " + handler.getClass().getName());
+                            }
+                            classloaderFound = true;
+                            break;
+                        }
+                    } catch (final Exception e) {
+                        Log.log("Was not able to call getPaths() in " + classLoader.getClass().getName() + ": "
+                                + e.toString());
+                    }
+                }
+                if (!classloaderFound) {
+                    Log.log(4, "Found unknown ClassLoader type, cannot scan classes: "
+                            + classLoader.getClass().getName());
+                }
+            }
+
+            // Add entries found in java.class.path, in case those entries were missed above due to some
+            // non-standard classloader that uses this property
+            addClasspathElements(System.getProperty("java.class.path"));
+
+            initialized = true;
         }
         return classpathElements;
     }
