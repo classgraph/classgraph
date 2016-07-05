@@ -44,8 +44,13 @@ import java.util.List;
 import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.xpath.XPathConstants;
+import javax.xml.xpath.XPathFactory;
+
+import org.w3c.dom.Document;
 
 import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassInfo;
 import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassfileBinaryParser;
@@ -122,6 +127,10 @@ public class FastClasspathScanner {
     /** If set to true, print info while scanning */
     public static boolean verbose = false;
 
+    private static final String MAVEN_PACKAGE = "io.github.lukehutch";
+
+    private static final String MAVEN_ARTIFACT = "fast-classpath-scanner";
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
@@ -190,58 +199,77 @@ public class FastClasspathScanner {
         }
         return scanSpec;
     }
-
+    
     /** Get the version number of FastClasspathScanner */
     public synchronized static final String getVersion() {
         // Try to get version number from pom.xml (available when running in Eclipse)
+        Class<?> cls = FastClasspathScanner.class;
         try {
-            String className = FastClasspathScanner.class.getName();
+            String className = cls.getName();
             String classfileName = "/" + className.replace('.', '/') + ".class";
-            URL classfileResource = FastClasspathScanner.class.getResource(classfileName);
+            URL classfileResource = cls.getResource(classfileName);
             if (classfileResource != null) {
-                // Remove FastClasspathScanner package levels, and "target/classes", which is the standard
-                // location for classes in Eclipse.
-                Path path = Paths.get(classfileResource.toURI()).getParent();
-                int numPathSegments = className.length() - className.replace(".", "").length() + 2;
-                for (int i = 0; i < numPathSegments; i++) {
+                Path absolutePackagePath = Paths.get(classfileResource.toURI()).getParent();
+                int packagePathSegments = className.length() - className.replace(".", "").length();
+                // Remove package segments from path, plus two more levels for "target/classes",
+                // which is the standard location for classes in Eclipse.
+                Path path = absolutePackagePath;
+                for (int i = 0, segmentsToRemove = packagePathSegments + 2; i < segmentsToRemove; i++) {
                     path = path.getParent();
                 }
                 Path pom = path.resolve("pom.xml");
-                String pomStr = new String(Files.readAllBytes(pom), "UTF-8");
-                // Return the first version number in the file, for simplicity (brittle, but should always work)
-                Pattern versionPattern = Pattern.compile("<version>(.*)</version>");
-                Matcher matcher = versionPattern.matcher(pomStr);
-                if (matcher.find()) {
-                    return matcher.group(1);
+                try (InputStream is = Files.newInputStream(pom)) {
+                    Document doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(is);
+                    doc.getDocumentElement().normalize();
+                    String version = (String) XPathFactory.newInstance().newXPath().compile("/project/version")
+                            .evaluate(doc, XPathConstants.STRING);
+                    if (version != null) {
+                        version = version.trim();
+                        if (!version.isEmpty()) {
+                            return version;
+                        }
+                    }
                 }
             }
         } catch (Exception e) {
+            // Ignore
         }
 
         // Try to get version number from maven properties in jar's META-INF directory
-        try (InputStream is = FastClasspathScanner.class
-                .getResourceAsStream("/META-INF/maven/io.github.lukehutch/fast-classpath-scanner/pom.properties")) {
+        try (InputStream is = cls
+            .getResourceAsStream("/META-INF/maven/" + MAVEN_PACKAGE + "/" + MAVEN_ARTIFACT + "/pom.properties")) {
             if (is != null) {
                 Properties p = new Properties();
                 p.load(is);
-                String version = p.getProperty("version", "");
+                String version = p.getProperty("version", "").trim();
                 if (!version.isEmpty()) {
                     return version;
                 }
             }
         } catch (Exception e) {
+            // Ignore
         }
 
         // Fallback to using Java API (version number is obtained from MANIFEST.MF)
-        String version = null;
-        Package pkg = FastClasspathScanner.class.getPackage();
+        Package pkg = cls.getPackage();
         if (pkg != null) {
-            version = pkg.getImplementationVersion();
+            String version = pkg.getImplementationVersion();
             if (version == null) {
+                version = "";
+            }
+            version = version.trim();
+            if (version.isEmpty()) {
                 version = pkg.getSpecificationVersion();
+                if (version == null) {
+                    version = "";
+                }
+                version = version.trim();
+            }
+            if (!version.isEmpty()) {
+                return version;
             }
         }
-        return version == null ? "unknown" : version;
+        return "unknown";
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -1581,8 +1609,8 @@ public class FastClasspathScanner {
     public synchronized FastClasspathScanner scan() {
         final long scanStart = System.nanoTime();
 
-        Log.log("FastClasspathScanner version " + getVersion());
         if (FastClasspathScanner.verbose) {
+            Log.log("FastClasspathScanner version " + getVersion());
             Log.log("Classpath elements: " + getClasspathFinder().getUniqueClasspathElements());
         }
 
