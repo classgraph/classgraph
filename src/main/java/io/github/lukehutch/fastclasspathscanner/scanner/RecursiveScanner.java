@@ -68,7 +68,7 @@ public class RecursiveScanner {
      * The set of absolute paths scanned (after symlink resolution), to prevent the same resource from being scanned
      * twice.
      */
-    private final Set<String> scannedNormalizedPathURIs = new HashSet<>();
+    private final Set<String> scannedNormalizedPathDescriptors = new HashSet<>();
 
     /** The total number of regular directories scanned. */
     private final AtomicInteger numDirsScanned = new AtomicInteger();
@@ -164,10 +164,12 @@ public class RecursiveScanner {
     private boolean isNewUniqueRealPath(final Path path) {
         try {
             // Resolve symlinks, make the path absolute, then get the path as a URI
-            String normalizedPathURI = path.toRealPath().toUri().toString();
-            boolean isUnique = scannedNormalizedPathURIs.add(normalizedPathURI);
+            Path normalizedPath = path.toRealPath();
+            String normalizedPathDescriptor = normalizedPath.getFileSystem().toString() + "\t"
+                    + normalizedPath.toString();
+            boolean isUnique = scannedNormalizedPathDescriptors.add(normalizedPathDescriptor);
             if (!isUnique && FastClasspathScanner.verbose) {
-                Log.log(3, "Reached duplicate classpath resource, ignoring: " + normalizedPathURI);
+                Log.log(3, "Reached duplicate classpath resource, ignoring: " + path);
             }
             return isUnique;
         } catch (final IOException e) {
@@ -179,7 +181,16 @@ public class RecursiveScanner {
     /** Relativize a path relative to a base path, then replace separators with '/'. */
     private static String toRelativeUnixPathStr(final Path base, final Path path) {
         final Path relativePath = base.relativize(path);
-        return relativePath.toString().replace(relativePath.getFileSystem().getSeparator(), "/");
+        String separator = relativePath.getFileSystem().getSeparator();
+        if (separator.length() != 1) {
+            throw new RuntimeException("Bad path component separator: " + separator);
+        }
+        char separatorChar = separator.charAt(0);
+        if (separatorChar == '/') {
+            return relativePath.toString();
+        } else {
+            return relativePath.toString().replace(separatorChar, '/');
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -299,7 +310,7 @@ public class RecursiveScanner {
         final Map<String, String> env = new HashMap<>();
         env.put("create", "false");
 
-        scannedNormalizedPathURIs.clear();
+        scannedNormalizedPathDescriptors.clear();
         numDirsScanned.set(0);
         numFilesScanned.set(0);
         numJarfileDirsScanned.set(0);
