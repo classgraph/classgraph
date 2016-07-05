@@ -69,11 +69,13 @@ public class ClasspathFinder {
         initialized = false;
     }
 
+    private static boolean isJarMatchCase(final String path) {
+        return path.endsWith(".jar") || path.endsWith(".zip") || path.endsWith(".war") || path.endsWith(".car");
+    }
+
     /** Returns true if the path ends with a JAR extension */
     public static boolean isJar(final String path) {
-        final String pathLower = path.toLowerCase();
-        return pathLower.endsWith(".jar") || pathLower.endsWith(".zip") || pathLower.endsWith(".war")
-                || pathLower.endsWith(".car");
+        return isJarMatchCase(path) || isJarMatchCase(path.toLowerCase());
     }
 
     /**
