@@ -227,10 +227,10 @@ public class ClasspathFinder {
                 if (parent == null) {
                     return false;
                 }
-            } catch (IOException e1) {
+            } catch (final IOException e1) {
                 return false;
             }
-            String parentPathStr = parent.getPath();
+            final String parentPathStr = parent.getPath();
             if (knownJREPaths.contains(parentPathStr)) {
                 return true;
             }

@@ -35,7 +35,6 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -193,14 +192,14 @@ public class FastClasspathScanner {
     /** Get the version number of FastClasspathScanner */
     public synchronized static final String getVersion() {
         // Try to get version number from pom.xml (available when running in Eclipse)
-        Class<?> cls = FastClasspathScanner.class;
+        final Class<?> cls = FastClasspathScanner.class;
         try {
-            String className = cls.getName();
-            String classfileName = "/" + className.replace('.', '/') + ".class";
-            URL classfileResource = cls.getResource(classfileName);
+            final String className = cls.getName();
+            final String classfileName = "/" + className.replace('.', '/') + ".class";
+            final URL classfileResource = cls.getResource(classfileName);
             if (classfileResource != null) {
-                Path absolutePackagePath = Paths.get(classfileResource.toURI()).getParent();
-                int packagePathSegments = className.length() - className.replace(".", "").length();
+                final Path absolutePackagePath = Paths.get(classfileResource.toURI()).getParent();
+                final int packagePathSegments = className.length() - className.replace(".", "").length();
                 // Remove package segments from path, plus two more levels for "target/classes",
                 // which is the standard location for classes in Eclipse.
                 Path path = absolutePackagePath;
@@ -210,9 +209,9 @@ public class FastClasspathScanner {
                     }
                 }
                 if (path != null) {
-                    Path pom = path.resolve("pom.xml");
+                    final Path pom = path.resolve("pom.xml");
                     try (InputStream is = Files.newInputStream(pom)) {
-                        Document doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(is);
+                        final Document doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(is);
                         doc.getDocumentElement().normalize();
                         String version = (String) XPathFactory.newInstance().newXPath().compile("/project/version")
                                 .evaluate(doc, XPathConstants.STRING);
@@ -225,7 +224,7 @@ public class FastClasspathScanner {
                     }
                 }
             }
-        } catch (Exception e) {
+        } catch (final Exception e) {
             // Ignore
         }
 
@@ -233,19 +232,19 @@ public class FastClasspathScanner {
         try (InputStream is = cls.getResourceAsStream(
                 "/META-INF/maven/" + MAVEN_PACKAGE + "/" + MAVEN_ARTIFACT + "/pom.properties")) {
             if (is != null) {
-                Properties p = new Properties();
+                final Properties p = new Properties();
                 p.load(is);
-                String version = p.getProperty("version", "").trim();
+                final String version = p.getProperty("version", "").trim();
                 if (!version.isEmpty()) {
                     return version;
                 }
             }
-        } catch (Exception e) {
+        } catch (final Exception e) {
             // Ignore
         }
 
         // Fallback to using Java API (version number is obtained from MANIFEST.MF)
-        Package pkg = cls.getPackage();
+        final Package pkg = cls.getPackage();
         if (pkg != null) {
             String version = pkg.getImplementationVersion();
             if (version == null) {
@@ -1177,15 +1176,29 @@ public class FastClasspathScanner {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    private static byte[] readAllBytes(final File classpathElt, final String relativePath,
+            final InputStream inputStream, final long fileSize) throws IOException {
+        if (fileSize > Integer.MAX_VALUE) {
+            throw new IOException(
+                    "File larger that 2GB, cannot read contents into a Java array: classpath element = "
+                            + classpathElt + "; relative path = " + relativePath);
+        }
+        final byte[] bytes = new byte[(int) fileSize];
+        final int bytesRead = inputStream.read(bytes);
+        if (bytesRead < fileSize) {
+            throw new IOException("Could not read whole file: classpath element = " + classpathElt
+                    + "; relative path = " + relativePath);
+        }
+        return bytes;
+    }
+
     private static FileMatchProcessorWrapper makeFileMatchProcessorWrapper(
             final FileMatchProcessor fileMatchProcessor) {
         return new FileMatchProcessorWrapper() {
             @Override
-            public void processMatch(final Path absolutePath, final String relativePathStr,
-                    final BasicFileAttributes attrs) throws IOException {
-                try (InputStream inputStream = Files.newInputStream(absolutePath)) {
-                    fileMatchProcessor.processMatch(relativePathStr, inputStream, attrs.size());
-                }
+            public void processMatch(final File classpathElt, final String relativePath,
+                    final InputStream inputStream, final long fileSize) throws IOException {
+                fileMatchProcessor.processMatch(relativePath, inputStream, fileSize);
             }
         };
     }
@@ -1194,12 +1207,9 @@ public class FastClasspathScanner {
             final FileMatchProcessorWithContext fileMatchProcessorWithContext) {
         return new FileMatchProcessorWrapper() {
             @Override
-            public void processMatch(final Path absolutePath, final String relativePathStr,
-                    final BasicFileAttributes attrs) throws IOException {
-                try (InputStream inputStream = Files.newInputStream(absolutePath)) {
-                    fileMatchProcessorWithContext.processMatch(absolutePath, relativePathStr, inputStream,
-                            attrs.size());
-                }
+            public void processMatch(final File classpathElt, final String relativePath,
+                    final InputStream inputStream, final long fileSize) throws IOException {
+                fileMatchProcessorWithContext.processMatch(classpathElt, relativePath, inputStream, fileSize);
             }
         };
     }
@@ -1208,9 +1218,10 @@ public class FastClasspathScanner {
             final FileMatchContentsProcessor fileMatchProcessor) {
         return new FileMatchProcessorWrapper() {
             @Override
-            public void processMatch(final Path absolutePath, final String relativePathStr,
-                    final BasicFileAttributes attrs) throws IOException {
-                fileMatchProcessor.processMatch(relativePathStr, Files.readAllBytes(absolutePath));
+            public void processMatch(final File classpathElt, final String relativePath,
+                    final InputStream inputStream, final long fileSize) throws IOException {
+                fileMatchProcessor.processMatch(relativePath,
+                        readAllBytes(classpathElt, relativePath, inputStream, fileSize));
             }
         };
     }
@@ -1219,10 +1230,10 @@ public class FastClasspathScanner {
             final FileMatchContentsProcessorWithContext fileMatchProcessorWithContext) {
         return new FileMatchProcessorWrapper() {
             @Override
-            public void processMatch(final Path absolutePath, final String relativePathStr,
-                    final BasicFileAttributes attrs) throws IOException {
-                fileMatchProcessorWithContext.processMatch(absolutePath, relativePathStr,
-                        Files.readAllBytes(absolutePath));
+            public void processMatch(final File classpathElt, final String relativePath,
+                    final InputStream inputStream, final long fileSize) throws IOException {
+                fileMatchProcessorWithContext.processMatch(classpathElt, relativePath,
+                        readAllBytes(classpathElt, relativePath, inputStream, fileSize));
             }
         };
     }
@@ -1234,7 +1245,7 @@ public class FastClasspathScanner {
             private final Pattern pattern = Pattern.compile(pathRegexp);
 
             @Override
-            public boolean filePathMatches(final Path absolutePath, final String relativePathStr) {
+            public boolean filePathMatches(final File classpathElt, final String relativePathStr) {
                 final boolean matched = pattern.matcher(relativePathStr).matches();
                 if (matched && verbose) {
                     Log.log(3, "File " + relativePathStr + " matched filename pattern " + pathRegexp);
@@ -1313,7 +1324,7 @@ public class FastClasspathScanner {
     private static FilePathTester makeFilePathTesterMatchingRelativePath(final String relativePathToMatch) {
         return new FilePathTester() {
             @Override
-            public boolean filePathMatches(final Path absolutePath, final String relativePathStr) {
+            public boolean filePathMatches(final File classpathElt, final String relativePathStr) {
                 final boolean matched = relativePathStr.equals(relativePathToMatch);
                 if (matched && verbose) {
                     Log.log(3, "Matched filename path " + relativePathToMatch);
@@ -1398,7 +1409,7 @@ public class FastClasspathScanner {
             private final String leafToMatch = pathLeafToMatch.substring(pathLeafToMatch.lastIndexOf('/') + 1);
 
             @Override
-            public boolean filePathMatches(final Path absolutePath, final String relativePathStr) {
+            public boolean filePathMatches(final File classpathElt, final String relativePathStr) {
                 final String relativePathLeaf = relativePathStr.substring(relativePathStr.lastIndexOf('/') + 1);
                 final boolean matched = relativePathLeaf.equals(leafToMatch);
                 if (matched && verbose) {
@@ -1480,7 +1491,7 @@ public class FastClasspathScanner {
             private final String suffixToMatch = "." + extensionToMatch.toLowerCase();
 
             @Override
-            public boolean filePathMatches(final Path absolutePath, final String relativePath) {
+            public boolean filePathMatches(final File classpathElt, final String relativePath) {
                 final boolean matched = relativePath.endsWith(suffixToMatch)
                         || relativePath.toLowerCase().endsWith(suffixToMatch);
                 if (matched && verbose) {
@@ -1721,7 +1732,7 @@ public class FastClasspathScanner {
      * Switch on verbose mode if verbosity == true. (Prints debug info to System.out.) Call immediately after the
      * constructor if you want full log output.
      */
-    public synchronized FastClasspathScanner verbose(boolean verbosity) {
+    public synchronized FastClasspathScanner verbose(final boolean verbosity) {
         verbose = verbosity;
         return this;
     }

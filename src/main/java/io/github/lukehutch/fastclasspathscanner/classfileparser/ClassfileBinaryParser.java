@@ -15,8 +15,8 @@ import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
 import io.github.lukehutch.fastclasspathscanner.utils.Log;
 
 public class ClassfileBinaryParser {
-    private ClassfileBinaryParser() {
-    }
+    /** Buffer size for classfile reader. TODO: benchmark different settings for this. */
+    private static final int BUFFER_SIZE = 8192;
 
     /**
      * Read annotation entry from classfile.
@@ -153,8 +153,8 @@ public class ClassfileBinaryParser {
             final Map<String, HashSet<String>> classNameToStaticFinalFieldsToMatch, final ScanSpec scanSpec, //
             final Map<String, ClassInfo> classNameToClassInfo) {
 
-        try (final DataInputStream inp = new DataInputStream(new BufferedInputStream(inputStream, 8192))) {
-            // Magic number
+        try (final DataInputStream inp = new DataInputStream(new BufferedInputStream(inputStream, BUFFER_SIZE))) {
+            // Check magic number
             if (inp.readInt() != 0xCAFEBABE) {
                 if (FastClasspathScanner.verbose) {
                     Log.log(5, "File does not have correct classfile magic number: " + relativePath);
@@ -243,7 +243,7 @@ public class ClassfileBinaryParser {
             if (!className.equals(relativePath.substring(0, relativePath.length() - 6 /* (strip off ".class") */)
                     .replace('/', '.'))) {
                 if (FastClasspathScanner.verbose) {
-                    Log.log(4, "Class " + className + " is at incorrect relative path " + relativePath
+                    Log.log(5, "Class " + className + " is at incorrect relative path " + relativePath
                             + " -- ignoring");
                 }
                 return false;
@@ -254,7 +254,7 @@ public class ClassfileBinaryParser {
             if (classInfo == null) {
                 // This class was encountered more than once on the classpath -- ignore 2nd and subsequent defs 
                 if (FastClasspathScanner.verbose) {
-                    Log.log(4, className + " occurs more than once on classpath, ignoring all but first instance");
+                    Log.log(5, className + " occurs more than once on classpath, ignoring all but first instance");
                 }
                 return false;
             }
@@ -263,7 +263,7 @@ public class ClassfileBinaryParser {
             final String superclassName = readRefdClassName(inp, constantPool);
 
             if (FastClasspathScanner.verbose) {
-                Log.log(4,
+                Log.log(5,
                         "Found " //
                                 + (isAnnotation ? "annotation class" : isInterface ? "interface class" : "class")
                                 + " " + className
@@ -284,7 +284,7 @@ public class ClassfileBinaryParser {
                 final String interfaceName = readRefdClassName(inp, constantPool);
                 if (scanSpec.classIsNotBlacklisted(interfaceName)) {
                     if (FastClasspathScanner.verbose) {
-                        Log.log(5, "Class " + className + " implements interface " + interfaceName);
+                        Log.log(6, "Class " + className + " implements interface " + interfaceName);
                     }
                     classInfo.addImplementedInterface(interfaceName, classNameToClassInfo);
                 }
@@ -314,7 +314,7 @@ public class ClassfileBinaryParser {
                 // Check if field is static and final
                 if (!isStaticFinal && isMatchedFieldName) {
                     // Requested to match a field that is not static or not final
-                    Log.log(5, "Cannot match requested field " + classInfo.className + "." + fieldName
+                    Log.log(6, "Cannot match requested field " + classInfo.className + "." + fieldName
                             + " because it is either not static or not final");
                 }
                 // See if field name matches one of the requested names for this class, and if it does,
@@ -360,7 +360,7 @@ public class ClassfileBinaryParser {
                         }
                         // Store static final field match in ClassInfo object
                         if (FastClasspathScanner.verbose) {
-                            Log.log(5, "Class " + className + " has field " + fieldName
+                            Log.log(6, "Class " + className + " has field " + fieldName
                                     + " with static constant initializer " + constValue);
                         }
                         classInfo.addFieldConstantValue(fieldName, constValue);
@@ -376,7 +376,7 @@ public class ClassfileBinaryParser {
                         inp.skipBytes(attributeLength);
                     }
                     if (!foundConstantValue && isStaticFinal && isMatchedFieldName) {
-                        Log.log(5,
+                        Log.log(6,
                                 "Requested static final field " + classInfo.className + "." + fieldName
                                         + " is not initialized with a constant literal value, so there is no "
                                         + "initializer value in the constant pool of the classfile");
@@ -410,7 +410,7 @@ public class ClassfileBinaryParser {
                         if (scanSpec.classIsNotBlacklisted(annotationName)
                                 && !annotationName.startsWith("java.lang.annotation.")) {
                             if (FastClasspathScanner.verbose) {
-                                Log.log(5, "Class " + className + " has annotation " + annotationName);
+                                Log.log(6, "Class " + className + " has annotation " + annotationName);
                             }
                             classInfo.addAnnotation(annotationName, classNameToClassInfo);
                         }
@@ -420,8 +420,8 @@ public class ClassfileBinaryParser {
                 }
             }
 
-        } catch (final IOException e) {
-            Log.log(4, "IOException while attempting to load classfile " + relativePath + ": " + e.getMessage());
+        } catch (final Exception e) {
+            Log.log(6, "Exception while attempting to load classfile " + relativePath + ": " + e);
         }
         return true;
     }
