@@ -259,7 +259,9 @@ public class RecursiveScanner {
             public FileVisitResult visitFile(final Path filePath, final BasicFileAttributes attrs)
                     throws IOException {
                 final String relativePathStr = toRelativeUnixPathStr(base, filePath);
-                final String relativePathStrOfParent = toRelativeUnixPathStr(base, filePath.getParent()) + "/";
+                int lastSlashIdx = relativePathStr.lastIndexOf('/');
+                final String relativePathStrOfParent = lastSlashIdx < 0 ? "/"
+                        : relativePathStr.substring(0, lastSlashIdx + 1);
                 final ScanSpecPathMatch matchStatus = scanSpec.pathWhitelistMatchStatus(relativePathStrOfParent);
                 boolean performScan = false;
                 if (matchStatus == ScanSpecPathMatch.WITHIN_WHITELISTED_PATH) {
@@ -338,9 +340,13 @@ public class RecursiveScanner {
                         updateLastModifiedTimestamp(classpathElt.toPath());
                         if (!scanTimestampsOnly) {
                             // Scan within jar/zipfile
+                            final long startTime = System.nanoTime();
                             try (FileSystem zipfs = FileSystems
                                     .newFileSystem(new URI("jar:" + classpathElt.toURI()), env)) {
                                 recursiveScan(zipfs.getPath("/"), isJar, scanTimestampsOnly);
+                            }
+                            if (FastClasspathScanner.verbose) {
+                                Log.log(2, "Scanned jarfile " + classpathElt, System.nanoTime() - startTime);
                             }
                         }
                         numJarfilesScanned.incrementAndGet();
@@ -354,7 +360,7 @@ public class RecursiveScanner {
 
                     } else {
                         if (FastClasspathScanner.verbose) {
-                            Log.log(1, "Skipping classpath element due to scan spec restriction: " + path);
+                            Log.log(2, "Skipping classpath element due to scan spec restriction: " + path);
                         }
                     }
                 } catch (IOException | URISyntaxException e) {
