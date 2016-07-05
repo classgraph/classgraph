@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -120,14 +121,10 @@ public class ClasspathFinder {
                     return new File(pathElementStr).toPath().toRealPath(LinkOption.NOFOLLOW_LINKS);
                 } catch (final Exception e3) {
                     // One of the above should have worked, so if we got here, the path element is junk.
-                    if (FastClasspathScanner.verbose) {
-                        Log.log("Exception while trying to read classpath element " + pathStr + " : "
-                                + e.getMessage());
-                    }
+                    return null;
                 }
             }
         }
-        return null;
     }
 
     /** Add a classpath element. */
@@ -146,7 +143,7 @@ public class ClasspathFinder {
                     // file. OpenJDK scans manifest-defined classpath elements after the jar that listed them, so
                     // we recursively call addClasspathElement if needed each time a jar is encountered. 
                     if (pathFile.isFile() && isJar(pathStr)) {
-                        if (isJREJar(pathFile, /* ancestralScanDepth = */2)) {
+                        if (isJREJar(pathFile.toPath(), /* ancestralScanDepth = */2)) {
                             // Don't scan system jars
                             isValidClasspathElement = false;
                             if (FastClasspathScanner.verbose) {
@@ -174,6 +171,13 @@ public class ClasspathFinder {
                                                 manifestClassPathElement);
                                         if (manifestEltPath != null) {
                                             addClasspathElement(manifestEltPath.toString());
+                                        } else {
+                                            if (FastClasspathScanner.verbose) {
+                                                Log.log("Classpath element "
+                                                        + new File(pathFile.getParent(), manifestClassPathElement)
+                                                        + " not found -- from Class-Path entry "
+                                                        + manifestClassPathElement + " in " + manifestUrlStr);
+                                            }
                                         }
                                     }
                                 }
@@ -212,21 +216,33 @@ public class ClasspathFinder {
      * determine if the given jarfile is part of the JRE. This would typically be called with an initial
      * ancestralScandepth of 2, since JRE jarfiles can be in the lib or lib/ext directories of the JRE.
      */
-    private boolean isJREJar(final File file, final int ancestralScanDepth) {
+    private boolean isJREJar(final Path path, final int ancestralScanDepth) {
         if (ancestralScanDepth == 0) {
             return false;
         } else {
-            final File parent = file.getParentFile();
+            Path parent = path.getParent();
             if (parent == null) {
                 return false;
             }
-            if (knownJREPaths.contains(parent.getPath())) {
+            String parentPathStr;
+            try {
+                parentPathStr = parent.toRealPath().toString();
+            } catch (IOException e1) {
+                return false;
+            }
+            if (knownJREPaths.contains(parentPathStr)) {
                 return true;
             }
-            final File rt = new File(parent, "rt.jar");
-            if (rt.exists()) {
+            Path rt = parent.resolve("rt.jar");
+            if (!Files.exists(rt)) {
+                rt = parent.resolve("lib").resolve("rt.jar");
+                if (!Files.exists(rt)) {
+                    rt = parent.resolve("jre").resolve("lib").resolve("rt.jar");
+                }
+            }
+            if (Files.exists(rt)) {
                 // Found rt.jar; check its manifest file to make sure it's the JRE's rt.jar and not something else 
-                final String manifestUrlStr = "jar:" + rt.toURI() + "!/META-INF/MANIFEST.MF";
+                final String manifestUrlStr = "jar:" + rt.toUri() + "!/META-INF/MANIFEST.MF";
                 try (InputStream stream = new URL(manifestUrlStr).openStream()) {
                     // Look for Class-Path keys within manifest files
                     final Manifest manifest = new Manifest(stream);
@@ -235,7 +251,7 @@ public class ClasspathFinder {
                             || "Java Platform API Specification".equals( //
                                     manifest.getMainAttributes().getValue("Specification-Title"))) {
                         // Found the JRE's rt.jar
-                        knownJREPaths.add(parent.getPath());
+                        knownJREPaths.add(parentPathStr);
                         return true;
                     }
                 } catch (final IOException e) {
