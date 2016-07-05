@@ -1715,4 +1715,13 @@ public class FastClasspathScanner {
         verbose = true;
         return this;
     }
+
+    /**
+     * Switch on verbose mode if verbosity == true. (Prints debug info to System.out.) Call immediately after the
+     * constructor if you want full log output.
+     */
+    public synchronized FastClasspathScanner verbose(boolean verbosity) {
+        verbose = verbosity;
+        return this;
+    }
 }
