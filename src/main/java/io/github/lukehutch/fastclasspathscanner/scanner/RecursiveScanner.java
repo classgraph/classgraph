@@ -184,14 +184,17 @@ public class RecursiveScanner {
     // -------------------------------------------------------------------------------------------------------------
 
     /** Scan a file. */
-    private void scanFile(final Path absolutePath, final String relativePathStr, final boolean scanTimestampsOnly) {
+    private void scanFile(final Path absolutePath, final String relativePathStr, final boolean updateTimestamp,
+            final boolean scanTimestampsOnly) {
         if (FastClasspathScanner.verbose) {
             Log.log(2, "Scanning file: " + absolutePath);
         }
         if (!isNewUniqueRealPath(absolutePath)) {
             return;
         }
-        updateLastModifiedTimestamp(absolutePath);
+        if (updateTimestamp) {
+            updateLastModifiedTimestamp(absolutePath);
+        }
         if (!scanTimestampsOnly) {
             final long startTime = System.nanoTime();
             // Match file paths against path patterns
@@ -274,7 +277,7 @@ public class RecursiveScanner {
                 if (performScan) {
                     (isJar ? numJarfileFilesScanned : numFilesScanned).incrementAndGet();
                     // Scan the file
-                    scanFile(filePath, relativePathStr, scanTimestampsOnly);
+                    scanFile(filePath, relativePathStr, /* updateTimestamp = */ !isJar, scanTimestampsOnly);
                 }
                 return FileVisitResult.CONTINUE;
             }
@@ -333,10 +336,12 @@ public class RecursiveScanner {
                         // For jar/zipfile, use the timestamp of the jar/zipfile as the timestamp for all files,
                         // since the timestamps within the zip directory may be unreliable.
                         updateLastModifiedTimestamp(classpathElt.toPath());
-                        // Scan within jar/zipfile
-                        try (FileSystem zipfs = FileSystems.newFileSystem(new URI("jar:" + classpathElt.toURI()),
-                                env)) {
-                            recursiveScan(zipfs.getPath("/"), isJar, scanTimestampsOnly);
+                        if (!scanTimestampsOnly) {
+                            // Scan within jar/zipfile
+                            try (FileSystem zipfs = FileSystems
+                                    .newFileSystem(new URI("jar:" + classpathElt.toURI()), env)) {
+                                recursiveScan(zipfs.getPath("/"), isJar, scanTimestampsOnly);
+                            }
                         }
                         numJarfilesScanned.incrementAndGet();
 
@@ -344,7 +349,7 @@ public class RecursiveScanner {
                         // File listed directly on classpath
                         scanFile(classpathEltPath,
                                 toRelativeUnixPathStr(classpathEltPath.getParent(), classpathEltPath),
-                                scanTimestampsOnly);
+                                /* updateTimestamp = */ true, scanTimestampsOnly);
                         numFilesScanned.incrementAndGet();
 
                     } else {
