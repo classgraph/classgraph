@@ -125,7 +125,7 @@ public class FastClasspathScanner {
 
     /** Only add classfile matcher once */
     private static boolean addedClassfileMatcher = false;
-    
+
     /** If set to true, print info while scanning */
     public static boolean verbose = false;
 
@@ -205,18 +205,22 @@ public class FastClasspathScanner {
                 // which is the standard location for classes in Eclipse.
                 Path path = absolutePackagePath;
                 for (int i = 0, segmentsToRemove = packagePathSegments + 2; i < segmentsToRemove; i++) {
-                    path = path.getParent();
+                    if (path != null) {
+                        path = path.getParent();
+                    }
                 }
-                Path pom = path.resolve("pom.xml");
-                try (InputStream is = Files.newInputStream(pom)) {
-                    Document doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(is);
-                    doc.getDocumentElement().normalize();
-                    String version = (String) XPathFactory.newInstance().newXPath().compile("/project/version")
-                            .evaluate(doc, XPathConstants.STRING);
-                    if (version != null) {
-                        version = version.trim();
-                        if (!version.isEmpty()) {
-                            return version;
+                if (path != null) {
+                    Path pom = path.resolve("pom.xml");
+                    try (InputStream is = Files.newInputStream(pom)) {
+                        Document doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(is);
+                        doc.getDocumentElement().normalize();
+                        String version = (String) XPathFactory.newInstance().newXPath().compile("/project/version")
+                                .evaluate(doc, XPathConstants.STRING);
+                        if (version != null) {
+                            version = version.trim();
+                            if (!version.isEmpty()) {
+                                return version;
+                            }
                         }
                     }
                 }
@@ -1617,7 +1621,7 @@ public class FastClasspathScanner {
             });
             addedClassfileMatcher = true;
         }
-        
+
         // Scan classpath, calling FilePathMatchers if any matching paths are found, including the matcher
         // that calls the classfile binary parser when the extension ".class" is found on a filename,
         // producing a ClassInfo object for each encountered class.
