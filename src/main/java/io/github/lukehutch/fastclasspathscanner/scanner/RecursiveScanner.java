@@ -239,7 +239,7 @@ public class RecursiveScanner {
             public FileVisitResult preVisitDirectory(final Path dirPath, final BasicFileAttributes attrs)
                     throws IOException {
                 (isJar ? numJarfileDirsScanned : numDirsScanned).incrementAndGet();
-                final String relativePathStr = toRelativeUnixPathStr(base, dirPath);
+                final String relativePathStr = toRelativeUnixPathStr(base, dirPath) + "/";
                 if (FastClasspathScanner.verbose) {
                     Log.log(2, "Scanning directory: " + dirPath);
                 }
