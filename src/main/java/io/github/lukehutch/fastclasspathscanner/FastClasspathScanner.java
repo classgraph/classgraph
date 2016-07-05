@@ -124,6 +124,9 @@ public class FastClasspathScanner {
     /** A list of class matchers to call once all classes have been read in from classpath. */
     private final ArrayList<ClassMatcher> classMatchers = new ArrayList<>();
 
+    /** Only add classfile matcher once */
+    private static boolean addedClassfileMatcher = false;
+    
     /** If set to true, print info while scanning */
     public static boolean verbose = false;
 
@@ -147,18 +150,6 @@ public class FastClasspathScanner {
     public FastClasspathScanner(final String... scanSpec) {
         FastClasspathScanner.verbose = false; // By default
         this.scanSpecArgs = scanSpec;
-
-        // Read classfile headers for all filenames ending in ".class" on classpath
-        this.matchFilenameExtension("class", new FileMatchProcessor() {
-            @Override
-            public void processMatch(final String relativePath, final InputStream inputStream, //
-                    final long lengthBytes) throws IOException {
-                if (ClassfileBinaryParser.readClassInfoFromClassfileHeader(relativePath, inputStream,
-                        classNameToStaticFinalFieldsToMatch, getScanSpec(), classNameToClassInfo)) {
-                    numClassfilesParsed++;
-                }
-            }
-        });
     }
 
     /**
@@ -199,7 +190,7 @@ public class FastClasspathScanner {
         }
         return scanSpec;
     }
-    
+
     /** Get the version number of FastClasspathScanner */
     public synchronized static final String getVersion() {
         // Try to get version number from pom.xml (available when running in Eclipse)
@@ -236,8 +227,8 @@ public class FastClasspathScanner {
         }
 
         // Try to get version number from maven properties in jar's META-INF directory
-        try (InputStream is = cls
-            .getResourceAsStream("/META-INF/maven/" + MAVEN_PACKAGE + "/" + MAVEN_ARTIFACT + "/pom.properties")) {
+        try (InputStream is = cls.getResourceAsStream(
+                "/META-INF/maven/" + MAVEN_PACKAGE + "/" + MAVEN_ARTIFACT + "/pom.properties")) {
             if (is != null) {
                 Properties p = new Properties();
                 p.load(is);
@@ -1188,8 +1179,7 @@ public class FastClasspathScanner {
         return new FileMatchProcessorWrapper() {
             @Override
             public void processMatch(final Path absolutePath, final String relativePathStr) throws IOException {
-                try (BufferedInputStream inputStream = new BufferedInputStream(
-                        Files.newInputStream(absolutePath))) {
+                try (InputStream inputStream = Files.newInputStream(absolutePath)) {
                     fileMatchProcessor.processMatch(relativePathStr, inputStream,
                             Files.readAttributes(absolutePath, BasicFileAttributes.class).size());
                 }
@@ -1202,8 +1192,7 @@ public class FastClasspathScanner {
         return new FileMatchProcessorWrapper() {
             @Override
             public void processMatch(final Path absolutePath, final String relativePathStr) throws IOException {
-                try (BufferedInputStream inputStream = new BufferedInputStream(
-                        Files.newInputStream(absolutePath))) {
+                try (InputStream inputStream = Files.newInputStream(absolutePath)) {
                     fileMatchProcessorWithContext.processMatch(absolutePath, relativePathStr, inputStream,
                             Files.readAttributes(absolutePath, BasicFileAttributes.class).size());
                 }
@@ -1614,6 +1603,22 @@ public class FastClasspathScanner {
             Log.log("Classpath elements: " + getClasspathFinder().getUniqueClasspathElements());
         }
 
+        // Add matcher for classfiles
+        if (!addedClassfileMatcher) {
+            // Read classfile headers for all filenames ending in ".class" on classpath
+            this.matchFilenameExtension("class", new FileMatchProcessor() {
+                @Override
+                public void processMatch(final String relativePath, final InputStream inputStream, //
+                        final long lengthBytes) throws IOException {
+                    if (ClassfileBinaryParser.readClassInfoFromClassfileHeader(relativePath, inputStream,
+                            classNameToStaticFinalFieldsToMatch, getScanSpec(), classNameToClassInfo)) {
+                        numClassfilesParsed++;
+                    }
+                }
+            });
+            addedClassfileMatcher = true;
+        }
+        
         // Scan classpath, calling FilePathMatchers if any matching paths are found, including the matcher
         // that calls the classfile binary parser when the extension ".class" is found on a filename,
         // producing a ClassInfo object for each encountered class.
