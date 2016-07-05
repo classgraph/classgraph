@@ -123,8 +123,8 @@ public class FastClasspathScanner {
     /** A list of class matchers to call once all classes have been read in from classpath. */
     private final ArrayList<ClassMatcher> classMatchers = new ArrayList<>();
 
-    /** Only add classfile matcher once */
-    private static boolean addedClassfileMatcher = false;
+    /** Only add classfile matcher once per instance */
+    private boolean addedClassfileMatcher = false;
 
     /** If set to true, print info while scanning */
     public static boolean verbose = false;
