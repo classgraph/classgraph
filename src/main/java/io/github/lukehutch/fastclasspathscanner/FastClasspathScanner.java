@@ -1481,7 +1481,8 @@ public class FastClasspathScanner {
 
             @Override
             public boolean filePathMatches(final Path absolutePath, final String relativePath) {
-                final boolean matched = relativePath.toLowerCase().endsWith(suffixToMatch);
+                final boolean matched = relativePath.endsWith(suffixToMatch)
+                        || relativePath.toLowerCase().endsWith(suffixToMatch);
                 if (matched && verbose) {
                     Log.log(3, "File " + relativePath + " matched extension ." + extensionToMatch);
                 }
