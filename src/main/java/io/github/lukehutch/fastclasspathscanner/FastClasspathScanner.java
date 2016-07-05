@@ -1181,10 +1181,10 @@ public class FastClasspathScanner {
             final FileMatchProcessor fileMatchProcessor) {
         return new FileMatchProcessorWrapper() {
             @Override
-            public void processMatch(final Path absolutePath, final String relativePathStr) throws IOException {
+            public void processMatch(final Path absolutePath, final String relativePathStr,
+                    final BasicFileAttributes attrs) throws IOException {
                 try (InputStream inputStream = Files.newInputStream(absolutePath)) {
-                    fileMatchProcessor.processMatch(relativePathStr, inputStream,
-                            Files.readAttributes(absolutePath, BasicFileAttributes.class).size());
+                    fileMatchProcessor.processMatch(relativePathStr, inputStream, attrs.size());
                 }
             }
         };
@@ -1194,10 +1194,11 @@ public class FastClasspathScanner {
             final FileMatchProcessorWithContext fileMatchProcessorWithContext) {
         return new FileMatchProcessorWrapper() {
             @Override
-            public void processMatch(final Path absolutePath, final String relativePathStr) throws IOException {
+            public void processMatch(final Path absolutePath, final String relativePathStr,
+                    final BasicFileAttributes attrs) throws IOException {
                 try (InputStream inputStream = Files.newInputStream(absolutePath)) {
                     fileMatchProcessorWithContext.processMatch(absolutePath, relativePathStr, inputStream,
-                            Files.readAttributes(absolutePath, BasicFileAttributes.class).size());
+                            attrs.size());
                 }
             }
         };
@@ -1207,7 +1208,8 @@ public class FastClasspathScanner {
             final FileMatchContentsProcessor fileMatchProcessor) {
         return new FileMatchProcessorWrapper() {
             @Override
-            public void processMatch(final Path absolutePath, final String relativePathStr) throws IOException {
+            public void processMatch(final Path absolutePath, final String relativePathStr,
+                    final BasicFileAttributes attrs) throws IOException {
                 fileMatchProcessor.processMatch(relativePathStr, Files.readAllBytes(absolutePath));
             }
         };
@@ -1217,7 +1219,8 @@ public class FastClasspathScanner {
             final FileMatchContentsProcessorWithContext fileMatchProcessorWithContext) {
         return new FileMatchProcessorWrapper() {
             @Override
-            public void processMatch(final Path absolutePath, final String relativePathStr) throws IOException {
+            public void processMatch(final Path absolutePath, final String relativePathStr,
+                    final BasicFileAttributes attrs) throws IOException {
                 fileMatchProcessorWithContext.processMatch(absolutePath, relativePathStr,
                         Files.readAllBytes(absolutePath));
             }

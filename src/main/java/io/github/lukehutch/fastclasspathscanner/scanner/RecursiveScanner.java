@@ -134,7 +134,8 @@ public class RecursiveScanner {
 
     /** An interface called when the corresponding FilePathTester returns true. */
     public static interface FileMatchProcessorWrapper {
-        public void processMatch(final Path absolutePath, final String relativePathStr) throws IOException;
+        public void processMatch(final Path absolutePath, final String relativePathStr, BasicFileAttributes attrs)
+                throws IOException;
     }
 
     private static class FilePathTesterAndMatchProcessorWrapper {
@@ -184,16 +185,13 @@ public class RecursiveScanner {
     // -------------------------------------------------------------------------------------------------------------
 
     /** Scan a file. */
-    private void scanFile(final Path absolutePath, final String relativePathStr, final boolean updateTimestamp,
+    private void scanFile(final Path absolutePath, final String relativePathStr, final BasicFileAttributes attrs,
             final boolean scanTimestampsOnly) {
-        if (FastClasspathScanner.verbose) {
-            Log.log(2, "Scanning file: " + absolutePath);
-        }
         if (!isNewUniqueRealPath(absolutePath)) {
             return;
         }
-        if (updateTimestamp) {
-            updateLastModifiedTimestamp(absolutePath);
+        if (FastClasspathScanner.verbose) {
+            Log.log(2, "Scanning file: " + absolutePath);
         }
         if (!scanTimestampsOnly) {
             final long startTime = System.nanoTime();
@@ -206,7 +204,7 @@ public class RecursiveScanner {
                         Log.log(3, "Calling MatchProcessor for file " + absolutePath);
                     }
                     try {
-                        fileMatcher.fileMatchProcessorWrapper.processMatch(absolutePath, relativePathStr);
+                        fileMatcher.fileMatchProcessorWrapper.processMatch(absolutePath, relativePathStr, attrs);
                     } catch (final Exception e) {
                         if (FastClasspathScanner.verbose) {
                             Log.log(4, "Exception while processing file " + absolutePath + ": " + e.getMessage());
@@ -277,9 +275,12 @@ public class RecursiveScanner {
                     }
                 }
                 if (performScan) {
-                    (isJar ? numJarfileFilesScanned : numFilesScanned).incrementAndGet();
                     // Scan the file
-                    scanFile(filePath, relativePathStr, /* updateTimestamp = */ !isJar, scanTimestampsOnly);
+                    scanFile(filePath, relativePathStr, attrs, scanTimestampsOnly);
+                    (isJar ? numJarfileFilesScanned : numFilesScanned).incrementAndGet();
+                    if (!isJar) {
+                        updateLastModifiedTimestamp(attrs.lastModifiedTime().toMillis());
+                    }
                 }
                 return FileVisitResult.CONTINUE;
             }
@@ -324,8 +325,8 @@ public class RecursiveScanner {
                 try {
                     if (isDirectory && scanSpec.scanNonJars) {
                         // Scan within directory
-                        recursiveScan(classpathEltPath, isJar, scanTimestampsOnly);
                         numDirsScanned.incrementAndGet();
+                        recursiveScan(classpathEltPath, isJar, scanTimestampsOnly);
 
                     } else if (isJar && scanSpec.scanJars) {
                         // Need to separately test if jarfiles have been scanned before, rather than testing
@@ -337,7 +338,6 @@ public class RecursiveScanner {
 
                         // For jar/zipfile, use the timestamp of the jar/zipfile as the timestamp for all files,
                         // since the timestamps within the zip directory may be unreliable.
-                        updateLastModifiedTimestamp(classpathElt.toPath());
                         if (!scanTimestampsOnly) {
                             // Scan within jar/zipfile
                             final long startTime = System.nanoTime();
@@ -349,13 +349,16 @@ public class RecursiveScanner {
                                 Log.log(2, "Scanned jarfile " + classpathElt, System.nanoTime() - startTime);
                             }
                         }
+                        updateLastModifiedTimestamp(classpathElt.lastModified());
                         numJarfilesScanned.incrementAndGet();
 
                     } else if (!isJar && scanSpec.scanNonJars) {
                         // File listed directly on classpath
                         scanFile(classpathEltPath,
                                 toRelativeUnixPathStr(classpathEltPath.getParent(), classpathEltPath),
-                                /* updateTimestamp = */ true, scanTimestampsOnly);
+                                Files.readAttributes(classpathElt.toPath(), BasicFileAttributes.class),
+                                scanTimestampsOnly);
+                        updateLastModifiedTimestamp(classpathElt.lastModified());
                         numFilesScanned.incrementAndGet();
 
                     } else {
@@ -388,17 +391,8 @@ public class RecursiveScanner {
     // -------------------------------------------------------------------------------------------------------------
 
     /** Update the last modified timestamp, given the timestamp of a Path. */
-    private void updateLastModifiedTimestamp(final Path absolutePath) {
+    private void updateLastModifiedTimestamp(final long fileLastModified) {
         // Find max last modified timestamp, but don't accept values greater than the current time
-        long fileLastModified = 0L;
-        try {
-            fileLastModified = Files.getLastModifiedTime(absolutePath).toMillis();
-        } catch (final IOException e) {
-            if (FastClasspathScanner.verbose) {
-                Log.log(4, "Exception while getting last modified timestamp for file " + absolutePath + ": "
-                        + e.getMessage());
-            }
-        }
         lastModified = Math.max(lastModified, Math.min(System.currentTimeMillis(), fileLastModified));
     }
 
