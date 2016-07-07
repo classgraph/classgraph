@@ -190,7 +190,6 @@ The constructor accepts a list of whitelisted package prefixes / jar names to sc
 * `new FastClasspathScanner()`: If you don't specify any whitelisted package prefixes, all jarfiles and all directories on the classpath will be scanned, with the exception of the `java` and `sun` packages, which are always blacklisted for efficiency (e.g. `java.lang`, `java.util` etc. are never scanned).
 
 **Notes on scan specs:**
-* Scan spec entries can use either `.` or `/` as the package/directory separator, i.e. `new FastClasspathScanner("com.x.y")` and `new FastClasspathScanner("com/x/y")` are equivalent.
 * Superclasses, subclasses etc. that are in a package that is not whitelisted (or that is blacklisted) will not be returned by a query, but can be used to query. For example, consider a class `com.external.X` that is a superclass of `com.xyz.X`, with a whitelist scanSpec of `com.xyz`. Then `.getNamesOfSuperclassesOf("com.xyz.X")` will return an empty result, but `.getNamesOfSubclassesOf("com.external.X")` will return `["com.xyz.X"]`.
 * For efficiency, system, bootstrap and extension jarfiles like `rt.jar` (i.e. the jarfiles distributed with the JRE) are always blacklisted, as are package prefixes `java` and `sun`, i.e. they are never scanned. If you put custom classes into the `lib/ext` directory in your JRE folder (which is a valid but rare way of adding jarfiles to the classpath), they will be ignored by association with the JRE.
 

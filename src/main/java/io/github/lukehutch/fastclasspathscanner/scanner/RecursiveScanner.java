@@ -38,13 +38,29 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Queue;
 import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CompletionService;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorCompletionService;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
+import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner.ClassMatcher;
+import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassInfo;
+import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassfileBinaryParser;
+import io.github.lukehutch.fastclasspathscanner.classgraph.ClassGraphBuilder;
 import io.github.lukehutch.fastclasspathscanner.classpath.ClasspathFinder;
+import io.github.lukehutch.fastclasspathscanner.matchprocessor.StaticFinalFieldMatchProcessor;
+import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec.ScanSpecPathMatch;
 import io.github.lukehutch.fastclasspathscanner.utils.Log;
 
 public class RecursiveScanner {
@@ -54,15 +70,42 @@ public class RecursiveScanner {
     /** The scanspec (whitelisted and blacklisted packages, etc.). */
     private final ScanSpec scanSpec;
 
+    /** The class matchers. */
+    private final ArrayList<ClassMatcher> classMatchers;
+
+    /** A map from class name to static final fields to match within the class. */
+    private final Map<String, HashSet<String>> classNameToStaticFinalFieldsToMatch;
+
+    /**
+     * A map from (className + "." + staticFinalFieldName) to StaticFinalFieldMatchProcessor(s) that should be
+     * called if that class name and static final field name is encountered with a static constant initializer
+     * during scan.
+     */
+    private final Map<String, ArrayList<StaticFinalFieldMatchProcessor>> //
+    fullyQualifiedFieldNameToStaticFinalFieldMatchProcessors;
+
     /** A list of file path testers and match processor wrappers to use for file matching. */
     private final List<FilePathTesterAndMatchProcessorWrapper> filePathTestersAndMatchProcessorWrappers = //
             new ArrayList<>();
 
     /**
-     * The set of absolute paths scanned (after symlink resolution), to prevent the same resource from being scanned
-     * twice.
+     * The set of absolute directory/zipfile paths scanned (after symlink resolution), to prevent the same resource
+     * from being scanned twice.
      */
     private final Set<String> previouslyScannedCanonicalPaths = new HashSet<>();
+
+    /**
+     * The set of relative file paths scanned (without symlink resolution), to allow for classpath masking of
+     * resources (only the first resource with a given relative path should be visible within the classpath, as per
+     * Java conventions).
+     */
+    private final Set<String> previouslyScannedRelativePaths = new HashSet<>();
+
+    /** A map from class name to ClassInfo object for the class. */
+    private final ConcurrentHashMap<String, ClassInfo> classNameToClassInfo = new ConcurrentHashMap<>();
+
+    /** The class graph builder. */
+    private ClassGraphBuilder classGraphBuilder;
 
     /** The total number of regular directories scanned. */
     private final AtomicInteger numDirsScanned = new AtomicInteger();
@@ -79,12 +122,45 @@ public class RecursiveScanner {
     /** The total number of jarfiles scanned. */
     private final AtomicInteger numJarfilesScanned = new AtomicInteger();
 
+    /** The total number of classfiles scanned. */
+    private final AtomicInteger numClassfilesScanned = new AtomicInteger();
+
     /**
      * The latest last-modified timestamp of any file, directory or sub-directory in the classpath, in millis since
      * the Unix epoch. Does not consider timestamps inside zipfiles/jarfiles, but the timestamp of the zip/jarfile
      * itself is considered.
      */
     private long lastModified = 0;
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** An interface used to test whether a file's relative path matches a given specification. */
+    public static interface FilePathTester {
+        public boolean filePathMatches(final File classpathElt, final String relativePathStr);
+    }
+
+    /** An interface called when the corresponding FilePathTester returns true. */
+    public static interface FileMatchProcessorWrapper {
+        public void processMatch(final File classpathElt, final String relativePath, final InputStream inputStream,
+                final long fileSize) throws IOException;
+    }
+
+    private static class FilePathTesterAndMatchProcessorWrapper {
+        FilePathTester filePathTester;
+        FileMatchProcessorWrapper fileMatchProcessorWrapper;
+
+        public FilePathTesterAndMatchProcessorWrapper(final FilePathTester filePathTester,
+                final FileMatchProcessorWrapper fileMatchProcessorWrapper) {
+            this.filePathTester = filePathTester;
+            this.fileMatchProcessorWrapper = fileMatchProcessorWrapper;
+        }
+    }
+
+    public void addFilePathMatcher(final FilePathTester filePathTester,
+            final FileMatchProcessorWrapper fileMatchProcessorWrapper) {
+        filePathTestersAndMatchProcessorWrappers
+                .add(new FilePathTesterAndMatchProcessorWrapper(filePathTester, fileMatchProcessorWrapper));
+    }
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -113,208 +189,55 @@ public class RecursiveScanner {
      * 
      * ["com.x", "-jar:"] => scans "com.x" and all sub-packages, but only looks in directories on the classpath,
      * doesn't scan jarfiles (i.e. all jars are blacklisted.)
+     * 
+     * @param fullyQualifiedFieldNameToStaticFinalFieldMatchProcessors
      */
-    public RecursiveScanner(final ClasspathFinder classpathFinder, final ScanSpec scanSpec) {
+    public RecursiveScanner(final ClasspathFinder classpathFinder, final ScanSpec scanSpec,
+            final ArrayList<ClassMatcher> classMatchers,
+            final Map<String, HashSet<String>> classNameToStaticFinalFieldsToMatch,
+            final Map<String, ArrayList<StaticFinalFieldMatchProcessor>> // 
+            fullyQualifiedFieldNameToStaticFinalFieldMatchProcessors) {
         this.classpathFinder = classpathFinder;
         this.scanSpec = scanSpec;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /** An interface used to test whether a file's relative path matches a given specification. */
-    public static interface FilePathTester {
-        public boolean filePathMatches(final File classpathElt, final String relativePathStr);
-    }
-
-    /** An interface called when the corresponding FilePathTester returns true. */
-    public static interface FileMatchProcessorWrapper {
-        public void processMatch(final File classpathElt, final String relativePathStr,
-                final InputStream inputStream, final long fileSize) throws IOException;
-    }
-
-    private static class FilePathTesterAndMatchProcessorWrapper {
-        FilePathTester filePathTester;
-        FileMatchProcessorWrapper fileMatchProcessorWrapper;
-
-        public FilePathTesterAndMatchProcessorWrapper(final FilePathTester filePathTester,
-                final FileMatchProcessorWrapper fileMatchProcessorWrapper) {
-            this.filePathTester = filePathTester;
-            this.fileMatchProcessorWrapper = fileMatchProcessorWrapper;
-        }
-    }
-
-    public void addFilePathMatcher(final FilePathTester filePathTester,
-            final FileMatchProcessorWrapper fileMatchProcessorWrapper) {
-        filePathTestersAndMatchProcessorWrappers
-                .add(new FilePathTesterAndMatchProcessorWrapper(filePathTester, fileMatchProcessorWrapper));
+        this.classMatchers = classMatchers;
+        this.classNameToStaticFinalFieldsToMatch = classNameToStaticFinalFieldsToMatch;
+        this.fullyQualifiedFieldNameToStaticFinalFieldMatchProcessors = // 
+                fullyQualifiedFieldNameToStaticFinalFieldMatchProcessors;
     }
 
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Return true if the real path for this path hasn't been seen before during this scan. (Getting the real path
-     * resolves symlinks.)
+     * Return true if the canonical path (after resolving symlinks and getting absolute path) for this dir, jarfile
+     * or file hasn't been seen before during this scan.
      */
-    private boolean previouslyScanned(final File classpathElt) {
+    private boolean previouslyScanned(final File fileOrDir) {
         try {
-            // Get canonical path (resolve symlinks, and make the path absolute)
-            final String canonicalPath = classpathElt.getCanonicalPath();
-            // See if this canonical path has been scanned before
-            final boolean previouslyScanned = !previouslyScannedCanonicalPaths.add(canonicalPath);
-            if (previouslyScanned && FastClasspathScanner.verbose) {
-                Log.log(3, "Reached duplicate classpath element, ignoring: " + classpathElt);
-            }
-            return previouslyScanned;
+            // Get canonical path (resolve symlinks, and make the path absolute), then see if this canonical path
+            // has been scanned before
+            return !previouslyScannedCanonicalPaths.add(fileOrDir.getCanonicalPath());
         } catch (final IOException | SecurityException e) {
             // If something goes wrong while getting the real path, just return true.
             return true;
         }
     }
 
-    // -------------------------------------------------------------------------------------------------------------
-
-    /** Scan a file. */
-    private void scanFile(final File classpathElt, final String relativePath, final File file,
-            final boolean scanTimestampsOnly) {
-        if (previouslyScanned(file)) {
-            if (FastClasspathScanner.verbose) {
-                Log.log(3, "Reached duplicate file, ignoring: " + file);
-            }
-            return;
-        }
-        if (FastClasspathScanner.verbose) {
-            Log.log(3, "Scanning file: " + file);
-        }
-        numFilesScanned.incrementAndGet();
-
-        if (!scanTimestampsOnly) {
-            final long startTime = System.nanoTime();
-            // Match file paths against path patterns
-            boolean filePathMatches = false;
-            for (final FilePathTesterAndMatchProcessorWrapper fileMatcher : // 
-            filePathTestersAndMatchProcessorWrappers) {
-                if (fileMatcher.filePathTester.filePathMatches(classpathElt, relativePath)) {
-                    if (FastClasspathScanner.verbose) {
-                        Log.log(4, "Calling MatchProcessor for file " + file);
-                    }
-                    try (InputStream inputStream = new FileInputStream(file)) {
-                        fileMatcher.fileMatchProcessorWrapper.processMatch(classpathElt, relativePath, inputStream,
-                                file.length());
-                    } catch (final Exception e) {
-                        if (FastClasspathScanner.verbose) {
-                            Log.log(5, "Exception while processing classpath element " + classpathElt + ", file "
-                                    + relativePath + " : " + e.getMessage());
-                        }
-                    }
-                    filePathMatches = true;
-                }
-            }
-            if (FastClasspathScanner.verbose && filePathMatches) {
-                Log.log(4, "Scanned file " + file, System.nanoTime() - startTime);
-            }
-        }
-    }
-
     /**
-     * Scan a zipfile for matching file path patterns.
+     * Return true if the relative path for this file hasn't been seen before during this scan (indicating that a
+     * resource at this path relative to the classpath hasn't been scanned).
      */
-    private void scanZipfile(final File classpathElt, final boolean scanTimestampsOnly) {
-        if (previouslyScanned(classpathElt)) {
-            if (FastClasspathScanner.verbose) {
-                Log.log(3, "Reached duplicate jarfile, ignoring: " + classpathElt);
-            }
-            return;
-        }
-        if (scanSpec.jarIsWhitelisted(classpathElt.getName())) {
-            if (FastClasspathScanner.verbose) {
-                Log.log(3, "Scanning jarfile: " + classpathElt);
-            }
-            final long startTime = System.nanoTime();
-            try (ZipFile zipfile = new ZipFile(classpathElt)) {
-                for (final Enumeration<? extends ZipEntry> entries = zipfile.entries(); entries
-                        .hasMoreElements();) {
-                    final long entryStartTime = System.nanoTime();
-                    final ZipEntry entry = entries.nextElement();
-                    String relativePath = entry.getName();
-                    if (relativePath.startsWith("/")) {
-                        // Shouldn't happen with the standard Java zipfile implementation (but just to be safe)
-                        relativePath = relativePath.substring(1);
-                    }
-                    // Ignore directory entries
-                    if (entry.isDirectory()) {
-                        if (scanSpec.pathIsWhitelisted(relativePath)) {
-                            numJarfileDirsScanned.incrementAndGet();
-                            if (FastClasspathScanner.verbose) {
-                                numJarfileFilesScanned.incrementAndGet();
-                                Log.log(4, "Scanned jarfile-internal directory " + relativePath,
-                                        System.nanoTime() - entryStartTime);
-                            }
-                        } else if (FastClasspathScanner.verbose) {
-                            Log.log(4, "Skipping non-whitelisted jarfile-internal directory " + relativePath);
-                        }
-
-                        continue;
-                    }
-                    // If whitelisted
-                    if (scanSpec.pathIsWhitelisted(relativePath)) {
-                        if (!scanTimestampsOnly) {
-                            // Match file paths against path patterns
-                            boolean filePathMatches = false;
-                            for (final FilePathTesterAndMatchProcessorWrapper fileMatcher : // 
-                            filePathTestersAndMatchProcessorWrappers) {
-                                if (fileMatcher.filePathTester.filePathMatches(classpathElt, relativePath)) {
-                                    if (FastClasspathScanner.verbose) {
-                                        Log.log(4, "Calling MatchProcessor for file " + classpathElt + "!"
-                                                + relativePath);
-                                    }
-                                    try (InputStream inputStream = zipfile.getInputStream(entry)) {
-                                        fileMatcher.fileMatchProcessorWrapper.processMatch(classpathElt,
-                                                relativePath, inputStream, classpathElt.length());
-                                    } catch (final Exception e) {
-                                        if (FastClasspathScanner.verbose) {
-                                            Log.log(5,
-                                                    "Exception while processing classpath element " + classpathElt
-                                                            + ", file " + relativePath + " : " + e.getMessage());
-                                        }
-                                    }
-                                    filePathMatches = true;
-                                }
-                            }
-                            if (FastClasspathScanner.verbose && filePathMatches) {
-                                numJarfileFilesScanned.incrementAndGet();
-                                Log.log(5, "Scanned jarfile-internal file " + relativePath,
-                                        System.nanoTime() - entryStartTime);
-                            }
-                        } else if (FastClasspathScanner.verbose) {
-                            Log.log(4, "Skipping non-whitelisted jarfile-internal file " + relativePath);
-                        }
-
-                    }
-                }
-            } catch (final IOException e) {
-                if (FastClasspathScanner.verbose) {
-                    Log.log(3, "Error while opening zipfile " + classpathElt + " : " + e.toString());
-                }
-            }
-            if (FastClasspathScanner.verbose) {
-                Log.log(4, "Scanned jarfile " + classpathElt, System.nanoTime() - startTime);
-            }
-        } else {
-            if (FastClasspathScanner.verbose) {
-                Log.log(3, "Skipping jarfile that did not match whitelist/blacklist criteria: "
-                        + classpathElt.getName());
-            }
-        }
+    private boolean previouslyScanned(final String relativePath) {
+        return !previouslyScannedRelativePaths.add(relativePath);
     }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Scan a directory for matching file path patterns.
      */
     private void scanDir(final File classpathElt, final File dir, final int ignorePrefixLen,
-            boolean inWhitelistedPath, final boolean scanTimestampsOnly) {
-        final String dirPath = dir.getPath();
-        final String relativePath = ignorePrefixLen > dirPath.length() ? "/" //
-                : dirPath.substring(ignorePrefixLen).replace(File.separatorChar, '/') + "/";
+            boolean inWhitelistedPath, final boolean scanTimestampsOnly,
+            final Queue<String> whitelistedClassfileRelativePaths) {
         if (previouslyScanned(dir)) {
             if (FastClasspathScanner.verbose) {
                 Log.log(3, "Reached duplicate directory, ignoring: " + dir);
@@ -324,179 +247,497 @@ public class RecursiveScanner {
         if (FastClasspathScanner.verbose) {
             Log.log(3, "Scanning directory: " + dir);
         }
+        updateLastModifiedTimestamp(dir.lastModified());
         numDirsScanned.incrementAndGet();
 
-        boolean keepRecursing = false;
-        boolean atWhitelistedClassPackage = false;
-        switch (scanSpec.pathWhitelistMatchStatus(relativePath)) {
-        case WITHIN_BLACKLISTED_PATH:
-            // Reached a blacklisted path -- stop scanning files and dirs
+        final String dirPath = dir.getPath();
+        final String dirRelativePath = ignorePrefixLen > dirPath.length() ? "/" //
+                : dirPath.substring(ignorePrefixLen).replace(File.separatorChar, '/') + "/";
+        final ScanSpecPathMatch matchStatus = scanSpec.pathWhitelistMatchStatus(dirRelativePath);
+        if (matchStatus == ScanSpecPathMatch.NOT_WITHIN_WHITELISTED_PATH
+                || matchStatus == ScanSpecPathMatch.WITHIN_BLACKLISTED_PATH) {
+            // Reached a non-whitelisted or blacklisted path -- stop the recursive scan
             if (FastClasspathScanner.verbose) {
-                Log.log(3, "Reached blacklisted path: " + relativePath);
+                Log.log(3, "Reached non-whitelisted (or blacklisted) directory: " + dirRelativePath);
             }
             return;
-        case WITHIN_WHITELISTED_PATH:
+        } else if (matchStatus == ScanSpecPathMatch.WITHIN_WHITELISTED_PATH) {
             // Reached a whitelisted path -- can start scanning directories and files from this point
-            if (FastClasspathScanner.verbose) {
-                Log.log(3, "Reached whitelisted path: " + relativePath);
-            }
             inWhitelistedPath = true;
-            break;
-        case ANCESTOR_OF_WHITELISTED_PATH:
-            // In a path that is a prefix of a whitelisted path -- keep recursively scanning dirs
-            // in case we can reach a whitelisted path.
-            keepRecursing = true;
-            break;
-        case AT_WHITELISTED_CLASS_PACKAGE:
-            // Reached a package that is itself not whitelisted, but contains a specifically-whitelisted class.
-            atWhitelistedClassPackage = true;
-            break;
-        case NOT_WITHIN_WHITELISTED_PATH:
-            break;
-        default:
-            throw new RuntimeException("Unknown match status");
         }
-        if (keepRecursing || inWhitelistedPath || atWhitelistedClassPackage) {
-            final long startTime = System.nanoTime();
-            lastModified = Math.max(lastModified, dir.lastModified());
-            final File[] subFiles = dir.listFiles();
-            if (subFiles != null) {
-                for (final File subFile : subFiles) {
-                    File subFileCanonical = null;
-                    try {
-                        // N.B. we need NOFOLLOW_LINKS, because otherwise resolved paths may no longer appear
-                        // as a child of a classpath element, and/or the path tree may no longer conform to
-                        // the package tree. 
-                        subFileCanonical = subFile.getCanonicalFile();
-                    } catch (IOException | SecurityException e) {
-                        if (FastClasspathScanner.verbose) {
-                            Log.log(4, "Could not access file " + subFile + ": " + e.getMessage());
+
+        final long startTime = System.nanoTime();
+        final File[] filesInDir = dir.listFiles();
+        if (filesInDir == null) {
+            if (FastClasspathScanner.verbose) {
+                Log.log(4, "Invalid directory " + dir);
+            }
+            return;
+        }
+        for (final File fileInDir : filesInDir) {
+            if (fileInDir.isDirectory()) {
+                if (inWhitelistedPath //
+                        || matchStatus == ScanSpecPathMatch.ANCESTOR_OF_WHITELISTED_PATH) {
+                    // Recurse into subdirectory
+                    scanDir(classpathElt, fileInDir, ignorePrefixLen, inWhitelistedPath, scanTimestampsOnly,
+                            whitelistedClassfileRelativePaths);
+                }
+            } else if (fileInDir.isFile()) {
+                final String fileInDirRelativePath = dirRelativePath.isEmpty() || "/".equals(dirRelativePath)
+                        ? fileInDir.getName() : dirRelativePath + fileInDir.getName();
+
+                // Class can only be scanned if it's within a whitelisted path subtree, or if it is a classfile
+                // that has been specifically-whitelisted
+                if (!inWhitelistedPath && (matchStatus != ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE
+                        || !scanSpec.isSpecificallyWhitelistedClass(fileInDirRelativePath))) {
+                    // Ignore files that are siblings of specifically-whitelisted files, but that are not
+                    // themselves specifically whitelisted
+                    continue;
+                }
+
+                // Make sure file with same absolute path or same relative path hasn't been scanned before.
+                // (N.B. don't inline these two different calls to previouslyScanned() into a single expression
+                // using "||", because they have intentional side effects)
+                final boolean subFilePreviouslyScannedCanonical = previouslyScanned(fileInDir);
+                final boolean subFilePreviouslyScannedRelative = previouslyScanned(fileInDirRelativePath);
+                if (subFilePreviouslyScannedRelative || subFilePreviouslyScannedCanonical) {
+                    if (FastClasspathScanner.verbose) {
+                        Log.log(3, "Reached duplicate path, ignoring: " + fileInDirRelativePath);
+                    }
+                    continue;
+                }
+
+                if (FastClasspathScanner.verbose) {
+                    Log.log(3, "Found whitelisted file: " + fileInDirRelativePath);
+                }
+                updateLastModifiedTimestamp(fileInDir.lastModified());
+
+                if (!scanTimestampsOnly) {
+                    // Scan whitelisted file
+                    final boolean isClassfile = fileInDirRelativePath.endsWith(".class");
+                    if (isClassfile) {
+                        // Reached a classfile
+                        whitelistedClassfileRelativePaths.add(fileInDirRelativePath);
+                        numClassfilesScanned.incrementAndGet();
+                    }
+                    boolean matchedFile = isClassfile;
+
+                    // Match file paths against path patterns
+                    for (final FilePathTesterAndMatchProcessorWrapper fileMatcher : //
+                    filePathTestersAndMatchProcessorWrappers) {
+                        if (fileMatcher.filePathTester.filePathMatches(classpathElt, fileInDirRelativePath)) {
+                            // File's relative path matches.
+                            try {
+                                matchedFile = true;
+                                final long fileStartTime = System.nanoTime();
+                                try (FileInputStream inputStream = new FileInputStream(fileInDir)) {
+                                    fileMatcher.fileMatchProcessorWrapper.processMatch(classpathElt,
+                                            fileInDirRelativePath, inputStream, fileInDir.length());
+                                }
+                                if (FastClasspathScanner.verbose) {
+                                    Log.log(4, "Processed file match " + fileInDirRelativePath,
+                                            System.nanoTime() - fileStartTime);
+                                }
+                            } catch (final Exception e) {
+                                if (FastClasspathScanner.verbose) {
+                                    Log.log(3, "Reached non-whitelisted (or blacklisted) file, ignoring: "
+                                            + fileInDirRelativePath);
+                                }
+                            }
                         }
                     }
-                    if (subFileCanonical != null) {
-                        if (subFileCanonical.isDirectory()) {
-                            if (inWhitelistedPath || keepRecursing) {
-                                // Recurse into subdirectory
-                                scanDir(classpathElt, subFileCanonical, ignorePrefixLen, inWhitelistedPath,
-                                        scanTimestampsOnly);
-                            }
-                        } else if (subFileCanonical.isFile()) {
-                            final String subFileName = subFileCanonical.getName();
-                            // If in whitelisted path, or in the same non-whitelisted package as a whitelisted class
-                            boolean fileIsWhitelisted = false;
-                            if (inWhitelistedPath) {
-                                fileIsWhitelisted = true;
-                            } else if (atWhitelistedClassPackage && subFileName.endsWith(".class")) {
-                                // Look for specifically-whitelisted classes in non-whitelisted packages
-                                final String className = (relativePath
-                                        + subFileName.substring(0, subFileName.length() - 6)).replace('/', '.');
-                                fileIsWhitelisted = scanSpec.classIsWhitelisted(className);
-                            }
-                            if (fileIsWhitelisted) {
-                                // Scan whitelisted file
-                                scanFile(classpathElt,
-                                        "/".equals(relativePath) ? subFileName : relativePath + subFileName,
-                                        subFileCanonical, scanTimestampsOnly);
-                            }
-                        }
+                    if (matchedFile) {
+                        numFilesScanned.incrementAndGet();
                     }
                 }
             }
-            if (FastClasspathScanner.verbose) {
-                Log.log(4, "Scanned directory " + dir + " and any subdirectories", System.nanoTime() - startTime);
-            }
+        }
+        if (FastClasspathScanner.verbose) {
+            Log.log(4, "Scanned directory " + dir + " and any subdirectories", System.nanoTime() - startTime);
         }
     }
 
     /**
-     * If scanTimestampsOnly is true, scans the classpath for matching files, and calls any match processors if a
-     * match is identified. If scanTimestampsOnly is false, only scans timestamps of files.
+     * Scan a zipfile for matching file path patterns.
+     */
+    private void scanZipfile(final File classpathElt, final ZipFile zipFile,
+            final Queue<String> whitelistedClassfileRelativePathsOut) {
+        if (FastClasspathScanner.verbose) {
+            Log.log(3, "Scanning jarfile: " + classpathElt);
+        }
+        final long startTime = System.nanoTime();
+        String prevFileParentRelativePath = null;
+        ScanSpecPathMatch prevFileParentMatchStatus = null;
+        for (final Enumeration<? extends ZipEntry> entries = zipFile.entries(); entries.hasMoreElements();) {
+            final long entryStartTime = System.nanoTime();
+            final ZipEntry zipEntry = entries.nextElement();
+            String relativePath = zipEntry.getName();
+            if (relativePath.startsWith("/")) {
+                // Shouldn't happen with the standard Java zipfile implementation (but just to be safe)
+                relativePath = relativePath.substring(1);
+            }
+
+            // Ignore directory entries, they are not needed
+            if (zipEntry.isDirectory()) {
+                if (prevFileParentMatchStatus == ScanSpecPathMatch.WITHIN_WHITELISTED_PATH) {
+                    numJarfileDirsScanned.incrementAndGet();
+                    if (FastClasspathScanner.verbose) {
+                        numJarfileFilesScanned.incrementAndGet();
+                        Log.log(4, "Reached jarfile-internal directory " + relativePath,
+                                System.nanoTime() - entryStartTime);
+                    }
+                }
+                continue;
+            }
+
+            // Only accept first instance of a given relative path within classpath.
+            if (previouslyScanned(relativePath)) {
+                if (FastClasspathScanner.verbose) {
+                    Log.log(3, "Reached duplicate relative path, ignoring: " + relativePath);
+                }
+                continue;
+            }
+
+            // Get match status of the parent directory if this zipentry file's relative path
+            // (or reuse the last match status for speed, if the directory name hasn't changed). 
+            final int lastSlashIdx = relativePath.lastIndexOf("/");
+            final String parentRelativePath = lastSlashIdx < 0 ? "/" : relativePath.substring(0, lastSlashIdx + 1);
+            final ScanSpecPathMatch fileParentMatchStatus = // 
+                    prevFileParentRelativePath == null || !parentRelativePath.equals(prevFileParentRelativePath)
+                            ? scanSpec.pathWhitelistMatchStatus(parentRelativePath) : prevFileParentMatchStatus;
+            prevFileParentRelativePath = parentRelativePath;
+            prevFileParentMatchStatus = fileParentMatchStatus;
+
+            // Class can only be scanned if it's within a whitelisted path subtree, or if it is a classfile
+            // that has been specifically-whitelisted
+            if (fileParentMatchStatus != ScanSpecPathMatch.WITHIN_WHITELISTED_PATH
+                    && (fileParentMatchStatus != ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE
+                            || !scanSpec.isSpecificallyWhitelistedClass(relativePath))) {
+                if (FastClasspathScanner.verbose) {
+                    Log.log(3, "Reached non-whitelisted (or blacklisted) file in jar, ignoring: " + relativePath);
+                }
+                continue;
+            }
+
+            if (FastClasspathScanner.verbose) {
+                Log.log(3, "Found whitelisted file in jarfile: " + relativePath);
+            }
+
+            final boolean isClassfile = relativePath.endsWith(".class");
+            if (isClassfile) {
+                // Reached a classfile
+                whitelistedClassfileRelativePathsOut.add(relativePath);
+                numClassfilesScanned.incrementAndGet();
+            }
+            boolean matchedFile = isClassfile;
+
+            // Match file paths against path patterns
+            for (final FilePathTesterAndMatchProcessorWrapper fileMatcher : filePathTestersAndMatchProcessorWrappers) {
+                if (fileMatcher.filePathTester.filePathMatches(classpathElt, relativePath)) {
+                    // File's relative path matches.
+                    try {
+                        matchedFile = true;
+                        final long fileStartTime = System.nanoTime();
+                        try (InputStream inputStream = zipFile.getInputStream(zipEntry)) {
+                            fileMatcher.fileMatchProcessorWrapper.processMatch(classpathElt, relativePath,
+                                    inputStream, zipEntry.getSize());
+                        }
+                        if (FastClasspathScanner.verbose) {
+                            Log.log(4, "Processed file match " + relativePath, System.nanoTime() - fileStartTime);
+                        }
+                    } catch (final Exception e) {
+                        if (FastClasspathScanner.verbose) {
+                            Log.log(3, "Reached non-whitelisted (or blacklisted) file, ignoring: " + relativePath);
+                        }
+                    }
+                }
+            }
+            if (matchedFile) {
+                numJarfileFilesScanned.incrementAndGet();
+            }
+        }
+        if (FastClasspathScanner.verbose) {
+            Log.log(4, "Scanned jarfile " + classpathElt, System.nanoTime() - startTime);
+        }
+    }
+
+    /**
+     * Scan the classpath, and call any MatchProcessors on files or classes that match.
+     * 
+     * @param scanTimestampsOnly
+     *            If true, scans the classpath for matching files, and calls any match processors if a match is
+     *            identified. If false, only scans timestamps of files.
      */
     private synchronized void scan(final boolean scanTimestampsOnly) {
-        final List<File> uniqueClasspathElts = classpathFinder.getUniqueClasspathElements();
-        if (FastClasspathScanner.verbose) {
-            Log.log(1, "Starting scan" + (scanTimestampsOnly ? " (scanning classpath timestamps only)" : ""));
-        }
-        final Map<String, String> env = new HashMap<>();
-        env.put("create", "false");
+        ExecutorService executorService = null;
+        try {
+            final int numParallelTasks = Runtime.getRuntime().availableProcessors() + 2;
+            executorService = Executors.newFixedThreadPool(numParallelTasks);
+            final List<File> uniqueClasspathElts = classpathFinder.getUniqueClasspathElements();
+            if (FastClasspathScanner.verbose) {
+                Log.log(1, "Starting scan" + (scanTimestampsOnly ? " (scanning classpath timestamps only)" : ""));
+            }
+            final Map<String, String> env = new HashMap<>();
+            env.put("create", "false");
 
-        previouslyScannedCanonicalPaths.clear();
-        numDirsScanned.set(0);
-        numFilesScanned.set(0);
-        numJarfileDirsScanned.set(0);
-        numJarfileFilesScanned.set(0);
-        numJarfilesScanned.set(0);
+            previouslyScannedCanonicalPaths.clear();
+            previouslyScannedRelativePaths.clear();
+            numDirsScanned.set(0);
+            numFilesScanned.set(0);
+            numJarfileDirsScanned.set(0);
+            numJarfileFilesScanned.set(0);
+            numJarfilesScanned.set(0);
+            numClassfilesScanned.set(0);
+            if (!scanTimestampsOnly) {
+                classNameToClassInfo.clear();
+            }
 
-        // Iterate through path elements and recursively scan within each directory and zipfile
-        for (final File classpathElt : uniqueClasspathElts) {
-            final String path = classpathElt.getPath();
-            final boolean isDirectory = classpathElt.isDirectory();
-            final boolean isFile = classpathElt.isFile();
-            if (!isDirectory && !isFile) {
-                if (FastClasspathScanner.verbose) {
-                    Log.log(2, "Skipping non-file/non-dir on classpath: " + classpathElt);
+            // Iterate through path elements and recursively scan within each directory and jar for matching paths
+            final Queue<String> whitelistedClassfileRelativePaths = new ConcurrentLinkedQueue<>();
+            for (final File classpathElt : uniqueClasspathElts) {
+                final String path = classpathElt.getPath();
+                final boolean isDirectory = classpathElt.isDirectory();
+                final boolean isFile = classpathElt.isFile();
+                if (!isDirectory && !isFile) {
+                    if (FastClasspathScanner.verbose) {
+                        Log.log(2, "Skipping non-file/non-dir on classpath: " + classpathElt);
+                    }
+                    continue;
                 }
-            } else {
+
                 final boolean isJar = isFile && ClasspathFinder.isJar(path);
                 if (FastClasspathScanner.verbose) {
                     Log.log(2, "Found " + (isDirectory ? "directory" : isJar ? "jar" : "file") + " on classpath: "
                             + path);
                 }
                 if (isDirectory && scanSpec.scanNonJars) {
-                    // Scan within directory
-                    numDirsScanned.incrementAndGet();
-                    scanDir(classpathElt, classpathElt, /* ignorePrefixLen = */ path.length() + 1,
-                            /* inWhitelistedPath = */ false, scanTimestampsOnly);
 
-                } else if (isJar && scanSpec.scanJars) {
-                    // For jar/zipfile, use the timestamp of the jar/zipfile as the timestamp for all files,
-                    // since the timestamps within the zip directory may be unreliable.
-                    if (!scanTimestampsOnly) {
-                        // Scan within jar/zipfile
-                        final long startTime = System.nanoTime();
-                        // Scan within jar/zipfile
-                        scanZipfile(classpathElt, scanTimestampsOnly);
-                        if (FastClasspathScanner.verbose) {
-                            Log.log(2, "Scanned jarfile " + classpathElt, System.nanoTime() - startTime);
+                    // ---------------------------------------------------------------------------------------------
+                    // Scan within a directory (and recursively within its sub-directories)
+                    // ---------------------------------------------------------------------------------------------
+
+                    // Scan dirs recursively, looking for matching paths; call FileMatchProcessors on any matches.
+                    // Also store relative paths of all whitelisted classfiles in whitelistedClassfileRelativePaths.
+                    scanDir(classpathElt, classpathElt, /* ignorePrefixLen = */ path.length() + 1,
+                            /* inWhitelistedPath = */ false, scanTimestampsOnly, whitelistedClassfileRelativePaths);
+
+                    // Parse whitelisted classfiles in parallel.
+                    final CompletionService<Void> completionService = new ExecutorCompletionService<>(
+                            executorService);
+                    for (int i = 0; i < numParallelTasks; i++) {
+                        completionService.submit(new Callable<Void>() {
+                            @Override
+                            public Void call() {
+                                for (String relativePath; (relativePath = whitelistedClassfileRelativePaths
+                                        .poll()) != null;) {
+                                    // Get absolute path from classpath element and relative path
+                                    final File classpathFile = new File(classpathElt.getPath() + File.separator
+                                            + (File.separatorChar == '/' ? relativePath
+                                                    : relativePath.replace('/', File.separatorChar)));
+                                    final long fileStartTime = System.nanoTime();
+                                    try (InputStream inputStream = new FileInputStream(classpathFile)) {
+                                        // Parse classpath binary format, creating a ClassInfo object and adding it
+                                        // to classNameToClassInfo
+                                        ClassfileBinaryParser.readClassInfoFromClassfileHeader(relativePath,
+                                                inputStream, classNameToStaticFinalFieldsToMatch, scanSpec,
+                                                classNameToClassInfo);
+                                    } catch (final IOException e) {
+                                        if (FastClasspathScanner.verbose) {
+                                            Log.log(3,
+                                                    "Exception while trying to open " + classpathFile + ": " + e);
+                                        }
+                                    }
+                                    if (FastClasspathScanner.verbose) {
+                                        Log.log(4, "Parsed classfile " + relativePath,
+                                                System.nanoTime() - fileStartTime);
+                                    }
+                                }
+                                return null;
+                            }
+                        });
+                    }
+                    for (int i = 0; i < numParallelTasks; i++) {
+                        // Completion barrier
+                        try {
+                            completionService.take().get();
+                        } catch (InterruptedException | ExecutionException e) {
+                            Log.log(3, "Exception while processing " + classpathElt + ": " + e);
                         }
                     }
-                    updateLastModifiedTimestamp(classpathElt.lastModified());
-                    numJarfilesScanned.incrementAndGet();
 
-                } else if (!isJar && scanSpec.scanNonJars) {
-                    // File listed directly on classpath
+                } else if (isJar && scanSpec.scanJars) {
+
+                    // ---------------------------------------------------------------------------------------------
+                    // Scan within a jar/zipfile
+                    // ---------------------------------------------------------------------------------------------
+
                     if (previouslyScanned(classpathElt)) {
                         if (FastClasspathScanner.verbose) {
-                            Log.log(3, "Reached duplicate file, ignoring: " + classpathElt);
+                            Log.log(3, "Reached duplicate jarfile, ignoring: " + classpathElt);
                         }
                         continue;
                     }
-                    final String parentStr = classpathElt.getParent();
-                    if (parentStr != null) {
-                        scanFile(classpathElt, classpathElt.getName(), classpathElt, scanTimestampsOnly);
-                        updateLastModifiedTimestamp(classpathElt.lastModified());
-                        numFilesScanned.incrementAndGet();
+                    if (!scanSpec.jarIsWhitelisted(classpathElt.getName())) {
+                        if (FastClasspathScanner.verbose) {
+                            Log.log(3, "Skipping jarfile that did not match whitelist/blacklist criteria: "
+                                    + classpathElt.getName());
+                        }
+                        continue;
+                    }
+
+                    // Use the timestamp of the jar/zipfile as the timestamp for all files,
+                    // since the timestamps within the zip directory may be unreliable.
+                    updateLastModifiedTimestamp(classpathElt.lastModified());
+                    numJarfilesScanned.incrementAndGet();
+
+                    if (!scanTimestampsOnly) {
+                        // Don't actually scan the contents of the zipfile if we're only scanning timestamps,
+                        // since only the timestamp of the zipfile itself will be used.
+                        try (ZipFile zipFile = new ZipFile(classpathElt)) {
+                            final long startTime = System.nanoTime();
+                            scanZipfile(classpathElt, zipFile, whitelistedClassfileRelativePaths);
+                            if (FastClasspathScanner.verbose) {
+                                Log.log(2, "Scanned jarfile " + classpathElt, System.nanoTime() - startTime);
+                            }
+                        } catch (final IOException e) {
+                            // Should not happen, but required by zipFile.close() 
+                            if (FastClasspathScanner.verbose) {
+                                Log.log(3, "Error while closing zipfile " + classpathElt + " : " + e);
+                            }
+                        }
+
+                        // Parse whitelisted classfiles in parallel.
+                        final CompletionService<Void> completionService = new ExecutorCompletionService<>(
+                                executorService);
+                        for (int i = 0; i < numParallelTasks; i++) {
+                            completionService.submit(new Callable<Void>() {
+                                @Override
+                                public Void call() {
+                                    // Open one ZipFile per thread (ZipFile uses monitor locks, so can't be used
+                                    // efficiently by multiple threads, and there are claims that on some systems,
+                                    // it is actually not even threadsafe). Opening a ZipFile is a relatively
+                                    // low-cost operation.
+                                    try (ZipFile zipFile = new ZipFile(classpathElt)) {
+                                        for (String relativePath; (relativePath = whitelistedClassfileRelativePaths
+                                                .poll()) != null;) {
+                                            final long fileStartTime = System.nanoTime();
+                                            // Get ZipEntry for relative path (this is an O(1) operation in the
+                                            // OpenJDK JNI code, it uses a HashMap lookup)
+                                            final ZipEntry zipEntry = zipFile.getEntry(relativePath);
+                                            try (InputStream inputStream = zipFile.getInputStream(zipEntry)) {
+                                                // Parse classpath binary format, creating a ClassInfo object and
+                                                // adding it to classNameToClassInfo
+                                                ClassfileBinaryParser.readClassInfoFromClassfileHeader(relativePath,
+                                                        inputStream, classNameToStaticFinalFieldsToMatch, scanSpec,
+                                                        classNameToClassInfo);
+                                            } catch (final IOException e) {
+                                                if (FastClasspathScanner.verbose) {
+                                                    Log.log(3, "Exception while trying to open " + relativePath
+                                                            + " in zipfile " + classpathElt + ": " + e);
+                                                }
+                                            }
+                                            if (FastClasspathScanner.verbose) {
+                                                Log.log(4, "Parsed classfile " + relativePath,
+                                                        System.nanoTime() - fileStartTime);
+                                            }
+                                        }
+                                    } catch (final IOException e) {
+                                        if (FastClasspathScanner.verbose) {
+                                            Log.log(4,
+                                                    "Exception while reading zipfile " + classpathElt + " : " + e);
+                                        }
+                                    }
+                                    return null;
+                                }
+                            });
+                        }
+                        for (int i = 0; i < numParallelTasks; i++) {
+                            // Completion barrier
+                            try {
+                                completionService.take().get();
+                            } catch (InterruptedException | ExecutionException e) {
+                                Log.log(3, "Exception while processing " + classpathElt + ": " + e);
+                            }
+                        }
                     }
 
                 } else {
                     if (FastClasspathScanner.verbose) {
-                        Log.log(2, "Skipping classpath element due to scan spec restriction: " + path);
+                        Log.log(2, "Skipping classpath element: " + path);
                     }
                 }
             }
-        }
-        if (FastClasspathScanner.verbose) {
-            Log.log(1,
-                    "Number of resources scanned: directories: " + numDirsScanned.get() + "; files: "
-                            + numFilesScanned.get() + "; jarfiles: " + numJarfilesScanned.get()
-                            + "; jarfile-internal directories: " + numJarfileDirsScanned
-                            + "; jarfile-internal files: " + numJarfileFilesScanned);
+
+            // After creating ClassInfo objects for each classfile, build the class graph, and run any remaining
+            // MatchProcessors on matching classes.
+            if (!scanTimestampsOnly) {
+                // Build class, interface and annotation graph out of all the ClassInfo objects.
+                classGraphBuilder = new ClassGraphBuilder(classNameToClassInfo);
+
+                // Call any class, interface and annotation MatchProcessors
+                for (final ClassMatcher classMatcher : classMatchers) {
+                    classMatcher.lookForMatches();
+                }
+
+                // Call static final field match processors on matching fields
+                for (final ClassInfo classInfo : classNameToClassInfo.values()) {
+                    if (classInfo.fieldValues != null) {
+                        for (final Entry<String, Object> ent : classInfo.fieldValues.entrySet()) {
+                            final String fieldName = ent.getKey();
+                            final Object constValue = ent.getValue();
+                            final String fullyQualifiedFieldName = classInfo.className + "." + fieldName;
+                            final ArrayList<StaticFinalFieldMatchProcessor> staticFinalFieldMatchProcessors = //
+                                    fullyQualifiedFieldNameToStaticFinalFieldMatchProcessors
+                                            .get(fullyQualifiedFieldName);
+                            if (staticFinalFieldMatchProcessors != null) {
+                                if (FastClasspathScanner.verbose) {
+                                    Log.log(1, "Calling MatchProcessor for static final field "
+                                            + classInfo.className + "." + fieldName + " = " + constValue);
+                                }
+                                for (final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor : //
+                                staticFinalFieldMatchProcessors) {
+                                    staticFinalFieldMatchProcessor.processMatch(classInfo.className, fieldName,
+                                            constValue);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (FastClasspathScanner.verbose) {
+                Log.log(1, "Number of resources scanned: directories: " + numDirsScanned.get() + "; files: "
+                        + numFilesScanned.get() + "; jarfiles: " + numJarfilesScanned.get()
+                        + "; jarfile-internal directories: " + numJarfileDirsScanned + "; jarfile-internal files: "
+                        + numJarfileFilesScanned + "; classfiles: " + numClassfilesScanned);
+            }
+        } finally {
+            if (executorService != null) {
+                executorService.shutdown();
+                executorService = null;
+            }
         }
     }
 
-    /** Scans the classpath for matching files, and calls any FileMatchProcessors if a match is identified. */
+    /**
+     * Scan the classpath, and call any MatchProcessors on files or classes that match.
+     * 
+     * @param scanTimestampsOnly
+     *            If true, scans the classpath for matching files, and calls any match processors if a match is
+     *            identified. If false, only scans timestamps of files.
+     */
     public void scan() {
         scan(/* scanTimestampsOnly = */false);
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Get the class, interface and annotation graph builder, containing the results of the last full scan, or null
+     * if a scan has not yet been completed.
+     */
+    public ClassGraphBuilder getClassGraphBuilder() {
+        return classGraphBuilder;
     }
 
     // -------------------------------------------------------------------------------------------------------------

@@ -39,11 +39,11 @@ import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassInfo;
 import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassInfo.ClassType;
 import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassInfo.RelType;
 
-public class ClassGraphTracer {
+public class ClassGraphBuilder {
     private final Map<String, ClassInfo> classNameToClassInfo;
     private final Set<ClassInfo> allClassInfo;
 
-    public ClassGraphTracer(final Map<String, ClassInfo> classNameToClassInfo) {
+    public ClassGraphBuilder(final Map<String, ClassInfo> classNameToClassInfo) {
         this.classNameToClassInfo = classNameToClassInfo;
         this.allClassInfo = new HashSet<>(classNameToClassInfo.values());
     }

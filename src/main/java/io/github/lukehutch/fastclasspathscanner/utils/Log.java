@@ -39,9 +39,15 @@ public class Log {
     }
 
     public static void log(final int indentLevel, final String msg, final long elapsedTimeNanos) {
-        System.err.println(dateTimeFormatter.format(Instant.now()) + "\t"
-                + FastClasspathScanner.class.getSimpleName() + "\t" + indent(msg, indentLevel) + " in "
-                + nanoFormatter.format(elapsedTimeNanos * 1e-9) + " sec");
+        // DecimalFormat is not guaranteed to be threadsafe, so we have to use synchronized here
+        // (DateTimeFormatter is threadsafe though)
+        String elapsed;
+        synchronized (nanoFormatter) {
+            elapsed = nanoFormatter.format(elapsedTimeNanos * 1e-9);
+        }
+        System.err
+                .println(dateTimeFormatter.format(Instant.now()) + "\t" + FastClasspathScanner.class.getSimpleName()
+                        + "\t" + indent(msg, indentLevel) + " in " + elapsed + " sec");
     }
 
     public static void log(final String msg, final long elapsedTimeNanos) {

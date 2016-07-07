@@ -39,7 +39,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map.Entry;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -50,9 +50,7 @@ import javax.xml.xpath.XPathFactory;
 
 import org.w3c.dom.Document;
 
-import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassInfo;
-import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassfileBinaryParser;
-import io.github.lukehutch.fastclasspathscanner.classgraph.ClassGraphTracer;
+import io.github.lukehutch.fastclasspathscanner.classgraph.ClassGraphBuilder;
 import io.github.lukehutch.fastclasspathscanner.classpath.ClassLoaderHandler;
 import io.github.lukehutch.fastclasspathscanner.classpath.ClasspathFinder;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.ClassAnnotationMatchProcessor;
@@ -90,29 +88,16 @@ public class FastClasspathScanner {
     /** The class that recursively scans the classpath. */
     private RecursiveScanner recursiveScanner;
 
-    /** The number of classes scanned in the last call to .scan(). */
-    private int numClassfilesParsed;
-
     /**
      * A map from (className + "." + staticFinalFieldName) to StaticFinalFieldMatchProcessor(s) that should be
      * called if that class name and static final field name is encountered with a static constant initializer
      * during scan.
      */
-    private final HashMap<String, ArrayList<StaticFinalFieldMatchProcessor>> //
+    private final Map<String, ArrayList<StaticFinalFieldMatchProcessor>> //
     fullyQualifiedFieldNameToStaticFinalFieldMatchProcessors = new HashMap<>();
 
     /** A map from className to a list of static final fields to match with StaticFinalFieldMatchProcessors. */
-    private final HashMap<String, HashSet<String>> classNameToStaticFinalFieldsToMatch = new HashMap<>();
-
-    /**
-     * A map from class name to the information extracted from the class. If the class name is encountered more than
-     * once (i.e. if the same class is defined in multiple classpath elements), the second and subsequent class
-     * definitions are ignored, because they are masked by the earlier definition.
-     */
-    private final HashMap<String, ClassInfo> classNameToClassInfo = new HashMap<>();
-
-    /** The class, interface and annotation graph builder. */
-    private ClassGraphTracer classGraphBuilder;
+    private final Map<String, HashSet<String>> classNameToStaticFinalFieldsToMatch = new HashMap<>();
 
     /** An interface used for testing if a class matches specified criteria. */
     public static interface ClassMatcher {
@@ -121,9 +106,6 @@ public class FastClasspathScanner {
 
     /** A list of class matchers to call once all classes have been read in from classpath. */
     private final ArrayList<ClassMatcher> classMatchers = new ArrayList<>();
-
-    /** Only add classfile matcher once per instance */
-    private boolean addedClassfileMatcher = false;
 
     /** If set to true, print info while scanning */
     public static boolean verbose = false;
@@ -176,7 +158,8 @@ public class FastClasspathScanner {
     /** Lazy initializer for recursiveScanner. */
     private synchronized RecursiveScanner getRecursiveScanner() {
         if (recursiveScanner == null) {
-            recursiveScanner = new RecursiveScanner(getClasspathFinder(), getScanSpec());
+            recursiveScanner = new RecursiveScanner(getClasspathFinder(), getScanSpec(), classMatchers,
+                    classNameToStaticFinalFieldsToMatch, fullyQualifiedFieldNameToStaticFinalFieldMatchProcessors);
         }
         return recursiveScanner;
     }
@@ -1176,18 +1159,14 @@ public class FastClasspathScanner {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    private static byte[] readAllBytes(final File classpathElt, final String relativePath,
-            final InputStream inputStream, final long fileSize) throws IOException {
+    private static byte[] readAllBytes(final InputStream inputStream, final long fileSize) throws IOException {
         if (fileSize > Integer.MAX_VALUE) {
-            throw new IOException(
-                    "File larger that 2GB, cannot read contents into a Java array: classpath element = "
-                            + classpathElt + "; relative path = " + relativePath);
+            throw new IOException("File larger that 2GB, cannot read contents into a Java array");
         }
         final byte[] bytes = new byte[(int) fileSize];
         final int bytesRead = inputStream.read(bytes);
         if (bytesRead < fileSize) {
-            throw new IOException("Could not read whole file: classpath element = " + classpathElt
-                    + "; relative path = " + relativePath);
+            throw new IOException("Could not read whole file");
         }
         return bytes;
     }
@@ -1215,25 +1194,24 @@ public class FastClasspathScanner {
     }
 
     private static FileMatchProcessorWrapper makeFileMatchProcessorWrapper(
-            final FileMatchContentsProcessor fileMatchProcessor) {
+            final FileMatchContentsProcessor fileMatchContentsProcessor) {
         return new FileMatchProcessorWrapper() {
             @Override
             public void processMatch(final File classpathElt, final String relativePath,
                     final InputStream inputStream, final long fileSize) throws IOException {
-                fileMatchProcessor.processMatch(relativePath,
-                        readAllBytes(classpathElt, relativePath, inputStream, fileSize));
+                fileMatchContentsProcessor.processMatch(relativePath, readAllBytes(inputStream, fileSize));
             }
         };
     }
 
     private static FileMatchProcessorWrapper makeFileMatchProcessorWrapper(
-            final FileMatchContentsProcessorWithContext fileMatchProcessorWithContext) {
+            final FileMatchContentsProcessorWithContext fileMatchContentsProcessorWithContext) {
         return new FileMatchProcessorWrapper() {
             @Override
             public void processMatch(final File classpathElt, final String relativePath,
                     final InputStream inputStream, final long fileSize) throws IOException {
-                fileMatchProcessorWithContext.processMatch(classpathElt, relativePath,
-                        readAllBytes(classpathElt, relativePath, inputStream, fileSize));
+                fileMatchContentsProcessorWithContext.processMatch(classpathElt, relativePath,
+                        readAllBytes(inputStream, fileSize));
             }
         };
     }
@@ -1590,17 +1568,13 @@ public class FastClasspathScanner {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Returns true if .scan() has been called at least once. */
-    private synchronized boolean scanHasCompleted() {
-        return classGraphBuilder != null;
-    }
-
     /**
      * Returns the ClassGraphBuilder created by calling .scan(), or throws RuntimeException if .scan() has not yet
      * been called.
      */
-    public synchronized ClassGraphTracer getScanResults() {
-        if (!scanHasCompleted()) {
+    public synchronized ClassGraphBuilder getScanResults() {
+        final ClassGraphBuilder classGraphBuilder = getRecursiveScanner().getClassGraphBuilder();
+        if (classGraphBuilder == null) {
             throw new RuntimeException("Must call .scan() before attempting to get the results of the scan");
         }
         return classGraphBuilder;
@@ -1621,63 +1595,11 @@ public class FastClasspathScanner {
             Log.log("Classpath elements: " + getClasspathFinder().getUniqueClasspathElements());
         }
 
-        // Add matcher for classfiles
-        if (!addedClassfileMatcher) {
-            // Read classfile headers for all filenames ending in ".class" on classpath
-            this.matchFilenameExtension("class", new FileMatchProcessor() {
-                @Override
-                public void processMatch(final String relativePath, final InputStream inputStream, //
-                        final long lengthBytes) throws IOException {
-                    if (ClassfileBinaryParser.readClassInfoFromClassfileHeader(relativePath, inputStream,
-                            classNameToStaticFinalFieldsToMatch, getScanSpec(), classNameToClassInfo)) {
-                        numClassfilesParsed++;
-                    }
-                }
-            });
-            addedClassfileMatcher = true;
-        }
-
-        // Scan classpath, calling FilePathMatchers if any matching paths are found, including the matcher
-        // that calls the classfile binary parser when the extension ".class" is found on a filename,
-        // producing a ClassInfo object for each encountered class.
-        numClassfilesParsed = 0;
-        classNameToClassInfo.clear();
+        // Scan classpath, calling MatchProcessors if any matching paths are found.
         getRecursiveScanner().scan();
-
-        // Build class, interface and annotation graph out of all the ClassInfo objects.
-        classGraphBuilder = new ClassGraphTracer(classNameToClassInfo);
-
-        // Call any class, interface and annotation MatchProcessors
-        for (final ClassMatcher classMatcher : classMatchers) {
-            classMatcher.lookForMatches();
-        }
-
-        // Call static final field match processors on matching fields
-        for (final ClassInfo classInfo : classNameToClassInfo.values()) {
-            if (classInfo.fieldValues != null) {
-                for (final Entry<String, Object> ent : classInfo.fieldValues.entrySet()) {
-                    final String fieldName = ent.getKey();
-                    final Object constValue = ent.getValue();
-                    final String fullyQualifiedFieldName = classInfo.className + "." + fieldName;
-                    final ArrayList<StaticFinalFieldMatchProcessor> staticFinalFieldMatchProcessors = //
-                            fullyQualifiedFieldNameToStaticFinalFieldMatchProcessors.get(fullyQualifiedFieldName);
-                    if (staticFinalFieldMatchProcessors != null) {
-                        if (FastClasspathScanner.verbose) {
-                            Log.log(1, "Calling MatchProcessor for static final field " + classInfo.className + "."
-                                    + fieldName + " = " + constValue);
-                        }
-                        for (final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor : //
-                        staticFinalFieldMatchProcessors) {
-                            staticFinalFieldMatchProcessor.processMatch(classInfo.className, fieldName, constValue);
-                        }
-                    }
-                }
-            }
-        }
 
         if (FastClasspathScanner.verbose) {
             Log.log("Finished .scan()", System.nanoTime() - scanStart);
-            Log.log("Parsed " + numClassfilesParsed + " classfiles on classpath");
         }
         return this;
     }
@@ -1693,7 +1615,7 @@ public class FastClasspathScanner {
 
         // Ensure scanning has happened at least once already -- if not, return true,
         // as this is the most useful default value.
-        if (!scanHasCompleted()) {
+        if (getRecursiveScanner().getClassGraphBuilder() == null) {
             return true;
         }
 

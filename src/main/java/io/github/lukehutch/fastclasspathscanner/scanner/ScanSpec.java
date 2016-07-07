@@ -15,13 +15,13 @@ public class ScanSpec {
     private final ArrayList<String> blacklistedPackagePrefixes = new ArrayList<>();
 
     /** Whitelisted class names, or the empty list if none. */
-    private final HashSet<String> whitelistedClassNames = new HashSet<>();
+    private final HashSet<String> specificallyWhitelistedClassRelativePaths = new HashSet<>();
 
     /** Path prefixes of whitelisted classes, or the empty list if none. */
-    private final HashSet<String> whitelistedClassPathPrefixes = new HashSet<>();
+    private final HashSet<String> specificallyWhitelistedClassParentRelativePaths = new HashSet<>();
 
     /** Blacklisted class names. */
-    private final HashSet<String> blacklistedClassNames = new HashSet<>();
+    private final HashSet<String> specificallyBlacklistedClassRelativePaths = new HashSet<>();
 
     /** Whitelisted package paths with "/" appended, or the empty list if all packages are whitelisted. */
     private final ArrayList<String> whitelistedPathPrefixes = new ArrayList<>();
@@ -107,30 +107,23 @@ public class ScanSpec {
                     }
                 }
             } else {
-                // Strip final ".class", in case classfiles are listed directly
-                if (spec.endsWith(".class")) {
-                    spec = spec.substring(0, spec.length() - 6);
-                }
-                // Support using either '.' or '/' as package separator
-                spec = spec.replace('/', '.');
-                // Strip initial '.', in case scan spec started with '/'
-                if (spec.startsWith(".")) {
-                    spec = spec.substring(1);
-                }
+                // Convert classname format to relative path
+                spec = spec.replace('.', '/');
                 // See if a class name was specified, rather than a package name. Relies on the Java convention
                 // that package names should be lower case and class names should be upper case.
                 boolean isClassName = false;
-                final int lastDotIdx = spec.lastIndexOf('.');
-                if (lastDotIdx < spec.length() - 1) {
-                    isClassName = Character.isUpperCase(spec.charAt(lastDotIdx + 1));
+                final int lastSlashIdx = spec.lastIndexOf('/');
+                if (lastSlashIdx > 0 && lastSlashIdx < spec.length() - 1) {
+                    isClassName = Character.isUpperCase(spec.charAt(lastSlashIdx + 1));
                 }
                 if (isClassName) {
-                    // This is a class name
+                    // Convert class name to classfile filename
+                    spec += ".class";
                     if (blacklisted) {
-                        blacklistedClassNames.add(spec);
+                        specificallyBlacklistedClassRelativePaths.add(spec);
                     } else {
-                        whitelistedClassNames.add(spec);
-                        whitelistedClassPathPrefixes.add(spec.substring(0, lastDotIdx + 1).replace('.', '/'));
+                        specificallyWhitelistedClassRelativePaths.add(spec);
+                        specificallyWhitelistedClassParentRelativePaths.add(spec.substring(0, lastSlashIdx + 1));
                     }
                 } else {
                     // This is a package name: convert into a prefix by adding '.', and also convert to path prefix
@@ -170,7 +163,7 @@ public class ScanSpec {
         }
         blacklistedPathPrefixes.addAll(uniqueBlacklistedPathPrefixes);
         blacklistedPackagePrefixes.addAll(uniqueBlacklistedPackagePrefixes);
-        whitelistedClassNames.removeAll(blacklistedClassNames);
+        specificallyWhitelistedClassRelativePaths.removeAll(specificallyBlacklistedClassRelativePaths);
         this.scanJars = scanJars;
         this.scanNonJars = scanNonJars;
 
@@ -208,116 +201,69 @@ public class ScanSpec {
         return Pattern.compile("^" + spec.replace(".", "\\.").replace("*", ".*") + "$");
     }
 
-    /** Returns true if a class' package is not blacklisted or is explicitly whitelisted. */
-    private static boolean packageIsNotBlacklisted(final String str, final ArrayList<String> whitelist,
-            final ArrayList<String> blacklist) {
-        boolean isWhitelisted = false;
-        for (final String whitelistPrefix : whitelist) {
-            if (str.startsWith(whitelistPrefix)) {
-                isWhitelisted = true;
-                break;
-            }
-        }
-        boolean isBlacklisted = false;
-        for (final String blacklistPrefix : blacklist) {
-            if (str.startsWith(blacklistPrefix)) {
-                isBlacklisted = true;
-                break;
-            }
-        }
-        return !isBlacklisted || isWhitelisted;
-    }
-
-    /**
-     * Returns true if the given class name is not blacklisted or is explicitly whitelisted.
-     * 
-     * This does not apply the normal logic of "if (whitelisted && !blacklisted)", but instead "if (whitelisted ||
-     * !blacklisted)", because it is used for links that may come from outside a whitelisted path, but still may
-     * need to be used as a query criterion (e.g. a class name to match against, or a field type to look up
-     * containing classes from).
-     */
-    public boolean classIsNotBlacklisted(final String className) {
-        return !blacklistedClassNames.contains(className) || whitelistedClassNames.contains(className)
-                || packageIsNotBlacklisted(className, whitelistedPackagePrefixes, blacklistedPackagePrefixes);
-    }
-
-    /** Returns true if a class' package is whitelisted and not blacklisted. */
-    private static boolean packageIsWhitelisted(final String str, final ArrayList<String> whitelist,
-            final ArrayList<String> blacklist) {
-        boolean isWhitelisted = false;
-        for (final String whitelistPrefix : whitelist) {
-            if (str.startsWith(whitelistPrefix)) {
-                isWhitelisted = true;
-                break;
-            }
-        }
-        boolean isBlacklisted = false;
-        for (final String blacklistPrefix : blacklist) {
-            if (str.startsWith(blacklistPrefix)) {
-                isBlacklisted = true;
-                break;
-            }
-        }
-        return isWhitelisted && !isBlacklisted;
-    }
-
-    /**
-     * Returns true if the given class name is whitelisted and not blacklisted, or if it is in a whitelisted,
-     * non-blacklisted package.
-     * 
-     * This does not apply the normal logic of "if (whitelisted && !blacklisted)", but instead "if (whitelisted ||
-     * !blacklisted)", because it is used for links that may come from outside a whitelisted path, but still may
-     * need to be used as a query criterion (e.g. a class name to match against, or a field type to look up
-     * containing classes from).
-     */
-    public boolean classIsWhitelisted(final String className) {
-        return (whitelistedClassNames.contains(className)
-                || packageIsWhitelisted(className, whitelistedPackagePrefixes, blacklistedPackagePrefixes))
-                && !blacklistedClassNames.contains(className);
-    }
-
-    /** Returns true if the given path is within a whitelisted, non-blacklisted package. */
-    public boolean pathIsWhitelisted(final String relativePath) {
-        return packageIsWhitelisted(relativePath, whitelistedPathPrefixes, blacklistedPathPrefixes);
-    }
-
-    /**
-     * Whether a path is a descendant of a blacklisted path, or an ancestor or descendant of a whitelisted path.
-     * 
-     * TODO: need an enum value for when within the path of a whitelisted class that is not itself in a whitelisted
-     * package (so that whitelisted classes get scanned, even if their packages are not scanned).
-     */
+    /** Whether a path is a descendant of a blacklisted path, or an ancestor or descendant of a whitelisted path. */
     public enum ScanSpecPathMatch {
         WITHIN_BLACKLISTED_PATH, WITHIN_WHITELISTED_PATH, ANCESTOR_OF_WHITELISTED_PATH, //
-        AT_WHITELISTED_CLASS_PACKAGE, NOT_WITHIN_WHITELISTED_PATH;
+        AT_WHITELISTED_CLASS_PACKAGE, NOT_WITHIN_WHITELISTED_PATH, WHITELISTED_FILE, NON_WHITELISTED_FILE;
     }
 
     /**
-     * See whether the given path is a descendant of a blacklisted path, or an ancestor or descendant of a
-     * whitelisted path. The path should end in "/".
+     * Returns true if the given directory path is a descendant of a blacklisted path, or an ancestor or descendant
+     * of a whitelisted path. The path should end in "/".
      */
-    public ScanSpecPathMatch pathWhitelistMatchStatus(final String path) {
+    public ScanSpecPathMatch pathWhitelistMatchStatus(final String relativePath) {
         for (final String blacklistedPath : blacklistedPathPrefixes) {
-            if (path.startsWith(blacklistedPath)) {
+            if (relativePath.startsWith(blacklistedPath)) {
+                // The directory or its ancestor is blacklisted.
                 return ScanSpecPathMatch.WITHIN_BLACKLISTED_PATH;
             }
         }
         for (final String whitelistedPath : whitelistedPathPrefixes) {
-            if (path.startsWith(whitelistedPath)) {
+            if (relativePath.startsWith(whitelistedPath)) {
+                // The directory is a whitelisted path or its ancestor is a whitelisted path.
                 return ScanSpecPathMatch.WITHIN_WHITELISTED_PATH;
-            } else if (whitelistedPath.startsWith(path) || "/".equals(path)) {
+            } else if (whitelistedPath.startsWith(relativePath) || "/".equals(relativePath)) {
+                // The directory the ancestor is a whitelisted path (so need to keep scanning deeper into hierarchy)
                 return ScanSpecPathMatch.ANCESTOR_OF_WHITELISTED_PATH;
             }
         }
-        for (final String whitelistedClassPathPrefix : whitelistedClassPathPrefixes) {
-            if (path.equals(whitelistedClassPathPrefix)) {
-                return ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE;
-            } else if (whitelistedClassPathPrefix.startsWith(path) || "/".equals(path)) {
+        if (specificallyWhitelistedClassParentRelativePaths.contains(relativePath)
+                && !specificallyBlacklistedClassRelativePaths.contains(relativePath)) {
+            return ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE;
+        }
+        for (final String whitelistedClassPathPrefix : specificallyWhitelistedClassParentRelativePaths) {
+            if (whitelistedClassPathPrefix.startsWith(relativePath) || "/".equals(relativePath)) {
+                // The directory is an ancestor of a non-whitelisted package containing a whitelisted class 
                 return ScanSpecPathMatch.ANCESTOR_OF_WHITELISTED_PATH;
             }
         }
         return ScanSpecPathMatch.NOT_WITHIN_WHITELISTED_PATH;
     }
+
+    /**
+     * Returns true if the given relative path (for a classfile name, including ".class") matches a
+     * specifically-whitelisted (and non-blacklisted) classfile's relative path.
+     */
+    public boolean isSpecificallyWhitelistedClass(final String relativePath) {
+        return (specificallyWhitelistedClassRelativePaths.contains(relativePath)
+                && !specificallyBlacklistedClassRelativePaths.contains(relativePath));
+    }
+
+    /** Returns true if the class is not specifically blacklisted, and is not within a blacklisted package. */ // TODO: make this take a relative path
+    public boolean classIsNotBlacklisted(final String className) {
+        final String classRelativePath = className.replace('.', '/') + ".class";
+        if (specificallyBlacklistedClassRelativePaths.contains(classRelativePath)) {
+            return false;
+        }
+        for (final String blacklistedPath : blacklistedPathPrefixes) {
+            if (classRelativePath.startsWith(blacklistedPath)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     /** Test if a list of jar names contains the requested name, allowing for globs. */
     private static boolean containsJarName(final HashSet<String> jarNames, final ArrayList<Pattern> jarNamePatterns,

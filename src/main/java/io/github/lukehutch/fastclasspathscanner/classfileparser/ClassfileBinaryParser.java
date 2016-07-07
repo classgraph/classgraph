@@ -7,6 +7,7 @@ import java.io.InputStream;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -144,14 +145,12 @@ public class ClassfileBinaryParser {
 
     /**
      * Directly examine contents of classfile binary header to determine annotations, implemented interfaces, the
-     * super-class etc.
-     * 
-     * @return true, if this is a classfile, and it is the first time a class of this name was encountered on the
-     *         classpath. Otherwise returns false.
+     * super-class etc. Creates a new ClassInfo object, and adds it to classNameToClassInfoOut. Assumes classpath
+     * masking has already been performed, so that only one class of a given name will be added.
      */
     public static boolean readClassInfoFromClassfileHeader(final String relativePath, final InputStream inputStream,
             final Map<String, HashSet<String>> classNameToStaticFinalFieldsToMatch, final ScanSpec scanSpec, //
-            final Map<String, ClassInfo> classNameToClassInfo) {
+            final ConcurrentHashMap<String, ClassInfo> classNameToClassInfoOut) {
 
         try (final DataInputStream inp = new DataInputStream(new BufferedInputStream(inputStream, BUFFER_SIZE))) {
             // Check magic number
@@ -250,14 +249,7 @@ public class ClassfileBinaryParser {
             }
 
             final ClassInfo classInfo = ClassInfo.addScannedClass(className, isInterface, isAnnotation,
-                    classNameToClassInfo);
-            if (classInfo == null) {
-                // This class was encountered more than once on the classpath -- ignore 2nd and subsequent defs 
-                if (FastClasspathScanner.verbose) {
-                    Log.log(5, className + " occurs more than once on classpath, ignoring all but first instance");
-                }
-                return false;
-            }
+                    classNameToClassInfoOut);
 
             // Superclass name, with slashes replaced with dots
             final String superclassName = readRefdClassName(inp, constantPool);
@@ -275,7 +267,7 @@ public class ClassfileBinaryParser {
 
             // Connect class to superclass
             if (scanSpec.classIsNotBlacklisted(superclassName)) {
-                classInfo.addSuperclass(superclassName, classNameToClassInfo);
+                classInfo.addSuperclass(superclassName, classNameToClassInfoOut);
             }
 
             // Interfaces
@@ -286,7 +278,7 @@ public class ClassfileBinaryParser {
                     if (FastClasspathScanner.verbose) {
                         Log.log(6, "Class " + className + " implements interface " + interfaceName);
                     }
-                    classInfo.addImplementedInterface(interfaceName, classNameToClassInfo);
+                    classInfo.addImplementedInterface(interfaceName, classNameToClassInfoOut);
                 }
             }
 
@@ -309,7 +301,7 @@ public class ClassfileBinaryParser {
                 // Check if the type of this field falls within a non-blacklisted package,
                 // and if so, record the field and its type
                 addFieldTypeDescriptorParts(className, fieldTypeDescriptor, scanSpec, classInfo,
-                        classNameToClassInfo, loggedFieldTypeNames);
+                        classNameToClassInfoOut, loggedFieldTypeNames);
 
                 // Check if field is static and final
                 if (!isStaticFinal && isMatchedFieldName) {
@@ -371,7 +363,7 @@ public class ClassfileBinaryParser {
                         // type parameters, whereas the type descriptor does not.
                         final String fieldTypeSignature = readRefdString(inp, constantPool);
                         addFieldTypeDescriptorParts(className, fieldTypeSignature, scanSpec, classInfo,
-                                classNameToClassInfo, loggedFieldTypeNames);
+                                classNameToClassInfoOut, loggedFieldTypeNames);
                     } else {
                         inp.skipBytes(attributeLength);
                     }
@@ -412,7 +404,7 @@ public class ClassfileBinaryParser {
                             if (FastClasspathScanner.verbose) {
                                 Log.log(6, "Class " + className + " has annotation " + annotationName);
                             }
-                            classInfo.addAnnotation(annotationName, classNameToClassInfo);
+                            classInfo.addAnnotation(annotationName, classNameToClassInfoOut);
                         }
                     }
                 } else {

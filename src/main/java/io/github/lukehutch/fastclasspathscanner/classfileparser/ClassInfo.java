@@ -37,6 +37,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class ClassInfo implements Comparable<ClassInfo> {
     /** Name of the class/interface/annotation. */
@@ -380,24 +381,26 @@ public class ClassInfo implements Comparable<ClassInfo> {
 
     /** Add a class that has just been scanned (as opposed to just referenced by a scanned class). */
     public static ClassInfo addScannedClass(final String className, final boolean isInterface,
-            final boolean isAnnotation, final Map<String, ClassInfo> classNameToClassInfo) {
+            final boolean isAnnotation, final ConcurrentHashMap<String, ClassInfo> classNameToClassInfo) {
         // Handle Scala auxiliary classes (companion objects ending in "$" and trait methods classes
         // ending in "$class")
         final boolean isCompanionObjectClass = className.endsWith("$");
         final boolean isTraitMethodClass = className.endsWith("$class");
         final boolean isNonAuxClass = !isCompanionObjectClass && !isTraitMethodClass;
         final String classBaseName = scalaBaseClassName(className);
-        ClassInfo classInfo = classNameToClassInfo.get(classBaseName);
-        if (classInfo == null) {
-            // This is the first time this class name has been seen, create new ClassInfo object
-            classNameToClassInfo.put(classBaseName, classInfo = new ClassInfo(classBaseName));
-        } else {
-            // Class name has been seen before
+        ClassInfo classInfo = new ClassInfo(classBaseName);
+        final ClassInfo oldClassInfo = classNameToClassInfo.putIfAbsent(classBaseName, classInfo);
+        if (oldClassInfo != null) {
+            // Class base name has been seen before, check if we're just merging scala aux classes together 
             if (isNonAuxClass && classInfo.classfileScanned
                     || isCompanionObjectClass && classInfo.companionObjectClassfileScanned
                     || isTraitMethodClass && classInfo.traitMethodClassfileScanned) {
-                // This class was encountered more than once on the classpath -- ignore 2nd and subsequent defs 
-                return null;
+                // The same class was encountered more than once on the classpath -- should not happen,
+                // since RecursiveScanner checks for this.
+                throw new RuntimeException("Encountered same class twice, should not happen: " + className);
+            } else {
+                // Merge into ClassInfo object that was already allocated, rather than the new one
+                classInfo = oldClassInfo;
             }
         }
         // Mark the appropriate class type as scanned (aux classes all need to be merged into a single
