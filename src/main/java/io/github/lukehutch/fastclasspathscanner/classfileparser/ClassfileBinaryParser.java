@@ -16,8 +16,12 @@ import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
 import io.github.lukehutch.fastclasspathscanner.utils.Log.DeferredLog;
 
 public class ClassfileBinaryParser {
-    /** Buffer size for classfile reader. TODO: benchmark different settings for this. */
-    private static final int BUFFER_SIZE = 8192;
+    /**
+     * Buffer size for classfile reader. Too small, and significant overhead is expended in refilling the buffer.
+     * Too large, and significant overhead is expended in decompressing more of the classfile header than is needed.
+     * Empirical testing on a fairly large classpath indicates that 16kb is a good default.
+     */
+    private static final int BUFFER_SIZE = 16536;
 
     /**
      * Read annotation entry from classfile.
