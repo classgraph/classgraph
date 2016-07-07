@@ -376,8 +376,8 @@ public class RecursiveScanner {
             Log.log(3, "Scanning jarfile: " + classpathElt);
         }
         final long startTime = System.nanoTime();
-        String prevFileParentRelativePath = null;
-        ScanSpecPathMatch prevFileParentMatchStatus = null;
+        String prevParentRelativePath = null;
+        ScanSpecPathMatch prevParentMatchStatus = null;
         for (final Enumeration<? extends ZipEntry> entries = zipFile.entries(); entries.hasMoreElements();) {
             final long entryStartTime = System.nanoTime();
             final ZipEntry zipEntry = entries.nextElement();
@@ -389,7 +389,7 @@ public class RecursiveScanner {
 
             // Ignore directory entries, they are not needed
             if (zipEntry.isDirectory()) {
-                if (prevFileParentMatchStatus == ScanSpecPathMatch.WITHIN_WHITELISTED_PATH) {
+                if (prevParentMatchStatus == ScanSpecPathMatch.WITHIN_WHITELISTED_PATH) {
                     numJarfileDirsScanned.incrementAndGet();
                     if (FastClasspathScanner.verbose) {
                         numJarfileFilesScanned.incrementAndGet();
@@ -412,19 +412,20 @@ public class RecursiveScanner {
             // (or reuse the last match status for speed, if the directory name hasn't changed). 
             final int lastSlashIdx = relativePath.lastIndexOf("/");
             final String parentRelativePath = lastSlashIdx < 0 ? "/" : relativePath.substring(0, lastSlashIdx + 1);
-            final ScanSpecPathMatch fileParentMatchStatus = // 
-                    prevFileParentRelativePath == null || !parentRelativePath.equals(prevFileParentRelativePath)
-                            ? scanSpec.pathWhitelistMatchStatus(parentRelativePath) : prevFileParentMatchStatus;
-            prevFileParentRelativePath = parentRelativePath;
-            prevFileParentMatchStatus = fileParentMatchStatus;
-
+            final ScanSpecPathMatch parentMatchStatus = // 
+                    prevParentRelativePath == null || !parentRelativePath.equals(prevParentRelativePath)
+                            ? scanSpec.pathWhitelistMatchStatus(parentRelativePath) : prevParentMatchStatus;
+            boolean parentPathChanged = !parentRelativePath.equals(prevParentRelativePath);
+            prevParentRelativePath = parentRelativePath;
+            prevParentMatchStatus = parentMatchStatus;
             // Class can only be scanned if it's within a whitelisted path subtree, or if it is a classfile
             // that has been specifically-whitelisted
-            if (fileParentMatchStatus != ScanSpecPathMatch.WITHIN_WHITELISTED_PATH
-                    && (fileParentMatchStatus != ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE
+            if (parentMatchStatus != ScanSpecPathMatch.WITHIN_WHITELISTED_PATH
+                    && (parentMatchStatus != ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE
                             || !scanSpec.isSpecificallyWhitelistedClass(relativePath))) {
-                if (FastClasspathScanner.verbose) {
-                    Log.log(3, "Reached non-whitelisted (or blacklisted) file in jar, ignoring: " + relativePath);
+                if (FastClasspathScanner.verbose && parentPathChanged) {
+                    Log.log(3, "Reached non-whitelisted (or blacklisted) file in jar, ignoring: "
+                            + parentRelativePath);
                 }
                 continue;
             }
@@ -485,6 +486,11 @@ public class RecursiveScanner {
         ExecutorService executorService = null;
         try {
             executorService = Executors.newFixedThreadPool(NUM_PARALLEL_TASKS);
+            final DeferredLog[] logs = new DeferredLog[NUM_PARALLEL_TASKS];
+            for (int i = 0; i < NUM_PARALLEL_TASKS; i++) {
+                logs[i] = new DeferredLog();
+            }
+
             final List<File> uniqueClasspathElts = classpathFinder.getUniqueClasspathElements();
             if (FastClasspathScanner.verbose) {
                 Log.log(1, "Starting scan" + (scanTimestampsOnly ? " (scanning classpath timestamps only)" : ""));
@@ -538,9 +544,11 @@ public class RecursiveScanner {
                     final CompletionService<Void> completionService = new ExecutorCompletionService<>(
                             executorService);
                     for (int i = 0; i < NUM_PARALLEL_TASKS; i++) {
+                        final int threadIdx = i;
                         completionService.submit(new Callable<Void>() {
                             @Override
                             public Void call() {
+                                DeferredLog log = logs[threadIdx];
                                 for (String relativePath; (relativePath = whitelistedClassfileRelativePaths
                                         .poll()) != null;) {
                                     // Get absolute path from classpath element and relative path
@@ -548,7 +556,6 @@ public class RecursiveScanner {
                                             + (File.separatorChar == '/' ? relativePath
                                                     : relativePath.replace('/', File.separatorChar)));
                                     final long fileStartTime = System.nanoTime();
-                                    final DeferredLog log = new DeferredLog();
                                     try (InputStream inputStream = new FileInputStream(classpathFile)) {
                                         // Parse classpath binary format, creating a ClassInfoUnlinked object
                                         ClassInfoUnlinked thisClassInfoUnlinked = ClassfileBinaryParser
@@ -559,14 +566,12 @@ public class RecursiveScanner {
                                         }
                                     } catch (final IOException e) {
                                         if (FastClasspathScanner.verbose) {
-                                            log.flushSynchronized();
-                                            Log.log(3,
+                                            log.log(4,
                                                     "Exception while trying to open " + classpathFile + ": " + e);
                                         }
                                     }
-                                    log.flushSynchronized();
                                     if (FastClasspathScanner.verbose) {
-                                        Log.log(4, "Parsed classfile " + relativePath,
+                                        log.log(6, "Parsed classfile " + relativePath,
                                                 System.nanoTime() - fileStartTime);
                                     }
                                 }
@@ -575,17 +580,17 @@ public class RecursiveScanner {
                         });
                     }
                     for (int i = 0; i < NUM_PARALLEL_TASKS; i++) {
+                        logs[i].flushSynchronized();
                         // Completion barrier
                         try {
                             completionService.take().get();
                         } catch (InterruptedException | ExecutionException e) {
-                            Log.log(3, "Exception while processing " + classpathElt + ": " + e);
+                            Log.log(4, "Exception while processing classpath element " + classpathElt + ": " + e);
                         }
                     }
                     for (ClassInfoUnlinked c : classInfoUnlinked) {
                         c.link(classNameToClassInfo);
                     }
-
 
                 } else if (isJar && scanSpec.scanJars) {
 
@@ -633,6 +638,7 @@ public class RecursiveScanner {
                         final CompletionService<Void> completionService = new ExecutorCompletionService<>(
                                 executorService);
                         for (int i = 0; i < NUM_PARALLEL_TASKS; i++) {
+                            final int threadIdx = i;
                             completionService.submit(new Callable<Void>() {
                                 @Override
                                 public Void call() {
@@ -640,7 +646,7 @@ public class RecursiveScanner {
                                     // efficiently by multiple threads, and there are claims that on some systems,
                                     // it is actually not even threadsafe). Opening a ZipFile is a relatively
                                     // low-cost operation.
-                                    final DeferredLog log = new DeferredLog();
+                                    DeferredLog log = logs[threadIdx];
                                     try (ZipFile zipFile = new ZipFile(classpathElt)) {
                                         for (String relativePath; (relativePath = whitelistedClassfileRelativePaths
                                                 .poll()) != null;) {
@@ -658,33 +664,33 @@ public class RecursiveScanner {
                                                 }
                                             } catch (final IOException e) {
                                                 if (FastClasspathScanner.verbose) {
-                                                    Log.log(3, "Exception while trying to open " + relativePath
+                                                    log.log(4, "Exception while trying to open " + relativePath
                                                             + " in zipfile " + classpathElt + ": " + e);
                                                 }
                                             }
                                             if (FastClasspathScanner.verbose) {
-                                                Log.log(4, "Parsed classfile " + relativePath,
+                                                log.log(6, "Parsed classfile " + relativePath,
                                                         System.nanoTime() - fileStartTime);
                                             }
                                         }
                                     } catch (final IOException e) {
                                         if (FastClasspathScanner.verbose) {
-                                            log.flushSynchronized();
-                                            Log.log(4,
+                                            log.log(4,
                                                     "Exception while reading zipfile " + classpathElt + " : " + e);
                                         }
                                     }
-                                    log.flushSynchronized();
                                     return null;
                                 }
                             });
                         }
                         for (int i = 0; i < NUM_PARALLEL_TASKS; i++) {
+                            logs[i].flushSynchronized();
                             // Completion barrier
                             try {
                                 completionService.take().get();
                             } catch (InterruptedException | ExecutionException e) {
-                                Log.log(3, "Exception while processing " + classpathElt + ": " + e);
+                                Log.log(4,
+                                        "Exception while processing classpath element " + classpathElt + ": " + e);
                             }
                         }
                         for (ClassInfoUnlinked c : classInfoUnlinked) {

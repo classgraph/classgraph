@@ -66,6 +66,7 @@ public class Log {
                         entry.sendToLog();
                     }
                     logEntries.clear();
+                    Log.flush();
                 }
             }
         }
@@ -115,5 +116,9 @@ public class Log {
 
     public static void log(final String msg, final long elapsedTimeNanos) {
         log(0, msg, elapsedTimeNanos);
+    }
+
+    public static void flush() {
+        System.err.flush();
     }
 }
