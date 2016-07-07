@@ -128,8 +128,10 @@ public class FastClasspathScanner {
      *            character. See https://github.com/lukehutch/fast-classpath-scanner#constructor for info.
      */
     public FastClasspathScanner(final String... scanSpec) {
-        FastClasspathScanner.verbose = false; // By default
         this.scanSpecArgs = scanSpec;
+        // Switch off verbosity each time a new FastClassScanner is constructed, so that one setting of .verbose()
+        // doesn't affect the next construction
+        FastClasspathScanner.verbose = false;
     }
 
     /**

@@ -7,13 +7,13 @@ import java.io.InputStream;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
+import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassInfo.ClassInfoUnlinked;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
-import io.github.lukehutch.fastclasspathscanner.utils.Log;
+import io.github.lukehutch.fastclasspathscanner.utils.Log.DeferredLog;
 
 public class ClassfileBinaryParser {
     /** Buffer size for classfile reader. TODO: benchmark different settings for this. */
@@ -117,9 +117,9 @@ public class ClassfileBinaryParser {
     /**
      * Find non-blacklisted type names in the given type descriptor, and add them to the set of field types.
      */
-    private static void addFieldTypeDescriptorParts(final String className, final String typeDescriptor,
-            final ScanSpec scanSpec, final ClassInfo classInfo, final Map<String, ClassInfo> classNameToClassInfo,
-            final HashSet<String> loggedFieldTypeNames) {
+    private static void addFieldTypeDescriptorParts(final ClassInfoUnlinked classInfoUnlinked,
+            final String className, final String typeDescriptor, final ScanSpec scanSpec,
+            final HashSet<String> loggedFieldTypeNames, final DeferredLog log) {
         // Check if the type of this field falls within a non-blacklisted package,
         // and if so, record the field and its type
         final Matcher matcher = TYPE_PARAM_PATTERN.matcher(typeDescriptor);
@@ -133,12 +133,12 @@ public class ClassfileBinaryParser {
                 if (FastClasspathScanner.verbose) {
                     // Only add the log entry once for each field type name within each class
                     if (loggedFieldTypeNames.add(fieldTypeName)) {
-                        Log.log(5,
+                        log.log(5,
                                 "Class " + className + " has a field with type or type parameter " + fieldTypeName);
                     }
                 }
                 // Add field type to set of non-blacklisted field types encountered in class
-                classInfo.addFieldType(fieldTypeName, classNameToClassInfo);
+                classInfoUnlinked.addFieldType(fieldTypeName);
             }
         }
     }
@@ -148,17 +148,16 @@ public class ClassfileBinaryParser {
      * super-class etc. Creates a new ClassInfo object, and adds it to classNameToClassInfoOut. Assumes classpath
      * masking has already been performed, so that only one class of a given name will be added.
      */
-    public static boolean readClassInfoFromClassfileHeader(final String relativePath, final InputStream inputStream,
-            final Map<String, HashSet<String>> classNameToStaticFinalFieldsToMatch, final ScanSpec scanSpec, //
-            final ConcurrentHashMap<String, ClassInfo> classNameToClassInfoOut) {
+    public static ClassInfoUnlinked readClassInfoFromClassfileHeader(final String relativePath,
+            final InputStream inputStream, final Map<String, HashSet<String>> classNameToStaticFinalFieldsToMatch,
+            final ScanSpec scanSpec, final DeferredLog log) throws IOException {
 
         try (final DataInputStream inp = new DataInputStream(new BufferedInputStream(inputStream, BUFFER_SIZE))) {
             // Check magic number
             if (inp.readInt() != 0xCAFEBABE) {
                 if (FastClasspathScanner.verbose) {
-                    Log.log(5, "File does not have correct classfile magic number: " + relativePath);
+                    throw new IOException("File " + relativePath + " does not have correct classfile magic number");
                 }
-                return false;
             }
 
             // Minor version
@@ -235,27 +234,26 @@ public class ClassfileBinaryParser {
             final String className = readRefdClassName(inp, constantPool);
             if ("java.lang.Object".equals(className)) {
                 // Don't process java.lang.Object
-                return false;
+                return null;
             }
 
             // Make sure classname matches relative path
             if (!className.equals(relativePath.substring(0, relativePath.length() - 6 /* (strip off ".class") */)
                     .replace('/', '.'))) {
                 if (FastClasspathScanner.verbose) {
-                    Log.log(5, "Class " + className + " is at incorrect relative path " + relativePath
+                    log.log(5, "Class " + className + " is at incorrect relative path " + relativePath
                             + " -- ignoring");
                 }
-                return false;
+                return null;
             }
-
-            final ClassInfo classInfo = ClassInfo.addScannedClass(className, isInterface, isAnnotation,
-                    classNameToClassInfoOut);
 
             // Superclass name, with slashes replaced with dots
             final String superclassName = readRefdClassName(inp, constantPool);
 
+            final ClassInfoUnlinked classInfoUnlinked = new ClassInfoUnlinked(className, isInterface, isAnnotation);
+
             if (FastClasspathScanner.verbose) {
-                Log.log(5,
+                log.log(5,
                         "Found " //
                                 + (isAnnotation ? "annotation class" : isInterface ? "interface class" : "class")
                                 + " " + className
@@ -267,7 +265,7 @@ public class ClassfileBinaryParser {
 
             // Connect class to superclass
             if (scanSpec.classIsNotBlacklisted(superclassName)) {
-                classInfo.addSuperclass(superclassName, classNameToClassInfoOut);
+                classInfoUnlinked.addSuperclass(superclassName);
             }
 
             // Interfaces
@@ -276,15 +274,14 @@ public class ClassfileBinaryParser {
                 final String interfaceName = readRefdClassName(inp, constantPool);
                 if (scanSpec.classIsNotBlacklisted(interfaceName)) {
                     if (FastClasspathScanner.verbose) {
-                        Log.log(6, "Class " + className + " implements interface " + interfaceName);
+                        log.log(6, "Class " + className + " implements interface " + interfaceName);
                     }
-                    classInfo.addImplementedInterface(interfaceName, classNameToClassInfoOut);
+                    classInfoUnlinked.addImplementedInterface(interfaceName);
                 }
             }
 
             // Fields
-            final HashSet<String> staticFinalFieldsToMatch = classNameToStaticFinalFieldsToMatch
-                    .get(classInfo.className);
+            final HashSet<String> staticFinalFieldsToMatch = classNameToStaticFinalFieldsToMatch.get(className);
             final HashSet<String> loggedFieldTypeNames = FastClasspathScanner.verbose ? new HashSet<String>()
                     : null;
             final int fieldCount = inp.readUnsignedShort();
@@ -300,13 +297,13 @@ public class ClassfileBinaryParser {
 
                 // Check if the type of this field falls within a non-blacklisted package,
                 // and if so, record the field and its type
-                addFieldTypeDescriptorParts(className, fieldTypeDescriptor, scanSpec, classInfo,
-                        classNameToClassInfoOut, loggedFieldTypeNames);
+                addFieldTypeDescriptorParts(classInfoUnlinked, className, fieldTypeDescriptor, scanSpec,
+                        loggedFieldTypeNames, log);
 
                 // Check if field is static and final
                 if (!isStaticFinal && isMatchedFieldName) {
                     // Requested to match a field that is not static or not final
-                    Log.log(6, "Cannot match requested field " + classInfo.className + "." + fieldName
+                    log.log(6, "Cannot match requested field " + classInfoUnlinked.className + "." + fieldName
                             + " because it is either not static or not final");
                 }
                 // See if field name matches one of the requested names for this class, and if it does,
@@ -352,24 +349,24 @@ public class ClassfileBinaryParser {
                         }
                         // Store static final field match in ClassInfo object
                         if (FastClasspathScanner.verbose) {
-                            Log.log(6, "Class " + className + " has field " + fieldName
+                            log.log(6, "Class " + className + " has field " + fieldName
                                     + " with static constant initializer " + constValue);
                         }
-                        classInfo.addFieldConstantValue(fieldName, constValue);
+                        classInfoUnlinked.addFieldConstantValue(fieldName, constValue);
                         foundConstantValue = true;
                     } else if ("Signature".equals(attributeName)) {
                         // Check if the type signature of this field falls within a non-blacklisted
                         // package, and if so, record the field type. The type signature contains
                         // type parameters, whereas the type descriptor does not.
                         final String fieldTypeSignature = readRefdString(inp, constantPool);
-                        addFieldTypeDescriptorParts(className, fieldTypeSignature, scanSpec, classInfo,
-                                classNameToClassInfoOut, loggedFieldTypeNames);
+                        addFieldTypeDescriptorParts(classInfoUnlinked, className, fieldTypeSignature, scanSpec,
+                                loggedFieldTypeNames, log);
                     } else {
                         inp.skipBytes(attributeLength);
                     }
                     if (!foundConstantValue && isStaticFinal && isMatchedFieldName) {
-                        Log.log(6,
-                                "Requested static final field " + classInfo.className + "." + fieldName
+                        log.log(6,
+                                "Requested static final field " + classInfoUnlinked.className + "." + fieldName
                                         + " is not initialized with a constant literal value, so there is no "
                                         + "initializer value in the constant pool of the classfile");
                     }
@@ -402,19 +399,20 @@ public class ClassfileBinaryParser {
                         if (scanSpec.classIsNotBlacklisted(annotationName)
                                 && !annotationName.startsWith("java.lang.annotation.")) {
                             if (FastClasspathScanner.verbose) {
-                                Log.log(6, "Class " + className + " has annotation " + annotationName);
+                                log.log(6, "Class " + className + " has annotation " + annotationName);
                             }
-                            classInfo.addAnnotation(annotationName, classNameToClassInfoOut);
+                            classInfoUnlinked.addAnnotation(annotationName);
                         }
                     }
                 } else {
                     inp.skipBytes(attributeLength);
                 }
             }
+            return classInfoUnlinked;
 
         } catch (final Exception e) {
-            Log.log(6, "Exception while attempting to load classfile " + relativePath + ": " + e);
+            log.log(6, "Exception while attempting to load classfile " + relativePath + ": " + e);
+            return null;
         }
-        return true;
     }
 }

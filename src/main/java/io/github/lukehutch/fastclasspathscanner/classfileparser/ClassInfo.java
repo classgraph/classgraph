@@ -36,10 +36,94 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
 public class ClassInfo implements Comparable<ClassInfo> {
+
+    /**
+     * Class information that has been directly read from the binary classfile, before it is cross-linked with other
+     * classes. (The cross-linking is done in a separate step to avoid the complexity of dealing with race
+     * conditions.)
+     */
+    public static class ClassInfoUnlinked {
+        public String className;
+        public boolean isInterface;
+        public boolean isAnnotation;
+        // Superclass (can be null if no superclass, or if superclass is blacklisted)
+        public String superclassName;
+        public List<String> implementedInterfaces;
+        public List<String> annotations;
+        public Set<String> fieldTypes;
+        public Map<String, Object> staticFinalFieldValues;
+
+        public ClassInfoUnlinked(String className, boolean isInterface, boolean isAnnotation) {
+            this.className = className;
+            this.isInterface = isInterface;
+            this.isAnnotation = isAnnotation;
+        }
+
+        public void addSuperclass(String superclassName) {
+            this.superclassName = superclassName;
+        }
+
+        public void addImplementedInterface(String interfaceName) {
+            if (implementedInterfaces == null) {
+                implementedInterfaces = new ArrayList<>();
+            }
+            implementedInterfaces.add(interfaceName);
+        }
+
+        public void addAnnotation(String annotationName) {
+            if (annotations == null) {
+                annotations = new ArrayList<>();
+            }
+            annotations.add(annotationName);
+        }
+
+        public void addFieldType(String fieldTypeName) {
+            if (fieldTypes == null) {
+                fieldTypes = new HashSet<>();
+            }
+            fieldTypes.add(fieldTypeName);
+        }
+
+        public void addFieldConstantValue(String fieldName, Object staticFinalFieldValue) {
+            if (staticFinalFieldValues == null) {
+                staticFinalFieldValues = new HashMap<>();
+            }
+            staticFinalFieldValues.put(fieldName, staticFinalFieldValue);
+        }
+
+        public void link(Map<String, ClassInfo> classNameToClassInfo) {
+            ClassInfo classInfo = ClassInfo.addScannedClass(className, isInterface, isAnnotation,
+                    classNameToClassInfo);
+            if (superclassName != null) {
+                classInfo.addSuperclass(superclassName, classNameToClassInfo);
+            }
+            if (implementedInterfaces != null) {
+                for (String interfaceName : implementedInterfaces) {
+                    classInfo.addImplementedInterface(interfaceName, classNameToClassInfo);
+                }
+            }
+            if (annotations != null) {
+                for (String annotationName : annotations) {
+                    classInfo.addAnnotation(annotationName, classNameToClassInfo);
+                }
+            }
+            if (fieldTypes != null) {
+                for (String fieldTypeName : fieldTypes) {
+                    classInfo.addFieldType(fieldTypeName, classNameToClassInfo);
+                }
+            }
+            if (staticFinalFieldValues != null) {
+                for (Entry<String, Object> ent : staticFinalFieldValues.entrySet()) {
+                    classInfo.addFieldConstantValue(ent.getKey(), ent.getValue());
+                }
+            }
+        }
+    }
+
     /** Name of the class/interface/annotation. */
     public String className;
 
@@ -335,7 +419,12 @@ public class ClassInfo implements Comparable<ClassInfo> {
             final Map<String, ClassInfo> classNameToClassInfo) {
         ClassInfo classInfo = classNameToClassInfo.get(className);
         if (classInfo == null) {
-            classNameToClassInfo.put(className, classInfo = new ClassInfo(className));
+            final ClassInfo oldClassInfo = classNameToClassInfo.putIfAbsent(className,
+                    classInfo = new ClassInfo(className));
+            if (oldClassInfo != null) {
+                // If we just lost the race to add this new ClassInfo to the map, use the winner instead
+                classInfo = oldClassInfo;
+            }
         }
         return classInfo;
     }
@@ -381,7 +470,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
 
     /** Add a class that has just been scanned (as opposed to just referenced by a scanned class). */
     public static ClassInfo addScannedClass(final String className, final boolean isInterface,
-            final boolean isAnnotation, final ConcurrentHashMap<String, ClassInfo> classNameToClassInfo) {
+            final boolean isAnnotation, final Map<String, ClassInfo> classNameToClassInfo) {
         // Handle Scala auxiliary classes (companion objects ending in "$" and trait methods classes
         // ending in "$class")
         final boolean isCompanionObjectClass = className.endsWith("$");
