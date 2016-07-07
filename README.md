@@ -3,6 +3,8 @@ FastClasspathScanner
 
 FastClasspathScanner is an uber-fast, ultra-lightweight classpath scanner for Java, Scala and other JVM languages. Users have reported an order of magnitude speedup when switching to FastClasspathScanner from other classpath scanning methods such as [Reflections](https://github.com/ronmamo/reflections).
 
+**UPDATE:** FastClasspathScanner now supports [parallel classpath scanning](#parallel-classpath-scanning).
+
 **What is classpath scanning?** Classpath scanning involves scanning directories and jar/zip files on the classpath to find files (especially classfiles) that meet certain criteria. In many ways, classpath scanning offers the *inverse of the Java reflection API:*
 
 * The Java reflection API can tell you the superclass of a given class, but classpath scanning can find all classes that extend a given superclass.
@@ -33,6 +35,7 @@ Classpath scanning can also be used to produce a visualization of the class grap
 **Benefits of FastClasspathScanner compared to other classpath scanning methods:**
 
 1. FastClasspathScanner parses the classfile binary format directly, instead of using reflection, which makes scanning particularly fast. (Reflection causes the classloader to load each class, which can take an order of magnitude more time than parsing the classfile directly, and can lead to unexpected behavior due to static initializer blocks of classes being called on class load.)
+2. FastClasspathScanner appears to be the only classpath scanning library that supports multithreaded scanning (overlapping disk/SSD reading, jar decompression, and classfile binary format parsing on different threads). Disk/SSD bandwidth consequently becomes the bottleneck, making FastClasspathScanner the fastest possible solution for classpath scanning.
 2. FastClasspathScanner is extremely lightweight, as it does not depend on any classfile/bytecode parsing or manipulation libraries like [Javassist](http://jboss-javassist.github.io/javassist/) or [ObjectWeb ASM](http://asm.ow2.org/).
 3. FastClasspathScanner handles many [diverse and complicated means](#classpath-mechanisms-handled-by-fastclasspathscanner) used to specify the classpath, and has a pluggable architecture for handling other classpath specification methods (in the general case, finding all classpath elements is not as simple as reading the `java.class.path` system property and/or getting the path URLs from the system `URLClassLoader`).
 4. FastClasspathScanner has built-in support for generating GraphViz visualizations of the classgraph, as shown above.
@@ -639,12 +642,20 @@ or similar, generating a graph with the following conventions:
 
 **Note:** Graph nodes will only be added for classes, interfaces and annotations that are within whitelisted (non-blacklisted) packages. In particular, the Java standard libraries are excluded from classpath scanning for efficiency, so these classes will never appear in class graph visualizations.
 
-## Debugging ##
+## Parallel classpath scanning
+
+As of version 1.90.0, FastClasspathScanner performs multithreaded scanning, which overlaps disk/SSD reads, jarfile decompression and classfile parsing across multiple threads. This typically reduces scan time by 30-60%. (The speedup will increase by a factor of 2 on the second and subsequent scan of the same classpath by the same JVM instance, because disk/SSD read bandwidth is the bottleneck, and file content is cached within a JVM session.)
+
+Note that any custom MatchProcessors that you add are all run on a single thread, so they do not need to be threadsafe (though it's a good habit to always write threadsafe code even in supposedly single-threaded contexts).
+
+## Debugging
 
 If FastClasspathScanner is not finding the classes, interfaces or files you think it should be finding, you can debug the scanning behavior by calling `.verbose()` before `.scan()`:
 
 ```java
 public FastClasspathScanner verbose()
+
+public FastClasspathScanner verbose(boolean verbose)
 ```
 
 ## More complex usage
