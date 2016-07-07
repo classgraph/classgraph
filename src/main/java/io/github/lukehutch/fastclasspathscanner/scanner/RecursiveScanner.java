@@ -70,7 +70,7 @@ public class RecursiveScanner {
      * system with an SSD, this number is approximately optimal, and raising this any higher can actually hurt
      * performance due to disk resource contention.
      */
-    private final int NUM_PARALLEL_TASKS = 5;
+    private final int NUM_THREADS = 5;
 
     /** The classpath finder. */
     private final ClasspathFinder classpathFinder;
@@ -485,9 +485,9 @@ public class RecursiveScanner {
     private synchronized void scan(final boolean scanTimestampsOnly) {
         ExecutorService executorService = null;
         try {
-            executorService = Executors.newFixedThreadPool(NUM_PARALLEL_TASKS);
-            final DeferredLog[] logs = new DeferredLog[NUM_PARALLEL_TASKS];
-            for (int i = 0; i < NUM_PARALLEL_TASKS; i++) {
+            executorService = Executors.newFixedThreadPool(NUM_THREADS);
+            final DeferredLog[] logs = new DeferredLog[NUM_THREADS];
+            for (int i = 0; i < NUM_THREADS; i++) {
                 logs[i] = new DeferredLog();
             }
 
@@ -543,7 +543,7 @@ public class RecursiveScanner {
                     final Queue<ClassInfoUnlinked> classInfoUnlinked = new ConcurrentLinkedQueue<>();
                     final CompletionService<Void> completionService = new ExecutorCompletionService<>(
                             executorService);
-                    for (int i = 0; i < NUM_PARALLEL_TASKS; i++) {
+                    for (int i = 0; i < NUM_THREADS; i++) {
                         final int threadIdx = i;
                         completionService.submit(new Callable<Void>() {
                             @Override
@@ -579,7 +579,7 @@ public class RecursiveScanner {
                             }
                         });
                     }
-                    for (int i = 0; i < NUM_PARALLEL_TASKS; i++) {
+                    for (int i = 0; i < NUM_THREADS; i++) {
                         logs[i].flushSynchronized();
                         // Completion barrier
                         try {
@@ -637,7 +637,7 @@ public class RecursiveScanner {
                         final Queue<ClassInfoUnlinked> classInfoUnlinked = new ConcurrentLinkedQueue<>();
                         final CompletionService<Void> completionService = new ExecutorCompletionService<>(
                                 executorService);
-                        for (int i = 0; i < NUM_PARALLEL_TASKS; i++) {
+                        for (int i = 0; i < NUM_THREADS; i++) {
                             final int threadIdx = i;
                             completionService.submit(new Callable<Void>() {
                                 @Override
@@ -683,7 +683,7 @@ public class RecursiveScanner {
                                 }
                             });
                         }
-                        for (int i = 0; i < NUM_PARALLEL_TASKS; i++) {
+                        for (int i = 0; i < NUM_THREADS; i++) {
                             logs[i].flushSynchronized();
                             // Completion barrier
                             try {
