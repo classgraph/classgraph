@@ -486,7 +486,7 @@ public class RecursiveScanner {
         ExecutorService executorService = null;
         try {
             executorService = Executors.newFixedThreadPool(NUM_THREADS);
-            
+
             // Create one logger per thread, so that log output is not interleaved
             final DeferredLog[] logs = new DeferredLog[NUM_THREADS];
             for (int i = 0; i < NUM_THREADS; i++) {
@@ -758,7 +758,11 @@ public class RecursiveScanner {
             }
         } finally {
             if (executorService != null) {
-                executorService.shutdown();
+                try {
+                    executorService.shutdown();
+                } catch (Exception e) {
+                    // Ignore
+                }
                 executorService = null;
             }
         }
