@@ -446,8 +446,8 @@ The value of `relativePath` is relative to the classpath entry that contained th
 ```java
 // Only Mechanism 1 is applicable -- attach a MatchProcessor before calling .scan():
 
-// Use this interface if you want to be passed an InputStream.  N.B. you do not
-// need to close the InputStream before exiting, it is closed by the caller.
+// Use this interface if you want to be passed an (unbuffered) InputStream.
+// (You do not to close the InputStream before exiting, it is closed by the caller.)
 @FunctionalInterface
 public interface FileMatchProcessor {
     public void processMatch(String relativePath, InputStream inputStream,
