@@ -486,6 +486,8 @@ public class RecursiveScanner {
         ExecutorService executorService = null;
         try {
             executorService = Executors.newFixedThreadPool(NUM_THREADS);
+            
+            // Create one logger per thread, so that log output is not interleaved
             final DeferredLog[] logs = new DeferredLog[NUM_THREADS];
             for (int i = 0; i < NUM_THREADS; i++) {
                 logs[i] = new DeferredLog();
@@ -588,6 +590,7 @@ public class RecursiveScanner {
                             Log.log(4, "Exception while processing classpath element " + classpathElt + ": " + e);
                         }
                     }
+                    // Convert ClassInfoUnlinked to linked ClassInfo objects
                     for (final ClassInfoUnlinked c : classInfoUnlinked) {
                         c.link(classNameToClassInfo);
                     }
@@ -693,6 +696,7 @@ public class RecursiveScanner {
                                         "Exception while processing classpath element " + classpathElt + ": " + e);
                             }
                         }
+                        // Convert ClassInfoUnlinked to linked ClassInfo objects
                         for (final ClassInfoUnlinked c : classInfoUnlinked) {
                             c.link(classNameToClassInfo);
                         }
