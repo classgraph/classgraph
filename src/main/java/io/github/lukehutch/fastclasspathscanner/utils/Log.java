@@ -59,7 +59,7 @@ public class Log {
             logEntries.add(new DeferredLogEntry(0, msg, elapsedTimeNanos));
         }
 
-        public void flushSynchronized() {
+        public void flush() {
             if (!logEntries.isEmpty()) {
                 synchronized (lock) {
                     for (final DeferredLogEntry entry : logEntries) {

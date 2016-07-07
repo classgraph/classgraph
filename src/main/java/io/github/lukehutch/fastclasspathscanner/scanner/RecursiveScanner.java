@@ -582,7 +582,7 @@ public class RecursiveScanner {
                         });
                     }
                     for (int i = 0; i < NUM_THREADS; i++) {
-                        logs[i].flushSynchronized();
+                        logs[i].flush();
                         // Completion barrier
                         try {
                             completionService.take().get();
@@ -687,7 +687,7 @@ public class RecursiveScanner {
                             });
                         }
                         for (int i = 0; i < NUM_THREADS; i++) {
-                            logs[i].flushSynchronized();
+                            logs[i].flush();
                             // Completion barrier
                             try {
                                 completionService.take().get();
