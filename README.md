@@ -646,7 +646,7 @@ or similar, generating a graph with the following conventions:
 
 As of version 1.90.0, FastClasspathScanner performs multithreaded scanning, which overlaps disk/SSD reads, jarfile decompression and classfile parsing across multiple threads. This typically reduces scan time by 30-60%. (The speedup will increase by a factor of two on the second and subsequent scan of the same classpath by the same JVM instance, because disk/SSD read bandwidth is the bottleneck, and file content is cached within a JVM session.)
 
-Note that any custom MatchProcessors that you add are all currently run on a single thread, so they do not necessarily need to be threadsafe (though it's a good futureproofing habit to always write threadsafe code even in supposedly single-threaded contexts).
+Note that any custom MatchProcessors that you add are all currently run on a single thread, so they do not necessarily need to be threadsafe (though it's a good futureproofing habit to always write threadsafe code even in supposedly single-threaded contexts). If you want to do CPU-intensive processing in a `MatchProcessor`, and need the speed advantage of doing the work in parallel across all matching classes, you should use the `MatchProcessor` to obtain the data you need on matching classes, and then schedule the work to be done in parallel after `.scan()` has finished.
 
 With this change, according to profiling results, FastClasspathScanner is running at close to the theoretical maximum possible speed for a classpath scanner, because it is I/O-bound, as well as limited by the decompression speed of `java.util.zip` (which is a JNI wrapper over a native decompressor, and appears to currently be the fastest unzip library for Java).
 
