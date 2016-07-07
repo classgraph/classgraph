@@ -18,13 +18,13 @@ public class Log {
             final String msg;
             final long elapsedTimeNanos;
 
-            public DeferredLogEntry(int indentLevel, String msg, long elapsedTimeNanos) {
+            public DeferredLogEntry(final int indentLevel, final String msg, final long elapsedTimeNanos) {
                 this.indentLevel = indentLevel;
                 this.msg = msg;
                 this.elapsedTimeNanos = elapsedTimeNanos;
             }
 
-            public DeferredLogEntry(int indentLevel, String msg) {
+            public DeferredLogEntry(final int indentLevel, final String msg) {
                 this.indentLevel = indentLevel;
                 this.msg = msg;
                 this.elapsedTimeNanos = -1L;
@@ -39,8 +39,8 @@ public class Log {
             }
         }
 
-        private List<DeferredLogEntry> logEntries = new ArrayList<>();
-        
+        private final List<DeferredLogEntry> logEntries = new ArrayList<>();
+
         private static Object lock = new Object();
 
         public void log(final int indentLevel, final String msg) {
@@ -62,7 +62,7 @@ public class Log {
         public void flushSynchronized() {
             if (!logEntries.isEmpty()) {
                 synchronized (lock) {
-                    for (DeferredLogEntry entry : logEntries) {
+                    for (final DeferredLogEntry entry : logEntries) {
                         entry.sendToLog();
                     }
                     logEntries.clear();

@@ -57,67 +57,67 @@ public class ClassInfo implements Comparable<ClassInfo> {
         public Set<String> fieldTypes;
         public Map<String, Object> staticFinalFieldValues;
 
-        public ClassInfoUnlinked(String className, boolean isInterface, boolean isAnnotation) {
+        public ClassInfoUnlinked(final String className, final boolean isInterface, final boolean isAnnotation) {
             this.className = className;
             this.isInterface = isInterface;
             this.isAnnotation = isAnnotation;
         }
 
-        public void addSuperclass(String superclassName) {
+        public void addSuperclass(final String superclassName) {
             this.superclassName = superclassName;
         }
 
-        public void addImplementedInterface(String interfaceName) {
+        public void addImplementedInterface(final String interfaceName) {
             if (implementedInterfaces == null) {
                 implementedInterfaces = new ArrayList<>();
             }
             implementedInterfaces.add(interfaceName);
         }
 
-        public void addAnnotation(String annotationName) {
+        public void addAnnotation(final String annotationName) {
             if (annotations == null) {
                 annotations = new ArrayList<>();
             }
             annotations.add(annotationName);
         }
 
-        public void addFieldType(String fieldTypeName) {
+        public void addFieldType(final String fieldTypeName) {
             if (fieldTypes == null) {
                 fieldTypes = new HashSet<>();
             }
             fieldTypes.add(fieldTypeName);
         }
 
-        public void addFieldConstantValue(String fieldName, Object staticFinalFieldValue) {
+        public void addFieldConstantValue(final String fieldName, final Object staticFinalFieldValue) {
             if (staticFinalFieldValues == null) {
                 staticFinalFieldValues = new HashMap<>();
             }
             staticFinalFieldValues.put(fieldName, staticFinalFieldValue);
         }
 
-        public void link(Map<String, ClassInfo> classNameToClassInfo) {
-            ClassInfo classInfo = ClassInfo.addScannedClass(className, isInterface, isAnnotation,
+        public void link(final Map<String, ClassInfo> classNameToClassInfo) {
+            final ClassInfo classInfo = ClassInfo.addScannedClass(className, isInterface, isAnnotation,
                     classNameToClassInfo);
             if (superclassName != null) {
                 classInfo.addSuperclass(superclassName, classNameToClassInfo);
             }
             if (implementedInterfaces != null) {
-                for (String interfaceName : implementedInterfaces) {
+                for (final String interfaceName : implementedInterfaces) {
                     classInfo.addImplementedInterface(interfaceName, classNameToClassInfo);
                 }
             }
             if (annotations != null) {
-                for (String annotationName : annotations) {
+                for (final String annotationName : annotations) {
                     classInfo.addAnnotation(annotationName, classNameToClassInfo);
                 }
             }
             if (fieldTypes != null) {
-                for (String fieldTypeName : fieldTypes) {
+                for (final String fieldTypeName : fieldTypes) {
                     classInfo.addFieldType(fieldTypeName, classNameToClassInfo);
                 }
             }
             if (staticFinalFieldValues != null) {
-                for (Entry<String, Object> ent : staticFinalFieldValues.entrySet()) {
+                for (final Entry<String, Object> ent : staticFinalFieldValues.entrySet()) {
                     classInfo.addFieldConstantValue(ent.getKey(), ent.getValue());
                 }
             }

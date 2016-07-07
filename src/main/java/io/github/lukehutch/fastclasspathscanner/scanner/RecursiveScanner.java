@@ -415,7 +415,7 @@ public class RecursiveScanner {
             final ScanSpecPathMatch parentMatchStatus = // 
                     prevParentRelativePath == null || !parentRelativePath.equals(prevParentRelativePath)
                             ? scanSpec.pathWhitelistMatchStatus(parentRelativePath) : prevParentMatchStatus;
-            boolean parentPathChanged = !parentRelativePath.equals(prevParentRelativePath);
+            final boolean parentPathChanged = !parentRelativePath.equals(prevParentRelativePath);
             prevParentRelativePath = parentRelativePath;
             prevParentMatchStatus = parentMatchStatus;
             // Class can only be scanned if it's within a whitelisted path subtree, or if it is a classfile
@@ -548,7 +548,7 @@ public class RecursiveScanner {
                         completionService.submit(new Callable<Void>() {
                             @Override
                             public Void call() {
-                                DeferredLog log = logs[threadIdx];
+                                final DeferredLog log = logs[threadIdx];
                                 for (String relativePath; (relativePath = whitelistedClassfileRelativePaths
                                         .poll()) != null;) {
                                     // Get absolute path from classpath element and relative path
@@ -558,7 +558,7 @@ public class RecursiveScanner {
                                     final long fileStartTime = System.nanoTime();
                                     try (InputStream inputStream = new FileInputStream(classpathFile)) {
                                         // Parse classpath binary format, creating a ClassInfoUnlinked object
-                                        ClassInfoUnlinked thisClassInfoUnlinked = ClassfileBinaryParser
+                                        final ClassInfoUnlinked thisClassInfoUnlinked = ClassfileBinaryParser
                                                 .readClassInfoFromClassfileHeader(relativePath, inputStream,
                                                         classNameToStaticFinalFieldsToMatch, scanSpec, log);
                                         if (thisClassInfoUnlinked != null) {
@@ -588,7 +588,7 @@ public class RecursiveScanner {
                             Log.log(4, "Exception while processing classpath element " + classpathElt + ": " + e);
                         }
                     }
-                    for (ClassInfoUnlinked c : classInfoUnlinked) {
+                    for (final ClassInfoUnlinked c : classInfoUnlinked) {
                         c.link(classNameToClassInfo);
                     }
 
@@ -646,7 +646,7 @@ public class RecursiveScanner {
                                     // efficiently by multiple threads, and there are claims that on some systems,
                                     // it is actually not even threadsafe). Opening a ZipFile is a relatively
                                     // low-cost operation.
-                                    DeferredLog log = logs[threadIdx];
+                                    final DeferredLog log = logs[threadIdx];
                                     try (ZipFile zipFile = new ZipFile(classpathElt)) {
                                         for (String relativePath; (relativePath = whitelistedClassfileRelativePaths
                                                 .poll()) != null;) {
@@ -656,7 +656,7 @@ public class RecursiveScanner {
                                             final ZipEntry zipEntry = zipFile.getEntry(relativePath);
                                             try (InputStream inputStream = zipFile.getInputStream(zipEntry)) {
                                                 // Parse classpath binary format, creating a ClassInfoUnlinkde obj
-                                                ClassInfoUnlinked thisClassInfoUnlinked = ClassfileBinaryParser
+                                                final ClassInfoUnlinked thisClassInfoUnlinked = ClassfileBinaryParser
                                                         .readClassInfoFromClassfileHeader(relativePath, inputStream,
                                                                 classNameToStaticFinalFieldsToMatch, scanSpec, log);
                                                 if (thisClassInfoUnlinked != null) {
@@ -693,7 +693,7 @@ public class RecursiveScanner {
                                         "Exception while processing classpath element " + classpathElt + ": " + e);
                             }
                         }
-                        for (ClassInfoUnlinked c : classInfoUnlinked) {
+                        for (final ClassInfoUnlinked c : classInfoUnlinked) {
                             c.link(classNameToClassInfo);
                         }
                     }

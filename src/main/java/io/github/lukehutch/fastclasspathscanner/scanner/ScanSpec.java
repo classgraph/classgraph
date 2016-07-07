@@ -8,11 +8,11 @@ import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.utils.Log;
 
 public class ScanSpec {
-    /** Whitelisted package prefixes with "." appended, or the empty list if all packages are whitelisted. */
-    private final ArrayList<String> whitelistedPackagePrefixes = new ArrayList<>();
+    /** Whitelisted package paths with "/" appended, or the empty list if all packages are whitelisted. */
+    private final ArrayList<String> whitelistedPathPrefixes = new ArrayList<>();
 
-    /** Blacklisted package prefixes with "." appended. */
-    private final ArrayList<String> blacklistedPackagePrefixes = new ArrayList<>();
+    /** Blacklisted package paths with "/" appended. */
+    private final ArrayList<String> blacklistedPathPrefixes = new ArrayList<>();
 
     /** Whitelisted class names, or the empty list if none. */
     private final HashSet<String> specificallyWhitelistedClassRelativePaths = new HashSet<>();
@@ -22,12 +22,6 @@ public class ScanSpec {
 
     /** Blacklisted class names. */
     private final HashSet<String> specificallyBlacklistedClassRelativePaths = new HashSet<>();
-
-    /** Whitelisted package paths with "/" appended, or the empty list if all packages are whitelisted. */
-    private final ArrayList<String> whitelistedPathPrefixes = new ArrayList<>();
-
-    /** Blacklisted package paths with "/" appended. */
-    private final ArrayList<String> blacklistedPathPrefixes = new ArrayList<>();
 
     /** Whitelisted jarfile names. (Leaf filename only.) */
     private final HashSet<String> whitelistedJars = new HashSet<>();
@@ -57,9 +51,7 @@ public class ScanSpec {
         // If scanning all packages, blacklist Java types (they are always excluded from scanning,
         // but may occur as the type of a field)
         for (final String pkg : BLACKLISTED_PACKAGES) {
-            final String pkgPrefix = pkg + ".";
-            blacklistedPackagePrefixes.add(pkgPrefix);
-            blacklistedPathPrefixes.add(pkgPrefix.replace('.', '/'));
+            blacklistedPathPrefixes.add(pkg.replace('.', '/') + "/");
         }
 
         final HashSet<String> uniqueWhitelistedPathPrefixes = new HashSet<>();
@@ -113,7 +105,7 @@ public class ScanSpec {
                 // that package names should be lower case and class names should be upper case.
                 boolean isClassName = false;
                 final int lastSlashIdx = spec.lastIndexOf('/');
-                if (lastSlashIdx > 0 && lastSlashIdx < spec.length() - 1) {
+                if (lastSlashIdx < spec.length() - 1) {
                     isClassName = Character.isUpperCase(spec.charAt(lastSlashIdx + 1));
                 }
                 if (isClassName) {
@@ -123,7 +115,6 @@ public class ScanSpec {
                         specificallyBlacklistedClassRelativePaths.add(spec);
                     } else {
                         specificallyWhitelistedClassRelativePaths.add(spec);
-                        specificallyWhitelistedClassParentRelativePaths.add(spec.substring(0, lastSlashIdx + 1));
                     }
                 } else {
                     // This is a package name: convert into a prefix by adding '.', and also convert to path prefix
@@ -156,14 +147,17 @@ public class ScanSpec {
         if (uniqueWhitelistedPathPrefixes.isEmpty() || uniqueWhitelistedPathPrefixes.contains("/")) {
             // Scan all packages
             whitelistedPathPrefixes.add("");
-            whitelistedPackagePrefixes.add("");
         } else {
             whitelistedPathPrefixes.addAll(uniqueWhitelistedPathPrefixes);
-            whitelistedPackagePrefixes.addAll(uniqueWhitelistedPackagePrefixes);
         }
         blacklistedPathPrefixes.addAll(uniqueBlacklistedPathPrefixes);
-        blacklistedPackagePrefixes.addAll(uniqueBlacklistedPackagePrefixes);
+
         specificallyWhitelistedClassRelativePaths.removeAll(specificallyBlacklistedClassRelativePaths);
+        for (final String whitelistedClass : specificallyWhitelistedClassRelativePaths) {
+            final int lastSlashIdx = whitelistedClass.lastIndexOf('/');
+            specificallyWhitelistedClassParentRelativePaths.add(whitelistedClass.substring(0, lastSlashIdx + 1));
+        }
+
         this.scanJars = scanJars;
         this.scanNonJars = scanNonJars;
 
@@ -183,6 +177,12 @@ public class ScanSpec {
             }
             if (!blacklistedJarPatterns.isEmpty()) {
                 Log.log("Whitelisted jars with glob wildcards:  " + blacklistedJarPatterns);
+            }
+            if (!specificallyWhitelistedClassRelativePaths.isEmpty()) {
+                Log.log("Specifically-whitelisted classfiles: " + specificallyWhitelistedClassRelativePaths);
+            }
+            if (!specificallyBlacklistedClassRelativePaths.isEmpty()) {
+                Log.log("Specifically-blacklisted classfiles: " + specificallyBlacklistedClassRelativePaths);
             }
             if (!scanJars) {
                 Log.log("Scanning of jarfiles is disabled");
@@ -249,7 +249,7 @@ public class ScanSpec {
                 && !specificallyBlacklistedClassRelativePaths.contains(relativePath));
     }
 
-    /** Returns true if the class is not specifically blacklisted, and is not within a blacklisted package. */ // TODO: make this take a relative path
+    /** Returns true if the class is not specifically blacklisted, and is not within a blacklisted package. */
     public boolean classIsNotBlacklisted(final String className) {
         final String classRelativePath = className.replace('.', '/') + ".class";
         if (specificallyBlacklistedClassRelativePaths.contains(classRelativePath)) {
