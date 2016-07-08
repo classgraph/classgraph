@@ -5,8 +5,6 @@ import java.io.InputStream;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassInfo.ClassInfoUnlinked;
@@ -282,13 +280,6 @@ public class ClassfileBinaryParser {
     }
 
     /**
-     * Split a type param into type pieces, e.g. "Ljava/util/Map<Lcom/xyz/fig/shape/Shape;Ljava/lang/Integer;>;" ->
-     * ["java/util/Map", "com/xyz/fig/shape/Shape", "java/lang/Integer"]. Also removes array prefixes, e.g.
-     * "[[[Lcom.xyz.Widget" -> ["com.xyz.Widget"].
-     */
-    private static final Pattern TYPE_PARAM_PATTERN = Pattern.compile("(^[\\[]*|[;<]+)[+-]?L([^;<>*]+)");
-
-    /**
      * Read annotation element value from classfile.
      */
     private void readAnnotationElementValue(final String className) throws IOException {
@@ -335,29 +326,48 @@ public class ClassfileBinaryParser {
 
     /**
      * Find non-blacklisted type names in the given type descriptor, and add them to the set of field types.
+     * 
+     * Splits a type param into type pieces, e.g. "Ljava/util/Map<+Lcom/xyz/fig/shape/Shape;Ljava/lang/Integer;>;"
+     * => "java/util/Map", "com/xyz/fig/shape/Shape", "java/lang/Integer".
+     * 
+     * Also removes array prefixes, e.g. "[[[Lcom.xyz.Widget" -> "com.xyz.Widget".
      */
     private static void addFieldTypeDescriptorParts(final ClassInfoUnlinked classInfoUnlinked,
             final String className, final String typeDescriptor, final ScanSpec scanSpec,
             final HashSet<String> loggedFieldTypeNames, final DeferredLog log) {
-        // Check if the type of this field falls within a non-blacklisted package,
-        // and if so, record the field and its type
-        final Matcher matcher = TYPE_PARAM_PATTERN.matcher(typeDescriptor);
-        while (matcher.find()) {
-            // Convert from type path to class name
-            final String descriptorPart = matcher.group(2);
-            final String fieldTypeName = descriptorPart.replace('/', '.');
-            // Check blacklist, always blacklist common Java types for efficiency
-            if (scanSpec.classIsNotBlacklisted(fieldTypeName) && !fieldTypeName.startsWith("java.lang.")
-                    && !fieldTypeName.startsWith("java.util.")) {
-                if (FastClasspathScanner.verbose) {
-                    // Only add the log entry once for each field type name within each class
-                    if (loggedFieldTypeNames.add(fieldTypeName)) {
-                        log.log(5,
-                                "Class " + className + " has a field with type or type parameter " + fieldTypeName);
+        boolean prevIsDelim = true;
+        for (int i = 0; i < typeDescriptor.length(); i++) {
+            char c = typeDescriptor.charAt(i);
+            if (c == '[' || c == '<' || c == '>' || c == ';' || c == '-' || c == '+') {
+                prevIsDelim = true;
+            } else if (c == 'L') {
+                if (prevIsDelim) {
+                    int start = ++i;
+                    for (; i < typeDescriptor.length(); i++) {
+                        c = typeDescriptor.charAt(i);
+                        if (c == '<' || c == ';') {
+                            break;
+                        }
                     }
+                    // Found a class-typed type parameter. Check if the type of this field falls within a
+                    // non-blacklisted package, and if so, record the field and its type
+                    final String fieldTypeName = typeDescriptor.substring(start, i).replace('/', '.');
+                    if (scanSpec.classIsNotBlacklisted(fieldTypeName) && !fieldTypeName.startsWith("java.lang.")
+                            && !fieldTypeName.startsWith("java.util.")) {
+                        if (FastClasspathScanner.verbose) {
+                            // Only add the log entry once for each field type name within each class
+                            if (loggedFieldTypeNames.add(fieldTypeName)) {
+                                log.log(5, "Class " + className + " has a field with type or type parameter "
+                                        + fieldTypeName);
+                            }
+                        }
+                        // Add field type to set of non-blacklisted field types encountered in class
+                        classInfoUnlinked.addFieldType(fieldTypeName);
+                    }
+                    prevIsDelim = true;
                 }
-                // Add field type to set of non-blacklisted field types encountered in class
-                classInfoUnlinked.addFieldType(fieldTypeName);
+            } else {
+                prevIsDelim = false;
             }
         }
     }
