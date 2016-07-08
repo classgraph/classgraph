@@ -27,7 +27,7 @@ public class ClassfileBinaryParser {
      * Too large, and significant overhead is expended in decompressing more of the classfile header than is needed.
      * Empirical testing on a fairly large classpath indicates that 16kb is a good default.
      */
-    private static final int BUFFER_CHUNK_SIZE = 16536;
+    private static final int BUFFER_CHUNK_SIZE = 8192;
 
     /** Bytes read from the beginning of the classfile. This array is reused across calls. */
     private byte[] buf = new byte[BUFFER_CHUNK_SIZE];
@@ -45,8 +45,8 @@ public class ClassfileBinaryParser {
     private void readMore(final int amountToRead) throws IOException {
         // Read in the amount needed for the next read operation, rounded up to the nearest
         // power of two multiple of the chunk size
-        final int totReadAhead = amountToRead + BUFFER_CHUNK_SIZE;
-        final int newUsed = used + totReadAhead;
+        int bytesToRead = amountToRead + BUFFER_CHUNK_SIZE;
+        final int newUsed = used + bytesToRead;
         int newBufLen = buf.length;
         while (newBufLen < newUsed) {
             newBufLen <<= 1;
@@ -55,11 +55,18 @@ public class ClassfileBinaryParser {
             // Ran out of space, need to double the size of the buffer
             buf = Arrays.copyOf(buf, newBufLen);
         }
-        final int bytesRead = inputStream.read(buf, used, totReadAhead);
-        if (bytesRead < 0) {
+        while (bytesToRead > 0) {
+            final int bytesRead = inputStream.read(buf, used, bytesToRead);
+            if (bytesRead > 0) {
+                used += bytesRead;
+                bytesToRead -= bytesRead;
+            } else {
+                break;
+            }
+        }
+        if (used - curr < amountToRead) {
             throw new IOException("Premature EOF while reading classfile");
         }
-        used += bytesRead;
     }
 
     private int readUnsignedByte() throws IOException {
