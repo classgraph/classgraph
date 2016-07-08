@@ -294,7 +294,12 @@ public class RecursiveScanner {
 
         @Override
         protected InputStream getInputStream(final String relativePath) throws IOException {
-            return zipFile.getInputStream(zipFile.getEntry(relativePath));
+            ZipEntry entry = zipFile.getEntry(relativePath);
+            if (entry == null) {
+                // Should not happen
+                throw new RuntimeException(relativePath + " not contained in jarfile");
+            }
+            return zipFile.getInputStream(entry);
         }
 
         @Override
