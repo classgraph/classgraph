@@ -370,7 +370,7 @@ public class RecursiveScanner {
      */
     private void scanDir(final File classpathElt, final File dir, final int ignorePrefixLen,
             boolean inWhitelistedPath, final boolean scanTimestampsOnly,
-            final Queue<String> whitelistedClassfileRelativePaths) {
+            final Queue<String> classfileRelativePathsToScanOut) {
         if (previouslyScanned(dir)) {
             if (FastClasspathScanner.verbose) {
                 Log.log(3, "Reached duplicate directory, ignoring: " + dir);
@@ -413,7 +413,7 @@ public class RecursiveScanner {
                         || matchStatus == ScanSpecPathMatch.ANCESTOR_OF_WHITELISTED_PATH) {
                     // Recurse into subdirectory
                     scanDir(classpathElt, fileInDir, ignorePrefixLen, inWhitelistedPath, scanTimestampsOnly,
-                            whitelistedClassfileRelativePaths);
+                            classfileRelativePathsToScanOut);
                 }
             } else if (fileInDir.isFile()) {
                 final String fileInDirRelativePath = dirRelativePath.isEmpty() || "/".equals(dirRelativePath)
@@ -446,14 +446,14 @@ public class RecursiveScanner {
                 updateLastModifiedTimestamp(fileInDir.lastModified());
 
                 if (!scanTimestampsOnly) {
-                    // Scan whitelisted file
-                    final boolean isClassfile = fileInDirRelativePath.endsWith(".class");
-                    if (isClassfile) {
-                        // Reached a classfile
-                        whitelistedClassfileRelativePaths.add(fileInDirRelativePath);
+                    boolean matchedFile = false;
+
+                    // Store relative paths of any classfiles encountered
+                    if (fileInDirRelativePath.endsWith(".class")) {
+                        matchedFile = true;
+                        classfileRelativePathsToScanOut.add(fileInDirRelativePath);
                         numClassfilesScanned.incrementAndGet();
                     }
-                    boolean matchedFile = isClassfile;
 
                     // Match file paths against path patterns
                     for (final FilePathTesterAndMatchProcessorWrapper fileMatcher : //
@@ -496,7 +496,7 @@ public class RecursiveScanner {
      * Scan a zipfile for matching file path patterns.
      */
     private void scanZipfile(final File classpathElt, final ZipFile zipFile,
-            final Queue<String> whitelistedClassfileRelativePathsOut) {
+            final Queue<String> classfileRelativePathsToScanOut) {
         if (FastClasspathScanner.verbose) {
             Log.log(3, "Scanning jarfile: " + classpathElt);
         }
@@ -559,13 +559,14 @@ public class RecursiveScanner {
                 Log.log(3, "Found whitelisted file in jarfile: " + relativePath);
             }
 
-            final boolean isClassfile = relativePath.endsWith(".class");
-            if (isClassfile) {
-                // Reached a classfile
-                whitelistedClassfileRelativePathsOut.add(relativePath);
+            boolean matchedFile = false;
+            
+            // Store relative paths of any classfiles encountered
+            if (relativePath.endsWith(".class")) {
+                matchedFile = true;
+                classfileRelativePathsToScanOut.add(relativePath);
                 numClassfilesScanned.incrementAndGet();
             }
-            boolean matchedFile = isClassfile;
 
             // Match file paths against path patterns
             for (final FilePathTesterAndMatchProcessorWrapper fileMatcher : //
