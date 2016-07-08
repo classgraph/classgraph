@@ -188,6 +188,7 @@ The constructor accepts a list of whitelisted package prefixes / jar names to sc
 **Whitelisting packages**
 
 * `new FastClasspathScanner("com.x")` limits scanning to the package `com.x` and its sub-packages in all jarfiles and all directory entries on the classpath.
+  * **Semantics of whitelisting:** Superclasses, subclasses etc. that are in a package that is not whitelisted (or that is blacklisted) will not be returned by a query, but can be used to query. For example, consider a class `com.external.X` that is a superclass of `com.xyz.X`, with a whitelist scanSpec of `com.xyz`. Then `.getNamesOfSuperclassesOf("com.xyz.X")` will return an empty result, but `.getNamesOfSubclassesOf("com.external.X")` will return `["com.xyz.X"]`.
 
 **Blacklisting packages**
 
@@ -215,8 +216,6 @@ The constructor accepts a list of whitelisted package prefixes / jar names to sc
 
 * `new FastClasspathScanner("!", "com.x")`: Adding `"!"` to the scanning specification overrides the blacklisting of the system packages (`java.*` and `sun.*`), meaning classes in those packages can be used as match criteria. You will need this option if, for example, you are trying to find all classes that implement `java.lang.Comparable`, and you get the error `java.lang.IllegalArgumentException: Can't scan for java.lang.Comparable, it is in a blacklisted system package`. Note that if you disable system package blacklisting, you can scan for non-system classes that refer to system classes even if system jars are still blacklisted (e.g. if you add `"!"` to the spec, you can search for classes that implement `java.lang.Comparable` even though `java.lang.Comparable` is in a system jar, so won't itself be scanned). Adding `"!"` to the spec may increase the time and memory required to scan, since there are many references to system classes by non-system classes. 
 * `new FastClasspathScanner("!!", "com.x")`: Adding `"!!"` to the spec overrides the blacklisting of the JRE system jars (`rt.jar` etc.), meaning those jars will be scanned, and also overrides the blacklisting of system packages (`java.*` and `sun.*`). You will need this option if you want to look for system classes that match a given criterion. Adding `"!!"` to the spec will increase the time and memory required to scan, since the system jars are large.
-
-Superclasses, subclasses etc. that are in a package that is not whitelisted (or that is blacklisted) will not be returned by a query, but can be used to query. For example, consider a class `com.external.X` that is a superclass of `com.xyz.X`, with a whitelist scanSpec of `com.xyz`. Then `.getNamesOfSuperclassesOf("com.xyz.X")` will return an empty result, but `.getNamesOfSubclassesOf("com.external.X")` will return `["com.xyz.X"]`.
 
 ## Detecting annotations, superclasses and implemented interfaces outside of whitelisted packages
 
