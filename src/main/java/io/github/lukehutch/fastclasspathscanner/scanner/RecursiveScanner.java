@@ -237,13 +237,13 @@ public class RecursiveScanner {
                     final long fileStartTime = System.nanoTime();
                     // Reuse one ClassfileBinaryParser for all classfiles parsed by a given thread, to avoid
                     // the overhead of re-allocating buffers between classfiles.
-                    final ClassfileBinaryParser classfileBinaryParser = new ClassfileBinaryParser();
+                    final ClassfileBinaryParser classfileBinaryParser = new ClassfileBinaryParser(scanSpec, log);
                     // Get input stream from classpath element and relative path
                     try (InputStream inputStream = getInputStream(relativePath)) {
                         // Parse classpath binary format, creating a ClassInfoUnlinked object
                         final ClassInfoUnlinked thisClassInfoUnlinked = classfileBinaryParser
-                                .readClassInfoFromClassfileHeader(relativePath, inputStream,
-                                        classNameToStaticFinalFieldsToMatch, scanSpec, log);
+                                .readClassInfoFromClassfileHeader(inputStream, relativePath,
+                                        classNameToStaticFinalFieldsToMatch);
                         if (thisClassInfoUnlinked != null) {
                             classInfoUnlinkedOut.add(thisClassInfoUnlinked);
                         }

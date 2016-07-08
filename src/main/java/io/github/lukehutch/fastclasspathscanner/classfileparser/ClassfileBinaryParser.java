@@ -17,8 +17,22 @@ import io.github.lukehutch.fastclasspathscanner.utils.Log.DeferredLog;
  * sequence, to avoid re-allocating buffer memory.
  */
 public class ClassfileBinaryParser {
-    /** The InputStream for the current classfile. */
+    /** The ScanSpec. */
+    private ScanSpec scanSpec;
+
+    /** The thread-local logger. */
+    private DeferredLog log;
+
+    /** The InputStream for the current classfile. Set by each call to readClassInfoFromClassfileHeader(). */
     private InputStream inputStream;
+
+    /** The name of the current classfile. Determined early in the call to readClassInfoFromClassfileHeader(). */
+    private String className;
+
+    public ClassfileBinaryParser(final ScanSpec scanSpec, final DeferredLog log) {
+        this.scanSpec = scanSpec;
+        this.log = log;
+    }
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -275,7 +289,7 @@ public class ClassfileBinaryParser {
     /**
      * Read annotation entry from classfile.
      */
-    private String readAnnotation(final String className) throws IOException {
+    private String readAnnotation() throws IOException {
         // Lcom/xyz/Annotation -> Lcom.xyz.Annotation
         final String annotationFieldDescriptor = getConstantPoolClassName(readUnsignedShort());
         String annotationClassName;
@@ -290,15 +304,16 @@ public class ClassfileBinaryParser {
         final int numElementValuePairs = readUnsignedShort();
         for (int i = 0; i < numElementValuePairs; i++) {
             skip(2); // element_name_index
-            readAnnotationElementValue(className);
+            readAnnotationElementValue();
         }
         return annotationClassName;
     }
 
     /**
-     * Read annotation element value from classfile.
+     * Read annotation element value from classfile. (These values are currently just skipped, so this function
+     * returns nothing.)
      */
-    private void readAnnotationElementValue(final String className) throws IOException {
+    private void readAnnotationElementValue() throws IOException {
         final int tag = readUnsignedByte();
         switch (tag) {
         case 'B':
@@ -323,14 +338,14 @@ public class ClassfileBinaryParser {
             break;
         case '@':
             // Complex (nested) annotation
-            readAnnotation(className);
+            readAnnotation();
             break;
         case '[':
             // array_value
             final int count = readUnsignedShort();
             for (int l = 0; l < count; ++l) {
                 // Nested annotation element value
-                readAnnotationElementValue(className);
+                readAnnotationElementValue();
             }
             break;
         default:
@@ -348,9 +363,8 @@ public class ClassfileBinaryParser {
      * 
      * Also removes array prefixes, e.g. "[[[Lcom.xyz.Widget" -> "com.xyz.Widget".
      */
-    private static void addFieldTypeDescriptorParts(final ClassInfoUnlinked classInfoUnlinked,
-            final String className, final String typeDescriptor, final ScanSpec scanSpec,
-            final HashSet<String> loggedFieldTypeNames, final DeferredLog log) {
+    private void addFieldTypeDescriptorParts(final ClassInfoUnlinked classInfoUnlinked, final String typeDescriptor,
+            final HashSet<String> loggedFieldTypeNames) {
         boolean prevIsDelim = true;
         for (int i = 0; i < typeDescriptor.length(); i++) {
             char c = typeDescriptor.charAt(i);
@@ -393,9 +407,9 @@ public class ClassfileBinaryParser {
      * super-class etc. Creates a new ClassInfo object, and adds it to classNameToClassInfoOut. Assumes classpath
      * masking has already been performed, so that only one class of a given name will be added.
      */
-    public ClassInfoUnlinked readClassInfoFromClassfileHeader(final String relativePath,
-            final InputStream inputStream, final Map<String, HashSet<String>> classNameToStaticFinalFieldsToMatch,
-            final ScanSpec scanSpec, final DeferredLog log) throws IOException {
+    public ClassInfoUnlinked readClassInfoFromClassfileHeader(final InputStream inputStream,
+            final String relativePath, final Map<String, HashSet<String>> classNameToStaticFinalFieldsToMatch)
+            throws IOException {
         try {
             this.inputStream = inputStream;
 
@@ -481,7 +495,7 @@ public class ClassfileBinaryParser {
             final boolean isAnnotation = (flags & 0x2000) != 0;
 
             // The fully-qualified class name of this class, with slashes replaced with dots
-            final String className = getConstantPoolClassName(readUnsignedShort());
+            this.className = getConstantPoolClassName(readUnsignedShort());
             if ("java.lang.Object".equals(className)) {
                 // Don't process java.lang.Object
                 return null;
@@ -547,8 +561,7 @@ public class ClassfileBinaryParser {
 
                 // Check if the type of this field falls within a non-blacklisted package,
                 // and if so, record the field and its type
-                addFieldTypeDescriptorParts(classInfoUnlinked, className, fieldTypeDescriptor, scanSpec,
-                        loggedFieldTypeNames, log);
+                addFieldTypeDescriptorParts(classInfoUnlinked, fieldTypeDescriptor, loggedFieldTypeNames);
 
                 // Check if field is static and final
                 if (!isStaticFinal && isMatchedFieldName) {
@@ -609,8 +622,7 @@ public class ClassfileBinaryParser {
                         // package, and if so, record the field type. The type signature contains
                         // type parameters, whereas the type descriptor does not.
                         final String fieldTypeSignature = getConstantPoolString(readUnsignedShort());
-                        addFieldTypeDescriptorParts(classInfoUnlinked, className, fieldTypeSignature, scanSpec,
-                                loggedFieldTypeNames, log);
+                        addFieldTypeDescriptorParts(classInfoUnlinked, fieldTypeSignature, loggedFieldTypeNames);
                     } else {
                         skip(attributeLength);
                     }
@@ -643,7 +655,7 @@ public class ClassfileBinaryParser {
                 if ("RuntimeVisibleAnnotations".equals(attributeName)) {
                     final int annotationCount = readUnsignedShort();
                     for (int m = 0; m < annotationCount; m++) {
-                        final String annotationName = readAnnotation(className);
+                        final String annotationName = readAnnotation();
                         // Add non-blacklisted annotations; always ignore java.lang.annotation annotations
                         // (Target/Retention/Documented etc.)
                         if (scanSpec.classIsNotBlacklisted(annotationName)
@@ -661,7 +673,6 @@ public class ClassfileBinaryParser {
             return classInfoUnlinked;
 
         } catch (final Exception e) {
-            e.printStackTrace(); // TODO
             log.log(6, "Exception while attempting to load classfile " + relativePath + ": " + e);
             return null;
         }
