@@ -14,14 +14,20 @@ public class ScanSpec {
     /** Blacklisted package paths with "/" appended. */
     private final ArrayList<String> blacklistedPathPrefixes = new ArrayList<>();
 
+    /** Blacklisted package names with "." appended. */
+    private final ArrayList<String> blacklistedPackagePrefixes = new ArrayList<>();
+
     /** Whitelisted class names, or the empty list if none. */
     private final HashSet<String> specificallyWhitelistedClassRelativePaths = new HashSet<>();
 
     /** Path prefixes of whitelisted classes, or the empty list if none. */
     private final HashSet<String> specificallyWhitelistedClassParentRelativePaths = new HashSet<>();
 
-    /** Blacklisted class names. */
+    /** Blacklisted class relative paths. */
     private final HashSet<String> specificallyBlacklistedClassRelativePaths = new HashSet<>();
+
+    /** Blacklisted class names. */
+    private final HashSet<String> specificallyBlacklistedClassNames = new HashSet<>();
 
     /** Whitelisted jarfile names. (Leaf filename only.) */
     private final HashSet<String> whitelistedJars = new HashSet<>();
@@ -56,8 +62,6 @@ public class ScanSpec {
 
         final HashSet<String> uniqueWhitelistedPathPrefixes = new HashSet<>();
         final HashSet<String> uniqueBlacklistedPathPrefixes = new HashSet<>();
-        final HashSet<String> uniqueWhitelistedPackagePrefixes = new HashSet<>();
-        final HashSet<String> uniqueBlacklistedPackagePrefixes = new HashSet<>();
         boolean scanJars = true, scanNonJars = true;
         for (final String scanSpecEntry : scanSpecs) {
             String spec = scanSpecEntry;
@@ -100,31 +104,28 @@ public class ScanSpec {
                 }
             } else {
                 // Convert classname format to relative path
-                spec = spec.replace('.', '/');
+                final String specPath = spec.replace('.', '/');
                 // See if a class name was specified, rather than a package name. Relies on the Java convention
                 // that package names should be lower case and class names should be upper case.
                 boolean isClassName = false;
-                final int lastSlashIdx = spec.lastIndexOf('/');
-                if (lastSlashIdx < spec.length() - 1) {
-                    isClassName = Character.isUpperCase(spec.charAt(lastSlashIdx + 1));
+                final int lastSlashIdx = specPath.lastIndexOf('/');
+                if (lastSlashIdx < specPath.length() - 1) {
+                    isClassName = Character.isUpperCase(specPath.charAt(lastSlashIdx + 1));
                 }
                 if (isClassName) {
                     // Convert class name to classfile filename
-                    spec += ".class";
                     if (blacklisted) {
-                        specificallyBlacklistedClassRelativePaths.add(spec);
+                        specificallyBlacklistedClassNames.add(spec);
+                        specificallyBlacklistedClassRelativePaths.add(specPath + ".class");
                     } else {
-                        specificallyWhitelistedClassRelativePaths.add(spec);
+                        specificallyWhitelistedClassRelativePaths.add(specPath + ".class");
                     }
                 } else {
                     // This is a package name: convert into a prefix by adding '.', and also convert to path prefix
-                    spec = spec + ".";
                     if (blacklisted) {
-                        uniqueBlacklistedPackagePrefixes.add(spec);
-                        uniqueBlacklistedPathPrefixes.add(spec.replace('.', '/'));
+                        uniqueBlacklistedPathPrefixes.add(specPath + "/");
                     } else {
-                        uniqueWhitelistedPackagePrefixes.add(spec);
-                        uniqueWhitelistedPathPrefixes.add(spec.replace('.', '/'));
+                        uniqueWhitelistedPathPrefixes.add(specPath + "/");
                     }
                 }
             }
@@ -151,6 +152,10 @@ public class ScanSpec {
             whitelistedPathPrefixes.addAll(uniqueWhitelistedPathPrefixes);
         }
         blacklistedPathPrefixes.addAll(uniqueBlacklistedPathPrefixes);
+        // Convert blacklisted path prefixes into package prefixes
+        for (final String prefix : blacklistedPathPrefixes) {
+            blacklistedPackagePrefixes.add(prefix.replace('/', '.'));
+        }
 
         specificallyWhitelistedClassRelativePaths.removeAll(specificallyBlacklistedClassRelativePaths);
         for (final String whitelistedClass : specificallyWhitelistedClassRelativePaths) {
@@ -251,12 +256,11 @@ public class ScanSpec {
 
     /** Returns true if the class is not specifically blacklisted, and is not within a blacklisted package. */
     public boolean classIsNotBlacklisted(final String className) {
-        final String classRelativePath = className.replace('.', '/') + ".class";
-        if (specificallyBlacklistedClassRelativePaths.contains(classRelativePath)) {
+        if (specificallyBlacklistedClassNames.contains(className)) {
             return false;
         }
-        for (final String blacklistedPath : blacklistedPathPrefixes) {
-            if (classRelativePath.startsWith(blacklistedPath)) {
+        for (final String blacklistedPackagePrefix : blacklistedPackagePrefixes) {
+            if (className.startsWith(blacklistedPackagePrefix)) {
                 return false;
             }
         }
