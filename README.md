@@ -180,22 +180,43 @@ public FastClasspathScanner(String... scanSpec)
 ```
 
 The constructor accepts a list of whitelisted package prefixes / jar names to scan, as well as blacklisted packages/jars not to scan, where blacklisted entries are prefixed with the `'-'` character. For example:
+
+** Default constructor **
+
 * `new FastClasspathScanner()`: If you don't specify any whitelisted package prefixes, all jarfiles and all directories on the classpath will be scanned, with the exception of the JRE system jars and the `java` and `sun` packages, which are blacklisted by default for efficiency (i.e. `java.lang`, `java.util` etc. are never scanned). See below for how to override these default blacklists.
+
+** Whitelisting packages **
+
 * `new FastClasspathScanner("com.x")` limits scanning to the package `com.x` and its sub-packages in all jarfiles and all directory entries on the classpath.
+
+** Blacklisting packages **
+
 * `new FastClasspathScanner("com.x", "-com.x.y")` limits scanning to `com.x` and all sub-packages *except* `com.x.y` in all jars and directories on the classpath.
+
+** Whitelisting or blacklisting specific classes **
+
 * `new FastClasspathScanner("com.x", "javax.persistence.Entity")` limits scanning to `com.x` but also whitelists a specific external class `javax.persistence.Entity`. This makes it possible to search for classes annotated with the otherwise-non-whitelisted annotation class `javax.persistence.Entity` -- [see below](#detecting-annotations-superclasses-and-implemented-interfaces-outside-of-whitelisted-packages) for more info.
 * `new FastClasspathScanner("com.x", "-com.x.BadClass")` scans within `com.x`, but blacklists the class `com.x.BadClass`. Note that a capital letter after the final '.' indicates a whitelisted or blacklisted class, as opposed to a package.
+
+** Limiting scanning to specific jars **
+
 * `new FastClasspathScanner("com.x", "-com.x.y", "jar:deploy.jar", "jar:library-*.jar", "jar:otherlibrary-*")` limits scanning to `com.x` and all its sub-packages except `com.x.y`, but only looks in jars named `deploy.jar`, `library-*.jar` and `otherlibrary-*` on the classpath (globs containing `*` are supported, and the `.jar` extension will be matched by `*` if not specified, along with other extensions such as `.zip`). Note:
   1. Whitelisting one or more jar entries prevents non-jar entries (directories) on the classpath from being scanned.
   2. Only the leafname of a jarfile can be specified in a `jar:` or `-jar:` entry, so if there is a chance of conflict, make sure the jarfile's leaf name is unique.
-* `new FastClasspathScanner("com.x", "-jar:irrelevant.jar")` limits scanning to `com.x` and all sub-packages in all directories on the classpath, and in all jars except `irrelevant.jar`. (i.e. blacklisting a jarfile only excludes the specified jarfile, it doesn't prevent all directories from being scanned, as with whitelisting a jarfile.)
 * `new FastClasspathScanner("com.x", "jar:")` limits scanning to `com.x` and all sub-packages, but only looks in jarfiles on the classpath -- directories are not scanned. (i.e. `"jar:"` is a wildcard to indicate that all jars are whitelisted, and as in the example above, whitelisting jarfiles prevents non-jars (directories) from being scanned.)
+  
+** Blacklisting specific jars **
+  
+* `new FastClasspathScanner("com.x", "-jar:irrelevant.jar")` limits scanning to `com.x` and all sub-packages in all directories on the classpath, and in all jars except `irrelevant.jar`. (i.e. blacklisting a jarfile only excludes the specified jarfile, it doesn't prevent all directories from being scanned, as with whitelisting a jarfile.)
 * `new FastClasspathScanner("com.x", "-jar:")` limits scanning to `com.x` and all sub-packages, but only looks in directories on the classpath -- jarfiles are not scanned. (i.e. `"-jar:"` is a wildcard to indicate that all jars are blacklisted.)
+  * Note that without `"!!'`, if you put custom classes into the `lib/ext` directory in your JRE folder (which is a valid but rare way of adding jarfiles to the classpath), those classes will not be scanned, by association with the JRE.
+
+** Matching system classes / scanning system jars **
+
 * `new FastClasspathScanner("!", "com.x")`: Adding `"!"` to the scanning specification overrides the blacklisting of the system packages (`java.*` and `sun.*`), meaning classes in those packages can be used as match criteria. You will need this option if, for example, you are trying to find all classes that implement `java.lang.Comparable`, and you get the error `java.lang.IllegalArgumentException: Can't scan for java.lang.Comparable, it is in a blacklisted system package`. Note that if you disable system package blacklisting, you can scan for non-system classes that refer to system classes even if system jars are still blacklisted (e.g. if you add `"!"` to the spec, you can search for classes that implement `java.lang.Comparable` even though `java.lang.Comparable` is in a system jar, so won't itself be scanned). Adding `"!"` to the spec may increase the time and memory required to scan, since there are many references to system classes by non-system classes. 
-* `new FastClasspathScanner("!!", "com.x")`: Adding `"!!"` to the spec overrides the blacklisting of the JRE system jars (`rt.jar` etc.), meaning those jars will be scanned, and also overrides the blacklisting of system packages (`java.*` and `sun.*`). You will need this option if you want to look for system classes that match a given criterion. Adding `"!!"` to the spec will increase the time and memory required to scan, since the system jars are large.  
-**Notes on scan specs:**
-* Superclasses, subclasses etc. that are in a package that is not whitelisted (or that is blacklisted) will not be returned by a query, but can be used to query. For example, consider a class `com.external.X` that is a superclass of `com.xyz.X`, with a whitelist scanSpec of `com.xyz`. Then `.getNamesOfSuperclassesOf("com.xyz.X")` will return an empty result, but `.getNamesOfSubclassesOf("com.external.X")` will return `["com.xyz.X"]`.
-* For efficiency, system, bootstrap and extension jarfiles like `rt.jar` (i.e. the jarfiles distributed with the JRE) are always blacklisted, as are package prefixes `java` and `sun`, i.e. they are never scanned. If you put custom classes into the `lib/ext` directory in your JRE folder (which is a valid but rare way of adding jarfiles to the classpath), they will be ignored by association with the JRE.
+* `new FastClasspathScanner("!!", "com.x")`: Adding `"!!"` to the spec overrides the blacklisting of the JRE system jars (`rt.jar` etc.), meaning those jars will be scanned, and also overrides the blacklisting of system packages (`java.*` and `sun.*`). You will need this option if you want to look for system classes that match a given criterion. Adding `"!!"` to the spec will increase the time and memory required to scan, since the system jars are large.
+
+Superclasses, subclasses etc. that are in a package that is not whitelisted (or that is blacklisted) will not be returned by a query, but can be used to query. For example, consider a class `com.external.X` that is a superclass of `com.xyz.X`, with a whitelist scanSpec of `com.xyz`. Then `.getNamesOfSuperclassesOf("com.xyz.X")` will return an empty result, but `.getNamesOfSubclassesOf("com.external.X")` will return `["com.xyz.X"]`.
 
 ## Detecting annotations, superclasses and implemented interfaces outside of whitelisted packages
 
