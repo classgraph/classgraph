@@ -23,49 +23,58 @@ public class ClassfileBinaryParser {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Buffer size for classfile reader. Too small, and significant overhead is expended in refilling the buffer.
-     * Too large, and significant overhead is expended in decompressing more of the classfile header than is needed.
-     * Empirical testing on a fairly large classpath indicates that 8kb is a good default on a machine with an SSD.
+     * Buffer size for initial read. We can save some time by reading most of the classfile header in a single read
+     * at the beginning of the scan.
+     * 
+     * (If chunk sizes are too small, significant overhead is expended in refilling the buffer. If they are too
+     * large, significant overhead is expended in decompressing more of the classfile header than is needed. Testing
+     * on a large classpath indicates that the defaults are reasonably optimal.)
      */
-    private static final int BUFFER_CHUNK_SIZE = 8192;
+    private static final int INITIAL_BUFFER_CHUNK_SIZE = 16384;
+
+    /** Buffer size for classfile reader. */
+    private static final int SUBSEQUENT_BUFFER_CHUNK_SIZE = 4096;
 
     /** Bytes read from the beginning of the classfile. This array is reused across calls. */
-    private byte[] buf = new byte[BUFFER_CHUNK_SIZE];
-
-    /** Bytes used in the classfileBytes array. */
-    private int used = 0;
+    private byte[] buf = new byte[INITIAL_BUFFER_CHUNK_SIZE];
 
     /** The current read index in the classfileBytes array. */
     private int curr = 0;
+
+    /** Bytes used in the classfileBytes array. */
+    private int used = 0;
 
     /**
      * Read another chunk of size BUFFER_CHUNK_SIZE from the InputStream; double the size of the buffer if necessary
      * to accommodate the new chunk.
      */
-    private void readMore(final int amountToRead) throws IOException {
-        // Read in the amount needed for the next read operation, rounded up to the nearest
-        // power of two multiple of the chunk size
-        int bytesToRead = amountToRead + BUFFER_CHUNK_SIZE;
-        final int newUsed = used + bytesToRead;
-        int newBufLen = buf.length;
-        while (newBufLen < newUsed) {
-            newBufLen <<= 1;
-        }
-        if (newBufLen > buf.length) {
-            // Ran out of space, need to double the size of the buffer
+    private void readMore(final int bytesRequired) throws IOException {
+        int extraBytesNeeded = bytesRequired - (used - curr);
+        int bytesToRequest = extraBytesNeeded + SUBSEQUENT_BUFFER_CHUNK_SIZE;
+        final int maxNewUsed = used + bytesToRequest;
+        if (maxNewUsed > buf.length) {
+            // Ran out of space, need to increase the size of the buffer
+            int newBufLen = buf.length;
+            while (newBufLen < maxNewUsed) {
+                newBufLen <<= 1;
+            }
             buf = Arrays.copyOf(buf, newBufLen);
         }
-        while (bytesToRead > 0) {
-            final int bytesRead = inputStream.read(buf, used, bytesToRead);
+        int extraBytesStillNotRead = extraBytesNeeded;
+        while (extraBytesStillNotRead > 0) {
+            final int bytesRead = inputStream.read(buf, used, bytesToRequest);
             if (bytesRead > 0) {
                 used += bytesRead;
-                bytesToRead -= bytesRead;
+                bytesToRequest -= bytesRead;
+                extraBytesStillNotRead -= bytesRead;
             } else {
-                break;
+                // EOF
+                if (extraBytesStillNotRead > 0) {
+                    throw new IOException("Premature EOF while reading classfile");
+                } else {
+                    break;
+                }
             }
-        }
-        if (used - curr < amountToRead) {
-            throw new IOException("Premature EOF while reading classfile");
         }
     }
 
@@ -171,10 +180,10 @@ public class ClassfileBinaryParser {
                     throw new IllegalArgumentException("Bad modified UTF8");
                 }
                 c2 = buf[start + byteIdx - 1];
-                if ((c2 & 0xC0) != 0x80) {
+                if ((c2 & 0xc0) != 0x80) {
                     throw new IllegalArgumentException("Bad modified UTF8");
                 }
-                chars[charIdx++] = (char) (((c & 0x1F) << 6) | (c2 & 0x3F));
+                chars[charIdx++] = (char) (((c & 0x1f) << 6) | (c2 & 0x3f));
                 break;
             case 14:
                 byteIdx += 3;
@@ -183,10 +192,10 @@ public class ClassfileBinaryParser {
                 }
                 c2 = buf[start + byteIdx - 2];
                 c3 = buf[start + byteIdx - 1];
-                if (((c2 & 0xC0) != 0x80) || ((c3 & 0xC0) != 0x80)) {
+                if (((c2 & 0xc0) != 0x80) || ((c3 & 0xc0) != 0x80)) {
                     throw new IllegalArgumentException("Bad modified UTF8");
                 }
-                chars[charIdx++] = (char) (((c & 0x0F) << 12) | ((c2 & 0x3F) << 6) | ((c3 & 0x3F) << 0));
+                chars[charIdx++] = (char) (((c & 0x0f) << 12) | ((c2 & 0x3f) << 6) | ((c3 & 0x3f) << 0));
                 break;
             default:
                 throw new IllegalArgumentException("Bad modified UTF8");
@@ -388,14 +397,20 @@ public class ClassfileBinaryParser {
             final InputStream inputStream, final Map<String, HashSet<String>> classNameToStaticFinalFieldsToMatch,
             final ScanSpec scanSpec, final DeferredLog log) throws IOException {
         try {
-            // Initial buffer fill
             this.inputStream = inputStream;
-            used = inputStream.read(buf);
+
+            // Initialize buffer
+            curr = 0;
+            used = inputStream.read(buf, 0, INITIAL_BUFFER_CHUNK_SIZE);
+            if (used < 0) {
+                throw new IOException("Classfile " + relativePath + " is empty");
+            }
 
             // Check magic number
-            if (used < 4 || readInt() != 0xCAFEBABE) {
+            if (readInt() != 0xCAFEBABE) {
                 if (FastClasspathScanner.verbose) {
-                    throw new IOException("File " + relativePath + " does not have correct classfile magic number");
+                    throw new IOException(
+                            "Classfile " + relativePath + " does not have correct classfile magic number");
                 }
             }
 
