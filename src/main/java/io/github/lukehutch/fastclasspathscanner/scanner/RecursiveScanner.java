@@ -67,10 +67,10 @@ import io.github.lukehutch.fastclasspathscanner.utils.Log.DeferredLog;
 public class RecursiveScanner {
     /**
      * The number of threads to use for parsing classfiles in parallel. Empirical testing shows that on a modern
-     * system with an SSD, NUM_THREADS = 5 is a good default. Raising the number of threads too high can actually
+     * system with an SSD, NUM_THREADS = 6 is a good default. Raising the number of threads too high can actually
      * hurt performance due to storage contention.
      */
-    private final int NUM_THREADS = 5;
+    private final int NUM_THREADS = 6;
 
     /** The classpath finder. */
     private final ClasspathFinder classpathFinder;
