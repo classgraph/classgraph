@@ -215,6 +215,131 @@ public class RecursiveScanner {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /** Class for calling ClassfileBinaryParser in parallel for all relative paths within a classpath element. */
+    private abstract class ClassfileBinaryParserCaller implements Callable<Void> {
+        final File classpathElt;
+        final Queue<String> relativePaths;
+        Queue<ClassInfoUnlinked> classInfoUnlinkedOut;
+        final DeferredLog log;
+
+        public ClassfileBinaryParserCaller(final File classpathElt, final Queue<String> relativePaths,
+                final Queue<ClassInfoUnlinked> classInfoUnlinkedOut, final DeferredLog log) {
+            this.classpathElt = classpathElt;
+            this.relativePaths = relativePaths;
+            this.classInfoUnlinkedOut = classInfoUnlinkedOut;
+            this.log = log;
+        }
+
+        @Override
+        public Void call() {
+            try {
+                for (String relativePath; (relativePath = relativePaths.poll()) != null;) {
+                    final long fileStartTime = System.nanoTime();
+                    // Get input stream from classpath element and relative path
+                    try (InputStream inputStream = getInputStream(relativePath)) {
+                        // Parse classpath binary format, creating a ClassInfoUnlinked object
+                        final ClassInfoUnlinked thisClassInfoUnlinked = ClassfileBinaryParser
+                                .readClassInfoFromClassfileHeader(relativePath, inputStream,
+                                        classNameToStaticFinalFieldsToMatch, scanSpec, log);
+                        if (thisClassInfoUnlinked != null) {
+                            classInfoUnlinkedOut.add(thisClassInfoUnlinked);
+                        }
+                    } catch (final IOException e) {
+                        if (FastClasspathScanner.verbose) {
+                            log.log(4, "Exception while trying to open " + relativePath + ": " + e);
+                        }
+                    }
+                    if (FastClasspathScanner.verbose) {
+                        log.log(6, "Parsed classfile " + relativePath, System.nanoTime() - fileStartTime);
+                    }
+                }
+            } finally {
+                close();
+            }
+            return null;
+        }
+
+        protected abstract InputStream getInputStream(String relativePath) throws IOException;
+
+        protected void close() {
+        }
+    }
+
+    /** Dir/file handler. */
+    private class DirClassfileBinaryParserCaller extends ClassfileBinaryParserCaller {
+        public DirClassfileBinaryParserCaller(final File classpathElt, final Queue<String> relativePaths,
+                final Queue<ClassInfoUnlinked> classInfoUnlinkedOut, final DeferredLog log) throws IOException {
+            super(classpathElt, relativePaths, classInfoUnlinkedOut, log);
+        }
+
+        @Override
+        protected InputStream getInputStream(final String relativePath) throws IOException {
+            return new FileInputStream(classpathElt.getPath() + File.separator
+                    + (File.separatorChar == '/' ? relativePath : relativePath.replace('/', File.separatorChar)));
+        }
+    }
+
+    /** Jarfile handler. */
+    private class JarClassfileBinaryParserCaller extends ClassfileBinaryParserCaller {
+        private final ZipFile zipFile;
+
+        public JarClassfileBinaryParserCaller(final File classpathElt, final Queue<String> relativePaths,
+                final Queue<ClassInfoUnlinked> classInfoUnlinkedOut, final DeferredLog log) throws IOException {
+            super(classpathElt, relativePaths, classInfoUnlinkedOut, log);
+            zipFile = new ZipFile(classpathElt);
+        }
+
+        @Override
+        protected InputStream getInputStream(final String relativePath) throws IOException {
+            return zipFile.getInputStream(zipFile.getEntry(relativePath));
+        }
+
+        @Override
+        public void close() {
+            try {
+                zipFile.close();
+            } catch (final IOException e) {
+                // Ignore
+            }
+        }
+    }
+
+    /** Parse whitelisted classfiles in parallel, populating classNameToClassInfo with the results. */
+    private void parallelParseClassfiles(final File classpathElt, final Queue<String> relativePaths,
+            final ExecutorService executorService, final DeferredLog[] logs) {
+        final boolean isDir = classpathElt.isDirectory();
+        final Queue<ClassInfoUnlinked> classInfoUnlinked = new ConcurrentLinkedQueue<>();
+        final CompletionService<Void> completionService = new ExecutorCompletionService<>(executorService);
+        for (int threadIdx = 0; threadIdx < NUM_THREADS; threadIdx++) {
+            try {
+                final ClassfileBinaryParserCaller caller = isDir
+                        ? this.new DirClassfileBinaryParserCaller(classpathElt, relativePaths, classInfoUnlinked,
+                                logs[threadIdx])
+                        : this.new JarClassfileBinaryParserCaller(classpathElt, relativePaths, classInfoUnlinked,
+                                logs[threadIdx]);
+                completionService.submit(caller);
+            } catch (final Exception e) {
+                Log.log(4, "Exception opening classpath element " + classpathElt + ": " + e);
+            }
+        }
+        for (int i = 0; i < NUM_THREADS; i++) {
+            logs[i].flush();
+            // Completion barrier
+            try {
+                completionService.take().get();
+            } catch (InterruptedException | ExecutionException e) {
+                e.printStackTrace();
+                Log.log(4, "Exception processing classpath element " + classpathElt + ": " + e);
+            }
+        }
+        // Convert ClassInfoUnlinked to linked ClassInfo objects
+        for (final ClassInfoUnlinked c : classInfoUnlinked) {
+            c.link(classNameToClassInfo);
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
     /**
      * Return true if the canonical path (after resolving symlinks and getting absolute path) for this dir, jarfile
      * or file hasn't been seen before during this scan.
@@ -513,7 +638,7 @@ public class RecursiveScanner {
             }
 
             // Iterate through path elements and recursively scan within each directory and jar for matching paths
-            final Queue<String> whitelistedClassfileRelativePaths = new ConcurrentLinkedQueue<>();
+            final Queue<String> classfileRelativePathsToScan = new ConcurrentLinkedQueue<>();
             for (final File classpathElt : uniqueClasspathElts) {
                 final String path = classpathElt.getPath();
                 final boolean isDirectory = classpathElt.isDirectory();
@@ -539,61 +664,10 @@ public class RecursiveScanner {
                     // Scan dirs recursively, looking for matching paths; call FileMatchProcessors on any matches.
                     // Also store relative paths of all whitelisted classfiles in whitelistedClassfileRelativePaths.
                     scanDir(classpathElt, classpathElt, /* ignorePrefixLen = */ path.length() + 1,
-                            /* inWhitelistedPath = */ false, scanTimestampsOnly, whitelistedClassfileRelativePaths);
+                            /* inWhitelistedPath = */ false, scanTimestampsOnly, classfileRelativePathsToScan);
 
-                    // Parse whitelisted classfiles in parallel.
-                    final Queue<ClassInfoUnlinked> classInfoUnlinked = new ConcurrentLinkedQueue<>();
-                    final CompletionService<Void> completionService = new ExecutorCompletionService<>(
-                            executorService);
-                    for (int i = 0; i < NUM_THREADS; i++) {
-                        final int threadIdx = i;
-                        completionService.submit(new Callable<Void>() {
-                            @Override
-                            public Void call() {
-                                final DeferredLog log = logs[threadIdx];
-                                for (String relativePath; (relativePath = whitelistedClassfileRelativePaths
-                                        .poll()) != null;) {
-                                    // Get absolute path from classpath element and relative path
-                                    final File classpathFile = new File(classpathElt.getPath() + File.separator
-                                            + (File.separatorChar == '/' ? relativePath
-                                                    : relativePath.replace('/', File.separatorChar)));
-                                    final long fileStartTime = System.nanoTime();
-                                    try (InputStream inputStream = new FileInputStream(classpathFile)) {
-                                        // Parse classpath binary format, creating a ClassInfoUnlinked object
-                                        final ClassInfoUnlinked thisClassInfoUnlinked = ClassfileBinaryParser
-                                                .readClassInfoFromClassfileHeader(relativePath, inputStream,
-                                                        classNameToStaticFinalFieldsToMatch, scanSpec, log);
-                                        if (thisClassInfoUnlinked != null) {
-                                            classInfoUnlinked.add(thisClassInfoUnlinked);
-                                        }
-                                    } catch (final IOException e) {
-                                        if (FastClasspathScanner.verbose) {
-                                            log.log(4,
-                                                    "Exception while trying to open " + classpathFile + ": " + e);
-                                        }
-                                    }
-                                    if (FastClasspathScanner.verbose) {
-                                        log.log(6, "Parsed classfile " + relativePath,
-                                                System.nanoTime() - fileStartTime);
-                                    }
-                                }
-                                return null;
-                            }
-                        });
-                    }
-                    for (int i = 0; i < NUM_THREADS; i++) {
-                        logs[i].flush();
-                        // Completion barrier
-                        try {
-                            completionService.take().get();
-                        } catch (InterruptedException | ExecutionException e) {
-                            Log.log(4, "Exception while processing classpath element " + classpathElt + ": " + e);
-                        }
-                    }
-                    // Convert ClassInfoUnlinked to linked ClassInfo objects
-                    for (final ClassInfoUnlinked c : classInfoUnlinked) {
-                        c.link(classNameToClassInfo);
-                    }
+                    // Parse classfile binary format and populate classNameToClassInfo
+                    parallelParseClassfiles(classpathElt, classfileRelativePathsToScan, executorService, logs);
 
                 } else if (isJar && scanSpec.scanJars) {
 
@@ -625,7 +699,7 @@ public class RecursiveScanner {
                         // since only the timestamp of the zipfile itself will be used.
                         try (ZipFile zipFile = new ZipFile(classpathElt)) {
                             final long startTime = System.nanoTime();
-                            scanZipfile(classpathElt, zipFile, whitelistedClassfileRelativePaths);
+                            scanZipfile(classpathElt, zipFile, classfileRelativePathsToScan);
                             if (FastClasspathScanner.verbose) {
                                 Log.log(2, "Scanned jarfile " + classpathElt, System.nanoTime() - startTime);
                             }
@@ -636,70 +710,8 @@ public class RecursiveScanner {
                             }
                         }
 
-                        // Parse whitelisted classfiles in parallel.
-                        final Queue<ClassInfoUnlinked> classInfoUnlinked = new ConcurrentLinkedQueue<>();
-                        final CompletionService<Void> completionService = new ExecutorCompletionService<>(
-                                executorService);
-                        for (int i = 0; i < NUM_THREADS; i++) {
-                            final int threadIdx = i;
-                            completionService.submit(new Callable<Void>() {
-                                @Override
-                                public Void call() {
-                                    // Open one ZipFile per thread (ZipFile uses monitor locks, so can't be used
-                                    // efficiently by multiple threads, and there are claims that on some systems,
-                                    // it is actually not even threadsafe). Opening a ZipFile is a relatively
-                                    // low-cost operation.
-                                    final DeferredLog log = logs[threadIdx];
-                                    try (ZipFile zipFile = new ZipFile(classpathElt)) {
-                                        for (String relativePath; (relativePath = whitelistedClassfileRelativePaths
-                                                .poll()) != null;) {
-                                            final long fileStartTime = System.nanoTime();
-                                            // Get ZipEntry for relative path (this is an O(1) operation in the
-                                            // OpenJDK JNI code, it uses a HashMap lookup)
-                                            final ZipEntry zipEntry = zipFile.getEntry(relativePath);
-                                            try (InputStream inputStream = zipFile.getInputStream(zipEntry)) {
-                                                // Parse classpath binary format, creating a ClassInfoUnlinkde obj
-                                                final ClassInfoUnlinked thisClassInfoUnlinked = ClassfileBinaryParser
-                                                        .readClassInfoFromClassfileHeader(relativePath, inputStream,
-                                                                classNameToStaticFinalFieldsToMatch, scanSpec, log);
-                                                if (thisClassInfoUnlinked != null) {
-                                                    classInfoUnlinked.add(thisClassInfoUnlinked);
-                                                }
-                                            } catch (final IOException e) {
-                                                if (FastClasspathScanner.verbose) {
-                                                    log.log(4, "Exception while trying to open " + relativePath
-                                                            + " in zipfile " + classpathElt + ": " + e);
-                                                }
-                                            }
-                                            if (FastClasspathScanner.verbose) {
-                                                log.log(6, "Parsed classfile " + relativePath,
-                                                        System.nanoTime() - fileStartTime);
-                                            }
-                                        }
-                                    } catch (final IOException e) {
-                                        if (FastClasspathScanner.verbose) {
-                                            log.log(4,
-                                                    "Exception while reading zipfile " + classpathElt + " : " + e);
-                                        }
-                                    }
-                                    return null;
-                                }
-                            });
-                        }
-                        for (int i = 0; i < NUM_THREADS; i++) {
-                            logs[i].flush();
-                            // Completion barrier
-                            try {
-                                completionService.take().get();
-                            } catch (InterruptedException | ExecutionException e) {
-                                Log.log(4,
-                                        "Exception while processing classpath element " + classpathElt + ": " + e);
-                            }
-                        }
-                        // Convert ClassInfoUnlinked to linked ClassInfo objects
-                        for (final ClassInfoUnlinked c : classInfoUnlinked) {
-                            c.link(classNameToClassInfo);
-                        }
+                        // Parse classfile binary format and populate classNameToClassInfo
+                        parallelParseClassfiles(classpathElt, classfileRelativePathsToScan, executorService, logs);
                     }
 
                 } else {
@@ -760,7 +772,7 @@ public class RecursiveScanner {
             if (executorService != null) {
                 try {
                     executorService.shutdown();
-                } catch (Exception e) {
+                } catch (final Exception e) {
                     // Ignore
                 }
                 executorService = null;
