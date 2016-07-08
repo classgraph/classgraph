@@ -4,8 +4,8 @@ import java.text.DecimalFormat;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 
@@ -39,7 +39,7 @@ public class Log {
             }
         }
 
-        private final List<DeferredLogEntry> logEntries = new ArrayList<>();
+        private final Queue<DeferredLogEntry> logEntries = new ConcurrentLinkedQueue<>();
 
         private static Object lock = new Object();
 
@@ -62,10 +62,9 @@ public class Log {
         public void flush() {
             if (!logEntries.isEmpty()) {
                 synchronized (lock) {
-                    for (final DeferredLogEntry entry : logEntries) {
+                    for (DeferredLogEntry entry; (entry = logEntries.poll()) != null;) {
                         entry.sendToLog();
                     }
-                    logEntries.clear();
                     Log.flush();
                 }
             }
