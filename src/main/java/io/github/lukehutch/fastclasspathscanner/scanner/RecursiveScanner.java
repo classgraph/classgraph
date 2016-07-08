@@ -560,7 +560,7 @@ public class RecursiveScanner {
             }
 
             boolean matchedFile = false;
-            
+
             // Store relative paths of any classfiles encountered
             if (relativePath.endsWith(".class")) {
                 matchedFile = true;
@@ -650,12 +650,23 @@ public class RecursiveScanner {
                     }
                     continue;
                 }
-
                 final boolean isJar = isFile && ClasspathFinder.isJar(path);
-                if (FastClasspathScanner.verbose) {
-                    Log.log(2, "Found " + (isDirectory ? "directory" : isJar ? "jar" : "file") + " on classpath: "
-                            + path);
+                if (isFile && !isJar) {
+                    if (FastClasspathScanner.verbose) {
+                        Log.log(2, "Skipping non-jar file on classpath: " + classpathElt);
+                    }
+                    continue;
                 }
+                if (previouslyScanned(classpathElt)) {
+                    if (FastClasspathScanner.verbose) {
+                        Log.log(3, "Reached duplicate classpath entry, ignoring: " + classpathElt);
+                    }
+                    continue;
+                }
+                if (FastClasspathScanner.verbose) {
+                    Log.log(2, "Found " + (isDirectory ? "directory" : "jar") + " on classpath: " + path);
+                }
+
                 if (isDirectory && scanSpec.scanNonJars) {
 
                     // ---------------------------------------------------------------------------------------------
@@ -676,12 +687,6 @@ public class RecursiveScanner {
                     // Scan within a jar/zipfile
                     // ---------------------------------------------------------------------------------------------
 
-                    if (previouslyScanned(classpathElt)) {
-                        if (FastClasspathScanner.verbose) {
-                            Log.log(3, "Reached duplicate jarfile, ignoring: " + classpathElt);
-                        }
-                        continue;
-                    }
                     if (!scanSpec.jarIsWhitelisted(classpathElt.getName())) {
                         if (FastClasspathScanner.verbose) {
                             Log.log(3, "Skipping jarfile that did not match whitelist/blacklist criteria: "
@@ -705,10 +710,7 @@ public class RecursiveScanner {
                                 Log.log(2, "Scanned jarfile " + classpathElt, System.nanoTime() - startTime);
                             }
                         } catch (final IOException e) {
-                            // Should not happen, but required by zipFile.close() 
-                            if (FastClasspathScanner.verbose) {
-                                Log.log(3, "Error while closing zipfile " + classpathElt + " : " + e);
-                            }
+                            // Ignore, can only be thrown by zipFile.close() 
                         }
 
                         // Parse classfile binary format and populate classNameToClassInfo
