@@ -323,12 +323,14 @@ public class RecursiveScanner {
             }
         }
         for (int i = 0; i < NUM_THREADS; i++) {
-            logs[i].flush();
             // Completion barrier
             try {
                 completionService.take().get();
+                // Flush the logs after completion
+                logs[i].flush();
             } catch (InterruptedException | ExecutionException e) {
-                e.printStackTrace();
+                // Also flush the logs if something goes wrong
+                logs[i].flush();
                 Log.log(4, "Exception processing classpath element " + classpathElt + ": " + e);
             }
         }
@@ -371,12 +373,6 @@ public class RecursiveScanner {
     private void scanDir(final File classpathElt, final File dir, final int ignorePrefixLen,
             boolean inWhitelistedPath, final boolean scanTimestampsOnly,
             final Queue<String> classfileRelativePathsToScanOut) {
-        if (previouslyScanned(dir)) {
-            if (FastClasspathScanner.verbose) {
-                Log.log(3, "Reached duplicate directory, ignoring: " + dir);
-            }
-            return;
-        }
         if (FastClasspathScanner.verbose) {
             Log.log(3, "Scanning directory: " + dir);
         }
@@ -460,22 +456,18 @@ public class RecursiveScanner {
                     filePathTestersAndMatchProcessorWrappers) {
                         if (fileMatcher.filePathTester.filePathMatches(classpathElt, fileInDirRelativePath)) {
                             // File's relative path matches.
-                            try {
-                                matchedFile = true;
-                                final long fileStartTime = System.nanoTime();
-                                try (FileInputStream inputStream = new FileInputStream(fileInDir)) {
-                                    fileMatcher.fileMatchProcessorWrapper.processMatch(classpathElt,
-                                            fileInDirRelativePath, inputStream, fileInDir.length());
-                                }
-                                if (FastClasspathScanner.verbose) {
-                                    Log.log(4, "Processed file match " + fileInDirRelativePath,
-                                            System.nanoTime() - fileStartTime);
-                                }
-                            } catch (final Exception e) {
-                                if (FastClasspathScanner.verbose) {
-                                    Log.log(3, "Reached non-whitelisted (or blacklisted) file, ignoring: "
-                                            + fileInDirRelativePath);
-                                }
+                            matchedFile = true;
+                            final long fileStartTime = System.nanoTime();
+                            try (FileInputStream inputStream = new FileInputStream(fileInDir)) {
+                                fileMatcher.fileMatchProcessorWrapper.processMatch(classpathElt,
+                                        fileInDirRelativePath, inputStream, fileInDir.length());
+                            } catch (Exception e) {
+                                throw new RuntimeException(
+                                        "Exception while processing match " + fileInDirRelativePath, e);
+                            }
+                            if (FastClasspathScanner.verbose) {
+                                Log.log(4, "Processed file match " + fileInDirRelativePath,
+                                        System.nanoTime() - fileStartTime);
                             }
                         }
                     }
@@ -513,7 +505,8 @@ public class RecursiveScanner {
             }
 
             // Ignore directory entries, they are not needed
-            if (zipEntry.isDirectory()) {
+            boolean isDir = zipEntry.isDirectory();
+            if (isDir) {
                 if (prevParentMatchStatus == ScanSpecPathMatch.WITHIN_WHITELISTED_PATH) {
                     numJarfileDirsScanned.incrementAndGet();
                     if (FastClasspathScanner.verbose) {
@@ -540,18 +533,14 @@ public class RecursiveScanner {
             final ScanSpecPathMatch parentMatchStatus = // 
                     prevParentRelativePath == null || !parentRelativePath.equals(prevParentRelativePath)
                             ? scanSpec.pathWhitelistMatchStatus(parentRelativePath) : prevParentMatchStatus;
-            final boolean parentPathChanged = !parentRelativePath.equals(prevParentRelativePath);
             prevParentRelativePath = parentRelativePath;
             prevParentMatchStatus = parentMatchStatus;
+
             // Class can only be scanned if it's within a whitelisted path subtree, or if it is a classfile
             // that has been specifically-whitelisted
             if (parentMatchStatus != ScanSpecPathMatch.WITHIN_WHITELISTED_PATH
                     && (parentMatchStatus != ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE
                             || !scanSpec.isSpecificallyWhitelistedClass(relativePath))) {
-                if (FastClasspathScanner.verbose && parentPathChanged) {
-                    Log.log(3, "Reached non-whitelisted (or blacklisted) file in jar, ignoring: "
-                            + parentRelativePath);
-                }
                 continue;
             }
 
@@ -584,9 +573,7 @@ public class RecursiveScanner {
                             Log.log(4, "Processed file match " + relativePath, System.nanoTime() - fileStartTime);
                         }
                     } catch (final Exception e) {
-                        if (FastClasspathScanner.verbose) {
-                            Log.log(3, "Reached non-whitelisted (or blacklisted) file, ignoring: " + relativePath);
-                        }
+                        throw new RuntimeException("Exception while processing match " + relativePath, e);
                     }
                 }
             }

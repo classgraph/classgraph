@@ -93,7 +93,7 @@ public class FastClasspathScannerTest {
 
     @Test
     public void scanWithWhitelist() throws Exception {
-        final List<String> allClasses = new FastClasspathScanner(WHITELIST_PACKAGE).scan().verbose().getNamesOfAllClasses();
+        final List<String> allClasses = new FastClasspathScanner(WHITELIST_PACKAGE).verbose().scan().getNamesOfAllClasses();
         assertThat(allClasses).contains(Cls.class.getName());
         assertThat(allClasses).doesNotContain(FastClasspathScanner.class.getName());
         assertThat(allClasses).doesNotContain(FastClasspathScannerTest.class.getName());
