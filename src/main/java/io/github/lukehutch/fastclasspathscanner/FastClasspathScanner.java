@@ -1590,19 +1590,7 @@ public class FastClasspathScanner {
      * This method should be called before any "getNamesOf" methods (e.g. getNamesOfSubclassesOf()).
      */
     public synchronized FastClasspathScanner scan() {
-        final long scanStart = System.nanoTime();
-
-        if (FastClasspathScanner.verbose) {
-            Log.log("FastClasspathScanner version " + getVersion());
-            Log.log("Classpath elements: " + getClasspathFinder().getUniqueClasspathElements());
-        }
-
-        // Scan classpath, calling MatchProcessors if any matching paths are found.
         getRecursiveScanner().scan();
-
-        if (FastClasspathScanner.verbose) {
-            Log.log("Finished .scan()", System.nanoTime() - scanStart);
-        }
         return this;
     }
 
@@ -1613,20 +1601,12 @@ public class FastClasspathScanner {
      * be opened.
      */
     public synchronized boolean classpathContentsModifiedSinceScan() {
-        final long scanStart = System.nanoTime();
-
         // Ensure scanning has happened at least once already -- if not, return true,
         // as this is the most useful default value.
         if (getRecursiveScanner().getClassGraphBuilder() == null) {
             return true;
         }
-
-        final boolean modified = getRecursiveScanner().classpathContentsModifiedSinceScan();
-
-        if (FastClasspathScanner.verbose) {
-            Log.log("Finished .classpathContentsModifiedSinceScan()", System.nanoTime() - scanStart);
-        }
-        return modified;
+        return getRecursiveScanner().classpathContentsModifiedSinceScan();
     }
 
     /**

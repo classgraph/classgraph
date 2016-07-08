@@ -609,6 +609,11 @@ public class RecursiveScanner {
      *            identified. If false, only scans timestamps of files.
      */
     private synchronized void scan(final boolean scanTimestampsOnly) {
+        if (FastClasspathScanner.verbose) {
+            Log.log("FastClasspathScanner version " + FastClasspathScanner.getVersion());
+        }
+        final long scanStart = System.nanoTime();
+
         ExecutorService executorService = null;
         try {
             executorService = Executors.newFixedThreadPool(NUM_THREADS);
@@ -619,13 +624,13 @@ public class RecursiveScanner {
                 logs[i] = new DeferredLog();
             }
 
+            // Get classpath elements
             final List<File> uniqueClasspathElts = classpathFinder.getUniqueClasspathElements();
             if (FastClasspathScanner.verbose) {
-                Log.log(1, "Starting scan" + (scanTimestampsOnly ? " (scanning classpath timestamps only)" : ""));
+                Log.log("Classpath elements: " + classpathFinder.getUniqueClasspathElements());
             }
-            final Map<String, String> env = new HashMap<>();
-            env.put("create", "false");
 
+            // Initialize scan
             previouslyScannedCanonicalPaths.clear();
             previouslyScannedRelativePaths.clear();
             numDirsScanned.set(0);
@@ -638,19 +643,24 @@ public class RecursiveScanner {
                 classNameToClassInfo.clear();
             }
 
+            if (FastClasspathScanner.verbose) {
+                Log.log(1, "Starting scan" + (scanTimestampsOnly ? " (scanning classpath timestamps only)" : ""));
+            }
+
             // Iterate through path elements and recursively scan within each directory and jar for matching paths
             final Queue<String> classfileRelativePathsToScan = new ConcurrentLinkedQueue<>();
             for (final File classpathElt : uniqueClasspathElts) {
+                final long eltStartTime = System.nanoTime();
                 final String path = classpathElt.getPath();
                 final boolean isDirectory = classpathElt.isDirectory();
                 final boolean isFile = classpathElt.isFile();
+                final boolean isJar = isFile && ClasspathFinder.isJar(path);
                 if (!isDirectory && !isFile) {
                     if (FastClasspathScanner.verbose) {
                         Log.log(2, "Skipping non-file/non-dir on classpath: " + classpathElt);
                     }
                     continue;
                 }
-                final boolean isJar = isFile && ClasspathFinder.isJar(path);
                 if (isFile && !isJar) {
                     if (FastClasspathScanner.verbose) {
                         Log.log(2, "Skipping non-jar file on classpath: " + classpathElt);
@@ -667,24 +677,23 @@ public class RecursiveScanner {
                     Log.log(2, "Found " + (isDirectory ? "directory" : "jar") + " on classpath: " + path);
                 }
 
+                boolean scanned = false;
                 if (isDirectory && scanSpec.scanNonJars) {
 
                     // ---------------------------------------------------------------------------------------------
-                    // Scan within a directory (and recursively within its sub-directories)
+                    // Scan within a directory tree and call file MatchProcessors on any matches
                     // ---------------------------------------------------------------------------------------------
 
                     // Scan dirs recursively, looking for matching paths; call FileMatchProcessors on any matches.
                     // Also store relative paths of all whitelisted classfiles in whitelistedClassfileRelativePaths.
                     scanDir(classpathElt, classpathElt, /* ignorePrefixLen = */ path.length() + 1,
                             /* inWhitelistedPath = */ false, scanTimestampsOnly, classfileRelativePathsToScan);
-
-                    // Parse classfile binary format and populate classNameToClassInfo
-                    parallelParseClassfiles(classpathElt, classfileRelativePathsToScan, executorService, logs);
+                    scanned = true;
 
                 } else if (isJar && scanSpec.scanJars) {
 
                     // ---------------------------------------------------------------------------------------------
-                    // Scan within a jar/zipfile
+                    // Scan within a jar/zipfile and call file MatchProcessors on any matches
                     // ---------------------------------------------------------------------------------------------
 
                     if (!scanSpec.jarIsWhitelisted(classpathElt.getName())) {
@@ -704,28 +713,43 @@ public class RecursiveScanner {
                         // Don't actually scan the contents of the zipfile if we're only scanning timestamps,
                         // since only the timestamp of the zipfile itself will be used.
                         try (ZipFile zipFile = new ZipFile(classpathElt)) {
-                            final long startTime = System.nanoTime();
                             scanZipfile(classpathElt, zipFile, classfileRelativePathsToScan);
-                            if (FastClasspathScanner.verbose) {
-                                Log.log(2, "Scanned jarfile " + classpathElt, System.nanoTime() - startTime);
-                            }
+                            scanned = true;
                         } catch (final IOException e) {
                             // Ignore, can only be thrown by zipFile.close() 
                         }
+                    }
+                }
 
-                        // Parse classfile binary format and populate classNameToClassInfo
-                        parallelParseClassfiles(classpathElt, classfileRelativePathsToScan, executorService, logs);
+                if (scanned) {
+                    if (FastClasspathScanner.verbose) {
+                        Log.log(2, "Scanned classpath element " + classpathElt, System.nanoTime() - eltStartTime);
+                    }
+
+                    // ---------------------------------------------------------------------------------------------
+                    // Parse classfile binary format for all classfiles found in this classpath element,
+                    // and populate classNameToClassInfo with ClassInfo objects for each classfile and the
+                    // classes they reference (as superclasses, interfaces etc.).
+                    // ---------------------------------------------------------------------------------------------
+
+                    long parseTime = System.nanoTime();
+
+                    parallelParseClassfiles(classpathElt, classfileRelativePathsToScan, executorService, logs);
+
+                    if (FastClasspathScanner.verbose) {
+                        Log.log(2, "Parsed classfiles for classpath element " + classpathElt,
+                                System.nanoTime() - parseTime);
                     }
 
                 } else {
                     if (FastClasspathScanner.verbose) {
-                        Log.log(2, "Skipping classpath element: " + path);
+                        Log.log(2, "Skipping classpath element " + path);
                     }
                 }
             }
 
             // -----------------------------------------------------------------------------------------------------
-            // Build class graph
+            // Build class graph and call class MatchProcessors on any matches
             // -----------------------------------------------------------------------------------------------------
 
             // After creating ClassInfo objects for each classfile, build the class graph, and run any
@@ -780,6 +804,9 @@ public class RecursiveScanner {
                 }
                 executorService = null;
             }
+        }
+        if (FastClasspathScanner.verbose) {
+            Log.log("Finished scan", System.nanoTime() - scanStart);
         }
     }
 
