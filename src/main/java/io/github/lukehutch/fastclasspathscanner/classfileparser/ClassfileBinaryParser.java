@@ -25,7 +25,7 @@ public class ClassfileBinaryParser {
     /**
      * Buffer size for classfile reader. Too small, and significant overhead is expended in refilling the buffer.
      * Too large, and significant overhead is expended in decompressing more of the classfile header than is needed.
-     * Empirical testing on a fairly large classpath indicates that 16kb is a good default.
+     * Empirical testing on a fairly large classpath indicates that 8kb is a good default on a machine with an SSD.
      */
     private static final int BUFFER_CHUNK_SIZE = 8192;
 
