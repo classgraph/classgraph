@@ -235,10 +235,13 @@ public class RecursiveScanner {
             try {
                 for (String relativePath; (relativePath = relativePaths.poll()) != null;) {
                     final long fileStartTime = System.nanoTime();
+                    // Reuse one ClassfileBinaryParser for all classfiles parsed by a given thread, to avoid
+                    // the overhead of re-allocating buffers between classfiles.
+                    final ClassfileBinaryParser classfileBinaryParser = new ClassfileBinaryParser();
                     // Get input stream from classpath element and relative path
                     try (InputStream inputStream = getInputStream(relativePath)) {
                         // Parse classpath binary format, creating a ClassInfoUnlinked object
-                        final ClassInfoUnlinked thisClassInfoUnlinked = ClassfileBinaryParser
+                        final ClassInfoUnlinked thisClassInfoUnlinked = classfileBinaryParser
                                 .readClassInfoFromClassfileHeader(relativePath, inputStream,
                                         classNameToStaticFinalFieldsToMatch, scanSpec, log);
                         if (thisClassInfoUnlinked != null) {
@@ -461,7 +464,7 @@ public class RecursiveScanner {
                             try (FileInputStream inputStream = new FileInputStream(fileInDir)) {
                                 fileMatcher.fileMatchProcessorWrapper.processMatch(classpathElt,
                                         fileInDirRelativePath, inputStream, fileInDir.length());
-                            } catch (Exception e) {
+                            } catch (final Exception e) {
                                 throw new RuntimeException(
                                         "Exception while processing match " + fileInDirRelativePath, e);
                             }
@@ -505,7 +508,7 @@ public class RecursiveScanner {
             }
 
             // Ignore directory entries, they are not needed
-            boolean isDir = zipEntry.isDirectory();
+            final boolean isDir = zipEntry.isDirectory();
             if (isDir) {
                 if (prevParentMatchStatus == ScanSpecPathMatch.WITHIN_WHITELISTED_PATH) {
                     numJarfileDirsScanned.incrementAndGet();
@@ -719,7 +722,7 @@ public class RecursiveScanner {
                     // classes they reference (as superclasses, interfaces etc.).
                     // ---------------------------------------------------------------------------------------------
 
-                    long parseTime = System.nanoTime();
+                    final long parseTime = System.nanoTime();
 
                     parallelParseClassfiles(classpathElt, classfileRelativePathsToScan, executorService, logs);
 

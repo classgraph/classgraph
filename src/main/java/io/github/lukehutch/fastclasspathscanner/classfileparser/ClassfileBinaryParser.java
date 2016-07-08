@@ -1,7 +1,5 @@
 package io.github.lukehutch.fastclasspathscanner.classfileparser;
 
-import java.io.BufferedInputStream;
-import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
@@ -15,21 +13,257 @@ import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassInfo.ClassI
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
 import io.github.lukehutch.fastclasspathscanner.utils.Log.DeferredLog;
 
+/**
+ * A classfile binary format parser. Implements its own buffering to avoid the overhead of using DataInputStream.
+ * This class should only be used by a single thread at a time, but can be re-used to scan multiple classfiles in
+ * sequence, to avoid re-allocating buffer memory.
+ */
 public class ClassfileBinaryParser {
+    /** The InputStream for the current classfile. */
+    private InputStream inputStream;
+
+    // -------------------------------------------------------------------------------------------------------------
+
     /**
      * Buffer size for classfile reader. Too small, and significant overhead is expended in refilling the buffer.
      * Too large, and significant overhead is expended in decompressing more of the classfile header than is needed.
      * Empirical testing on a fairly large classpath indicates that 16kb is a good default.
      */
-    private static final int BUFFER_SIZE = 16536;
+    private static final int BUFFER_CHUNK_SIZE = 16536;
+
+    /** Bytes read from the beginning of the classfile. This array is reused across calls. */
+    private byte[] buf = new byte[BUFFER_CHUNK_SIZE];
+
+    /** Bytes used in the classfileBytes array. */
+    private int used = 0;
+
+    /** The current read index in the classfileBytes array. */
+    private int curr = 0;
+
+    /**
+     * Read another chunk of size BUFFER_CHUNK_SIZE from the InputStream; double the size of the buffer if necessary
+     * to accommodate the new chunk.
+     */
+    private void readMore(final int amountToRead) throws IOException {
+        // Read in the amount needed for the next read operation, rounded up to the nearest
+        // power of two multiple of the chunk size
+        final int totReadAhead = amountToRead + BUFFER_CHUNK_SIZE;
+        final int newUsed = used + totReadAhead;
+        int newBufLen = buf.length;
+        while (newBufLen < newUsed) {
+            newBufLen <<= 1;
+        }
+        if (newBufLen > buf.length) {
+            // Ran out of space, need to double the size of the buffer
+            buf = Arrays.copyOf(buf, newBufLen);
+        }
+        final int bytesRead = inputStream.read(buf, used, totReadAhead);
+        if (bytesRead < 0) {
+            throw new IOException("Premature EOF while reading classfile");
+        }
+        used += bytesRead;
+    }
+
+    private int readUnsignedByte() throws IOException {
+        if (curr > used - 1) {
+            readMore(1);
+        }
+        return buf[curr++] & 0xff;
+    }
+
+    @SuppressWarnings("unused")
+    private int readUnsignedByte(final int offset) {
+        return buf[offset] & 0xff;
+    }
+
+    private int readUnsignedShort() throws IOException {
+        if (curr > used - 2) {
+            readMore(2);
+        }
+        final int val = ((buf[curr] & 0xff) << 8) | (buf[curr + 1] & 0xff);
+        curr += 2;
+        return val;
+    }
+
+    private int readUnsignedShort(final int offset) {
+        return ((buf[offset] & 0xff) << 8) | (buf[offset + 1] & 0xff);
+    }
+
+    private int readInt() throws IOException {
+        if (curr > used - 4) {
+            readMore(4);
+        }
+        final int val = ((buf[curr] & 0xff) << 24) | ((buf[curr + 1] & 0xff) << 16) | ((buf[curr + 2] & 0xff) << 8)
+                | (buf[curr + 3] & 0xff);
+        curr += 4;
+        return val;
+    }
+
+    private int readInt(final int offset) throws IOException {
+        return ((buf[offset] & 0xff) << 24) | ((buf[offset + 1] & 0xff) << 16) | ((buf[offset + 2] & 0xff) << 8)
+                | (buf[offset + 3] & 0xff);
+    }
+
+    @SuppressWarnings("unused")
+    private long readLong() throws IOException {
+        if (curr > used - 8) {
+            readMore(8);
+        }
+        final long val = (((long) (((buf[curr] & 0xff) << 24) | ((buf[curr + 1] & 0xff) << 16)
+                | ((buf[curr + 2] & 0xff) << 8) | (buf[curr + 3] & 0xff))) << 32) | ((buf[curr + 4] & 0xff) << 24)
+                | ((buf[curr + 5] & 0xff) << 16) | ((buf[curr + 6] & 0xff) << 8) | (buf[curr + 7] & 0xff);
+        curr += 8;
+        return val;
+    }
+
+    private long readLong(final int offset) throws IOException {
+        return (((long) (((buf[offset] & 0xff) << 24) | ((buf[offset + 1] & 0xff) << 16)
+                | ((buf[offset + 2] & 0xff) << 8) | (buf[offset + 3] & 0xff))) << 32)
+                | ((buf[offset + 4] & 0xff) << 24) | ((buf[offset + 5] & 0xff) << 16)
+                | ((buf[offset + 6] & 0xff) << 8) | (buf[offset + 7] & 0xff);
+    }
+
+    private void skip(final int bytesToSkip) throws IOException {
+        if (curr > used - bytesToSkip) {
+            readMore(bytesToSkip);
+        }
+        curr += bytesToSkip;
+    }
+
+    /** Reads the "modified UTF8" format defined in the Java classfile spec. */
+    private String readString(final int offset) {
+        final int utfLen = readUnsignedShort(offset);
+        final int start = offset + 2;
+        final char[] chars = new char[utfLen];
+        int c, c2, c3;
+        int byteIdx = 0;
+        int charIdx = 0;
+        for (; byteIdx < utfLen; byteIdx++) {
+            c = buf[start + byteIdx] & 0xff;
+            if (c > 127) {
+                break;
+            }
+            chars[charIdx++] = (char) c;
+        }
+        while (byteIdx < utfLen) {
+            c = buf[start + byteIdx] & 0xff;
+            switch (c >> 4) {
+            case 0:
+            case 1:
+            case 2:
+            case 3:
+            case 4:
+            case 5:
+            case 6:
+            case 7:
+                byteIdx++;
+                chars[charIdx++] = (char) c;
+                break;
+            case 12:
+            case 13:
+                byteIdx += 2;
+                if (byteIdx > utfLen) {
+                    throw new IllegalArgumentException("Bad modified UTF8");
+                }
+                c2 = buf[start + byteIdx - 1];
+                if ((c2 & 0xC0) != 0x80) {
+                    throw new IllegalArgumentException("Bad modified UTF8");
+                }
+                chars[charIdx++] = (char) (((c & 0x1F) << 6) | (c2 & 0x3F));
+                break;
+            case 14:
+                byteIdx += 3;
+                if (byteIdx > utfLen) {
+                    throw new IllegalArgumentException("Bad modified UTF8");
+                }
+                c2 = buf[start + byteIdx - 2];
+                c3 = buf[start + byteIdx - 1];
+                if (((c2 & 0xC0) != 0x80) || ((c3 & 0xC0) != 0x80)) {
+                    throw new IllegalArgumentException("Bad modified UTF8");
+                }
+                chars[charIdx++] = (char) (((c & 0x0F) << 12) | ((c2 & 0x3F) << 6) | ((c3 & 0x3F) << 0));
+                break;
+            default:
+                throw new IllegalArgumentException("Bad modified UTF8");
+            }
+        }
+        if (charIdx < utfLen) {
+            return new String(chars, 0, charIdx);
+        } else {
+            return new String(chars);
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** The byte offset for the beginning of each entry in the constant pool. */
+    private int[] offset;
+
+    /** The tag (type) for each entry in the constant pool. */
+    private int[] tag;
+
+    /** The indirection index for String/Class entries in the constant pool. */
+    private int[] indirectStringRefs;
+
+    /** Get a string from the constant pool. */
+    private String getConstantPoolString(final int constantPoolIdx) {
+        final int t = tag[constantPoolIdx];
+        if (t != 1 && t != 7 && t != 8) {
+            throw new IllegalArgumentException("Wrong tag number at constant pool index " + constantPoolIdx);
+        }
+        int cpIdx = constantPoolIdx;
+        if (t == 7 || t == 8) {
+            final int indirIdx = indirectStringRefs[constantPoolIdx];
+            if (indirIdx == -1) {
+                // Should not happen
+                throw new RuntimeException("Internal inconsistency");
+            }
+            if (indirIdx == 0) {
+                // I assume this represents a null string, since the zeroeth entry is unused
+                return null;
+            }
+            cpIdx = indirIdx;
+        }
+        return readString(offset[cpIdx]);
+    }
+
+    /** Get a string from the constant pool, and interpret it as a class name by replacing '/' with '.'. */
+    private String getConstantPoolClassName(final int constantPoolIdx) {
+        final String str = getConstantPoolString(constantPoolIdx);
+        return str == null ? null : str.replace('/', '.');
+    }
+
+    /** Get a constant from the constant pool. */
+    private Object getConstantPoolValue(final int constantPoolIdx) throws IOException {
+        switch (tag[constantPoolIdx]) {
+        case 1: // Modified UTF8
+            return getConstantPoolString(constantPoolIdx);
+        case 3: // int, short, char, byte, boolean are all represented by Constant_INTEGER
+            return new Integer(readInt(offset[constantPoolIdx]));
+        case 4: // float
+            return new Float(Float.intBitsToFloat(readInt(offset[constantPoolIdx])));
+        case 5: // long
+            return new Long(readLong(offset[constantPoolIdx]));
+        case 6: // double
+            return new Double(Double.longBitsToDouble(readLong(offset[constantPoolIdx])));
+        case 7: // Class
+        case 8: // String
+            // Forward or backward indirect reference to a modified UTF8 entry
+            return getConstantPoolString(constantPoolIdx);
+        default:
+            // FastClasspathScanner doesn't currently do anything with the other types
+            throw new IllegalArgumentException("Constant pool entry type unsupported");
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Read annotation entry from classfile.
      */
-    private static String readAnnotation(final DataInputStream inp, final Object[] constantPool,
-            final String className) throws IOException {
+    private String readAnnotation(final String className) throws IOException {
         // Lcom/xyz/Annotation -> Lcom.xyz.Annotation
-        final String annotationFieldDescriptor = readRefdClassName(inp, constantPool);
+        final String annotationFieldDescriptor = getConstantPoolClassName(readUnsignedShort());
         String annotationClassName;
         if (annotationFieldDescriptor.charAt(0) == 'L'
                 && annotationFieldDescriptor.charAt(annotationFieldDescriptor.length() - 1) == ';') {
@@ -39,10 +273,10 @@ public class ClassfileBinaryParser {
             // Should not happen
             annotationClassName = annotationFieldDescriptor;
         }
-        final int numElementValuePairs = inp.readUnsignedShort();
+        final int numElementValuePairs = readUnsignedShort();
         for (int i = 0; i < numElementValuePairs; i++) {
-            inp.skipBytes(2); // element_name_index
-            readAnnotationElementValue(inp, constantPool, className);
+            skip(2); // element_name_index
+            readAnnotationElementValue(className);
         }
         return annotationClassName;
     }
@@ -57,9 +291,8 @@ public class ClassfileBinaryParser {
     /**
      * Read annotation element value from classfile.
      */
-    private static void readAnnotationElementValue(final DataInputStream inp, final Object[] constantPool,
-            final String className) throws IOException {
-        final int tag = inp.readUnsignedByte();
+    private void readAnnotationElementValue(final String className) throws IOException {
+        final int tag = readUnsignedByte();
         switch (tag) {
         case 'B':
         case 'C':
@@ -71,26 +304,26 @@ public class ClassfileBinaryParser {
         case 'Z':
         case 's':
             // const_value_index
-            inp.skipBytes(2);
+            skip(2);
             break;
         case 'e':
             // enum_const_value
-            inp.skipBytes(4);
+            skip(4);
             break;
         case 'c':
             // class_info_index
-            inp.skipBytes(2);
+            skip(2);
             break;
         case '@':
             // Complex (nested) annotation
-            readAnnotation(inp, constantPool, className);
+            readAnnotation(className);
             break;
         case '[':
             // array_value
-            final int count = inp.readUnsignedShort();
+            final int count = readUnsignedShort();
             for (int l = 0; l < count; ++l) {
                 // Nested annotation element value
-                readAnnotationElementValue(inp, constantPool, className);
+                readAnnotationElementValue(className);
             }
             break;
         default:
@@ -98,24 +331,6 @@ public class ClassfileBinaryParser {
                     + ((char) tag) + "': element size unknown, cannot continue reading class. "
                     + "Please report this on the FastClasspathScanner GitHub page.");
         }
-    }
-
-    /**
-     * Read as String constant pool reference, then look up the string in the constant pool.
-     */
-    private static String readRefdString(final DataInputStream inp, final Object[] constantPool) //
-            throws IOException {
-        return (String) constantPool[inp.readUnsignedShort()];
-    }
-
-    /**
-     * Read as String constant pool reference to class name path, then look up the string in the constant pool, and
-     * replace all '/' with '.'.
-     */
-    private static String readRefdClassName(final DataInputStream inp, final Object[] constantPool) //
-            throws IOException {
-        final String refdString = readRefdString(inp, constantPool);
-        return refdString == null ? null : refdString.replace('/', '.');
     }
 
     /**
@@ -152,90 +367,89 @@ public class ClassfileBinaryParser {
      * super-class etc. Creates a new ClassInfo object, and adds it to classNameToClassInfoOut. Assumes classpath
      * masking has already been performed, so that only one class of a given name will be added.
      */
-    public static ClassInfoUnlinked readClassInfoFromClassfileHeader(final String relativePath,
+    public ClassInfoUnlinked readClassInfoFromClassfileHeader(final String relativePath,
             final InputStream inputStream, final Map<String, HashSet<String>> classNameToStaticFinalFieldsToMatch,
             final ScanSpec scanSpec, final DeferredLog log) throws IOException {
+        try {
+            // Initial buffer fill
+            this.inputStream = inputStream;
+            used = inputStream.read(buf);
 
-        try (final DataInputStream inp = new DataInputStream(new BufferedInputStream(inputStream, BUFFER_SIZE))) {
             // Check magic number
-            if (inp.readInt() != 0xCAFEBABE) {
+            if (used < 4 || readInt() != 0xCAFEBABE) {
                 if (FastClasspathScanner.verbose) {
                     throw new IOException("File " + relativePath + " does not have correct classfile magic number");
                 }
             }
 
             // Minor version
-            inp.readUnsignedShort();
+            readUnsignedShort();
             // Major version
-            inp.readUnsignedShort();
+            readUnsignedShort();
 
-            // Constant pool count (1-indexed, zeroth entry not used)
-            final int cpCount = inp.readUnsignedShort();
-            // Constant pool
-            final Object[] constantPool = new Object[cpCount];
-            final int[] indirectStringRef = new int[cpCount];
-            Arrays.fill(indirectStringRef, -1);
+            // Read size of constant pool
+            final int cpCount = readUnsignedShort();
+
+            // Allocate storage for constant pool, or reuse storage if there's enough left from the previous scan
+            if (offset == null || offset.length < cpCount) {
+                offset = new int[cpCount];
+                tag = new int[cpCount];
+                indirectStringRefs = new int[cpCount];
+            }
+            Arrays.fill(indirectStringRefs, 0, cpCount, -1);
+
+            // Read constant pool entries
             for (int i = 1; i < cpCount; ++i) {
-                final int tag = inp.readUnsignedByte();
-                switch (tag) {
+                tag[i] = readUnsignedByte();
+                offset[i] = curr;
+                switch (tag[i]) {
                 case 1: // Modified UTF8
-                    constantPool[i] = inp.readUTF();
+                    final int strLen = readUnsignedShort();
+                    skip(strLen);
                     break;
                 case 3: // int, short, char, byte, boolean are all represented by Constant_INTEGER
-                    constantPool[i] = inp.readInt();
-                    break;
                 case 4: // float
-                    constantPool[i] = inp.readFloat();
+                    skip(4);
                     break;
                 case 5: // long
-                    constantPool[i] = inp.readLong();
-                    i++; // double slot
-                    break;
                 case 6: // double
-                    constantPool[i] = inp.readDouble();
+                    skip(8);
                     i++; // double slot
                     break;
                 case 7: // Class
                 case 8: // String
                     // Forward or backward indirect reference to a modified UTF8 entry
-                    indirectStringRef[i] = inp.readUnsignedShort();
+                    indirectStringRefs[i] = readUnsignedShort();
+                    // (no need to copy bytes over, we use indirectStringRef instead for these fields)
                     break;
                 case 9: // field ref
                 case 10: // method ref
                 case 11: // interface ref
                 case 12: // name and type
-                    inp.skipBytes(4); // two shorts
+                    skip(4);
                     break;
                 case 15: // method handle
-                    inp.skipBytes(3);
+                    skip(3);
                     break;
                 case 16: // method type
-                    inp.skipBytes(2);
+                    skip(2);
                     break;
                 case 18: // invoke dynamic
-                    inp.skipBytes(4);
+                    skip(4);
                     break;
                 default:
-                    throw new RuntimeException("Classfile " + relativePath + " has unknown constant pool tag " + tag
-                            + ": element size unknown, cannot continue reading class. Please report this on the "
-                            + "FastClasspathScanner GitHub page.");
-                }
-            }
-            // Resolve indirection of string references now that all the strings have been read
-            // (allows forward references to strings before they have been encountered)
-            for (int i = 1; i < cpCount; i++) {
-                if (indirectStringRef[i] >= 0) {
-                    constantPool[i] = constantPool[indirectStringRef[i]];
+                    throw new IOException("Unknown constant pool tag " + tag + " (element size unknown, cannot "
+                            + "continue reading class. Please report this on the FastClasspathScanner GitHub page.");
                 }
             }
 
             // Access flags
-            final int flags = inp.readUnsignedShort();
+            final int flags = readUnsignedShort();
             final boolean isInterface = (flags & 0x0200) != 0;
             final boolean isAnnotation = (flags & 0x2000) != 0;
 
             // The fully-qualified class name of this class, with slashes replaced with dots
-            final String className = readRefdClassName(inp, constantPool);
+            final String className = getConstantPoolClassName(readUnsignedShort());
             if ("java.lang.Object".equals(className)) {
                 // Don't process java.lang.Object
                 return null;
@@ -252,7 +466,7 @@ public class ClassfileBinaryParser {
             }
 
             // Superclass name, with slashes replaced with dots
-            final String superclassName = readRefdClassName(inp, constantPool);
+            final String superclassName = getConstantPoolClassName(readUnsignedShort());
 
             final ClassInfoUnlinked classInfoUnlinked = new ClassInfoUnlinked(className, isInterface, isAnnotation);
 
@@ -273,9 +487,9 @@ public class ClassfileBinaryParser {
             }
 
             // Interfaces
-            final int interfaceCount = inp.readUnsignedShort();
+            final int interfaceCount = readUnsignedShort();
             for (int i = 0; i < interfaceCount; i++) {
-                final String interfaceName = readRefdClassName(inp, constantPool);
+                final String interfaceName = getConstantPoolClassName(readUnsignedShort());
                 if (scanSpec.classIsNotBlacklisted(interfaceName)) {
                     if (FastClasspathScanner.verbose) {
                         log.log(6, "Class " + className + " implements interface " + interfaceName);
@@ -288,16 +502,16 @@ public class ClassfileBinaryParser {
             final HashSet<String> staticFinalFieldsToMatch = classNameToStaticFinalFieldsToMatch.get(className);
             final HashSet<String> loggedFieldTypeNames = FastClasspathScanner.verbose ? new HashSet<String>()
                     : null;
-            final int fieldCount = inp.readUnsignedShort();
+            final int fieldCount = readUnsignedShort();
             for (int i = 0; i < fieldCount; i++) {
-                final int accessFlags = inp.readUnsignedShort();
+                final int accessFlags = readUnsignedShort();
                 // See http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.6
                 final boolean isStaticFinal = (accessFlags & 0x0018) == 0x0018;
-                final String fieldName = readRefdString(inp, constantPool);
+                final String fieldName = getConstantPoolString(readUnsignedShort());
                 final boolean isMatchedFieldName = staticFinalFieldsToMatch != null
                         && staticFinalFieldsToMatch.contains(fieldName);
-                final String fieldTypeDescriptor = readRefdString(inp, constantPool);
-                final int attributesCount = inp.readUnsignedShort();
+                final String fieldTypeDescriptor = getConstantPoolString(readUnsignedShort());
+                final int attributesCount = readUnsignedShort();
 
                 // Check if the type of this field falls within a non-blacklisted package,
                 // and if so, record the field and its type
@@ -314,29 +528,29 @@ public class ClassfileBinaryParser {
                 // check if it is initialized with a constant value
                 boolean foundConstantValue = false;
                 for (int j = 0; j < attributesCount; j++) {
-                    final String attributeName = readRefdString(inp, constantPool);
-                    final int attributeLength = inp.readInt();
+                    final String attributeName = getConstantPoolString(readUnsignedShort());
+                    final int attributeLength = readInt();
                     if (isStaticFinal && isMatchedFieldName && "ConstantValue".equals(attributeName)) {
                         // http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.7.2
-                        Object constValue = constantPool[inp.readUnsignedShort()];
+                        Object constValue = getConstantPoolValue(readUnsignedShort());
                         // byte, char, short and boolean constants are all stored as 4-byte int
                         // values -- coerce and wrap in the proper wrapper class with autoboxing
                         switch (fieldTypeDescriptor) {
                         case "B":
                             // Convert byte store in Integer to Byte
-                            constValue = ((Integer) constValue).byteValue();
+                            constValue = new Byte(((Integer) constValue).byteValue());
                             break;
                         case "C":
                             // Convert char stored in Integer to Character
-                            constValue = (char) ((Integer) constValue).intValue();
+                            constValue = new Character((char) ((Integer) constValue).intValue());
                             break;
                         case "S":
                             // Convert char stored in Integer to Short
-                            constValue = ((Integer) constValue).shortValue();
+                            constValue = new Short(((Integer) constValue).shortValue());
                             break;
                         case "Z":
                             // Convert char stored in Integer to Boolean
-                            constValue = ((Integer) constValue).intValue() != 0;
+                            constValue = new Boolean(((Integer) constValue).intValue() != 0);
                             break;
                         case "I":
                         case "J":
@@ -362,11 +576,11 @@ public class ClassfileBinaryParser {
                         // Check if the type signature of this field falls within a non-blacklisted
                         // package, and if so, record the field type. The type signature contains
                         // type parameters, whereas the type descriptor does not.
-                        final String fieldTypeSignature = readRefdString(inp, constantPool);
+                        final String fieldTypeSignature = getConstantPoolString(readUnsignedShort());
                         addFieldTypeDescriptorParts(classInfoUnlinked, className, fieldTypeSignature, scanSpec,
                                 loggedFieldTypeNames, log);
                     } else {
-                        inp.skipBytes(attributeLength);
+                        skip(attributeLength);
                     }
                     if (!foundConstantValue && isStaticFinal && isMatchedFieldName) {
                         log.log(6,
@@ -378,26 +592,26 @@ public class ClassfileBinaryParser {
             }
 
             // Methods
-            final int methodCount = inp.readUnsignedShort();
+            final int methodCount = readUnsignedShort();
             for (int i = 0; i < methodCount; i++) {
-                inp.skipBytes(6); // access_flags, name_index, descriptor_index
-                final int attributesCount = inp.readUnsignedShort();
+                skip(6); // access_flags, name_index, descriptor_index
+                final int attributesCount = readUnsignedShort();
                 for (int j = 0; j < attributesCount; j++) {
-                    inp.skipBytes(2); // attribute_name_index
-                    final int attributeLength = inp.readInt();
-                    inp.skipBytes(attributeLength);
+                    skip(2); // attribute_name_index
+                    final int attributeLength = readInt();
+                    skip(attributeLength);
                 }
             }
 
             // Attributes (including class annotations)
-            final int attributesCount = inp.readUnsignedShort();
+            final int attributesCount = readUnsignedShort();
             for (int i = 0; i < attributesCount; i++) {
-                final String attributeName = readRefdString(inp, constantPool);
-                final int attributeLength = inp.readInt();
+                final String attributeName = getConstantPoolString(readUnsignedShort());
+                final int attributeLength = readInt();
                 if ("RuntimeVisibleAnnotations".equals(attributeName)) {
-                    final int annotationCount = inp.readUnsignedShort();
+                    final int annotationCount = readUnsignedShort();
                     for (int m = 0; m < annotationCount; m++) {
-                        final String annotationName = readAnnotation(inp, constantPool, className);
+                        final String annotationName = readAnnotation(className);
                         // Add non-blacklisted annotations; always ignore java.lang.annotation annotations
                         // (Target/Retention/Documented etc.)
                         if (scanSpec.classIsNotBlacklisted(annotationName)
@@ -409,12 +623,13 @@ public class ClassfileBinaryParser {
                         }
                     }
                 } else {
-                    inp.skipBytes(attributeLength);
+                    skip(attributeLength);
                 }
             }
             return classInfoUnlinked;
 
         } catch (final Exception e) {
+            e.printStackTrace(); // TODO
             log.log(6, "Exception while attempting to load classfile " + relativePath + ": " + e);
             return null;
         }
