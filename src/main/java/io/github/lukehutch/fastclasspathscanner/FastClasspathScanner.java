@@ -152,7 +152,7 @@ public class FastClasspathScanner {
     /** Lazy initializer for classpathFinder. */
     private synchronized ClasspathFinder getClasspathFinder() {
         if (classpathFinder == null) {
-            classpathFinder = new ClasspathFinder();
+            classpathFinder = new ClasspathFinder(getScanSpec());
         }
         return classpathFinder;
     }
@@ -274,8 +274,10 @@ public class FastClasspathScanner {
     private synchronized void checkClassNameIsNotBlacklisted(final String className) {
         if (!getScanSpec().classIsNotBlacklisted(className)) {
             throw new IllegalArgumentException("Can't scan for " + className + ", it is in a blacklisted package. "
-                    + "You can explicitly override this by naming the class in the scan spec when you call the "
-                    + FastClasspathScanner.class.getSimpleName() + " constructor.");
+                    + (className.startsWith("java.") || className.startsWith("sun.")
+                            ? "You can override this by adding \"!\" or \"!!\" to the scan spec to disable system "
+                                    + "package blacklisting or system jar blacklisting respectively, see the docs"
+                            : ""));
         }
     }
 

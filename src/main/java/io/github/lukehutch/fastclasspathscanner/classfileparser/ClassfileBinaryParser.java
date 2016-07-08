@@ -656,10 +656,9 @@ public class ClassfileBinaryParser {
                     final int annotationCount = readUnsignedShort();
                     for (int m = 0; m < annotationCount; m++) {
                         final String annotationName = readAnnotation();
-                        // Add non-blacklisted annotations; always ignore java.lang.annotation annotations
-                        // (Target/Retention/Documented etc.)
-                        if (scanSpec.classIsNotBlacklisted(annotationName)
-                                && !annotationName.startsWith("java.lang.annotation.")) {
+                        // Add non-blacklisted annotations; by default, "java.*" and "sun.*" are blacklisted,
+                        // so java.lang.annotation annotations will be ignored (Target/Retention/Documented etc.)
+                        if (scanSpec.classIsNotBlacklisted(annotationName)) {
                             if (FastClasspathScanner.verbose) {
                                 log.log(6, "Class " + className + " has annotation " + annotationName);
                             }

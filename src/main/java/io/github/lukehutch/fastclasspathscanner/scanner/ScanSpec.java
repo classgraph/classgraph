@@ -48,84 +48,94 @@ public class ScanSpec {
     public final boolean scanNonJars;
 
     /**
-     * Blacklist all java.* and sun.* packages. (The Java standard library jars, e.g rt.jar, are also blacklisted by
-     * the file/directory scanner.)
+     * True if JRE system jarfiles (rt.jar etc.) should not be scanned. By default, these are not scanned. This can
+     * be overridden by including "!!" in the scan spec. Disabling this blacklisting will increase the time or
+     * memory required to scan the classpath.
      */
-    private static String[] BLACKLISTED_PACKAGES = { "java", "sun" };
+    public boolean blacklistSystemJars = true;
+
+    /**
+     * By default, blacklist all java.* and sun.* packages. This means for example that you can't use
+     * java.lang.Comparable as a match criterion. This can be overridden by including "!!" in the scan spec.
+     * Disabling this blacklisting may increase the time or memory required to scan the classpath.
+     */
+    public boolean blacklistSystemPackages = true;
 
     public ScanSpec(final String[] scanSpecs) {
-        // If scanning all packages, blacklist Java types (they are always excluded from scanning,
-        // but may occur as the type of a field)
-        for (final String pkg : BLACKLISTED_PACKAGES) {
-            blacklistedPathPrefixes.add(pkg.replace('.', '/') + "/");
-        }
-
         final HashSet<String> uniqueWhitelistedPathPrefixes = new HashSet<>();
         final HashSet<String> uniqueBlacklistedPathPrefixes = new HashSet<>();
         boolean scanJars = true, scanNonJars = true;
         for (final String scanSpecEntry : scanSpecs) {
             String spec = scanSpecEntry;
-            final boolean blacklisted = spec.startsWith("-");
-            if (blacklisted) {
-                // Strip off "-"
-                spec = spec.substring(1);
-            }
-            final boolean isJar = spec.startsWith("jar:");
-            if (isJar) {
-                // Strip off "jar:"
-                spec = spec.substring(4);
-                if (spec.indexOf('/') >= 0) {
-                    Log.log("Only a leaf filename may be used with a \"jar:\" entry in the scan spec, got \"" + spec
-                            + "\" -- ignoring");
-                } else {
-                    if (spec.isEmpty()) {
-                        if (blacklisted) {
-                            // Specifying "-jar:" blacklists all jars for scanning
-                            scanJars = false;
-                        } else {
-                            // Specifying "jar:" causes only jarfiles to be scanned, while whitelisting all jarfiles
-                            scanNonJars = false;
-                        }
-                    } else {
-                        if (blacklisted) {
-                            if (spec.contains("*")) {
-                                blacklistedJarPatterns.add(specToPattern(spec));
-                            } else {
-                                blacklistedJars.add(spec);
-                            }
-                        } else {
-                            if (spec.contains("*")) {
-                                whitelistedJarPatterns.add(specToPattern(spec));
-                            } else {
-                                whitelistedJars.add(spec);
-                            }
-                        }
-                    }
-                }
+            if ("!".equals(scanSpecEntry)) {
+                blacklistSystemPackages = false;
+            } else if ("!!".equals(scanSpecEntry)) {
+                blacklistSystemJars = false;
+                blacklistSystemPackages = false;
             } else {
-                // Convert classname format to relative path
-                final String specPath = spec.replace('.', '/');
-                // See if a class name was specified, rather than a package name. Relies on the Java convention
-                // that package names should be lower case and class names should be upper case.
-                boolean isClassName = false;
-                final int lastSlashIdx = specPath.lastIndexOf('/');
-                if (lastSlashIdx < specPath.length() - 1) {
-                    isClassName = Character.isUpperCase(specPath.charAt(lastSlashIdx + 1));
+                final boolean blacklisted = spec.startsWith("-");
+                if (blacklisted) {
+                    // Strip off "-"
+                    spec = spec.substring(1);
                 }
-                if (isClassName) {
-                    // Convert class name to classfile filename
-                    if (blacklisted) {
-                        specificallyBlacklistedClassNames.add(spec);
-                        specificallyBlacklistedClassRelativePaths.add(specPath + ".class");
+                if (spec.startsWith("jar:")) {
+                    // Strip off "jar:"
+                    spec = spec.substring(4);
+                    if (spec.indexOf('/') >= 0) {
+                        Log.log("Only a leaf filename may be used with a \"jar:\" entry in the scan spec, got \""
+                                + spec + "\" -- ignoring");
                     } else {
-                        specificallyWhitelistedClassRelativePaths.add(specPath + ".class");
+                        if (spec.isEmpty()) {
+                            if (blacklisted) {
+                                // Specifying "-jar:" blacklists all jars for scanning
+                                scanJars = false;
+                            } else {
+                                // Specifying "jar:" causes only jarfiles to be scanned,
+                                // while whitelisting all jarfiles
+                                scanNonJars = false;
+                            }
+                        } else {
+                            if (blacklisted) {
+                                if (spec.contains("*")) {
+                                    blacklistedJarPatterns.add(specToPattern(spec));
+                                } else {
+                                    blacklistedJars.add(spec);
+                                }
+                            } else {
+                                if (spec.contains("*")) {
+                                    whitelistedJarPatterns.add(specToPattern(spec));
+                                } else {
+                                    whitelistedJars.add(spec);
+                                }
+                            }
+                        }
                     }
                 } else {
-                    // This is a package name: convert into a prefix by adding '.', and also convert to path prefix
-                    if (blacklisted) {
-                        uniqueBlacklistedPathPrefixes.add(specPath + "/");
+                    // Convert classname format to relative path
+                    final String specPath = spec.replace('.', '/');
+                    // See if a class name was specified, rather than a package name. Relies on the Java convention
+                    // that package names should be lower case and class names should be upper case.
+                    boolean isClassName = false;
+                    final int lastSlashIdx = specPath.lastIndexOf('/');
+                    if (lastSlashIdx < specPath.length() - 1) {
+                        isClassName = Character.isUpperCase(specPath.charAt(lastSlashIdx + 1));
+                    }
+                    if (isClassName) {
+                        // Convert class name to classfile filename
+                        if (blacklisted) {
+                            specificallyBlacklistedClassNames.add(spec);
+                            specificallyBlacklistedClassRelativePaths.add(specPath + ".class");
+                        } else {
+                            specificallyWhitelistedClassRelativePaths.add(specPath + ".class");
+                        }
                     } else {
-                        uniqueWhitelistedPathPrefixes.add(specPath + "/");
+                        // This is a package name:
+                        // convert into a prefix by adding '.', and also convert to path prefix
+                        if (blacklisted) {
+                            uniqueBlacklistedPathPrefixes.add(specPath + "/");
+                        } else {
+                            uniqueWhitelistedPathPrefixes.add(specPath + "/");
+                        }
                     }
                 }
             }
@@ -151,7 +161,14 @@ public class ScanSpec {
         } else {
             whitelistedPathPrefixes.addAll(uniqueWhitelistedPathPrefixes);
         }
+
+        if (blacklistSystemPackages) {
+            // Blacklist Java types by default
+            uniqueBlacklistedPathPrefixes.add("java/");
+            uniqueBlacklistedPathPrefixes.add("sun/");
+        }
         blacklistedPathPrefixes.addAll(uniqueBlacklistedPathPrefixes);
+
         // Convert blacklisted path prefixes into package prefixes
         for (final String prefix : blacklistedPathPrefixes) {
             blacklistedPackagePrefixes.add(prefix.replace('/', '.'));
@@ -288,5 +305,14 @@ public class ScanSpec {
         return ((whitelistedJars.isEmpty() && whitelistedJarPatterns.isEmpty())
                 || containsJarName(whitelistedJars, whitelistedJarPatterns, jarName))
                 && !containsJarName(blacklistedJars, blacklistedJarPatterns, jarName);
+    }
+
+    /**
+     * True if JRE system jarfiles (rt.jar etc.) should not be scanned. By default, these are not scanned. This can
+     * be overridden by including "!!" in the scan spec. Disabling this blacklisting will increase the time or
+     * memory required to scan the classpath.
+     */
+    public boolean blacklistSystemJars() {
+        return blacklistSystemJars;
     }
 }

@@ -43,10 +43,14 @@ import java.util.ServiceLoader;
 import java.util.jar.Manifest;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
+import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
 import io.github.lukehutch.fastclasspathscanner.utils.AdditionOrderedSet;
 import io.github.lukehutch.fastclasspathscanner.utils.Log;
 
 public class ClasspathFinder {
+    /** The scanning specification. */
+    private ScanSpec scanSpec;
+
     /** The unique elements of the classpath, as an ordered list. */
     private final ArrayList<File> classpathElements = new ArrayList<>();
 
@@ -61,6 +65,10 @@ public class ClasspathFinder {
 
     /** Whether or not classpath has been read (supporting lazy reading of classpath). */
     private boolean initialized = false;
+
+    public ClasspathFinder(ScanSpec scanSpec) {
+        this.scanSpec = scanSpec;
+    }
 
     /** Clear the classpath. */
     private void clearClasspath() {
@@ -144,7 +152,7 @@ public class ClasspathFinder {
                     // file. OpenJDK scans manifest-defined classpath elements after the jar that listed them, so
                     // we recursively call addClasspathElement if needed each time a jar is encountered. 
                     if (pathFile.isFile() && isJar(pathStr)) {
-                        if (isJREJar(pathFile, /* ancestralScanDepth = */2)) {
+                        if (scanSpec.blacklistSystemJars() && isJREJar(pathFile, /* ancestralScanDepth = */2)) {
                             // Don't scan system jars
                             isValidClasspathElement = false;
                             if (FastClasspathScanner.verbose) {
