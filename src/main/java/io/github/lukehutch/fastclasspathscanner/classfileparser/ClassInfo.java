@@ -40,6 +40,9 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
+import io.github.lukehutch.fastclasspathscanner.utils.Log.DeferredLog;
+
 public class ClassInfo implements Comparable<ClassInfo> {
 
     /**
@@ -57,7 +60,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
         public List<String> annotations;
         public Set<String> fieldTypes;
         public Map<String, Object> staticFinalFieldValues;
-        
+
         private ConcurrentHashMap<String, String> stringInternMap;
 
         private String intern(String string) {
@@ -72,7 +75,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
             this.isInterface = isInterface;
             this.isAnnotation = isAnnotation;
         }
-        
+
         public void addSuperclass(final String superclassName) {
             this.superclassName = intern(superclassName);
         }
@@ -129,6 +132,34 @@ public class ClassInfo implements Comparable<ClassInfo> {
             if (staticFinalFieldValues != null) {
                 for (final Entry<String, Object> ent : staticFinalFieldValues.entrySet()) {
                     classInfo.addFieldConstantValue(ent.getKey(), ent.getValue());
+                }
+            }
+        }
+
+        public void logClassInfo(DeferredLog log) {
+            if (FastClasspathScanner.verbose) {
+                log.log(2,
+                        "Found " + (isAnnotation ? "annotation class" : isInterface ? "interface class" : "class")
+                                + " " + className);
+                if (superclassName != null && !"java.lang.Object".equals(superclassName)) {
+                    log.log(3, "Super" + (isInterface && !isAnnotation ? "interface" : "class") + ": "
+                            + superclassName);
+                }
+                if (implementedInterfaces != null) {
+                    log.log(3, "Interfaces: " + String.join(", ", implementedInterfaces));
+                }
+                if (annotations != null) {
+                    log.log(3, "Annotations: " + String.join(", ", annotations));
+                }
+                if (fieldTypes != null) {
+                    log.log(3, "Field types: " + String.join(", ", fieldTypes));
+                }
+                if (staticFinalFieldValues != null) {
+                    List<String> fieldInitializers = new ArrayList<>();
+                    for (final Entry<String, Object> ent : staticFinalFieldValues.entrySet()) {
+                        fieldInitializers.add(ent.getKey() + " = " + ent.getValue());
+                    }
+                    log.log(3, "Static final field values: " + String.join(", ", fieldInitializers));
                 }
             }
         }

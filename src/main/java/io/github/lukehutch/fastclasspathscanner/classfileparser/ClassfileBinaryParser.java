@@ -192,28 +192,28 @@ public class ClassfileBinaryParser {
             case 13:
                 byteIdx += 2;
                 if (byteIdx > utfLen) {
-                    throw new IllegalArgumentException("Bad modified UTF8");
+                    throw new RuntimeException("Bad modified UTF8");
                 }
                 c2 = buf[start + byteIdx - 1];
                 if ((c2 & 0xc0) != 0x80) {
-                    throw new IllegalArgumentException("Bad modified UTF8");
+                    throw new RuntimeException("Bad modified UTF8");
                 }
                 chars[charIdx++] = (char) (((c & 0x1f) << 6) | (c2 & 0x3f));
                 break;
             case 14:
                 byteIdx += 3;
                 if (byteIdx > utfLen) {
-                    throw new IllegalArgumentException("Bad modified UTF8");
+                    throw new RuntimeException("Bad modified UTF8");
                 }
                 c2 = buf[start + byteIdx - 2];
                 c3 = buf[start + byteIdx - 1];
                 if (((c2 & 0xc0) != 0x80) || ((c3 & 0xc0) != 0x80)) {
-                    throw new IllegalArgumentException("Bad modified UTF8");
+                    throw new RuntimeException("Bad modified UTF8");
                 }
                 chars[charIdx++] = (char) (((c & 0x0f) << 12) | ((c2 & 0x3f) << 6) | ((c3 & 0x3f) << 0));
                 break;
             default:
-                throw new IllegalArgumentException("Bad modified UTF8");
+                throw new RuntimeException("Bad modified UTF8");
             }
         }
         if (charIdx < utfLen) {
@@ -238,14 +238,16 @@ public class ClassfileBinaryParser {
     private int getConstantPoolStringOffset(final int constantPoolIdx) {
         final int t = tag[constantPoolIdx];
         if (t != 1 && t != 7 && t != 8) {
-            throw new IllegalArgumentException("Wrong tag number at constant pool index " + constantPoolIdx);
+            throw new RuntimeException("Wrong tag number at constant pool index " + constantPoolIdx + ", "
+                    + "cannot continue reading class. Please report this on the FastClasspathScanner GitHub page.");
         }
         int cpIdx = constantPoolIdx;
         if (t == 7 || t == 8) {
             final int indirIdx = indirectStringRefs[constantPoolIdx];
             if (indirIdx == -1) {
                 // Should not happen
-                throw new RuntimeException("Internal inconsistency");
+                throw new RuntimeException("Bad string indirection index, cannot continue reading class. "
+                        + "Please report this on the FastClasspathScanner GitHub page.");
             }
             if (indirIdx == 0) {
                 // I assume this represents a null string, since the zeroeth entry is unused
@@ -307,7 +309,8 @@ public class ClassfileBinaryParser {
             return getConstantPoolString(constantPoolIdx);
         default:
             // FastClasspathScanner doesn't currently do anything with the other types
-            throw new IllegalArgumentException("Constant pool entry type unsupported");
+            throw new RuntimeException("Constant pool entry type " + tag[constantPoolIdx] + " unsupported, "
+                    + "cannot continue reading class. Please report this on the FastClasspathScanner GitHub page.");
         }
     }
 
@@ -390,8 +393,8 @@ public class ClassfileBinaryParser {
      * 
      * Also removes array prefixes, e.g. "[[[Lcom.xyz.Widget" -> "com.xyz.Widget".
      */
-    private void addFieldTypeDescriptorParts(final ClassInfoUnlinked classInfoUnlinked, final String typeDescriptor,
-            final HashSet<String> loggedFieldTypeNames) {
+    private void addFieldTypeDescriptorParts(final ClassInfoUnlinked classInfoUnlinked,
+            final String typeDescriptor) {
         boolean prevIsDelim = true;
         for (int i = 0; i < typeDescriptor.length(); i++) {
             char c = typeDescriptor.charAt(i);
@@ -410,13 +413,6 @@ public class ClassfileBinaryParser {
                     // non-blacklisted package, and if so, record the field and its type
                     final String fieldTypeName = typeDescriptor.substring(start, i).replace('/', '.');
                     if (scanSpec.classIsNotBlacklisted(fieldTypeName)) {
-                        if (FastClasspathScanner.verbose) {
-                            // Only add the log entry once for each field type name within each class
-                            if (loggedFieldTypeNames.add(fieldTypeName)) {
-                                log.log(5, "Class " + className + " has a field with type or type parameter "
-                                        + fieldTypeName);
-                            }
-                        }
                         // Add field type to set of non-blacklisted field types encountered in class
                         classInfoUnlinked.addFieldType(fieldTypeName);
                     }
@@ -533,8 +529,9 @@ public class ClassfileBinaryParser {
                     skip(4);
                     break;
                 default:
-                    throw new IOException("Unknown constant pool tag " + tag + " (element size unknown, cannot "
-                            + "continue reading class. Please report this on the FastClasspathScanner GitHub page.");
+                    throw new RuntimeException("Unknown constant pool tag " + tag + " in classfile " + relativePath
+                            + " (element size unknown, cannot continue reading class. Please report this on "
+                            + "the FastClasspathScanner GitHub page.");
                 }
             }
 
@@ -553,7 +550,7 @@ public class ClassfileBinaryParser {
             // Make sure classname matches relative path
             if (!classNameMatches(relativePath)) {
                 if (FastClasspathScanner.verbose) {
-                    log.log(5, "Class " + className + " is at incorrect relative path " + relativePath
+                    log.log(2, "Class " + className + " is at incorrect relative path " + relativePath
                             + " -- ignoring");
                 }
                 return null;
@@ -565,17 +562,6 @@ public class ClassfileBinaryParser {
             final ClassInfoUnlinked classInfoUnlinked = new ClassInfoUnlinked(className, isInterface, isAnnotation,
                     stringInternMap);
 
-            if (FastClasspathScanner.verbose) {
-                log.log(5,
-                        "Found " //
-                                + (isAnnotation ? "annotation class" : isInterface ? "interface class" : "class")
-                                + " " + className
-                                + (superclassName == null || "java.lang.Object".equals(superclassName) ? ""
-                                        : " with "
-                                                + (isInterface && !isAnnotation ? "superinterface" : "superclass")
-                                                + " " + superclassName));
-            }
-
             // Connect class to superclass
             if (scanSpec.classIsNotBlacklisted(superclassName)) {
                 classInfoUnlinked.addSuperclass(superclassName);
@@ -586,17 +572,12 @@ public class ClassfileBinaryParser {
             for (int i = 0; i < interfaceCount; i++) {
                 final String interfaceName = getConstantPoolClassName(readUnsignedShort());
                 if (scanSpec.classIsNotBlacklisted(interfaceName)) {
-                    if (FastClasspathScanner.verbose) {
-                        log.log(6, "Class " + className + " implements interface " + interfaceName);
-                    }
                     classInfoUnlinked.addImplementedInterface(interfaceName);
                 }
             }
 
             // Fields
             final HashSet<String> staticFinalFieldsToMatch = classNameToStaticFinalFieldsToMatch.get(className);
-            final HashSet<String> loggedFieldTypeNames = FastClasspathScanner.verbose ? new HashSet<String>()
-                    : null;
             final int fieldCount = readUnsignedShort();
             for (int i = 0; i < fieldCount; i++) {
                 final int accessFlags = readUnsignedShort();
@@ -610,12 +591,12 @@ public class ClassfileBinaryParser {
 
                 // Check if the type of this field falls within a non-blacklisted package,
                 // and if so, record the field and its type
-                addFieldTypeDescriptorParts(classInfoUnlinked, fieldTypeDescriptor, loggedFieldTypeNames);
+                addFieldTypeDescriptorParts(classInfoUnlinked, fieldTypeDescriptor);
 
                 // Check if field is static and final
                 if (!isStaticFinal && isMatchedFieldName) {
                     // Requested to match a field that is not static or not final
-                    log.log(6, "Cannot match requested field " + classInfoUnlinked.className + "." + fieldName
+                    log.log(2, "Cannot match requested field " + classInfoUnlinked.className + "." + fieldName
                             + " because it is either not static or not final");
                 }
                 // See if field name matches one of the requested names for this class, and if it does,
@@ -661,10 +642,6 @@ public class ClassfileBinaryParser {
                             break;
                         }
                         // Store static final field match in ClassInfo object
-                        if (FastClasspathScanner.verbose) {
-                            log.log(6, "Class " + className + " has field " + fieldName
-                                    + " with static constant initializer " + constValue);
-                        }
                         classInfoUnlinked.addFieldConstantValue(fieldName, constValue);
                         foundConstantValue = true;
                     } else if (constantPoolStringEquals(attributeNameConstantPoolIdx, "Signature")) {
@@ -672,12 +649,12 @@ public class ClassfileBinaryParser {
                         // package, and if so, record the field type. The type signature contains
                         // type parameters, whereas the type descriptor does not.
                         final String fieldTypeSignature = getConstantPoolString(readUnsignedShort());
-                        addFieldTypeDescriptorParts(classInfoUnlinked, fieldTypeSignature, loggedFieldTypeNames);
+                        addFieldTypeDescriptorParts(classInfoUnlinked, fieldTypeSignature);
                     } else {
                         skip(attributeLength);
                     }
                     if (!foundConstantValue && isStaticFinal && isMatchedFieldName) {
-                        log.log(6,
+                        log.log(2,
                                 "Requested static final field " + classInfoUnlinked.className + "." + fieldName
                                         + " is not initialized with a constant literal value, so there is no "
                                         + "initializer value in the constant pool of the classfile");
@@ -700,18 +677,15 @@ public class ClassfileBinaryParser {
             // Attributes (including class annotations)
             final int attributesCount = readUnsignedShort();
             for (int i = 0; i < attributesCount; i++) {
-                final String attributeName = getConstantPoolString(readUnsignedShort());
+                final int attributeNameConstantPoolIdx = readUnsignedShort();
                 final int attributeLength = readInt();
-                if ("RuntimeVisibleAnnotations".equals(attributeName)) {
+                if (constantPoolStringEquals(attributeNameConstantPoolIdx, "RuntimeVisibleAnnotations")) {
                     final int annotationCount = readUnsignedShort();
                     for (int m = 0; m < annotationCount; m++) {
                         final String annotationName = readAnnotation();
                         // Add non-blacklisted annotations; by default, "java.*" and "sun.*" are blacklisted,
                         // so java.lang.annotation annotations will be ignored (Target/Retention/Documented etc.)
                         if (scanSpec.classIsNotBlacklisted(annotationName)) {
-                            if (FastClasspathScanner.verbose) {
-                                log.log(6, "Class " + className + " has annotation " + annotationName);
-                            }
                             classInfoUnlinked.addAnnotation(annotationName);
                         }
                     }
@@ -722,7 +696,7 @@ public class ClassfileBinaryParser {
             return classInfoUnlinked;
 
         } catch (final Exception e) {
-            log.log(6, "Exception while attempting to load classfile " + relativePath + ": " + e);
+            log.log(2, "Exception while attempting to load classfile " + relativePath + ": " + e);
             return null;
         }
     }

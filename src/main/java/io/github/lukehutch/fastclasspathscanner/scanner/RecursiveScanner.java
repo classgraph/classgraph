@@ -280,7 +280,7 @@ public class RecursiveScanner {
                                 currentlyOpenZipFile = new ZipFile(classfileResource.classpathElt);
                             } catch (final IOException e) {
                                 if (FastClasspathScanner.verbose) {
-                                    log.log(4, "Exception while trying to open " + classfileResource.classpathElt
+                                    log.log(2, "Exception while trying to open " + classfileResource.classpathElt
                                             + ": " + e);
                                 }
                                 continue;
@@ -302,14 +302,17 @@ public class RecursiveScanner {
                         if (thisClassInfoUnlinked != null) {
                             classInfoUnlinkedOut.add(thisClassInfoUnlinked);
                         }
+                        // Log info about class
+                        thisClassInfoUnlinked.logClassInfo(log);
+                        
                     } catch (final IOException e) {
                         if (FastClasspathScanner.verbose) {
-                            log.log(4,
+                            log.log(2,
                                     "Exception while trying to open " + classfileResource.relativePath + ": " + e);
                         }
                     }
                     if (FastClasspathScanner.verbose) {
-                        log.log(6, "Parsed classfile " + classfileResource.relativePath,
+                        log.log(3, "Parsed classfile " + classfileResource.relativePath,
                                 System.nanoTime() - fileStartTime);
                     }
                 }
@@ -465,7 +468,7 @@ public class RecursiveScanner {
             }
         }
         if (FastClasspathScanner.verbose) {
-            Log.log(4, "Scanned directory " + dir + " and any subdirectories", System.nanoTime() - startTime);
+            Log.log(3, "Scanned directory " + dir + " and subdirectories", System.nanoTime() - startTime);
         }
     }
 
@@ -483,7 +486,6 @@ public class RecursiveScanner {
         String prevParentRelativePath = null;
         ScanSpecPathMatch prevParentMatchStatus = null;
         for (final Enumeration<? extends ZipEntry> entries = zipFile.entries(); entries.hasMoreElements();) {
-            final long entryStartTime = System.nanoTime();
             final ZipEntry zipEntry = entries.nextElement();
             String relativePath = zipEntry.getName();
             if (relativePath.startsWith("/")) {
@@ -498,8 +500,6 @@ public class RecursiveScanner {
                     numJarfileDirsScanned.incrementAndGet();
                     if (FastClasspathScanner.verbose) {
                         numJarfileFilesScanned.incrementAndGet();
-                        Log.log(4, "Reached jarfile-internal directory " + relativePath,
-                                System.nanoTime() - entryStartTime);
                     }
                 }
                 continue;
@@ -688,6 +688,9 @@ public class RecursiveScanner {
         // classes they reference (as superclasses, interfaces etc.).
         // ---------------------------------------------------------------------------------------------
 
+        if (FastClasspathScanner.verbose) {
+            Log.log(1, "Starting parallel scan of classfile binaries");
+        }
         final long parseStartTime = System.nanoTime();
 
         // Create one logger per thread, so that log output is not interleaved
@@ -734,7 +737,7 @@ public class RecursiveScanner {
         }
 
         if (FastClasspathScanner.verbose) {
-            Log.log(2, "Parsed classfiles", System.nanoTime() - parseStartTime);
+            Log.log(2, "Parsed classfile binaries", System.nanoTime() - parseStartTime);
         }
 
         // -----------------------------------------------------------------------------------------------------
