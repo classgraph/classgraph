@@ -43,6 +43,7 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
@@ -227,17 +228,20 @@ public class RecursiveScanner {
      * classInfoUnlinkedOut queue.
      */
     private class ClassfileBinaryParserCaller implements Runnable {
-        final Queue<ClassfileResource> classpathResources;
-        final Queue<ClassInfoUnlinked> classInfoUnlinkedOut;
-        final ConcurrentHashMap<String, String> stringInternMap;
-        final DeferredLog log;
+        private final Queue<ClassfileResource> classpathResources;
+        private final Queue<ClassInfoUnlinked> classInfoUnlinkedOut;
+        private final ConcurrentHashMap<String, String> stringInternMap;
+        private final AtomicBoolean killThreads;
+        private final DeferredLog log;
 
         public ClassfileBinaryParserCaller(final Queue<ClassfileResource> classfileResourcesToScan,
                 final Queue<ClassInfoUnlinked> classInfoUnlinkedOut,
-                final ConcurrentHashMap<String, String> stringInternMap, final DeferredLog log) {
+                final ConcurrentHashMap<String, String> stringInternMap, AtomicBoolean killThreads,
+                final DeferredLog log) {
             this.classpathResources = classfileResourcesToScan;
             this.classInfoUnlinkedOut = classInfoUnlinkedOut;
             this.stringInternMap = stringInternMap;
+            this.killThreads = killThreads;
             this.log = log;
         }
 
@@ -251,6 +255,10 @@ public class RecursiveScanner {
                 final ClassfileBinaryParser classfileBinaryParser = new ClassfileBinaryParser(scanSpec, log);
                 for (ClassfileResource classfileResource; (classfileResource = classpathResources
                         .poll()) != null; prevClassfileResource = classfileResource) {
+                    if (killThreads.get()) {
+                        // Some other thread died; kill this one too
+                        return;
+                    }
                     final long fileStartTime = System.nanoTime();
                     final boolean classfileResourceIsJar = classfileResource.classpathElt.isFile();
                     // Compare classpath element of current resource to that of previous resource
@@ -692,30 +700,36 @@ public class RecursiveScanner {
         final Queue<ClassInfoUnlinked> classInfoUnlinked = new ConcurrentLinkedQueue<>();
         final ConcurrentHashMap<String, String> stringInternMap = new ConcurrentHashMap<>();
         final Thread[] threads = new Thread[NUM_THREADS];
+        final AtomicBoolean killThreads = new AtomicBoolean(false);
         try {
             for (int i = 0; i < NUM_THREADS; i++) {
                 // Create and start a new ClassfileBinaryParserCaller thread that consumes entries from
                 // the classfileResourcesToScan queue and creates objects in the classInfoUnlinked queue
                 threads[i] = new Thread(this.new ClassfileBinaryParserCaller(classfileResourcesToScan,
-                        classInfoUnlinked, stringInternMap, logs[i]));
+                        classInfoUnlinked, stringInternMap, killThreads, logs[i]));
                 threads[i].start();
-            }
-        } catch (final Exception e) {
-            if (FastClasspathScanner.verbose) {
-                Log.log("Exception while parsing classfiles: " + e);
             }
         } finally {
             // Wait for thread termination
+            boolean wasInterrupted = false;
             for (int i = 0; i < NUM_THREADS; i++) {
                 if (threads[i] != null) {
                     try {
                         threads[i].join();
+                        threads[i] = null;
                     } catch (final InterruptedException e) {
-                        // Ignore
+                        // Kill remaining threads
+                        killThreads.set(true);
+                        // Try joining this thread again
+                        --i;
                     }
                 }
                 // Dump out any log output that was added by this thread
                 logs[i].flush();
+            }
+            if (wasInterrupted) {
+                // Set interrupted status on current thread
+                Thread.currentThread().interrupt();
             }
         }
 
