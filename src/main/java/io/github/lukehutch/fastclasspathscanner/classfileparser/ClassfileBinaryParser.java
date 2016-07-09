@@ -18,10 +18,10 @@ import io.github.lukehutch.fastclasspathscanner.utils.Log.DeferredLog;
  */
 public class ClassfileBinaryParser {
     /** The ScanSpec. */
-    private ScanSpec scanSpec;
+    private final ScanSpec scanSpec;
 
     /** The thread-local logger. */
-    private DeferredLog log;
+    private final DeferredLog log;
 
     /** The InputStream for the current classfile. Set by each call to readClassInfoFromClassfileHeader(). */
     private InputStream inputStream;
@@ -63,7 +63,7 @@ public class ClassfileBinaryParser {
      * to accommodate the new chunk.
      */
     private void readMore(final int bytesRequired) throws IOException {
-        int extraBytesNeeded = bytesRequired - (used - curr);
+        final int extraBytesNeeded = bytesRequired - (used - curr);
         int bytesToRequest = extraBytesNeeded + SUBSEQUENT_BUFFER_CHUNK_SIZE;
         final int maxNewUsed = used + bytesToRequest;
         if (maxNewUsed > buf.length) {
@@ -372,7 +372,7 @@ public class ClassfileBinaryParser {
                 prevIsDelim = true;
             } else if (c == 'L') {
                 if (prevIsDelim) {
-                    int start = ++i;
+                    final int start = ++i;
                     for (; i < typeDescriptor.length(); i++) {
                         c = typeDescriptor.charAt(i);
                         if (c == '<' || c == ';') {

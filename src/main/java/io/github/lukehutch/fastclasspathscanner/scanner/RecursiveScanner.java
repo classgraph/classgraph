@@ -41,13 +41,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Queue;
 import java.util.Set;
-import java.util.concurrent.Callable;
-import java.util.concurrent.CompletionService;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorCompletionService;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
@@ -220,7 +214,7 @@ public class RecursiveScanner {
         final File classpathElt;
         final String relativePath;
 
-        public ClassfileResource(File classpathElt, String relativePath) {
+        public ClassfileResource(final File classpathElt, final String relativePath) {
             this.classpathElt = classpathElt;
             this.relativePath = relativePath;
         }
@@ -254,7 +248,7 @@ public class RecursiveScanner {
                 for (ClassfileResource classfileResource; (classfileResource = classpathResources
                         .poll()) != null; prevClassfileResource = classfileResource) {
                     final long fileStartTime = System.nanoTime();
-                    boolean classfileResourceIsJar = classfileResource.classpathElt.isFile();
+                    final boolean classfileResourceIsJar = classfileResource.classpathElt.isFile();
                     // Compare classpath element of current resource to that of previous resource
                     if (prevClassfileResource == null
                             || classfileResource.classpathElt != prevClassfileResource.classpathElt) {
@@ -263,7 +257,7 @@ public class RecursiveScanner {
                             // Close previous zipfile, if one is open
                             try {
                                 currentlyOpenZipFile.close();
-                            } catch (IOException e) {
+                            } catch (final IOException e) {
                                 // Ignore
                             }
                             currentlyOpenZipFile = null;
@@ -272,7 +266,7 @@ public class RecursiveScanner {
                             // Open a new zipfile, if new resource is a jar
                             try {
                                 currentlyOpenZipFile = new ZipFile(classfileResource.classpathElt);
-                            } catch (IOException e) {
+                            } catch (final IOException e) {
                                 if (FastClasspathScanner.verbose) {
                                     log.log(4, "Exception while trying to open " + classfileResource.classpathElt
                                             + ": " + e);
@@ -312,7 +306,7 @@ public class RecursiveScanner {
                     // Close last zipfile
                     try {
                         currentlyOpenZipFile.close();
-                    } catch (IOException e) {
+                    } catch (final IOException e) {
                         // Ignore
                     }
                     currentlyOpenZipFile = null;
@@ -609,21 +603,8 @@ public class RecursiveScanner {
         for (final File classpathElt : uniqueClasspathElts) {
             final long eltStartTime = System.nanoTime();
             final String path = classpathElt.getPath();
-            final boolean isDirectory = classpathElt.isDirectory();
-            final boolean isFile = classpathElt.isFile();
-            final boolean isJar = isFile && ClasspathFinder.isJar(path);
-            if (!isDirectory && !isFile) {
-                if (FastClasspathScanner.verbose) {
-                    Log.log(2, "Skipping non-file/non-dir on classpath: " + classpathElt);
-                }
-                continue;
-            }
-            if (isFile && !isJar) {
-                if (FastClasspathScanner.verbose) {
-                    Log.log(2, "Skipping non-jar file on classpath: " + classpathElt);
-                }
-                continue;
-            }
+            // ClasspathFinder determines that anything that is not a directory is a jarfile
+            final boolean isDirectory = classpathElt.isDirectory(), isJar = !isDirectory;
             if (previouslyScanned(classpathElt)) {
                 if (FastClasspathScanner.verbose) {
                     Log.log(3, "Reached duplicate classpath entry, ignoring: " + classpathElt);
@@ -634,7 +615,6 @@ public class RecursiveScanner {
                 Log.log(2, "Found " + (isDirectory ? "directory" : "jar") + " on classpath: " + path);
             }
 
-            boolean scanned = false;
             if (isDirectory && scanSpec.scanNonJars) {
 
                 // ---------------------------------------------------------------------------------------------
@@ -645,7 +625,10 @@ public class RecursiveScanner {
                 // Also store relative paths of all whitelisted classfiles in whitelistedClassfileRelativePaths.
                 scanDir(classpathElt, classpathElt, /* ignorePrefixLen = */ path.length() + 1,
                         /* inWhitelistedPath = */ false, scanTimestampsOnly, classfileResourcesToScan);
-                scanned = true;
+
+                if (FastClasspathScanner.verbose) {
+                    Log.log(2, "Scanned classpath directory " + classpathElt, System.nanoTime() - eltStartTime);
+                }
 
             } else if (isJar && scanSpec.scanJars) {
 
@@ -671,17 +654,15 @@ public class RecursiveScanner {
                     // since only the timestamp of the zipfile itself will be used.
                     try (ZipFile zipFile = new ZipFile(classpathElt)) {
                         scanZipfile(classpathElt, zipFile, classfileResourcesToScan);
-                        scanned = true;
                     } catch (final IOException e) {
                         // Ignore, can only be thrown by zipFile.close() 
                     }
-                }
-            }
 
-            if (scanned) {
-                if (FastClasspathScanner.verbose) {
-                    Log.log(2, "Scanned classpath element " + classpathElt, System.nanoTime() - eltStartTime);
+                    if (FastClasspathScanner.verbose) {
+                        Log.log(2, "Scanned classpath jarfile " + classpathElt, System.nanoTime() - eltStartTime);
+                    }
                 }
+
             } else {
                 if (FastClasspathScanner.verbose) {
                     Log.log(2, "Skipping classpath element " + path);
@@ -704,8 +685,8 @@ public class RecursiveScanner {
         }
 
         // Scan classfiles in parallel
-        Queue<ClassInfoUnlinked> classInfoUnlinked = new ConcurrentLinkedQueue<>();
-        Thread[] threads = new Thread[NUM_THREADS];
+        final Queue<ClassInfoUnlinked> classInfoUnlinked = new ConcurrentLinkedQueue<>();
+        final Thread[] threads = new Thread[NUM_THREADS];
         try {
             for (int i = 0; i < NUM_THREADS; i++) {
                 // Create and start a new ClassfileBinaryParserCaller thread that consumes entries from
@@ -714,7 +695,7 @@ public class RecursiveScanner {
                         this.new ClassfileBinaryParserCaller(classfileResourcesToScan, classInfoUnlinked, logs[i]));
                 threads[i].start();
             }
-        } catch (Exception e) {
+        } catch (final Exception e) {
             if (FastClasspathScanner.verbose) {
                 Log.log("Exception while parsing classfiles: " + e);
             }
@@ -724,7 +705,7 @@ public class RecursiveScanner {
                 if (threads[i] != null) {
                     try {
                         threads[i].join();
-                    } catch (InterruptedException e) {
+                    } catch (final InterruptedException e) {
                         // Ignore
                     }
                 }

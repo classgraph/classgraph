@@ -49,7 +49,7 @@ import io.github.lukehutch.fastclasspathscanner.utils.Log;
 
 public class ClasspathFinder {
     /** The scanning specification. */
-    private ScanSpec scanSpec;
+    private final ScanSpec scanSpec;
 
     /** The unique elements of the classpath, as an ordered list. */
     private final ArrayList<File> classpathElements = new ArrayList<>();
@@ -66,7 +66,7 @@ public class ClasspathFinder {
     /** Whether or not classpath has been read (supporting lazy reading of classpath). */
     private boolean initialized = false;
 
-    public ClasspathFinder(ScanSpec scanSpec) {
+    public ClasspathFinder(final ScanSpec scanSpec) {
         this.scanSpec = scanSpec;
     }
 
@@ -146,54 +146,67 @@ public class ClasspathFinder {
                 final String pathStr = path.toString();
                 if (classpathElementsSet.add(pathStr)) {
                     // This is the first time this classpath element has been encountered
-                    boolean isValidClasspathElement = true;
+                    boolean isValidClasspathElement = false;
 
                     // If this classpath element is a jar or zipfile, look for Class-Path entries in the manifest
                     // file. OpenJDK scans manifest-defined classpath elements after the jar that listed them, so
                     // we recursively call addClasspathElement if needed each time a jar is encountered. 
-                    if (pathFile.isFile() && isJar(pathStr)) {
-                        if (scanSpec.blacklistSystemJars() && isJREJar(pathFile, /* ancestralScanDepth = */2)) {
-                            // Don't scan system jars
-                            isValidClasspathElement = false;
-                            if (FastClasspathScanner.verbose) {
-                                Log.log("Skipping JRE jar: " + pathStr);
-                            }
-                        } else {
-                            // Recursively check for Class-Path entries in jar manifests
-                            final String manifestUrlStr = "jar:" + pathFile.toURI() + "!/META-INF/MANIFEST.MF";
-                            try (InputStream stream = new URL(manifestUrlStr).openStream()) {
-                                // Look for Class-Path keys within manifest files
-                                final Manifest manifest = new Manifest(stream);
-                                final String manifestClassPath = manifest.getMainAttributes()
-                                        .getValue("Class-Path");
-                                if (manifestClassPath != null && !manifestClassPath.isEmpty()) {
-                                    if (FastClasspathScanner.verbose) {
-                                        Log.log("Found Class-Path entry in " + manifestUrlStr + ": "
-                                                + manifestClassPath);
-                                    }
-                                    // Class-Path entries in the manifest file should be resolved relative to the
-                                    // directory the manifest's jarfile is contained in (i.e. path.getParent()).
-                                    final Path parentPath = path.getParent();
-                                    // Class-Path entries in manifest files are a space-delimited list of URIs.
-                                    for (final String manifestClassPathElement : manifestClassPath.split(" ")) {
-                                        final Path manifestEltPath = urlToPath(parentPath, //
-                                                manifestClassPathElement);
-                                        if (manifestEltPath != null) {
-                                            addClasspathElement(manifestEltPath.toString());
-                                        } else {
-                                            if (FastClasspathScanner.verbose) {
-                                                Log.log("Classpath element "
-                                                        + new File(pathFile.getParent(), manifestClassPathElement)
-                                                        + " not found -- from Class-Path entry "
-                                                        + manifestClassPathElement + " in " + manifestUrlStr);
+                    if (pathFile.isFile()) {
+                        if (isJar(pathStr)) {
+                            if (scanSpec.blacklistSystemJars() && isJREJar(pathFile, /* ancestralScanDepth = */2)) {
+                                // Don't scan system jars
+                                isValidClasspathElement = false;
+                                if (FastClasspathScanner.verbose) {
+                                    Log.log("Skipping JRE jar: " + pathStr);
+                                }
+                            } else {
+                                // Can scan any non-system jar
+                                isValidClasspathElement = true;
+
+                                // Recursively check for Class-Path entries in the jar manifest file, if present
+                                final String manifestUrlStr = "jar:" + pathFile.toURI() + "!/META-INF/MANIFEST.MF";
+                                try (InputStream stream = new URL(manifestUrlStr).openStream()) {
+                                    // Look for Class-Path keys within manifest files
+                                    final Manifest manifest = new Manifest(stream);
+                                    final String manifestClassPath = manifest.getMainAttributes()
+                                            .getValue("Class-Path");
+                                    if (manifestClassPath != null && !manifestClassPath.isEmpty()) {
+                                        if (FastClasspathScanner.verbose) {
+                                            Log.log("Found Class-Path entry in " + manifestUrlStr + ": "
+                                                    + manifestClassPath);
+                                        }
+                                        // Class-Path entries in the manifest file should be resolved relative to
+                                        // the dir the manifest's jarfile is contained in (i.e. path.getParent()).
+                                        final Path parentPath = path.getParent();
+                                        // Class-Path entries in manifest files are a space-delimited list of URIs.
+                                        for (final String manifestClassPathElement : manifestClassPath.split(" ")) {
+                                            final Path manifestEltPath = urlToPath(parentPath, //
+                                                    manifestClassPathElement);
+                                            if (manifestEltPath != null) {
+                                                addClasspathElement(manifestEltPath.toString());
+                                            } else {
+                                                if (FastClasspathScanner.verbose) {
+                                                    Log.log("Classpath element "
+                                                            + new File(pathFile.getParent(),
+                                                                    manifestClassPathElement)
+                                                            + " not found -- from Class-Path entry "
+                                                            + manifestClassPathElement + " in " + manifestUrlStr);
+                                                }
                                             }
                                         }
                                     }
+                                } catch (final IOException e) {
+                                    // Jar does not contain a manifest
                                 }
-                            } catch (final IOException e) {
-                                // Jar does not contain a manifest
+                            }
+                        } else {
+                            if (FastClasspathScanner.verbose) {
+                                Log.log("Ignoring non-jar file on classpath: " + pathStr);
                             }
                         }
+                    } else if (pathFile.isDirectory()) {
+                        // Can scan any directory
+                        isValidClasspathElement = true;
                     }
 
                     if (isValidClasspathElement) {

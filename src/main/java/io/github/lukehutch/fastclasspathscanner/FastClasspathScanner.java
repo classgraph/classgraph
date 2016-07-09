@@ -273,7 +273,7 @@ public class FastClasspathScanner {
      */
     private synchronized void checkClassNameIsNotBlacklisted(final String className) {
         if (!getScanSpec().classIsNotBlacklisted(className)) {
-            boolean isSystemPackage = className.startsWith("java.") || className.startsWith("sun.");
+            final boolean isSystemPackage = className.startsWith("java.") || className.startsWith("sun.");
             throw new IllegalArgumentException("Can't scan for " + className + ", it is in a blacklisted "
                     + (isSystemPackage ? "system " : "") + "package. "
                     + (isSystemPackage
