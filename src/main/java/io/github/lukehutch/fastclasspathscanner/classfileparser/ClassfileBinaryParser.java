@@ -411,6 +411,8 @@ public class ClassfileBinaryParser {
             final String relativePath, final Map<String, HashSet<String>> classNameToStaticFinalFieldsToMatch)
             throws IOException {
         try {
+            // Clear className and set inputStream for each new class
+            this.className = null;
             this.inputStream = inputStream;
 
             // Initialize buffer
@@ -495,7 +497,7 @@ public class ClassfileBinaryParser {
             final boolean isAnnotation = (flags & 0x2000) != 0;
 
             // The fully-qualified class name of this class, with slashes replaced with dots
-            this.className = getConstantPoolClassName(readUnsignedShort());
+            className = getConstantPoolClassName(readUnsignedShort());
             if ("java.lang.Object".equals(className)) {
                 // Don't process java.lang.Object
                 return null;
