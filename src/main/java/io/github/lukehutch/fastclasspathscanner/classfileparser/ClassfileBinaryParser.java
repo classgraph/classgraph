@@ -234,8 +234,8 @@ public class ClassfileBinaryParser {
     /** The indirection index for String/Class entries in the constant pool. */
     private int[] indirectStringRefs;
 
-    /** Get a string from the constant pool. */
-    private String getConstantPoolString(final int constantPoolIdx) {
+    /** Get the byte offset within the buffer of a string from the constant pool, or 0 for a null string. */
+    private int getConstantPoolStringOffset(final int constantPoolIdx) {
         final int t = tag[constantPoolIdx];
         if (t != 1 && t != 7 && t != 8) {
             throw new IllegalArgumentException("Wrong tag number at constant pool index " + constantPoolIdx);
@@ -249,17 +249,43 @@ public class ClassfileBinaryParser {
             }
             if (indirIdx == 0) {
                 // I assume this represents a null string, since the zeroeth entry is unused
-                return null;
+                return 0;
             }
             cpIdx = indirIdx;
         }
-        return readString(offset[cpIdx]);
+        return offset[cpIdx];
+    }
+
+    /** Get a string from the constant pool. */
+    private String getConstantPoolString(final int constantPoolIdx) {
+        int constantPoolStringOffset = getConstantPoolStringOffset(constantPoolIdx);
+        return constantPoolStringOffset == 0 ? null : readString(constantPoolStringOffset);
     }
 
     /** Get a string from the constant pool, and interpret it as a class name by replacing '/' with '.'. */
     private String getConstantPoolClassName(final int constantPoolIdx) {
         final String str = getConstantPoolString(constantPoolIdx);
         return str == null ? null : str.replace('/', '.');
+    }
+
+    /** Compare a string in the constant pool with a given constant, without constructing the String object. */
+    private boolean constantPoolStringEquals(final int constantPoolIdx, final String otherString) {
+        int strOffset = getConstantPoolStringOffset(constantPoolIdx);
+        if (strOffset == 0) {
+            return otherString == null;
+        }
+        int strLen = readUnsignedShort(strOffset);
+        int otherLen = otherString.length();
+        if (strLen != otherLen) {
+            return false;
+        }
+        int strStart = strOffset + 2;
+        for (int i = 0; i < strLen; i++) {
+            if ((char) (buf[strStart + i] & 0xff) != otherString.charAt(i)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /** Get a constant from the constant pool. */
@@ -597,9 +623,10 @@ public class ClassfileBinaryParser {
                 // check if it is initialized with a constant value
                 boolean foundConstantValue = false;
                 for (int j = 0; j < attributesCount; j++) {
-                    final String attributeName = getConstantPoolString(readUnsignedShort());
+                    final int attributeNameConstantPoolIdx = readUnsignedShort();
                     final int attributeLength = readInt();
-                    if (isStaticFinal && isMatchedFieldName && "ConstantValue".equals(attributeName)) {
+                    if (isStaticFinal && isMatchedFieldName
+                            && constantPoolStringEquals(attributeNameConstantPoolIdx, "ConstantValue")) {
                         // http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.7.2
                         Object constValue = getConstantPoolValue(readUnsignedShort());
                         // byte, char, short and boolean constants are all stored as 4-byte int
@@ -641,7 +668,7 @@ public class ClassfileBinaryParser {
                         }
                         classInfoUnlinked.addFieldConstantValue(fieldName, constValue);
                         foundConstantValue = true;
-                    } else if ("Signature".equals(attributeName)) {
+                    } else if (constantPoolStringEquals(attributeNameConstantPoolIdx, "Signature")) {
                         // Check if the type signature of this field falls within a non-blacklisted
                         // package, and if so, record the field type. The type signature contains
                         // type parameters, whereas the type descriptor does not.
