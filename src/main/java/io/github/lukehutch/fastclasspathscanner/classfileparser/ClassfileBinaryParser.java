@@ -599,12 +599,12 @@ public class ClassfileBinaryParser {
                     log.log(2, "Cannot match requested field " + classInfoUnlinked.className + "." + fieldName
                             + " because it is either not static or not final");
                 }
-                // See if field name matches one of the requested names for this class, and if it does,
-                // check if it is initialized with a constant value
                 boolean foundConstantValue = false;
                 for (int j = 0; j < attributesCount; j++) {
                     final int attributeNameConstantPoolIdx = readUnsignedShort();
                     final int attributeLength = readInt();
+                    // See if field name matches one of the requested names for this class, and if it does,
+                    // check if it is initialized with a constant value
                     if (isStaticFinal && isMatchedFieldName
                             && constantPoolStringEquals(attributeNameConstantPoolIdx, "ConstantValue")) {
                         // http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.7.2
@@ -651,6 +651,7 @@ public class ClassfileBinaryParser {
                         final String fieldTypeSignature = getConstantPoolString(readUnsignedShort());
                         addFieldTypeDescriptorParts(classInfoUnlinked, fieldTypeSignature);
                     } else {
+                        // No match, just skip attribute
                         skip(attributeLength);
                     }
                     if (!foundConstantValue && isStaticFinal && isMatchedFieldName) {
