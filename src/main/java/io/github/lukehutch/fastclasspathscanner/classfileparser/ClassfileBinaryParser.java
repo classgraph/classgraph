@@ -5,6 +5,7 @@ import java.io.InputStream;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassInfo.ClassInfoUnlinked;
@@ -408,8 +409,8 @@ public class ClassfileBinaryParser {
      * masking has already been performed, so that only one class of a given name will be added.
      */
     public ClassInfoUnlinked readClassInfoFromClassfileHeader(final InputStream inputStream,
-            final String relativePath, final Map<String, HashSet<String>> classNameToStaticFinalFieldsToMatch)
-            throws IOException {
+            final String relativePath, final Map<String, HashSet<String>> classNameToStaticFinalFieldsToMatch,
+            ConcurrentHashMap<String, String> stringInternMap) throws IOException {
         try {
             // Clear className and set inputStream for each new class
             this.className = null;
@@ -516,7 +517,8 @@ public class ClassfileBinaryParser {
             // Superclass name, with slashes replaced with dots
             final String superclassName = getConstantPoolClassName(readUnsignedShort());
 
-            final ClassInfoUnlinked classInfoUnlinked = new ClassInfoUnlinked(className, isInterface, isAnnotation);
+            final ClassInfoUnlinked classInfoUnlinked = new ClassInfoUnlinked(className, isInterface, isAnnotation,
+                    stringInternMap);
 
             if (FastClasspathScanner.verbose) {
                 log.log(5,

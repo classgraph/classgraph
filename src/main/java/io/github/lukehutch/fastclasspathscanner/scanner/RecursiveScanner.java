@@ -41,6 +41,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Queue;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.ZipEntry;
@@ -228,12 +229,15 @@ public class RecursiveScanner {
     private class ClassfileBinaryParserCaller implements Runnable {
         final Queue<ClassfileResource> classpathResources;
         final Queue<ClassInfoUnlinked> classInfoUnlinkedOut;
+        final ConcurrentHashMap<String, String> stringInternMap;
         final DeferredLog log;
 
         public ClassfileBinaryParserCaller(final Queue<ClassfileResource> classfileResourcesToScan,
-                final Queue<ClassInfoUnlinked> classInfoUnlinkedOut, final DeferredLog log) {
+                final Queue<ClassInfoUnlinked> classInfoUnlinkedOut,
+                final ConcurrentHashMap<String, String> stringInternMap, final DeferredLog log) {
             this.classpathResources = classfileResourcesToScan;
             this.classInfoUnlinkedOut = classInfoUnlinkedOut;
+            this.stringInternMap = stringInternMap;
             this.log = log;
         }
 
@@ -285,7 +289,7 @@ public class RecursiveScanner {
                         // Parse classpath binary format, creating a ClassInfoUnlinked object
                         final ClassInfoUnlinked thisClassInfoUnlinked = classfileBinaryParser
                                 .readClassInfoFromClassfileHeader(inputStream, classfileResource.relativePath,
-                                        classNameToStaticFinalFieldsToMatch);
+                                        classNameToStaticFinalFieldsToMatch, stringInternMap);
                         // If class was successfully read, add new ClassInfoUnlinked object to output queue
                         if (thisClassInfoUnlinked != null) {
                             classInfoUnlinkedOut.add(thisClassInfoUnlinked);
@@ -686,13 +690,14 @@ public class RecursiveScanner {
 
         // Scan classfiles in parallel
         final Queue<ClassInfoUnlinked> classInfoUnlinked = new ConcurrentLinkedQueue<>();
+        final ConcurrentHashMap<String, String> stringInternMap = new ConcurrentHashMap<>();
         final Thread[] threads = new Thread[NUM_THREADS];
         try {
             for (int i = 0; i < NUM_THREADS; i++) {
                 // Create and start a new ClassfileBinaryParserCaller thread that consumes entries from
                 // the classfileResourcesToScan queue and creates objects in the classInfoUnlinked queue
-                threads[i] = new Thread(
-                        this.new ClassfileBinaryParserCaller(classfileResourcesToScan, classInfoUnlinked, logs[i]));
+                threads[i] = new Thread(this.new ClassfileBinaryParserCaller(classfileResourcesToScan,
+                        classInfoUnlinked, stringInternMap, logs[i]));
                 threads[i].start();
             }
         } catch (final Exception e) {

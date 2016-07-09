@@ -38,6 +38,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class ClassInfo implements Comparable<ClassInfo> {
 
@@ -56,43 +57,52 @@ public class ClassInfo implements Comparable<ClassInfo> {
         public List<String> annotations;
         public Set<String> fieldTypes;
         public Map<String, Object> staticFinalFieldValues;
+        
+        private ConcurrentHashMap<String, String> stringInternMap;
 
-        public ClassInfoUnlinked(final String className, final boolean isInterface, final boolean isAnnotation) {
-            this.className = className;
+        private String intern(String string) {
+            String oldValue = stringInternMap.putIfAbsent(string, string);
+            return oldValue == null ? string : oldValue;
+        }
+
+        public ClassInfoUnlinked(final String className, final boolean isInterface, final boolean isAnnotation,
+                ConcurrentHashMap<String, String> stringInternMap) {
+            this.stringInternMap = stringInternMap;
+            this.className = intern(className);
             this.isInterface = isInterface;
             this.isAnnotation = isAnnotation;
         }
-
+        
         public void addSuperclass(final String superclassName) {
-            this.superclassName = superclassName;
+            this.superclassName = intern(superclassName);
         }
 
         public void addImplementedInterface(final String interfaceName) {
             if (implementedInterfaces == null) {
                 implementedInterfaces = new ArrayList<>();
             }
-            implementedInterfaces.add(interfaceName);
+            implementedInterfaces.add(intern(interfaceName));
         }
 
         public void addAnnotation(final String annotationName) {
             if (annotations == null) {
                 annotations = new ArrayList<>();
             }
-            annotations.add(annotationName);
+            annotations.add(intern(annotationName));
         }
 
         public void addFieldType(final String fieldTypeName) {
             if (fieldTypes == null) {
                 fieldTypes = new HashSet<>();
             }
-            fieldTypes.add(fieldTypeName);
+            fieldTypes.add(intern(fieldTypeName));
         }
 
         public void addFieldConstantValue(final String fieldName, final Object staticFinalFieldValue) {
             if (staticFinalFieldValues == null) {
                 staticFinalFieldValues = new HashMap<>();
             }
-            staticFinalFieldValues.put(fieldName, staticFinalFieldValue);
+            staticFinalFieldValues.put(intern(fieldName), staticFinalFieldValue);
         }
 
         public void link(final Map<String, ClassInfo> classNameToClassInfo) {
