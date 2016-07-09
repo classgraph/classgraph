@@ -33,9 +33,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.nio.file.LinkOption;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -89,23 +86,22 @@ public class ClasspathFinder {
     /**
      * Strip away any "jar:" prefix from a filename URI, and convert it to a file path, handling possibly-broken
      * mixes of filesystem and URI conventions. Follows symbolic links, and resolves any relative paths relative to
-     * resolveBase.
+     * resolveBaseFile.
      */
-    private static Path urlToPath(final Path resolveBasePath, final String pathElementStr) {
-        if (pathElementStr.isEmpty()) {
+    private static File urlToFile(final File resolveBaseFile, final String relativePathStr) {
+        if (relativePathStr.isEmpty()) {
             return null;
         }
-        String pathStr = pathElementStr;
+        String pathStr = relativePathStr;
         // Ignore "jar:", we look for ".jar" on the end of filenames instead
         if (pathStr.startsWith("jar:")) {
-            // Convert "jar:" to "file:" URL, so that URL -> URI -> Path works
             pathStr = pathStr.substring(4);
-            if (!pathStr.startsWith("file:") && !pathStr.startsWith("http:") && !pathStr.startsWith("https:")) {
-                pathStr = "file:" + pathStr;
-            }
         }
-        // We don't fetch remote classpath entries, although they are theoretically valid if using
-        // a URLClassLoader, such as used to resolve the Class-Path field in a jarfile's manifest file.
+        // Prepend "file:" if it's not already present
+        if (!pathStr.startsWith("file:") && !pathStr.startsWith("http:") && !pathStr.startsWith("https:")) {
+            pathStr = "file:" + pathStr;
+        }
+        // We don't fetch remote classpath entries, although they are theoretically valid if using a URLClassLoader
         if (pathStr.startsWith("http:") || pathStr.startsWith("https:")) {
             if (FastClasspathScanner.verbose) {
                 Log.log("Ignoring remote entry in classpath: " + pathStr);
@@ -113,115 +109,111 @@ public class ClasspathFinder {
             return null;
         }
         try {
-            // Try parsing the path element as a URL, then as a URI, then as a filesystem path.
-            // Need to deal with possibly-broken mixes of file:// URLs and system-dependent path formats -- see:
-            // https://weblogs.java.net/blog/kohsuke/archive/2007/04/how_to_convert.html
-            // http://stackoverflow.com/a/17870390/3950982
-            // i.e. the recommended way to do this is URL -> URI -> Path, especially to handle weirdness on Windows.
-            // N.B. we need NOFOLLOW_LINKS, because otherwise resolved paths may no longer appear as a child of
-            // a classpath element, and/or the path tree may no longer conform to the package tree. 
-            return resolveBasePath.resolve(Paths.get(new URL(pathStr).toURI())) //
-                    .toRealPath(LinkOption.NOFOLLOW_LINKS);
-        } catch (final Exception e) {
-            try {
-                return resolveBasePath.resolve(pathStr).toRealPath(LinkOption.NOFOLLOW_LINKS);
-            } catch (final Exception e2) {
-                try {
-                    return new File(pathElementStr).toPath().toRealPath(LinkOption.NOFOLLOW_LINKS);
-                } catch (final Exception e3) {
-                    // One of the above should have worked, so if we got here, the path element is junk.
-                    return null;
-                }
+            if (resolveBaseFile == null) {
+                return new File(new URL(pathStr).toURI());
+            } else {
+                // Try parsing the path element as a URL, then as a URI, then as a filesystem path.
+                // Need to deal with possibly-broken mixes of file:// URLs and system-dependent path formats -- see:
+                // https://weblogs.java.net/blog/kohsuke/archive/2007/04/how_to_convert.html
+                // http://stackoverflow.com/a/17870390/3950982
+                // i.e. the recommended way to do this is URL -> URI -> Path, especially to handle weirdness on
+                // Windows. However, we skip the last step, because Path is slow.
+                return new File(resolveBaseFile.toURI().resolve(new URL(pathStr).toURI()));
             }
+        } catch (final Exception e) {
+            return null;
         }
     }
 
     /** Add a classpath element. */
     public void addClasspathElement(final String pathElement) {
-        final Path currDirPath = Paths.get("").toAbsolutePath();
-        final Path path = urlToPath(currDirPath, pathElement);
-        if (path != null) {
-            final File pathFile = path.toFile();
-            if (pathFile.exists()) {
-                final String pathStr = path.toString();
-                if (classpathElementsSet.add(pathStr)) {
-                    // This is the first time this classpath element has been encountered
-                    boolean isValidClasspathElement = false;
+        final File pathFile = urlToFile(null, pathElement);
+        if (pathFile == null) {
+            return;
+        }
+        if (!pathFile.exists()) {
+            if (FastClasspathScanner.verbose) {
+                Log.log("Classpath element does not exist: " + pathElement);
+            }
+            return;
+        }
+        String pathStr;
+        try {
+            pathStr = pathFile.getCanonicalPath();
+        } catch (IOException e) {
+            if (FastClasspathScanner.verbose) {
+                Log.log("Exception while getting canonical path for classpath element " + pathElement + ": " + e);
+            }
+            return;
+        }
+        if (!classpathElementsSet.add(pathStr)) {
+            if (FastClasspathScanner.verbose) {
+                Log.log("Ignoring duplicate classpath element: " + pathElement);
+            }
+            return;
+        }
 
-                    // If this classpath element is a jar or zipfile, look for Class-Path entries in the manifest
-                    // file. OpenJDK scans manifest-defined classpath elements after the jar that listed them, so
-                    // we recursively call addClasspathElement if needed each time a jar is encountered. 
-                    if (pathFile.isFile()) {
-                        if (isJar(pathStr)) {
-                            if (scanSpec.blacklistSystemJars() && isJREJar(pathFile, /* ancestralScanDepth = */2)) {
-                                // Don't scan system jars
-                                isValidClasspathElement = false;
-                                if (FastClasspathScanner.verbose) {
-                                    Log.log("Skipping JRE jar: " + pathStr);
-                                }
-                            } else {
-                                // Can scan any non-system jar
-                                isValidClasspathElement = true;
+        // If this classpath element is a jar or zipfile, look for Class-Path entries in the manifest
+        // file. OpenJDK scans manifest-defined classpath elements after the jar that listed them, so
+        // we recursively call addClasspathElement if needed each time a jar is encountered. 
+        if (pathFile.isFile()) {
+            if (!isJar(pathStr)) {
+                if (FastClasspathScanner.verbose) {
+                    Log.log("Ignoring non-jar file on classpath: " + pathElement);
+                }
+                return;
+            }
+            if (scanSpec.blacklistSystemJars() && isJREJar(pathFile, /* ancestralScanDepth = */2)) {
+                // Don't scan system jars if they are blacklisted
+                if (FastClasspathScanner.verbose) {
+                    Log.log("Skipping JRE jar: " + pathElement);
+                }
+                return;
+            }
 
-                                // Recursively check for Class-Path entries in the jar manifest file, if present
-                                final String manifestUrlStr = "jar:" + pathFile.toURI() + "!/META-INF/MANIFEST.MF";
-                                try (InputStream stream = new URL(manifestUrlStr).openStream()) {
-                                    // Look for Class-Path keys within manifest files
-                                    final Manifest manifest = new Manifest(stream);
-                                    final String manifestClassPath = manifest.getMainAttributes()
-                                            .getValue("Class-Path");
-                                    if (manifestClassPath != null && !manifestClassPath.isEmpty()) {
-                                        if (FastClasspathScanner.verbose) {
-                                            Log.log("Found Class-Path entry in " + manifestUrlStr + ": "
-                                                    + manifestClassPath);
-                                        }
-                                        // Class-Path entries in the manifest file should be resolved relative to
-                                        // the dir the manifest's jarfile is contained in (i.e. path.getParent()).
-                                        final Path parentPath = path.getParent();
-                                        // Class-Path entries in manifest files are a space-delimited list of URIs.
-                                        for (final String manifestClassPathElement : manifestClassPath.split(" ")) {
-                                            final Path manifestEltPath = urlToPath(parentPath, //
-                                                    manifestClassPathElement);
-                                            if (manifestEltPath != null) {
-                                                addClasspathElement(manifestEltPath.toString());
-                                            } else {
-                                                if (FastClasspathScanner.verbose) {
-                                                    Log.log("Classpath element "
-                                                            + new File(pathFile.getParent(),
-                                                                    manifestClassPathElement)
-                                                            + " not found -- from Class-Path entry "
-                                                            + manifestClassPathElement + " in " + manifestUrlStr);
-                                                }
-                                            }
-                                        }
-                                    }
-                                } catch (final IOException e) {
-                                    // Jar does not contain a manifest
-                                }
-                            }
+            // Recursively check for Class-Path entries in the jar manifest file, if present
+            final String manifestUrlStr = "jar:" + pathFile.toURI() + "!/META-INF/MANIFEST.MF";
+            try (InputStream stream = new URL(manifestUrlStr).openStream()) {
+                // Look for Class-Path keys within manifest files
+                final Manifest manifest = new Manifest(stream);
+                final String manifestClassPath = manifest.getMainAttributes().getValue("Class-Path");
+                if (manifestClassPath != null && !manifestClassPath.isEmpty()) {
+                    if (FastClasspathScanner.verbose) {
+                        Log.log("Found Class-Path entry in " + manifestUrlStr + ": " + manifestClassPath);
+                    }
+                    // Class-Path entries in the manifest file should be resolved relative to
+                    // the dir the manifest's jarfile is contained in (i.e. path.getParent()).
+                    final File parentPathFile = pathFile.getParentFile();
+                    // Class-Path entries in manifest files are a space-delimited list of URIs.
+                    for (final String manifestClassPathElement : manifestClassPath.split(" ")) {
+                        final File manifestEltPath = urlToFile(pathFile, manifestClassPathElement);
+                        if (manifestEltPath != null) {
+                            addClasspathElement(manifestEltPath.toString());
                         } else {
                             if (FastClasspathScanner.verbose) {
-                                Log.log("Ignoring non-jar file on classpath: " + pathStr);
+                                Log.log("Classpath element " + new File(parentPathFile, manifestClassPathElement)
+                                        + " not found -- from Class-Path entry " + manifestClassPathElement + " in "
+                                        + manifestUrlStr);
                             }
                         }
-                    } else if (pathFile.isDirectory()) {
-                        // Can scan any directory
-                        isValidClasspathElement = true;
-                    }
-
-                    if (isValidClasspathElement) {
-                        // Add the classpath element to the ordered list
-                        if (FastClasspathScanner.verbose) {
-                            Log.log("Found classpath element: " + path);
-                        }
-                        // Add the File object to classpathElements
-                        classpathElements.add(pathFile);
                     }
                 }
-            } else if (FastClasspathScanner.verbose) {
-                Log.log("Classpath element does not exist: " + path);
+            } catch (final IOException e) {
+                // Jar does not contain a manifest
             }
+        } else if (!pathFile.isDirectory()) {
+            if (FastClasspathScanner.verbose) {
+                Log.log("Ignoring invalid classpath element: " + pathElement);
+            }
+            return;
         }
+
+        // Add the classpath element to the ordered list
+        if (FastClasspathScanner.verbose) {
+            Log.log("Found classpath element: " + pathElement);
+        }
+        // Add the File object to classpathElements
+        classpathElements.add(pathFile);
     }
 
     /** Add classpath elements, separated by the system path separator character. */
