@@ -409,8 +409,7 @@ public class ClassfileBinaryParser {
                     // Found a class-typed type parameter. Check if the type of this field falls within a
                     // non-blacklisted package, and if so, record the field and its type
                     final String fieldTypeName = typeDescriptor.substring(start, i).replace('/', '.');
-                    if (scanSpec.classIsNotBlacklisted(fieldTypeName) && !fieldTypeName.startsWith("java.lang.")
-                            && !fieldTypeName.startsWith("java.util.")) {
+                    if (scanSpec.classIsNotBlacklisted(fieldTypeName)) {
                         if (FastClasspathScanner.verbose) {
                             // Only add the log entry once for each field type name within each class
                             if (loggedFieldTypeNames.add(fieldTypeName)) {
