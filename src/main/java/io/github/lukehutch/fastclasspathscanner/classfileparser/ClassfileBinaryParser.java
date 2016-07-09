@@ -403,6 +403,27 @@ public class ClassfileBinaryParser {
         }
     }
 
+    /** Returns true if the classname (e.g. com.x.MyClass) matches the relative path (e.g. com/x/MyClass.class). */
+    private boolean classNameMatches(String relativePath) {
+        int len = className.length();
+        if (len != relativePath.length() - 6) {
+            return false;
+        }
+        for (int i = 0; i < len; i++) {
+            char c = className.charAt(i);
+            char r = relativePath.charAt(i);
+            if (!((c == '.' && r == '/') || c == r)) {
+                return false;
+            }
+        }
+        for (int i = 0; i < 6; i++) {
+            if (relativePath.charAt(len + i) != ".class".charAt(i)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     /**
      * Directly examine contents of classfile binary header to determine annotations, implemented interfaces, the
      * super-class etc. Creates a new ClassInfo object, and adds it to classNameToClassInfoOut. Assumes classpath
@@ -505,8 +526,7 @@ public class ClassfileBinaryParser {
             }
 
             // Make sure classname matches relative path
-            if (!className.equals(relativePath.substring(0, relativePath.length() - 6 /* (strip off ".class") */)
-                    .replace('/', '.'))) {
+            if (!classNameMatches(relativePath)) {
                 if (FastClasspathScanner.verbose) {
                     log.log(5, "Class " + className + " is at incorrect relative path " + relativePath
                             + " -- ignoring");
