@@ -227,7 +227,7 @@ public class RecursiveScanner {
      * objects from the classfileResourcesToScan queue and produces ClassInfoUnlinked objects, placing them in the
      * classInfoUnlinkedOut queue.
      */
-    private class ClassfileBinaryParserCaller implements Runnable {
+    private class ClassfileBinaryParserCaller extends Thread {
         private final Queue<ClassfileResource> classpathResources;
         private final Queue<ClassInfoUnlinked> classInfoUnlinkedOut;
         private final ConcurrentHashMap<String, String> stringInternMap;
@@ -243,6 +243,8 @@ public class RecursiveScanner {
             this.stringInternMap = stringInternMap;
             this.killThreads = killThreads;
             this.log = log;
+            // Kill this thread if the main thread dies unexpectedly
+            setDaemon(true);
         }
 
         @Override
