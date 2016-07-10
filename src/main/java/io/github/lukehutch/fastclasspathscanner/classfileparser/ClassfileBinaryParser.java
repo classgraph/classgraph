@@ -583,9 +583,15 @@ public class ClassfileBinaryParser {
                 final int accessFlags = readUnsignedShort();
                 // See http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.6
                 final boolean isStaticFinal = (accessFlags & 0x0018) == 0x0018;
-                final String fieldName = getConstantPoolString(readUnsignedShort());
-                final boolean isMatchedFieldName = staticFinalFieldsToMatch != null
-                        && staticFinalFieldsToMatch.contains(fieldName);
+                int fieldNameConstantPoolIdx = readUnsignedShort();
+                String fieldName = null;
+                boolean isMatchedFieldName = false;
+                if (staticFinalFieldsToMatch != null) {
+                    fieldName = getConstantPoolString(fieldNameConstantPoolIdx);
+                    if (staticFinalFieldsToMatch.contains(fieldName)) {
+                        isMatchedFieldName = true;
+                    }
+                }
                 final String fieldTypeDescriptor = getConstantPoolString(readUnsignedShort());
                 final int attributesCount = readUnsignedShort();
 
@@ -596,8 +602,10 @@ public class ClassfileBinaryParser {
                 // Check if field is static and final
                 if (!isStaticFinal && isMatchedFieldName) {
                     // Requested to match a field that is not static or not final
-                    log.log(2, "Cannot match requested field " + classInfoUnlinked.className + "." + fieldName
-                            + " because it is either not static or not final");
+                    log.log(2,
+                            "Cannot match requested field " + classInfoUnlinked.className + "."
+                                    + getConstantPoolString(fieldNameConstantPoolIdx)
+                                    + " because it is either not static or not final");
                 }
                 boolean foundConstantValue = false;
                 for (int j = 0; j < attributesCount; j++) {
@@ -656,7 +664,8 @@ public class ClassfileBinaryParser {
                     }
                     if (!foundConstantValue && isStaticFinal && isMatchedFieldName) {
                         log.log(2,
-                                "Requested static final field " + classInfoUnlinked.className + "." + fieldName
+                                "Requested static final field " + classInfoUnlinked.className + "."
+                                        + getConstantPoolString(fieldNameConstantPoolIdx)
                                         + " is not initialized with a constant literal value, so there is no "
                                         + "initializer value in the constant pool of the classfile");
                     }
