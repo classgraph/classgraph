@@ -76,7 +76,7 @@ import io.github.lukehutch.fastclasspathscanner.utils.Log;
  * documentation.
  */
 public class FastClasspathScanner {
-    /** THe scanning specification (whitelisted and blacklisted packages, etc.), as passed into the constructor. */
+    /** The scanning specification (whitelisted and blacklisted packages, etc.), as passed into the constructor. */
     private final String[] scanSpecArgs;
 
     /** The scanning specification, parsed. */
