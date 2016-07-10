@@ -352,7 +352,7 @@ public class ClassfileBinaryParser {
      * returns nothing.)
      */
     private void readAnnotationElementValue() throws IOException {
-        final int tag = readUnsignedByte();
+        final int tag = (char) readUnsignedByte();
         switch (tag) {
         case 'B':
         case 'C':
@@ -403,31 +403,27 @@ public class ClassfileBinaryParser {
      */
     private void addFieldTypeDescriptorParts(final ClassInfoUnlinked classInfoUnlinked,
             final String typeDescriptor) {
-        boolean prevIsDelim = true;
         for (int i = 0; i < typeDescriptor.length(); i++) {
             char c = typeDescriptor.charAt(i);
-            if (c == '[' || c == '<' || c == '>' || c == ';' || c == '-' || c == '+') {
-                prevIsDelim = true;
-            } else if (c == 'L') {
-                if (prevIsDelim) {
-                    final int start = ++i;
-                    for (; i < typeDescriptor.length(); i++) {
-                        c = typeDescriptor.charAt(i);
-                        if (c == '<' || c == ';') {
-                            break;
-                        }
+            if (c == 'L') {
+                final int typeNameStart = ++i;
+                for (; i < typeDescriptor.length(); i++) {
+                    c = typeDescriptor.charAt(i);
+                    if (c == '<' || c == ';') {
+                        break;
                     }
-                    // Found a class-typed type parameter. Check if the type of this field falls within a
-                    // non-blacklisted package, and if so, record the field and its type
-                    final String fieldTypeName = typeDescriptor.substring(start, i).replace('/', '.');
-                    if (scanSpec.classIsNotBlacklisted(fieldTypeName)) {
-                        // Add field type to set of non-blacklisted field types encountered in class
-                        classInfoUnlinked.addFieldType(fieldTypeName);
-                    }
-                    prevIsDelim = true;
                 }
-            } else {
-                prevIsDelim = false;
+                // Switch '/' package delimiter to '.' (lower overhead than String.replace('/', '.'))
+                char[] typeNameChars = new char[i - typeNameStart];
+                for (int j = typeNameStart; j < i; j++) {
+                    char chr = typeDescriptor.charAt(j);
+                    typeNameChars[j - typeNameStart] = chr == '/' ? '.' : chr;
+                }
+                String typeName = new String(typeNameChars);
+                // Check if the type of this field falls within a non-blacklisted package, and if not, add it
+                if (scanSpec.classIsNotBlacklisted(typeName)) {
+                    classInfoUnlinked.addFieldType(typeName);
+                }
             }
         }
     }
@@ -627,34 +623,44 @@ public class ClassfileBinaryParser {
                         Object constValue = getConstantPoolValue(readUnsignedShort());
                         // byte, char, short and boolean constants are all stored as 4-byte int
                         // values -- coerce and wrap in the proper wrapper class with autoboxing
-                        switch (fieldTypeDescriptor) {
-                        case "B":
-                            // Convert byte store in Integer to Byte
+                        switch (fieldTypeDescriptor.charAt(0)) {
+                        case 'B':
+                            // byte, char, short and boolean constants are all stored as 4-byte int values.
+                            // Convert and wrap in Byte object.
                             constValue = new Byte(((Integer) constValue).byteValue());
                             break;
-                        case "C":
-                            // Convert char stored in Integer to Character
+                        case 'C':
+                            // byte, char, short and boolean constants are all stored as 4-byte int values.
+                            // Convert and wrap in Character object.
                             constValue = new Character((char) ((Integer) constValue).intValue());
                             break;
-                        case "S":
-                            // Convert char stored in Integer to Short
+                        case 'S':
+                            // byte, char, short and boolean constants are all stored as 4-byte int values.
+                            // Convert and wrap in Short object.
                             constValue = new Short(((Integer) constValue).shortValue());
                             break;
-                        case "Z":
-                            // Convert char stored in Integer to Boolean
+                        case 'Z':
+                            // byte, char, short and boolean constants are all stored as 4-byte int values.
+                            // Convert and wrap in Boolean object.
                             constValue = new Boolean(((Integer) constValue).intValue() != 0);
                             break;
-                        case "I":
-                        case "J":
-                        case "F":
-                        case "D":
-                        case "Ljava.lang.String;":
-                            // Field is int, long, float, double or String => object is already in correct
-                            // wrapper type (Integer, Long, Float, Double or String), nothing to do
+                        case 'I':
+                        case 'J':
+                        case 'F':
+                        case 'D':
+                            // int, long, float or double are already in correct wrapper type (Integer, Long,
+                            // Float, Double or String) -- nothing to do
                             break;
                         default:
-                            // Should never happen:
-                            // constant values can only be stored as an int, long, float, double or String
+                            if ("Ljava/lang/String;".equals(fieldTypeDescriptor)) {
+                                // String constants are already in correct form, nothing to do
+                            } else {
+                                // Should never happen, constant values can only be stored as an int, long,
+                                // float, double or String
+                                throw new RuntimeException("Unknown constant initializer type "
+                                        + fieldTypeDescriptor + " for class " + className
+                                        + " -- please report this on the FastClasspathScanner GitHub page.");
+                            }
                             break;
                         }
                         // Store static final field match in ClassInfo object
