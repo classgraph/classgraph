@@ -159,12 +159,12 @@ public class ClassfileBinaryParser {
         curr += bytesToSkip;
     }
 
-    /** Reads the "modified UTF8" format defined in the Java classfile spec. */
-    private String readString(final int offset) {
+    /** Reads the "modified UTF8" format defined in the Java classfile spec, optionally replacing '/' with '.'. */
+    private String readString(final int offset, final boolean replaceSlashWithDot) {
         final int utfLen = readUnsignedShort(offset);
         final int start = offset + 2;
         final char[] chars = new char[utfLen];
-        int c, c2, c3;
+        int c, c2, c3, c4;
         int byteIdx = 0;
         int charIdx = 0;
         for (; byteIdx < utfLen; byteIdx++) {
@@ -172,7 +172,7 @@ public class ClassfileBinaryParser {
             if (c > 127) {
                 break;
             }
-            chars[charIdx++] = (char) c;
+            chars[charIdx++] = (char) (replaceSlashWithDot && c == '/' ? '.' : c);
         }
         while (byteIdx < utfLen) {
             c = buf[start + byteIdx] & 0xff;
@@ -186,7 +186,7 @@ public class ClassfileBinaryParser {
             case 6:
             case 7:
                 byteIdx++;
-                chars[charIdx++] = (char) c;
+                chars[charIdx++] = (char) (replaceSlashWithDot && c == '/' ? '.' : c);
                 break;
             case 12:
             case 13:
@@ -198,7 +198,8 @@ public class ClassfileBinaryParser {
                 if ((c2 & 0xc0) != 0x80) {
                     throw new RuntimeException("Bad modified UTF8");
                 }
-                chars[charIdx++] = (char) (((c & 0x1f) << 6) | (c2 & 0x3f));
+                c4 = ((c & 0x1f) << 6) | (c2 & 0x3f);
+                chars[charIdx++] = (char) (replaceSlashWithDot && c4 == '/' ? '.' : c4);
                 break;
             case 14:
                 byteIdx += 3;
@@ -210,7 +211,8 @@ public class ClassfileBinaryParser {
                 if (((c2 & 0xc0) != 0x80) || ((c3 & 0xc0) != 0x80)) {
                     throw new RuntimeException("Bad modified UTF8");
                 }
-                chars[charIdx++] = (char) (((c & 0x0f) << 12) | ((c2 & 0x3f) << 6) | ((c3 & 0x3f) << 0));
+                c4 = ((c & 0x0f) << 12) | ((c2 & 0x3f) << 6) | ((c3 & 0x3f) << 0);
+                chars[charIdx++] = (char) (replaceSlashWithDot && c4 == '/' ? '.' : c4);
                 break;
             default:
                 throw new RuntimeException("Bad modified UTF8");
@@ -258,16 +260,22 @@ public class ClassfileBinaryParser {
         return offset[cpIdx];
     }
 
+    /** Get a string from the constant pool, optionally replacing '/' with '.'. */
+    private String getConstantPoolString(final int constantPoolIdx, final boolean replaceSlashWithDot) {
+        int constantPoolStringOffset = getConstantPoolStringOffset(constantPoolIdx);
+        return constantPoolStringOffset == 0 ? null : readString(constantPoolStringOffset, replaceSlashWithDot);
+    }
+
     /** Get a string from the constant pool. */
     private String getConstantPoolString(final int constantPoolIdx) {
         int constantPoolStringOffset = getConstantPoolStringOffset(constantPoolIdx);
-        return constantPoolStringOffset == 0 ? null : readString(constantPoolStringOffset);
+        return constantPoolStringOffset == 0 ? null
+                : readString(constantPoolStringOffset, /* replaceSlashWithDot = */ false);
     }
 
     /** Get a string from the constant pool, and interpret it as a class name by replacing '/' with '.'. */
     private String getConstantPoolClassName(final int constantPoolIdx) {
-        final String str = getConstantPoolString(constantPoolIdx);
-        return str == null ? null : str.replace('/', '.');
+        return getConstantPoolString(constantPoolIdx, /* replaceSlashWithDot = */ true);
     }
 
     /** Compare a string in the constant pool with a given constant, without constructing the String object. */
