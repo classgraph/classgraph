@@ -253,6 +253,9 @@ public class RecursiveScanner {
                 final ClassfileBinaryParser classfileBinaryParser = new ClassfileBinaryParser(scanSpec, log);
                 for (ClassfileResource classfileResource; (classfileResource = classpathResources
                         .poll()) != null; prevClassfileResource = classfileResource) {
+                    if (Thread.interrupted()) {
+                        return;
+                    }
                     final long fileStartTime = System.nanoTime();
                     final boolean classfileResourceIsJar = classfileResource.classpathElt.isFile();
                     // Compare classpath element of current resource to that of previous resource
@@ -713,7 +716,11 @@ public class RecursiveScanner {
                         threads[i].join();
                         threads[i] = null;
                     } catch (final InterruptedException e) {
-                        // Can safely ignore this, the interrupted flag is not being set anywhere
+                        // Interrupt the remaining threads; they will quit after processing the current file
+                        for (int j = i; j < NUM_THREADS; j++) {
+                            threads[i].interrupt();
+                        }
+                        break;
                     }
                 }
                 // Dump out any log output that was added by this thread
