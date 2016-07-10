@@ -24,8 +24,8 @@ Classpath scanning can also be used to produce a visualization of the class grap
 3. [find classes that implement an interface](#3-matching-the-classes-that-implement-an-interface) or one of its subinterfaces, or whose superclasses implement the interface or one of its subinterfaces;
 4. [find classes that have a specific class annotation or meta-annotation](#4-matching-classes-with-a-specific-annotation-or-meta-annotation);
 5. find the constant literal initializer value in a classfile's constant pool for a [specified static final field](#5-fetching-the-constant-initializer-values-of-static-final-fields);
-6. find files (even non-classfiles) anywhere on the classpath that have a [path that matches a given string or regular expression](#6-finding-files-even-non-classfiles-anywhere-on-the-classpath-whose-path-matches-a-given-string-or-regular-expression);
-7. [find all classes that contain a field of a given type](#7-find-all-classes-that-contain-a-field-of-a-given-type) (including identifying fields based on array element type and generic parameter type); 
+6. [find all classes that contain a field of a given type](#6-find-all-classes-that-contain-a-field-of-a-given-type) (including identifying fields based on array element type and generic parameter type); 
+7. find files (even non-classfiles) anywhere on the classpath that have a [path that matches a given string or regular expression](#7-finding-files-even-non-classfiles-anywhere-on-the-classpath-whose-path-matches-a-given-string-or-regular-expression);
 8. perform the actual [classpath scan](#8-performing-the-actual-scan);
 9. [detect changes](#9-detecting-changes-to-classpath-contents-after-the-scan) to the files within the classpath since the first time the classpath was scanned, or alternatively, calculate the MD5 hash of classfiles while scanning, in case using timestamps is insufficiently rigorous for change detection;
 10. return a list of the [names of all classes, interfaces and/or annotations on the classpath](#10-get-a-list-of-all-whitelisted-and-non-blacklisted-classes-interfaces-or-annotations-on-the-classpath) (after whitelist and blacklist filtering);
@@ -40,7 +40,7 @@ Classpath scanning can also be used to produce a visualization of the class grap
 3. FastClasspathScanner handles many [diverse and complicated means](#classpath-mechanisms-handled-by-fastclasspathscanner) used to specify the classpath, and has a pluggable architecture for handling other classpath specification methods (in the general case, finding all classpath elements is not as simple as reading the `java.class.path` system property and/or getting the path URLs from the system `URLClassLoader`).
 4. FastClasspathScanner has built-in support for generating GraphViz visualizations of the classgraph, as shown above.
 5. FastClasspathScanner can find classes not just by annotation, but also by [meta-annotation](#4-matching-classes-with-a-specific-annotation-or-meta-annotation) (e.g. if annotation `A` annotates annotation `B`, and annotation `B` annotates class `C`, you can find class `C` by scanning for classes annotated by annotation `A`). This makes annotations more powerful, as they can be used as a hierarchy of inherited traits (similar to how interfaces work in Java). In the graph above, the class `Figure` has the annotation `@UIWidget`, and the annotation class `UIWidget` has the annotation `@UIElement`, so by transitivity, `Figure` also has the meta-annotation `@UIElement`. 
-6. FastClasspathScanner can find all classes that have fields of a given type (this feature is normally only found in an IDE, e.g. `References > Workspace` in Eclipse).
+6. FastClasspathScanner can find all classes that have [fields of a given type](#6-find-all-classes-that-contain-a-field-of-a-given-type) (this feature is normally only found in an IDE, e.g. `References > Workspace` in Eclipse).
 
 ### Usage
 
@@ -416,7 +416,7 @@ Field values are obtained directly from the constant pool in a classfile, not fr
 
 This can be useful in hot-swapping of changes to static constants in classfiles if the constant value is changed and the class is re-compiled while the code is running. (Neither the JVM nor the Eclipse debugger will hot-replace static constant initializer values if you change them while running code, so you can pick up changes this way instead). 
 
-By default, this only matches static final fields that have public visibility. To override this (and allow the matching of private, protected and package-private static final fields), call `.ignoreFieldVisibility()` before calling `.scan()`. (This will cause the scan to take longer and consume more memory. By default, only public fields are scanned for efficiency reasons, and to conservatively respect the Java visibility rules.)
+By default, this only matches static final fields that have public visibility. To override this (and allow the matching of private, protected and package-private static final fields), call `.ignoreFieldVisibility()` before calling `.scan()`. This may cause the scan to take longer and consume more memory. (By default, only public fields are scanned for efficiency reasons, and to conservatively respect the Java visibility rules.)
 
 ```java
 // Only Mechanism 1 is applicable -- attach a MatchProcessor before calling .scan():
@@ -456,7 +456,37 @@ final int q = 5;                    // Non-static
 
 Primitive types (int, long, short, float, double, boolean, char, byte) are boxed in the corresponding wrapper class (Integer, Long etc.) before being passed to the provided StaticFinalFieldMatchProcessor.
 
-### 6. Finding files (even non-classfiles) anywhere on the classpath whose path matches a given string or regular expression
+### 6. Find all classes that contain a field of a given type
+
+One of the more unique capabilities of FastClasspathScanner is to find classes in the whitelisted (non-blacklisted) package hierarchy that have fields of a given type, assuming both the class and the types of its fields are in whitelisted (non-blacklisted) packages. (In particular, you cannot search for fields of a type defined in a system package, e.g. `java.lang.String` or `java.lang.Object` by default, because system packages are always blacklisted by default -- this can be overridden by passing `"!"` or `"!!"` to the [constructor](#constructor).)
+
+Matching field types also matches type parameters and array types. For example, `.getNamesOfClassesWithFieldOfType("com.xyz.Widget")` will match classes that contain fields of the form:
+
+* `Widget widget`
+* `Widget[] widgets`
+* `ArrayList<? extends Widget> widgetList`
+* `HashMap<String, Widget> idToWidget`
+* etc.
+
+By default, only the types of public fields are indexed. To override this (and allow the indexing of private, protected and package-private fields), call `.ignoreFieldVisibility()` before calling `.scan()`. This may cause the scan to take longer and consume more memory. (By default, only public fields are scanned for efficiency reasons, and to conservatively respect the Java visibility rules.)
+
+```java
+// Mechanism 1: Attach a MatchProcessor before calling .scan():
+
+@FunctionalInterface
+public interface ClassMatchProcessor {
+    public void processMatch(Class<?> klass);
+}
+
+public <T> FastClasspathScanner matchClassesWithFieldOfType(Class<T> fieldType,
+        ClassMatchProcessor classMatchProcessor)
+
+// Mechanism 2: Call the following after calling .scan():
+
+public List<String> getNamesOfClassesWithFieldOfType(Class<?> fieldType | String fieldTypeName)
+```
+
+### 7. Finding files (even non-classfiles) anywhere on the classpath whose path matches a given string or regular expression
 
 This can be useful for detecting changes to non-classfile resources on the classpath, for example a web server's template engine can hot-reload HTML templates when they change by including the template directory in the classpath and then detecting changes to files that are in the template directory and have the extension ".html".
 
@@ -526,36 +556,6 @@ public FastClasspathScanner matchFilenameExtension(String extensionToMatch,
         | FileMatchProcessorWithContext fileMatchProcessorWithContext 
         | FileMatchContentsProcessor fileMatchContentsProcessor
         | FileMatchContentsProcessorWithContext fileMatchContentsProcessorWithContext)
-```
-
-### 7. Find all classes that contain a field of a given type
-
-One of the more unique capabilities of FastClasspathScanner is to find classes in the whitelisted (non-blacklisted) package hierarchy that have fields of a given type, assuming both the class and the types of its fields are in whitelisted (non-blacklisted) packages. (In particular, you cannot search for fields of a type defined in a system package, e.g. `java.lang.String` or `java.lang.Object` by default, because system packages are always blacklisted by default -- this can be overridden by passing `"!"` or `"!!"` to the [constructor](#constructor).)
-
-Matching field types also matches type parameters and array types. For example, `.getNamesOfClassesWithFieldOfType("com.xyz.Widget")` will match classes that contain fields of the form:
-
-* `Widget widget`
-* `Widget[] widgets`
-* `ArrayList<? extends Widget> widgetList`
-* `HashMap<String, Widget> idToWidget`
-* etc.
-
-By default, only the types of public fields can be matched. To override this (and allow the matching of private, protected and package-private static final fields), call `.ignoreFieldVisibility()` before calling `.scan()`. (This will cause the scan to take longer and consume more memory. By default, only public fields are scanned for efficiency reasons, and to conservatively respect the Java visibility rules.)  
-
-```java
-// Mechanism 1: Attach a MatchProcessor before calling .scan():
-
-@FunctionalInterface
-public interface ClassMatchProcessor {
-    public void processMatch(Class<?> klass);
-}
-
-public <T> FastClasspathScanner matchClassesWithFieldOfType(Class<T> fieldType,
-        ClassMatchProcessor classMatchProcessor)
-
-// Mechanism 2: Call the following after calling .scan():
-
-public List<String> getNamesOfClassesWithFieldOfType(Class<?> fieldType | String fieldTypeName)
 ```
 
 ### 8. Performing the actual scan
