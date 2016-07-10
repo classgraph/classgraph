@@ -301,9 +301,9 @@ public class RecursiveScanner {
                         // If class was successfully read, add new ClassInfoUnlinked object to output queue
                         if (thisClassInfoUnlinked != null) {
                             classInfoUnlinkedOut.add(thisClassInfoUnlinked);
+                            // Log info about class
+                            thisClassInfoUnlinked.logClassInfo(log);
                         }
-                        // Log info about class
-                        thisClassInfoUnlinked.logClassInfo(log);
                         
                     } catch (final IOException e) {
                         if (FastClasspathScanner.verbose) {
