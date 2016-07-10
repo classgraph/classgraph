@@ -123,6 +123,10 @@ public class ClasspathFinder {
                 return new File(resolveBaseFile.toURI().resolve(new URL(pathStr).toURI()));
             }
         } catch (final Exception e) {
+            if (FastClasspathScanner.verbose) {
+                Log.log("Exception while constructing classpath entry from base file " + resolveBaseFile
+                        + " and relative path " + relativePathStr + ": " + e);
+            }
             return null;
         }
     }
