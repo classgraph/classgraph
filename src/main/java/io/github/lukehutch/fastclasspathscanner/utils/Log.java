@@ -6,6 +6,7 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 
@@ -76,6 +77,8 @@ public class Log {
 
     private static DecimalFormat nanoFormatter = new DecimalFormat("0.000000");
 
+    private static AtomicBoolean versionLogged = new AtomicBoolean(false);
+
     private Log() {
     }
 
@@ -93,6 +96,10 @@ public class Log {
     }
 
     public static void log(final int indentLevel, final String msg) {
+        if (versionLogged.compareAndSet(false, true)) {
+            // Log the version before the first log entry
+            log("FastClasspathScanner version " + FastClasspathScanner.getVersion());
+        }
         System.err.println(dateTimeFormatter.format(Instant.now()) + "\t"
                 + FastClasspathScanner.class.getSimpleName() + "\t" + indent(indentLevel, msg));
     }
@@ -108,9 +115,7 @@ public class Log {
         synchronized (nanoFormatter) {
             elapsed = nanoFormatter.format(elapsedTimeNanos * 1e-9);
         }
-        System.err
-                .println(dateTimeFormatter.format(Instant.now()) + "\t" + FastClasspathScanner.class.getSimpleName()
-                        + "\t" + indent(indentLevel, msg) + " in " + elapsed + " sec");
+        log(indent(indentLevel, msg) + " in " + elapsed + " sec");
     }
 
     public static void log(final String msg, final long elapsedTimeNanos) {
