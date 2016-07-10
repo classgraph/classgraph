@@ -97,16 +97,18 @@ public class ClasspathFinder {
         if (pathStr.startsWith("jar:")) {
             pathStr = pathStr.substring(4);
         }
-        // Prepend "file:" if it's not already present
-        if (!pathStr.startsWith("file:") && !pathStr.startsWith("http:") && !pathStr.startsWith("https:")) {
-            pathStr = "file:" + pathStr;
-        }
         // We don't fetch remote classpath entries, although they are theoretically valid if using a URLClassLoader
         if (pathStr.startsWith("http:") || pathStr.startsWith("https:")) {
             if (FastClasspathScanner.verbose) {
                 Log.log("Ignoring remote entry in classpath: " + pathStr);
             }
             return null;
+        }
+        // Relative URLs can't start with "file:" (this causes an exception to be thrown);
+        // absolute URLs will have '/' after "file:" or at the beginning of the string,
+        // and we only deal with "file:" URLs, so we can just strip this off
+        if (pathStr.startsWith("file:")) {
+            pathStr = pathStr.substring(5);
         }
         try {
             if (resolveBaseFile == null) {
@@ -186,12 +188,12 @@ public class ClasspathFinder {
                     final File parentPathFile = pathFile.getParentFile();
                     // Class-Path entries in manifest files are a space-delimited list of URIs.
                     for (final String manifestClassPathElement : manifestClassPath.split(" ")) {
-                        final File manifestEltPath = urlToFile(pathFile, manifestClassPathElement);
+                        final File manifestEltPath = urlToFile(parentPathFile, manifestClassPathElement);
                         if (manifestEltPath != null) {
                             addClasspathElement(manifestEltPath.toString());
                         } else {
                             if (FastClasspathScanner.verbose) {
-                                Log.log("Classpath element " + new File(parentPathFile, manifestClassPathElement)
+                                Log.log("Classpath element " + manifestEltPath
                                         + " not found -- from Class-Path entry " + manifestClassPathElement + " in "
                                         + manifestUrlStr);
                             }
