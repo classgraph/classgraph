@@ -236,7 +236,7 @@ public class RecursiveScanner {
 
         public ClassfileBinaryParserCaller(final Queue<ClassfileResource> classfileResourcesToScan,
                 final Queue<ClassInfoUnlinked> classInfoUnlinkedOut,
-                final ConcurrentHashMap<String, String> stringInternMap, AtomicBoolean killThreads,
+                final ConcurrentHashMap<String, String> stringInternMap, final AtomicBoolean killThreads,
                 final DeferredLog log) {
             this.classpathResources = classfileResourcesToScan;
             this.classInfoUnlinkedOut = classInfoUnlinkedOut;
@@ -304,7 +304,7 @@ public class RecursiveScanner {
                             // Log info about class
                             thisClassInfoUnlinked.logClassInfo(log);
                         }
-                        
+
                     } catch (final IOException e) {
                         if (FastClasspathScanner.verbose) {
                             log.log(2,
@@ -714,7 +714,7 @@ public class RecursiveScanner {
             }
         } finally {
             // Wait for thread termination
-            boolean wasInterrupted = false;
+            final boolean wasInterrupted = false;
             for (int i = 0; i < NUM_THREADS; i++) {
                 if (threads[i] != null) {
                     try {

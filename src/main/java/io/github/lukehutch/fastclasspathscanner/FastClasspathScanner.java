@@ -250,6 +250,28 @@ public class FastClasspathScanner {
         return "unknown";
     }
 
+    /**
+     * If ignoreFieldVisibility is true, causes FastClasspathScanner to ignore field visibility, enabling it to see
+     * private, package-private and protected fields. This affects finding classes with fields of a given type, as
+     * well as matching static final fields with constant initializers. If false, fields must be public to be
+     * indexed/matched.
+     */
+    public FastClasspathScanner ignoreFieldVisibility(final boolean ignoreFieldVisibility) {
+        getScanSpec().ignoreFieldVisibility = ignoreFieldVisibility;
+        return this;
+    }
+
+    /**
+     * This method causes FastClasspathScanner to ignore field visibility, enabling it to see private,
+     * package-private and protected fields. This affects finding classes with fields of a given type, as well as
+     * matching static final fields with constant initializers. If false, fields must be public to be
+     * indexed/matched.
+     */
+    public FastClasspathScanner ignoreFieldVisibility() {
+        ignoreFieldVisibility(true);
+        return this;
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**

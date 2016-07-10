@@ -416,7 +416,7 @@ Field values are obtained directly from the constant pool in a classfile, not fr
 
 This can be useful in hot-swapping of changes to static constants in classfiles if the constant value is changed and the class is re-compiled while the code is running. (Neither the JVM nor the Eclipse debugger will hot-replace static constant initializer values if you change them while running code, so you can pick up changes this way instead). 
 
-**Note:** The visibility of the fields is not checked; the value of the field in the classfile is returned whether or not it should be visible to the caller. Therefore you should probably only use this method with public static final fields (not just static final fields) to coincide with Java's own semantics.
+By default, this only matches static final fields that have public visibility. To override this (and allow the matching of private, protected and package-private static final fields), call `.ignoreFieldVisibility()` before calling `.scan()`. (This will cause the scan to take longer and consume more memory. By default, only public fields are scanned for efficiency reasons, and to conservatively respect the Java visibility rules.)
 
 ```java
 // Only Mechanism 1 is applicable -- attach a MatchProcessor before calling .scan():
@@ -530,7 +530,7 @@ public FastClasspathScanner matchFilenameExtension(String extensionToMatch,
 
 ### 7. Find all classes that contain a field of a given type
 
-One of the more unique capabilities of FastClasspathScanner is to find classes in the whitelisted (non-blacklisted) package hierarchy that have fields of a given type, assuming both the class and the types of its fields are in whitelisted (non-blacklisted) packages. (In particular, you cannot search for fields of a type defined in a system package, e.g. `java.lang.String` or `java.lang.Object`, because system packages are always blacklisted.)
+One of the more unique capabilities of FastClasspathScanner is to find classes in the whitelisted (non-blacklisted) package hierarchy that have fields of a given type, assuming both the class and the types of its fields are in whitelisted (non-blacklisted) packages. (In particular, you cannot search for fields of a type defined in a system package, e.g. `java.lang.String` or `java.lang.Object` by default, because system packages are always blacklisted by default -- this can be overridden by passing `"!"` or `"!!"` to the [constructor](#constructor).)
 
 Matching field types also matches type parameters and array types. For example, `.getNamesOfClassesWithFieldOfType("com.xyz.Widget")` will match classes that contain fields of the form:
 
@@ -539,6 +539,8 @@ Matching field types also matches type parameters and array types. For example, 
 * `ArrayList<? extends Widget> widgetList`
 * `HashMap<String, Widget> idToWidget`
 * etc.
+
+By default, only the types of public fields can be matched. To override this (and allow the matching of private, protected and package-private static final fields), call `.ignoreFieldVisibility()` before calling `.scan()`. (This will cause the scan to take longer and consume more memory. By default, only public fields are scanned for efficiency reasons, and to conservatively respect the Java visibility rules.)  
 
 ```java
 // Mechanism 1: Attach a MatchProcessor before calling .scan():
@@ -661,7 +663,10 @@ or similar, generating a graph with the following conventions:
   <img src="https://github.com/lukehutch/fast-classpath-scanner/blob/master/src/test/java/com/xyz/classgraph-fig-legend.png" alt="Class graph legend"/>
 </p>
 
-**Note:** Graph nodes will only be added for classes, interfaces and annotations that are within whitelisted (non-blacklisted) packages. In particular, the Java standard libraries are excluded from classpath scanning for efficiency, so these classes will never appear in class graph visualizations.
+**Notes:**
+
+1. Graph nodes will only be added for classes, interfaces and annotations that are within whitelisted (non-blacklisted) packages. In particular, the Java standard libraries are excluded by default from classpath scanning for efficiency, so these classes will not by default appear in class graph visualizations. (Override this by passing `"!"` or `"!!"` to the [constructor](#constructor).)
+2. Only public fields are scanned by default, so the graph won't show relationships between a class and the field types of the class unless the fields are public, or `.ignoreFieldVisibility()` is called before `.scan()`.   
 
 ## Parallel classpath scanning
 

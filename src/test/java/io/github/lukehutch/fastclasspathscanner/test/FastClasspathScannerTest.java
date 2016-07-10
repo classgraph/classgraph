@@ -300,6 +300,26 @@ public class FastClasspathScannerTest {
                     @Override
                     public void processMatch(final String className, final String fieldName,
                             final Object fieldConstantValue) {
+                        readStaticFieldCount.incrementAndGet();
+                    }
+                }).scan();
+        assertThat(readStaticFieldCount.get()).isEqualTo(0);
+    }
+
+    @Test
+    public void scanStaticFinalFieldNameIgnoreVisibility() throws Exception {
+        final AtomicInteger readStaticFieldCount = new AtomicInteger(0);
+        final HashSet<String> fieldNames = new HashSet<>();
+        for (final String fieldName : new String[] { "stringField", "intField", "boolField", "charField",
+                "integerField", "booleanField" }) {
+            fieldNames.add(StaticField.class.getName() + "." + fieldName);
+        }
+        new FastClasspathScanner(WHITELIST_PACKAGE) //
+                .ignoreFieldVisibility()
+                .matchStaticFinalFieldNames(fieldNames, new StaticFinalFieldMatchProcessor() {
+                    @Override
+                    public void processMatch(final String className, final String fieldName,
+                            final Object fieldConstantValue) {
                         switch (fieldName) {
                         case "stringField":
                             assertThat("Static field contents").isEqualTo(fieldConstantValue);
@@ -343,11 +363,11 @@ public class FastClasspathScannerTest {
 
     @Test
     public void hasFieldWithRequestedType() {
-        assertThat(
-                new FastClasspathScanner(ROOT_PACKAGE).scan().getNamesOfClassesWithFieldOfType(Cls.class.getName()))
-                        .containsOnly(HasFieldWithTypeCls1.class.getName(), HasFieldWithTypeCls2.class.getName(),
-                                HasFieldWithTypeCls3.class.getName(), HasFieldWithTypeCls4.class.getName(),
-                                HasFieldWithTypeCls5.class.getName(), HasFieldWithTypeCls6.class.getName(),
-                                HasFieldWithTypeCls7.class.getName());
+        assertThat(new FastClasspathScanner(ROOT_PACKAGE).ignoreFieldVisibility().scan()
+                .getNamesOfClassesWithFieldOfType(Cls.class.getName())).containsOnly(
+                        HasFieldWithTypeCls1.class.getName(), HasFieldWithTypeCls2.class.getName(),
+                        HasFieldWithTypeCls3.class.getName(), HasFieldWithTypeCls4.class.getName(),
+                        HasFieldWithTypeCls5.class.getName(), HasFieldWithTypeCls6.class.getName(),
+                        HasFieldWithTypeCls7.class.getName());
     }
 }

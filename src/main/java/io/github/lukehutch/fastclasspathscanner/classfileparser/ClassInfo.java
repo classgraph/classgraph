@@ -61,15 +61,15 @@ public class ClassInfo implements Comparable<ClassInfo> {
         public Set<String> fieldTypes;
         public Map<String, Object> staticFinalFieldValues;
 
-        private ConcurrentHashMap<String, String> stringInternMap;
+        private final ConcurrentHashMap<String, String> stringInternMap;
 
-        private String intern(String string) {
-            String oldValue = stringInternMap.putIfAbsent(string, string);
+        private String intern(final String string) {
+            final String oldValue = stringInternMap.putIfAbsent(string, string);
             return oldValue == null ? string : oldValue;
         }
 
         public ClassInfoUnlinked(final String className, final boolean isInterface, final boolean isAnnotation,
-                ConcurrentHashMap<String, String> stringInternMap) {
+                final ConcurrentHashMap<String, String> stringInternMap) {
             this.stringInternMap = stringInternMap;
             this.className = intern(className);
             this.isInterface = isInterface;
@@ -136,7 +136,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
             }
         }
 
-        public void logClassInfo(DeferredLog log) {
+        public void logClassInfo(final DeferredLog log) {
             if (FastClasspathScanner.verbose) {
                 log.log(2,
                         "Found " + (isAnnotation ? "annotation class" : isInterface ? "interface class" : "class")
@@ -155,7 +155,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
                     log.log(3, "Field types: " + String.join(", ", fieldTypes));
                 }
                 if (staticFinalFieldValues != null) {
-                    List<String> fieldInitializers = new ArrayList<>();
+                    final List<String> fieldInitializers = new ArrayList<>();
                     for (final Entry<String, Object> ent : staticFinalFieldValues.entrySet()) {
                         fieldInitializers.add(ent.getKey() + " = " + ent.getValue());
                     }

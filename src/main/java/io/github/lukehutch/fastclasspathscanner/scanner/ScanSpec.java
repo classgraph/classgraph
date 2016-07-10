@@ -61,6 +61,12 @@ public class ScanSpec {
      */
     public boolean blacklistSystemPackages = true;
 
+    /**
+     * If true, ignore field visibility (affects finding classes with fields of a given type, and matching of static
+     * final fields with constant initializers). If false, fields must be public to be indexed/matched.
+     */
+    public boolean ignoreFieldVisibility = false;
+
     public ScanSpec(final String[] scanSpecs) {
         final HashSet<String> uniqueWhitelistedPathPrefixes = new HashSet<>();
         final HashSet<String> uniqueBlacklistedPathPrefixes = new HashSet<>();

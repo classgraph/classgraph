@@ -140,7 +140,7 @@ public class ClasspathFinder {
         String pathStr;
         try {
             pathStr = pathFile.getCanonicalPath();
-        } catch (IOException e) {
+        } catch (final IOException e) {
             if (FastClasspathScanner.verbose) {
                 Log.log("Exception while getting canonical path for classpath element " + pathElement + ": " + e);
             }
