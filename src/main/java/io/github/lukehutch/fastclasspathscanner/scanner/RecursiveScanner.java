@@ -717,12 +717,15 @@ public class RecursiveScanner {
                     }
                 }
                 // Dump out any log output that was added by this thread
+                if (FastClasspathScanner.verbose) {
+                    Log.log(1, "Parallel scan logs from thread " + i + ":");
+                }
                 logs[i].flush();
             }
         }
 
         if (FastClasspathScanner.verbose) {
-            Log.log(2, "Parsed classfile binaries", System.nanoTime() - parseStartTime);
+            Log.log(1, "Finished parallel scan of classfile binaries", System.nanoTime() - parseStartTime);
         }
 
         // -----------------------------------------------------------------------------------------------------
@@ -748,24 +751,31 @@ public class RecursiveScanner {
             }
 
             // Call static final field match processors on matching fields
-            for (final ClassInfo classInfo : classNameToClassInfo.values()) {
-                if (classInfo.fieldValues != null) {
-                    for (final Entry<String, Object> ent : classInfo.fieldValues.entrySet()) {
-                        final String fieldName = ent.getKey();
-                        final Object constValue = ent.getValue();
-                        final String fullyQualifiedFieldName = classInfo.className + "." + fieldName;
-                        final ArrayList<StaticFinalFieldMatchProcessor> staticFinalFieldMatchProcessors = //
-                                fullyQualifiedFieldNameToStaticFinalFieldMatchProcessors
-                                        .get(fullyQualifiedFieldName);
-                        if (staticFinalFieldMatchProcessors != null) {
-                            if (FastClasspathScanner.verbose) {
-                                Log.log(1, "Calling MatchProcessor for static final field " + classInfo.className
-                                        + "." + fieldName + " = " + constValue);
-                            }
-                            for (final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor : //
-                            staticFinalFieldMatchProcessors) {
-                                staticFinalFieldMatchProcessor.processMatch(classInfo.className, fieldName,
-                                        constValue);
+            if (fullyQualifiedFieldNameToStaticFinalFieldMatchProcessors != null) {
+                for (final ClassInfo classInfo : classNameToClassInfo.values()) {
+                    if (classInfo.fieldValues != null) {
+                        for (final Entry<String, Object> ent : classInfo.fieldValues.entrySet()) {
+                            final String fieldName = ent.getKey();
+                            final Object constValue = ent.getValue();
+                            final String fullyQualifiedFieldName = classInfo.className + "." + fieldName;
+                            final ArrayList<StaticFinalFieldMatchProcessor> staticFinalFieldMatchProcessors = //
+                                    fullyQualifiedFieldNameToStaticFinalFieldMatchProcessors
+                                            .get(fullyQualifiedFieldName);
+                            if (staticFinalFieldMatchProcessors != null) {
+                                String constValueStrRep = (constValue instanceof Character)
+                                        ? '\'' + constValue.toString().replace("'", "\\'") + '\''
+                                        : (constValue instanceof String)
+                                                ? '"' + constValue.toString().replace("\"", "\\\"") + '"'
+                                                : constValue.toString();
+                                if (FastClasspathScanner.verbose) {
+                                    Log.log(1, "Calling MatchProcessor for static final field "
+                                            + classInfo.className + "." + fieldName + " = " + constValueStrRep);
+                                }
+                                for (final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor : //
+                                staticFinalFieldMatchProcessors) {
+                                    staticFinalFieldMatchProcessor.processMatch(classInfo.className, fieldName,
+                                            constValue);
+                                }
                             }
                         }
                     }

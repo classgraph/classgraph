@@ -1077,7 +1077,7 @@ public class FastClasspathScanner {
                 fullyQualifiedFieldNameToStaticFinalFieldMatchProcessors.get(fullyQualifiedFieldName);
         if (matchProcessorList == null) {
             fullyQualifiedFieldNameToStaticFinalFieldMatchProcessors.put(fullyQualifiedFieldName,
-                    matchProcessorList = new ArrayList<>(1));
+                    matchProcessorList = new ArrayList<>(4));
         }
         matchProcessorList.add(staticFinalFieldMatchProcessor);
         HashSet<String> staticFinalFieldsToMatch = classNameToStaticFinalFieldsToMatch.get(className);
