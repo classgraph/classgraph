@@ -31,6 +31,8 @@ package io.github.lukehutch.fastclasspathscanner.classpath;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.MalformedURLException;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
@@ -104,25 +106,39 @@ public class ClasspathFinder {
             }
             return null;
         }
-        // Relative URLs can't start with "file:" (this causes an exception to be thrown);
-        // absolute URLs will have '/' after "file:" or at the beginning of the string,
-        // and we only deal with "file:" URLs, so we can just strip this off
+        // Turn any backslash separators into forward slashes since we want to end up with a URL
+        if (pathStr.indexOf('\\') >= 0) {
+            pathStr = pathStr.replace('\\', '/');
+        }
+        // Strip off any "file:" prefix from relative path
+        if (pathStr.startsWith("file://")) {
+            pathStr = pathStr.substring(7);
+        }
         if (pathStr.startsWith("file:")) {
             pathStr = pathStr.substring(5);
         }
+        // Handle windows drive designations by turning them into an absolute URL, if they're not already
+        if (pathStr.length() > 2 && Character.isLetter(pathStr.charAt(0)) && pathStr.charAt(1) == ':') {
+            pathStr = '/' + pathStr;
+        }
         try {
-            if (resolveBaseFile == null) {
-                return new File(new URL(pathStr).toURI());
-            } else {
-                // Try parsing the path element as a URL, then as a URI, then as a filesystem path.
+            if (pathStr.startsWith("/")) {
+                // If path is an absolute path, ignore the base path.
                 // Need to deal with possibly-broken mixes of file:// URLs and system-dependent path formats -- see:
                 // https://weblogs.java.net/blog/kohsuke/archive/2007/04/how_to_convert.html
                 // http://stackoverflow.com/a/17870390/3950982
                 // i.e. the recommended way to do this is URL -> URI -> Path, especially to handle weirdness on
                 // Windows. However, we skip the last step, because Path is slow.
-                return new File(resolveBaseFile.toURI().resolve(new URL(pathStr).toURI()));
+                return new File(new URL("file:" + pathStr).toURI());
+            } else {
+                // If path is a relative path, resolve it relative to the base path
+                String base = resolveBaseFile.toURI().toString();
+                if (!base.endsWith("/")) {
+                    base += "/";
+                }
+                return new File(new URL(base + pathStr).toURI());
             }
-        } catch (final Exception e) {
+        } catch (MalformedURLException | URISyntaxException e) {
             if (FastClasspathScanner.verbose) {
                 Log.log("Exception while constructing classpath entry from base file " + resolveBaseFile
                         + " and relative path " + relativePathStr + ": " + e);
