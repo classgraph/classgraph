@@ -3,11 +3,11 @@ package io.github.lukehutch.fastclasspathscanner.utils;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-import io.github.lukehutch.fastclasspathscanner.scanner.ScanningInterruptedException;
+import io.github.lukehutch.fastclasspathscanner.scanner.ScanInterruptedException;
 
 /**
  * Utility class for checking if this thread or any other thread sharing this InterruptChecker has been interrupted,
- * and if so, die by throwing ScanningInterruptedException. An instance of this class should be shared between all
+ * and if so, die by throwing ScanInterruptedException. An instance of this class should be shared between all
  * threads that should be interrupted together if any one of the threads is interrupted.
  */
 public class InterruptionChecker {
@@ -15,7 +15,7 @@ public class InterruptionChecker {
 
     /**
      * Check if this thread or any other thread sharing this InterruptChecker has been interrupted, and if so, throw
-     * ScanningInterruptedException.
+     * ScanInterruptedException.
      */
     public void check() {
         if (Thread.interrupted() || interrupted.get()) {
@@ -24,7 +24,7 @@ public class InterruptionChecker {
     }
 
     /**
-     * Interrupt all threads sharing this InterruptChecker, and throw ScanningInterruptedException in this thread.
+     * Interrupt all threads sharing this InterruptChecker, and throw ScanInterruptedException in this thread.
      */
     public void interrupt() {
         Thread.currentThread().interrupt();
@@ -34,6 +34,6 @@ public class InterruptionChecker {
         if (FastClasspathScanner.verbose) {
             Log.log(msg);
         }
-        throw new ScanningInterruptedException(msg);
+        throw new ScanInterruptedException(msg);
     }
 }

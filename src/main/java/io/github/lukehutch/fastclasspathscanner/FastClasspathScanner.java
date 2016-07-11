@@ -1628,6 +1628,9 @@ public class FastClasspathScanner {
      * @param numWorkerThreads
      *            The number of worker threads to use while scanning, not including the main thread. Will not use
      *            worker threads in numWorkerThreads < 2.
+     * @throws ScanInterruptedException
+     *             if the scan is interrupted by the interrupt status being set on the main thread or any worker
+     *             threads. If you care about thread interruption, you should catch this exception.
      */
     public synchronized FastClasspathScanner scan(ExecutorService executorService, int numWorkerThreads) {
         getRecursiveScanner().scan(executorService, numWorkerThreads);
@@ -1644,6 +1647,9 @@ public class FastClasspathScanner {
      * @param numWorkerThreads
      *            The number of worker threads to use while scanning, not including the main thread. Will not use
      *            worker threads in numWorkerThreads < 2.
+     * @throws ScanInterruptedException
+     *             if the scan is interrupted by the interrupt status being set on the main thread or any worker
+     *             threads. If you care about thread interruption, you should catch this exception.
      */
     public synchronized FastClasspathScanner scan(int numWorkerThreads) {
         if (numWorkerThreads >= 2) {
@@ -1680,6 +1686,9 @@ public class FastClasspathScanner {
      * 
      * @param executorService
      *            A custom ExecutorService to use for scheduling worker threads.
+     * @throws ScanInterruptedException
+     *             if the scan is interrupted by the interrupt status being set on the main thread or any worker
+     *             threads. If you care about thread interruption, you should catch this exception.
      */
     public synchronized FastClasspathScanner scan(ExecutorService executorService) {
         getRecursiveScanner().scan(executorService, DEFAULT_NUM_WORKER_THREADS);
@@ -1694,6 +1703,10 @@ public class FastClasspathScanner {
      * This method should be called before any "getNamesOf" methods (e.g. getNamesOfSubclassesOf()).
      * 
      * Uses the default number of worker threads and a default fixed thread pool for scanning.
+     * 
+     * @throws ScanInterruptedException
+     *             if the scan is interrupted by the interrupt status being set on the main thread or any worker
+     *             threads. If you care about thread interruption, you should catch this exception.
      */
     public synchronized FastClasspathScanner scan() {
         return scan(DEFAULT_NUM_WORKER_THREADS);

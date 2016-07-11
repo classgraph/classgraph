@@ -640,8 +640,8 @@ public class RecursiveScanner {
                         // This main thread was interrupted. Re-set the interrupt status.
                         Thread.currentThread().interrupt();
                     } catch (ExecutionException e) {
-                        if (e.getCause() instanceof ScanningInterruptedException) {
-                            // A worker thread was interrupted (the worker will throw ScanningInterruptedException,
+                        if (e.getCause() instanceof ScanInterruptedException) {
+                            // A worker thread was interrupted (the worker will throw ScanInterruptedException,
                             // which is wrapped in an ExecutionException). Set the interrupt status of main thread.
                             Thread.currentThread().interrupt();
                         } else {
@@ -650,7 +650,7 @@ public class RecursiveScanner {
                     }
                     // Show log output for worker thread
                     log.flush();
-                    // Throw ScanningInterruptedException, and also interrupt the other worker threads.
+                    // Throw ScanInterruptedException, and also interrupt the other worker threads.
                     interruptionChecker.check();
                 }
             } else {

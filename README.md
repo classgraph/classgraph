@@ -563,10 +563,12 @@ public FastClasspathScanner matchFilenameExtension(String extensionToMatch,
 The `.scan()` method performs the actual scan. This method may be called multiple times after the initialization steps shown above, although there is usually no point performing additional scans unless `classpathContentsModifiedSinceScan()` returns true.
 
 ```java
-public void scan()
+public FastClasspathScanner scan()
 ```
 
-As the scan proceeds, for all match processors that deal with classfiles (i.e. for all but FileMatchProcessor), if the same fully-qualified class name is encountered more than once on the classpath, the second and subsequent definitions of the class are ignored, in order to follow Java's class masking behavior.
+As the scan proceeds, for all match processors that deal with classfiles (i.e. for all but FileMatchProcessor), if the same fully-qualified class name is encountered more than once on the classpath, the second and subsequent definitions of the class are ignored, in order to follow Java's class masking behavior. The same is true of file matches in general (if two or more non-classfile files in the classpath have the same path relative to their respective classpath elements, all but the first will be ignored).
+
+If the scan is interrupted by the interrupt status being set on the main thread or any worker threads, then `.scan()` will throw the unchecked exception `ScanInterruptedException`. If you care about thread interruption, you should catch this exception.
 
 ### 9. Detecting changes to classpath contents after the scan
 
