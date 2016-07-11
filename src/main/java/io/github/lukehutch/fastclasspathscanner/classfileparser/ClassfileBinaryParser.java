@@ -8,8 +8,9 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassInfo.ClassInfoUnlinked;
+import io.github.lukehutch.fastclasspathscanner.scanner.ClassInfoUnlinked;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
+import io.github.lukehutch.fastclasspathscanner.utils.InterruptionChecker;
 import io.github.lukehutch.fastclasspathscanner.utils.Log.DeferredLog;
 
 /**
@@ -27,11 +28,16 @@ public class ClassfileBinaryParser {
     /** The InputStream for the current classfile. Set by each call to readClassInfoFromClassfileHeader(). */
     private InputStream inputStream;
 
+    /** Used to interrupt all threads if any of them is interrupted. */
+    private final InterruptionChecker interruptionChecker;
+
     /** The name of the current classfile. Determined early in the call to readClassInfoFromClassfileHeader(). */
     private String className;
 
-    public ClassfileBinaryParser(final ScanSpec scanSpec, final DeferredLog log) {
+    public ClassfileBinaryParser(final ScanSpec scanSpec, final InterruptionChecker interruptionChecker,
+            final DeferredLog log) {
         this.scanSpec = scanSpec;
+        this.interruptionChecker = interruptionChecker;
         this.log = log;
     }
 
@@ -78,6 +84,7 @@ public class ClassfileBinaryParser {
         int extraBytesStillNotRead = extraBytesNeeded;
         while (extraBytesStillNotRead > 0) {
             final int bytesRead = inputStream.read(buf, used, bytesToRequest);
+            interruptionChecker.check();
             if (bytesRead > 0) {
                 used += bytesRead;
                 bytesToRequest -= bytesRead;

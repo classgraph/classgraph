@@ -42,6 +42,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 import java.util.regex.Pattern;
 
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -106,6 +109,12 @@ public class FastClasspathScanner {
 
     /** A list of class matchers to call once all classes have been read in from classpath. */
     private final ArrayList<ClassMatcher> classMatchers = new ArrayList<>();
+
+    /**
+     * The default number of worker threads to use while scanning. This number gave the best results on a relatively
+     * modern laptop with SSD, while scanning a large classpath.
+     */
+    private static final int DEFAULT_NUM_WORKER_THREADS = 7;
 
     /** If set to true, print info while scanning */
     public static boolean verbose = false;
@@ -1613,10 +1622,81 @@ public class FastClasspathScanner {
      * This method should be called after all required match processors have been added.
      * 
      * This method should be called before any "getNamesOf" methods (e.g. getNamesOfSubclassesOf()).
+     * 
+     * @param executorService
+     *            A custom ExecutorService to use for scheduling worker threads.
+     * @param numWorkerThreads
+     *            The number of worker threads to use while scanning, not including the main thread. Will not use
+     *            worker threads in numWorkerThreads < 2.
+     */
+    public synchronized FastClasspathScanner scan(ExecutorService executorService, int numWorkerThreads) {
+        getRecursiveScanner().scan(executorService, numWorkerThreads);
+        return this;
+    }
+
+    /**
+     * Scans the classpath for matching files, and calls any match processors if a match is identified.
+     * 
+     * This method should be called after all required match processors have been added.
+     * 
+     * This method should be called before any "getNamesOf" methods (e.g. getNamesOfSubclassesOf()).
+     * 
+     * @param numWorkerThreads
+     *            The number of worker threads to use while scanning, not including the main thread. Will not use
+     *            worker threads in numWorkerThreads < 2.
+     */
+    public synchronized FastClasspathScanner scan(int numWorkerThreads) {
+        if (numWorkerThreads >= 2) {
+            ExecutorService executorService = null;
+            try {
+                executorService = Executors.newFixedThreadPool(numWorkerThreads, new ThreadFactory() {
+                    public Thread newThread(Runnable r) {
+                        Thread t = new Thread(r);
+                        // Kill worker threads if main thread dies
+                        t.setDaemon(true);
+                        return t;
+                    }
+                });
+                return scan(executorService, numWorkerThreads);
+            } finally {
+                if (executorService != null) {
+                    executorService.shutdown();
+                }
+            }
+        } else {
+            // No ExecutorService required if numThreads < 2
+            return scan(null, /* numWorkerThreads = */ 1);
+        }
+    }
+
+    /**
+     * Scans the classpath for matching files, and calls any match processors if a match is identified.
+     * 
+     * This method should be called after all required match processors have been added.
+     * 
+     * This method should be called before any "getNamesOf" methods (e.g. getNamesOfSubclassesOf()).
+     * 
+     * Uses the default number of worker threads.
+     * 
+     * @param executorService
+     *            A custom ExecutorService to use for scheduling worker threads.
+     */
+    public synchronized FastClasspathScanner scan(ExecutorService executorService) {
+        getRecursiveScanner().scan(executorService, DEFAULT_NUM_WORKER_THREADS);
+        return this;
+    }
+
+    /**
+     * Scans the classpath for matching files, and calls any match processors if a match is identified.
+     * 
+     * This method should be called after all required match processors have been added.
+     * 
+     * This method should be called before any "getNamesOf" methods (e.g. getNamesOfSubclassesOf()).
+     * 
+     * Uses the default number of worker threads and a default fixed thread pool for scanning.
      */
     public synchronized FastClasspathScanner scan() {
-        getRecursiveScanner().scan();
-        return this;
+        return scan(DEFAULT_NUM_WORKER_THREADS);
     }
 
     /**
