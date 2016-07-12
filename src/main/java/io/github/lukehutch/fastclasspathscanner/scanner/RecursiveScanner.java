@@ -327,22 +327,6 @@ public class RecursiveScanner {
                             matchedFile = true;
                             final long fileStartTime = System.nanoTime();
                             try (FileInputStream inputStream = new FileInputStream(fileInDir)) {
-                                
-
-                                // TODO: Finish making RecursiveScanner into just a scanner
-                                // TODO: Create a new RecursiveScanner for each new scan; remove all the reuse initialization logic
-                                // TODO: instead of calling the file match processor here, make classfiles just use a FileMatchProcessor again, and modify ClassfileResource so it has a reference to a FileMatchProcessor too.
-                                // Then abstract away ClassfileBinaryParserCaller so it works for any ClassfileResource, calling the appropriate FileMatchProcessor.
-                                // Probably still want two different queues, one for classfiles and one for anything else.
-                                // Also create an ArrayList of timestamps that were checked, so that to check for timestamps being updated, I can just iterate through all the individual Files, then I can get rid of all the
-                                // special checking for timestamp-only scanning. (Can actually store a map from file path to timestamp, that way I can check individual files for change in timestamp, rather than checking against
-                                // the system clock, which would also catch files getting copied from elsewhere, rather than just modified. Then I can do away with the file contents hashing code, and the mention in the README file.)
-                                // FIXME: if the supplied ExecutorService doesn't have enough threads for the specified number of threads, the threads will be run round-robin (I think?), which will mean that the "reducer" could actually 
-                                // be run before some of the "mappers", which could cause a deadlock.
-                                // TODO: look at ThreadPoolExecutor sources to implement a custom lightweight Executor.
-                                // TODO: From Alexander--: For the same reason, don't check for interruption right after reading from Queue (as you do in 121d74f). Instead make the interrupt and end-of-input do the same: simply stop processing within this particular Callable. When your main thread (if you have any) gets interrupted, cancel worker Threads. If your worker threads get interrupted via Future#cancel(true), the code that does so is expected to know, that cancellation have taken place (and one would interrupt all Threads at once anyway).
-                                
-                                
                                 fileMatcher.fileMatchProcessorWrapper.processMatch(classpathElt,
                                         fileInDirRelativePath, inputStream, fileInDir.length());
                             } catch (final Exception e) {
