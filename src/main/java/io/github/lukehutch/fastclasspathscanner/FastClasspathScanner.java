@@ -40,6 +40,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
@@ -54,6 +55,7 @@ import javax.xml.xpath.XPathFactory;
 
 import org.w3c.dom.Document;
 
+import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassInfo;
 import io.github.lukehutch.fastclasspathscanner.classgraph.ClassGraphBuilder;
 import io.github.lukehutch.fastclasspathscanner.classpath.ClassLoaderHandler;
 import io.github.lukehutch.fastclasspathscanner.classpath.ClasspathFinder;
@@ -171,8 +173,8 @@ public class FastClasspathScanner {
     /** Lazy initializer for recursiveScanner. */
     private synchronized RecursiveScanner getRecursiveScanner() {
         if (recursiveScanner == null) {
-            recursiveScanner = new RecursiveScanner(getClasspathFinder(), getScanSpec(), classMatchers,
-                    classNameToStaticFinalFieldsToMatch, fullyQualifiedFieldNameToStaticFinalFieldMatchProcessors);
+            recursiveScanner = new RecursiveScanner(getClasspathFinder(), getScanSpec(),
+                    classNameToStaticFinalFieldsToMatch);
         }
         return recursiveScanner;
     }
@@ -196,15 +198,13 @@ public class FastClasspathScanner {
             if (classfileResource != null) {
                 final Path absolutePackagePath = Paths.get(classfileResource.toURI()).getParent();
                 final int packagePathSegments = className.length() - className.replace(".", "").length();
-                // Remove package segments from path, plus two more levels for "target/classes",
-                // which is the standard location for classes in Eclipse.
+                // Remove package segments from path
                 Path path = absolutePackagePath;
-                for (int i = 0, segmentsToRemove = packagePathSegments + 2; i < segmentsToRemove; i++) {
-                    if (path != null) {
-                        path = path.getParent();
-                    }
+                for (int i = 0, segmentsToRemove = packagePathSegments; i < segmentsToRemove && path != null; i++) {
+                    path = path.getParent();
                 }
-                if (path != null) {
+                // Remove up to two more levels for "bin" or "target/classes"
+                for (int i = 0; i < 2 && path != null; i++, path = path.getParent()) {
                     final Path pom = path.resolve("pom.xml");
                     try (InputStream is = Files.newInputStream(pom)) {
                         final Document doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(is);
@@ -217,6 +217,8 @@ public class FastClasspathScanner {
                                 return version;
                             }
                         }
+                    } catch (IOException e) {
+                        // Not found
                     }
                 }
             }
@@ -1636,6 +1638,43 @@ public class FastClasspathScanner {
      */
     public synchronized FastClasspathScanner scan(ExecutorService executorService, int numWorkerThreads) {
         getRecursiveScanner().scan(executorService, numWorkerThreads);
+
+        // Call any class, interface and annotation MatchProcessors
+        for (final ClassMatcher classMatcher : classMatchers) {
+            classMatcher.lookForMatches();
+        }
+
+        // Call static final field match processors on matching fields
+        if (fullyQualifiedFieldNameToStaticFinalFieldMatchProcessors != null) {
+            for (final ClassInfo classInfo : getScanResults().getClassNameToClassInfo().values()) {
+                if (classInfo.fieldValues != null) {
+                    for (final Entry<String, Object> ent : classInfo.fieldValues.entrySet()) {
+                        final String fieldName = ent.getKey();
+                        final Object constValue = ent.getValue();
+                        final String fullyQualifiedFieldName = classInfo.className + "." + fieldName;
+                        final ArrayList<StaticFinalFieldMatchProcessor> staticFinalFieldMatchProcessors = //
+                                fullyQualifiedFieldNameToStaticFinalFieldMatchProcessors
+                                        .get(fullyQualifiedFieldName);
+                        if (staticFinalFieldMatchProcessors != null) {
+                            String constValueStrRep = (constValue instanceof Character)
+                                    ? '\'' + constValue.toString().replace("'", "\\'") + '\''
+                                    : (constValue instanceof String)
+                                            ? '"' + constValue.toString().replace("\"", "\\\"") + '"'
+                                            : constValue.toString();
+                            if (FastClasspathScanner.verbose) {
+                                Log.log(1, "Calling MatchProcessor for static final field " + classInfo.className
+                                        + "." + fieldName + " = " + constValueStrRep);
+                            }
+                            for (final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor : //
+                            staticFinalFieldMatchProcessors) {
+                                staticFinalFieldMatchProcessor.processMatch(classInfo.className, fieldName,
+                                        constValue);
+                            }
+                        }
+                    }
+                }
+            }
+        }
         return this;
     }
 

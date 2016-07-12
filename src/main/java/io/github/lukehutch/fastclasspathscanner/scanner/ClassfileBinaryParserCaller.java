@@ -116,8 +116,8 @@ class ClassfileBinaryParserCaller implements Callable<Void> {
                     }
                 }
                 if (FastClasspathScanner.verbose) {
-                    log.log(3, "Parsed classfile " + classfileResource.relativePath,
-                            System.nanoTime() - fileStartTime);
+                    log.log(3, "Parsed classfile " + classfileResource.relativePath + " on classpath element "
+                            + classfileResource.classpathElt, System.nanoTime() - fileStartTime);
                 }
                 prevClassfileResource = classfileResource;
             }
