@@ -28,21 +28,16 @@
  */
 package io.github.lukehutch.fastclasspathscanner.classpath.classloaderhandlers;
 
-import java.lang.reflect.Method;
-
 import io.github.lukehutch.fastclasspathscanner.classpath.ClassLoaderHandler;
 import io.github.lukehutch.fastclasspathscanner.classpath.ClasspathFinder;
+import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
 
 public class WeblogicClassLoaderHandler implements ClassLoaderHandler {
     @Override
     public boolean handle(final ClassLoader classloader, final ClasspathFinder classpathFinder) throws Exception {
         for (Class<?> c = classloader.getClass(); c != null; c = c.getSuperclass()) {
             if ("weblogic.utils.classloaders.ChangeAwareClassLoader".equals(c.getName())) {
-                final Method getClassPath = c.getDeclaredMethod("getClassPath");
-                if (!getClassPath.isAccessible()) {
-                    getClassPath.setAccessible(true);
-                }
-                final String classpath = (String) getClassPath.invoke(classloader);
+                final String classpath = (String) ReflectionUtils.invokeMethod(c, "getClassPath");
                 classpathFinder.addClasspathElements(classpath);
                 return true;
             }
