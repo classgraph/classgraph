@@ -16,7 +16,7 @@ public class ReflectionUtils {
                     if (!field.isAccessible()) {
                         field.setAccessible(true);
                     }
-                    return field.get(classOrSuperclass);
+                    return field.get(obj);
                 } catch (NoSuchFieldException e) {
                     // Try parent
                 }
