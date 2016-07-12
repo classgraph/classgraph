@@ -42,7 +42,7 @@ public class JBossClassLoaderHandler implements ClassLoaderHandler {
         for (Class<?> c = classloader.getClass(); c != null; c = c.getSuperclass()) {
             if ("org.jboss.modules.ModuleClassLoader".equals(c.getName())) {
                 // type VFSResourceLoader[]
-                final Object vfsResourceLoaders = ReflectionUtils.invokeMethod(c, "getResourceLoaders");
+                final Object vfsResourceLoaders = ReflectionUtils.invokeMethod(classloader, "getResourceLoaders");
                 if (vfsResourceLoaders != null) {
                     for (int i = 0, n = Array.getLength(vfsResourceLoaders); i < n; i++) {
                         // type VFSResourceLoader
