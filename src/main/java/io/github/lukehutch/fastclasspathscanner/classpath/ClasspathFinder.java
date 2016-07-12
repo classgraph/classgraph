@@ -298,6 +298,29 @@ public class ClasspathFinder {
         }
     }
 
+    /** Used for resolving the classes in the call stack. Requires RuntimePermission("createSecurityManager"). */
+    private static CallerResolver CALLER_RESOLVER;
+
+    static {
+        try {
+            // This can fail if the current SecurityManager does not allow
+            // RuntimePermission ("createSecurityManager"):
+            CALLER_RESOLVER = new CallerResolver();
+        } catch (SecurityException e) {
+            // Ignore
+        }
+    }
+
+    // Using a SecurityManager gets around the fact that Oracle removed sun.reflect.Reflection.getCallerClass, see:
+    // https://www.infoq.com/news/2013/07/Oracle-Removes-getCallerClass
+    // http://www.javaworld.com/article/2077344/core-java/find-a-way-out-of-the-classloader-maze.html
+    private static final class CallerResolver extends SecurityManager {
+        protected Class<?>[] getClassContext() {
+            return super.getClassContext();
+        }
+
+    }
+    
     /** Add all parents of a ClassLoader in top-down order, the same as in the JRE. */
     private static void addAllParentClassloaders(final ClassLoader classLoader,
             final AdditionOrderedSet<ClassLoader> classLoadersSetOut) {
@@ -363,21 +386,20 @@ public class ClasspathFinder {
             // See:
             // https://docs.oracle.com/javase/8/docs/technotes/tools/findingclasses.html
             //
+            // N.B. probably need to look more closely at the exact ordering followed here, see:
+            // http://www.javaworld.com/article/2077344/core-java/find-a-way-out-of-the-classloader-maze.html?page=2
+            //
             final AdditionOrderedSet<ClassLoader> classLoadersSet = new AdditionOrderedSet<>();
             addAllParentClassloaders(ClassLoader.getSystemClassLoader(), classLoadersSet);
             // Look for classloaders on the call stack
-            try {
-                // Generate stacktrace
-                throw new Exception();
-            } catch (final Exception e) {
-                final StackTraceElement[] stacktrace = e.getStackTrace();
-                if (stacktrace.length >= 1) {
-                    for (final StackTraceElement ste : stacktrace) {
-                        try {
-                            addAllParentClassloaders(Class.forName(ste.getClassName()), classLoadersSet);
-                        } catch (final ClassNotFoundException e1) {
-                        }
-                    }
+            if (CALLER_RESOLVER != null) {
+                Class<?>[] callStack = CALLER_RESOLVER.getClassContext();
+                for (Class<?> callStackClass : callStack) {
+                    addAllParentClassloaders(callStackClass, classLoadersSet);                  
+                }
+            } else {
+                if (FastClasspathScanner.verbose) {
+                    Log.log("ClassLoaderResolver could not create CallerResolver");
                 }
             }
             addAllParentClassloaders(Thread.currentThread().getContextClassLoader(), classLoadersSet);
