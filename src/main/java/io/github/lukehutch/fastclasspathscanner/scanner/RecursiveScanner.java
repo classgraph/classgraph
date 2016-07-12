@@ -38,7 +38,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
@@ -50,11 +49,9 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner.ClassMatcher;
 import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassInfo;
 import io.github.lukehutch.fastclasspathscanner.classgraph.ClassGraphBuilder;
 import io.github.lukehutch.fastclasspathscanner.classpath.ClasspathFinder;
-import io.github.lukehutch.fastclasspathscanner.matchprocessor.StaticFinalFieldMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec.ScanSpecPathMatch;
 import io.github.lukehutch.fastclasspathscanner.utils.InterruptionChecker;
 import io.github.lukehutch.fastclasspathscanner.utils.Log;
@@ -73,19 +70,8 @@ public class RecursiveScanner {
      */
     private boolean scanTimestampsOnly;
 
-    /** The class matchers. */
-    private final ArrayList<ClassMatcher> classMatchers;
-
     /** A map from class name to static final fields to match within the class. */
     private final Map<String, HashSet<String>> classNameToStaticFinalFieldsToMatch;
-
-    /**
-     * A map from (className + "." + staticFinalFieldName) to StaticFinalFieldMatchProcessor(s) that should be
-     * called if that class name and static final field name is encountered with a static constant initializer
-     * during scan.
-     */
-    private final Map<String, ArrayList<StaticFinalFieldMatchProcessor>> //
-    fullyQualifiedFieldNameToStaticFinalFieldMatchProcessors;
 
     /** A list of file path testers and match processor wrappers to use for file matching. */
     private final List<FilePathTesterAndMatchProcessorWrapper> filePathTestersAndMatchProcessorWrappers = //
@@ -217,16 +203,10 @@ public class RecursiveScanner {
      * @param fullyQualifiedFieldNameToStaticFinalFieldMatchProcessors
      */
     public RecursiveScanner(final ClasspathFinder classpathFinder, final ScanSpec scanSpec,
-            final ArrayList<ClassMatcher> classMatchers,
-            final Map<String, HashSet<String>> classNameToStaticFinalFieldsToMatch,
-            final Map<String, ArrayList<StaticFinalFieldMatchProcessor>> // 
-            fullyQualifiedFieldNameToStaticFinalFieldMatchProcessors) {
+            final Map<String, HashSet<String>> classNameToStaticFinalFieldsToMatch) {
         this.classpathFinder = classpathFinder;
         this.scanSpec = scanSpec;
-        this.classMatchers = classMatchers;
         this.classNameToStaticFinalFieldsToMatch = classNameToStaticFinalFieldsToMatch;
-        this.fullyQualifiedFieldNameToStaticFinalFieldMatchProcessors = // 
-                fullyQualifiedFieldNameToStaticFinalFieldMatchProcessors;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -347,6 +327,22 @@ public class RecursiveScanner {
                             matchedFile = true;
                             final long fileStartTime = System.nanoTime();
                             try (FileInputStream inputStream = new FileInputStream(fileInDir)) {
+                                
+
+                                // TODO: Finish making RecursiveScanner into just a scanner
+                                // TODO: Create a new RecursiveScanner for each new scan; remove all the reuse initialization logic
+                                // TODO: instead of calling the file match processor here, make classfiles just use a FileMatchProcessor again, and modify ClassfileResource so it has a reference to a FileMatchProcessor too.
+                                // Then abstract away ClassfileBinaryParserCaller so it works for any ClassfileResource, calling the appropriate FileMatchProcessor.
+                                // Probably still want two different queues, one for classfiles and one for anything else.
+                                // Also create an ArrayList of timestamps that were checked, so that to check for timestamps being updated, I can just iterate through all the individual Files, then I can get rid of all the
+                                // special checking for timestamp-only scanning. (Can actually store a map from file path to timestamp, that way I can check individual files for change in timestamp, rather than checking against
+                                // the system clock, which would also catch files getting copied from elsewhere, rather than just modified. Then I can do away with the file contents hashing code, and the mention in the README file.)
+                                // FIXME: if the supplied ExecutorService doesn't have enough threads for the specified number of threads, the threads will be run round-robin (I think?), which will mean that the "reducer" could actually 
+                                // be run before some of the "mappers", which could cause a deadlock.
+                                // TODO: look at ThreadPoolExecutor sources to implement a custom lightweight Executor.
+                                // TODO: From Alexander--: For the same reason, don't check for interruption right after reading from Queue (as you do in 121d74f). Instead make the interrupt and end-of-input do the same: simply stop processing within this particular Callable. When your main thread (if you have any) gets interrupted, cancel worker Threads. If your worker threads get interrupted via Future#cancel(true), the code that does so is expected to know, that cancellation have taken place (and one would interrupt all Threads at once anyway).
+                                
+                                
                                 fileMatcher.fileMatchProcessorWrapper.processMatch(classpathElt,
                                         fileInDirRelativePath, inputStream, fileInDir.length());
                             } catch (final Exception e) {
@@ -667,7 +663,7 @@ public class RecursiveScanner {
             }
 
             // -----------------------------------------------------------------------------------------------------
-            // Build the class graph out of the ClassInfo objects.
+            // Build the class graph out of the ClassInfo objects
             // -----------------------------------------------------------------------------------------------------
 
             // Build class, interface and annotation graph 
@@ -675,47 +671,6 @@ public class RecursiveScanner {
             classGraphBuilder = new ClassGraphBuilder(classNameToClassInfo);
             if (FastClasspathScanner.verbose) {
                 Log.log(2, "Built class graph", System.nanoTime() - graphStartTime);
-            }
-
-            // -----------------------------------------------------------------------------------------------------
-            // Call MatchProcessors on any matching classes and/or static final fields
-            // -----------------------------------------------------------------------------------------------------
-
-            // Call any class, interface and annotation MatchProcessors
-            for (final ClassMatcher classMatcher : classMatchers) {
-                classMatcher.lookForMatches();
-            }
-
-            // Call static final field match processors on matching fields
-            if (fullyQualifiedFieldNameToStaticFinalFieldMatchProcessors != null) {
-                for (final ClassInfo classInfo : classNameToClassInfo.values()) {
-                    if (classInfo.fieldValues != null) {
-                        for (final Entry<String, Object> ent : classInfo.fieldValues.entrySet()) {
-                            final String fieldName = ent.getKey();
-                            final Object constValue = ent.getValue();
-                            final String fullyQualifiedFieldName = classInfo.className + "." + fieldName;
-                            final ArrayList<StaticFinalFieldMatchProcessor> staticFinalFieldMatchProcessors = //
-                                    fullyQualifiedFieldNameToStaticFinalFieldMatchProcessors
-                                            .get(fullyQualifiedFieldName);
-                            if (staticFinalFieldMatchProcessors != null) {
-                                String constValueStrRep = (constValue instanceof Character)
-                                        ? '\'' + constValue.toString().replace("'", "\\'") + '\''
-                                        : (constValue instanceof String)
-                                                ? '"' + constValue.toString().replace("\"", "\\\"") + '"'
-                                                : constValue.toString();
-                                if (FastClasspathScanner.verbose) {
-                                    Log.log(1, "Calling MatchProcessor for static final field "
-                                            + classInfo.className + "." + fieldName + " = " + constValueStrRep);
-                                }
-                                for (final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor : //
-                                staticFinalFieldMatchProcessors) {
-                                    staticFinalFieldMatchProcessor.processMatch(classInfo.className, fieldName,
-                                            constValue);
-                                }
-                            }
-                        }
-                    }
-                }
             }
         }
 
