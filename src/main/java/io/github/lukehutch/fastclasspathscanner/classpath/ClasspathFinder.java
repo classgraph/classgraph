@@ -39,6 +39,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.ServiceLoader;
+import java.util.Set;
 import java.util.jar.Manifest;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
@@ -412,7 +413,7 @@ public class ClasspathFinder {
             // Always include a ClassLoaderHandler for URLClassLoader subclasses as a default, so that we can handle
             // URLClassLoaders (the most common form of ClassLoader) even if ServiceLoader can't find other
             // ClassLoaderHandlers (this can happen if FastClasspathScanner's package is renamed using Maven Shade).
-            final HashSet<ClassLoaderHandler> classLoaderHandlers = new HashSet<>();
+            final Set<ClassLoaderHandler> classLoaderHandlers = new HashSet<>();
             classLoaderHandlers.add(new URLClassLoaderHandler());
 
             // Find all ClassLoaderHandlers registered using ServiceLoader, given known ClassLoaders. 
@@ -433,11 +434,16 @@ public class ClasspathFinder {
             }
             // Add manually-added ClassLoaderHandlers
             classLoaderHandlers.addAll(extraClassLoaderHandlers);
+            // Only keep one instance of each ClassLoaderHandler, in case multiple instances are loaded
+            // (due to multiple ClassLoaders covering the same classpath entries)
+            Set<String> classLoaderHandlerNames = new HashSet<>();
+            List<ClassLoaderHandler> classLoaderHandlersUnique = new ArrayList<>();
+            for (ClassLoaderHandler classLoaderHandler : classLoaderHandlers) {
+                if (classLoaderHandlerNames.add(classLoaderHandler.getClass().getName())) {
+                    classLoaderHandlersUnique.add(classLoaderHandler);
+                }                
+            }
             if (FastClasspathScanner.verbose && !classLoaderHandlers.isEmpty()) {
-                ArrayList<String> classLoaderHandlerNames = new ArrayList<>();
-                for (final ClassLoaderHandler handler : classLoaderHandlers) {
-                    classLoaderHandlerNames.add(handler.getClass().getName());
-                }
                 Log.log("ClassLoaderHandlers loaded: " + String.join(", ", classLoaderHandlerNames));
             }
 
@@ -445,7 +451,7 @@ public class ClasspathFinder {
             for (final ClassLoader classLoader : classLoaders) {
                 // Iterate through registered ClassLoaderHandlers
                 boolean classloaderFound = false;
-                for (final ClassLoaderHandler handler : classLoaderHandlers) {
+                for (final ClassLoaderHandler handler : classLoaderHandlersUnique) {
                     try {
                         if (handler.handle(classLoader, this)) {
                             // Sucessfully handled
