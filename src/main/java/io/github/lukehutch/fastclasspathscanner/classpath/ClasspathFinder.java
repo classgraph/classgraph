@@ -124,7 +124,7 @@ public class ClasspathFinder {
         }
         // Remove any trailing "/"
         if (pathStr.endsWith("/") && !pathStr.equals("/")) {
-            pathStr = relativePathStr.substring(0, pathStr.length() - 1);
+            pathStr = pathStr.substring(0, pathStr.length() - 1);
         }
         // Replace any "//" with "/"
         pathStr = pathStr.replace("//", "/");
@@ -137,6 +137,9 @@ public class ClasspathFinder {
                 // i.e. the recommended way to do this is URL -> URI -> Path, especially to handle weirdness on
                 // Windows. However, we skip the last step, because Path is slow.
                 return new File(new URL("file:" + pathStr).toURI());
+            } else if (resolveBaseFile == null) {
+                // No base provided
+                return new File(new URL(pathStr).toURI());
             } else {
                 // If path is a relative path, resolve it relative to the base path
                 String base = resolveBaseFile.toURI().toString();
