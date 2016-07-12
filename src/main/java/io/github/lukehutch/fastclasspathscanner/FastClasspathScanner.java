@@ -45,6 +45,7 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -69,6 +70,7 @@ import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubinterfaceMatch
 import io.github.lukehutch.fastclasspathscanner.scanner.RecursiveScanner;
 import io.github.lukehutch.fastclasspathscanner.scanner.RecursiveScanner.FileMatchProcessorWrapper;
 import io.github.lukehutch.fastclasspathscanner.scanner.RecursiveScanner.FilePathTester;
+import io.github.lukehutch.fastclasspathscanner.scanner.ScanInterruptedException;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
 import io.github.lukehutch.fastclasspathscanner.utils.Log;
 
