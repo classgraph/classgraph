@@ -352,8 +352,13 @@ public class ClasspathFinder {
         @Override
         public boolean handle(final ClassLoader classloader, final ClasspathFinder classpathFinder) {
             if (classloader instanceof URLClassLoader) {
-                for (final URL url : ((URLClassLoader) classloader).getURLs()) {
-                    classpathFinder.addClasspathElement(url.toString());
+                URL[] urls = ((URLClassLoader) classloader).getURLs();
+                if (urls != null) {
+                    for (final URL url : urls) {
+                        if (url != null) {
+                            classpathFinder.addClasspathElement(url.toString());
+                        }
+                    }
                 }
                 return true;
             }
@@ -447,7 +452,7 @@ public class ClasspathFinder {
             for (ClassLoaderHandler classLoaderHandler : classLoaderHandlers) {
                 if (classLoaderHandlerNames.add(classLoaderHandler.getClass().getName())) {
                     classLoaderHandlersUnique.add(classLoaderHandler);
-                }                
+                }
             }
             if (FastClasspathScanner.verbose && !classLoaderHandlers.isEmpty()) {
                 Log.log("ClassLoaderHandlers loaded: " + String.join(", ", classLoaderHandlerNames));
