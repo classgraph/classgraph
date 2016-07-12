@@ -1655,9 +1655,11 @@ public class FastClasspathScanner {
         if (numWorkerThreads >= 2) {
             ExecutorService executorService = null;
             try {
+                final AtomicInteger threadIdx = new AtomicInteger();
                 executorService = Executors.newFixedThreadPool(numWorkerThreads, new ThreadFactory() {
                     public Thread newThread(Runnable r) {
-                        Thread t = new Thread(r);
+                        Thread t = new Thread(r,
+                                "FastClasspathScanner-worker-thread-" + threadIdx.getAndIncrement());
                         // Kill worker threads if main thread dies
                         t.setDaemon(true);
                         return t;
