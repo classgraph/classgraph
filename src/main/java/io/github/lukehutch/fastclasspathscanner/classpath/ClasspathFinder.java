@@ -433,6 +433,13 @@ public class ClasspathFinder {
             }
             // Add manually-added ClassLoaderHandlers
             classLoaderHandlers.addAll(extraClassLoaderHandlers);
+            if (FastClasspathScanner.verbose && !classLoaderHandlers.isEmpty()) {
+                ArrayList<String> classLoaderHandlerNames = new ArrayList<>();
+                for (final ClassLoaderHandler handler : classLoaderHandlers) {
+                    classLoaderHandlerNames.add(handler.getClass().getName());
+                }
+                Log.log("ClassLoaderHandlers loaded: " + String.join(", ", classLoaderHandlerNames));
+            }
 
             // Try finding a handler for each of the classloaders discovered above
             for (final ClassLoader classLoader : classLoaders) {
@@ -450,13 +457,17 @@ public class ClasspathFinder {
                             break;
                         }
                     } catch (final Exception e) {
-                        Log.log("Was not able to call getPaths() in " + classLoader.getClass().getName() + ": "
-                                + e.toString());
+                        if (FastClasspathScanner.verbose) {
+                            Log.log("Was not able to call getPaths() in " + classLoader.getClass().getName() + ": "
+                                    + e.toString());
+                        }
                     }
                 }
                 if (!classloaderFound) {
-                    Log.log("Found unknown ClassLoader type, cannot scan classes: "
-                            + classLoader.getClass().getName());
+                    if (FastClasspathScanner.verbose) {
+                        Log.log("Found unknown ClassLoader type, cannot scan classes: "
+                                + classLoader.getClass().getName());
+                    }
                 }
             }
 
