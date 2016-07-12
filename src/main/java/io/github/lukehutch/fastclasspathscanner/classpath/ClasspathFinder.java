@@ -122,10 +122,12 @@ public class ClasspathFinder {
         if (pathStr.length() > 2 && Character.isLetter(pathStr.charAt(0)) && pathStr.charAt(1) == ':') {
             pathStr = '/' + pathStr;
         }
-        // String any trailing "/"
+        // Remove any trailing "/"
         if (pathStr.endsWith("/") && !pathStr.equals("/")) {
             pathStr = relativePathStr.substring(0, pathStr.length() - 1);
         }
+        // Replace any "//" with "/"
+        pathStr = pathStr.replace("//", "/");
         try {
             if (pathStr.startsWith("/")) {
                 // If path is an absolute path, ignore the base path.
