@@ -388,6 +388,9 @@ public class ClasspathFinder {
             // Find all ClassLoaderHandlers registered using ServiceLoader, given known ClassLoaders. 
             // FastClasspathScanner ships with several of these, registered in:
             // src/main/resources/META-INF/services
+            for (final ClassLoaderHandler handler : ServiceLoader.load(ClassLoaderHandler.class, null)) {
+                classLoaderHandlers.add(handler);
+            }
             for (final ClassLoader classLoader : classLoaders) {
                 // Use ServiceLoader to find registered ClassLoaderHandlers, see:
                 // https://docs.oracle.com/javase/6/docs/api/java/util/ServiceLoader.html
