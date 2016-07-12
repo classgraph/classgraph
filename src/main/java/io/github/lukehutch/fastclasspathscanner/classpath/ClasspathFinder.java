@@ -405,9 +405,9 @@ public class ClasspathFinder {
             classLoaderHandlers.addAll(extraClassLoaderHandlers);
 
             // Try finding a handler for each of the classloaders discovered above
-            boolean classloaderFound = false;
             for (final ClassLoader classLoader : classLoaders) {
                 // Iterate through registered ClassLoaderHandlers
+                boolean classloaderFound = false;
                 for (final ClassLoaderHandler handler : classLoaderHandlers) {
                     try {
                         if (handler.handle(classLoader, this)) {
