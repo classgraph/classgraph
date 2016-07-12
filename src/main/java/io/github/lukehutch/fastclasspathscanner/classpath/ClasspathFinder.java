@@ -320,7 +320,7 @@ public class ClasspathFinder {
         }
 
     }
-    
+
     /** Add all parents of a ClassLoader in top-down order, the same as in the JRE. */
     private static void addAllParentClassloaders(final ClassLoader classLoader,
             final AdditionOrderedSet<ClassLoader> classLoadersSetOut) {
@@ -395,11 +395,13 @@ public class ClasspathFinder {
             if (CALLER_RESOLVER != null) {
                 Class<?>[] callStack = CALLER_RESOLVER.getClassContext();
                 for (Class<?> callStackClass : callStack) {
-                    addAllParentClassloaders(callStackClass, classLoadersSet);                  
+                    addAllParentClassloaders(callStackClass, classLoadersSet);
                 }
             } else {
                 if (FastClasspathScanner.verbose) {
-                    Log.log("ClassLoaderResolver could not create CallerResolver");
+                    Log.log(ClasspathFinder.class.getSimpleName() + " could not create "
+                            + CallerResolver.class.getSimpleName() + ", current SecurityManager does not grant "
+                            + "RuntimePermission(\"createSecurityManager\")");
                 }
             }
             addAllParentClassloaders(Thread.currentThread().getContextClassLoader(), classLoadersSet);
