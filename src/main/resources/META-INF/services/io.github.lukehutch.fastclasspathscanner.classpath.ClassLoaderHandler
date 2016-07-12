@@ -1,2 +1,3 @@
+io.github.lukehutch.fastclasspathscanner.classpath.classloaderhandlers.EquinoxClassLoaderHandler
 io.github.lukehutch.fastclasspathscanner.classpath.classloaderhandlers.JBossClassLoaderHandler
 io.github.lukehutch.fastclasspathscanner.classpath.classloaderhandlers.WeblogicClassLoaderHandler

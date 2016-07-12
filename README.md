@@ -158,8 +158,9 @@ FastClasspathScanner handles a number of classpath specification mechanisms, inc
 * The `java.class.path` system property, supporting specification of the classpath using the `-cp` JRE commandline switch.
 * The standard Java `URLClassLoader`, and both standard and custom subclasses. (Some runtime environments override URLClassLoader for their own purposes, but do not set `java.class.path` -- FastClasspathScanner fetches classpath URLs from all visible URLClassLoaders.)
 * [Class-Path references](https://docs.oracle.com/javase/tutorial/deployment/jar/downman.html) in a jarfile's `META-INF/MANIFEST.MF`, whereby jarfiles may add other external jarfiles to their own classpaths. FastClasspathScanner is able to determine the transitive closure of these references, breaking cycles if necessary.
-* The JBoss/WildFly custom classloader mechanism.
-* The WebLogic custom classloader mechanism.
+* The JBoss/WildFly classloader.
+* The WebLogic classloader.
+* The OSGi Equinox classloader.
 * Eventually, the Java 9 module system [work has not started on this yet -- patches are welcome].
 
 [Note that if you have a custom classloader in your runtime that is not covered by one of the above cases, you can add your own [ClassLoaderHandler](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/scanner/classloaderhandler), which will be loaded from your own project's jarfile by FastClasspathScanner using the Java [ServiceLoader](https://docs.oracle.com/javase/8/docs/api/java/util/ServiceLoader.html) framework, via an entry in [META-INF/services](https://github.com/lukehutch/fast-classpath-scanner/blob/master/src/main/resources/META-INF/services/io.github.lukehutch.fastclasspathscanner.scanner.classloaderhandler.ClassLoaderHandler).]
@@ -563,7 +564,24 @@ public FastClasspathScanner matchFilenameExtension(String extensionToMatch,
 The `.scan()` method performs the actual scan. This method may be called multiple times after the initialization steps shown above, although there is usually no point performing additional scans unless `classpathContentsModifiedSinceScan()` returns true.
 
 ```java
+// Perform scan, multithreaded, with default number of worker threads (7).
+// Will cause a new ExecutorService to start, which incurs some time overhead.
 public FastClasspathScanner scan()
+
+// Perform scan, multithreaded, with specified number of worker threads.
+// If you specify <2 worker threads, the scan will run single-threaded, so
+// will not start an ExecutorService. Otherwise, will cause a new
+// ExecutorService to start, which incurs some time overhead.
+public FastClasspathScanner scan(int numWorkerThreads)
+
+// Perform scan, multithreaded, with your own ExecutorService, and using
+// the default number of worker threads (7).
+public FastClasspathScanner scan(ExecutorService executorService)
+
+// Perform scan, multithreaded, with your own ExecutorService, and using
+// the specified number of worker threads.
+public FastClasspathScanner scan(ExecutorService executorService,
+                                 int numWorkerThreads)
 ```
 
 As the scan proceeds, for all match processors that deal with classfiles (i.e. for all but FileMatchProcessor), if the same fully-qualified class name is encountered more than once on the classpath, the second and subsequent definitions of the class are ignored, in order to follow Java's class masking behavior. The same is true of file matches in general (if two or more non-classfile files in the classpath have the same path relative to their respective classpath elements, all but the first will be ignored).
@@ -690,11 +708,13 @@ public FastClasspathScanner verbose(boolean verbose)
 
 ## More complex usage
 
-### Working in platforms with non-standard ClassLoaders (JBoss/WildFly, WebLogic, Maven, Tomcat etc.)
+### Working in platforms with non-standard ClassLoaders (JBoss/WildFly, WebLogic, OSGi Equinox, Maven, Tomcat etc.)
 
-FastClasspathScanner handles a number of non-standard ClassLoaders. There is [basic support](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/scanner/classloaderhandler) for JBoss/WildFly and WebLogic, which implement their own ClassLoaders. Maven works when it sets `java.class.path`, but YMMV, since it [has its own](https://github.com/sonatype/plexus-classworlds) unique ClassLoader system. Tomcat has a [complex](https://www.mulesoft.com/tcat/tomcat-classpath) classloading system, and is less likely to work, but you might get lucky. You can add custom [ClassLoader handlers](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/scanner/classloaderhandler/ClassLoaderHandler.java) to your project without modifying FastClasspathScanner if necessary, although patches that add or improve support for common non-standard ClassLoaders would be appreciated.
+FastClasspathScanner handles a number of non-standard ClassLoaders. There is [basic support](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/scanner/classloaderhandler) for JBoss/WildFly, WebLogic and OSGi Equinox, which implement their own ClassLoaders. Maven works when it sets `java.class.path`, but YMMV, since it [has its own](https://github.com/sonatype/plexus-classworlds) unique ClassLoader system that is not yet supported. Tomcat has a [complex](https://www.mulesoft.com/tcat/tomcat-classpath) classloading system, and is less likely to work, but you might get lucky.
 
-If the ServiceLodaer framework cannot find your `ClassLoaderHandler`, or you want to write your own `ClassLoaderHandler` without registering it using the `ServiceLoader` mechanism, you can call the following after calling the constructor, and before calling .scan(): 
+You can handle custom ClassLoaders without modifying FastClasspathScanner by writing a [ClassLoaderHandler](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/scanner/classloaderhandler/ClassLoaderHandler.java) and registering it using the `ServiceLoader` mechanism. Patches to add or improve support for non-standard ClassLoaders would be appreciated.
+
+If the `ServiceLoader` framework cannot find your `ClassLoaderHandler`, or you want to write your own `ClassLoaderHandler` without registering it using the `ServiceLoader` mechanism, you can call the following after calling the constructor, and before calling .scan(): 
 
 ```java
 public void registerClassLoaderHandler(ClassLoaderHandler extraClassLoaderHandler)
