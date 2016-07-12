@@ -128,6 +128,8 @@ public class ClasspathFinder {
         }
         // Replace any "//" with "/"
         pathStr = pathStr.replace("//", "/");
+        // Replace any spaces with %20
+        pathStr = pathStr.replace(" ", "%20");
         try {
             if (pathStr.startsWith("/")) {
                 // If path is an absolute path, ignore the base path.
@@ -478,8 +480,7 @@ public class ClasspathFinder {
                         }
                     } catch (final Exception e) {
                         if (FastClasspathScanner.verbose) {
-                            Log.log("Was not able to call getPaths() in " + classLoader.getClass().getName() + ": "
-                                    + e.toString());
+                            Log.log("Exception in " + classLoader.getClass().getName() + ": " + e.toString());
                         }
                     }
                 }
