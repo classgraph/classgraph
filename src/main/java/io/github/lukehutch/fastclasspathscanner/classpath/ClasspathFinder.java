@@ -298,17 +298,23 @@ public class ClasspathFinder {
         }
     }
 
-    /** Add all parent classloaders of a class in top-down order, the same as in the JRE. */
-    private static void addAllParentClassloaders(final Class<?> klass,
+    /** Add all parents of a ClassLoader in top-down order, the same as in the JRE. */
+    private static void addAllParentClassloaders(final ClassLoader classLoader,
             final AdditionOrderedSet<ClassLoader> classLoadersSetOut) {
         final ArrayList<ClassLoader> callerClassLoaders = new ArrayList<>();
-        for (ClassLoader cl = klass.getClassLoader(); cl != null; cl = cl.getParent()) {
+        for (ClassLoader cl = classLoader; cl != null; cl = cl.getParent()) {
             callerClassLoaders.add(cl);
         }
         // OpenJDK calls classloaders in a top-down order
         for (int i = callerClassLoaders.size() - 1; i >= 0; --i) {
             classLoadersSetOut.add(callerClassLoaders.get(i));
         }
+    }
+
+    /** Add all parent ClassLoaders of a class in top-down order, the same as in the JRE. */
+    private static void addAllParentClassloaders(final Class<?> klass,
+            final AdditionOrderedSet<ClassLoader> classLoadersSetOut) {
+        addAllParentClassloaders(klass.getClassLoader(), classLoadersSetOut);
     }
 
     /** ClassLoaderHandler that is able to extract the URLs from a URLClassLoader. */
@@ -358,7 +364,7 @@ public class ClasspathFinder {
             // https://docs.oracle.com/javase/8/docs/technotes/tools/findingclasses.html
             //
             final AdditionOrderedSet<ClassLoader> classLoadersSet = new AdditionOrderedSet<>();
-            classLoadersSet.add(ClassLoader.getSystemClassLoader());
+            addAllParentClassloaders(ClassLoader.getSystemClassLoader(), classLoadersSet);
             // Look for classloaders on the call stack
             try {
                 // Generate stacktrace
@@ -374,7 +380,7 @@ public class ClasspathFinder {
                     }
                 }
             }
-            classLoadersSet.add(Thread.currentThread().getContextClassLoader());
+            addAllParentClassloaders(Thread.currentThread().getContextClassLoader(), classLoadersSet);
             addAllParentClassloaders(ClasspathFinder.class, classLoadersSet);
             final List<ClassLoader> classLoaders = classLoadersSet.getList();
             classLoaders.remove(null);
