@@ -159,9 +159,14 @@ public class ClasspathFinder {
         }
     }
 
-    /** Add a classpath element. */
+    /** Add a classpath element relative to a base file. */
     public void addClasspathElement(final String pathElement) {
-        final File pathFile = urlToFile(null, pathElement);
+        addClasspathElement(null, pathElement);
+    }
+
+    /** Add a classpath element. */
+    public void addClasspathElement(final File baseFile, final String pathElement) {
+        final File pathFile = urlToFile(baseFile, pathElement);
         if (pathFile == null) {
             return;
         }
