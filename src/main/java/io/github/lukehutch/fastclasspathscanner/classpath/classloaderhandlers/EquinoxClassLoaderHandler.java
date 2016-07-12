@@ -58,7 +58,7 @@ public class EquinoxClassLoaderHandler implements ClassLoaderHandler {
                                         .getClass(); bundlefileClass != null; bundlefileClass = bundlefileClass
                                                 .getSuperclass()) {
                                     try {
-                                        // type File
+                                        // type String
                                         final Field cpField = bundlefileClass.getDeclaredField("cp");
                                         if (!cpField.isAccessible()) {
                                             cpField.setAccessible(true);
