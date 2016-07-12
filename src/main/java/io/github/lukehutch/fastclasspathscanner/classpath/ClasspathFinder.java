@@ -431,7 +431,7 @@ public class ClasspathFinder {
                     }
                 }
                 if (!classloaderFound) {
-                    Log.log(4, "Found unknown ClassLoader type, cannot scan classes: "
+                    Log.log("Found unknown ClassLoader type, cannot scan classes: "
                             + classLoader.getClass().getName());
                 }
             }
