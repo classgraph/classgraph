@@ -3,7 +3,7 @@
 
 	<groupId>io.github.lukehutch</groupId>
 	<artifactId>fast-classpath-scanner</artifactId>
-	<version>1.90.9-SNAPSHOT</version>
+	<version>1.90.10-SNAPSHOT</version>
 	<name>Fast Classpath Scanner</name>
 
 	<description>
