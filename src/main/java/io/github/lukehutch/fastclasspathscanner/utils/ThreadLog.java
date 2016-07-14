@@ -20,8 +20,8 @@ public class ThreadLog {
         private final Date time;
         private final String msg;
         private final long elapsedTimeNanos;
-        private SimpleDateFormat dateTimeFormatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mmX");
-        private DecimalFormat nanoFormatter = new DecimalFormat("0.000000");
+        private final SimpleDateFormat dateTimeFormatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mmX");
+        private final DecimalFormat nanoFormatter = new DecimalFormat("0.000000");
 
         public ThreadLogEntry(final int indentLevel, final String msg, final long elapsedTimeNanos) {
             this.indentLevel = indentLevel;
@@ -36,7 +36,7 @@ public class ThreadLog {
 
         @Override
         public String toString() {
-            StringBuilder buf = new StringBuilder();
+            final StringBuilder buf = new StringBuilder();
             synchronized (dateTimeFormatter) {
                 buf.append(dateTimeFormatter.format(time));
             }
@@ -78,7 +78,7 @@ public class ThreadLog {
 
     public void flush() {
         if (!logEntries.isEmpty()) {
-            StringBuilder buf = new StringBuilder();
+            final StringBuilder buf = new StringBuilder();
             if (versionLogged.compareAndSet(false, true)) {
                 if (FastClasspathScanner.verbose) {
                     // Log the version before the first log entry

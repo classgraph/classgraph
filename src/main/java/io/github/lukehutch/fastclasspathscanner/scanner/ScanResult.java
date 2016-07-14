@@ -18,7 +18,7 @@ public class ScanResult {
     private final ScanSpec scanSpec;
 
     /** The unique classpath elements. */
-    private List<File> classpathElts;
+    private final List<File> classpathElts;
 
     /**
      * The file resources timestamped during a scan, along with their timestamp at the time of the scan. Includes
@@ -38,9 +38,9 @@ public class ScanResult {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    public ScanResult(final ScanSpec scanSpec, List<File> classpathElts,
+    public ScanResult(final ScanSpec scanSpec, final List<File> classpathElts,
             final Map<String, ClassInfo> classNameToClassInfo, final Map<File, Long> fileToTimestamp,
-            ThreadLog log) {
+            final ThreadLog log) {
         this.scanSpec = scanSpec;
         this.classpathElts = classpathElts;
         this.classNameToClassInfo = classNameToClassInfo;

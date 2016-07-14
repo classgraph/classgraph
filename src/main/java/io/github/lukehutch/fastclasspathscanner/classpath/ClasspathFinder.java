@@ -64,9 +64,9 @@ public class ClasspathFinder {
     /** Whether or not classpath has been read (supporting lazy reading of classpath). */
     private boolean initialized = false;
 
-    private ThreadLog log;
+    private final ThreadLog log;
 
-    public ClasspathFinder(final ScanSpec scanSpec, ThreadLog log) {
+    public ClasspathFinder(final ScanSpec scanSpec, final ThreadLog log) {
         this.scanSpec = scanSpec;
         this.log = log;
     }

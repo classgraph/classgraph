@@ -123,7 +123,7 @@ public class ScanSpec {
      */
     public boolean ignoreFieldVisibility = false;
 
-    private List<String> constructorLogs = new ArrayList<>();
+    private final List<String> constructorLogs = new ArrayList<>();
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -251,9 +251,9 @@ public class ScanSpec {
         this.scanNonJars = scanNonJars;
     }
 
-    public void log(ThreadLog log) {
+    public void log(final ThreadLog log) {
         if (FastClasspathScanner.verbose) {
-            for (String msg : constructorLogs) {
+            for (final String msg : constructorLogs) {
                 log.log(msg);
             }
             log.log("Whitelisted relative path prefixes:  " + whitelistedPathPrefixes);
@@ -293,7 +293,8 @@ public class ScanSpec {
      * Run the MatchProcessors after a scan has completed.
      */
     public void callMatchProcessors(final ScanResult scanResult,
-            final LinkedBlockingQueue<ClasspathResource> matchingFiles, ThreadLog log) throws InterruptedException {
+            final LinkedBlockingQueue<ClasspathResource> matchingFiles, final ThreadLog log)
+            throws InterruptedException {
         // Call any FileMatchProcessors
         ClasspathResourceQueueProcessor.processClasspathResourceQueue(matchingFiles,
                 new ClasspathResourceProcessor() {

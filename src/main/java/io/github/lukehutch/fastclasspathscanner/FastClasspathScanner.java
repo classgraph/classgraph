@@ -676,8 +676,7 @@ public class FastClasspathScanner {
      */
     public synchronized Future<ScanResult> scanAsync(final ExecutorService executorService,
             final int numWorkerThreads) {
-        return ScanExecutor.scan(getScanSpec(), executorService,
-                Math.max(numWorkerThreads, 1));
+        return ScanExecutor.scan(getScanSpec(), executorService, Math.max(numWorkerThreads, 1));
     }
 
     /**

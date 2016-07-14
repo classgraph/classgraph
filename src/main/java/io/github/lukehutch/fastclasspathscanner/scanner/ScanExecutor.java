@@ -79,7 +79,7 @@ public class ScanExecutor {
             initialLog.log("Starting scan");
         }
         scanSpec.log(initialLog);
-        
+
         // Get classpath elements
         final List<File> classpathElts = new ClasspathFinder(scanSpec, initialLog).getUniqueClasspathElements();
 
@@ -186,7 +186,7 @@ public class ScanExecutor {
                     // Flush log output for worker thread
                     logs.get(i).flush();
                 }
-                ThreadLog log = new ThreadLog();
+                final ThreadLog log = new ThreadLog();
 
                 // Build class graph before calling MatchProcessors, in case they want to refer to the graph
                 final ScanResult scanResult = new ScanResult(scanSpec, classpathElts, classNameToClassInfo,
