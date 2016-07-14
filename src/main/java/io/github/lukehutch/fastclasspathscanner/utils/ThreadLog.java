@@ -78,6 +78,7 @@ public class ThreadLog {
                     if (logEntry.elapsedTimeNanos >= 0L) {
                         buf.append(" in ");
                         buf.append(nanoFormatter.format(logEntry.elapsedTimeNanos * 1e-9));
+                        buf.append(" sec");
                     }
                     buf.append('\n');
                 }
