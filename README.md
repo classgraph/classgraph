@@ -27,7 +27,7 @@ Classpath scanning can also be used to produce a visualization of the class grap
 6. [find all classes that contain a field of a given type](#6-find-all-classes-that-contain-a-field-of-a-given-type) (including identifying fields based on array element type and generic parameter type); 
 7. find files (even non-classfiles) anywhere on the classpath that have a [path that matches a given string or regular expression](#7-finding-files-even-non-classfiles-anywhere-on-the-classpath-whose-path-matches-a-given-string-or-regular-expression);
 8. perform the actual [classpath scan](#8-performing-the-actual-scan);
-9. [detect changes](#9-detecting-changes-to-classpath-contents-after-the-scan) to the files within the classpath since the first time the classpath was scanned, or alternatively, calculate the MD5 hash of classfiles while scanning, in case using timestamps is insufficiently rigorous for change detection;
+9. [detect changes](#9-detecting-changes-to-classpath-contents-after-the-scan) to the files within the classpath since the first time the classpath was scanned;
 10. return a list of the [names of all classes, interfaces and/or annotations on the classpath](#10-get-a-list-of-all-whitelisted-and-non-blacklisted-classes-interfaces-or-annotations-on-the-classpath) (after whitelist and blacklist filtering);
 11. return a list of [all directories and files on the classpath](#11-get-all-unique-directories-and-files-on-the-classpath) (i.e. all classpath elements) as a list of File objects, with the list deduplicated and filtered to include only classpath directories and files that actually exist, saving you from the complexities of working with the classpath and classloaders; and
 12. [generate a GraphViz .dot file](#12-generate-a-graphviz-dot-file-from-the-classgraph) from the class graph for visualization purposes, as shown above. A class graph visualizatoin depicts connections between classes, interfaces, annotations and meta-annotations, and connections between classes and the types of their fields.
@@ -561,7 +561,7 @@ public FastClasspathScanner matchFilenameExtension(String extensionToMatch,
 
 ### 8. Performing the actual scan
 
-The `.scan()` method performs the actual scan. This method may be called multiple times after the initialization steps shown above, although there is usually no point performing additional scans unless `classpathContentsModifiedSinceScan()` returns true.
+The `.scan()` method performs the actual scan. This method may be called multiple times after the initialization steps shown above, although there is usually no point performing additional scans unless `classpathContentsModifiedSinceScan()` returns true, unless you need to detect the addition of new whitelisted resources (`classpathContentsModifiedSinceScan()` only detects changes to existing resources).
 
 ```java
 // Perform scan, multithreaded, with default number of worker threads (7).
@@ -590,11 +590,13 @@ If the scan is interrupted by the interrupt status being set on the main thread 
 
 ### 9. Detecting changes to classpath contents after the scan
 
-When the classpath is scanned using `.scan()`, the "latest last modified timestamp" found anywhere on the classpath is recorded (i.e. the latest timestamp out of all last modified timestamps of all files found within the whitelisted package prefixes on the classpath).
+When the classpath is scanned using `.scan()`, the latest last modified timestamp of whitelisted files and jarfiles encountered during the scan is recorded.
 
-After a call to `.scan()`, it is possible to later call `.classpathContentsModifiedSinceScan()` at any point to check if something within the classpath has changed. This method does not look inside classfiles and does not call any match processors, but merely looks at the last modified timestamps of all files and zip/jarfiles within the whitelisted package prefixes of the classpath, updating the latest last modified timestamp if anything has changed. If the latest last modified timestamp increases, this method will return true.  
+After a call to `.scan()`, it is possible to later call `.classpathContentsModifiedSinceScan()` at any point to check if something within the classpath has changed. This method does not look inside classfiles and does not call any match processors, but merely looks at the last modified timestamps of files within whitelisted package prefixes on the classpath, and of whitelisted jars. If the latest last modified timestamp has changed since the initial scan, this method will return true.
 
-Since `.classpathContentsModifiedSinceScan()` only checks file modification timestamps, it works several times faster than the original call to `.scan()`. It is therefore a very lightweight operation that can be called in a polling loop to detect changes to classpath contents for hot reloading of resources.
+Since `.classpathContentsModifiedSinceScan()` only checks file modification timestamps, it works much faster than the original call to `.scan()`. It is therefore a very lightweight operation that can be called in a polling loop to periodically detect changes to classpath contents for hot reloading of resources.
+
+**Important:** this method does not detect resources that are *newly added* to whitelisted packages (you need to perform a full scan for that), it only detects changes in the timestamps of files found during the previous scan. If you need to check for added/removed resources in a fast way, you can use a full scan to detect a specific file in a directory of interest, and then watch the directory yourself for added/removed files.     
 
 The function `.classpathContentsLastModifiedTime()` can also be called after `.scan()` to find the maximum timestamp of all files in the classpath, in epoch millis. This should be less than the system time, and if anything on the classpath changes, this value should increase, assuming the timestamps and the system time are trustworthy and accurate. 
 
@@ -603,8 +605,6 @@ public boolean classpathContentsModifiedSinceScan()
 
 public long classpathContentsLastModifiedTime()
 ```
-
-If you need more careful change detection than is afforded by checking timestamps, you can also cause the contents of each classfile in a whitelisted package [to be MD5-hashed](https://github.com/lukehutch/fast-classpath-scanner/blob/master/src/main/java/io/github/lukehutch/fastclasspathscanner/utils/HashClassfileContents.java), and you can compare the HashMaps returned across different scans.
 
 ### 10. Get a list of all whitelisted (and non-blacklisted) classes, interfaces or annotations on the classpath
 

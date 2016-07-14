@@ -48,10 +48,6 @@ public class ClassGraphBuilder {
         this.allClassInfo = new HashSet<>(classNameToClassInfo.values());
     }
 
-    public Map<String, ClassInfo> getClassNameToClassInfo() {
-        return classNameToClassInfo;
-    }
-    
     // -------------------------------------------------------------------------------------------------------------
     // Find the transitive closure from a named node in the class graph
 

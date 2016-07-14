@@ -5,7 +5,7 @@ public class ScanInterruptedException extends RuntimeException {
         super();
     }
 
-    public ScanInterruptedException(String msg) {
+    public ScanInterruptedException(final String msg) {
         super(msg);
     }
 }

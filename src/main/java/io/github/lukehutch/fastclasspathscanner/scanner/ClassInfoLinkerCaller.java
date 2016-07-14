@@ -5,7 +5,6 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassInfo;
-import io.github.lukehutch.fastclasspathscanner.utils.InterruptionChecker;
 
 /**
  * Worker thread class that produces a ClassInfo object from each ClassInfoUnlinked object in the classInfoUnlinked
@@ -14,37 +13,33 @@ import io.github.lukehutch.fastclasspathscanner.utils.InterruptionChecker;
  * since linking is not threadsafe.
  */
 public class ClassInfoLinkerCaller implements Callable<Void> {
-    private int endOfQueueMarkersExpected;
-    private LinkedBlockingQueue<ClassInfoUnlinked> classInfoUnlinked;
-    private Map<String, ClassInfo> classNameToClassInfo;
-    private InterruptionChecker interruptionChecker;
+    private final int numWorkerThreads;
+    private final LinkedBlockingQueue<ClassInfoUnlinked> classInfoUnlinked;
+    private final Map<String, ClassInfo> classNameToClassInfo;
 
-    public ClassInfoLinkerCaller(int endOfQueueMarkersExpected,
-            LinkedBlockingQueue<ClassInfoUnlinked> classInfoUnlinked, Map<String, ClassInfo> classNameToClassInfo,
-            InterruptionChecker interruptionChecker) {
-        super();
-        this.endOfQueueMarkersExpected = endOfQueueMarkersExpected;
+    public ClassInfoLinkerCaller(final LinkedBlockingQueue<ClassInfoUnlinked> classInfoUnlinked,
+            final Map<String, ClassInfo> classNameToClassInfo, final int numWorkerThreads) {
         this.classInfoUnlinked = classInfoUnlinked;
         this.classNameToClassInfo = classNameToClassInfo;
-        this.interruptionChecker = interruptionChecker;
+        this.numWorkerThreads = numWorkerThreads;
     }
 
     @Override
     public Void call() {
         // Convert ClassInfoUnlinked to linked ClassInfo objects
-        for (int endOfQueueMarkersNeeded = endOfQueueMarkersExpected; endOfQueueMarkersNeeded > 0;) {
+        for (int endOfQueueMarkersNeeded = numWorkerThreads; endOfQueueMarkersNeeded > 0
+                && !Thread.currentThread().isInterrupted();) {
             try {
-                ClassInfoUnlinked c = classInfoUnlinked.take();
+                final ClassInfoUnlinked c = classInfoUnlinked.take();
                 if (c == ClassInfoUnlinked.END_OF_QUEUE) {
                     --endOfQueueMarkersNeeded;
                 } else {
                     // Create ClassInfo object from ClassInfoUnlinked object, and link into class graph
                     c.link(classNameToClassInfo);
                 }
-            } catch (InterruptedException e) {
+            } catch (final InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
-            interruptionChecker.check();
         }
         return null;
     }

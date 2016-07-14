@@ -15,8 +15,7 @@ import io.github.lukehutch.fastclasspathscanner.utils.Log.DeferredLog;
 
 /**
  * Class information that has been directly read from the binary classfile, before it is cross-linked with other
- * classes. (The cross-linking is done in a separate step to avoid the complexity of dealing with race
- * conditions.)
+ * classes. (The cross-linking is done in a separate step to avoid the complexity of dealing with race conditions.)
  */
 public class ClassInfoUnlinked {
     public String className;
@@ -27,7 +26,7 @@ public class ClassInfoUnlinked {
     public List<String> implementedInterfaces;
     public List<String> annotations;
     public Set<String> fieldTypes;
-    public Map<String, Object> staticFinalFieldValues;        
+    public Map<String, Object> staticFinalFieldValues;
     private ConcurrentHashMap<String, String> stringInternMap;
 
     /** End of queue marker used for worker threads */
@@ -111,12 +110,11 @@ public class ClassInfoUnlinked {
 
     public void logClassInfo(final DeferredLog log) {
         if (FastClasspathScanner.verbose) {
-            log.log(2,
-                    "Found " + (isAnnotation ? "annotation class" : isInterface ? "interface class" : "class")
-                            + " " + className);
+            log.log(2, "Found " + (isAnnotation ? "annotation class" : isInterface ? "interface class" : "class")
+                    + " " + className);
             if (superclassName != null && !"java.lang.Object".equals(superclassName)) {
-                log.log(3, "Super" + (isInterface && !isAnnotation ? "interface" : "class") + ": "
-                        + superclassName);
+                log.log(3,
+                        "Super" + (isInterface && !isAnnotation ? "interface" : "class") + ": " + superclassName);
             }
             if (implementedInterfaces != null) {
                 log.log(3, "Interfaces: " + String.join(", ", implementedInterfaces));

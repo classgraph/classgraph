@@ -10,7 +10,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.scanner.ClassInfoUnlinked;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
-import io.github.lukehutch.fastclasspathscanner.utils.InterruptionChecker;
 import io.github.lukehutch.fastclasspathscanner.utils.Log.DeferredLog;
 
 /**
@@ -28,16 +27,11 @@ public class ClassfileBinaryParser {
     /** The InputStream for the current classfile. Set by each call to readClassInfoFromClassfileHeader(). */
     private InputStream inputStream;
 
-    /** Used to interrupt all threads if any of them is interrupted. */
-    private final InterruptionChecker interruptionChecker;
-
     /** The name of the current classfile. Determined early in the call to readClassInfoFromClassfileHeader(). */
     private String className;
 
-    public ClassfileBinaryParser(final ScanSpec scanSpec, final InterruptionChecker interruptionChecker,
-            final DeferredLog log) {
+    public ClassfileBinaryParser(final ScanSpec scanSpec, final DeferredLog log) {
         this.scanSpec = scanSpec;
-        this.interruptionChecker = interruptionChecker;
         this.log = log;
     }
 
@@ -69,7 +63,7 @@ public class ClassfileBinaryParser {
      * Read another chunk of size BUFFER_CHUNK_SIZE from the InputStream; double the size of the buffer if necessary
      * to accommodate the new chunk.
      */
-    private void readMore(final int bytesRequired) throws IOException {
+    private void readMore(final int bytesRequired) throws IOException, InterruptedException {
         final int extraBytesNeeded = bytesRequired - (used - curr);
         int bytesToRequest = extraBytesNeeded + SUBSEQUENT_BUFFER_CHUNK_SIZE;
         final int maxNewUsed = used + bytesToRequest;
@@ -84,7 +78,9 @@ public class ClassfileBinaryParser {
         int extraBytesStillNotRead = extraBytesNeeded;
         while (extraBytesStillNotRead > 0) {
             final int bytesRead = inputStream.read(buf, used, bytesToRequest);
-            interruptionChecker.check();
+            if (Thread.currentThread().isInterrupted()) {
+                throw new InterruptedException();
+            }
             if (bytesRead > 0) {
                 used += bytesRead;
                 bytesToRequest -= bytesRead;
@@ -100,7 +96,7 @@ public class ClassfileBinaryParser {
         }
     }
 
-    private int readUnsignedByte() throws IOException {
+    private int readUnsignedByte() throws IOException, InterruptedException {
         if (curr > used - 1) {
             readMore(1);
         }
@@ -112,7 +108,7 @@ public class ClassfileBinaryParser {
         return buf[offset] & 0xff;
     }
 
-    private int readUnsignedShort() throws IOException {
+    private int readUnsignedShort() throws IOException, InterruptedException {
         if (curr > used - 2) {
             readMore(2);
         }
@@ -125,7 +121,7 @@ public class ClassfileBinaryParser {
         return ((buf[offset] & 0xff) << 8) | (buf[offset + 1] & 0xff);
     }
 
-    private int readInt() throws IOException {
+    private int readInt() throws IOException, InterruptedException {
         if (curr > used - 4) {
             readMore(4);
         }
@@ -141,7 +137,7 @@ public class ClassfileBinaryParser {
     }
 
     @SuppressWarnings("unused")
-    private long readLong() throws IOException {
+    private long readLong() throws IOException, InterruptedException {
         if (curr > used - 8) {
             readMore(8);
         }
@@ -159,7 +155,7 @@ public class ClassfileBinaryParser {
                 | ((buf[offset + 6] & 0xff) << 8) | (buf[offset + 7] & 0xff);
     }
 
-    private void skip(final int bytesToSkip) throws IOException {
+    private void skip(final int bytesToSkip) throws IOException, InterruptedException {
         if (curr > used - bytesToSkip) {
             readMore(bytesToSkip);
         }
@@ -331,10 +327,8 @@ public class ClassfileBinaryParser {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /**
-     * Read annotation entry from classfile.
-     */
-    private String readAnnotation() throws IOException {
+    /** Read annotation entry from classfile. */
+    private String readAnnotation() throws IOException, InterruptedException {
         // Lcom/xyz/Annotation -> Lcom.xyz.Annotation
         final String annotationFieldDescriptor = getConstantPoolClassName(readUnsignedShort());
         String annotationClassName;
@@ -358,7 +352,7 @@ public class ClassfileBinaryParser {
      * Read annotation element value from classfile. (These values are currently just skipped, so this function
      * returns nothing.)
      */
-    private void readAnnotationElementValue() throws IOException {
+    private void readAnnotationElementValue() throws IOException, InterruptedException {
         final int tag = (char) readUnsignedByte();
         switch (tag) {
         case 'B':
@@ -461,8 +455,8 @@ public class ClassfileBinaryParser {
      * super-class etc. Creates a new ClassInfo object, and adds it to classNameToClassInfoOut. Assumes classpath
      * masking has already been performed, so that only one class of a given name will be added.
      */
-    public ClassInfoUnlinked readClassInfoFromClassfileHeader(final InputStream inputStream,
-            final String relativePath, final Map<String, HashSet<String>> classNameToStaticFinalFieldsToMatch,
+    public ClassInfoUnlinked readClassInfoFromClassfileHeader(final String relativePath,
+            final InputStream inputStream, final Map<String, HashSet<String>> classNameToStaticFinalFieldsToMatch,
             final ConcurrentHashMap<String, String> stringInternMap) throws IOException {
         try {
             // Clear className and set inputStream for each new class
@@ -588,7 +582,8 @@ public class ClassfileBinaryParser {
             }
 
             // Fields
-            final HashSet<String> staticFinalFieldsToMatch = classNameToStaticFinalFieldsToMatch.get(className);
+            final HashSet<String> staticFinalFieldsToMatch = classNameToStaticFinalFieldsToMatch == null ? null
+                    : classNameToStaticFinalFieldsToMatch.get(className);
             final int fieldCount = readUnsignedShort();
             for (int i = 0; i < fieldCount; i++) {
                 // Info on accessFlags: http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.6

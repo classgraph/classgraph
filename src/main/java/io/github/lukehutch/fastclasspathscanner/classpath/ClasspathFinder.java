@@ -323,7 +323,7 @@ public class ClasspathFinder {
             // This can fail if the current SecurityManager does not allow
             // RuntimePermission ("createSecurityManager"):
             CALLER_RESOLVER = new CallerResolver();
-        } catch (SecurityException e) {
+        } catch (final SecurityException e) {
             // Ignore
         }
     }
@@ -332,6 +332,7 @@ public class ClasspathFinder {
     // https://www.infoq.com/news/2013/07/Oracle-Removes-getCallerClass
     // http://www.javaworld.com/article/2077344/core-java/find-a-way-out-of-the-classloader-maze.html
     private static final class CallerResolver extends SecurityManager {
+        @Override
         protected Class<?>[] getClassContext() {
             return super.getClassContext();
         }
@@ -362,7 +363,7 @@ public class ClasspathFinder {
         @Override
         public boolean handle(final ClassLoader classloader, final ClasspathFinder classpathFinder) {
             if (classloader instanceof URLClassLoader) {
-                URL[] urls = ((URLClassLoader) classloader).getURLs();
+                final URL[] urls = ((URLClassLoader) classloader).getURLs();
                 if (urls != null) {
                     for (final URL url : urls) {
                         if (url != null) {
@@ -415,8 +416,8 @@ public class ClasspathFinder {
             addAllParentClassloaders(ClassLoader.getSystemClassLoader(), classLoadersSet);
             // Look for classloaders on the call stack
             if (CALLER_RESOLVER != null) {
-                Class<?>[] callStack = CALLER_RESOLVER.getClassContext();
-                for (Class<?> callStackClass : callStack) {
+                final Class<?>[] callStack = CALLER_RESOLVER.getClassContext();
+                for (final Class<?> callStackClass : callStack) {
                     addAllParentClassloaders(callStackClass, classLoadersSet);
                 }
             } else {
@@ -457,9 +458,9 @@ public class ClasspathFinder {
             classLoaderHandlers.addAll(extraClassLoaderHandlers);
             // Only keep one instance of each ClassLoaderHandler, in case multiple instances are loaded
             // (due to multiple ClassLoaders covering the same classpath entries)
-            Set<String> classLoaderHandlerNames = new HashSet<>();
-            List<ClassLoaderHandler> classLoaderHandlersUnique = new ArrayList<>();
-            for (ClassLoaderHandler classLoaderHandler : classLoaderHandlers) {
+            final Set<String> classLoaderHandlerNames = new HashSet<>();
+            final List<ClassLoaderHandler> classLoaderHandlersUnique = new ArrayList<>();
+            for (final ClassLoaderHandler classLoaderHandler : classLoaderHandlers) {
                 if (classLoaderHandlerNames.add(classLoaderHandler.getClass().getName())) {
                     classLoaderHandlersUnique.add(classLoaderHandler);
                 }

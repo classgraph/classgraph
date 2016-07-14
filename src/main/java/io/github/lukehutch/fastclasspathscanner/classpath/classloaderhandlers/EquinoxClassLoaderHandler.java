@@ -10,7 +10,7 @@ public class EquinoxClassLoaderHandler implements ClassLoaderHandler {
     private boolean readSystemBundles = false;
 
     @Override
-    public boolean handle(ClassLoader classloader, ClasspathFinder classpathFinder) throws Exception {
+    public boolean handle(final ClassLoader classloader, final ClasspathFinder classpathFinder) throws Exception {
         for (Class<?> c = classloader.getClass(); c != null; c = c.getSuperclass()) {
             if ("org.eclipse.osgi.internal.loader.EquinoxClassLoader".equals(c.getName())) {
                 // type ClasspathManager
@@ -71,7 +71,7 @@ public class EquinoxClassLoaderHandler implements ClassLoaderHandler {
                             // type String
                             String location = (String) ReflectionUtils.getFieldVal(module, "location");
                             if (location != null) {
-                                int fileIdx = location.indexOf("file:");
+                                final int fileIdx = location.indexOf("file:");
                                 if (fileIdx >= 0) {
                                     location = location.substring(fileIdx);
                                     classpathFinder.addClasspathElement(location);
