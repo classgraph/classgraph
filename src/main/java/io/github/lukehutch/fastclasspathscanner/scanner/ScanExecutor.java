@@ -194,7 +194,7 @@ public class ScanExecutor {
 
                 // Call MatchProcessors
                 final long startMatchProcessors = System.nanoTime();
-                scanSpec.callMatchProcessors(scanResult, matchingFiles, log);
+                scanSpec.callMatchProcessors(scanResult, matchingFiles, classNameToClassInfo, log);
 
                 if (FastClasspathScanner.verbose) {
                     log.log(1, "Finished calling MatchProcessors", System.nanoTime() - startMatchProcessors);

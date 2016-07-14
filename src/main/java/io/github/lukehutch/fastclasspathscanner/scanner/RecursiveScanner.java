@@ -18,7 +18,7 @@ import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec.FilePathTesterA
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec.ScanSpecPathMatch;
 import io.github.lukehutch.fastclasspathscanner.utils.ThreadLog;
 
-public class RecursiveScanner implements Callable<Void> {
+class RecursiveScanner implements Callable<Void> {
     /** The classpath elements. */
     private final List<File> uniqueClasspathElts;
 

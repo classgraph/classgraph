@@ -12,7 +12,7 @@ import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassInfo;
  * others in the classNameToClassInfo map. Only one thread should be used to build the classNameToClassInfo map,
  * since linking is not threadsafe.
  */
-public class ClassInfoLinkerCaller implements Callable<Void> {
+class ClassInfoLinkerCaller implements Callable<Void> {
     private final int numWorkerThreads;
     private final LinkedBlockingQueue<ClassInfoUnlinked> classInfoUnlinked;
     private final Map<String, ClassInfo> classNameToClassInfo;

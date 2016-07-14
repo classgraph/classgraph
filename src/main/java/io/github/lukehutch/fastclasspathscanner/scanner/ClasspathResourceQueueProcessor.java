@@ -11,7 +11,7 @@ import java.util.zip.ZipFile;
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.utils.ThreadLog;
 
-public class ClasspathResourceQueueProcessor {
+class ClasspathResourceQueueProcessor {
     public interface ClasspathResourceProcessor {
         public void processClasspathResource(ClasspathResource classpathResource, InputStream inputStream,
                 long inputStreamLength) throws IOException, InterruptedException;

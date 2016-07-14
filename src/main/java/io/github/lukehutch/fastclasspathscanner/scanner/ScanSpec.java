@@ -293,8 +293,8 @@ public class ScanSpec {
      * Run the MatchProcessors after a scan has completed.
      */
     public void callMatchProcessors(final ScanResult scanResult,
-            final LinkedBlockingQueue<ClasspathResource> matchingFiles, final ThreadLog log)
-            throws InterruptedException {
+            final LinkedBlockingQueue<ClasspathResource> matchingFiles, Map<String, ClassInfo> classNameToClassInfo,
+            final ThreadLog log) throws InterruptedException {
         // Call any FileMatchProcessors
         ClasspathResourceQueueProcessor.processClasspathResourceQueue(matchingFiles,
                 new ClasspathResourceProcessor() {
@@ -333,7 +333,7 @@ public class ScanSpec {
 
         // Call any static final field match processors
         if (fullyQualifiedFieldNameToStaticFinalFieldMatchProcessors != null) {
-            for (final ClassInfo classInfo : scanResult.getClassNameToClassInfo().values()) {
+            for (final ClassInfo classInfo : classNameToClassInfo.values()) {
                 if (classInfo.fieldValues != null) {
                     for (final Entry<String, Object> ent : classInfo.fieldValues.entrySet()) {
                         final String fieldName = ent.getKey();

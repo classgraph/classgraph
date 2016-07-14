@@ -73,10 +73,6 @@ public class ScanResult {
         classInfoUnlinked.link(classNameToClassInfo);
     }
 
-    Map<String, ClassInfo> getClassNameToClassInfo() {
-        return classNameToClassInfo;
-    }
-
     // -------------------------------------------------------------------------------------------------------------
 
     /**
