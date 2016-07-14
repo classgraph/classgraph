@@ -429,17 +429,41 @@ public class ClasspathFinder {
                 // Find all ClassLoaderHandlers registered using ServiceLoader, given known ClassLoaders. 
                 // FastClasspathScanner ships with several of these, registered in:
                 // src/main/resources/META-INF/services
-                for (final ClassLoaderHandler handler : ServiceLoader.load(ClassLoaderHandler.class, null)) {
-                    classLoaderHandlers.add(handler);
+                try {
+                    final ServiceLoader<ClassLoaderHandler> serviceLoaderHandler = ServiceLoader
+                            .load(ClassLoaderHandler.class, null);
+                    for (final ClassLoaderHandler handler : serviceLoaderHandler) {
+                        classLoaderHandlers.add(handler);
+                    }
+                    if (FastClasspathScanner.verbose) {
+                        log.log("Succeeded in calling ServiceLoader.load("
+                                + ClassLoaderHandler.class.getSimpleName() + ",null)");
+                    }
+                } catch (Exception e) {
+                    if (FastClasspathScanner.verbose) {
+                        log.log("Failed when calling ServiceLoader.load(" + ClassLoaderHandler.class.getSimpleName()
+                                + ",null): " + e);
+                    }
                 }
                 for (final ClassLoader classLoader : classLoaders) {
                     // Use ServiceLoader to find registered ClassLoaderHandlers, see:
                     // https://docs.oracle.com/javase/6/docs/api/java/util/ServiceLoader.html
-                    final ServiceLoader<ClassLoaderHandler> classLoaderHandlerLoader = ServiceLoader
-                            .load(ClassLoaderHandler.class, classLoader);
-                    // Iterate through registered ClassLoaderHandlers
-                    for (final ClassLoaderHandler handler : classLoaderHandlerLoader) {
-                        classLoaderHandlers.add(handler);
+                    try {
+                        final ServiceLoader<ClassLoaderHandler> classLoaderHandlerLoader = ServiceLoader
+                                .load(ClassLoaderHandler.class, classLoader);
+                        // Iterate through registered ClassLoaderHandlers
+                        for (final ClassLoaderHandler handler : classLoaderHandlerLoader) {
+                            classLoaderHandlers.add(handler);
+                        }
+                        if (FastClasspathScanner.verbose) {
+                            log.log("Succeeded in calling ServiceLoader.load("
+                                    + ClassLoaderHandler.class.getSimpleName() + ", " + classLoader + ")");
+                        }
+                    } catch (Exception e) {
+                        if (FastClasspathScanner.verbose) {
+                            log.log("Failed when calling ServiceLoader.load("
+                                    + ClassLoaderHandler.class.getSimpleName() + ", " + classLoader + "): " + e);
+                        }
                     }
                 }
                 // Add manually-added ClassLoaderHandlers
