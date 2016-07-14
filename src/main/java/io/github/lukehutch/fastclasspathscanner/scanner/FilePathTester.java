@@ -2,7 +2,7 @@ package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import java.io.File;
 
-import io.github.lukehutch.fastclasspathscanner.utils.ThreadLog;
+import io.github.lukehutch.fastclasspathscanner.utils.LoggedThread.ThreadLog;
 
 /** An interface used to test whether a file's relative path matches a given specification. */
 interface FilePathTester {

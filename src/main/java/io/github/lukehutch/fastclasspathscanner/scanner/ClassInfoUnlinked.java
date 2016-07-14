@@ -12,7 +12,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassInfo;
 import io.github.lukehutch.fastclasspathscanner.utils.Join;
-import io.github.lukehutch.fastclasspathscanner.utils.ThreadLog;
+import io.github.lukehutch.fastclasspathscanner.utils.LoggedThread.ThreadLog;
 
 /**
  * Class information that has been directly read from the binary classfile, before it is cross-linked with other

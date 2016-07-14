@@ -740,7 +740,7 @@ public class FastClasspathScanner {
             if (executorService != null) {
                 try {
                     executorService.shutdown();
-                } catch (Exception e) {
+                } catch (final Exception e) {
                     throw new RuntimeException("Exception shutting down ExecutorService: " + e);
                 }
             }

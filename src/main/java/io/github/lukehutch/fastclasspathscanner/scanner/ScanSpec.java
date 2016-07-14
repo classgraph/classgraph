@@ -28,7 +28,7 @@ import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubclassMatchProc
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubinterfaceMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathResourceQueueProcessor.ClasspathResourceProcessor;
 import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathResourceQueueProcessor.EndOfClasspathResourceQueueProcessor;
-import io.github.lukehutch.fastclasspathscanner.utils.ThreadLog;
+import io.github.lukehutch.fastclasspathscanner.utils.LoggedThread.ThreadLog;
 
 public class ScanSpec {
     /** Whitelisted package paths with "/" appended, or the empty list if all packages are whitelisted. */
@@ -293,8 +293,8 @@ public class ScanSpec {
      * Run the MatchProcessors after a scan has completed.
      */
     public void callMatchProcessors(final ScanResult scanResult,
-            final LinkedBlockingQueue<ClasspathResource> matchingFiles, Map<String, ClassInfo> classNameToClassInfo,
-            final ThreadLog log) throws InterruptedException {
+            final LinkedBlockingQueue<ClasspathResource> matchingFiles,
+            final Map<String, ClassInfo> classNameToClassInfo, final ThreadLog log) throws InterruptedException {
         // Call any FileMatchProcessors
         ClasspathResourceQueueProcessor.processClasspathResourceQueue(matchingFiles,
                 new ClasspathResourceProcessor() {

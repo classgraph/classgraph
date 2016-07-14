@@ -5,15 +5,25 @@ import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Queue;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 
-/** Class for accumulating ordered log entries from threads, for later writing to the log without interleaving. */
-public class ThreadLog {
-    private static AtomicBoolean versionLogged = new AtomicBoolean(false);
-    private final Queue<ThreadLogEntry> logEntries = new ConcurrentLinkedQueue<>();
+public abstract class LoggedThread<T> implements Callable<T> {
+    protected ThreadLog log = new ThreadLog();
+
+    @Override
+    public T call() throws Exception {
+        try {
+            return doWork();
+        } finally {
+            log.flush();
+        }
+    }
+
+    public abstract T doWork() throws Exception;
 
     private static class ThreadLogEntry {
         private final int indentLevel;
@@ -60,40 +70,48 @@ public class ThreadLog {
         }
     }
 
-    public void log(final int indentLevel, final String msg) {
-        logEntries.add(new ThreadLogEntry(indentLevel, msg));
-    }
+    /**
+     * Class for accumulating ordered log entries from threads, for later writing to the log without interleaving.
+     */
+    public static class ThreadLog {
+        private static AtomicBoolean versionLogged = new AtomicBoolean(false);
+        private final Queue<ThreadLogEntry> logEntries = new ConcurrentLinkedQueue<>();
 
-    public void log(final String msg) {
-        logEntries.add(new ThreadLogEntry(0, msg));
-    }
+        public void log(final int indentLevel, final String msg) {
+            logEntries.add(new ThreadLogEntry(indentLevel, msg));
+        }
 
-    public void log(final int indentLevel, final String msg, final long elapsedTimeNanos) {
-        logEntries.add(new ThreadLogEntry(indentLevel, msg, elapsedTimeNanos));
-    }
+        public void log(final String msg) {
+            logEntries.add(new ThreadLogEntry(0, msg));
+        }
 
-    public void log(final String msg, final long elapsedTimeNanos) {
-        logEntries.add(new ThreadLogEntry(0, msg, elapsedTimeNanos));
-    }
+        public void log(final int indentLevel, final String msg, final long elapsedTimeNanos) {
+            logEntries.add(new ThreadLogEntry(indentLevel, msg, elapsedTimeNanos));
+        }
 
-    public void flush() {
-        if (!logEntries.isEmpty()) {
-            final StringBuilder buf = new StringBuilder();
-            if (versionLogged.compareAndSet(false, true)) {
-                if (FastClasspathScanner.verbose) {
-                    // Log the version before the first log entry
-                    buf.append(new ThreadLogEntry(0,
-                            "FastClasspathScanner version " + FastClasspathScanner.getVersion()).toString());
+        public void log(final String msg, final long elapsedTimeNanos) {
+            logEntries.add(new ThreadLogEntry(0, msg, elapsedTimeNanos));
+        }
+
+        public synchronized void flush() {
+            if (!logEntries.isEmpty()) {
+                final StringBuilder buf = new StringBuilder();
+                if (versionLogged.compareAndSet(false, true)) {
+                    if (FastClasspathScanner.verbose) {
+                        // Log the version before the first log entry
+                        buf.append(new ThreadLogEntry(0,
+                                "FastClasspathScanner version " + FastClasspathScanner.getVersion()).toString());
+                        buf.append('\n');
+                    }
+                }
+                for (ThreadLogEntry logEntry; (logEntry = logEntries.poll()) != null;) {
+                    buf.append(logEntry.toString());
                     buf.append('\n');
                 }
+                System.err.print(buf.toString());
+                System.err.flush();
+                logEntries.clear();
             }
-            for (ThreadLogEntry logEntry; (logEntry = logEntries.poll()) != null;) {
-                buf.append(logEntry.toString());
-                buf.append('\n');
-            }
-            System.err.print(buf.toString());
-            System.err.flush();
-            logEntries.clear();
         }
     }
 }

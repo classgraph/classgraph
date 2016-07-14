@@ -15,6 +15,7 @@ import java.util.zip.ZipFile;
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec.FilePathTesterAndMatchProcessorWrapper;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec.ScanSpecPathMatch;
+import io.github.lukehutch.fastclasspathscanner.utils.LoggedThread;
 
 class RecursiveScanner extends LoggedThread<Void> {
     /** The classpath elements. */

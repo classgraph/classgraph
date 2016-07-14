@@ -9,7 +9,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-import io.github.lukehutch.fastclasspathscanner.utils.ThreadLog;
+import io.github.lukehutch.fastclasspathscanner.utils.LoggedThread.ThreadLog;
 
 class ClasspathResourceQueueProcessor {
     public interface ClasspathResourceProcessor {

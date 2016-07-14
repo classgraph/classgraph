@@ -10,7 +10,7 @@ import java.util.Map.Entry;
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassInfo;
 import io.github.lukehutch.fastclasspathscanner.classgraph.ClassGraphBuilder;
-import io.github.lukehutch.fastclasspathscanner.utils.ThreadLog;
+import io.github.lukehutch.fastclasspathscanner.utils.LoggedThread.ThreadLog;
 
 /** The result of a scan. */
 public class ScanResult {

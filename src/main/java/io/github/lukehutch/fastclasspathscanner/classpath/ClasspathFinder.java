@@ -46,7 +46,7 @@ import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
 import io.github.lukehutch.fastclasspathscanner.utils.AdditionOrderedSet;
 import io.github.lukehutch.fastclasspathscanner.utils.Join;
-import io.github.lukehutch.fastclasspathscanner.utils.ThreadLog;
+import io.github.lukehutch.fastclasspathscanner.utils.LoggedThread.ThreadLog;
 
 public class ClasspathFinder {
     /** The scanning specification. */
@@ -439,7 +439,7 @@ public class ClasspathFinder {
                         log.log("Succeeded in calling ServiceLoader.load("
                                 + ClassLoaderHandler.class.getSimpleName() + ",null)");
                     }
-                } catch (Throwable e) {
+                } catch (final Throwable e) {
                     if (FastClasspathScanner.verbose) {
                         log.log("Failed when calling ServiceLoader.load(" + ClassLoaderHandler.class.getSimpleName()
                                 + ",null): " + e);
@@ -459,7 +459,7 @@ public class ClasspathFinder {
                             log.log("Succeeded in calling ServiceLoader.load("
                                     + ClassLoaderHandler.class.getSimpleName() + ".class, " + classLoader + ")");
                         }
-                    } catch (Throwable e) {
+                    } catch (final Throwable e) {
                         if (FastClasspathScanner.verbose) {
                             log.log("Failed when calling ServiceLoader.load("
                                     + ClassLoaderHandler.class.getSimpleName() + ".class, " + classLoader + "): "
