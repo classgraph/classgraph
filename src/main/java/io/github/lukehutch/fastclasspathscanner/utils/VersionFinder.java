@@ -37,7 +37,7 @@ public class VersionFinder {
                     path = path.getParent();
                 }
                 // Remove up to two more levels for "bin" or "target/classes"
-                for (int i = 0; i < 2 && path != null; i++, path = path.getParent()) {
+                for (int i = 0; i < 3 && path != null; i++, path = path.getParent()) {
                     final Path pom = path.resolve("pom.xml");
                     try (InputStream is = Files.newInputStream(pom)) {
                         final Document doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(is);
