@@ -110,7 +110,6 @@ public abstract class LoggedThread<T> implements Callable<T> {
                 }
                 System.err.print(buf.toString());
                 System.err.flush();
-                logEntries.clear();
             }
         }
     }
