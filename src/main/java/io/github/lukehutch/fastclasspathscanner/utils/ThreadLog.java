@@ -51,36 +51,41 @@ public class ThreadLog {
         logEntries.add(new ThreadLogEntry(0, msg, elapsedTimeNanos));
     }
 
-    public void flush() {
-        if (versionLogged.compareAndSet(false, true)) {
-            if (FastClasspathScanner.verbose) {
-                // Log the version before the first log entry
-                log("FastClasspathScanner version " + FastClasspathScanner.getVersion());
-            }
+    private void log(ThreadLogEntry logEntry, StringBuilder buf) {
+        buf.append(dateTimeFormatter.format(logEntry.time));
+        buf.append('\t');
+        buf.append(FastClasspathScanner.class.getSimpleName());
+        buf.append('\t');
+        final int numIndentChars = 2 * logEntry.indentLevel;
+        for (int i = 0; i < numIndentChars - 1; i++) {
+            buf.append('-');
         }
+        if (numIndentChars > 0) {
+            buf.append(" ");
+        }
+        buf.append(logEntry.msg);
+        if (logEntry.elapsedTimeNanos >= 0L) {
+            buf.append(" in ");
+            buf.append(nanoFormatter.format(logEntry.elapsedTimeNanos * 1e-9));
+            buf.append(" sec");
+        }
+        buf.append('\n');
+    }
+
+    public void flush() {
         if (!logEntries.isEmpty()) {
             // SimpleDateFormatter is not threadsafe => lock
             synchronized (dateTimeFormatter) {
                 StringBuilder buf = new StringBuilder();
+                if (versionLogged.compareAndSet(false, true)) {
+                    if (FastClasspathScanner.verbose) {
+                        // Log the version before the first log entry
+                        log(new ThreadLogEntry(0,
+                                "FastClasspathScanner version " + FastClasspathScanner.getVersion()), buf);
+                    }
+                }
                 for (ThreadLogEntry logEntry : logEntries) {
-                    buf.append(dateTimeFormatter.format(logEntry.time));
-                    buf.append('\t');
-                    buf.append(FastClasspathScanner.class.getSimpleName());
-                    buf.append('\t');
-                    final int numIndentChars = 2 * logEntry.indentLevel;
-                    for (int i = 0; i < numIndentChars - 1; i++) {
-                        buf.append('-');
-                    }
-                    if (numIndentChars > 0) {
-                        buf.append(" ");
-                    }
-                    buf.append(logEntry.msg);
-                    if (logEntry.elapsedTimeNanos >= 0L) {
-                        buf.append(" in ");
-                        buf.append(nanoFormatter.format(logEntry.elapsedTimeNanos * 1e-9));
-                        buf.append(" sec");
-                    }
-                    buf.append('\n');
+                    log(logEntry, buf);
                 }
                 System.err.println(buf.toString());
                 System.err.flush();

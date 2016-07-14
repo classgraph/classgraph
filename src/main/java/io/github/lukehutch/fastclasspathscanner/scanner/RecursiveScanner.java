@@ -321,10 +321,9 @@ public class RecursiveScanner implements Callable<Void> {
     public Void call() throws Exception {
         final List<File> uniqueClasspathElts = classpathFinder.getUniqueClasspathElements();
         if (FastClasspathScanner.verbose) {
-            log.log(1, "Classpath element scan order:");
             for (int i = 0; i < uniqueClasspathElts.size(); i++) {
                 final File elt = uniqueClasspathElts.get(i);
-                log.log(2, i + ": " + elt);
+                log.log(2, "Classpath element " + i + ": " + elt);
             }
         }
         for (final File classpathElt : uniqueClasspathElts) {
