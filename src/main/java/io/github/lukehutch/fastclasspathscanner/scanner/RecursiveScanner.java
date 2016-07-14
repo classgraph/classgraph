@@ -7,7 +7,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.Callable;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.ZipEntry;
@@ -16,9 +15,8 @@ import java.util.zip.ZipFile;
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec.FilePathTesterAndMatchProcessorWrapper;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec.ScanSpecPathMatch;
-import io.github.lukehutch.fastclasspathscanner.utils.ThreadLog;
 
-class RecursiveScanner implements Callable<Void> {
+class RecursiveScanner extends LoggedThread<Void> {
     /** The classpath elements. */
     private final List<File> uniqueClasspathElts;
 
@@ -58,22 +56,18 @@ class RecursiveScanner implements Callable<Void> {
      */
     private final int numWorkerThreads;
 
-    /** The thread-local log. */
-    private final ThreadLog log;
-
     private boolean interrupted = false;
 
     public RecursiveScanner(final List<File> uniqueClasspathElts, final ScanSpec scanSpec,
             final LinkedBlockingQueue<ClasspathResource> matchingFiles,
             final LinkedBlockingQueue<ClasspathResource> matchingClassfiles, final Map<File, Long> fileToTimestamp,
-            final int numWorkerThreads, final ThreadLog log) {
+            final int numWorkerThreads) {
         this.uniqueClasspathElts = uniqueClasspathElts;
         this.scanSpec = scanSpec;
         this.matchingFiles = matchingFiles;
         this.matchingClassfiles = matchingClassfiles;
         this.fileToTimestamp = fileToTimestamp;
         this.numWorkerThreads = numWorkerThreads;
-        this.log = log;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -317,7 +311,7 @@ class RecursiveScanner implements Callable<Void> {
     // -------------------------------------------------------------------------------------------------------------
 
     @Override
-    public Void call() throws Exception {
+    public Void doWork() throws Exception {
         if (FastClasspathScanner.verbose) {
             for (int i = 0; i < uniqueClasspathElts.size(); i++) {
                 final File elt = uniqueClasspathElts.get(i);

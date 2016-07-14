@@ -35,7 +35,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -59,7 +58,6 @@ public class ScanExecutor {
         final long scanStart = System.nanoTime();
 
         final List<Future<Void>> futures = new ArrayList<>(numWorkerThreads);
-        final List<ThreadLog> logs = new ArrayList<>(numWorkerThreads);
 
         // ---------------------------------------------------------------------------------------------------------
         // Recursively scan classpath
@@ -82,11 +80,11 @@ public class ScanExecutor {
 
         // Get classpath elements
         final List<File> classpathElts = new ClasspathFinder(scanSpec, initialLog).getUniqueClasspathElements();
+        initialLog.flush();
 
         // Start recursively scanning classpath
-        logs.add(initialLog);
         futures.add(executorService.submit(new RecursiveScanner(classpathElts, scanSpec, matchingFiles,
-                matchingClassfiles, fileToTimestamp, numWorkerThreads, initialLog)));
+                matchingClassfiles, fileToTimestamp, numWorkerThreads)));
 
         // ---------------------------------------------------------------------------------------------------------
         // Parse classfile binary headers in parallel
@@ -103,13 +101,10 @@ public class ScanExecutor {
         for (int i = 0; i < numWorkerThreads; i++) {
             // Create and start a new ClassfileBinaryParserCaller thread that consumes entries from
             // the classpathResourcesToScan queue and creates objects in the classInfoUnlinked queue
-            final ThreadLog workerLog = new ThreadLog();
-            logs.add(workerLog);
-            futures.add(executorService.submit(new Callable<Void>() {
+            futures.add(executorService.submit(new LoggedThread<Void>() {
                 @Override
-                public Void call() throws Exception {
-                    final ClassfileBinaryParser classfileBinaryParser = new ClassfileBinaryParser(scanSpec,
-                            workerLog);
+                public Void doWork() throws Exception {
+                    final ClassfileBinaryParser classfileBinaryParser = new ClassfileBinaryParser(scanSpec, log);
                     ClasspathResourceQueueProcessor.processClasspathResourceQueue(matchingClassfiles,
                             new ClasspathResourceProcessor() {
                                 @Override
@@ -125,7 +120,7 @@ public class ScanExecutor {
                                     if (thisClassInfoUnlinked != null) {
                                         classInfoUnlinked.add(thisClassInfoUnlinked);
                                         // Log info about class
-                                        thisClassInfoUnlinked.logClassInfo(workerLog);
+                                        thisClassInfoUnlinked.logClassInfo(log);
                                     }
                                 }
                             }, new EndOfClasspathResourceQueueProcessor() {
@@ -135,7 +130,7 @@ public class ScanExecutor {
                                     // no more work to do. Send poison pill to next stage.
                                     classInfoUnlinked.add(ClassInfoUnlinked.END_OF_QUEUE);
                                 }
-                            }, workerLog);
+                            }, log);
                     return null;
                 }
             }));
@@ -147,12 +142,10 @@ public class ScanExecutor {
 
         final Map<String, ClassInfo> classNameToClassInfo = new HashMap<>();
 
-        // Add one empty placeholder log, so that there is one log per thread (it is not used for last thread)
-        logs.add(new ThreadLog());
         // Start final thread that creates cross-linked ClassInfo objects from each ClassInfoUnlinked object
-        final Future<Void> linkerFuture = executorService.submit(new Callable<Void>() {
+        final Future<Void> linkerFuture = executorService.submit(new LoggedThread<Void>() {
             @Override
-            public Void call() {
+            public Void doWork() {
                 // Convert ClassInfoUnlinked to linked ClassInfo objects
                 for (int threadsStillRunning = numWorkerThreads; threadsStillRunning > 0
                         && !Thread.currentThread().isInterrupted();) {
@@ -177,16 +170,13 @@ public class ScanExecutor {
         // Wait for worker thread completion, and then flush out worker logs in order
         // -----------------------------------------------------------------------------------------------------
 
-        final Future<ScanResult> scanResult = executorService.submit(new Callable<ScanResult>() {
+        final Future<ScanResult> scanResult = executorService.submit(new LoggedThread<ScanResult>() {
             @Override
-            public ScanResult call() throws Exception {
+            public ScanResult doWork() throws Exception {
                 for (int i = 0; i < futures.size(); i++) {
                     // Wait for worker thread completion
                     futures.get(i).get();
-                    // Flush log output for worker thread
-                    logs.get(i).flush();
                 }
-                final ThreadLog log = new ThreadLog();
 
                 // Build class graph before calling MatchProcessors, in case they want to refer to the graph
                 final ScanResult scanResult = new ScanResult(scanSpec, classpathElts, classNameToClassInfo,
@@ -200,8 +190,6 @@ public class ScanExecutor {
                     log.log(1, "Finished calling MatchProcessors", System.nanoTime() - startMatchProcessors);
                     log.log("Finished scan", System.nanoTime() - scanStart);
                 }
-                log.flush();
-
                 return scanResult;
             }
         });
