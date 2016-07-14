@@ -14,14 +14,13 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-import io.github.lukehutch.fastclasspathscanner.classpath.ClasspathFinder;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec.FilePathTesterAndMatchProcessorWrapper;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec.ScanSpecPathMatch;
 import io.github.lukehutch.fastclasspathscanner.utils.ThreadLog;
 
 public class RecursiveScanner implements Callable<Void> {
-    /** The classpath finder. */
-    private final ClasspathFinder classpathFinder;
+    /** The classpath elements. */
+    private final List<File> uniqueClasspathElts;
 
     /** The scanspec (whitelisted and blacklisted packages, etc.). */
     private final ScanSpec scanSpec;
@@ -64,11 +63,11 @@ public class RecursiveScanner implements Callable<Void> {
 
     private boolean interrupted = false;
 
-    public RecursiveScanner(final ClasspathFinder classpathFinder, final ScanSpec scanSpec,
+    public RecursiveScanner(final List<File> uniqueClasspathElts, final ScanSpec scanSpec,
             final LinkedBlockingQueue<ClasspathResource> matchingFiles,
             final LinkedBlockingQueue<ClasspathResource> matchingClassfiles, final Map<File, Long> fileToTimestamp,
             final int numWorkerThreads, final ThreadLog log) {
-        this.classpathFinder = classpathFinder;
+        this.uniqueClasspathElts = uniqueClasspathElts;
         this.scanSpec = scanSpec;
         this.matchingFiles = matchingFiles;
         this.matchingClassfiles = matchingClassfiles;
@@ -123,7 +122,7 @@ public class RecursiveScanner implements Callable<Void> {
     private void scanDir(final File classpathElt, final File dir, final int ignorePrefixLen,
             boolean inWhitelistedPath) {
         if (FastClasspathScanner.verbose) {
-            log.log(3, "Scanning directory: " + dir);
+            log.log(2, "Scanning directory: " + dir);
         }
         final String dirPath = dir.getPath();
         final String dirRelativePath = ignorePrefixLen > dirPath.length() ? "/" //
@@ -143,7 +142,7 @@ public class RecursiveScanner implements Callable<Void> {
         final File[] filesInDir = dir.listFiles();
         if (filesInDir == null) {
             if (FastClasspathScanner.verbose) {
-                log.log(4, "Invalid directory " + dir);
+                log.log(3, "Invalid directory " + dir);
             }
             return;
         }
@@ -201,7 +200,7 @@ public class RecursiveScanner implements Callable<Void> {
                 // Match file paths against path patterns
                 for (final FilePathTesterAndMatchProcessorWrapper fileMatcher : //
                 scanSpec.getFilePathTestersAndMatchProcessorWrappers()) {
-                    if (fileMatcher.filePathTester.filePathMatches(classpathElt, fileInDirRelativePath)) {
+                    if (fileMatcher.filePathTester.filePathMatches(classpathElt, fileInDirRelativePath, log)) {
                         // File's relative path matches.
                         matchingFiles.add(new ClasspathResource(classpathElt, /* classpathEltIsJar = */ false,
                                 fileInDirRelativePath, fileMatcher.fileMatchProcessorWrapper));
@@ -216,7 +215,7 @@ public class RecursiveScanner implements Callable<Void> {
         }
         numDirsScanned.incrementAndGet();
         if (FastClasspathScanner.verbose) {
-            log.log(3, "Scanned directory " + dir + " and subdirectories", System.nanoTime() - startTime);
+            log.log(2, "Scanned subdirectories of " + dir, System.nanoTime() - startTime);
         }
     }
 
@@ -227,7 +226,7 @@ public class RecursiveScanner implements Callable<Void> {
      */
     private void scanZipfile(final File classpathElt, final ZipFile zipFile) {
         if (FastClasspathScanner.verbose) {
-            log.log(3, "Scanning jarfile: " + classpathElt);
+            log.log(2, "Scanning jarfile: " + classpathElt);
         }
         final long startTime = System.nanoTime();
         String prevParentRelativePath = null;
@@ -297,7 +296,7 @@ public class RecursiveScanner implements Callable<Void> {
             // Match file paths against path patterns
             for (final FilePathTesterAndMatchProcessorWrapper fileMatcher : //
             scanSpec.getFilePathTestersAndMatchProcessorWrappers()) {
-                if (fileMatcher.filePathTester.filePathMatches(classpathElt, relativePath)) {
+                if (fileMatcher.filePathTester.filePathMatches(classpathElt, relativePath, log)) {
                     // File's relative path matches.
                     matchingFiles.add(new ClasspathResource(classpathElt, /* classpathEltIsJar = */ true,
                             relativePath, fileMatcher.fileMatchProcessorWrapper));
@@ -311,7 +310,7 @@ public class RecursiveScanner implements Callable<Void> {
         numJarfilesScanned.incrementAndGet();
         fileToTimestamp.put(classpathElt, classpathElt.lastModified());
         if (FastClasspathScanner.verbose) {
-            log.log(4, "Scanned jarfile " + classpathElt, System.nanoTime() - startTime);
+            log.log(2, "Scanned jarfile " + classpathElt, System.nanoTime() - startTime);
         }
     }
 
@@ -319,11 +318,10 @@ public class RecursiveScanner implements Callable<Void> {
 
     @Override
     public Void call() throws Exception {
-        final List<File> uniqueClasspathElts = classpathFinder.getUniqueClasspathElements();
         if (FastClasspathScanner.verbose) {
             for (int i = 0; i < uniqueClasspathElts.size(); i++) {
                 final File elt = uniqueClasspathElts.get(i);
-                log.log(2, "Classpath element " + i + ": " + elt);
+                log.log(1, "Classpath element " + i + ": " + elt);
             }
         }
         for (final File classpathElt : uniqueClasspathElts) {

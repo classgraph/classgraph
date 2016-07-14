@@ -53,12 +53,9 @@ public class ScanExecutor {
     /**
      * Scan the classpath, and call any MatchProcessors on files or classes that match.
      */
-    public static Future<ScanResult> scan(final ClasspathFinder classpathFinder, final ScanSpec scanSpec,
-            final ExecutorService executorService, final int numWorkerThreads, final ThreadLog mainLog) {
+    public static Future<ScanResult> scan(final ScanSpec scanSpec, final ExecutorService executorService,
+            final int numWorkerThreads) {
         // Get classpath elements
-        if (FastClasspathScanner.verbose) {
-            mainLog.log("Starting scan");
-        }
         final long scanStart = System.nanoTime();
 
         final List<Future<Void>> futures = new ArrayList<>(numWorkerThreads);
@@ -77,11 +74,19 @@ public class ScanExecutor {
         // A map from a file to its timestamp at time of scan.
         final Map<File, Long> fileToTimestamp = new HashMap<>();
 
+        final ThreadLog initialLog = new ThreadLog();
+        if (FastClasspathScanner.verbose) {
+            initialLog.log("Starting scan");
+        }
+        scanSpec.log(initialLog);
+        
+        // Get classpath elements
+        final List<File> classpathElts = new ClasspathFinder(scanSpec, initialLog).getUniqueClasspathElements();
+
         // Start recursively scanning classpath
-        final ThreadLog recursiveScannerLog = new ThreadLog();
-        logs.add(recursiveScannerLog);
-        futures.add(executorService.submit(new RecursiveScanner(classpathFinder, scanSpec, matchingFiles,
-                matchingClassfiles, fileToTimestamp, numWorkerThreads, recursiveScannerLog)));
+        logs.add(initialLog);
+        futures.add(executorService.submit(new RecursiveScanner(classpathElts, scanSpec, matchingFiles,
+                matchingClassfiles, fileToTimestamp, numWorkerThreads, initialLog)));
 
         // ---------------------------------------------------------------------------------------------------------
         // Parse classfile binary headers in parallel
@@ -181,20 +186,21 @@ public class ScanExecutor {
                     // Flush log output for worker thread
                     logs.get(i).flush();
                 }
+                ThreadLog log = new ThreadLog();
 
                 // Build class graph before calling MatchProcessors, in case they want to refer to the graph
-                final ScanResult scanResult = new ScanResult(scanSpec, classNameToClassInfo, fileToTimestamp,
-                        mainLog);
+                final ScanResult scanResult = new ScanResult(scanSpec, classpathElts, classNameToClassInfo,
+                        fileToTimestamp, log);
 
                 // Call MatchProcessors
                 final long startMatchProcessors = System.nanoTime();
-                scanSpec.callMatchProcessors(scanResult, matchingFiles);
+                scanSpec.callMatchProcessors(scanResult, matchingFiles, log);
 
                 if (FastClasspathScanner.verbose) {
-                    mainLog.log(1, "Finished calling MatchProcessors", System.nanoTime() - startMatchProcessors);
-                    mainLog.log("Finished scan", System.nanoTime() - scanStart);
+                    log.log(1, "Finished calling MatchProcessors", System.nanoTime() - startMatchProcessors);
+                    log.log("Finished scan", System.nanoTime() - scanStart);
                 }
-                mainLog.flush();
+                log.flush();
 
                 return scanResult;
             }

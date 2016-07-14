@@ -14,14 +14,14 @@ import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 public class ThreadLog {
     private static AtomicBoolean versionLogged = new AtomicBoolean(false);
     private final Queue<ThreadLogEntry> logEntries = new ConcurrentLinkedQueue<>();
-    private SimpleDateFormat dateTimeFormatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mmX");
-    private DecimalFormat nanoFormatter = new DecimalFormat("0.000000");
 
     private static class ThreadLogEntry {
         private final int indentLevel;
         private final Date time;
         private final String msg;
         private final long elapsedTimeNanos;
+        private SimpleDateFormat dateTimeFormatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mmX");
+        private DecimalFormat nanoFormatter = new DecimalFormat("0.000000");
 
         public ThreadLogEntry(final int indentLevel, final String msg, final long elapsedTimeNanos) {
             this.indentLevel = indentLevel;
@@ -32,6 +32,31 @@ public class ThreadLog {
 
         public ThreadLogEntry(final int indentLevel, final String msg) {
             this(indentLevel, msg, -1L);
+        }
+
+        @Override
+        public String toString() {
+            StringBuilder buf = new StringBuilder();
+            synchronized (dateTimeFormatter) {
+                buf.append(dateTimeFormatter.format(time));
+            }
+            buf.append('\t');
+            buf.append(FastClasspathScanner.class.getSimpleName());
+            buf.append('\t');
+            final int numIndentChars = 2 * indentLevel;
+            for (int i = 0; i < numIndentChars - 1; i++) {
+                buf.append('-');
+            }
+            if (numIndentChars > 0) {
+                buf.append(" ");
+            }
+            buf.append(msg);
+            if (elapsedTimeNanos >= 0L) {
+                buf.append(" in ");
+                buf.append(nanoFormatter.format(elapsedTimeNanos * 1e-9));
+                buf.append(" sec");
+            }
+            return buf.toString();
         }
     }
 
@@ -51,46 +76,24 @@ public class ThreadLog {
         logEntries.add(new ThreadLogEntry(0, msg, elapsedTimeNanos));
     }
 
-    private void log(ThreadLogEntry logEntry, StringBuilder buf) {
-        buf.append(dateTimeFormatter.format(logEntry.time));
-        buf.append('\t');
-        buf.append(FastClasspathScanner.class.getSimpleName());
-        buf.append('\t');
-        final int numIndentChars = 2 * logEntry.indentLevel;
-        for (int i = 0; i < numIndentChars - 1; i++) {
-            buf.append('-');
-        }
-        if (numIndentChars > 0) {
-            buf.append(" ");
-        }
-        buf.append(logEntry.msg);
-        if (logEntry.elapsedTimeNanos >= 0L) {
-            buf.append(" in ");
-            buf.append(nanoFormatter.format(logEntry.elapsedTimeNanos * 1e-9));
-            buf.append(" sec");
-        }
-        buf.append('\n');
-    }
-
     public void flush() {
         if (!logEntries.isEmpty()) {
-            // SimpleDateFormatter is not threadsafe => lock
-            synchronized (dateTimeFormatter) {
-                StringBuilder buf = new StringBuilder();
-                if (versionLogged.compareAndSet(false, true)) {
-                    if (FastClasspathScanner.verbose) {
-                        // Log the version before the first log entry
-                        log(new ThreadLogEntry(0,
-                                "FastClasspathScanner version " + FastClasspathScanner.getVersion()), buf);
-                    }
+            StringBuilder buf = new StringBuilder();
+            if (versionLogged.compareAndSet(false, true)) {
+                if (FastClasspathScanner.verbose) {
+                    // Log the version before the first log entry
+                    buf.append(new ThreadLogEntry(0,
+                            "FastClasspathScanner version " + FastClasspathScanner.getVersion()).toString());
+                    buf.append('\n');
                 }
-                for (ThreadLogEntry logEntry : logEntries) {
-                    log(logEntry, buf);
-                }
-                System.err.println(buf.toString());
-                System.err.flush();
-                logEntries.clear();
             }
+            for (ThreadLogEntry logEntry; (logEntry = logEntries.poll()) != null;) {
+                buf.append(logEntry.toString());
+                buf.append('\n');
+            }
+            System.err.print(buf.toString());
+            System.err.flush();
+            logEntries.clear();
         }
     }
 }

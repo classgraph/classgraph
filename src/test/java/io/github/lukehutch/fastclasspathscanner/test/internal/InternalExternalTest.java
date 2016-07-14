@@ -14,7 +14,7 @@ public class InternalExternalTest {
     @Test
     public void testWhitelistingExternalClasses() {
         final ScanResult scanResult = new FastClasspathScanner(InternalExternalTest.class.getPackage().getName(),
-                ExternalAnnotation.class.getName()).scan();
+                ExternalAnnotation.class.getName()).verbose().scan();
         assertThat(scanResult.getNamesOfAllStandardClasses()).containsOnly(InternalExternalTest.class.getName(),
                 InternalExtendsExternal.class.getName(), InternalImplementsExternal.class.getName(),
                 InternalAnnotatedByExternal.class.getName());

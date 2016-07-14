@@ -28,8 +28,6 @@
  */
 package io.github.lukehutch.fastclasspathscanner;
 
-import java.io.File;
-import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -39,7 +37,6 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import io.github.lukehutch.fastclasspathscanner.classpath.ClassLoaderHandler;
-import io.github.lukehutch.fastclasspathscanner.classpath.ClasspathFinder;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.ClassAnnotationMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.ClassMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchContentsProcessor;
@@ -54,7 +51,6 @@ import io.github.lukehutch.fastclasspathscanner.scanner.ScanExecutor;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanInterruptedException;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
-import io.github.lukehutch.fastclasspathscanner.utils.ThreadLog;
 import io.github.lukehutch.fastclasspathscanner.utils.VersionFinder;
 
 /**
@@ -70,11 +66,6 @@ public class FastClasspathScanner {
     /** The scanning specification, parsed. */
     private ScanSpec scanSpec;
 
-    /** The classpath finder. */
-    private ClasspathFinder classpathFinder;
-
-    private ThreadLog log = new ThreadLog();
-    
     /**
      * The default number of worker threads to use while scanning. This number gave the best results on a relatively
      * modern laptop with SSD, while scanning a large classpath.
@@ -130,27 +121,19 @@ public class FastClasspathScanner {
      * ClassLoaderHandler rather than using the ServiceLoader framework.
      */
     public synchronized void registerClassLoaderHandler(final ClassLoaderHandler extraClassLoaderHandler) {
-        getClasspathFinder().registerClassLoaderHandler(extraClassLoaderHandler);
+        getScanSpec().extraClassLoaderHandlers.add(extraClassLoaderHandler);
     }
 
     /** Override the automatically-detected classpath with a custom search path. */
     public synchronized FastClasspathScanner overrideClasspath(final String classpath) {
-        getClasspathFinder().overrideClasspath(classpath);
+        getScanSpec().overrideClasspath = classpath;
         return this;
-    }
-
-    /** Lazy initializer for classpathFinder. */
-    private synchronized ClasspathFinder getClasspathFinder() {
-        if (classpathFinder == null) {
-            classpathFinder = new ClasspathFinder(getScanSpec(), log);
-        }
-        return classpathFinder;
     }
 
     /** Lazy initializer for scanSpec. */
     private synchronized ScanSpec getScanSpec() {
         if (scanSpec == null) {
-            scanSpec = new ScanSpec(scanSpecArgs, log);
+            scanSpec = new ScanSpec(scanSpecArgs);
         }
         return scanSpec;
     }
@@ -677,16 +660,6 @@ public class FastClasspathScanner {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Returns the list of all unique File objects representing directories or zip/jarfiles on the classpath, in
-     * classloader resolution order. Classpath elements that do not exist are not included in the list.
-     */
-    public synchronized List<File> getUniqueClasspathElements() {
-        return getClasspathFinder().getUniqueClasspathElements();
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
      * Asynchronously scans the classpath for matching files, and calls any MatchProcessors if a match is
      * identified. Returns after starting the scan. To block on scan completion, get the result of the returned
      * Future.
@@ -703,8 +676,8 @@ public class FastClasspathScanner {
      */
     public synchronized Future<ScanResult> scanAsync(final ExecutorService executorService,
             final int numWorkerThreads) {
-        return ScanExecutor.scan(getClasspathFinder(), getScanSpec(), executorService,
-                Math.max(numWorkerThreads, 1), log);
+        return ScanExecutor.scan(getScanSpec(), executorService,
+                Math.max(numWorkerThreads, 1));
     }
 
     /**

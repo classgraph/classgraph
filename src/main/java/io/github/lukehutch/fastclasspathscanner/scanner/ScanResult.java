@@ -14,7 +14,11 @@ import io.github.lukehutch.fastclasspathscanner.utils.ThreadLog;
 
 /** The result of a scan. */
 public class ScanResult {
+    /** The scan spec. */
     private final ScanSpec scanSpec;
+
+    /** The unique classpath elements. */
+    private List<File> classpathElts;
 
     /**
      * The file resources timestamped during a scan, along with their timestamp at the time of the scan. Includes
@@ -34,9 +38,11 @@ public class ScanResult {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    public ScanResult(final ScanSpec scanSpec, final Map<String, ClassInfo> classNameToClassInfo,
-            final Map<File, Long> fileToTimestamp, ThreadLog log) {
+    public ScanResult(final ScanSpec scanSpec, List<File> classpathElts,
+            final Map<String, ClassInfo> classNameToClassInfo, final Map<File, Long> fileToTimestamp,
+            ThreadLog log) {
         this.scanSpec = scanSpec;
+        this.classpathElts = classpathElts;
         this.classNameToClassInfo = classNameToClassInfo;
 
         // Build the class graph
@@ -426,4 +432,13 @@ public class ScanResult {
         return classGraphBuilder.generateClassGraphDotFile(sizeX, sizeY);
     }
 
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Returns the list of all unique File objects representing directories or zip/jarfiles on the classpath, in
+     * classloader resolution order. Classpath elements that do not exist are not included in the list.
+     */
+    public synchronized List<File> getUniqueClasspathElements() {
+        return classpathElts;
+    }
 }
