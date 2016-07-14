@@ -10,7 +10,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.scanner.ClassInfoUnlinked;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
-import io.github.lukehutch.fastclasspathscanner.utils.Log.DeferredLog;
+import io.github.lukehutch.fastclasspathscanner.utils.ThreadLog;
 
 /**
  * A classfile binary format parser. Implements its own buffering to avoid the overhead of using DataInputStream.
@@ -22,7 +22,7 @@ public class ClassfileBinaryParser {
     private final ScanSpec scanSpec;
 
     /** The thread-local logger. */
-    private final DeferredLog log;
+    private final ThreadLog log;
 
     /** The InputStream for the current classfile. Set by each call to readClassInfoFromClassfileHeader(). */
     private InputStream inputStream;
@@ -30,7 +30,7 @@ public class ClassfileBinaryParser {
     /** The name of the current classfile. Determined early in the call to readClassInfoFromClassfileHeader(). */
     private String className;
 
-    public ClassfileBinaryParser(final ScanSpec scanSpec, final DeferredLog log) {
+    public ClassfileBinaryParser(final ScanSpec scanSpec, final ThreadLog log) {
         this.scanSpec = scanSpec;
         this.log = log;
     }

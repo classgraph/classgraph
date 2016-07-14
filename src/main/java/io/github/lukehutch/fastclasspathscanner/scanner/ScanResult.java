@@ -10,7 +10,7 @@ import java.util.Map.Entry;
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassInfo;
 import io.github.lukehutch.fastclasspathscanner.classgraph.ClassGraphBuilder;
-import io.github.lukehutch.fastclasspathscanner.utils.Log;
+import io.github.lukehutch.fastclasspathscanner.utils.ThreadLog;
 
 /** The result of a scan. */
 public class ScanResult {
@@ -35,7 +35,7 @@ public class ScanResult {
     // -------------------------------------------------------------------------------------------------------------
 
     public ScanResult(final ScanSpec scanSpec, final Map<String, ClassInfo> classNameToClassInfo,
-            final Map<File, Long> fileToTimestamp) {
+            final Map<File, Long> fileToTimestamp, ThreadLog log) {
         this.scanSpec = scanSpec;
         this.classNameToClassInfo = classNameToClassInfo;
 
@@ -43,7 +43,7 @@ public class ScanResult {
         final long graphStartTime = System.nanoTime();
         this.classGraphBuilder = new ClassGraphBuilder(classNameToClassInfo);
         if (FastClasspathScanner.verbose) {
-            Log.log(1, "Built class graph", System.nanoTime() - graphStartTime);
+            log.log(1, "Built class graph", System.nanoTime() - graphStartTime);
         }
 
         // Find the max file last modified timestamp
@@ -423,9 +423,6 @@ public class ScanResult {
      * .dot file.
      */
     public synchronized String generateClassGraphDotFile(final float sizeX, final float sizeY) {
-        if (FastClasspathScanner.verbose) {
-            Log.log("Generating .dot file");
-        }
         return classGraphBuilder.generateClassGraphDotFile(sizeX, sizeY);
     }
 

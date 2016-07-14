@@ -17,8 +17,7 @@ import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.classpath.ClasspathFinder;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec.FilePathTesterAndMatchProcessorWrapper;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec.ScanSpecPathMatch;
-import io.github.lukehutch.fastclasspathscanner.utils.Log;
-import io.github.lukehutch.fastclasspathscanner.utils.Log.DeferredLog;
+import io.github.lukehutch.fastclasspathscanner.utils.ThreadLog;
 
 public class RecursiveScanner implements Callable<Void> {
     /** The classpath finder. */
@@ -61,14 +60,14 @@ public class RecursiveScanner implements Callable<Void> {
     private final int numWorkerThreads;
 
     /** The thread-local log. */
-    private final DeferredLog log;
+    private final ThreadLog log;
 
     private boolean interrupted = false;
 
     public RecursiveScanner(final ClasspathFinder classpathFinder, final ScanSpec scanSpec,
             final LinkedBlockingQueue<ClasspathResource> matchingFiles,
             final LinkedBlockingQueue<ClasspathResource> matchingClassfiles, final Map<File, Long> fileToTimestamp,
-            final int numWorkerThreads, final DeferredLog log) {
+            final int numWorkerThreads, final ThreadLog log) {
         this.classpathFinder = classpathFinder;
         this.scanSpec = scanSpec;
         this.matchingFiles = matchingFiles;
@@ -376,7 +375,7 @@ public class RecursiveScanner implements Callable<Void> {
             matchingFiles.add(ClasspathResource.END_OF_QUEUE);
         }
         if (FastClasspathScanner.verbose) {
-            Log.log(1, "Number of resources scanned: directories: " + numDirsScanned.get() + "; files: "
+            log.log(1, "Number of resources scanned: directories: " + numDirsScanned.get() + "; files: "
                     + numFilesScanned.get() + "; jarfiles: " + numJarfilesScanned.get()
                     + "; jarfile-internal directories: " + numJarfileDirsScanned + "; jarfile-internal files: "
                     + numJarfileFilesScanned + "; classfiles: " + numClassfilesScanned);

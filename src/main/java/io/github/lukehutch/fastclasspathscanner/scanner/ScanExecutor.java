@@ -47,23 +47,22 @@ import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassfileBinaryP
 import io.github.lukehutch.fastclasspathscanner.classpath.ClasspathFinder;
 import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathResourceQueueProcessor.ClasspathResourceProcessor;
 import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathResourceQueueProcessor.EndOfClasspathResourceQueueProcessor;
-import io.github.lukehutch.fastclasspathscanner.utils.Log;
-import io.github.lukehutch.fastclasspathscanner.utils.Log.DeferredLog;
+import io.github.lukehutch.fastclasspathscanner.utils.ThreadLog;
 
 public class ScanExecutor {
     /**
      * Scan the classpath, and call any MatchProcessors on files or classes that match.
      */
     public static Future<ScanResult> scan(final ClasspathFinder classpathFinder, final ScanSpec scanSpec,
-            final ExecutorService executorService, final int numWorkerThreads) {
+            final ExecutorService executorService, final int numWorkerThreads, final ThreadLog mainLog) {
         // Get classpath elements
         if (FastClasspathScanner.verbose) {
-            Log.log("Starting scan");
+            mainLog.log("Starting scan");
         }
         final long scanStart = System.nanoTime();
 
         final List<Future<Void>> futures = new ArrayList<>(numWorkerThreads);
-        final List<DeferredLog> logs = new ArrayList<>(numWorkerThreads);
+        final List<ThreadLog> logs = new ArrayList<>(numWorkerThreads);
 
         // ---------------------------------------------------------------------------------------------------------
         // Recursively scan classpath
@@ -79,7 +78,7 @@ public class ScanExecutor {
         final Map<File, Long> fileToTimestamp = new HashMap<>();
 
         // Start recursively scanning classpath
-        final DeferredLog recursiveScannerLog = new DeferredLog();
+        final ThreadLog recursiveScannerLog = new ThreadLog();
         logs.add(recursiveScannerLog);
         futures.add(executorService.submit(new RecursiveScanner(classpathFinder, scanSpec, matchingFiles,
                 matchingClassfiles, fileToTimestamp, numWorkerThreads, recursiveScannerLog)));
@@ -99,7 +98,7 @@ public class ScanExecutor {
         for (int i = 0; i < numWorkerThreads; i++) {
             // Create and start a new ClassfileBinaryParserCaller thread that consumes entries from
             // the classpathResourcesToScan queue and creates objects in the classInfoUnlinked queue
-            final DeferredLog workerLog = new DeferredLog();
+            final ThreadLog workerLog = new ThreadLog();
             logs.add(workerLog);
             futures.add(executorService.submit(new Callable<Void>() {
                 @Override
@@ -144,7 +143,7 @@ public class ScanExecutor {
         final Map<String, ClassInfo> classNameToClassInfo = new HashMap<>();
 
         // Add one empty placeholder log, so that there is one log per thread (it is not used for last thread)
-        logs.add(new DeferredLog());
+        logs.add(new ThreadLog());
         // Start final thread that creates cross-linked ClassInfo objects from each ClassInfoUnlinked object
         final Future<Void> linkerFuture = executorService.submit(new Callable<Void>() {
             @Override
@@ -184,16 +183,18 @@ public class ScanExecutor {
                 }
 
                 // Build class graph before calling MatchProcessors, in case they want to refer to the graph
-                final ScanResult scanResult = new ScanResult(scanSpec, classNameToClassInfo, fileToTimestamp);
+                final ScanResult scanResult = new ScanResult(scanSpec, classNameToClassInfo, fileToTimestamp,
+                        mainLog);
 
                 // Call MatchProcessors
                 final long startMatchProcessors = System.nanoTime();
                 scanSpec.callMatchProcessors(scanResult, matchingFiles);
 
                 if (FastClasspathScanner.verbose) {
-                    Log.log(1, "Finished calling MatchProcessors", System.nanoTime() - startMatchProcessors);
-                    Log.log("Finished scan", System.nanoTime() - scanStart);
+                    mainLog.log(1, "Finished calling MatchProcessors", System.nanoTime() - startMatchProcessors);
+                    mainLog.log("Finished scan", System.nanoTime() - scanStart);
                 }
+                mainLog.flush();
 
                 return scanResult;
             }

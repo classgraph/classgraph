@@ -11,7 +11,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassInfo;
-import io.github.lukehutch.fastclasspathscanner.utils.Log.DeferredLog;
+import io.github.lukehutch.fastclasspathscanner.utils.Join;
+import io.github.lukehutch.fastclasspathscanner.utils.ThreadLog;
 
 /**
  * Class information that has been directly read from the binary classfile, before it is cross-linked with other
@@ -108,7 +109,7 @@ public class ClassInfoUnlinked {
         }
     }
 
-    public void logClassInfo(final DeferredLog log) {
+    public void logClassInfo(final ThreadLog log) {
         if (FastClasspathScanner.verbose) {
             log.log(2, "Found " + (isAnnotation ? "annotation class" : isInterface ? "interface class" : "class")
                     + " " + className);
@@ -117,20 +118,20 @@ public class ClassInfoUnlinked {
                         "Super" + (isInterface && !isAnnotation ? "interface" : "class") + ": " + superclassName);
             }
             if (implementedInterfaces != null) {
-                log.log(3, "Interfaces: " + String.join(", ", implementedInterfaces));
+                log.log(3, "Interfaces: " + Join.join(", ", implementedInterfaces));
             }
             if (annotations != null) {
-                log.log(3, "Annotations: " + String.join(", ", annotations));
+                log.log(3, "Annotations: " + Join.join(", ", annotations));
             }
             if (fieldTypes != null) {
-                log.log(3, "Field types: " + String.join(", ", fieldTypes));
+                log.log(3, "Field types: " + Join.join(", ", fieldTypes));
             }
             if (staticFinalFieldValues != null) {
                 final List<String> fieldInitializers = new ArrayList<>();
                 for (final Entry<String, Object> ent : staticFinalFieldValues.entrySet()) {
                     fieldInitializers.add(ent.getKey() + " = " + ent.getValue());
                 }
-                log.log(3, "Static final field values: " + String.join(", ", fieldInitializers));
+                log.log(3, "Static final field values: " + Join.join(", ", fieldInitializers));
             }
         }
     }

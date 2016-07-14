@@ -54,6 +54,7 @@ import io.github.lukehutch.fastclasspathscanner.scanner.ScanExecutor;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanInterruptedException;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
+import io.github.lukehutch.fastclasspathscanner.utils.ThreadLog;
 import io.github.lukehutch.fastclasspathscanner.utils.VersionFinder;
 
 /**
@@ -72,6 +73,8 @@ public class FastClasspathScanner {
     /** The classpath finder. */
     private ClasspathFinder classpathFinder;
 
+    private ThreadLog log = new ThreadLog();
+    
     /**
      * The default number of worker threads to use while scanning. This number gave the best results on a relatively
      * modern laptop with SSD, while scanning a large classpath.
@@ -139,7 +142,7 @@ public class FastClasspathScanner {
     /** Lazy initializer for classpathFinder. */
     private synchronized ClasspathFinder getClasspathFinder() {
         if (classpathFinder == null) {
-            classpathFinder = new ClasspathFinder(getScanSpec());
+            classpathFinder = new ClasspathFinder(getScanSpec(), log);
         }
         return classpathFinder;
     }
@@ -147,7 +150,7 @@ public class FastClasspathScanner {
     /** Lazy initializer for scanSpec. */
     private synchronized ScanSpec getScanSpec() {
         if (scanSpec == null) {
-            scanSpec = new ScanSpec(scanSpecArgs);
+            scanSpec = new ScanSpec(scanSpecArgs, log);
         }
         return scanSpec;
     }
@@ -701,7 +704,7 @@ public class FastClasspathScanner {
     public synchronized Future<ScanResult> scanAsync(final ExecutorService executorService,
             final int numWorkerThreads) {
         return ScanExecutor.scan(getClasspathFinder(), getScanSpec(), executorService,
-                Math.max(numWorkerThreads, 1));
+                Math.max(numWorkerThreads, 1), log);
     }
 
     /**

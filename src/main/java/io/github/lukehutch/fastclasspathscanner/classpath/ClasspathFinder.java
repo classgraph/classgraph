@@ -45,7 +45,8 @@ import java.util.jar.Manifest;
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
 import io.github.lukehutch.fastclasspathscanner.utils.AdditionOrderedSet;
-import io.github.lukehutch.fastclasspathscanner.utils.Log;
+import io.github.lukehutch.fastclasspathscanner.utils.Join;
+import io.github.lukehutch.fastclasspathscanner.utils.ThreadLog;
 
 public class ClasspathFinder {
     /** The scanning specification. */
@@ -66,8 +67,11 @@ public class ClasspathFinder {
     /** Whether or not classpath has been read (supporting lazy reading of classpath). */
     private boolean initialized = false;
 
-    public ClasspathFinder(final ScanSpec scanSpec) {
+    private ThreadLog log;
+
+    public ClasspathFinder(final ScanSpec scanSpec, ThreadLog log) {
         this.scanSpec = scanSpec;
+        this.log = log;
     }
 
     /** Clear the classpath. */
@@ -91,7 +95,7 @@ public class ClasspathFinder {
      * mixes of filesystem and URI conventions. Follows symbolic links, and resolves any relative paths relative to
      * resolveBaseFile.
      */
-    private static File urlToFile(final File resolveBaseFile, final String relativePathStr) {
+    private File urlToFile(final File resolveBaseFile, final String relativePathStr) {
         if (relativePathStr.isEmpty()) {
             return null;
         }
@@ -103,7 +107,7 @@ public class ClasspathFinder {
         // We don't fetch remote classpath entries, although they are theoretically valid if using a URLClassLoader
         if (pathStr.startsWith("http:") || pathStr.startsWith("https:")) {
             if (FastClasspathScanner.verbose) {
-                Log.log("Ignoring remote entry in classpath: " + pathStr);
+                log.log("Ignoring remote entry in classpath: " + pathStr);
             }
             return null;
         }
@@ -152,7 +156,7 @@ public class ClasspathFinder {
             }
         } catch (MalformedURLException | URISyntaxException e) {
             if (FastClasspathScanner.verbose) {
-                Log.log("Exception while constructing classpath entry from base file " + resolveBaseFile
+                log.log("Exception while constructing classpath entry from base file " + resolveBaseFile
                         + " and relative path " + relativePathStr + ": " + e);
             }
             return null;
@@ -172,7 +176,7 @@ public class ClasspathFinder {
         }
         if (!pathFile.exists()) {
             if (FastClasspathScanner.verbose) {
-                Log.log("Classpath element does not exist: " + pathElement);
+                log.log("Classpath element does not exist: " + pathElement);
             }
             return;
         }
@@ -181,13 +185,13 @@ public class ClasspathFinder {
             pathStr = pathFile.getCanonicalPath();
         } catch (final IOException e) {
             if (FastClasspathScanner.verbose) {
-                Log.log("Exception while getting canonical path for classpath element " + pathElement + ": " + e);
+                log.log("Exception while getting canonical path for classpath element " + pathElement + ": " + e);
             }
             return;
         }
         if (!classpathElementsSet.add(pathStr)) {
             if (FastClasspathScanner.verbose) {
-                Log.log("Ignoring duplicate classpath element: " + pathElement);
+                log.log("Ignoring duplicate classpath element: " + pathElement);
             }
             return;
         }
@@ -198,14 +202,14 @@ public class ClasspathFinder {
         if (pathFile.isFile()) {
             if (!isJar(pathStr)) {
                 if (FastClasspathScanner.verbose) {
-                    Log.log("Ignoring non-jar file on classpath: " + pathElement);
+                    log.log("Ignoring non-jar file on classpath: " + pathElement);
                 }
                 return;
             }
             if (scanSpec.blacklistSystemJars() && isJREJar(pathFile, /* ancestralScanDepth = */2)) {
                 // Don't scan system jars if they are blacklisted
                 if (FastClasspathScanner.verbose) {
-                    Log.log("Skipping JRE jar: " + pathElement);
+                    log.log("Skipping JRE jar: " + pathElement);
                 }
                 return;
             }
@@ -218,7 +222,7 @@ public class ClasspathFinder {
                 final String manifestClassPath = manifest.getMainAttributes().getValue("Class-Path");
                 if (manifestClassPath != null && !manifestClassPath.isEmpty()) {
                     if (FastClasspathScanner.verbose) {
-                        Log.log("Found Class-Path entry in " + manifestUrlStr + ": " + manifestClassPath);
+                        log.log("Found Class-Path entry in " + manifestUrlStr + ": " + manifestClassPath);
                     }
                     // Class-Path entries in the manifest file should be resolved relative to
                     // the dir the manifest's jarfile is contained in (i.e. path.getParent()).
@@ -230,7 +234,7 @@ public class ClasspathFinder {
                             addClasspathElement(manifestEltPath.toString());
                         } else {
                             if (FastClasspathScanner.verbose) {
-                                Log.log("Classpath element " + manifestEltPath
+                                log.log("Classpath element " + manifestEltPath
                                         + " not found -- from Class-Path entry " + manifestClassPathElement + " in "
                                         + manifestUrlStr);
                             }
@@ -242,14 +246,14 @@ public class ClasspathFinder {
             }
         } else if (!pathFile.isDirectory()) {
             if (FastClasspathScanner.verbose) {
-                Log.log("Ignoring invalid classpath element: " + pathElement);
+                log.log("Ignoring invalid classpath element: " + pathElement);
             }
             return;
         }
 
         // Add the classpath element to the ordered list
         if (FastClasspathScanner.verbose) {
-            Log.log("Found classpath element: " + pathElement);
+            log.log("Found classpath element: " + pathElement);
         }
         // Add the File object to classpathElements
         classpathElements.add(pathFile);
@@ -422,7 +426,7 @@ public class ClasspathFinder {
                 }
             } else {
                 if (FastClasspathScanner.verbose) {
-                    Log.log(ClasspathFinder.class.getSimpleName() + " could not create "
+                    log.log(ClasspathFinder.class.getSimpleName() + " could not create "
                             + CallerResolver.class.getSimpleName() + ", current SecurityManager does not grant "
                             + "RuntimePermission(\"createSecurityManager\")");
                 }
@@ -466,7 +470,7 @@ public class ClasspathFinder {
                 }
             }
             if (FastClasspathScanner.verbose && !classLoaderHandlers.isEmpty()) {
-                Log.log("ClassLoaderHandlers loaded: " + String.join(", ", classLoaderHandlerNames));
+                log.log("ClassLoaderHandlers loaded: " + Join.join(", ", classLoaderHandlerNames));
             }
 
             // Try finding a handler for each of the classloaders discovered above
@@ -478,7 +482,7 @@ public class ClasspathFinder {
                         if (handler.handle(classLoader, this)) {
                             // Sucessfully handled
                             if (FastClasspathScanner.verbose) {
-                                Log.log("Classpath elements from ClassLoader " + classLoader.getClass().getName()
+                                log.log("Classpath elements from ClassLoader " + classLoader.getClass().getName()
                                         + " were extracted by ClassLoaderHandler " + handler.getClass().getName());
                             }
                             classloaderFound = true;
@@ -486,13 +490,13 @@ public class ClasspathFinder {
                         }
                     } catch (final Exception e) {
                         if (FastClasspathScanner.verbose) {
-                            Log.log("Exception in " + classLoader.getClass().getName() + ": " + e.toString());
+                            log.log("Exception in " + classLoader.getClass().getName() + ": " + e.toString());
                         }
                     }
                 }
                 if (!classloaderFound) {
                     if (FastClasspathScanner.verbose) {
-                        Log.log("Found unknown ClassLoader type, cannot scan classes: "
+                        log.log("Found unknown ClassLoader type, cannot scan classes: "
                                 + classLoader.getClass().getName());
                     }
                 }

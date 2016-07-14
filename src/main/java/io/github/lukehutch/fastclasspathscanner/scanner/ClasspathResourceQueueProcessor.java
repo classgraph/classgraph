@@ -9,7 +9,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-import io.github.lukehutch.fastclasspathscanner.utils.Log.DeferredLog;
+import io.github.lukehutch.fastclasspathscanner.utils.ThreadLog;
 
 public class ClasspathResourceQueueProcessor {
     public interface ClasspathResourceProcessor {
@@ -23,7 +23,7 @@ public class ClasspathResourceQueueProcessor {
 
     public static void processClasspathResourceQueue(final LinkedBlockingQueue<ClasspathResource> queue,
             final ClasspathResourceProcessor classpathResourceProcessor,
-            final EndOfClasspathResourceQueueProcessor endOfQueueProcessor, final DeferredLog log)
+            final EndOfClasspathResourceQueueProcessor endOfQueueProcessor, final ThreadLog log)
             throws InterruptedException {
         ZipFile currentlyOpenZipFile = null;
         try {

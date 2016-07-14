@@ -331,16 +331,12 @@ public class ClassInfo implements Comparable<ClassInfo> {
         }
     }
 
+    // N.B. not threadsafe, but this class should only ever be called by a single thread.
     private static ClassInfo getOrCreateClassInfo(final String className,
             final Map<String, ClassInfo> classNameToClassInfo) {
         ClassInfo classInfo = classNameToClassInfo.get(className);
         if (classInfo == null) {
-            final ClassInfo oldClassInfo = classNameToClassInfo.putIfAbsent(className,
-                    classInfo = new ClassInfo(className));
-            if (oldClassInfo != null) {
-                // If we just lost the race to add this new ClassInfo to the map, use the winner instead
-                classInfo = oldClassInfo;
-            }
+            classNameToClassInfo.put(className, classInfo = new ClassInfo(className));
         }
         return classInfo;
     }
@@ -393,9 +389,10 @@ public class ClassInfo implements Comparable<ClassInfo> {
         final boolean isTraitMethodClass = className.endsWith("$class");
         final boolean isNonAuxClass = !isCompanionObjectClass && !isTraitMethodClass;
         final String classBaseName = scalaBaseClassName(className);
-        ClassInfo classInfo = new ClassInfo(classBaseName);
-        final ClassInfo oldClassInfo = classNameToClassInfo.putIfAbsent(classBaseName, classInfo);
-        if (oldClassInfo != null) {
+        ClassInfo classInfo;
+        if (classNameToClassInfo.containsKey(classBaseName)) {
+            // Merge into base ClassInfo object that was already allocated, rather than the new one
+            classInfo = classNameToClassInfo.get(classBaseName);
             // Class base name has been seen before, check if we're just merging scala aux classes together 
             if (isNonAuxClass && classInfo.classfileScanned
                     || isCompanionObjectClass && classInfo.companionObjectClassfileScanned
@@ -403,10 +400,9 @@ public class ClassInfo implements Comparable<ClassInfo> {
                 // The same class was encountered more than once on the classpath -- should not happen,
                 // since RecursiveScanner checks for this.
                 throw new RuntimeException("Encountered same class twice, should not happen: " + className);
-            } else {
-                // Merge into ClassInfo object that was already allocated, rather than the new one
-                classInfo = oldClassInfo;
             }
+        } else {
+            classNameToClassInfo.put(classBaseName, classInfo = new ClassInfo(classBaseName));
         }
         // Mark the appropriate class type as scanned (aux classes all need to be merged into a single
         // ClassInfo object for Scala, but we only want to use the first instance of a given class on the
