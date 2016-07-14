@@ -120,9 +120,10 @@ An example of this usage pattern is:
 List<String> subclassesOfWidget = new FastClasspathScanner("com.xyz.widget")
     // No need to add any MatchProcessors, just create a new scanner and then call
     // .scan() to parse the class hierarchy of all classfiles on the classpath.
+    // This will return an object of type ScanResult, which can be queried.
     .scan()
-    // Get the names of all subclasses of Widget on the classpath,
-    // again without calling the classloader:
+    // Get the names of all subclasses of Widget on the classpath from the
+    // ScanResult (without calling the classloader on any matching classes):
     .getNamesOfSubclassesOf("com.xyz.widget.Widget");
 ```
 
