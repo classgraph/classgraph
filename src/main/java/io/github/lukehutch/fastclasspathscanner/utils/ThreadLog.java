@@ -77,7 +77,7 @@ public class ThreadLog {
                     buf.append(logEntry.msg);
                     if (logEntry.elapsedTimeNanos >= 0L) {
                         buf.append(" in ");
-                        buf.append(nanoFormatter.format(logEntry.elapsedTimeNanos));
+                        buf.append(nanoFormatter.format(logEntry.elapsedTimeNanos * 1e-9));
                     }
                     buf.append('\n');
                 }
