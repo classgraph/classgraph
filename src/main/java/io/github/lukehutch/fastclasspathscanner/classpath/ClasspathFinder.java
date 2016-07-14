@@ -439,7 +439,7 @@ public class ClasspathFinder {
                         log.log("Succeeded in calling ServiceLoader.load("
                                 + ClassLoaderHandler.class.getSimpleName() + ",null)");
                     }
-                } catch (Exception e) {
+                } catch (Error | Exception e) {
                     if (FastClasspathScanner.verbose) {
                         log.log("Failed when calling ServiceLoader.load(" + ClassLoaderHandler.class.getSimpleName()
                                 + ",null): " + e);
@@ -459,7 +459,7 @@ public class ClasspathFinder {
                             log.log("Succeeded in calling ServiceLoader.load("
                                     + ClassLoaderHandler.class.getSimpleName() + ", " + classLoader + ")");
                         }
-                    } catch (Exception e) {
+                    } catch (Error | Exception e) {
                         if (FastClasspathScanner.verbose) {
                             log.log("Failed when calling ServiceLoader.load("
                                     + ClassLoaderHandler.class.getSimpleName() + ", " + classLoader + "): " + e);
