@@ -875,13 +875,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 See Oracle's documentation on the [classfile format](http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html).
 
-## Inspiration
-
-FastClasspathScanner was inspired by Ronald Muller's [annotation-detector](https://github.com/rmuller/infomas-asl/tree/master/annotation-detector).
-
 ## Alternatives
 
-[Reflections](https://github.com/ronmamo/reflections) could be a good alternative if Fast Classpath Scanner doesn't meet your needs.
+* [Reflections](https://github.com/ronmamo/reflections)
+* [annotation-detector](https://github.com/rmuller/infomas-asl/tree/master/annotation-detector)
 
 ## Author
 
