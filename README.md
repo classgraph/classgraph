@@ -567,28 +567,41 @@ FastClasspathScanner FastClasspathScanner#matchFilenameExtension(String extensio
 
 ### 8. Performing the actual scan
 
-The `FastClasspathScanner#scan()` method performs the actual scan. This method may be called multiple times after it is initialized, although there is usually no point performing additional scans unless `classpathContentsModifiedSinceScan()` returns true, unless you need to detect the addition of new whitelisted resources (`classpathContentsModifiedSinceScan()` only detects changes to existing resources).
+The `FastClasspathScanner#scan()` method performs the actual scan. There are several versions:
 
 ```java
-// Perform multithreaded scan with default number of worker threads (7).
-// Will cause a new ExecutorService to start, which incurs some time overhead.
+// Scans the classpath for matching files, and calls any MatchProcessors if a match
+// is identified. Temporarily starts up a new fixed thread pool for scanning, with
+// the default number of threads.
 ScanResult FastClasspathScanner#scan()
 
-// Perform multithreaded scan with specified number of worker threads.
-// Will cause a new ExecutorService to start, which incurs some time overhead.
-ScanResult FastClasspathScanner#scan(int numWorkerThreads)
+// Scans the classpath for matching files, and calls any MatchProcessors if a match
+// is identified. Temporarily starts up a new fixed thread pool for scanning, with
+// the requested number of threads.
+ScanResult FastClasspathScanner#scan(int numThreads)
 
-// Perform multithreaded scan with your own ExecutorService.
+// Scans the classpath for matching files, and calls any MatchProcessors if a match
+// is identified. Uses the provided ExecutorService, and divides the work according
+// to the requested degree of parallelism.
 ScanResult FastClasspathScanner#scan(ExecutorService executorService,
         int numWorkerThreads)
 
-// Perform asynchronous multithreaded scan, with your own ExecutorService.
-// Note the return type, Future<ScanResult>.
+// Asynchronously scans the classpath for matching files, and calls any MatchProcessors
+// if a match is identified. Returns a Future<ScanResult> object immediately after
+// starting the scan. To block on scan completion, get the result of the returned
+// Future. Uses the provided ExecutorService, and divides the work according to the
+// requested degree of parallelism.
 Future<ScanResult> FastClasspathScanner#scanAsync(ExecutorService executorService,
         int numWorkerThreads)
 ```
 
+In most cases, calling `FastClasspathScanner#scan()` is the right call to use, although if you have your own ExecutorService already running, you can submit the scanning work to that ExecutorService using one of the other variants of `FastClasspathScanner#scan()`, or using `FastClasspathScanner#scanAsync()`.
+
 Note that classpath masking is in effect for all files on the classpath: if two or more files with the same relative path are encountered on the classpath, the second and subsequent occurrences are ignored, in order to follow Java's class masking behavior.
+
+The `FastClasspathScanner#scan()` method may be called multiple times on the same `FastClasspathScanner` object, although there is usually no point performing additional scans unless `classpathContentsModifiedSinceScan()` returns true (unless you need to detect the addition of new resources in whitelisted packages, since `classpathContentsModifiedSinceScan()` only detects changes to existing resources).
+
+There are some synchronization considerations when using the non-blocking `FastClasspathScanner#scanAsync()` with MatchProcessors -- see [Parallel Classpath Scanning](#parallel-classpath-scanning) for info.
 
 If the scan is interrupted by the interrupt status being set on the main thread or any worker threads, then `FastClasspathScanner#scan()` will throw the unchecked exception `ScanInterruptedException`. If you care about thread interruption, you should catch this exception.
 
@@ -696,7 +709,9 @@ or similar, generating a graph with the following conventions:
 
 As of version 1.90.0, FastClasspathScanner performs multithreaded scanning, which overlaps disk/SSD reads, jarfile decompression and classfile parsing across multiple threads. This typically reduces scan time by 30-60%. (The speedup will increase by a factor of two on the second and subsequent scan of the same classpath by the same JVM instance, because disk/SSD read bandwidth is the bottleneck, and file content is cached within a JVM session.)
 
-Note that any custom MatchProcessors that you add are all currently run on a single thread, so they do not necessarily need to be threadsafe (though it's a good futureproofing habit to always write threadsafe code even in supposedly single-threaded contexts). If you want to do CPU-intensive processing in a `MatchProcessor`, and need the speed advantage of doing the work in parallel across all matching classes, you should use the `MatchProcessor` to obtain the data you need on matching classes, and then schedule the work to be done in parallel after `FastClasspathScanner#scan()` has finished.
+Note that any custom MatchProcessors that you add are all currently run on a single thread, so they do not necessarily need to be threadsafe relative to each other (though it's a good futureproofing habit to always write threadsafe code, even in supposedly single-threaded contexts). However, MatchProcessors are run in a different thread than the main thread. If you use the blocking call `FastClasspathScanner#scan()`, then the main thread is blocked waiting on the result of the scan when the MatchProcessors are run. However, if you use the non-blocking call `FastClasspathScanner#scanAsync()`, which returns a `Future<ScanResult>`, then your main thread will return immediately, and will potentially be running in parallel with the thread that runs the MatchProcessors. You therefore need to properly synchronize communication and data access between MatchProcessors and the main thread in the async case. 
+
+If you want to do CPU-intensive processing in a `MatchProcessor`, and need the speed advantage of doing the work in parallel across all matching classes, you should use the `MatchProcessor` to obtain the data you need on matching classes, and then schedule the work to be done in parallel after `FastClasspathScanner#scan()` has finished.
 
 With this change, according to profiling results, FastClasspathScanner is running at close to the theoretical maximum possible speed for a classpath scanner, because it is I/O-bound, as well as limited by the decompression speed of `java.util.zip` (which is a JNI wrapper over a native decompressor, and appears to currently be the fastest unzip library for Java).
 

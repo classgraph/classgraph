@@ -691,27 +691,30 @@ public class FastClasspathScanner {
 
     /**
      * Asynchronously scans the classpath for matching files, and calls any MatchProcessors if a match is
-     * identified. Returns after starting the scan. To block on scan completion, get the result of the returned
-     * Future.
+     * identified. Returns a Future object immediately after starting the scan. To block on scan completion, get the
+     * result of the returned Future. Uses the provided ExecutorService, and divides the work according to the
+     * requested degree of parallelism.
      * 
      * This method should be called after all required MatchProcessors have been added. Note that MatchProcessors
-     * are all run on a separate thread from the thread that calls this method (although the MatchProcessors are all
-     * run on one thread) -- you will need to add your own synchronization if MatchProcessors interact with the
-     * caller thread.
+     * are all run on a separate thread from the main thread (although the MatchProcessors are all run on one
+     * thread). You will need to add your own synchronization logic if MatchProcessors interact with the main
+     * thread.
      * 
      * @param executorService
      *            A custom ExecutorService to use for scheduling worker threads.
-     * @param numWorkerThreads
-     *            The number of worker threads to use while scanning.
+     * @param numParallelTasks
+     *            The number of parallel tasks to break the work into during the most CPU-intensive stage of
+     *            classpath scanning. Ideally the ExecutorService will have at least this many threads available.
      */
     public synchronized Future<ScanResult> scanAsync(final ExecutorService executorService,
-            final int numWorkerThreads) {
+            final int numParallelTasks) {
         return ScanExecutor.scan(getScanSpec(), getUniqueClasspathElements(), executorService,
-                Math.max(numWorkerThreads, 1));
+                Math.max(numParallelTasks, 1));
     }
 
     /**
-     * Scans the classpath for matching files, and calls any MatchProcessors if a match is identified.
+     * Scans the classpath for matching files, and calls any MatchProcessors if a match is identified. Uses the
+     * provided ExecutorService, and divides the work according to the requested degree of parallelism.
      * 
      * This method should be called after all required MatchProcessors have been added.
      * 
@@ -720,18 +723,19 @@ public class FastClasspathScanner {
      *            tasks in FIFO order to avoid a deadlock during scan, i.e. be sure to construct the ExecutorService
      *            with a LinkedBlockingQueue as its task queue. (This is the default for
      *            Executors.newFixedThreadPool().)
-     * @param numWorkerThreads
-     *            The number of worker threads to use while scanning.
+     * @param numParallelTasks
+     *            The number of parallel tasks to break the work into during the most CPU-intensive stage of
+     *            classpath scanning. Ideally the ExecutorService will have at least this many threads available.
      * @throws ScanInterruptedException
      *             if the scan was interrupted by the interrupt status being set on worker threads. If you care
      *             about thread interruption, you should catch this exception.
      * @throws RuntimeException
      *             if any of the worker threads throws an uncaught exception.
      */
-    public synchronized ScanResult scan(final ExecutorService executorService, final int numWorkerThreads) {
+    public synchronized ScanResult scan(final ExecutorService executorService, final int numParallelTasks) {
         try {
             // Start the scan, and then wait for scan completion
-            return scanAsync(executorService, numWorkerThreads).get();
+            return scanAsync(executorService, numParallelTasks).get();
         } catch (final InterruptedException e) {
             throw new ScanInterruptedException();
         } catch (final ExecutionException e) {
@@ -744,24 +748,24 @@ public class FastClasspathScanner {
     }
 
     /**
-     * Asynchronously scans the classpath for matching files, and calls any MatchProcessors if a match is
-     * identified.
+     * Scans the classpath for matching files, and calls any MatchProcessors if a match is identified. Temporarily
+     * starts up a new fixed thread pool for scanning, with the requested number of threads.
      * 
      * This method should be called after all required MatchProcessors have been added.
      * 
-     * @param numWorkerThreads
-     *            The number of worker threads to use while scanning.
+     * @param numThreads
+     *            The number of worker threads to start up.
      * @throws ScanInterruptedException
      *             if the scan was interrupted by the interrupt status being set on worker threads. If you care
      *             about thread interruption, you should catch this exception.
      * @throws RuntimeException
      *             if any of the worker threads throws an uncaught exception.
      */
-    public synchronized ScanResult scan(final int numWorkerThreads) {
+    public synchronized ScanResult scan(final int numThreads) {
         ExecutorService executorService = null;
         try {
             final AtomicInteger threadIdx = new AtomicInteger();
-            executorService = Executors.newFixedThreadPool(Math.max(numWorkerThreads, 1), new ThreadFactory() {
+            executorService = Executors.newFixedThreadPool(Math.max(numThreads, 1), new ThreadFactory() {
                 @Override
                 public Thread newThread(final Runnable r) {
                     final Thread t = new Thread(r, "FastClasspathScanner-worker-" + threadIdx.getAndIncrement());
@@ -770,7 +774,7 @@ public class FastClasspathScanner {
                     return t;
                 }
             });
-            return scan(executorService, numWorkerThreads);
+            return scan(executorService, numThreads);
         } finally {
             if (executorService != null) {
                 try {
@@ -783,11 +787,10 @@ public class FastClasspathScanner {
     }
 
     /**
-     * Scans the classpath for matching files, and calls any MatchProcessors if a match is identified.
+     * Scans the classpath for matching files, and calls any MatchProcessors if a match is identified. Temporarily
+     * starts up a new fixed thread pool for scanning, with the default number of threads.
      * 
      * This method should be called after all required MatchProcessors have been added.
-     * 
-     * Uses the default number of worker threads and a default fixed thread pool for scanning.
      * 
      * @throws ScanInterruptedException
      *             if the scan was interrupted by the interrupt status being set on worker threads. If you care
