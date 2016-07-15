@@ -26,7 +26,7 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.lukehutch.fastclasspathscanner.classpath;
+package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import java.io.File;
 import java.io.IOException;
@@ -43,7 +43,7 @@ import java.util.Set;
 import java.util.jar.Manifest;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
+import io.github.lukehutch.fastclasspathscanner.classloaderhandler.ClassLoaderHandler;
 import io.github.lukehutch.fastclasspathscanner.utils.AdditionOrderedSet;
 import io.github.lukehutch.fastclasspathscanner.utils.Join;
 import io.github.lukehutch.fastclasspathscanner.utils.LoggedThread.ThreadLog;
@@ -160,11 +160,6 @@ public class ClasspathFinder {
         }
     }
 
-    /** Add a classpath element relative to a base file. */
-    public void addClasspathElement(final String pathElement) {
-        addClasspathElement(null, pathElement);
-    }
-
     /** Add a classpath element. */
     private void addClasspathElement(final File baseFile, final String pathElement) {
         final File pathFile = urlToFile(baseFile, pathElement);
@@ -252,6 +247,11 @@ public class ClasspathFinder {
         }
         // Add the File object to classpathElements
         classpathElements.add(pathFile);
+    }
+
+    /** Add a classpath element relative to a base file. */
+    public void addClasspathElement(final String pathElement) {
+        addClasspathElement(null, pathElement);
     }
 
     /** Add classpath elements, separated by the system path separator character. */

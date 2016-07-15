@@ -14,7 +14,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.regex.Pattern;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-import io.github.lukehutch.fastclasspathscanner.classpath.ClassLoaderHandler;
+import io.github.lukehutch.fastclasspathscanner.classloaderhandler.ClassLoaderHandler;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.ClassAnnotationMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.ClassMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchContentsProcessor;
@@ -991,6 +991,12 @@ public class ScanSpec {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /** An interface called when the corresponding FilePathTester returns true. */
+    interface FileMatchProcessorWrapper {
+        public void processMatch(final File classpathElt, final String relativePath, final InputStream inputStream,
+                final long fileSize) throws IOException;
+    }
+
     static class FilePathTesterAndMatchProcessorWrapper {
         FilePathTester filePathTester;
         FileMatchProcessorWrapper fileMatchProcessorWrapper;
@@ -1011,6 +1017,7 @@ public class ScanSpec {
     List<FilePathTesterAndMatchProcessorWrapper> getFilePathTestersAndMatchProcessorWrappers() {
         return filePathTestersAndMatchProcessorWrappers;
     }
+
     // -------------------------------------------------------------------------------------------------------------
 
     private static byte[] readAllBytes(final InputStream inputStream, final long fileSize) throws IOException {

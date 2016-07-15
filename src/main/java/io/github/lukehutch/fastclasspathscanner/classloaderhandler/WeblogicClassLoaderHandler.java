@@ -26,10 +26,9 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.lukehutch.fastclasspathscanner.classpath.classloaderhandlers;
+package io.github.lukehutch.fastclasspathscanner.classloaderhandler;
 
-import io.github.lukehutch.fastclasspathscanner.classpath.ClassLoaderHandler;
-import io.github.lukehutch.fastclasspathscanner.classpath.ClasspathFinder;
+import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
 import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
 
 public class WeblogicClassLoaderHandler implements ClassLoaderHandler {

@@ -1,9 +1,8 @@
-package io.github.lukehutch.fastclasspathscanner.classpath.classloaderhandlers;
+package io.github.lukehutch.fastclasspathscanner.classloaderhandler;
 
 import java.lang.reflect.Array;
 
-import io.github.lukehutch.fastclasspathscanner.classpath.ClassLoaderHandler;
-import io.github.lukehutch.fastclasspathscanner.classpath.ClasspathFinder;
+import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
 import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
 
 public class EquinoxClassLoaderHandler implements ClassLoaderHandler {

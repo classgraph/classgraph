@@ -38,8 +38,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import io.github.lukehutch.fastclasspathscanner.classpath.ClassLoaderHandler;
-import io.github.lukehutch.fastclasspathscanner.classpath.ClasspathFinder;
+import io.github.lukehutch.fastclasspathscanner.classloaderhandler.ClassLoaderHandler;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.ClassAnnotationMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.ClassMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchContentsProcessor;
@@ -50,6 +49,7 @@ import io.github.lukehutch.fastclasspathscanner.matchprocessor.InterfaceMatchPro
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.StaticFinalFieldMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubclassMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubinterfaceMatchProcessor;
+import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanExecutor;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
