@@ -169,8 +169,9 @@ public class ScanExecutor {
                         // thread succeeds (so that the workers do not get stuck blocking) 
                         for (int i = 0; i < numParallelTasks; i++) {
                             matchingClassfiles.add(END_OF_CLASSPATH_RESOURCE_QUEUE);
-                            matchingFiles.add(END_OF_CLASSPATH_RESOURCE_QUEUE);
                         }
+                        // File matches are processed in a single thread
+                        matchingFiles.add(END_OF_CLASSPATH_RESOURCE_QUEUE);
                     }
 
                     // ---------------------------------------------------------------------------------------------
