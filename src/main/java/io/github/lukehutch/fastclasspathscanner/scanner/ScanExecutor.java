@@ -106,7 +106,7 @@ public class ScanExecutor {
         }));
 
         // ---------------------------------------------------------------------------------------------------------
-        // Parse classfile binary headers in parallel
+        // Parse classfile binary headers in parallel, producing ClassInfoUnlinked object for each class
         // ---------------------------------------------------------------------------------------------------------
 
         // The output of the classfile binary parser
@@ -165,7 +165,7 @@ public class ScanExecutor {
         }
 
         // ---------------------------------------------------------------------------------------------------------
-        // Build class graph
+        // Create ClassInfo object for each class, then cross-link all the ClassInfo objects with each other
         // ---------------------------------------------------------------------------------------------------------
 
         final Map<String, ClassInfo> classNameToClassInfo = new HashMap<>();
@@ -197,7 +197,7 @@ public class ScanExecutor {
         futures.add(linkerFuture);
 
         // -----------------------------------------------------------------------------------------------------
-        // Wait for worker thread completion, then build a ScanResult and return it
+        // Wait for worker thread completion; create ScanResult; call MatchProcessors; return ScanResult
         // -----------------------------------------------------------------------------------------------------
 
         final Future<ScanResult> scanResult = executorService.submit(new LoggedThread<ScanResult>() {
