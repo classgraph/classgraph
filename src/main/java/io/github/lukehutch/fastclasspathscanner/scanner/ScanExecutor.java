@@ -198,8 +198,8 @@ public class ScanExecutor {
                     }
 
                     // Barrier -- wait for worker thread completion (they should have already all completed
-                    // once this line is reached, since we just consumed all the END_OF_CLASSINFO_UNLINKED_QUEUE
-                    // poison pill markers).
+                    // once this line is reached, since numMatchingClassfilesToScan == 0 by this point,
+                    // so none of these get() methods should block -- but to be clean, call them anyway.)
                     for (int i = 0; i < workerFutures.size(); i++) {
                         // Will throw ExecutionException if one of the other threads threw an uncaught exception.
                         // This is then passed back to the caller of this Future<ScanResult>#get()
