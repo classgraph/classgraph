@@ -28,6 +28,8 @@
  */
 package io.github.lukehutch.fastclasspathscanner;
 
+import java.io.File;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -37,6 +39,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import io.github.lukehutch.fastclasspathscanner.classpath.ClassLoaderHandler;
+import io.github.lukehutch.fastclasspathscanner.classpath.ClasspathFinder;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.ClassAnnotationMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.ClassMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchContentsProcessor;
@@ -52,6 +55,7 @@ import io.github.lukehutch.fastclasspathscanner.scanner.ScanInterruptedException
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
 import io.github.lukehutch.fastclasspathscanner.utils.VersionFinder;
+import io.github.lukehutch.fastclasspathscanner.utils.LoggedThread.ThreadLog;
 
 /**
  * Uber-fast, ultra-lightweight Java classpath scanner. Scans the classpath by parsing the classfile binary format
@@ -65,6 +69,9 @@ public class FastClasspathScanner {
 
     /** The scanning specification, parsed. */
     private ScanSpec scanSpec;
+
+    /** The unique classpath elements. */
+    private List<File> classpathElts;
 
     /**
      * The default number of worker threads to use while scanning. This number gave the best results on a relatively
@@ -136,6 +143,22 @@ public class FastClasspathScanner {
             scanSpec = new ScanSpec(scanSpecArgs);
         }
         return scanSpec;
+    }
+
+    /**
+     * Returns the list of all unique File objects representing directories or zip/jarfiles on the classpath, in
+     * classloader resolution order. Classpath elements that do not exist are not included in the list.
+     */
+    public List<File> getUniqueClasspathElements() {
+        if (classpathElts == null) {
+            try (final ThreadLog log = new ThreadLog()) {
+                if (FastClasspathScanner.verbose) {
+                    log.log("Starting scan");
+                }
+                classpathElts = new ClasspathFinder(getScanSpec(), log).getUniqueClasspathElements();
+            }
+        }
+        return classpathElts;
     }
 
     /** Get the version number of FastClasspathScanner */
@@ -676,7 +699,8 @@ public class FastClasspathScanner {
      */
     public synchronized Future<ScanResult> scanAsync(final ExecutorService executorService,
             final int numWorkerThreads) {
-        return ScanExecutor.scan(getScanSpec(), executorService, Math.max(numWorkerThreads, 1));
+        return ScanExecutor.scan(getScanSpec(), getUniqueClasspathElements(), executorService,
+                Math.max(numWorkerThreads, 1));
     }
 
     /**

@@ -43,18 +43,16 @@ import java.util.concurrent.LinkedBlockingQueue;
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassInfo;
 import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassfileBinaryParser;
-import io.github.lukehutch.fastclasspathscanner.classpath.ClasspathFinder;
 import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathResourceQueueProcessor.ClasspathResourceProcessor;
 import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathResourceQueueProcessor.EndOfClasspathResourceQueueProcessor;
 import io.github.lukehutch.fastclasspathscanner.utils.LoggedThread;
-import io.github.lukehutch.fastclasspathscanner.utils.LoggedThread.ThreadLog;
 
 public class ScanExecutor {
     /**
      * Scan the classpath, and call any MatchProcessors on files or classes that match.
      */
-    public static Future<ScanResult> scan(final ScanSpec scanSpec, final ExecutorService executorService,
-            final int numWorkerThreads) {
+    public static Future<ScanResult> scan(final ScanSpec scanSpec, final List<File> classpathElts,
+            final ExecutorService executorService, final int numWorkerThreads) {
         // Get classpath elements
         final long scanStart = System.nanoTime();
 
@@ -72,16 +70,6 @@ public class ScanExecutor {
 
         // A map from a file to its timestamp at time of scan.
         final Map<File, Long> fileToTimestamp = new HashMap<>();
-
-        final ThreadLog initialLog = new ThreadLog();
-        if (FastClasspathScanner.verbose) {
-            initialLog.log("Starting scan");
-        }
-        scanSpec.log(initialLog);
-
-        // Get classpath elements
-        final List<File> classpathElts = new ClasspathFinder(scanSpec, initialLog).getUniqueClasspathElements();
-        initialLog.flush();
 
         // Start recursively scanning classpath
         futures.add(executorService.submit(new RecursiveScanner(classpathElts, scanSpec, matchingFiles,
@@ -180,8 +168,7 @@ public class ScanExecutor {
                 }
 
                 // Build class graph before calling MatchProcessors, in case they want to refer to the graph
-                final ScanResult scanResult = new ScanResult(scanSpec, classpathElts, classNameToClassInfo,
-                        fileToTimestamp, log);
+                final ScanResult scanResult = new ScanResult(scanSpec, classNameToClassInfo, fileToTimestamp, log);
 
                 // Call MatchProcessors
                 final long startMatchProcessors = System.nanoTime();

@@ -17,9 +17,6 @@ public class ScanResult {
     /** The scan spec. */
     private final ScanSpec scanSpec;
 
-    /** The unique classpath elements. */
-    private final List<File> classpathElts;
-
     /**
      * The file resources timestamped during a scan, along with their timestamp at the time of the scan. Includes
      * whitelisted files within directory classpath elements' hierarchy, and also whitelisted jarfiles (whose
@@ -38,11 +35,9 @@ public class ScanResult {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    public ScanResult(final ScanSpec scanSpec, final List<File> classpathElts,
-            final Map<String, ClassInfo> classNameToClassInfo, final Map<File, Long> fileToTimestamp,
-            final ThreadLog log) {
+    public ScanResult(final ScanSpec scanSpec, final Map<String, ClassInfo> classNameToClassInfo,
+            final Map<File, Long> fileToTimestamp, final ThreadLog log) {
         this.scanSpec = scanSpec;
-        this.classpathElts = classpathElts;
         this.classNameToClassInfo = classNameToClassInfo;
 
         // Build the class graph
@@ -426,15 +421,5 @@ public class ScanResult {
      */
     public synchronized String generateClassGraphDotFile(final float sizeX, final float sizeY) {
         return classGraphBuilder.generateClassGraphDotFile(sizeX, sizeY);
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Returns the list of all unique File objects representing directories or zip/jarfiles on the classpath, in
-     * classloader resolution order. Classpath elements that do not exist are not included in the list.
-     */
-    public synchronized List<File> getUniqueClasspathElements() {
-        return classpathElts;
     }
 }
