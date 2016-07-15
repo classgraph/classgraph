@@ -36,6 +36,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -50,10 +51,13 @@ public class ScanExecutor {
      * Scan the classpath, and call any MatchProcessors on files or classes that match.
      */
     public static Future<ScanResult> scan(final ScanSpec scanSpec, final List<File> classpathElts,
-            final ExecutorService executorService, final int numWorkerThreads) {
+            final ExecutorService executorService, final int numParallelTasks) {
         // Get classpath elements
         final long scanStart = System.nanoTime();
 
+        // Two threads are used for recursive scanning and class graph building, the rest are used as
+        // worker threads for parallel classfile binary format parsing 
+        int numWorkerThreads = Math.max(1, numParallelTasks - 2);
         final List<Future<Void>> futures = new ArrayList<>(numWorkerThreads);
 
         // ---------------------------------------------------------------------------------------------------------
@@ -83,18 +87,11 @@ public class ScanExecutor {
                     // Scan classpath recursively
                     new RecursiveScanner(classpathElts, scanSpec, matchingFiles, matchingClassfiles,
                             fileToTimestamp, killAllThreads, log).scan();
-
+                } finally {
                     if (Thread.currentThread().isInterrupted()) {
                         // Signal to other threads that they should shut down
                         killAllThreads.set(true);
                     }
-                    if (killAllThreads.get()) {
-                        // Clear work queue
-                        matchingClassfiles.clear();
-                        matchingFiles.clear();
-                    }
-
-                } finally {
                     // Place numWorkerThreads poison pills at end of work queues, whether or not this thread
                     // succeeds (so that the workers in the next stage do not get stuck blocking) 
                     for (int i = 0; i < numWorkerThreads; i++) {
@@ -148,19 +145,20 @@ public class ScanExecutor {
                                             // Log info about class
                                             thisClassInfoUnlinked.logTo(log);
                                         }
-                                        if (Thread.currentThread().isInterrupted()) {
+                                        if (killAllThreads.get() || Thread.currentThread().isInterrupted()) {
                                             throw new InterruptedException();
                                         }
                                     }
                                 }, log);
                     } catch (final InterruptedException e) {
-                        // Clear work queue
-                        classInfoUnlinked.clear();
                         // Signal to other threads that they should shut down
                         killAllThreads.set(true);
                     } finally {
+                        if (Thread.currentThread().isInterrupted()) {
+                            killAllThreads.set(true);
+                        }
                         // Place poison pill at end of work queues, whether or not this thread succeeds
-                        // (so that the workers in the next stage do not get stuck blocking) 
+                        // (so that the thread in the next stage does not get stuck blocking) 
                         classInfoUnlinked.add(END_OF_CLASSINFO_UNLINKED_QUEUE);
                     }
                     return null;
@@ -169,17 +167,17 @@ public class ScanExecutor {
         }
 
         // ---------------------------------------------------------------------------------------------------------
-        // Create ClassInfo object for each class, then cross-link all the ClassInfo objects with each other
+        // Create ClassInfo object for each class; cross-link the ClassInfo objects with each other;
+        // wait for worker thread completion; create ScanResult; call MatchProcessors; return ScanResult
         // ---------------------------------------------------------------------------------------------------------
 
-        final Map<String, ClassInfo> classNameToClassInfo = new HashMap<>();
-
         // Start final thread that creates cross-linked ClassInfo objects from each ClassInfoUnlinked object
-        final Future<Void> linkerFuture = executorService.submit(new LoggedThread<Void>() {
+        final Future<ScanResult> scanResult = executorService.submit(new LoggedThread<ScanResult>() {
             @Override
-            public Void doWork() {
+            public ScanResult doWork() throws InterruptedException, ExecutionException {
                 try {
                     // Convert ClassInfoUnlinked to linked ClassInfo objects
+                    final Map<String, ClassInfo> classNameToClassInfo = new HashMap<>();
                     for (int threadsStillRunning = numWorkerThreads; threadsStillRunning > 0;) {
                         final ClassInfoUnlinked c = classInfoUnlinked.take();
                         if (c == END_OF_CLASSINFO_UNLINKED_QUEUE) {
@@ -192,24 +190,12 @@ public class ScanExecutor {
                             throw new InterruptedException();
                         }
                     }
-                } catch (final InterruptedException e) {
-                    killAllThreads.set(true);
-                }
-                return null;
-            }
-        });
-        futures.add(linkerFuture);
 
-        // -----------------------------------------------------------------------------------------------------
-        // Wait for worker thread completion; create ScanResult; call MatchProcessors; return ScanResult
-        // -----------------------------------------------------------------------------------------------------
-
-        final Future<ScanResult> scanResult = executorService.submit(new LoggedThread<ScanResult>() {
-            @Override
-            public ScanResult doWork() throws Exception {
-                try {
+                    // Barrier -- wait for worker thread completion (they should have already all completed
+                    // if this line is reached).
                     for (int i = 0; i < futures.size(); i++) {
-                        // Barrier -- wait for worker thread completion
+                        // Will throw ExecutionException if one of the other threads threw an uncaught exception.
+                        // This is then passed back to the caller of this Future<ScanResult>#get()
                         futures.get(i).get();
                         if (killAllThreads.get() || Thread.currentThread().isInterrupted()) {
                             throw new InterruptedException();
@@ -231,14 +217,17 @@ public class ScanExecutor {
                         log.log("Finished scan", System.nanoTime() - scanStart);
                     }
                     return scanResult;
-
-                } catch (final InterruptedException e) {
+                } finally {
+                    // In case an exception was thrown in this thread, or an ExecutionException is thrown
+                    // during the futures.get(i).get() call, kill the other threads.
                     killAllThreads.set(true);
-                    throw e;
+                    for (int i = 0; i < futures.size(); i++) {
+                        // cancel(true) will do nothing if the Future has already completed
+                        futures.get(i).cancel(true);
+                    }
                 }
             }
         });
-
         return scanResult;
     }
 }
