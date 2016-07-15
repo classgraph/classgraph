@@ -27,7 +27,6 @@ import io.github.lukehutch.fastclasspathscanner.matchprocessor.StaticFinalFieldM
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubclassMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubinterfaceMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathResourceQueueProcessor.ClasspathResourceProcessor;
-import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathResourceQueueProcessor.EndOfClasspathResourceQueueProcessor;
 import io.github.lukehutch.fastclasspathscanner.utils.LoggedThread.ThreadLog;
 
 public class ScanSpec {
@@ -296,7 +295,7 @@ public class ScanSpec {
             final LinkedBlockingQueue<ClasspathResource> matchingFiles,
             final Map<String, ClassInfo> classNameToClassInfo, final ThreadLog log) throws InterruptedException {
         // Call any FileMatchProcessors
-        ClasspathResourceQueueProcessor.processClasspathResourceQueue(matchingFiles,
+        ClasspathResourceQueueProcessor.processClasspathResourceQueue(matchingFiles, ClasspathResource.END_OF_QUEUE,
                 new ClasspathResourceProcessor() {
                     @Override
                     public void processClasspathResource(final ClasspathResource classpathResource,
@@ -304,26 +303,21 @@ public class ScanSpec {
                         try {
                             classpathResource.fileMatchProcessorWrapper.processMatch(classpathResource.classpathElt,
                                     classpathResource.relativePath, inputStream, inputStreamLength);
-                        } catch (final Exception e) {
+                        } catch (final Throwable e) {
                             if (FastClasspathScanner.verbose) {
                                 log.log(4, "Exception while calling FileMatchProcessor for file "
                                         + classpathResource.relativePath + " : " + e);
                             }
                         }
                     }
-                }, new EndOfClasspathResourceQueueProcessor() {
-                    @Override
-                    public void processEndOfQueue() {
-                    }
                 }, log);
-        log.flush();
 
         // Call any class, interface or annotation MatchProcessors
         if (classMatchers != null) {
             for (final ClassMatcher classMatcher : classMatchers) {
                 try {
                     classMatcher.lookForMatches(scanResult, log);
-                } catch (final Exception e) {
+                } catch (final Throwable e) {
                     if (FastClasspathScanner.verbose) {
                         log.log(4, "Exception while calling ClassMatchProcessor: " + e);
                     }
@@ -357,7 +351,7 @@ public class ScanSpec {
                                 try {
                                     staticFinalFieldMatchProcessor.processMatch(classInfo.className, fieldName,
                                             constValue);
-                                } catch (final Exception e) {
+                                } catch (final Throwable e) {
                                     if (FastClasspathScanner.verbose) {
                                         log.log(4, "Exception while calling StaticFinalFieldMatchProcessor: " + e);
                                     }

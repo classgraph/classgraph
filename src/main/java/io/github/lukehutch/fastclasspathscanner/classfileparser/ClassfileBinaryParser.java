@@ -454,10 +454,13 @@ public class ClassfileBinaryParser {
      * Directly examine contents of classfile binary header to determine annotations, implemented interfaces, the
      * super-class etc. Creates a new ClassInfo object, and adds it to classNameToClassInfoOut. Assumes classpath
      * masking has already been performed, so that only one class of a given name will be added.
+     * 
+     * @throws InterruptedException
+     *             if the operation was interrupted.
      */
     public ClassInfoUnlinked readClassInfoFromClassfileHeader(final String relativePath,
             final InputStream inputStream, final Map<String, HashSet<String>> classNameToStaticFinalFieldsToMatch,
-            final ConcurrentHashMap<String, String> stringInternMap) throws IOException {
+            final ConcurrentHashMap<String, String> stringInternMap) throws InterruptedException {
         try {
             // Clear className and set inputStream for each new class
             this.className = null;
@@ -737,6 +740,8 @@ public class ClassfileBinaryParser {
             }
             return classInfoUnlinked;
 
+        } catch (final InterruptedException e) {
+            throw e;
         } catch (final Exception e) {
             log.log(2, "Exception while attempting to load classfile " + relativePath + ": " + e);
             return null;

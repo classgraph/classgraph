@@ -17,22 +17,16 @@ class ClasspathResourceQueueProcessor {
                 long inputStreamLength) throws IOException, InterruptedException;
     }
 
-    public interface EndOfClasspathResourceQueueProcessor {
-        public void processEndOfQueue();
-    }
-
     public static void processClasspathResourceQueue(final LinkedBlockingQueue<ClasspathResource> queue,
-            final ClasspathResourceProcessor classpathResourceProcessor,
-            final EndOfClasspathResourceQueueProcessor endOfQueueProcessor, final ThreadLog log)
-            throws InterruptedException {
+            final ClasspathResource endOfQueueMarker, final ClasspathResourceProcessor classpathResourceProcessor,
+            final ThreadLog log) throws InterruptedException {
         ZipFile currentlyOpenZipFile = null;
         try {
             ClasspathResource prevClasspathResource = null;
             for (;;) {
                 final ClasspathResource classpathResource = queue.take();
-                if (classpathResource == ClasspathResource.END_OF_QUEUE) {
+                if (classpathResource == endOfQueueMarker) {
                     // Received poison pill -- no more work to do.
-                    endOfQueueProcessor.processEndOfQueue();
                     return;
                 }
                 final long fileStartTime = System.nanoTime();

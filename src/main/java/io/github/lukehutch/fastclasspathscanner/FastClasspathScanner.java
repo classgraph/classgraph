@@ -54,8 +54,8 @@ import io.github.lukehutch.fastclasspathscanner.scanner.ScanExecutor;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanInterruptedException;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
-import io.github.lukehutch.fastclasspathscanner.utils.VersionFinder;
 import io.github.lukehutch.fastclasspathscanner.utils.LoggedThread.ThreadLog;
+import io.github.lukehutch.fastclasspathscanner.utils.VersionFinder;
 
 /**
  * Uber-fast, ultra-lightweight Java classpath scanner. Scans the classpath by parsing the classfile binary format
@@ -728,7 +728,11 @@ public class FastClasspathScanner {
         } catch (final InterruptedException e) {
             throw new ScanInterruptedException();
         } catch (final ExecutionException e) {
-            throw new RuntimeException(e.getCause());
+            if (e.getCause() instanceof InterruptedException) {
+                throw new ScanInterruptedException();
+            } else {
+                throw new RuntimeException(e.getCause());
+            }
         }
     }
 

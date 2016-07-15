@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
@@ -15,9 +16,9 @@ import java.util.zip.ZipFile;
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec.FilePathTesterAndMatchProcessorWrapper;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec.ScanSpecPathMatch;
-import io.github.lukehutch.fastclasspathscanner.utils.LoggedThread;
+import io.github.lukehutch.fastclasspathscanner.utils.LoggedThread.ThreadLog;
 
-class RecursiveScanner extends LoggedThread<Void> {
+class RecursiveScanner {
     /** The classpath elements. */
     private final List<File> uniqueClasspathElts;
 
@@ -51,24 +52,21 @@ class RecursiveScanner extends LoggedThread<Void> {
     /** A map from a file to its timestamp at time of scan. */
     private final Map<File, Long> fileToTimestamp;
 
-    /**
-     * The number of worker threads. This class runs in a single thread, but it needs to place this many poison
-     * pills in the matchingClassfiles queue at the end of the scan.
-     */
-    private final int numWorkerThreads;
+    private final AtomicBoolean killAllThreads;
 
-    private boolean interrupted = false;
+    private final ThreadLog log;
 
     public RecursiveScanner(final List<File> uniqueClasspathElts, final ScanSpec scanSpec,
             final LinkedBlockingQueue<ClasspathResource> matchingFiles,
             final LinkedBlockingQueue<ClasspathResource> matchingClassfiles, final Map<File, Long> fileToTimestamp,
-            final int numWorkerThreads) {
+            final AtomicBoolean killAllThreads, final ThreadLog log) {
         this.uniqueClasspathElts = uniqueClasspathElts;
         this.scanSpec = scanSpec;
         this.matchingFiles = matchingFiles;
         this.matchingClassfiles = matchingClassfiles;
         this.fileToTimestamp = fileToTimestamp;
-        this.numWorkerThreads = numWorkerThreads;
+        this.killAllThreads = killAllThreads;
+        this.log = log;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -144,7 +142,10 @@ class RecursiveScanner extends LoggedThread<Void> {
 
         final long startTime = System.nanoTime();
         for (final File fileInDir : filesInDir) {
-            if (interrupted |= Thread.currentThread().isInterrupted()) {
+            if (Thread.currentThread().isInterrupted()) {
+                killAllThreads.set(true);
+            }
+            if (killAllThreads.get()) {
                 return;
             }
             if (fileInDir.isDirectory()) {
@@ -227,7 +228,10 @@ class RecursiveScanner extends LoggedThread<Void> {
         String prevParentRelativePath = null;
         ScanSpecPathMatch prevParentMatchStatus = null;
         for (final Enumeration<? extends ZipEntry> entries = zipFile.entries(); entries.hasMoreElements();) {
-            if (interrupted |= Thread.currentThread().isInterrupted()) {
+            if (Thread.currentThread().isInterrupted()) {
+                killAllThreads.set(true);
+            }
+            if (killAllThreads.get()) {
                 return;
             }
             final ZipEntry zipEntry = entries.nextElement();
@@ -311,8 +315,7 @@ class RecursiveScanner extends LoggedThread<Void> {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    @Override
-    public Void doWork() throws Exception {
+    public void scan() {
         if (FastClasspathScanner.verbose) {
             for (int i = 0; i < uniqueClasspathElts.size(); i++) {
                 final File elt = uniqueClasspathElts.get(i);
@@ -357,14 +360,12 @@ class RecursiveScanner extends LoggedThread<Void> {
                     log.log(2, "Skipping classpath element " + classpathElt.getPath());
                 }
             }
-            if (interrupted |= Thread.currentThread().isInterrupted()) {
-                break;
+            if (Thread.currentThread().isInterrupted()) {
+                killAllThreads.set(true);
             }
-        }
-        // Place numWorkerThreads poison pills at end of work queues
-        for (int i = 0; i < numWorkerThreads; i++) {
-            matchingClassfiles.add(ClasspathResource.END_OF_QUEUE);
-            matchingFiles.add(ClasspathResource.END_OF_QUEUE);
+            if (killAllThreads.get()) {
+                return;
+            }
         }
         if (FastClasspathScanner.verbose) {
             log.log(1, "Number of resources scanned: directories: " + numDirsScanned.get() + "; files: "
@@ -372,6 +373,5 @@ class RecursiveScanner extends LoggedThread<Void> {
                     + "; jarfile-internal directories: " + numJarfileDirsScanned + "; jarfile-internal files: "
                     + numJarfileFilesScanned + "; classfiles: " + numClassfilesScanned);
         }
-        return null;
     }
 }

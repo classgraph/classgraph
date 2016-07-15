@@ -39,12 +39,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassInfo;
 import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassfileBinaryParser;
 import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathResourceQueueProcessor.ClasspathResourceProcessor;
-import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathResourceQueueProcessor.EndOfClasspathResourceQueueProcessor;
 import io.github.lukehutch.fastclasspathscanner.utils.LoggedThread;
 
 public class ScanExecutor {
@@ -71,9 +71,39 @@ public class ScanExecutor {
         // A map from a file to its timestamp at time of scan.
         final Map<File, Long> fileToTimestamp = new HashMap<>();
 
+        // If any thread is interrupted (in particular by calling ScanResult#cancel(true), interrupt all of them
+        final AtomicBoolean killAllThreads = new AtomicBoolean(false);
+
         // Start recursively scanning classpath
-        futures.add(executorService.submit(new RecursiveScanner(classpathElts, scanSpec, matchingFiles,
-                matchingClassfiles, fileToTimestamp, numWorkerThreads)));
+        futures.add(executorService.submit(new LoggedThread<Void>() {
+            @Override
+            public Void doWork() throws Exception {
+                try {
+                    // Scan classpath recursively
+                    new RecursiveScanner(classpathElts, scanSpec, matchingFiles, matchingClassfiles,
+                            fileToTimestamp, killAllThreads, log).scan();
+
+                    if (Thread.currentThread().isInterrupted()) {
+                        // Signal to other threads that they should shut down
+                        killAllThreads.set(true);
+                    }
+                    if (killAllThreads.get()) {
+                        // Clear work queue
+                        matchingClassfiles.clear();
+                        matchingFiles.clear();
+                    }
+
+                } finally {
+                    // Place numWorkerThreads poison pills at end of work queues, whether or not this thread
+                    // succeeds (so that the workers in the next stage do not get stuck blocking) 
+                    for (int i = 0; i < numWorkerThreads; i++) {
+                        matchingClassfiles.add(ClasspathResource.END_OF_QUEUE);
+                        matchingFiles.add(ClasspathResource.END_OF_QUEUE);
+                    }
+                }
+                return null;
+            }
+        }));
 
         // ---------------------------------------------------------------------------------------------------------
         // Parse classfile binary headers in parallel
@@ -93,33 +123,42 @@ public class ScanExecutor {
             futures.add(executorService.submit(new LoggedThread<Void>() {
                 @Override
                 public Void doWork() throws Exception {
-                    final ClassfileBinaryParser classfileBinaryParser = new ClassfileBinaryParser(scanSpec, log);
-                    ClasspathResourceQueueProcessor.processClasspathResourceQueue(matchingClassfiles,
-                            new ClasspathResourceProcessor() {
-                                @Override
-                                public void processClasspathResource(final ClasspathResource classpathResource,
-                                        final InputStream inputStream, final long inputStreamLength)
-                                        throws IOException {
-                                    // Parse classpath binary format, creating a ClassInfoUnlinked object
-                                    final ClassInfoUnlinked thisClassInfoUnlinked = classfileBinaryParser
-                                            .readClassInfoFromClassfileHeader(classpathResource.relativePath,
-                                                    inputStream, scanSpec.getClassNameToStaticFinalFieldsToMatch(),
-                                                    stringInternMap);
-                                    // If class was successfully read, output new ClassInfoUnlinked object
-                                    if (thisClassInfoUnlinked != null) {
-                                        classInfoUnlinked.add(thisClassInfoUnlinked);
-                                        // Log info about class
-                                        thisClassInfoUnlinked.logClassInfo(log);
+                    try {
+                        final ClassfileBinaryParser classfileBinaryParser = new ClassfileBinaryParser(scanSpec,
+                                log);
+                        ClasspathResourceQueueProcessor.processClasspathResourceQueue(matchingClassfiles,
+                                ClasspathResource.END_OF_QUEUE, new ClasspathResourceProcessor() {
+                                    @Override
+                                    public void processClasspathResource(final ClasspathResource classpathResource,
+                                            final InputStream inputStream, final long inputStreamLength)
+                                            throws IOException, InterruptedException {
+                                        // Parse classpath binary format, creating a ClassInfoUnlinked object
+                                        final ClassInfoUnlinked thisClassInfoUnlinked = classfileBinaryParser
+                                                .readClassInfoFromClassfileHeader(classpathResource.relativePath,
+                                                        inputStream,
+                                                        scanSpec.getClassNameToStaticFinalFieldsToMatch(),
+                                                        stringInternMap);
+                                        // If class was successfully read, output new ClassInfoUnlinked object
+                                        if (thisClassInfoUnlinked != null) {
+                                            classInfoUnlinked.add(thisClassInfoUnlinked);
+                                            // Log info about class
+                                            thisClassInfoUnlinked.logClassInfo(log);
+                                        }
+                                        if (Thread.currentThread().isInterrupted()) {
+                                            throw new InterruptedException();
+                                        }
                                     }
-                                }
-                            }, new EndOfClasspathResourceQueueProcessor() {
-                                @Override
-                                public void processEndOfQueue() {
-                                    // Received ClasspathResource.END_OF_QUEUE poison pill from RecursiveScanner --
-                                    // no more work to do. Send poison pill to next stage.
-                                    classInfoUnlinked.add(ClassInfoUnlinked.END_OF_QUEUE);
-                                }
-                            }, log);
+                                }, log);
+                    } catch (final InterruptedException e) {
+                        // Clear work queue
+                        classInfoUnlinked.clear();
+                        // Signal to other threads that they should shut down
+                        killAllThreads.set(true);
+                    } finally {
+                        // Place poison pill at end of work queues, whether or not this thread succeeds
+                        // (so that the workers in the next stage do not get stuck blocking) 
+                        classInfoUnlinked.add(ClassInfoUnlinked.END_OF_QUEUE);
+                    }
                     return null;
                 }
             }));
@@ -135,10 +174,9 @@ public class ScanExecutor {
         final Future<Void> linkerFuture = executorService.submit(new LoggedThread<Void>() {
             @Override
             public Void doWork() {
-                // Convert ClassInfoUnlinked to linked ClassInfo objects
-                for (int threadsStillRunning = numWorkerThreads; threadsStillRunning > 0
-                        && !Thread.currentThread().isInterrupted();) {
-                    try {
+                try {
+                    // Convert ClassInfoUnlinked to linked ClassInfo objects
+                    for (int threadsStillRunning = numWorkerThreads; threadsStillRunning > 0;) {
                         final ClassInfoUnlinked c = classInfoUnlinked.take();
                         if (c == ClassInfoUnlinked.END_OF_QUEUE) {
                             --threadsStillRunning;
@@ -146,9 +184,12 @@ public class ScanExecutor {
                             // Create ClassInfo object from ClassInfoUnlinked object, and link into class graph
                             c.link(classNameToClassInfo);
                         }
-                    } catch (final InterruptedException e) {
-                        Thread.currentThread().interrupt();
+                        if (Thread.currentThread().isInterrupted()) {
+                            throw new InterruptedException();
+                        }
                     }
+                } catch (final InterruptedException e) {
+                    killAllThreads.set(true);
                 }
                 return null;
             }
@@ -156,29 +197,40 @@ public class ScanExecutor {
         futures.add(linkerFuture);
 
         // -----------------------------------------------------------------------------------------------------
-        // Wait for worker thread completion, and then flush out worker logs in order
+        // Wait for worker thread completion, then build a ScanResult and return it
         // -----------------------------------------------------------------------------------------------------
 
         final Future<ScanResult> scanResult = executorService.submit(new LoggedThread<ScanResult>() {
             @Override
             public ScanResult doWork() throws Exception {
-                for (int i = 0; i < futures.size(); i++) {
-                    // Wait for worker thread completion
-                    futures.get(i).get();
+                try {
+                    for (int i = 0; i < futures.size(); i++) {
+                        // Barrier -- wait for worker thread completion
+                        futures.get(i).get();
+                        if (killAllThreads.get() || Thread.currentThread().isInterrupted()) {
+                            throw new InterruptedException();
+                        }
+                    }
+
+                    // Create the ScanResult, which builds the class graph.
+                    // (ClassMatchProcessors need access to the class graph to find matching classes.)
+                    final ScanResult scanResult = new ScanResult(scanSpec, classNameToClassInfo, fileToTimestamp,
+                            log);
+
+                    // Call MatchProcessors
+                    final long startMatchProcessors = System.nanoTime();
+                    scanSpec.callMatchProcessors(scanResult, matchingFiles, classNameToClassInfo, log);
+
+                    if (FastClasspathScanner.verbose) {
+                        log.log(1, "Finished calling MatchProcessors", System.nanoTime() - startMatchProcessors);
+                        log.log("Finished scan", System.nanoTime() - scanStart);
+                    }
+                    return scanResult;
+
+                } catch (final InterruptedException e) {
+                    killAllThreads.set(true);
+                    throw e;
                 }
-
-                // Build class graph before calling MatchProcessors, in case they want to refer to the graph
-                final ScanResult scanResult = new ScanResult(scanSpec, classNameToClassInfo, fileToTimestamp, log);
-
-                // Call MatchProcessors
-                final long startMatchProcessors = System.nanoTime();
-                scanSpec.callMatchProcessors(scanResult, matchingFiles, classNameToClassInfo, log);
-
-                if (FastClasspathScanner.verbose) {
-                    log.log(1, "Finished calling MatchProcessors", System.nanoTime() - startMatchProcessors);
-                    log.log("Finished scan", System.nanoTime() - scanStart);
-                }
-                return scanResult;
             }
         });
 
