@@ -73,7 +73,7 @@ public abstract class LoggedThread<T> implements Callable<T> {
     /**
      * Class for accumulating ordered log entries from threads, for later writing to the log without interleaving.
      */
-    public static class ThreadLog {
+    public static class ThreadLog implements AutoCloseable {
         private static AtomicBoolean versionLogged = new AtomicBoolean(false);
         private final Queue<ThreadLogEntry> logEntries = new ConcurrentLinkedQueue<>();
 
@@ -111,6 +111,11 @@ public abstract class LoggedThread<T> implements Callable<T> {
                 System.err.print(buf.toString());
                 System.err.flush();
             }
+        }
+
+        @Override
+        public void close() {
+            flush();
         }
     }
 }
