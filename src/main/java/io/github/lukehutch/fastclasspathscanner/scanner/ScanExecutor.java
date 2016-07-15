@@ -40,6 +40,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathResourceQueueProcessor.ClasspathResourceProcessor;
@@ -58,8 +59,7 @@ public class ScanExecutor {
     private static void processClasspathResourceQueue(
             final LinkedBlockingQueue<ClasspathResource> matchingClassfiles,
             final ClasspathResource classpathResourceQueueEndMarker,
-            final LinkedBlockingQueue<ClassInfoUnlinked> classInfoUnlinked,
-            final ClassInfoUnlinked classInfoUnlinkedQueueEndMarker, final ScanSpec scanSpec,
+            final LinkedBlockingQueue<ClassInfoUnlinked> classInfoUnlinked, final ScanSpec scanSpec,
             final ConcurrentHashMap<String, String> stringInternMap, final AtomicBoolean killAllThreads,
             final ThreadLog log) throws InterruptedException {
         final ClassfileBinaryParser classfileBinaryParser = new ClassfileBinaryParser(scanSpec, log);
@@ -87,10 +87,6 @@ public class ScanExecutor {
         } catch (final InterruptedException e) {
             killAllThreads.set(true);
             throw e;
-        } finally {
-            // Place poison pill at end of work queues, whether or not this thread succeeds
-            // (so that the thread in the next stage does not get stuck blocking) 
-            classInfoUnlinked.add(classInfoUnlinkedQueueEndMarker);
         }
     }
 
@@ -127,11 +123,12 @@ public class ScanExecutor {
                     // The output of the classfile binary parser
                     final LinkedBlockingQueue<ClassInfoUnlinked> classInfoUnlinked = new LinkedBlockingQueue<>();
 
-                    // End of queue marker
-                    final ClassInfoUnlinked END_OF_CLASSINFO_UNLINKED_QUEUE = new ClassInfoUnlinked();
-
                     // A map holding interned strings, to save memory. */
                     final ConcurrentHashMap<String, String> stringInternMap = new ConcurrentHashMap<>();
+
+                    // The total number of items that have been added to the matchingClassfiles queue
+                    // but that have not yet been processed by the classfile binary parser
+                    final AtomicInteger numMatchingClassfilesToScan = new AtomicInteger();
 
                     // ---------------------------------------------------------------------------------------------
                     // Start other worker threads (if numParallelTasks > 1)
@@ -145,10 +142,8 @@ public class ScanExecutor {
                         workerFutures.add(executorService.submit(new LoggedThread<Void>() {
                             @Override
                             public Void doWork() throws Exception {
-                                processClasspathResourceQueue( //
-                                        matchingClassfiles, END_OF_CLASSPATH_RESOURCE_QUEUE, //
-                                        classInfoUnlinked, END_OF_CLASSINFO_UNLINKED_QUEUE, //
-                                        scanSpec, stringInternMap, killAllThreads, this.log);
+                                processClasspathResourceQueue(matchingClassfiles, END_OF_CLASSPATH_RESOURCE_QUEUE,
+                                        classInfoUnlinked, scanSpec, stringInternMap, killAllThreads, this.log);
                                 return null;
                             }
                         }));
@@ -162,9 +157,11 @@ public class ScanExecutor {
                     final Map<File, Long> fileToTimestamp = new HashMap<>();
 
                     try {
-                        // Scan classpath recursively
+                        // Scan classpath recursively. Creates a queue of classfiles to scan in
+                        // matchingClassfiles, and the total number of entries added to that queue
+                        // is counted in numMatchingClassfilesToScan.
                         new RecursiveScanner(classpathElts, scanSpec, matchingFiles, matchingClassfiles,
-                                fileToTimestamp, killAllThreads, log).scan();
+                                numMatchingClassfilesToScan, fileToTimestamp, killAllThreads, log).scan();
                         log.flush();
 
                     } finally {
@@ -181,10 +178,8 @@ public class ScanExecutor {
                     // This allows scanning to complete even if numParallelTasks == 1.
                     // ---------------------------------------------------------------------------------------------
 
-                    processClasspathResourceQueue( //
-                            matchingClassfiles, END_OF_CLASSPATH_RESOURCE_QUEUE, //
-                            classInfoUnlinked, END_OF_CLASSINFO_UNLINKED_QUEUE, //
-                            scanSpec, stringInternMap, killAllThreads, log);
+                    processClasspathResourceQueue(matchingClassfiles, END_OF_CLASSPATH_RESOURCE_QUEUE,
+                            classInfoUnlinked, scanSpec, stringInternMap, killAllThreads, log);
 
                     // ---------------------------------------------------------------------------------------------
                     // Create ClassInfo object for each class; cross-link the ClassInfo objects with each other;
@@ -193,14 +188,10 @@ public class ScanExecutor {
 
                     // Convert ClassInfoUnlinked to linked ClassInfo objects.
                     final Map<String, ClassInfo> classNameToClassInfo = new HashMap<>();
-                    for (int threadsStillRunning = numParallelTasks; threadsStillRunning > 0;) {
+                    while (numMatchingClassfilesToScan.getAndDecrement() > 0) {
                         final ClassInfoUnlinked c = classInfoUnlinked.take();
-                        if (c == END_OF_CLASSINFO_UNLINKED_QUEUE) {
-                            --threadsStillRunning;
-                        } else {
-                            // Create ClassInfo object from ClassInfoUnlinked object, and link into class graph
-                            c.link(classNameToClassInfo);
-                        }
+                        // Create ClassInfo object from ClassInfoUnlinked object, and link into class graph
+                        c.link(classNameToClassInfo);
                         if (killAllThreads.get() || Thread.currentThread().isInterrupted()) {
                             throw new InterruptedException();
                         }

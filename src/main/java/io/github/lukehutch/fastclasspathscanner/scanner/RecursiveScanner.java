@@ -40,14 +40,14 @@ class RecursiveScanner {
     /** The total number of jarfiles scanned. */
     private final AtomicInteger numJarfilesScanned = new AtomicInteger();
 
-    /** The total number of classfiles scanned. */
-    private final AtomicInteger numClassfilesScanned = new AtomicInteger();
-
     /** The output of the recursive scan for files that matched requested criteria. */
     private final LinkedBlockingQueue<ClasspathResource> matchingFiles;
 
     /** The output of the recursive scan for classfiles that matched requested criteria. */
     private final LinkedBlockingQueue<ClasspathResource> matchingClassfiles;
+
+    /** A counter for the total number of items added to the matchingClassfiles queue. */
+    private final AtomicInteger matchingClassfilesCount;
 
     /** A map from a file to its timestamp at time of scan. */
     private final Map<File, Long> fileToTimestamp;
@@ -58,11 +58,13 @@ class RecursiveScanner {
 
     public RecursiveScanner(final List<File> uniqueClasspathElts, final ScanSpec scanSpec,
             final LinkedBlockingQueue<ClasspathResource> matchingFiles,
-            final LinkedBlockingQueue<ClasspathResource> matchingClassfiles, final Map<File, Long> fileToTimestamp,
+            final LinkedBlockingQueue<ClasspathResource> matchingClassfiles,
+            final AtomicInteger matchingClassfilesCount, final Map<File, Long> fileToTimestamp,
             final AtomicBoolean killAllThreads, final ThreadLog log) {
         this.uniqueClasspathElts = uniqueClasspathElts;
         this.scanSpec = scanSpec;
         this.matchingFiles = matchingFiles;
+        this.matchingClassfilesCount = matchingClassfilesCount;
         this.matchingClassfiles = matchingClassfiles;
         this.fileToTimestamp = fileToTimestamp;
         this.killAllThreads = killAllThreads;
@@ -188,7 +190,7 @@ class RecursiveScanner {
                 // Store relative paths of any classfiles encountered
                 if (fileInDirRelativePath.endsWith(".class")) {
                     matchingClassfiles.add(new ClasspathResource(classpathElt, fileInDirRelativePath));
-                    numClassfilesScanned.incrementAndGet();
+                    matchingClassfilesCount.incrementAndGet();
                     matchedFile = true;
                 }
 
@@ -286,7 +288,7 @@ class RecursiveScanner {
             // Store relative paths of any classfiles encountered
             if (relativePath.endsWith(".class")) {
                 matchingClassfiles.add(new ClasspathResource(classpathElt, relativePath));
-                numClassfilesScanned.incrementAndGet();
+                matchingClassfilesCount.incrementAndGet();
                 matchedFile = true;
             }
 
@@ -369,7 +371,7 @@ class RecursiveScanner {
             log.log(1, "Number of resources scanned: directories: " + numDirsScanned.get() + "; files: "
                     + numFilesScanned.get() + "; jarfiles: " + numJarfilesScanned.get()
                     + "; jarfile-internal directories: " + numJarfileDirsScanned + "; jarfile-internal files: "
-                    + numJarfileFilesScanned + "; classfiles: " + numClassfilesScanned);
+                    + numJarfileFilesScanned + "; classfiles: " + matchingClassfilesCount);
         }
     }
 }
