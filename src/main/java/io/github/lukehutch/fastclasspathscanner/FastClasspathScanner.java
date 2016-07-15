@@ -77,7 +77,7 @@ public class FastClasspathScanner {
      * The default number of worker threads to use while scanning. This number gave the best results on a relatively
      * modern laptop with SSD, while scanning a large classpath.
      */
-    private static final int DEFAULT_NUM_WORKER_THREADS = 7;
+    private static final int DEFAULT_NUM_WORKER_THREADS = 6;
 
     // -------------------------------------------------------------------------------------------------------------
 
