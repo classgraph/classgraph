@@ -18,6 +18,12 @@ public abstract class LoggedThread<T> implements Callable<T> {
     public T call() throws Exception {
         try {
             return doWork();
+        } catch (final Throwable e) {
+            log.flush();
+            if (FastClasspathScanner.verbose) {
+                log.log("Thread " + Thread.currentThread().getName() + " threw " + e);
+            }
+            throw e;
         } finally {
             log.flush();
         }
@@ -93,7 +99,7 @@ public abstract class LoggedThread<T> implements Callable<T> {
             logEntries.add(new ThreadLogEntry(0, msg, elapsedTimeNanos));
         }
 
-        private synchronized void flush() {
+        public synchronized void flush() {
             if (!logEntries.isEmpty()) {
                 final StringBuilder buf = new StringBuilder();
                 if (versionLogged.compareAndSet(false, true)) {
