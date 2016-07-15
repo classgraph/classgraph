@@ -83,7 +83,7 @@ public class ClasspathFinder {
     }
 
     /** Returns true if the path ends with a JAR extension */
-    public static boolean isJar(final String path) {
+    private static boolean isJar(final String path) {
         return isJarMatchCase(path) || isJarMatchCase(path.toLowerCase());
     }
 
@@ -166,7 +166,7 @@ public class ClasspathFinder {
     }
 
     /** Add a classpath element. */
-    public void addClasspathElement(final File baseFile, final String pathElement) {
+    private void addClasspathElement(final File baseFile, final String pathElement) {
         final File pathFile = urlToFile(baseFile, pathElement);
         if (pathFile == null) {
             return;

@@ -42,8 +42,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassInfo;
-import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassfileBinaryParser;
 import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathResourceQueueProcessor.ClasspathResourceProcessor;
 import io.github.lukehutch.fastclasspathscanner.utils.LoggedThread;
 
@@ -67,6 +65,9 @@ public class ScanExecutor {
 
         // The output of the recursive scan for classfiles that matched requested criteria.
         final LinkedBlockingQueue<ClasspathResource> matchingClassfiles = new LinkedBlockingQueue<>();
+
+        // End of queue marker
+        final ClasspathResource END_OF_CLASSPATH_RESOURCE_QUEUE = new ClasspathResource();
 
         // A map from a file to its timestamp at time of scan.
         final Map<File, Long> fileToTimestamp = new HashMap<>();
@@ -97,8 +98,8 @@ public class ScanExecutor {
                     // Place numWorkerThreads poison pills at end of work queues, whether or not this thread
                     // succeeds (so that the workers in the next stage do not get stuck blocking) 
                     for (int i = 0; i < numWorkerThreads; i++) {
-                        matchingClassfiles.add(ClasspathResource.END_OF_QUEUE);
-                        matchingFiles.add(ClasspathResource.END_OF_QUEUE);
+                        matchingClassfiles.add(END_OF_CLASSPATH_RESOURCE_QUEUE);
+                        matchingFiles.add(END_OF_CLASSPATH_RESOURCE_QUEUE);
                     }
                 }
                 return null;
@@ -111,6 +112,9 @@ public class ScanExecutor {
 
         // The output of the classfile binary parser
         final LinkedBlockingQueue<ClassInfoUnlinked> classInfoUnlinked = new LinkedBlockingQueue<>();
+
+        // End of queue marker
+        final ClassInfoUnlinked END_OF_CLASSINFO_UNLINKED_QUEUE = new ClassInfoUnlinked();
 
         // A map holding interned strings, to save memory. */
         final ConcurrentHashMap<String, String> stringInternMap = new ConcurrentHashMap<>();
@@ -127,7 +131,7 @@ public class ScanExecutor {
                         final ClassfileBinaryParser classfileBinaryParser = new ClassfileBinaryParser(scanSpec,
                                 log);
                         ClasspathResourceQueueProcessor.processClasspathResourceQueue(matchingClassfiles,
-                                ClasspathResource.END_OF_QUEUE, new ClasspathResourceProcessor() {
+                                END_OF_CLASSPATH_RESOURCE_QUEUE, new ClasspathResourceProcessor() {
                                     @Override
                                     public void processClasspathResource(final ClasspathResource classpathResource,
                                             final InputStream inputStream, final long inputStreamLength)
@@ -142,7 +146,7 @@ public class ScanExecutor {
                                         if (thisClassInfoUnlinked != null) {
                                             classInfoUnlinked.add(thisClassInfoUnlinked);
                                             // Log info about class
-                                            thisClassInfoUnlinked.logClassInfo(log);
+                                            thisClassInfoUnlinked.logTo(log);
                                         }
                                         if (Thread.currentThread().isInterrupted()) {
                                             throw new InterruptedException();
@@ -157,7 +161,7 @@ public class ScanExecutor {
                     } finally {
                         // Place poison pill at end of work queues, whether or not this thread succeeds
                         // (so that the workers in the next stage do not get stuck blocking) 
-                        classInfoUnlinked.add(ClassInfoUnlinked.END_OF_QUEUE);
+                        classInfoUnlinked.add(END_OF_CLASSINFO_UNLINKED_QUEUE);
                     }
                     return null;
                 }
@@ -178,7 +182,7 @@ public class ScanExecutor {
                     // Convert ClassInfoUnlinked to linked ClassInfo objects
                     for (int threadsStillRunning = numWorkerThreads; threadsStillRunning > 0;) {
                         final ClassInfoUnlinked c = classInfoUnlinked.take();
-                        if (c == ClassInfoUnlinked.END_OF_QUEUE) {
+                        if (c == END_OF_CLASSINFO_UNLINKED_QUEUE) {
                             --threadsStillRunning;
                         } else {
                             // Create ClassInfo object from ClassInfoUnlinked object, and link into class graph
@@ -219,7 +223,8 @@ public class ScanExecutor {
 
                     // Call MatchProcessors
                     final long startMatchProcessors = System.nanoTime();
-                    scanSpec.callMatchProcessors(scanResult, matchingFiles, classNameToClassInfo, log);
+                    scanSpec.callMatchProcessors(scanResult, matchingFiles, END_OF_CLASSPATH_RESOURCE_QUEUE,
+                            classNameToClassInfo, log);
 
                     if (FastClasspathScanner.verbose) {
                         log.log(1, "Finished calling MatchProcessors", System.nanoTime() - startMatchProcessors);

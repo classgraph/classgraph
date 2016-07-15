@@ -1,4 +1,4 @@
-package io.github.lukehutch.fastclasspathscanner.classfileparser;
+package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -8,8 +8,6 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-import io.github.lukehutch.fastclasspathscanner.scanner.ClassInfoUnlinked;
-import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
 import io.github.lukehutch.fastclasspathscanner.utils.LoggedThread.ThreadLog;
 
 /**
@@ -17,7 +15,7 @@ import io.github.lukehutch.fastclasspathscanner.utils.LoggedThread.ThreadLog;
  * This class should only be used by a single thread at a time, but can be re-used to scan multiple classfiles in
  * sequence, to avoid re-allocating buffer memory.
  */
-public class ClassfileBinaryParser {
+class ClassfileBinaryParser {
     /** The ScanSpec. */
     private final ScanSpec scanSpec;
 
@@ -30,7 +28,7 @@ public class ClassfileBinaryParser {
     /** The name of the current classfile. Determined early in the call to readClassInfoFromClassfileHeader(). */
     private String className;
 
-    public ClassfileBinaryParser(final ScanSpec scanSpec, final ThreadLog log) {
+    ClassfileBinaryParser(final ScanSpec scanSpec, final ThreadLog log) {
         this.scanSpec = scanSpec;
         this.log = log;
     }
@@ -458,8 +456,8 @@ public class ClassfileBinaryParser {
      * @throws InterruptedException
      *             if the operation was interrupted.
      */
-    public ClassInfoUnlinked readClassInfoFromClassfileHeader(final String relativePath,
-            final InputStream inputStream, final Map<String, HashSet<String>> classNameToStaticFinalFieldsToMatch,
+    ClassInfoUnlinked readClassInfoFromClassfileHeader(final String relativePath, final InputStream inputStream,
+            final Map<String, HashSet<String>> classNameToStaticFinalFieldsToMatch,
             final ConcurrentHashMap<String, String> stringInternMap) throws InterruptedException {
         try {
             // Clear className and set inputStream for each new class

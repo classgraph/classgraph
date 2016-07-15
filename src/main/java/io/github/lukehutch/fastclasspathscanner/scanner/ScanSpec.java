@@ -14,7 +14,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.regex.Pattern;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassInfo;
 import io.github.lukehutch.fastclasspathscanner.classpath.ClassLoaderHandler;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.ClassAnnotationMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.ClassMatchProcessor;
@@ -64,10 +63,10 @@ public class ScanSpec {
     private final ArrayList<Pattern> blacklistedJarPatterns = new ArrayList<>();
 
     /** True if jarfiles should be scanned. */
-    public final boolean scanJars;
+    final boolean scanJars;
 
     /** True if non-jarfiles (directories) should be scanned. */
-    public final boolean scanNonJars;
+    final boolean scanNonJars;
 
     /** If non-null, specifies a classpath to override the default one. */
     public String overrideClasspath;
@@ -107,14 +106,14 @@ public class ScanSpec {
      * be overridden by including "!!" in the scan spec. Disabling this blacklisting will increase the time or
      * memory required to scan the classpath.
      */
-    public boolean blacklistSystemJars = true;
+    private boolean blacklistSystemJars = true;
 
     /**
      * By default, blacklist all java.* and sun.* packages. This means for example that you can't use
      * java.lang.Comparable as a match criterion. This can be overridden by including "!!" in the scan spec.
      * Disabling this blacklisting may increase the time or memory required to scan the classpath.
      */
-    public boolean blacklistSystemPackages = true;
+    private boolean blacklistSystemPackages = true;
 
     /**
      * If true, ignore field visibility (affects finding classes with fields of a given type, and matching of static
@@ -250,7 +249,7 @@ public class ScanSpec {
         this.scanNonJars = scanNonJars;
     }
 
-    public void log(final ThreadLog log) {
+    public void logTo(final ThreadLog log) {
         if (FastClasspathScanner.verbose) {
             for (final String msg : constructorLogs) {
                 log.log(msg);
@@ -291,11 +290,11 @@ public class ScanSpec {
     /**
      * Run the MatchProcessors after a scan has completed.
      */
-    public void callMatchProcessors(final ScanResult scanResult,
-            final LinkedBlockingQueue<ClasspathResource> matchingFiles,
+    void callMatchProcessors(final ScanResult scanResult,
+            final LinkedBlockingQueue<ClasspathResource> matchingFiles, final ClasspathResource endOfQueueMarker,
             final Map<String, ClassInfo> classNameToClassInfo, final ThreadLog log) throws InterruptedException {
         // Call any FileMatchProcessors
-        ClasspathResourceQueueProcessor.processClasspathResourceQueue(matchingFiles, ClasspathResource.END_OF_QUEUE,
+        ClasspathResourceQueueProcessor.processClasspathResourceQueue(matchingFiles, endOfQueueMarker,
                 new ClasspathResourceProcessor() {
                     @Override
                     public void processClasspathResource(final ClasspathResource classpathResource,
@@ -375,16 +374,16 @@ public class ScanSpec {
     }
 
     /** Whether a path is a descendant of a blacklisted path, or an ancestor or descendant of a whitelisted path. */
-    public enum ScanSpecPathMatch {
+    enum ScanSpecPathMatch {
         WITHIN_BLACKLISTED_PATH, WITHIN_WHITELISTED_PATH, ANCESTOR_OF_WHITELISTED_PATH, //
-        AT_WHITELISTED_CLASS_PACKAGE, NOT_WITHIN_WHITELISTED_PATH, WHITELISTED_FILE, NON_WHITELISTED_FILE;
+        AT_WHITELISTED_CLASS_PACKAGE, NOT_WITHIN_WHITELISTED_PATH;
     }
 
     /**
      * Returns true if the given directory path is a descendant of a blacklisted path, or an ancestor or descendant
      * of a whitelisted path. The path should end in "/".
      */
-    public ScanSpecPathMatch pathWhitelistMatchStatus(final String relativePath) {
+    ScanSpecPathMatch pathWhitelistMatchStatus(final String relativePath) {
         for (final String blacklistedPath : blacklistedPathPrefixes) {
             if (relativePath.startsWith(blacklistedPath)) {
                 // The directory or its ancestor is blacklisted.
@@ -417,13 +416,13 @@ public class ScanSpec {
      * Returns true if the given relative path (for a classfile name, including ".class") matches a
      * specifically-whitelisted (and non-blacklisted) classfile's relative path.
      */
-    public boolean isSpecificallyWhitelistedClass(final String relativePath) {
+    boolean isSpecificallyWhitelistedClass(final String relativePath) {
         return (specificallyWhitelistedClassRelativePaths.contains(relativePath)
                 && !specificallyBlacklistedClassRelativePaths.contains(relativePath));
     }
 
     /** Returns true if the class is not specifically blacklisted, and is not within a blacklisted package. */
-    public boolean classIsNotBlacklisted(final String className) {
+    boolean classIsNotBlacklisted(final String className) {
         if (specificallyBlacklistedClassNames.contains(className)) {
             return false;
         }
@@ -436,7 +435,7 @@ public class ScanSpec {
     }
 
     /** Checks that the named class is not blacklisted. Throws IllegalArgumentException otherwise. */
-    public synchronized void checkClassIsNotBlacklisted(final String className) {
+    synchronized void checkClassIsNotBlacklisted(final String className) {
         if (!classIsNotBlacklisted(className)) {
             final boolean isSystemPackage = className.startsWith("java.") || className.startsWith("sun.");
             throw new IllegalArgumentException("Can't scan for " + className + ", it is in a blacklisted "
@@ -464,7 +463,7 @@ public class ScanSpec {
     }
 
     /** Returns true if a jarfile is whitelisted and not blacklisted. */
-    public boolean jarIsWhitelisted(final String jarName) {
+    boolean jarIsWhitelisted(final String jarName) {
         return ((whitelistedJars.isEmpty() && whitelistedJarPatterns.isEmpty())
                 || containsJarName(whitelistedJars, whitelistedJarPatterns, jarName))
                 && !containsJarName(blacklistedJars, blacklistedJarPatterns, jarName);
@@ -500,7 +499,7 @@ public class ScanSpec {
      * Check a class is an annotation, and that it is in a whitelisted package. Throws IllegalArgumentException
      * otherwise. Returns the name of the annotation.
      */
-    public synchronized String getAnnotationName(final Class<?> annotation) {
+    synchronized String getAnnotationName(final Class<?> annotation) {
         final String annotationName = annotation.getName();
         checkClassIsNotBlacklisted(annotationName);
         if (!annotation.isAnnotation()) {
@@ -513,7 +512,7 @@ public class ScanSpec {
      * Check each element of an array of classes is an annotation, and that it is in a whitelisted package. Throws
      * IllegalArgumentException otherwise. Returns the names of the classes as an array of strings.
      */
-    public synchronized String[] getAnnotationNames(final Class<?>[] annotations) {
+    synchronized String[] getAnnotationNames(final Class<?>[] annotations) {
         final String[] annotationNames = new String[annotations.length];
         for (int i = 0; i < annotations.length; i++) {
             annotationNames[i] = getAnnotationName(annotations[i]);
@@ -525,7 +524,7 @@ public class ScanSpec {
      * Check a class is an interface, and that it is in a whitelisted package. Throws IllegalArgumentException
      * otherwise. Returns the name of the interface.
      */
-    public synchronized String getInterfaceName(final Class<?> iface) {
+    synchronized String getInterfaceName(final Class<?> iface) {
         final String ifaceName = iface.getName();
         checkClassIsNotBlacklisted(ifaceName);
         if (!iface.isInterface()) {
@@ -538,7 +537,7 @@ public class ScanSpec {
      * Check each element of an array of classes is an interface, and that it is in a whitelisted package. Throws
      * IllegalArgumentException otherwise. Returns the names of the classes as an array of strings.
      */
-    public synchronized String[] getInterfaceNames(final Class<?>[] interfaces) {
+    synchronized String[] getInterfaceNames(final Class<?>[] interfaces) {
         final String[] interfaceNames = new String[interfaces.length];
         for (int i = 0; i < interfaces.length; i++) {
             interfaceNames[i] = getInterfaceName(interfaces[i]);
@@ -550,7 +549,7 @@ public class ScanSpec {
      * Check a class is a regular class or interface and not an annotation, and that it is in a whitelisted package.
      * Throws IllegalArgumentException otherwise. Returns the name of the class or interface.
      */
-    public synchronized String getClassOrInterfaceName(final Class<?> classOrInterface) {
+    synchronized String getClassOrInterfaceName(final Class<?> classOrInterface) {
         final String classOrIfaceName = classOrInterface.getName();
         checkClassIsNotBlacklisted(classOrIfaceName);
         if (classOrInterface.isAnnotation()) {
@@ -565,7 +564,7 @@ public class ScanSpec {
      * Returns the name of the class if it is a standard class and it is in a whitelisted package, otherwise throws
      * an IllegalArgumentException.
      */
-    public synchronized String getStandardClassName(final Class<?> cls) {
+    synchronized String getStandardClassName(final Class<?> cls) {
         final String className = cls.getName();
         checkClassIsNotBlacklisted(className);
         if (cls.isAnnotation()) {
@@ -580,7 +579,7 @@ public class ScanSpec {
      * Check a class is in a whitelisted package. Returns the name of the class if it is in a whitelisted package,
      * otherwise throws an IllegalArgumentException.
      */
-    public synchronized String getClassName(final Class<?> cls) {
+    private synchronized String getClassName(final Class<?> cls) {
         final String className = cls.getName();
         checkClassIsNotBlacklisted(className);
         return className;
@@ -986,18 +985,18 @@ public class ScanSpec {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    public static class FilePathTesterAndMatchProcessorWrapper {
+    static class FilePathTesterAndMatchProcessorWrapper {
         FilePathTester filePathTester;
         FileMatchProcessorWrapper fileMatchProcessorWrapper;
 
-        public FilePathTesterAndMatchProcessorWrapper(final FilePathTester filePathTester,
+        private FilePathTesterAndMatchProcessorWrapper(final FilePathTester filePathTester,
                 final FileMatchProcessorWrapper fileMatchProcessorWrapper) {
             this.filePathTester = filePathTester;
             this.fileMatchProcessorWrapper = fileMatchProcessorWrapper;
         }
     }
 
-    public void addFilePathMatcher(final FilePathTester filePathTester,
+    private void addFilePathMatcher(final FilePathTester filePathTester,
             final FileMatchProcessorWrapper fileMatchProcessorWrapper) {
         filePathTestersAndMatchProcessorWrappers
                 .add(new FilePathTesterAndMatchProcessorWrapper(filePathTester, fileMatchProcessorWrapper));

@@ -26,7 +26,7 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.lukehutch.fastclasspathscanner.classgraph;
+package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -35,15 +35,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassInfo;
-import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassInfo.ClassType;
-import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassInfo.RelType;
+import io.github.lukehutch.fastclasspathscanner.scanner.ClassInfo.ClassType;
+import io.github.lukehutch.fastclasspathscanner.scanner.ClassInfo.RelType;
 
-public class ClassGraphBuilder {
+class ClassGraphBuilder {
     private final Map<String, ClassInfo> classNameToClassInfo;
     private final Set<ClassInfo> allClassInfo;
 
-    public ClassGraphBuilder(final Map<String, ClassInfo> classNameToClassInfo) {
+    ClassGraphBuilder(final Map<String, ClassInfo> classNameToClassInfo) {
         this.classNameToClassInfo = classNameToClassInfo;
         this.allClassInfo = new HashSet<>(classNameToClassInfo.values());
     }
@@ -76,14 +75,14 @@ public class ClassGraphBuilder {
     }
 
     /** Return the sorted list of names of all subclasses of the named class. */
-    public List<String> getNamesOfSubclassesOf(final String className) {
+    List<String> getNamesOfSubclassesOf(final String className) {
         return ClassInfo.getClassNames( //
                 ClassInfo.filterClassInfo(getReachableClasses(className, RelType.SUBCLASSES),
                         /* removeExternalClasses = */ true, ClassType.ALL));
     }
 
     /** Return the sorted list of names of all superclasses of the named class. */
-    public List<String> getNamesOfSuperclassesOf(final String className) {
+    List<String> getNamesOfSuperclassesOf(final String className) {
         return ClassInfo.getClassNames( //
                 ClassInfo.filterClassInfo(getReachableClasses(className, RelType.SUPERCLASSES),
                         /* removeExternalClasses = */ true, ClassType.ALL));
@@ -93,7 +92,7 @@ public class ClassGraphBuilder {
      * Return a sorted list of classes that have a field of the named type, where the field type is in a whitelisted
      * (non-blacklisted) package.
      */
-    public List<String> getNamesOfClassesWithFieldOfType(final String fieldTypeName) {
+    List<String> getNamesOfClassesWithFieldOfType(final String fieldTypeName) {
         // This method will not likely be used for a large number of different field types, so perform a linear
         // search on each invocation, rather than building an index on classpath scan (so we don't slow down more
         // common methods).
@@ -120,21 +119,21 @@ public class ClassGraphBuilder {
     }
 
     /** Return the sorted list of names of all subinterfaces of the named interface. */
-    public List<String> getNamesOfSubinterfacesOf(final String interfaceName) {
+    List<String> getNamesOfSubinterfacesOf(final String interfaceName) {
         return ClassInfo.getClassNames( //
                 ClassInfo.filterClassInfo(getReachableClasses(interfaceName, RelType.CLASSES_IMPLEMENTING),
                         /* removeExternalClasses = */ true, ClassType.IMPLEMENTED_INTERFACE));
     }
 
     /** Return the names of all superinterfaces of the named interface. */
-    public List<String> getNamesOfSuperinterfacesOf(final String interfaceName) {
+    List<String> getNamesOfSuperinterfacesOf(final String interfaceName) {
         return ClassInfo.getClassNames( //
                 ClassInfo.filterClassInfo(getReachableClasses(interfaceName, RelType.IMPLEMENTED_INTERFACES),
                         /* removeExternalClasses = */ true, ClassType.IMPLEMENTED_INTERFACE));
     }
 
     /** Return the sorted list of names of all classes implementing the named interface. */
-    public List<String> getNamesOfClassesImplementing(final String interfaceName) {
+    List<String> getNamesOfClassesImplementing(final String interfaceName) {
         final Set<ClassInfo> implementingClasses = ClassInfo.filterClassInfo(
                 getReachableClasses(interfaceName, RelType.CLASSES_IMPLEMENTING),
                 /* removeExternalClasses = */ true, ClassType.STANDARD_CLASS);
@@ -160,7 +159,7 @@ public class ClassGraphBuilder {
      * Return the sorted list of names of all standard classes or non-annotation interfaces with the named class
      * annotation or meta-annotation.
      */
-    public List<String> getNamesOfClassesWithAnnotation(final String annotationName) {
+    List<String> getNamesOfClassesWithAnnotation(final String annotationName) {
         return ClassInfo.getClassNames( //
                 ClassInfo.filterClassInfo(getReachableClasses(annotationName, RelType.ANNOTATED_CLASSES),
                         /* removeExternalClasses = */ true, ClassType.STANDARD_CLASS,
@@ -168,19 +167,19 @@ public class ClassGraphBuilder {
     }
 
     /** Return the sorted list of names of all annotations and meta-annotations on the named class. */
-    public List<String> getNamesOfAnnotationsOnClass(final String classOrInterfaceName) {
+    List<String> getNamesOfAnnotationsOnClass(final String classOrInterfaceName) {
         return ClassInfo.getClassNames( //
                 ClassInfo.filterClassInfo(getReachableClasses(classOrInterfaceName, RelType.ANNOTATIONS),
                         /* removeExternalClasses = */ true, ClassType.ALL));
     }
 
     /** Return the sorted list of names of all meta-annotations on the named annotation. */
-    public List<String> getNamesOfMetaAnnotationsOnAnnotation(final String annotationName) {
+    List<String> getNamesOfMetaAnnotationsOnAnnotation(final String annotationName) {
         return getNamesOfAnnotationsOnClass(annotationName);
     }
 
     /** Return the names of all annotations that have the named meta-annotation. */
-    public List<String> getNamesOfAnnotationsWithMetaAnnotation(final String metaAnnotationName) {
+    List<String> getNamesOfAnnotationsWithMetaAnnotation(final String metaAnnotationName) {
         return ClassInfo.getClassNames( //
                 ClassInfo.filterClassInfo(getReachableClasses(metaAnnotationName, RelType.ANNOTATED_CLASSES),
                         /* removeExternalClasses = */ true, ClassType.ANNOTATION));
@@ -206,7 +205,7 @@ public class ClassGraphBuilder {
      * sizeX and sizeY parameters are the image output size to use (in inches) when GraphViz is asked to render the
      * .dot file.
      */
-    public String generateClassGraphDotFile(final float sizeX, final float sizeY) {
+    String generateClassGraphDotFile(final float sizeX, final float sizeY) {
         final StringBuilder buf = new StringBuilder();
         buf.append("digraph {\n");
         buf.append("size=\"" + sizeX + "," + sizeY + "\";\n");

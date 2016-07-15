@@ -8,8 +8,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-import io.github.lukehutch.fastclasspathscanner.classfileparser.ClassInfo;
-import io.github.lukehutch.fastclasspathscanner.classgraph.ClassGraphBuilder;
 import io.github.lukehutch.fastclasspathscanner.utils.LoggedThread.ThreadLog;
 
 /** The result of a scan. */
@@ -27,18 +25,14 @@ public class ScanResult {
     /** The max of the last modified times of all the timestamped resources. */
     private long maxLastModifiedTime = 0L;
 
-    /** Map from classname to ClassInfo. */
-    private final Map<String, ClassInfo> classNameToClassInfo;
-
     /** The class graph builder. */
     private final ClassGraphBuilder classGraphBuilder;
 
     // -------------------------------------------------------------------------------------------------------------
 
-    public ScanResult(final ScanSpec scanSpec, final Map<String, ClassInfo> classNameToClassInfo,
+    ScanResult(final ScanSpec scanSpec, final Map<String, ClassInfo> classNameToClassInfo,
             final Map<File, Long> fileToTimestamp, final ThreadLog log) {
         this.scanSpec = scanSpec;
-        this.classNameToClassInfo = classNameToClassInfo;
 
         // Build the class graph
         final long graphStartTime = System.nanoTime();
@@ -55,17 +49,6 @@ public class ScanResult {
                 maxLastModifiedTime = timestamp;
             }
         }
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Add a ClassInfoUnlinked object to the scan results, build a ClassInfo object from it, and cross-link the new
-     * ClassInfo objects with the others added so far. N.B. This is not thread-safe, so this method should always be
-     * called from the same thread.
-     */
-    void addClassInfoUnlinked(final ClassInfoUnlinked classInfoUnlinked) {
-        classInfoUnlinked.link(classNameToClassInfo);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -117,7 +100,7 @@ public class ScanResult {
      *            The superclass to match (i.e. the class that subclasses need to extend to match).
      * @return A list of the names of matching classes, or the empty list if none.
      */
-    public synchronized List<String> getNamesOfSubclassesOf(final Class<?> superclass) {
+    public List<String> getNamesOfSubclassesOf(final Class<?> superclass) {
         return classGraphBuilder.getNamesOfSubclassesOf(scanSpec.getStandardClassName(superclass));
     }
 
@@ -137,7 +120,7 @@ public class ScanResult {
      *            match).
      * @return A list of the names of matching classes, or the empty list if none.
      */
-    public synchronized List<String> getNamesOfSuperclassesOf(final Class<?> subclass) {
+    public List<String> getNamesOfSuperclassesOf(final Class<?> subclass) {
         return getNamesOfSuperclassesOf(scanSpec.getStandardClassName(subclass));
     }
 
@@ -156,7 +139,7 @@ public class ScanResult {
      * fields of parameterized type that have a type parameter of the requested type. The field type must be
      * declared in a package that is whitelisted (and not blacklisted).
      */
-    public synchronized List<String> getNamesOfClassesWithFieldOfType(final Class<?> fieldType) {
+    public List<String> getNamesOfClassesWithFieldOfType(final Class<?> fieldType) {
         final String fieldTypeName = fieldType.getName();
         return getNamesOfClassesWithFieldOfType(fieldTypeName);
     }
@@ -184,7 +167,7 @@ public class ScanResult {
      *            The superinterface to match (i.e. the interface that subinterfaces need to extend to match).
      * @return A list of the names of matching interfaces, or the empty list if none.
      */
-    public synchronized List<String> getNamesOfSubinterfacesOf(final Class<?> superInterface) {
+    public List<String> getNamesOfSubinterfacesOf(final Class<?> superInterface) {
         return getNamesOfSubinterfacesOf(scanSpec.getInterfaceName(superInterface));
     }
 
@@ -203,7 +186,7 @@ public class ScanResult {
      *            The superinterface to match (i.e. the interface that subinterfaces need to extend to match).
      * @return A list of the names of matching interfaces, or the empty list if none.
      */
-    public synchronized List<String> getNamesOfSuperinterfacesOf(final Class<?> subInterface) {
+    public List<String> getNamesOfSuperinterfacesOf(final Class<?> subInterface) {
         return getNamesOfSuperinterfacesOf(scanSpec.getInterfaceName(subInterface));
     }
 
@@ -222,7 +205,7 @@ public class ScanResult {
      *            The interface that classes need to implement to match.
      * @return A list of the names of matching classes, or the empty list if none.
      */
-    public synchronized List<String> getNamesOfClassesImplementing(final Class<?> implementedInterface) {
+    public List<String> getNamesOfClassesImplementing(final Class<?> implementedInterface) {
         return getNamesOfClassesImplementing(scanSpec.getInterfaceName(implementedInterface));
     }
 
@@ -236,7 +219,7 @@ public class ScanResult {
      *            The name of the interfaces that classes need to implement.
      * @return A list of the names of matching classes, or the empty list if none.
      */
-    public synchronized List<String> getNamesOfClassesImplementingAllOf(final String... implementedInterfaceNames) {
+    public List<String> getNamesOfClassesImplementingAllOf(final String... implementedInterfaceNames) {
         final HashSet<String> classNames = new HashSet<>();
         for (int i = 0; i < implementedInterfaceNames.length; i++) {
             final String implementedInterfaceName = implementedInterfaceNames[i];
@@ -260,7 +243,7 @@ public class ScanResult {
      *            The name of the interfaces that classes need to implement.
      * @return A list of the names of matching classes, or the empty list if none.
      */
-    public synchronized List<String> getNamesOfClassesImplementingAllOf(final Class<?>... implementedInterfaces) {
+    public List<String> getNamesOfClassesImplementingAllOf(final Class<?>... implementedInterfaces) {
         return getNamesOfClassesImplementingAllOf(scanSpec.getInterfaceNames(implementedInterfaces));
     }
 
@@ -289,7 +272,7 @@ public class ScanResult {
      *            The class annotation.
      * @return A list of the names of classes with the class annotation, or the empty list if none.
      */
-    public synchronized List<String> getNamesOfClassesWithAnnotation(final Class<?> annotation) {
+    public List<String> getNamesOfClassesWithAnnotation(final Class<?> annotation) {
         return getNamesOfClassesWithAnnotation(scanSpec.getAnnotationName(annotation));
     }
 
@@ -303,7 +286,7 @@ public class ScanResult {
      *            The annotation names.
      * @return A list of the names of classes that have all of the annotations, or the empty list if none.
      */
-    public synchronized List<String> getNamesOfClassesWithAnnotationsAllOf(final String... annotationNames) {
+    public List<String> getNamesOfClassesWithAnnotationsAllOf(final String... annotationNames) {
         final HashSet<String> classNames = new HashSet<>();
         for (int i = 0; i < annotationNames.length; i++) {
             final String annotationName = annotationNames[i];
@@ -327,7 +310,7 @@ public class ScanResult {
      *            The annotations.
      * @return A list of the names of classes that have all of the annotations, or the empty list if none.
      */
-    public synchronized List<String> getNamesOfClassesWithAnnotationsAllOf(final Class<?>... annotations) {
+    public List<String> getNamesOfClassesWithAnnotationsAllOf(final Class<?>... annotations) {
         return getNamesOfClassesWithAnnotationsAllOf(scanSpec.getAnnotationNames(annotations));
     }
 
@@ -341,7 +324,7 @@ public class ScanResult {
      *            The annotation names.
      * @return A list of the names of classes that have one or more of the annotations, or the empty list if none.
      */
-    public synchronized List<String> getNamesOfClassesWithAnnotationsAnyOf(final String... annotationNames) {
+    public List<String> getNamesOfClassesWithAnnotationsAnyOf(final String... annotationNames) {
         final HashSet<String> classNames = new HashSet<>();
         for (final String annotationName : annotationNames) {
             classNames.addAll(getNamesOfClassesWithAnnotation(annotationName));
@@ -359,7 +342,7 @@ public class ScanResult {
      *            The annotations.
      * @return A list of the names of classes that have one or more of the annotations, or the empty list if none.
      */
-    public synchronized List<String> getNamesOfClassesWithAnnotationsAnyOf(final Class<?>... annotations) {
+    public List<String> getNamesOfClassesWithAnnotationsAnyOf(final Class<?>... annotations) {
         return getNamesOfClassesWithAnnotationsAnyOf(scanSpec.getAnnotationNames(annotations));
     }
 
@@ -375,7 +358,7 @@ public class ScanResult {
      *            The class or interface.
      * @return A list of the names of annotations and meta-annotations on the class, or the empty list if none.
      */
-    public synchronized List<String> getNamesOfAnnotationsOnClass(final Class<?> classOrInterface) {
+    public List<String> getNamesOfAnnotationsOnClass(final Class<?> classOrInterface) {
         return getNamesOfAnnotationsOnClass(scanSpec.getClassOrInterfaceName(classOrInterface));
     }
 
@@ -391,7 +374,7 @@ public class ScanResult {
      *            The specified annotation.
      * @return A list of the names of meta-annotations on the specified annotation, or the empty list if none.
      */
-    public synchronized List<String> getNamesOfMetaAnnotationsOnAnnotation(final Class<?> annotation) {
+    public List<String> getNamesOfMetaAnnotationsOnAnnotation(final Class<?> annotation) {
         return getNamesOfMetaAnnotationsOnAnnotation(scanSpec.getAnnotationName(annotation));
     }
 
@@ -408,7 +391,7 @@ public class ScanResult {
      * @return A list of the names of annotations that are annotated with the specified meta annotation, or the
      *         empty list if none.
      */
-    public synchronized List<String> getNamesOfAnnotationsWithMetaAnnotation(final Class<?> metaAnnotation) {
+    public List<String> getNamesOfAnnotationsWithMetaAnnotation(final Class<?> metaAnnotation) {
         return getNamesOfAnnotationsWithMetaAnnotation(scanSpec.getAnnotationName(metaAnnotation));
     }
 
@@ -419,7 +402,7 @@ public class ScanResult {
      * sizeX and sizeY parameters are the image output size to use (in inches) when GraphViz is asked to render the
      * .dot file.
      */
-    public synchronized String generateClassGraphDotFile(final float sizeX, final float sizeY) {
+    public String generateClassGraphDotFile(final float sizeX, final float sizeY) {
         return classGraphBuilder.generateClassGraphDotFile(sizeX, sizeY);
     }
 }

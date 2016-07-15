@@ -51,7 +51,6 @@ import io.github.lukehutch.fastclasspathscanner.matchprocessor.StaticFinalFieldM
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubclassMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubinterfaceMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanExecutor;
-import io.github.lukehutch.fastclasspathscanner.scanner.ScanInterruptedException;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
 import io.github.lukehutch.fastclasspathscanner.utils.LoggedThread.ThreadLog;
@@ -72,6 +71,9 @@ public class FastClasspathScanner {
 
     /** The unique classpath elements. */
     private List<File> classpathElts;
+
+    /** The FastClasspathScanner version. */
+    private static String version;
 
     /**
      * The default number of worker threads to use while scanning. This number gave the best results on a relatively
@@ -155,7 +157,9 @@ public class FastClasspathScanner {
                 if (FastClasspathScanner.verbose) {
                     log.log("Starting scan");
                 }
-                classpathElts = new ClasspathFinder(getScanSpec(), log).getUniqueClasspathElements();
+                final ScanSpec scanSpec = getScanSpec();
+                scanSpec.logTo(log);
+                classpathElts = new ClasspathFinder(scanSpec, log).getUniqueClasspathElements();
             }
         }
         return classpathElts;
@@ -163,7 +167,10 @@ public class FastClasspathScanner {
 
     /** Get the version number of FastClasspathScanner */
     public synchronized static final String getVersion() {
-        return VersionFinder.getVersion();
+        if (version == null) {
+            version = VersionFinder.getVersion();
+        }
+        return version;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -571,7 +578,7 @@ public class FastClasspathScanner {
      */
     public synchronized FastClasspathScanner matchFilenamePathLeaf(final String pathLeafToMatch,
             final FileMatchProcessorWithContext fileMatchProcessorWithContext) {
-        getScanSpec().matchFilenamePath(pathLeafToMatch, fileMatchProcessorWithContext);
+        getScanSpec().matchFilenamePathLeaf(pathLeafToMatch, fileMatchProcessorWithContext);
         return this;
     }
 
@@ -586,7 +593,7 @@ public class FastClasspathScanner {
      */
     public synchronized FastClasspathScanner matchFilenamePathLeaf(final String pathLeafToMatch,
             final FileMatchProcessor fileMatchProcessor) {
-        getScanSpec().matchFilenamePath(pathLeafToMatch, fileMatchProcessor);
+        getScanSpec().matchFilenamePathLeaf(pathLeafToMatch, fileMatchProcessor);
         return this;
     }
 
@@ -601,7 +608,7 @@ public class FastClasspathScanner {
      */
     public synchronized FastClasspathScanner matchFilenamePathLeaf(final String pathLeafToMatch,
             final FileMatchContentsProcessorWithContext fileMatchContentsProcessorWithContext) {
-        getScanSpec().matchFilenamePath(pathLeafToMatch, fileMatchContentsProcessorWithContext);
+        getScanSpec().matchFilenamePathLeaf(pathLeafToMatch, fileMatchContentsProcessorWithContext);
         return this;
     }
 
@@ -616,7 +623,7 @@ public class FastClasspathScanner {
      */
     public synchronized FastClasspathScanner matchFilenamePathLeaf(final String pathLeafToMatch,
             final FileMatchContentsProcessor fileMatchContentsProcessor) {
-        getScanSpec().matchFilenamePath(pathLeafToMatch, fileMatchContentsProcessor);
+        getScanSpec().matchFilenamePathLeaf(pathLeafToMatch, fileMatchContentsProcessor);
         return this;
     }
 
@@ -633,7 +640,7 @@ public class FastClasspathScanner {
      */
     public synchronized FastClasspathScanner matchFilenameExtension(final String extensionToMatch,
             final FileMatchProcessorWithContext fileMatchProcessorWithContext) {
-        getScanSpec().matchFilenamePath(extensionToMatch, fileMatchProcessorWithContext);
+        getScanSpec().matchFilenameExtension(extensionToMatch, fileMatchProcessorWithContext);
         return this;
     }
 
@@ -647,7 +654,7 @@ public class FastClasspathScanner {
      */
     public synchronized FastClasspathScanner matchFilenameExtension(final String extensionToMatch,
             final FileMatchProcessor fileMatchProcessor) {
-        getScanSpec().matchFilenamePath(extensionToMatch, fileMatchProcessor);
+        getScanSpec().matchFilenameExtension(extensionToMatch, fileMatchProcessor);
         return this;
     }
 
@@ -662,7 +669,7 @@ public class FastClasspathScanner {
      */
     public synchronized FastClasspathScanner matchFilenameExtension(final String extensionToMatch,
             final FileMatchContentsProcessorWithContext fileMatchContentsProcessorWithContext) {
-        getScanSpec().matchFilenamePath(extensionToMatch, fileMatchContentsProcessorWithContext);
+        getScanSpec().matchFilenameExtension(extensionToMatch, fileMatchContentsProcessorWithContext);
         return this;
     }
 
@@ -676,7 +683,7 @@ public class FastClasspathScanner {
      */
     public synchronized FastClasspathScanner matchFilenameExtension(final String extensionToMatch,
             final FileMatchContentsProcessor fileMatchContentsProcessor) {
-        getScanSpec().matchFilenamePath(extensionToMatch, fileMatchContentsProcessor);
+        getScanSpec().matchFilenameExtension(extensionToMatch, fileMatchContentsProcessor);
         return this;
     }
 

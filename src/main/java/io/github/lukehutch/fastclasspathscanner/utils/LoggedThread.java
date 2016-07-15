@@ -93,7 +93,7 @@ public abstract class LoggedThread<T> implements Callable<T> {
             logEntries.add(new ThreadLogEntry(0, msg, elapsedTimeNanos));
         }
 
-        public synchronized void flush() {
+        private synchronized void flush() {
             if (!logEntries.isEmpty()) {
                 final StringBuilder buf = new StringBuilder();
                 if (versionLogged.compareAndSet(false, true)) {

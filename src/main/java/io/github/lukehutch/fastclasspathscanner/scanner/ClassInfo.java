@@ -26,7 +26,7 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.lukehutch.fastclasspathscanner.classfileparser;
+package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -38,10 +38,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-public class ClassInfo implements Comparable<ClassInfo> {
+class ClassInfo implements Comparable<ClassInfo> {
 
     /** Name of the class/interface/annotation. */
-    public String className;
+    String className;
 
     /** True if the classfile indicated this is an interface. */
     private boolean isInterface;
@@ -54,7 +54,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
      * another class' classfile as a superclass/superinterface/annotation. If classfileScanned is true, then this
      * also must be a whitelisted (and non-blacklisted) class in a whitelisted (and non-blacklisted) package.
      */
-    public boolean classfileScanned;
+    private boolean classfileScanned;
 
     /**
      * Used to keep track of whether the classfile of a Scala companion object class (with name ending in "$") has
@@ -68,7 +68,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
      */
     private boolean traitMethodClassfileScanned;
 
-    public enum RelType {
+    enum RelType {
 
         // Classes:
 
@@ -111,20 +111,20 @@ public class ClassInfo implements Comparable<ClassInfo> {
     }
 
     /** The set of classes related to this one. */
-    public Map<RelType, Set<ClassInfo>> relatedTypeToClassInfoSet = new HashMap<>();
+    private final Map<RelType, Set<ClassInfo>> relatedTypeToClassInfoSet = new HashMap<>();
 
     /**
      * The static constant initializer values of static final fields, if a StaticFinalFieldMatchProcessor matched a
      * field in this class.
      */
-    public Map<String, Object> fieldValues;
+    Map<String, Object> fieldValues;
 
-    public ClassInfo(final String className) {
+    private ClassInfo(final String className) {
         this.className = className;
     }
 
     /** The class type to return. */
-    public enum ClassType {
+    enum ClassType {
         /** Return all class types. */
         ALL,
         /** A standard class (not an interface or annotation). */
@@ -141,8 +141,8 @@ public class ClassInfo implements Comparable<ClassInfo> {
     }
 
     /** Get the ClassInfo objects for the classes related to this one in the specified way. */
-    public static Set<ClassInfo> filterClassInfo(final Set<ClassInfo> classInfoSet,
-            final boolean removeExternalClasses, final ClassType... classTypes) {
+    static Set<ClassInfo> filterClassInfo(final Set<ClassInfo> classInfoSet, final boolean removeExternalClasses,
+            final ClassType... classTypes) {
         if (classInfoSet == null) {
             return Collections.emptySet();
         }
@@ -208,7 +208,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
     }
 
     /** Get the sorted list of the names of classes given a set of ClassInfo objects. */
-    public static List<String> getClassNames(final Collection<ClassInfo> classInfoColl) {
+    static List<String> getClassNames(final Collection<ClassInfo> classInfoColl) {
         if (classInfoColl.isEmpty()) {
             return Collections.emptyList();
         } else {
@@ -222,7 +222,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
     }
 
     /** Get the ClassInfo objects for the classes related to this one in the specified way. */
-    public Set<ClassInfo> getRelatedClasses(final RelType relType) {
+    Set<ClassInfo> getRelatedClasses(final RelType relType) {
         final Set<ClassInfo> relatedClassClassInfo = relatedTypeToClassInfoSet.get(relType);
         return relatedClassClassInfo == null ? Collections.<ClassInfo> emptySet() : relatedClassClassInfo;
     }
@@ -231,7 +231,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
      * Find all ClassInfo nodes reachable from this ClassInfo node over the given relationship type links (not
      * including this class itself).
      */
-    public Set<ClassInfo> getReachableClasses(final RelType relType) {
+    Set<ClassInfo> getReachableClasses(final RelType relType) {
         final Set<ClassInfo> directlyRelatedClasses = this.getRelatedClasses(relType);
         if (directlyRelatedClasses.isEmpty()) {
             return Collections.emptySet();
@@ -252,42 +252,15 @@ public class ClassInfo implements Comparable<ClassInfo> {
     }
 
     /**
-     * Get the ClassInfo objects for the classes related to the named class in the specified way.
-     * 
-     * Equivalent to getRelatedClasses(relType, false, ClassType.ALL)
-     */
-    public static Set<ClassInfo> getRelatedClasses(final String className,
-            final Map<String, ClassInfo> classNameToClassInfo, final RelType relType) {
-        final ClassInfo classInfo = classNameToClassInfo.get(className);
-        return classInfo == null ? Collections.<ClassInfo> emptySet() : classInfo.getRelatedClasses(relType);
-    }
-
-    /**
      * Add a ClassInfo objects for the given relationship type. Returns true if the collection changed as a result
      * of the call.
      */
-    public boolean addRelatedClass(final RelType relType, final ClassInfo classInfo) {
+    private boolean addRelatedClass(final RelType relType, final ClassInfo classInfo) {
         Set<ClassInfo> classInfoSet = relatedTypeToClassInfoSet.get(relType);
         if (classInfoSet == null) {
             relatedTypeToClassInfoSet.put(relType, classInfoSet = new HashSet<>(4));
         }
         return classInfoSet.add(classInfo);
-    }
-
-    /**
-     * Add a ClassInfo objects for the given relationship type. Returns true if the collection changed as a result
-     * of the call.
-     */
-    public boolean addRelatedClasses(final RelType relType, final Collection<ClassInfo> classInfoSetToAdd) {
-        if (classInfoSetToAdd.isEmpty()) {
-            return false;
-        } else {
-            Set<ClassInfo> classInfoSet = relatedTypeToClassInfoSet.get(relType);
-            if (classInfoSet == null) {
-                relatedTypeToClassInfoSet.put(relType, classInfoSet = new HashSet<>(classInfoSetToAdd.size() + 4));
-            }
-            return classInfoSet.addAll(classInfoSetToAdd);
-        }
     }
 
     /** Returns true if this ClassInfo corresponds to an annotation. */
@@ -341,7 +314,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
         return classInfo;
     }
 
-    public void addSuperclass(final String superclassName, final Map<String, ClassInfo> classNameToClassInfo) {
+    void addSuperclass(final String superclassName, final Map<String, ClassInfo> classNameToClassInfo) {
         if (superclassName != null && !"java.lang.Object".equals(superclassName)) {
             final ClassInfo superclassClassInfo = getOrCreateClassInfo(scalaBaseClassName(superclassName),
                     classNameToClassInfo);
@@ -350,7 +323,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
         }
     }
 
-    public void addAnnotation(final String annotationName, final Map<String, ClassInfo> classNameToClassInfo) {
+    void addAnnotation(final String annotationName, final Map<String, ClassInfo> classNameToClassInfo) {
         final ClassInfo annotationClassInfo = getOrCreateClassInfo(scalaBaseClassName(annotationName),
                 classNameToClassInfo);
         annotationClassInfo.isAnnotation = true;
@@ -358,8 +331,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
         annotationClassInfo.addRelatedClass(RelType.ANNOTATED_CLASSES, this);
     }
 
-    public void addImplementedInterface(final String interfaceName,
-            final Map<String, ClassInfo> classNameToClassInfo) {
+    void addImplementedInterface(final String interfaceName, final Map<String, ClassInfo> classNameToClassInfo) {
         final ClassInfo interfaceClassInfo = getOrCreateClassInfo(scalaBaseClassName(interfaceName),
                 classNameToClassInfo);
         interfaceClassInfo.isInterface = true;
@@ -367,13 +339,13 @@ public class ClassInfo implements Comparable<ClassInfo> {
         interfaceClassInfo.addRelatedClass(RelType.CLASSES_IMPLEMENTING, this);
     }
 
-    public void addFieldType(final String fieldTypeName, final Map<String, ClassInfo> classNameToClassInfo) {
+    void addFieldType(final String fieldTypeName, final Map<String, ClassInfo> classNameToClassInfo) {
         final String fieldTypeBaseName = scalaBaseClassName(fieldTypeName);
         final ClassInfo fieldTypeClassInfo = getOrCreateClassInfo(fieldTypeBaseName, classNameToClassInfo);
         this.addRelatedClass(RelType.FIELD_TYPES, fieldTypeClassInfo);
     }
 
-    public void addFieldConstantValue(final String fieldName, final Object constValue) {
+    void addFieldConstantValue(final String fieldName, final Object constValue) {
         if (this.fieldValues == null) {
             this.fieldValues = new HashMap<>();
         }
@@ -381,8 +353,8 @@ public class ClassInfo implements Comparable<ClassInfo> {
     }
 
     /** Add a class that has just been scanned (as opposed to just referenced by a scanned class). */
-    public static ClassInfo addScannedClass(final String className, final boolean isInterface,
-            final boolean isAnnotation, final Map<String, ClassInfo> classNameToClassInfo) {
+    static ClassInfo addScannedClass(final String className, final boolean isInterface, final boolean isAnnotation,
+            final Map<String, ClassInfo> classNameToClassInfo) {
         // Handle Scala auxiliary classes (companion objects ending in "$" and trait methods classes
         // ending in "$class")
         final boolean isCompanionObjectClass = className.endsWith("$");

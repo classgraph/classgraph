@@ -187,8 +187,7 @@ class RecursiveScanner {
 
                 // Store relative paths of any classfiles encountered
                 if (fileInDirRelativePath.endsWith(".class")) {
-                    matchingClassfiles.add(new ClasspathResource(classpathElt, /* classpathEltIsJar = */ false,
-                            fileInDirRelativePath));
+                    matchingClassfiles.add(new ClasspathResource(classpathElt, fileInDirRelativePath));
                     numClassfilesScanned.incrementAndGet();
                     matchedFile = true;
                 }
@@ -198,8 +197,8 @@ class RecursiveScanner {
                 scanSpec.getFilePathTestersAndMatchProcessorWrappers()) {
                     if (fileMatcher.filePathTester.filePathMatches(classpathElt, fileInDirRelativePath, log)) {
                         // File's relative path matches.
-                        matchingFiles.add(new ClasspathResource(classpathElt, /* classpathEltIsJar = */ false,
-                                fileInDirRelativePath, fileMatcher.fileMatchProcessorWrapper));
+                        matchingFiles.add(new ClasspathResource(classpathElt, fileInDirRelativePath,
+                                fileMatcher.fileMatchProcessorWrapper));
                         matchedFile = true;
                     }
                 }
@@ -286,8 +285,7 @@ class RecursiveScanner {
 
             // Store relative paths of any classfiles encountered
             if (relativePath.endsWith(".class")) {
-                matchingClassfiles
-                        .add(new ClasspathResource(classpathElt, /* classpathEltIsJar = */ true, relativePath));
+                matchingClassfiles.add(new ClasspathResource(classpathElt, relativePath));
                 numClassfilesScanned.incrementAndGet();
                 matchedFile = true;
             }
@@ -297,8 +295,8 @@ class RecursiveScanner {
             scanSpec.getFilePathTestersAndMatchProcessorWrappers()) {
                 if (fileMatcher.filePathTester.filePathMatches(classpathElt, relativePath, log)) {
                     // File's relative path matches.
-                    matchingFiles.add(new ClasspathResource(classpathElt, /* classpathEltIsJar = */ true,
-                            relativePath, fileMatcher.fileMatchProcessorWrapper));
+                    matchingFiles.add(new ClasspathResource(classpathElt, relativePath,
+                            fileMatcher.fileMatchProcessorWrapper));
                     matchedFile = true;
                 }
             }
