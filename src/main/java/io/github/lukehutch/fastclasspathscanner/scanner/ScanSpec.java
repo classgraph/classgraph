@@ -321,6 +321,9 @@ public class ScanSpec {
                         log.log(4, "Exception while calling ClassMatchProcessor: " + e);
                     }
                 }
+                if (Thread.currentThread().isInterrupted()) {
+                    throw new InterruptedException();
+                }
             }
         }
 
@@ -354,6 +357,9 @@ public class ScanSpec {
                                     if (FastClasspathScanner.verbose) {
                                         log.log(4, "Exception while calling StaticFinalFieldMatchProcessor: " + e);
                                     }
+                                }
+                                if (Thread.currentThread().isInterrupted()) {
+                                    throw new InterruptedException();
                                 }
                             }
                         }
