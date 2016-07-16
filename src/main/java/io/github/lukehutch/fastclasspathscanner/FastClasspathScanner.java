@@ -29,6 +29,7 @@
 package io.github.lukehutch.fastclasspathscanner;
 
 import java.io.File;
+import java.text.DecimalFormat;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
@@ -36,6 +37,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import io.github.lukehutch.fastclasspathscanner.classloaderhandler.ClassLoaderHandler;
@@ -763,11 +765,23 @@ public class FastClasspathScanner {
      */
     public synchronized ScanResult scan(final int numThreads) {
         ExecutorService executorService = null;
+        final long startTime = System.nanoTime();
         try {
             final AtomicInteger threadIdx = new AtomicInteger();
             executorService = Executors.newFixedThreadPool(Math.max(numThreads, 1), new ThreadFactory() {
+                AtomicBoolean threadStartupTimeLogged = new AtomicBoolean(false);
+
                 @Override
                 public Thread newThread(final Runnable r) {
+                    if (FastClasspathScanner.verbose) {
+                        if (!threadStartupTimeLogged.getAndSet(true)) {
+                            try (ThreadLog log = new ThreadLog()) {
+                                long timeTaken = System.nanoTime() - startTime;
+                                log.log("Thread pool started up in "
+                                        + new DecimalFormat("0.000000").format(timeTaken * 1e-9) + " sec");
+                            }
+                        }
+                    }
                     final Thread t = new Thread(r, "FastClasspathScanner-worker-" + threadIdx.getAndIncrement());
                     // Kill worker threads if main thread dies
                     t.setDaemon(true);
