@@ -37,7 +37,6 @@ import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.Set;
 
@@ -172,8 +171,8 @@ public class ClasspathFinder {
             }
             return;
         }
-        boolean isFile = pathFile.isFile();
-        boolean isDirectory = pathFile.isDirectory();
+        final boolean isFile = pathFile.isFile();
+        final boolean isDirectory = pathFile.isDirectory();
         if (!isFile && !isDirectory) {
             if (FastClasspathScanner.verbose) {
                 log.log("Ignoring invalid classpath element: " + pathElement);
@@ -213,27 +212,23 @@ public class ClasspathFinder {
         // file. OpenJDK scans manifest-defined classpath elements after the jar that listed them, so
         // we recursively call addClasspathElement if needed each time a jar is encountered. 
         if (isFile) {
-            Map<String, String> manifest = FastManifestParser.parseManifest(pathFile);
-            if (manifest != null) {
-                String manifestClassPath = manifest.get("Class-Path");
-                if (manifestClassPath != null && !manifestClassPath.isEmpty()) {
-                    if (FastClasspathScanner.verbose) {
-                        log.log("Found Class-Path entry in manifest of " + pathFile + ": " + manifestClassPath);
-                    }
-                    // Class-Path entries in the manifest file should be resolved relative to
-                    // the dir the manifest's jarfile is contained in (i.e. path.getParent()).
-                    final File parentPathFile = pathFile.getParentFile();
-                    // Class-Path entries in manifest files are a space-delimited list of URIs.
-                    for (final String manifestClassPathElement : manifestClassPath.split(" ")) {
-                        final File manifestEltPath = urlToFile(parentPathFile, manifestClassPathElement);
-                        if (manifestEltPath != null) {
-                            addClasspathElement(manifestEltPath.toString());
-                        } else {
-                            if (FastClasspathScanner.verbose) {
-                                log.log("Classpath element " + manifestEltPath
-                                        + " not found -- from Class-Path entry " + manifestClassPathElement + " in "
-                                        + pathFile);
-                            }
+            final FastManifestParser manifest = new FastManifestParser(pathFile, log);
+            if (manifest.classPath != null) {
+                if (FastClasspathScanner.verbose) {
+                    log.log("Found Class-Path entry in manifest of " + pathFile + ": " + manifest.classPath);
+                }
+                // Class-Path entries in the manifest file should be resolved relative to
+                // the dir the manifest's jarfile is contained in (i.e. path.getParent()).
+                final File parentPathFile = pathFile.getParentFile();
+                // Class-Path entries in manifest files are a space-delimited list of URIs.
+                for (final String manifestClassPathElement : manifest.classPath.split(" ")) {
+                    final File manifestEltPath = urlToFile(parentPathFile, manifestClassPathElement);
+                    if (manifestEltPath != null) {
+                        addClasspathElement(manifestEltPath.toString());
+                    } else {
+                        if (FastClasspathScanner.verbose) {
+                            log.log("Classpath element " + manifestEltPath + " not found -- from Class-Path entry "
+                                    + manifestClassPathElement + " in " + pathFile);
                         }
                     }
                 }
@@ -273,7 +268,7 @@ public class ClasspathFinder {
         if (ancestralScanDepth == 0) {
             return false;
         } else {
-            File parent = file.getParentFile();
+            final File parent = file.getParentFile();
             if (parent == null) {
                 return false;
             }
@@ -290,14 +285,11 @@ public class ClasspathFinder {
             }
             if (rt.exists()) {
                 // Found rt.jar; check its manifest file to make sure it's the JRE's rt.jar and not something else 
-                Map<String, String> manifest = FastManifestParser.parseManifest(rt);
-                if (manifest != null) {
-                    if ("Java Runtime Environment".equals(manifest.get("Implementation-Title"))
-                            || "Java Platform API Specification".equals(manifest.get("Specification-Title"))) {
-                        // Found the JRE's rt.jar
-                        knownJREPaths.add(parentPathStr);
-                        return true;
-                    }
+                final FastManifestParser manifest = new FastManifestParser(rt, log);
+                if (manifest.isSystemJar) {
+                    // Found the JRE's rt.jar
+                    knownJREPaths.add(parentPathStr);
+                    return true;
                 }
             }
             return isJREJar(parent, ancestralScanDepth - 1);
