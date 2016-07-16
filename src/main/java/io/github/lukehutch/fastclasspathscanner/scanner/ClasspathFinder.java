@@ -30,7 +30,6 @@ package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -38,13 +37,14 @@ import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.Set;
-import java.util.jar.Manifest;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.classloaderhandler.ClassLoaderHandler;
 import io.github.lukehutch.fastclasspathscanner.utils.AdditionOrderedSet;
+import io.github.lukehutch.fastclasspathscanner.utils.FastManifestParser;
 import io.github.lukehutch.fastclasspathscanner.utils.Join;
 import io.github.lukehutch.fastclasspathscanner.utils.LoggedThread.ThreadLog;
 
@@ -172,30 +172,21 @@ public class ClasspathFinder {
             }
             return;
         }
-        String pathStr;
-        try {
-            pathStr = pathFile.getCanonicalPath();
-        } catch (final IOException e) {
+        boolean isFile = pathFile.isFile();
+        boolean isDirectory = pathFile.isDirectory();
+        if (!isFile && !isDirectory) {
             if (FastClasspathScanner.verbose) {
-                log.log("Exception while getting canonical path for classpath element " + pathElement + ": " + e);
+                log.log("Ignoring invalid classpath element: " + pathElement);
             }
             return;
         }
-        if (!classpathElementsSet.add(pathStr)) {
-            // Duplicate classpath element -- ignore
+        if (isFile && !isJar(pathFile.getPath())) {
+            if (FastClasspathScanner.verbose) {
+                log.log("Ignoring non-jar file on classpath: " + pathElement);
+            }
             return;
         }
-
-        // If this classpath element is a jar or zipfile, look for Class-Path entries in the manifest
-        // file. OpenJDK scans manifest-defined classpath elements after the jar that listed them, so
-        // we recursively call addClasspathElement if needed each time a jar is encountered. 
-        if (pathFile.isFile()) {
-            if (!isJar(pathStr)) {
-                if (FastClasspathScanner.verbose) {
-                    log.log("Ignoring non-jar file on classpath: " + pathElement);
-                }
-                return;
-            }
+        if (isFile) {
             if (scanSpec.blacklistSystemJars() && isJREJar(pathFile, /* ancestralScanDepth = */2)) {
                 // Don't scan system jars if they are blacklisted
                 if (FastClasspathScanner.verbose) {
@@ -203,16 +194,31 @@ public class ClasspathFinder {
                 }
                 return;
             }
+        }
+        File canonicalFile;
+        try {
+            canonicalFile = pathFile.getCanonicalFile();
+        } catch (final IOException e) {
+            if (FastClasspathScanner.verbose) {
+                log.log("Exception while getting canonical path for classpath element " + pathElement + ": " + e);
+            }
+            return;
+        }
+        if (!classpathElementsSet.add(canonicalFile.getPath())) {
+            // Duplicate classpath element -- ignore
+            return;
+        }
 
-            // Recursively check for Class-Path entries in the jar manifest file, if present
-            final String manifestUrlStr = "jar:" + pathFile.toURI() + "!/META-INF/MANIFEST.MF";
-            try (InputStream stream = new URL(manifestUrlStr).openStream()) {
-                // Look for Class-Path keys within manifest files
-                final Manifest manifest = new Manifest(stream);
-                final String manifestClassPath = manifest.getMainAttributes().getValue("Class-Path");
+        // If this classpath element is a jar or zipfile, look for Class-Path entries in the manifest
+        // file. OpenJDK scans manifest-defined classpath elements after the jar that listed them, so
+        // we recursively call addClasspathElement if needed each time a jar is encountered. 
+        if (isFile) {
+            Map<String, String> manifest = FastManifestParser.parseManifest(pathFile);
+            if (manifest != null) {
+                String manifestClassPath = manifest.get("Class-Path");
                 if (manifestClassPath != null && !manifestClassPath.isEmpty()) {
                     if (FastClasspathScanner.verbose) {
-                        log.log("Found Class-Path entry in " + manifestUrlStr + ": " + manifestClassPath);
+                        log.log("Found Class-Path entry in manifest of " + pathFile + ": " + manifestClassPath);
                     }
                     // Class-Path entries in the manifest file should be resolved relative to
                     // the dir the manifest's jarfile is contained in (i.e. path.getParent()).
@@ -226,23 +232,18 @@ public class ClasspathFinder {
                             if (FastClasspathScanner.verbose) {
                                 log.log("Classpath element " + manifestEltPath
                                         + " not found -- from Class-Path entry " + manifestClassPathElement + " in "
-                                        + manifestUrlStr);
+                                        + pathFile);
                             }
                         }
                     }
                 }
-            } catch (final IOException e) {
-                // Jar does not contain a manifest
             }
-        } else if (!pathFile.isDirectory()) {
-            if (FastClasspathScanner.verbose) {
-                log.log("Ignoring invalid classpath element: " + pathElement);
-            }
-            return;
         }
 
         // Add the classpath element to the ordered list
-        if (FastClasspathScanner.verbose) {
+        if (FastClasspathScanner.verbose)
+
+        {
             log.log("Found classpath element: " + pathElement);
         }
         // Add the File object to classpathElements
@@ -294,20 +295,14 @@ public class ClasspathFinder {
             }
             if (rt.exists()) {
                 // Found rt.jar; check its manifest file to make sure it's the JRE's rt.jar and not something else 
-                final String manifestUrlStr = "jar:" + rt.toURI() + "!/META-INF/MANIFEST.MF";
-                try (InputStream stream = new URL(manifestUrlStr).openStream()) {
-                    // Look for Class-Path keys within manifest files
-                    final Manifest manifest = new Manifest(stream);
-                    if ("Java Runtime Environment".equals( //
-                            manifest.getMainAttributes().getValue("Implementation-Title"))
-                            || "Java Platform API Specification".equals( //
-                                    manifest.getMainAttributes().getValue("Specification-Title"))) {
+                Map<String, String> manifest = FastManifestParser.parseManifest(rt);
+                if (manifest != null) {
+                    if ("Java Runtime Environment".equals(manifest.get("Implementation-Title"))
+                            || "Java Platform API Specification".equals(manifest.get("Specification-Title"))) {
                         // Found the JRE's rt.jar
                         knownJREPaths.add(parentPathStr);
                         return true;
                     }
-                } catch (final IOException e) {
-                    // Jar does not contain a manifest
                 }
             }
             return isJREJar(parent, ancestralScanDepth - 1);
