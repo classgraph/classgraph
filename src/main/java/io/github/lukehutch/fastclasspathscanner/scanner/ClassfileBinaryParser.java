@@ -161,22 +161,22 @@ class ClassfileBinaryParser {
     }
 
     /** Reads the "modified UTF8" format defined in the Java classfile spec, optionally replacing '/' with '.'. */
-    private String readString(final int offset, final boolean replaceSlashWithDot) {
-        final int utfLen = readUnsignedShort(offset);
-        final int start = offset + 2;
+    private String readString(final int strStart, final boolean replaceSlashWithDot) {
+        final int utfLen = readUnsignedShort(strStart);
+        final int utfStart = strStart + 2;
         final char[] chars = new char[utfLen];
         int c, c2, c3, c4;
         int byteIdx = 0;
         int charIdx = 0;
         for (; byteIdx < utfLen; byteIdx++) {
-            c = buf[start + byteIdx] & 0xff;
+            c = buf[utfStart + byteIdx] & 0xff;
             if (c > 127) {
                 break;
             }
             chars[charIdx++] = (char) (replaceSlashWithDot && c == '/' ? '.' : c);
         }
         while (byteIdx < utfLen) {
-            c = buf[start + byteIdx] & 0xff;
+            c = buf[utfStart + byteIdx] & 0xff;
             switch (c >> 4) {
             case 0:
             case 1:
@@ -195,7 +195,7 @@ class ClassfileBinaryParser {
                 if (byteIdx > utfLen) {
                     throw new RuntimeException("Bad modified UTF8");
                 }
-                c2 = buf[start + byteIdx - 1];
+                c2 = buf[utfStart + byteIdx - 1];
                 if ((c2 & 0xc0) != 0x80) {
                     throw new RuntimeException("Bad modified UTF8");
                 }
@@ -207,8 +207,8 @@ class ClassfileBinaryParser {
                 if (byteIdx > utfLen) {
                     throw new RuntimeException("Bad modified UTF8");
                 }
-                c2 = buf[start + byteIdx - 2];
-                c3 = buf[start + byteIdx - 1];
+                c2 = buf[utfStart + byteIdx - 2];
+                c3 = buf[utfStart + byteIdx - 1];
                 if (((c2 & 0xc0) != 0x80) || ((c3 & 0xc0) != 0x80)) {
                     throw new RuntimeException("Bad modified UTF8");
                 }
@@ -238,19 +238,20 @@ class ClassfileBinaryParser {
     private int[] indirectStringRefs;
 
     /** Get the byte offset within the buffer of a string from the constant pool, or 0 for a null string. */
-    private int getConstantPoolStringOffset(final int constantPoolIdx) {
-        final int t = tag[constantPoolIdx];
+    private int getConstantPoolStringOffset(final int CpIdx) {
+        final int t = tag[CpIdx];
         if (t != 1 && t != 7 && t != 8) {
-            throw new RuntimeException("Wrong tag number at constant pool index " + constantPoolIdx + ", "
-                    + "cannot continue reading class. Please report this on the FastClasspathScanner GitHub page.");
+            throw new RuntimeException("Wrong tag number at constant pool index " + CpIdx + ", "
+                    + "cannot continue reading class. Please report this at "
+                    + "https://github.com/lukehutch/fast-classpath-scanner/issues");
         }
-        int cpIdx = constantPoolIdx;
+        int cpIdx = CpIdx;
         if (t == 7 || t == 8) {
-            final int indirIdx = indirectStringRefs[constantPoolIdx];
+            final int indirIdx = indirectStringRefs[CpIdx];
             if (indirIdx == -1) {
                 // Should not happen
                 throw new RuntimeException("Bad string indirection index, cannot continue reading class. "
-                        + "Please report this on the FastClasspathScanner GitHub page.");
+                        + "Please report this at https://github.com/lukehutch/fast-classpath-scanner/issues");
             }
             if (indirIdx == 0) {
                 // I assume this represents a null string, since the zeroeth entry is unused
@@ -262,26 +263,39 @@ class ClassfileBinaryParser {
     }
 
     /** Get a string from the constant pool, optionally replacing '/' with '.'. */
-    private String getConstantPoolString(final int constantPoolIdx, final boolean replaceSlashWithDot) {
-        final int constantPoolStringOffset = getConstantPoolStringOffset(constantPoolIdx);
+    private String getConstantPoolString(final int CpIdx, final boolean replaceSlashWithDot) {
+        final int constantPoolStringOffset = getConstantPoolStringOffset(CpIdx);
         return constantPoolStringOffset == 0 ? null : readString(constantPoolStringOffset, replaceSlashWithDot);
     }
 
     /** Get a string from the constant pool. */
-    private String getConstantPoolString(final int constantPoolIdx) {
-        final int constantPoolStringOffset = getConstantPoolStringOffset(constantPoolIdx);
+    private String getConstantPoolString(final int CpIdx) {
+        final int constantPoolStringOffset = getConstantPoolStringOffset(CpIdx);
         return constantPoolStringOffset == 0 ? null
                 : readString(constantPoolStringOffset, /* replaceSlashWithDot = */ false);
     }
 
+    /** Get the first UTF8 byte of a string in the constant pool, or '\0' if the string is null or empty. */
+    private byte getConstantPoolStringFirstByte(final int CpIdx) {
+        final int constantPoolStringOffset = getConstantPoolStringOffset(CpIdx);
+        if (constantPoolStringOffset == 0) {
+            return '\0';
+        }
+        final int utfLen = readUnsignedShort(constantPoolStringOffset);
+        if (utfLen == 0) {
+            return '\0';
+        }
+        return buf[constantPoolStringOffset + 2];
+    }
+
     /** Get a string from the constant pool, and interpret it as a class name by replacing '/' with '.'. */
-    private String getConstantPoolClassName(final int constantPoolIdx) {
-        return getConstantPoolString(constantPoolIdx, /* replaceSlashWithDot = */ true);
+    private String getConstantPoolClassName(final int CpIdx) {
+        return getConstantPoolString(CpIdx, /* replaceSlashWithDot = */ true);
     }
 
     /** Compare a string in the constant pool with a given constant, without constructing the String object. */
-    private boolean constantPoolStringEquals(final int constantPoolIdx, final String otherString) {
-        final int strOffset = getConstantPoolStringOffset(constantPoolIdx);
+    private boolean constantPoolStringEquals(final int CpIdx, final String otherString) {
+        final int strOffset = getConstantPoolStringOffset(CpIdx);
         if (strOffset == 0) {
             return otherString == null;
         }
@@ -300,26 +314,27 @@ class ClassfileBinaryParser {
     }
 
     /** Get a constant from the constant pool. */
-    private Object getConstantPoolValue(final int constantPoolIdx) throws IOException {
-        switch (tag[constantPoolIdx]) {
+    private Object getConstantPoolValue(final int CpIdx) throws IOException {
+        switch (tag[CpIdx]) {
         case 1: // Modified UTF8
-            return getConstantPoolString(constantPoolIdx);
+            return getConstantPoolString(CpIdx);
         case 3: // int, short, char, byte, boolean are all represented by Constant_INTEGER
-            return new Integer(readInt(offset[constantPoolIdx]));
+            return new Integer(readInt(offset[CpIdx]));
         case 4: // float
-            return new Float(Float.intBitsToFloat(readInt(offset[constantPoolIdx])));
+            return new Float(Float.intBitsToFloat(readInt(offset[CpIdx])));
         case 5: // long
-            return new Long(readLong(offset[constantPoolIdx]));
+            return new Long(readLong(offset[CpIdx]));
         case 6: // double
-            return new Double(Double.longBitsToDouble(readLong(offset[constantPoolIdx])));
+            return new Double(Double.longBitsToDouble(readLong(offset[CpIdx])));
         case 7: // Class
         case 8: // String
             // Forward or backward indirect reference to a modified UTF8 entry
-            return getConstantPoolString(constantPoolIdx);
+            return getConstantPoolString(CpIdx);
         default:
             // FastClasspathScanner doesn't currently do anything with the other types
-            throw new RuntimeException("Constant pool entry type " + tag[constantPoolIdx] + " unsupported, "
-                    + "cannot continue reading class. Please report this on the FastClasspathScanner GitHub page.");
+            throw new RuntimeException("Constant pool entry type " + tag[CpIdx] + " unsupported, "
+                    + "cannot continue reading class. Please report this at "
+                    + "https://github.com/lukehutch/fast-classpath-scanner/issues");
         }
     }
 
@@ -388,7 +403,7 @@ class ClassfileBinaryParser {
         default:
             throw new RuntimeException("Class " + className + " has unknown annotation element type tag '"
                     + ((char) tag) + "': element size unknown, cannot continue reading class. "
-                    + "Please report this on the FastClasspathScanner GitHub page.");
+                    + "Please report this at https://github.com/lukehutch/fast-classpath-scanner/issues");
         }
     }
 
@@ -593,34 +608,34 @@ class ClassfileBinaryParser {
                 final boolean scanField = isPublicField || scanSpec.ignoreFieldVisibility;
                 if (!scanField) {
                     // Skip field
-                    readUnsignedShort(); // fieldNameConstantPoolIdx
-                    readUnsignedShort(); // fieldTypeDescriptorConstantPoolIdx
+                    readUnsignedShort(); // fieldNameCpIdx
+                    readUnsignedShort(); // fieldTypeDescriptorCpIdx
                     final int attributesCount = readUnsignedShort();
                     for (int j = 0; j < attributesCount; j++) {
-                        readUnsignedShort(); // attributeNameConstantPoolIdx
+                        readUnsignedShort(); // attributeNameCpIdx
                         final int attributeLength = readInt();
                         skip(attributeLength);
                     }
                 } else {
                     final boolean isStaticFinalField = ((accessFlags & 0x0018) == 0x0018);
-                    final int fieldNameConstantPoolIdx = readUnsignedShort();
+                    final int fieldNameCpIdx = readUnsignedShort();
                     String fieldName = null;
                     boolean isMatchedFieldName = false;
                     if (staticFinalFieldsToMatch != null && scanField) {
-                        fieldName = getConstantPoolString(fieldNameConstantPoolIdx);
+                        fieldName = getConstantPoolString(fieldNameCpIdx);
                         if (staticFinalFieldsToMatch.contains(fieldName)) {
                             isMatchedFieldName = true;
                         }
                     }
-                    final int fieldTypeDescriptorConstantPoolIdx = readUnsignedShort();
-                    final String fieldTypeDescriptor = scanField
-                            ? getConstantPoolString(fieldTypeDescriptorConstantPoolIdx) : null;
-                    final int attributesCount = readUnsignedShort();
+                    final int fieldTypeDescriptorCpIdx = readUnsignedShort();
+                    final char fieldTypeDescriptorFirstChar = (char) getConstantPoolStringFirstByte(
+                            fieldTypeDescriptorCpIdx);
 
-                    if (scanSpec.enableFieldTypeIndexing) {
+                    if (scanField && scanSpec.enableFieldTypeIndexing) {
                         // Check if the type of this field falls within a non-blacklisted package,
                         // and if so, record the field and its type
-                        addFieldTypeDescriptorParts(classInfoUnlinked, fieldTypeDescriptor);
+                        addFieldTypeDescriptorParts(classInfoUnlinked,
+                                getConstantPoolString(fieldTypeDescriptorCpIdx));
                     }
 
                     // Check if field is static and final
@@ -628,22 +643,23 @@ class ClassfileBinaryParser {
                         // Requested to match a field that is not static or not final
                         log.log(2,
                                 "Cannot match requested field " + classInfoUnlinked.className + "."
-                                        + getConstantPoolString(fieldNameConstantPoolIdx)
+                                        + getConstantPoolString(fieldNameCpIdx)
                                         + " because it is either not static or not final");
                     }
                     boolean foundConstantValue = false;
+                    final int attributesCount = readUnsignedShort();
                     for (int j = 0; j < attributesCount; j++) {
-                        final int attributeNameConstantPoolIdx = readUnsignedShort();
+                        final int attributeNameCpIdx = readUnsignedShort();
                         final int attributeLength = readInt();
                         // See if field name matches one of the requested names for this class, and if it does,
                         // check if it is initialized with a constant value
                         if (isStaticFinalField && isMatchedFieldName
-                                && constantPoolStringEquals(attributeNameConstantPoolIdx, "ConstantValue")) {
+                                && constantPoolStringEquals(attributeNameCpIdx, "ConstantValue")) {
                             // http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.7.2
                             Object constValue = getConstantPoolValue(readUnsignedShort());
                             // byte, char, short and boolean constants are all stored as 4-byte int
                             // values -- coerce and wrap in the proper wrapper class with autoboxing
-                            switch (fieldTypeDescriptor.charAt(0)) {
+                            switch (fieldTypeDescriptorFirstChar) {
                             case 'B':
                                 // byte, char, short and boolean constants are all stored as 4-byte int values.
                                 // Convert and wrap in Byte object.
@@ -672,21 +688,22 @@ class ClassfileBinaryParser {
                                 // Float, Double or String) -- nothing to do
                                 break;
                             default:
-                                if ("Ljava/lang/String;".equals(fieldTypeDescriptor)) {
+                                if (constantPoolStringEquals(fieldTypeDescriptorCpIdx, "Ljava/lang/String;")) {
                                     // String constants are already in correct form, nothing to do
                                 } else {
                                     // Should never happen, constant values can only be stored as an int, long,
                                     // float, double or String
                                     throw new RuntimeException("Unknown constant initializer type "
-                                            + fieldTypeDescriptor + " for class " + className
-                                            + " -- please report this on the FastClasspathScanner GitHub page.");
+                                            + getConstantPoolString(fieldTypeDescriptorCpIdx) + " for class "
+                                            + className + " -- please report this at "
+                                            + "https://github.com/lukehutch/fast-classpath-scanner/issues");
                                 }
                                 break;
                             }
                             // Store static final field match in ClassInfo object
                             classInfoUnlinked.addFieldConstantValue(fieldName, constValue);
                             foundConstantValue = true;
-                        } else if (constantPoolStringEquals(attributeNameConstantPoolIdx, "Signature")) {
+                        } else if (constantPoolStringEquals(attributeNameCpIdx, "Signature")) {
                             // Check if the type signature of this field falls within a non-blacklisted
                             // package, and if so, record the field type. The type signature contains
                             // type parameters, whereas the type descriptor does not.
@@ -702,7 +719,7 @@ class ClassfileBinaryParser {
                         if (!foundConstantValue && isStaticFinalField && isMatchedFieldName) {
                             log.log(2,
                                     "Requested static final field " + classInfoUnlinked.className + "."
-                                            + getConstantPoolString(fieldNameConstantPoolIdx)
+                                            + getConstantPoolString(fieldNameCpIdx)
                                             + " is not initialized with a constant literal value, so there is no "
                                             + "initializer value in the constant pool of the classfile");
                         }
@@ -725,9 +742,9 @@ class ClassfileBinaryParser {
             // Attributes (including class annotations)
             final int attributesCount = readUnsignedShort();
             for (int i = 0; i < attributesCount; i++) {
-                final int attributeNameConstantPoolIdx = readUnsignedShort();
+                final int attributeNameCpIdx = readUnsignedShort();
                 final int attributeLength = readInt();
-                if (constantPoolStringEquals(attributeNameConstantPoolIdx, "RuntimeVisibleAnnotations")) {
+                if (constantPoolStringEquals(attributeNameCpIdx, "RuntimeVisibleAnnotations")) {
                     final int annotationCount = readUnsignedShort();
                     for (int m = 0; m < annotationCount; m++) {
                         final String annotationName = readAnnotation();
