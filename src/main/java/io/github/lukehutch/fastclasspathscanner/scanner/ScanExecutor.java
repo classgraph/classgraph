@@ -98,10 +98,14 @@ public class ScanExecutor {
         if (numParallelTasks < 1) {
             throw new IllegalArgumentException("numParallelTasks < 1");
         }
+        final long threadLaunchTime = System.nanoTime();
         return executorService.submit(new LoggedThread<ScanResult>() {
             @Override
             public ScanResult doWork() throws Exception {
                 final long scanStart = System.nanoTime();
+                if (FastClasspathScanner.verbose) {
+                    log.log("Main thread started up", scanStart - threadLaunchTime);
+                }
 
                 // If any thread is interrupted (in particular by calling Future<ScanResult>#cancel(true),
                 // interrupt all of the other threads.
