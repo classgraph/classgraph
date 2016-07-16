@@ -617,9 +617,11 @@ class ClassfileBinaryParser {
                             ? getConstantPoolString(fieldTypeDescriptorConstantPoolIdx) : null;
                     final int attributesCount = readUnsignedShort();
 
-                    // Check if the type of this field falls within a non-blacklisted package,
-                    // and if so, record the field and its type
-                    addFieldTypeDescriptorParts(classInfoUnlinked, fieldTypeDescriptor);
+                    if (scanSpec.enableFieldTypeIndexing) {
+                        // Check if the type of this field falls within a non-blacklisted package,
+                        // and if so, record the field and its type
+                        addFieldTypeDescriptorParts(classInfoUnlinked, fieldTypeDescriptor);
+                    }
 
                     // Check if field is static and final
                     if (!isStaticFinalField && isMatchedFieldName) {
@@ -688,8 +690,11 @@ class ClassfileBinaryParser {
                             // Check if the type signature of this field falls within a non-blacklisted
                             // package, and if so, record the field type. The type signature contains
                             // type parameters, whereas the type descriptor does not.
-                            final String fieldTypeSignature = getConstantPoolString(readUnsignedShort());
-                            addFieldTypeDescriptorParts(classInfoUnlinked, fieldTypeSignature);
+                            final int fieldTypeSignatureCpIdx = readUnsignedShort();
+                            if (scanSpec.enableFieldTypeIndexing) {
+                                final String fieldTypeSignature = getConstantPoolString(fieldTypeSignatureCpIdx);
+                                addFieldTypeDescriptorParts(classInfoUnlinked, fieldTypeSignature);
+                            }
                         } else {
                             // No match, just skip attribute
                             skip(attributeLength);

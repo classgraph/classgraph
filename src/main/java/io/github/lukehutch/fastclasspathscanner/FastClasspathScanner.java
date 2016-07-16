@@ -201,6 +201,27 @@ public class FastClasspathScanner {
         return this;
     }
 
+    /**
+     * If enableFieldIndexing is true, causes FastClasspathScanner enables field type indexing in
+     * FastClasspathScanner, which allows you to call ScanResult#getClassesWithFieldsOfType(type). Field type
+     * indexing is disabled by default, because it is expensive in terms of time and memory, and it is not needed
+     * for most uses of FastClasspathScanner.
+     */
+    public FastClasspathScanner enableFieldTypeIndexing(final boolean enableFieldTypeIndexing) {
+        getScanSpec().enableFieldTypeIndexing = enableFieldTypeIndexing;
+        return this;
+    }
+
+    /**
+     * This method causes FastClasspathScanner enables field indexing in FastClasspathScanner, which allows you to
+     * call ScanResult#matchClassesWithFieldsOfType(type). Field type indexing is disabled by default, because it is
+     * expensive in terms of time and memory, and it is not needed for most uses of FastClasspathScanner.
+     */
+    public FastClasspathScanner enableFieldTypeIndexing() {
+        enableFieldTypeIndexing(true);
+        return this;
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
@@ -329,6 +350,7 @@ public class FastClasspathScanner {
      */
     public synchronized <T> FastClasspathScanner matchClassesWithFieldOfType(final Class<T> fieldType,
             final ClassMatchProcessor classMatchProcessor) {
+        enableFieldTypeIndexing();
         getScanSpec().matchClassesWithFieldOfType(fieldType, classMatchProcessor);
         return this;
     }

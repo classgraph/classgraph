@@ -357,7 +357,7 @@ public class FastClasspathScannerTest {
 
     @Test
     public void hasFieldWithRequestedType() {
-        assertThat(new FastClasspathScanner(ROOT_PACKAGE).ignoreFieldVisibility().scan()
+        assertThat(new FastClasspathScanner(ROOT_PACKAGE).ignoreFieldVisibility().enableFieldTypeIndexing().scan()
                 .getNamesOfClassesWithFieldOfType(Cls.class.getName())).containsOnly(
                         HasFieldWithTypeCls1.class.getName(), HasFieldWithTypeCls2.class.getName(),
                         HasFieldWithTypeCls3.class.getName(), HasFieldWithTypeCls4.class.getName(),

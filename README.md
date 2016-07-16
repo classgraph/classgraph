@@ -476,6 +476,8 @@ Matching field types also matches type parameters and array types. For example, 
 * `HashMap<String, Widget> idToWidget`
 * etc.
 
+Note that you must call `FastClasspathScanner#enableFieldTypeIndexing()` before `ScanResult#getNamesOfClassesWithFieldOfType(type)`, because field types are not indexed by default. (If you forget, you'll get an IllegalArgumentException.)
+
 By default, only the types of public fields are indexed. To override this (and allow the indexing of private, protected and package-private fields), call `FastClasspathScanner#ignoreFieldVisibility()` before calling `FastClasspathScanner#scan()`. This may cause the scan to take longer and consume more memory. (By default, only public fields are scanned for efficiency reasons, and to conservatively respect the Java visibility rules.)
 
 ```java
@@ -492,8 +494,14 @@ FastClasspathScanner FastClasspathScanner#matchClassesWithFieldOfType(
 
 // Mechanism 2: Call the following after calling .scan():
 
+// First enable field indexing (it is disabled by default for efficiency).
+// This only needs to be done for Mechanism 2, not Mechanism 1: 
+FastClasspathScanner FastClasspathScanner#enableFieldTypeIndexing()
+
+// Then after calling FastClasspathScanner#scan(), call:
 List<String> ScanResult#getNamesOfClassesWithFieldOfType(
         Class<?> fieldType | String fieldTypeName)
+        
 ```
 
 ### 7. Finding files (even non-classfiles) anywhere on the classpath whose path matches a given string or regular expression

@@ -130,6 +130,11 @@ public class ScanResult {
      */
     public List<String> getNamesOfClassesWithFieldOfType(final String fieldTypeName) {
         scanSpec.checkClassIsNotBlacklisted(fieldTypeName);
+        if (!scanSpec.enableFieldTypeIndexing) {
+            throw new IllegalArgumentException(
+                    "Please call FastClasspathScanner#enableFieldTypeIndexing() before calling scan() -- "
+                            + "field type indexing is disabled by default for speed and memory efficiency");
+        }
         return classGraphBuilder.getNamesOfClassesWithFieldOfType(fieldTypeName);
     }
 

@@ -68,6 +68,9 @@ public class ScanSpec {
     /** True if non-jarfiles (directories) should be scanned. */
     final boolean scanNonJars;
 
+    /** If true, index types of fields. */
+    public boolean enableFieldTypeIndexing;
+
     /** If non-null, specifies a classpath to override the default one. */
     public String overrideClasspath;
 
