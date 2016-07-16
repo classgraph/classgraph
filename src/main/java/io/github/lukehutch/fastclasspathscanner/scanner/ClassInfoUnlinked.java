@@ -33,6 +33,9 @@ class ClassInfoUnlinked {
     }
 
     private String intern(final String string) {
+        if (string == null) {
+            return null;
+        }
         final String oldValue = stringInternMap.putIfAbsent(string, string);
         return oldValue == null ? string : oldValue;
     }
