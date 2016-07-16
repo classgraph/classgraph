@@ -714,7 +714,8 @@ or similar, generating a graph with the following conventions:
 **Notes:**
 
 1. Graph nodes will only be added for classes, interfaces and annotations that are within whitelisted (non-blacklisted) packages. In particular, the Java standard libraries are excluded by default from classpath scanning for efficiency, so these classes will not by default appear in class graph visualizations. (Override this by passing `"!"` or `"!!"` to the [constructor](#constructor).)
-2. Only public fields are scanned by default, so the graph won't show relationships between a class and the field types of the class unless the fields are public, or `FastClasspathScanner#ignoreFieldVisibility()` is called before `FastClasspathScanner#scan()`.   
+2. Dependency edges between classes and the types of their fields are only shown if you call `FastClasspathScanner#enableFieldTypeIndexing()` before `FastClasspathScanner#scan()`. 
+3. Only public fields are scanned by default, so the graph won't show relationships between a class and its field types unless the fields are public. This can be overridden by calling `FastClasspathScanner#ignoreFieldVisibility()` before `FastClasspathScanner#scan()`.   
 
 ## Parallel classpath scanning
 
