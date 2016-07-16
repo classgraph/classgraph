@@ -273,13 +273,8 @@ public class ClasspathFinder {
         if (ancestralScanDepth == 0) {
             return false;
         } else {
-            File parent;
-            try {
-                parent = file.getParentFile().getCanonicalFile();
-                if (parent == null) {
-                    return false;
-                }
-            } catch (final IOException e1) {
+            File parent = file.getParentFile();
+            if (parent == null) {
                 return false;
             }
             final String parentPathStr = parent.getPath();
