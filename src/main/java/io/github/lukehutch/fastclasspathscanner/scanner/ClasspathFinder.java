@@ -34,6 +34,8 @@ import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.file.LinkOption;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -63,11 +65,22 @@ public class ClasspathFinder {
     /** Whether or not classpath has been read (supporting lazy reading of classpath). */
     private boolean initialized = false;
 
+    /** The current directory. */
+    private final String currentDirURI;
+
     private final ThreadLog log;
 
     public ClasspathFinder(final ScanSpec scanSpec, final ThreadLog log) {
         this.scanSpec = scanSpec;
         this.log = log;
+        try {
+            final String currentDirURI = Paths.get("").toAbsolutePath().normalize()
+                    .toRealPath(LinkOption.NOFOLLOW_LINKS).toUri().toString();
+            this.currentDirURI = currentDirURI.endsWith("/")
+                    ? currentDirURI.substring(0, currentDirURI.length() - 1) : currentDirURI;
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     /** Clear the classpath. */
@@ -78,7 +91,8 @@ public class ClasspathFinder {
     }
 
     private static boolean isJarMatchCase(final String path) {
-        return path.endsWith(".jar") || path.endsWith(".zip") || path.endsWith(".war") || path.endsWith(".car");
+        return path.length() > 4 && path.charAt(path.length() - 4) == '.' // 
+                && path.endsWith(".jar") || path.endsWith(".zip") || path.endsWith(".war") || path.endsWith(".car");
     }
 
     /** Returns true if the path ends with a JAR extension */
@@ -91,7 +105,7 @@ public class ClasspathFinder {
      * mixes of filesystem and URI conventions. Follows symbolic links, and resolves any relative paths relative to
      * resolveBaseFile.
      */
-    private File urlToFile(final File resolveBaseFile, final String relativePathStr) {
+    private File urlToFile(final String resolveBaseURI, final String relativePathStr) {
         if (relativePathStr.isEmpty()) {
             return null;
         }
@@ -139,20 +153,13 @@ public class ClasspathFinder {
                 // i.e. the recommended way to do this is URL -> URI -> Path, especially to handle weirdness on
                 // Windows. However, we skip the last step, because Path is slow.
                 return new File(new URL("file:" + pathStr).toURI());
-            } else if (resolveBaseFile == null) {
-                // No base provided
-                return new File(new URL(pathStr).toURI());
             } else {
                 // If path is a relative path, resolve it relative to the base path
-                String base = resolveBaseFile.toURI().toString();
-                if (!base.endsWith("/")) {
-                    base += "/";
-                }
-                return new File(new URL(base + pathStr).toURI());
+                return new File(new URL(resolveBaseURI + "/" + pathStr).toURI());
             }
         } catch (MalformedURLException | URISyntaxException e) {
             if (FastClasspathScanner.verbose) {
-                log.log("Exception while constructing classpath entry from base file " + resolveBaseFile
+                log.log("Exception while constructing classpath entry from base URI " + resolveBaseURI
                         + " and relative path " + relativePathStr + ": " + e);
             }
             return null;
@@ -160,8 +167,8 @@ public class ClasspathFinder {
     }
 
     /** Add a classpath element. */
-    private void addClasspathElement(final File baseFile, final String pathElement) {
-        final File pathFile = urlToFile(baseFile, pathElement);
+    private void addClasspathElement(final String resolveBaseURI, final String pathElement) {
+        final File pathFile = urlToFile(resolveBaseURI, pathElement);
         if (pathFile == null) {
             return;
         }
@@ -217,12 +224,17 @@ public class ClasspathFinder {
                 if (FastClasspathScanner.verbose) {
                     log.log("Found Class-Path entry in manifest of " + pathFile + ": " + manifest.classPath);
                 }
+                
                 // Class-Path entries in the manifest file should be resolved relative to
-                // the dir the manifest's jarfile is contained in (i.e. path.getParent()).
-                final File parentPathFile = pathFile.getParentFile();
+                // the dir the manifest's jarfile is contained in (i.e. pathFile.getParentFile()).
+                String parentPathURI = pathFile.getParentFile().toURI().toString();
+                if (parentPathURI.endsWith("/")) {
+                    parentPathURI = parentPathURI.substring(0, parentPathURI.length() - 1);
+                }
+
                 // Class-Path entries in manifest files are a space-delimited list of URIs.
                 for (final String manifestClassPathElement : manifest.classPath.split(" ")) {
-                    final File manifestEltPath = urlToFile(parentPathFile, manifestClassPathElement);
+                    final File manifestEltPath = urlToFile(parentPathURI, manifestClassPathElement);
                     if (manifestEltPath != null) {
                         addClasspathElement(manifestEltPath.toString());
                     } else {
@@ -247,7 +259,7 @@ public class ClasspathFinder {
 
     /** Add a classpath element relative to a base file. */
     public void addClasspathElement(final String pathElement) {
-        addClasspathElement(null, pathElement);
+        addClasspathElement(currentDirURI, pathElement);
     }
 
     /** Add classpath elements, separated by the system path separator character. */
