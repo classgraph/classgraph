@@ -152,7 +152,7 @@ public class ClasspathFinder {
                 // http://stackoverflow.com/a/17870390/3950982
                 // i.e. the recommended way to do this is URL -> URI -> Path, especially to handle weirdness on
                 // Windows. However, we skip the last step, because Path is slow.
-                return new File(new URL("file:" + pathStr).toURI());
+                return new File(new URL("file://" + pathStr).toURI());
             } else {
                 // If path is a relative path, resolve it relative to the base path
                 return new File(new URL(resolveBaseURI + "/" + pathStr).toURI());
