@@ -152,14 +152,53 @@ public class FastClasspathScanner {
     }
 
     /**
+     * Asynchronously returns the list of all unique File objects representing directories or zip/jarfiles on the
+     * classpath, in classloader resolution order. Classpath elements that do not exist are not included in the
+     * list.
+     */
+    public Future<List<File>> getUniqueClasspathElementsAsync(ExecutorService executorService) {
+        try (final ThreadLog log = new ThreadLog()) {
+            if (FastClasspathScanner.verbose) {
+                log.log("Getting classpath elements");
+            }
+            return executorService.submit(new ClasspathFinder(getScanSpec(), executorService));
+        }
+    }
+
+    /**
+     * Returns the list of all unique File objects representing directories or zip/jarfiles on the classpath, in
+     * classloader resolution order. Classpath elements that do not exist are not included in the list.
+     */
+    public List<File> getUniqueClasspathElements(ExecutorService executorService) {
+        if (classpathElts == null) {
+            try (final ThreadLog log = new ThreadLog()) {
+                try {
+                    classpathElts = getUniqueClasspathElementsAsync(executorService).get();
+                } catch (InterruptedException e) {
+                    if (FastClasspathScanner.verbose) {
+                        log.log("Thread interrupted while getting classpath elements");
+                    }
+                    throw new ScanInterruptedException();
+                } catch (ExecutionException e) {
+                    if (FastClasspathScanner.verbose) {
+                        log.log("Exception while getting classpath elements: " + e.getCause());
+                    }
+                    throw new RuntimeException(e.getCause());
+                }
+            }
+        }
+        return classpathElts;
+    }
+
+    /**
      * Returns the list of all unique File objects representing directories or zip/jarfiles on the classpath, in
      * classloader resolution order. Classpath elements that do not exist are not included in the list.
      */
     public List<File> getUniqueClasspathElements() {
         if (classpathElts == null) {
-            try (final ThreadLog log = new ThreadLog()) {
-                final ScanSpec scanSpec = getScanSpec();
-                classpathElts = new ClasspathFinder(scanSpec, log).getUniqueClasspathElements();
+            try (AutocloseableExecutorService executorService = new AutocloseableExecutorService(
+                    DEFAULT_NUM_WORKER_THREADS)) {
+                return getUniqueClasspathElements(executorService);
             }
         }
         return classpathElts;
