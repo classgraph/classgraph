@@ -600,28 +600,31 @@ class ClassfileBinaryParser {
             // Fields
             final HashSet<String> staticFinalFieldsToMatch = classNameToStaticFinalFieldsToMatch == null ? null
                     : classNameToStaticFinalFieldsToMatch.get(className);
+            final boolean matchStaticFinalFields = staticFinalFieldsToMatch != null;
             final int fieldCount = readUnsignedShort();
             for (int i = 0; i < fieldCount; i++) {
                 // Info on accessFlags: http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.6
                 final int accessFlags = readUnsignedShort();
                 final boolean isPublicField = ((accessFlags & 0x0002) == 0x0002);
-                final boolean scanField = isPublicField || scanSpec.ignoreFieldVisibility;
-                if (!scanField) {
+                final boolean isStaticFinalField = ((accessFlags & 0x0018) == 0x0018);
+                final boolean matchThisField = isStaticFinalField
+                        && (isPublicField || scanSpec.ignoreFieldVisibility);
+                if (!scanSpec.enableFieldTypeIndexing && (!matchStaticFinalFields || !matchThisField)) {
                     // Skip field
                     readUnsignedShort(); // fieldNameCpIdx
                     readUnsignedShort(); // fieldTypeDescriptorCpIdx
                     final int attributesCount = readUnsignedShort();
                     for (int j = 0; j < attributesCount; j++) {
                         readUnsignedShort(); // attributeNameCpIdx
-                        final int attributeLength = readInt();
+                        final int attributeLength = readInt(); // == 2
                         skip(attributeLength);
                     }
                 } else {
-                    final boolean isStaticFinalField = ((accessFlags & 0x0018) == 0x0018);
                     final int fieldNameCpIdx = readUnsignedShort();
                     String fieldName = null;
                     boolean isMatchedFieldName = false;
-                    if (staticFinalFieldsToMatch != null && scanField) {
+                    if (matchStaticFinalFields && matchThisField) {
+                        // Only decode fieldName if it can be matched
                         fieldName = getConstantPoolString(fieldNameCpIdx);
                         if (staticFinalFieldsToMatch.contains(fieldName)) {
                             isMatchedFieldName = true;
@@ -631,30 +634,21 @@ class ClassfileBinaryParser {
                     final char fieldTypeDescriptorFirstChar = (char) getConstantPoolStringFirstByte(
                             fieldTypeDescriptorCpIdx);
 
-                    if (scanField && scanSpec.enableFieldTypeIndexing) {
-                        // Check if the type of this field falls within a non-blacklisted package,
-                        // and if so, record the field and its type
+                    // Check if the type of this field falls within a non-blacklisted package,
+                    // and if so, record the field and its type
+                    if (scanSpec.enableFieldTypeIndexing) {
                         addFieldTypeDescriptorParts(classInfoUnlinked,
                                 getConstantPoolString(fieldTypeDescriptorCpIdx));
                     }
 
-                    // Check if field is static and final
-                    if (!isStaticFinalField && isMatchedFieldName) {
-                        // Requested to match a field that is not static or not final
-                        log.log(2,
-                                "Cannot match requested field " + classInfoUnlinked.className + "."
-                                        + getConstantPoolString(fieldNameCpIdx)
-                                        + " because it is either not static or not final");
-                    }
                     boolean foundConstantValue = false;
                     final int attributesCount = readUnsignedShort();
                     for (int j = 0; j < attributesCount; j++) {
                         final int attributeNameCpIdx = readUnsignedShort();
-                        final int attributeLength = readInt();
+                        final int attributeLength = readInt(); // == 2
                         // See if field name matches one of the requested names for this class, and if it does,
                         // check if it is initialized with a constant value
-                        if (isStaticFinalField && isMatchedFieldName
-                                && constantPoolStringEquals(attributeNameCpIdx, "ConstantValue")) {
+                        if (isMatchedFieldName && constantPoolStringEquals(attributeNameCpIdx, "ConstantValue")) {
                             // http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.7.2
                             Object constValue = getConstantPoolValue(readUnsignedShort());
                             // byte, char, short and boolean constants are all stored as 4-byte int
@@ -703,25 +697,37 @@ class ClassfileBinaryParser {
                             // Store static final field match in ClassInfo object
                             classInfoUnlinked.addFieldConstantValue(fieldName, constValue);
                             foundConstantValue = true;
-                        } else if (constantPoolStringEquals(attributeNameCpIdx, "Signature")) {
+                        } else if (scanSpec.enableFieldTypeIndexing
+                                && constantPoolStringEquals(attributeNameCpIdx, "Signature")) {
                             // Check if the type signature of this field falls within a non-blacklisted
                             // package, and if so, record the field type. The type signature contains
                             // type parameters, whereas the type descriptor does not.
-                            final int fieldTypeSignatureCpIdx = readUnsignedShort();
-                            if (scanSpec.enableFieldTypeIndexing) {
-                                final String fieldTypeSignature = getConstantPoolString(fieldTypeSignatureCpIdx);
-                                addFieldTypeDescriptorParts(classInfoUnlinked, fieldTypeSignature);
-                            }
+                            final String fieldTypeSignature = getConstantPoolString(readUnsignedShort());
+                            addFieldTypeDescriptorParts(classInfoUnlinked, fieldTypeSignature);
                         } else {
                             // No match, just skip attribute
                             skip(attributeLength);
                         }
-                        if (!foundConstantValue && isStaticFinalField && isMatchedFieldName) {
-                            log.log(2,
-                                    "Requested static final field " + classInfoUnlinked.className + "."
-                                            + getConstantPoolString(fieldNameCpIdx)
-                                            + " is not initialized with a constant literal value, so there is no "
-                                            + "initializer value in the constant pool of the classfile");
+                        if (isMatchedFieldName && !foundConstantValue && FastClasspathScanner.verbose) {
+                            boolean reasonFound = false;
+                            if (!isStaticFinalField) {
+                                log.log(2, "Requested static final field match " //
+                                        + classInfoUnlinked.className + "." + getConstantPoolString(fieldNameCpIdx)
+                                        + " is not declared as static final");
+                                reasonFound = true;
+                            }
+                            if (!isPublicField && !scanSpec.ignoreFieldVisibility) {
+                                log.log(2, "Requested static final field match " //
+                                        + classInfoUnlinked.className + "." + getConstantPoolString(fieldNameCpIdx)
+                                        + " is not declared as public, and ignoreFieldVisibility was not set to"
+                                        + " true before scan");
+                                reasonFound = true;
+                            }
+                            if (!reasonFound) {
+                                log.log(2, "Requested static final field match " //
+                                        + classInfoUnlinked.className + "." + getConstantPoolString(fieldNameCpIdx)
+                                        + " does not have a constant literal initializer value");
+                            }
                         }
                     }
                 }
@@ -760,7 +766,9 @@ class ClassfileBinaryParser {
             }
             return classInfoUnlinked;
 
-        } catch (final InterruptedException e) {
+        } catch (
+
+        final InterruptedException e) {
             throw e;
         } catch (final Exception e) {
             log.log(2, "Exception while attempting to load classfile " + relativePath + ": " + e);
