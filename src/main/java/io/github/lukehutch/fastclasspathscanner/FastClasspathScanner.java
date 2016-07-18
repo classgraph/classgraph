@@ -33,9 +33,11 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import io.github.lukehutch.fastclasspathscanner.classloaderhandler.ClassLoaderHandler;
@@ -175,6 +177,40 @@ public class FastClasspathScanner {
             version = VersionFinder.getVersion();
         }
         return version;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    private final static AtomicInteger threadIdx = new AtomicInteger();
+
+    /** A ThreadPoolExecutor that can be used in a try-with-resources block. */
+    private class AutocloseableExecutorService extends ThreadPoolExecutor implements AutoCloseable {
+        public AutocloseableExecutorService(int numThreads) {
+            super(numThreads, numThreads, 0L, TimeUnit.MILLISECONDS,
+                    // FIFO work queue
+                    new LinkedBlockingQueue<Runnable>(),
+                    // Thread factory that names threads and sets daemon status to true
+                    new ThreadFactory() {
+                        @Override
+                        public Thread newThread(final Runnable r) {
+                            final Thread t = new Thread(r,
+                                    "FastClasspathScanner-worker-" + threadIdx.getAndIncrement());
+                            // Kill worker threads if main thread dies
+                            t.setDaemon(true);
+                            return t;
+                        }
+                    });
+        }
+
+        /** Shut down thread pool on close(). */
+        @Override
+        public void close() {
+            try {
+                shutdown();
+            } catch (final Exception e) {
+                throw new RuntimeException("Exception shutting down ExecutorService: " + e);
+            }
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -788,27 +824,8 @@ public class FastClasspathScanner {
      *             if any of the worker threads throws an uncaught exception.
      */
     public synchronized ScanResult scan(final int numThreads) {
-        ExecutorService executorService = null;
-        try {
-            final AtomicInteger threadIdx = new AtomicInteger();
-            executorService = Executors.newFixedThreadPool(Math.max(numThreads, 1), new ThreadFactory() {
-                @Override
-                public Thread newThread(final Runnable r) {
-                    final Thread t = new Thread(r, "FastClasspathScanner-worker-" + threadIdx.getAndIncrement());
-                    // Kill worker threads if main thread dies
-                    t.setDaemon(true);
-                    return t;
-                }
-            });
+        try (AutocloseableExecutorService executorService = new AutocloseableExecutorService(numThreads)) {
             return scan(executorService, numThreads);
-        } finally {
-            if (executorService != null) {
-                try {
-                    executorService.shutdown();
-                } catch (final Exception e) {
-                    throw new RuntimeException("Exception shutting down ExecutorService: " + e);
-                }
-            }
         }
     }
 
