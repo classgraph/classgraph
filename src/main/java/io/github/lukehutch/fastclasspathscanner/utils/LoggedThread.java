@@ -4,7 +4,9 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.Date;
 import java.util.Queue;
 import java.util.concurrent.Callable;
@@ -33,19 +35,21 @@ public abstract class LoggedThread<T> implements Callable<T> {
 
     public abstract T doWork() throws Exception;
 
-    private static class ThreadLogEntry {
+    private static class ThreadLogEntry implements Comparable<ThreadLogEntry> {
         private final int indentLevel;
         private final Date time;
         private final String msg;
+        private final String sortKey;
         private final String stackTrace;
         private final long elapsedTimeNanos;
-        private final SimpleDateFormat dateTimeFormatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mmX");
-        private final DecimalFormat nanoFormatter = new DecimalFormat("0.000000");
+        private static final SimpleDateFormat dateTimeFormatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mmX");
+        private static final DecimalFormat nanoFormatter = new DecimalFormat("0.000000");
 
-        public ThreadLogEntry(final int indentLevel, final String msg, final long elapsedTimeNanos,
-                final Throwable e) {
+        public ThreadLogEntry(final String sortKey, final int indentLevel, final String msg,
+                final long elapsedTimeNanos, final Throwable e) {
             this.indentLevel = indentLevel;
             this.msg = msg;
+            this.sortKey = sortKey;
             this.time = Calendar.getInstance().getTime();
             this.elapsedTimeNanos = elapsedTimeNanos;
             if (e != null) {
@@ -92,6 +96,11 @@ public abstract class LoggedThread<T> implements Callable<T> {
             }
             return buf.toString();
         }
+
+        @Override
+        public int compareTo(ThreadLogEntry o) {
+            return this.sortKey.compareTo(o.sortKey);
+        }
     }
 
     /**
@@ -101,36 +110,70 @@ public abstract class LoggedThread<T> implements Callable<T> {
         private static AtomicBoolean versionLogged = new AtomicBoolean(false);
         private final Queue<ThreadLogEntry> logEntries = new ConcurrentLinkedQueue<>();
 
+        public void log(final String sortKey, final int indentLevel, final String msg, final long elapsedTimeNanos,
+                final Throwable e) {
+            logEntries.add(new ThreadLogEntry(sortKey, indentLevel, msg, elapsedTimeNanos, e));
+        }
+
+        public void log(final String sortKey, final int indentLevel, final String msg,
+                final long elapsedTimeNanos) {
+            logEntries.add(new ThreadLogEntry(sortKey, indentLevel, msg, elapsedTimeNanos, null));
+        }
+
+        public void log(final String sortKey, final int indentLevel, final String msg, final Throwable e) {
+            logEntries.add(new ThreadLogEntry(sortKey, indentLevel, msg, -1L, e));
+        }
+
+        public void log(final String sortKey, final int indentLevel, final String msg) {
+            logEntries.add(new ThreadLogEntry(sortKey, indentLevel, msg, -1L, null));
+        }
+
+        public void log(final String sortKey, final String msg, final long elapsedTimeNanos, final Throwable e) {
+            logEntries.add(new ThreadLogEntry(sortKey, 0, msg, elapsedTimeNanos, e));
+        }
+
+        public void log(final String sortKey, final String msg, final long elapsedTimeNanos) {
+            logEntries.add(new ThreadLogEntry(sortKey, 0, msg, elapsedTimeNanos, null));
+        }
+
+        public void log(final String sortKey, final String msg, final Throwable e) {
+            logEntries.add(new ThreadLogEntry(sortKey, 0, msg, -1L, e));
+        }
+
+        public void log(final String sortKey, final String msg) {
+            logEntries.add(new ThreadLogEntry(sortKey, 0, msg, -1L, null));
+        }
+
         public void log(final int indentLevel, final String msg, final long elapsedTimeNanos, final Throwable e) {
-            logEntries.add(new ThreadLogEntry(indentLevel, msg, elapsedTimeNanos, e));
+            logEntries.add(new ThreadLogEntry("", indentLevel, msg, elapsedTimeNanos, e));
         }
 
         public void log(final int indentLevel, final String msg, final long elapsedTimeNanos) {
-            logEntries.add(new ThreadLogEntry(indentLevel, msg, elapsedTimeNanos, null));
+            logEntries.add(new ThreadLogEntry("", indentLevel, msg, elapsedTimeNanos, null));
         }
 
         public void log(final int indentLevel, final String msg, final Throwable e) {
-            logEntries.add(new ThreadLogEntry(indentLevel, msg, -1L, e));
+            logEntries.add(new ThreadLogEntry("", indentLevel, msg, -1L, e));
         }
 
         public void log(final int indentLevel, final String msg) {
-            logEntries.add(new ThreadLogEntry(indentLevel, msg, -1L, null));
+            logEntries.add(new ThreadLogEntry("", indentLevel, msg, -1L, null));
         }
 
         public void log(final String msg, final long elapsedTimeNanos, final Throwable e) {
-            logEntries.add(new ThreadLogEntry(0, msg, elapsedTimeNanos, e));
+            logEntries.add(new ThreadLogEntry("", 0, msg, elapsedTimeNanos, e));
         }
 
         public void log(final String msg, final long elapsedTimeNanos) {
-            logEntries.add(new ThreadLogEntry(0, msg, elapsedTimeNanos, null));
+            logEntries.add(new ThreadLogEntry("", 0, msg, elapsedTimeNanos, null));
         }
 
         public void log(final String msg, final Throwable e) {
-            logEntries.add(new ThreadLogEntry(0, msg, -1L, e));
+            logEntries.add(new ThreadLogEntry("", 0, msg, -1L, e));
         }
 
         public void log(final String msg) {
-            logEntries.add(new ThreadLogEntry(0, msg, -1L, null));
+            logEntries.add(new ThreadLogEntry("", 0, msg, -1L, null));
         }
 
         public synchronized void flush() {
@@ -139,13 +182,18 @@ public abstract class LoggedThread<T> implements Callable<T> {
                 if (versionLogged.compareAndSet(false, true)) {
                     if (FastClasspathScanner.verbose) {
                         // Log the version before the first log entry
-                        buf.append(new ThreadLogEntry(0,
+                        buf.append(new ThreadLogEntry("", 0,
                                 "FastClasspathScanner version " + FastClasspathScanner.getVersion(), -1L, null)
                                         .toString());
                         buf.append('\n');
                     }
                 }
+                ArrayList<ThreadLogEntry> entriesSorted = new ArrayList<>();
                 for (ThreadLogEntry logEntry; (logEntry = logEntries.poll()) != null;) {
+                    entriesSorted.add(logEntry);
+                }
+                Collections.sort(entriesSorted);
+                for (ThreadLogEntry logEntry : entriesSorted) {
                     buf.append(logEntry.toString());
                     buf.append('\n');
                 }
