@@ -144,7 +144,9 @@ public class FastClasspathScanner {
     /** Lazy initializer for scanSpec. */
     private synchronized ScanSpec getScanSpec() {
         if (scanSpec == null) {
-            scanSpec = new ScanSpec(scanSpecArgs);
+            try (final ThreadLog log = new ThreadLog()) {
+                scanSpec = new ScanSpec(scanSpecArgs, log);
+            }
         }
         return scanSpec;
     }
@@ -156,16 +158,8 @@ public class FastClasspathScanner {
     public List<File> getUniqueClasspathElements() {
         if (classpathElts == null) {
             try (final ThreadLog log = new ThreadLog()) {
-                if (FastClasspathScanner.verbose) {
-                    log.log("Starting scan");
-                }
-                final long startTime = System.nanoTime();
                 final ScanSpec scanSpec = getScanSpec();
-                scanSpec.logTo(log);
                 classpathElts = new ClasspathFinder(scanSpec, log).getUniqueClasspathElements();
-                if (FastClasspathScanner.verbose) {
-                    log.log("Got unique classpath elements", System.nanoTime() - startTime);
-                }
             }
         }
         return classpathElts;

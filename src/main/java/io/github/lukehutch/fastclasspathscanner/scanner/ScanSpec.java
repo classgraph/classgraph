@@ -124,11 +124,9 @@ public class ScanSpec {
      */
     public boolean ignoreFieldVisibility = false;
 
-    private final List<String> constructorLogs = new ArrayList<>();
-
     // -------------------------------------------------------------------------------------------------------------
 
-    public ScanSpec(final String[] scanSpec) {
+    public ScanSpec(final String[] scanSpec, ThreadLog log) {
         final HashSet<String> uniqueWhitelistedPathPrefixes = new HashSet<>();
         final HashSet<String> uniqueBlacklistedPathPrefixes = new HashSet<>();
         boolean scanJars = true, scanNonJars = true;
@@ -149,7 +147,7 @@ public class ScanSpec {
                     // Strip off "jar:"
                     spec = spec.substring(4);
                     if (spec.indexOf('/') >= 0) {
-                        constructorLogs.add("Only a leaf filename may be used with a \"jar:\" entry in the "
+                        log.log("Only a leaf filename may be used with a \"jar:\" entry in the "
                                 + "scan spec, got \"" + spec + "\" -- ignoring");
                     } else {
                         if (spec.isEmpty()) {
@@ -208,7 +206,7 @@ public class ScanSpec {
             }
         }
         if (uniqueBlacklistedPathPrefixes.contains("/")) {
-            constructorLogs.add("Ignoring blacklist of root package, it would prevent all scanning");
+            log.log("Ignoring blacklist of root package, it would prevent all scanning");
             uniqueBlacklistedPathPrefixes.remove("/");
         }
         uniqueWhitelistedPathPrefixes.removeAll(uniqueBlacklistedPathPrefixes);
@@ -219,8 +217,7 @@ public class ScanSpec {
         }
         if (!scanJars && !scanNonJars) {
             // Can't disable scanning of everything, so if specified, arbitrarily pick one to re-enable.
-            constructorLogs
-                    .add("Scanning of jars and non-jars are both disabled -- re-enabling scanning of non-jars");
+            log.log("Scanning of jars and non-jars are both disabled -- re-enabling scanning of non-jars");
             scanNonJars = true;
         }
         if (uniqueWhitelistedPathPrefixes.isEmpty() || uniqueWhitelistedPathPrefixes.contains("/")) {
@@ -250,13 +247,8 @@ public class ScanSpec {
 
         this.scanJars = scanJars;
         this.scanNonJars = scanNonJars;
-    }
 
-    public void logTo(final ThreadLog log) {
         if (FastClasspathScanner.verbose) {
-            for (final String msg : constructorLogs) {
-                log.log(msg);
-            }
             log.log("Whitelisted relative path prefixes:  " + whitelistedPathPrefixes);
             if (!blacklistedPathPrefixes.isEmpty()) {
                 log.log("Blacklisted relative path prefixes:  " + blacklistedPathPrefixes);

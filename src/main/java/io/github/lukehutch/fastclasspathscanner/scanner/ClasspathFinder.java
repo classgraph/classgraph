@@ -53,6 +53,9 @@ public class ClasspathFinder {
     /** The scanning specification. */
     private final ScanSpec scanSpec;
 
+    /** The list of raw classpath elements. */
+    private final ArrayList<String> rawClasspathElements = new ArrayList<>();
+
     /** The unique elements of the classpath, as an ordered list. */
     private final ArrayList<File> classpathElements = new ArrayList<>();
 
@@ -62,42 +65,121 @@ public class ClasspathFinder {
     /** The set of JRE paths found so far in the classpath, cached for speed. */
     private final HashSet<String> knownJREPaths = new HashSet<>();
 
-    /** Whether or not classpath has been read (supporting lazy reading of classpath). */
-    private boolean initialized = false;
-
     /** The current directory. */
     private final String currentDirURI;
 
     private final ThreadLog log;
 
-    public ClasspathFinder(final ScanSpec scanSpec, final ThreadLog log) {
-        this.scanSpec = scanSpec;
-        this.log = log;
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** Used for resolving the classes in the call stack. Requires RuntimePermission("createSecurityManager"). */
+    private static CallerResolver CALLER_RESOLVER;
+
+    static {
         try {
-            final String currentDirURI = Paths.get("").toAbsolutePath().normalize()
-                    .toRealPath(LinkOption.NOFOLLOW_LINKS).toUri().toString();
-            this.currentDirURI = currentDirURI.endsWith("/")
-                    ? currentDirURI.substring(0, currentDirURI.length() - 1) : currentDirURI;
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+            // This can fail if the current SecurityManager does not allow
+            // RuntimePermission ("createSecurityManager"):
+            CALLER_RESOLVER = new CallerResolver();
+        } catch (final SecurityException e) {
+            // Ignore
         }
     }
 
-    /** Clear the classpath. */
-    private void clearClasspath() {
-        classpathElements.clear();
-        classpathElementsSet.clear();
-        initialized = false;
+    // Using a SecurityManager gets around the fact that Oracle removed sun.reflect.Reflection.getCallerClass, see:
+    // https://www.infoq.com/news/2013/07/Oracle-Removes-getCallerClass
+    // http://www.javaworld.com/article/2077344/core-java/find-a-way-out-of-the-classloader-maze.html
+    private static final class CallerResolver extends SecurityManager {
+        @Override
+        protected Class<?>[] getClassContext() {
+            return super.getClassContext();
+        }
+
     }
 
+    /** Add all parents of a ClassLoader in top-down order, the same as in the JRE. */
+    private static void addAllParentClassloaders(final ClassLoader classLoader,
+            final AdditionOrderedSet<ClassLoader> classLoadersSetOut) {
+        final ArrayList<ClassLoader> callerClassLoaders = new ArrayList<>();
+        for (ClassLoader cl = classLoader; cl != null; cl = cl.getParent()) {
+            callerClassLoaders.add(cl);
+        }
+        // OpenJDK calls classloaders in a top-down order
+        for (int i = callerClassLoaders.size() - 1; i >= 0; --i) {
+            classLoadersSetOut.add(callerClassLoaders.get(i));
+        }
+    }
+
+    /** Add all parent ClassLoaders of a class in top-down order, the same as in the JRE. */
+    private static void addAllParentClassloaders(final Class<?> klass,
+            final AdditionOrderedSet<ClassLoader> classLoadersSetOut) {
+        addAllParentClassloaders(klass.getClassLoader(), classLoadersSetOut);
+    }
+
+    /** ClassLoaderHandler that is able to extract the URLs from a URLClassLoader. */
+    private static class URLClassLoaderHandler implements ClassLoaderHandler {
+        @Override
+        public boolean handle(final ClassLoader classloader, final ClasspathFinder classpathFinder) {
+            if (classloader instanceof URLClassLoader) {
+                final URL[] urls = ((URLClassLoader) classloader).getURLs();
+                if (urls != null) {
+                    for (final URL url : urls) {
+                        if (url != null) {
+                            classpathFinder.addClasspathElement(url.toString());
+                        }
+                    }
+                }
+                return true;
+            }
+            return false;
+        }
+    }
+
+    /** Returns true if the path ends with a JAR extension, matching case. */
     private static boolean isJarMatchCase(final String path) {
         return path.length() > 4 && path.charAt(path.length() - 4) == '.' // 
                 && path.endsWith(".jar") || path.endsWith(".zip") || path.endsWith(".war") || path.endsWith(".car");
     }
 
-    /** Returns true if the path ends with a JAR extension */
+    /** Returns true if the path ends with a JAR extension, ignoring case. */
     private static boolean isJar(final String path) {
         return isJarMatchCase(path) || isJarMatchCase(path.toLowerCase());
+    }
+
+    /**
+     * Recursively search within ancestral directories of a jarfile to see if rt.jar is present, in order to
+     * determine if the given jarfile is part of the JRE. This would typically be called with an initial
+     * ancestralScandepth of 2, since JRE jarfiles can be in the lib or lib/ext directories of the JRE.
+     */
+    private boolean isJREJar(final File file, final int ancestralScanDepth) {
+        if (ancestralScanDepth == 0) {
+            return false;
+        } else {
+            final File parent = file.getParentFile();
+            if (parent == null) {
+                return false;
+            }
+            final String parentPathStr = parent.getPath();
+            if (knownJREPaths.contains(parentPathStr)) {
+                return true;
+            }
+            File rt = new File(parent, "rt.jar");
+            if (!rt.exists()) {
+                rt = new File(new File(parent, "lib"), "rt.jar");
+                if (!rt.exists()) {
+                    rt = new File(new File(new File(parent, "jre"), "lib.jar"), "rt.jar");
+                }
+            }
+            if (rt.exists()) {
+                // Found rt.jar; check its manifest file to make sure it's the JRE's rt.jar and not something else 
+                final FastManifestParser manifest = new FastManifestParser(rt, log);
+                if (manifest.isSystemJar) {
+                    // Found the JRE's rt.jar
+                    knownJREPaths.add(parentPathStr);
+                    return true;
+                }
+            }
+            return isJREJar(parent, ancestralScanDepth - 1);
+        }
     }
 
     /**
@@ -166,7 +248,185 @@ public class ClasspathFinder {
         }
     }
 
-    /** Add a classpath element. */
+    /**
+     * Add a classpath element relative to a base file. May be called by a ClassLoaderHandler to add classpath
+     * elements that it knows about.
+     */
+    public void addClasspathElement(final String pathElement) {
+        rawClasspathElements.add(pathElement);
+    }
+
+    /**
+     * Add classpath elements, separated by the system path separator character. May be called by a
+     * ClassLoaderHandler to add a path string that it knows about.
+     */
+    public void addClasspathElements(final String pathStr) {
+        if (pathStr != null && !pathStr.isEmpty()) {
+            for (final String pathElement : pathStr.split(File.pathSeparator)) {
+                addClasspathElement(pathElement);
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    public ClasspathFinder(final ScanSpec scanSpec, final ThreadLog log) {
+        this.scanSpec = scanSpec;
+        this.log = log;
+
+        final long startTime = System.nanoTime();
+        try {
+            final String currentDirURI = Paths.get("").toAbsolutePath().normalize()
+                    .toRealPath(LinkOption.NOFOLLOW_LINKS).toUri().toString();
+            this.currentDirURI = currentDirURI.endsWith("/")
+                    ? currentDirURI.substring(0, currentDirURI.length() - 1) : currentDirURI;
+        } catch (final IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        if (scanSpec.overrideClasspath != null) {
+            // Manual classpath override
+            addClasspathElements(scanSpec.overrideClasspath);
+        } else {
+            // Look for all unique classloaders.
+            // Need both a set and a list so we can keep them unique, but in an order that (hopefully) reflects
+            // the order in which the JDK calls classloaders.
+            //
+            // See:
+            // https://docs.oracle.com/javase/8/docs/technotes/tools/findingclasses.html
+            //
+            // N.B. probably need to look more closely at the exact ordering followed here, see:
+            // www.javaworld.com/article/2077344/core-java/find-a-way-out-of-the-classloader-maze.html?page=2
+            //
+            final AdditionOrderedSet<ClassLoader> classLoadersSet = new AdditionOrderedSet<>();
+            addAllParentClassloaders(ClassLoader.getSystemClassLoader(), classLoadersSet);
+            // Look for classloaders on the call stack
+            if (CALLER_RESOLVER != null) {
+                final Class<?>[] callStack = CALLER_RESOLVER.getClassContext();
+                for (final Class<?> callStackClass : callStack) {
+                    addAllParentClassloaders(callStackClass, classLoadersSet);
+                }
+            } else {
+                if (FastClasspathScanner.verbose) {
+                    log.log(ClasspathFinder.class.getSimpleName() + " could not create "
+                            + CallerResolver.class.getSimpleName() + ", current SecurityManager does not grant "
+                            + "RuntimePermission(\"createSecurityManager\")");
+                }
+            }
+            addAllParentClassloaders(Thread.currentThread().getContextClassLoader(), classLoadersSet);
+            addAllParentClassloaders(ClasspathFinder.class, classLoadersSet);
+            final List<ClassLoader> classLoaders = classLoadersSet.getList();
+            classLoaders.remove(null);
+
+            // Always include a ClassLoaderHandler for URLClassLoader subclasses as a default, so that we can
+            // handle URLClassLoaders (the most common form of ClassLoader) even if ServiceLoader can't find
+            // other ClassLoaderHandlers (this can happen if FastClasspathScanner's package is renamed using
+            // Maven Shade).
+            final Set<ClassLoaderHandler> classLoaderHandlers = new HashSet<>();
+            classLoaderHandlers.add(new URLClassLoaderHandler());
+
+            // Find all ClassLoaderHandlers registered using ServiceLoader, given known ClassLoaders. 
+            // FastClasspathScanner ships with several of these, registered in:
+            // src/main/resources/META-INF/services
+            try {
+                final ServiceLoader<ClassLoaderHandler> serviceLoaderHandler = ServiceLoader
+                        .load(ClassLoaderHandler.class, null);
+                for (final ClassLoaderHandler handler : serviceLoaderHandler) {
+                    classLoaderHandlers.add(handler);
+                }
+                if (FastClasspathScanner.verbose) {
+                    log.log("Succeeded in calling ServiceLoader.load(" + ClassLoaderHandler.class.getSimpleName()
+                            + ",null)");
+                }
+            } catch (final Throwable e) {
+                if (FastClasspathScanner.verbose) {
+                    log.log("Failed when calling ServiceLoader.load(" + ClassLoaderHandler.class.getSimpleName()
+                            + ",null): " + e);
+                }
+            }
+            for (final ClassLoader classLoader : classLoaders) {
+                // Use ServiceLoader to find registered ClassLoaderHandlers, see:
+                // https://docs.oracle.com/javase/6/docs/api/java/util/ServiceLoader.html
+                try {
+                    final ServiceLoader<ClassLoaderHandler> classLoaderHandlerLoader = ServiceLoader
+                            .load(ClassLoaderHandler.class, classLoader);
+                    // Iterate through registered ClassLoaderHandlers
+                    for (final ClassLoaderHandler handler : classLoaderHandlerLoader) {
+                        classLoaderHandlers.add(handler);
+                    }
+                    if (FastClasspathScanner.verbose) {
+                        log.log("Succeeded in calling ServiceLoader.load("
+                                + ClassLoaderHandler.class.getSimpleName() + ".class, " + classLoader + ")");
+                    }
+                } catch (final Throwable e) {
+                    if (FastClasspathScanner.verbose) {
+                        log.log("Failed when calling ServiceLoader.load(" + ClassLoaderHandler.class.getSimpleName()
+                                + ".class, " + classLoader + "): " + e);
+                    }
+                }
+            }
+            // Add manually-added ClassLoaderHandlers
+            classLoaderHandlers.addAll(scanSpec.extraClassLoaderHandlers);
+            // Only keep one instance of each ClassLoaderHandler, in case multiple instances are loaded
+            // (due to multiple ClassLoaders covering the same classpath entries)
+            final Set<String> classLoaderHandlerNames = new HashSet<>();
+            final List<ClassLoaderHandler> classLoaderHandlersUnique = new ArrayList<>();
+            for (final ClassLoaderHandler classLoaderHandler : classLoaderHandlers) {
+                if (classLoaderHandlerNames.add(classLoaderHandler.getClass().getName())) {
+                    classLoaderHandlersUnique.add(classLoaderHandler);
+                }
+            }
+            if (FastClasspathScanner.verbose && !classLoaderHandlers.isEmpty()) {
+                log.log("ClassLoaderHandlers loaded: " + Join.join(", ", classLoaderHandlerNames));
+            }
+
+            // Try finding a handler for each of the classloaders discovered above
+            for (final ClassLoader classLoader : classLoaders) {
+                // Iterate through registered ClassLoaderHandlers
+                boolean classloaderFound = false;
+                for (final ClassLoaderHandler handler : classLoaderHandlersUnique) {
+                    try {
+                        if (handler.handle(classLoader, this)) {
+                            // Sucessfully handled
+                            if (FastClasspathScanner.verbose) {
+                                log.log("Classpath elements from ClassLoader " + classLoader.getClass().getName()
+                                        + " were extracted by ClassLoaderHandler " + handler.getClass().getName());
+                            }
+                            classloaderFound = true;
+                            break;
+                        }
+                    } catch (final Exception e) {
+                        if (FastClasspathScanner.verbose) {
+                            log.log("Exception in " + classLoader.getClass().getName() + ": " + e.toString());
+                        }
+                    }
+                }
+                if (!classloaderFound) {
+                    if (FastClasspathScanner.verbose) {
+                        log.log("Found unknown ClassLoader type, cannot scan classes: "
+                                + classLoader.getClass().getName());
+                    }
+                }
+            }
+
+            // Add entries found in java.class.path, in case those entries were missed above due to some
+            // non-standard classloader that uses this property
+            addClasspathElements(System.getProperty("java.class.path"));
+
+            if (FastClasspathScanner.verbose) {
+                log.log("Found " + rawClasspathElements.size() + " raw classpath elements in " + classLoaders.size()
+                        + " ClassLoaders", System.nanoTime() - startTime);
+            }
+        }
+
+        for (final String rawClasspathElt : rawClasspathElements) {
+            addClasspathElement(currentDirURI, rawClasspathElt);
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** Recursively add classpath elements. (Recursion occurs if a jarfile contains a Class-Path entry.) */
     private void addClasspathElement(final String resolveBaseURI, final String pathElement) {
         final File pathFile = urlToFile(resolveBaseURI, pathElement);
         if (pathFile == null) {
@@ -201,16 +461,16 @@ public class ClasspathFinder {
                 return;
             }
         }
-        File canonicalFile;
+        String canonicalPath;
         try {
-            canonicalFile = pathFile.getCanonicalFile();
+            canonicalPath = pathFile.getCanonicalPath();
         } catch (final IOException e) {
             if (FastClasspathScanner.verbose) {
                 log.log("Exception while getting canonical path for classpath element " + pathElement + ": " + e);
             }
             return;
         }
-        if (!classpathElementsSet.add(canonicalFile.getPath())) {
+        if (!classpathElementsSet.add(canonicalPath)) {
             // Duplicate classpath element -- ignore
             return;
         }
@@ -224,7 +484,7 @@ public class ClasspathFinder {
                 if (FastClasspathScanner.verbose) {
                     log.log("Found Class-Path entry in manifest of " + pathFile + ": " + manifest.classPath);
                 }
-                
+
                 // Class-Path entries in the manifest file should be resolved relative to
                 // the dir the manifest's jarfile is contained in (i.e. pathFile.getParentFile()).
                 String parentPathURI = pathFile.getParentFile().toURI().toString();
@@ -234,140 +494,17 @@ public class ClasspathFinder {
 
                 // Class-Path entries in manifest files are a space-delimited list of URIs.
                 for (final String manifestClassPathElement : manifest.classPath.split(" ")) {
-                    final File manifestEltPath = urlToFile(parentPathURI, manifestClassPathElement);
-                    if (manifestEltPath != null) {
-                        addClasspathElement(manifestEltPath.toString());
-                    } else {
-                        if (FastClasspathScanner.verbose) {
-                            log.log("Classpath element " + manifestEltPath + " not found -- from Class-Path entry "
-                                    + manifestClassPathElement + " in " + pathFile);
-                        }
-                    }
+                    addClasspathElement(parentPathURI, manifestClassPathElement);
                 }
             }
         }
 
         // Add the classpath element to the ordered list
-        if (FastClasspathScanner.verbose)
-
-        {
+        if (FastClasspathScanner.verbose) {
             log.log("Found classpath element: " + pathElement);
         }
         // Add the File object to classpathElements
         classpathElements.add(pathFile);
-    }
-
-    /** Add a classpath element relative to a base file. */
-    public void addClasspathElement(final String pathElement) {
-        addClasspathElement(currentDirURI, pathElement);
-    }
-
-    /** Add classpath elements, separated by the system path separator character. */
-    public void addClasspathElements(final String pathStr) {
-        if (pathStr != null && !pathStr.isEmpty()) {
-            for (final String pathElement : pathStr.split(File.pathSeparator)) {
-                addClasspathElement(pathElement);
-            }
-        }
-    }
-
-    /**
-     * Recursively search within ancestral directories of a jarfile to see if rt.jar is present, in order to
-     * determine if the given jarfile is part of the JRE. This would typically be called with an initial
-     * ancestralScandepth of 2, since JRE jarfiles can be in the lib or lib/ext directories of the JRE.
-     */
-    private boolean isJREJar(final File file, final int ancestralScanDepth) {
-        if (ancestralScanDepth == 0) {
-            return false;
-        } else {
-            final File parent = file.getParentFile();
-            if (parent == null) {
-                return false;
-            }
-            final String parentPathStr = parent.getPath();
-            if (knownJREPaths.contains(parentPathStr)) {
-                return true;
-            }
-            File rt = new File(parent, "rt.jar");
-            if (!rt.exists()) {
-                rt = new File(new File(parent, "lib"), "rt.jar");
-                if (!rt.exists()) {
-                    rt = new File(new File(new File(parent, "jre"), "lib.jar"), "rt.jar");
-                }
-            }
-            if (rt.exists()) {
-                // Found rt.jar; check its manifest file to make sure it's the JRE's rt.jar and not something else 
-                final FastManifestParser manifest = new FastManifestParser(rt, log);
-                if (manifest.isSystemJar) {
-                    // Found the JRE's rt.jar
-                    knownJREPaths.add(parentPathStr);
-                    return true;
-                }
-            }
-            return isJREJar(parent, ancestralScanDepth - 1);
-        }
-    }
-
-    /** Used for resolving the classes in the call stack. Requires RuntimePermission("createSecurityManager"). */
-    private static CallerResolver CALLER_RESOLVER;
-
-    static {
-        try {
-            // This can fail if the current SecurityManager does not allow
-            // RuntimePermission ("createSecurityManager"):
-            CALLER_RESOLVER = new CallerResolver();
-        } catch (final SecurityException e) {
-            // Ignore
-        }
-    }
-
-    // Using a SecurityManager gets around the fact that Oracle removed sun.reflect.Reflection.getCallerClass, see:
-    // https://www.infoq.com/news/2013/07/Oracle-Removes-getCallerClass
-    // http://www.javaworld.com/article/2077344/core-java/find-a-way-out-of-the-classloader-maze.html
-    private static final class CallerResolver extends SecurityManager {
-        @Override
-        protected Class<?>[] getClassContext() {
-            return super.getClassContext();
-        }
-
-    }
-
-    /** Add all parents of a ClassLoader in top-down order, the same as in the JRE. */
-    private static void addAllParentClassloaders(final ClassLoader classLoader,
-            final AdditionOrderedSet<ClassLoader> classLoadersSetOut) {
-        final ArrayList<ClassLoader> callerClassLoaders = new ArrayList<>();
-        for (ClassLoader cl = classLoader; cl != null; cl = cl.getParent()) {
-            callerClassLoaders.add(cl);
-        }
-        // OpenJDK calls classloaders in a top-down order
-        for (int i = callerClassLoaders.size() - 1; i >= 0; --i) {
-            classLoadersSetOut.add(callerClassLoaders.get(i));
-        }
-    }
-
-    /** Add all parent ClassLoaders of a class in top-down order, the same as in the JRE. */
-    private static void addAllParentClassloaders(final Class<?> klass,
-            final AdditionOrderedSet<ClassLoader> classLoadersSetOut) {
-        addAllParentClassloaders(klass.getClassLoader(), classLoadersSetOut);
-    }
-
-    /** ClassLoaderHandler that is able to extract the URLs from a URLClassLoader. */
-    private static class URLClassLoaderHandler implements ClassLoaderHandler {
-        @Override
-        public boolean handle(final ClassLoader classloader, final ClasspathFinder classpathFinder) {
-            if (classloader instanceof URLClassLoader) {
-                final URL[] urls = ((URLClassLoader) classloader).getURLs();
-                if (urls != null) {
-                    for (final URL url : urls) {
-                        if (url != null) {
-                            classpathFinder.addClasspathElement(url.toString());
-                        }
-                    }
-                }
-                return true;
-            }
-            return false;
-        }
     }
 
     /**
@@ -375,144 +512,6 @@ public class ClasspathFinder {
      * classloader resolution order. Classpath elements that do not exist are not included in the list.
      */
     public List<File> getUniqueClasspathElements() {
-        // Parse the system classpath if it hasn't been parsed yet
-        if (!initialized) {
-            clearClasspath();
-
-            if (scanSpec.overrideClasspath != null) {
-                // Manual classpath override
-                addClasspathElements(scanSpec.overrideClasspath);
-            } else {
-                // Look for all unique classloaders.
-                // Need both a set and a list so we can keep them unique, but in an order that (hopefully) reflects
-                // the order in which the JDK calls classloaders.
-                //
-                // See:
-                // https://docs.oracle.com/javase/8/docs/technotes/tools/findingclasses.html
-                //
-                // N.B. probably need to look more closely at the exact ordering followed here, see:
-                // www.javaworld.com/article/2077344/core-java/find-a-way-out-of-the-classloader-maze.html?page=2
-                //
-                final AdditionOrderedSet<ClassLoader> classLoadersSet = new AdditionOrderedSet<>();
-                addAllParentClassloaders(ClassLoader.getSystemClassLoader(), classLoadersSet);
-                // Look for classloaders on the call stack
-                if (CALLER_RESOLVER != null) {
-                    final Class<?>[] callStack = CALLER_RESOLVER.getClassContext();
-                    for (final Class<?> callStackClass : callStack) {
-                        addAllParentClassloaders(callStackClass, classLoadersSet);
-                    }
-                } else {
-                    if (FastClasspathScanner.verbose) {
-                        log.log(ClasspathFinder.class.getSimpleName() + " could not create "
-                                + CallerResolver.class.getSimpleName() + ", current SecurityManager does not grant "
-                                + "RuntimePermission(\"createSecurityManager\")");
-                    }
-                }
-                addAllParentClassloaders(Thread.currentThread().getContextClassLoader(), classLoadersSet);
-                addAllParentClassloaders(ClasspathFinder.class, classLoadersSet);
-                final List<ClassLoader> classLoaders = classLoadersSet.getList();
-                classLoaders.remove(null);
-
-                // Always include a ClassLoaderHandler for URLClassLoader subclasses as a default, so that we can
-                // handle URLClassLoaders (the most common form of ClassLoader) even if ServiceLoader can't find
-                // other ClassLoaderHandlers (this can happen if FastClasspathScanner's package is renamed using
-                // Maven Shade).
-                final Set<ClassLoaderHandler> classLoaderHandlers = new HashSet<>();
-                classLoaderHandlers.add(new URLClassLoaderHandler());
-
-                // Find all ClassLoaderHandlers registered using ServiceLoader, given known ClassLoaders. 
-                // FastClasspathScanner ships with several of these, registered in:
-                // src/main/resources/META-INF/services
-                try {
-                    final ServiceLoader<ClassLoaderHandler> serviceLoaderHandler = ServiceLoader
-                            .load(ClassLoaderHandler.class, null);
-                    for (final ClassLoaderHandler handler : serviceLoaderHandler) {
-                        classLoaderHandlers.add(handler);
-                    }
-                    if (FastClasspathScanner.verbose) {
-                        log.log("Succeeded in calling ServiceLoader.load("
-                                + ClassLoaderHandler.class.getSimpleName() + ",null)");
-                    }
-                } catch (final Throwable e) {
-                    if (FastClasspathScanner.verbose) {
-                        log.log("Failed when calling ServiceLoader.load(" + ClassLoaderHandler.class.getSimpleName()
-                                + ",null): " + e);
-                    }
-                }
-                for (final ClassLoader classLoader : classLoaders) {
-                    // Use ServiceLoader to find registered ClassLoaderHandlers, see:
-                    // https://docs.oracle.com/javase/6/docs/api/java/util/ServiceLoader.html
-                    try {
-                        final ServiceLoader<ClassLoaderHandler> classLoaderHandlerLoader = ServiceLoader
-                                .load(ClassLoaderHandler.class, classLoader);
-                        // Iterate through registered ClassLoaderHandlers
-                        for (final ClassLoaderHandler handler : classLoaderHandlerLoader) {
-                            classLoaderHandlers.add(handler);
-                        }
-                        if (FastClasspathScanner.verbose) {
-                            log.log("Succeeded in calling ServiceLoader.load("
-                                    + ClassLoaderHandler.class.getSimpleName() + ".class, " + classLoader + ")");
-                        }
-                    } catch (final Throwable e) {
-                        if (FastClasspathScanner.verbose) {
-                            log.log("Failed when calling ServiceLoader.load("
-                                    + ClassLoaderHandler.class.getSimpleName() + ".class, " + classLoader + "): "
-                                    + e);
-                        }
-                    }
-                }
-                // Add manually-added ClassLoaderHandlers
-                classLoaderHandlers.addAll(scanSpec.extraClassLoaderHandlers);
-                // Only keep one instance of each ClassLoaderHandler, in case multiple instances are loaded
-                // (due to multiple ClassLoaders covering the same classpath entries)
-                final Set<String> classLoaderHandlerNames = new HashSet<>();
-                final List<ClassLoaderHandler> classLoaderHandlersUnique = new ArrayList<>();
-                for (final ClassLoaderHandler classLoaderHandler : classLoaderHandlers) {
-                    if (classLoaderHandlerNames.add(classLoaderHandler.getClass().getName())) {
-                        classLoaderHandlersUnique.add(classLoaderHandler);
-                    }
-                }
-                if (FastClasspathScanner.verbose && !classLoaderHandlers.isEmpty()) {
-                    log.log("ClassLoaderHandlers loaded: " + Join.join(", ", classLoaderHandlerNames));
-                }
-
-                // Try finding a handler for each of the classloaders discovered above
-                for (final ClassLoader classLoader : classLoaders) {
-                    // Iterate through registered ClassLoaderHandlers
-                    boolean classloaderFound = false;
-                    for (final ClassLoaderHandler handler : classLoaderHandlersUnique) {
-                        try {
-                            if (handler.handle(classLoader, this)) {
-                                // Sucessfully handled
-                                if (FastClasspathScanner.verbose) {
-                                    log.log("Classpath elements from ClassLoader "
-                                            + classLoader.getClass().getName()
-                                            + " were extracted by ClassLoaderHandler "
-                                            + handler.getClass().getName());
-                                }
-                                classloaderFound = true;
-                                break;
-                            }
-                        } catch (final Exception e) {
-                            if (FastClasspathScanner.verbose) {
-                                log.log("Exception in " + classLoader.getClass().getName() + ": " + e.toString());
-                            }
-                        }
-                    }
-                    if (!classloaderFound) {
-                        if (FastClasspathScanner.verbose) {
-                            log.log("Found unknown ClassLoader type, cannot scan classes: "
-                                    + classLoader.getClass().getName());
-                        }
-                    }
-                }
-
-                // Add entries found in java.class.path, in case those entries were missed above due to some
-                // non-standard classloader that uses this property
-                addClasspathElements(System.getProperty("java.class.path"));
-            }
-            initialized = true;
-        }
         return classpathElements;
     }
 }
