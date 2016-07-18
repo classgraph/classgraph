@@ -607,9 +607,10 @@ class ClassfileBinaryParser {
                 final int accessFlags = readUnsignedShort();
                 final boolean isPublicField = ((accessFlags & 0x0002) == 0x0002);
                 final boolean isStaticFinalField = ((accessFlags & 0x0018) == 0x0018);
-                final boolean matchThisField = isStaticFinalField
-                        && (isPublicField || scanSpec.ignoreFieldVisibility);
-                if (!scanSpec.enableFieldTypeIndexing && (!matchStaticFinalFields || !matchThisField)) {
+                final boolean fieldIsVisible = isPublicField || scanSpec.ignoreFieldVisibility;
+                final boolean matchThisStaticFinalField = matchStaticFinalFields && isStaticFinalField
+                        && fieldIsVisible;
+                if (!fieldIsVisible || (!scanSpec.enableFieldTypeIndexing && !matchThisStaticFinalField)) {
                     // Skip field
                     readUnsignedShort(); // fieldNameCpIdx
                     readUnsignedShort(); // fieldTypeDescriptorCpIdx
@@ -623,7 +624,7 @@ class ClassfileBinaryParser {
                     final int fieldNameCpIdx = readUnsignedShort();
                     String fieldName = null;
                     boolean isMatchedFieldName = false;
-                    if (matchStaticFinalFields && matchThisField) {
+                    if (matchThisStaticFinalField) {
                         // Only decode fieldName if it can be matched
                         fieldName = getConstantPoolString(fieldNameCpIdx);
                         if (staticFinalFieldsToMatch.contains(fieldName)) {
