@@ -15,9 +15,9 @@ class OrderedClasspathElement implements Comparable<OrderedClasspathElement> {
     private File file;
     private String canonicalPath;
 
-    public OrderedClasspathElement(final String orderKey, final String parentURI, final String relativePath) {
+    public OrderedClasspathElement(final String orderKey, final String parentPath, final String relativePath) {
         this.orderKey = orderKey;
-        this.parentPath = parentURI;
+        this.parentPath = parentPath;
         this.relativePath = relativePath;
     }
 
