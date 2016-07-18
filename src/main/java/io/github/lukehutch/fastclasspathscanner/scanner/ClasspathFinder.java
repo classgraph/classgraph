@@ -327,91 +327,15 @@ public class ClasspathFinder extends LoggedThread<List<File>> {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    private static class OrderedClasspathElement implements Comparable<OrderedClasspathElement> {
-        public final String orderKey;
-        public final String parentPath;
-        public final String relativePath;
-        private String path;
-        private boolean resolvedPath = false;
-        private File file;
-        private String canonicalPath;
-
-        public OrderedClasspathElement(final String orderKey, final String parentURI, final String relativePath) {
-            this.orderKey = orderKey;
-            this.parentPath = parentURI;
-            this.relativePath = relativePath;
-        }
-
-        public String getResolvedPath() {
-            if (!resolvedPath) {
-                path = FastPathResolver.resolve(parentPath, relativePath);
-                resolvedPath = true;
-            }
-            return path;
-        }
-
-        public File getFile() {
-            if (file == null) {
-                final String path = getResolvedPath();
-                if (path == null) {
-                    throw new RuntimeException(
-                            "Path " + relativePath + " could not be resolved relative to " + parentPath);
-                }
-                file = new File(path);
-            }
-            return file;
-        }
-
-        public String getCanonicalPath() throws IOException {
-            if (canonicalPath == null) {
-                final File file = getFile();
-                canonicalPath = file.getCanonicalPath();
-            }
-            return canonicalPath;
-        }
-
-        /** Sort in order of orderKey, then parentURI, then relativePath. */
-        @Override
-        public int compareTo(final OrderedClasspathElement o) {
-            int diff = orderKey.compareTo(o.orderKey);
-            if (diff == 0) {
-                diff = parentPath.compareTo(o.parentPath);
-            }
-            if (diff == 0) {
-                diff = relativePath.compareTo(o.relativePath);
-            }
-            return diff;
-        }
-
-        @Override
-        public boolean equals(final Object o) {
-            if (o == null || !(o instanceof OrderedClasspathElement)) {
-                return false;
-            }
-            final OrderedClasspathElement other = (OrderedClasspathElement) o;
-            return orderKey.equals(other.orderKey) && parentPath.equals(other.parentPath)
-                    && relativePath.equals(other.relativePath);
-        }
-
-        @Override
-        public int hashCode() {
-            return orderKey.hashCode() + parentPath.hashCode() * 7 + relativePath.hashCode() * 17;
-        }
-
-        @Override
-        public String toString() {
-            return orderKey + "!" + parentPath + "!" + relativePath;
-        }
-    }
-
     private static final String zeroPadFormatString(final int maxVal) {
         return "%0" + Integer.toString(maxVal).length() + "d";
     }
 
-    private static boolean isEarliestOccurrenceOfPath(final String path,
+    private static boolean isEarliestOccurrenceOfPath(final String canonicalPath,
             final OrderedClasspathElement orderedElement,
             final ConcurrentHashMap<String, OrderedClasspathElement> pathToEarliestOrderedElement) {
-        OrderedClasspathElement olderOrderedElement = pathToEarliestOrderedElement.put(path, orderedElement);
+        OrderedClasspathElement olderOrderedElement = pathToEarliestOrderedElement.put(canonicalPath,
+                orderedElement);
         if (olderOrderedElement == null) {
             // First occurrence of this path
             return true;
@@ -419,13 +343,12 @@ public class ClasspathFinder extends LoggedThread<List<File>> {
         final int diff = olderOrderedElement.compareTo(orderedElement);
         if (diff == 0) {
             // Should not happen, because relative paths are unique within a given filesystem or jar
-            throw new RuntimeException("Tried adding same relative path " + path
-                    + " twice for same ordered element " + orderedElement);
+            return false;
         } else if (diff < 0) {
             // olderOrderKey comes before orderKey, so this relative path is masked by an earlier one.
             // Need to put older order key back in map, avoiding race condition
             for (;;) {
-                final OrderedClasspathElement nextOlderOrderedElt = pathToEarliestOrderedElement.put(path,
+                final OrderedClasspathElement nextOlderOrderedElt = pathToEarliestOrderedElement.put(canonicalPath,
                         olderOrderedElement);
                 if (nextOlderOrderedElt.compareTo(olderOrderedElement) <= 0) {
                     break;
@@ -455,8 +378,8 @@ public class ClasspathFinder extends LoggedThread<List<File>> {
                     killAllThreads.set(true);
                     throw new InterruptedException();
                 }
-                // Busy-wait on last numParallelTasks work units, in case they add additional work units
-                // as jarfiles with Class-Path entries
+                // Busy-wait on last numParallelTasks work units, in case additional work units are generated
+                // from jarfiles with Class-Path entries
                 classpathElt = orderedWorkUnits.poll();
                 if (classpathElt != null) {
                     // Got a work unit
@@ -619,7 +542,7 @@ public class ClasspathFinder extends LoggedThread<List<File>> {
             }));
         }
 
-        // Process work queue in this thread too
+        // Process work queue in this thread too, in case there is only one thread in ExecutorService
         processWorkQueue(orderedWorkUnits, numWorkUnitsRemaining, pathToEarliestOrderKey,
                 scanSpec.blacklistSystemJars(), knownJREPaths, uniqueValidCanonicalClasspathElts, killAllThreads,
                 log);
@@ -629,8 +552,8 @@ public class ClasspathFinder extends LoggedThread<List<File>> {
         // work units have been processed. If any tasks have not been started, cancel them, because they never
         // started. (This can happen if numParallelTasks is greater than the number of threads available in the
         // ExecutorService.)
+        killAllThreads.set(true);
         for (final Future<Void> future : futures) {
-            killAllThreads.set(true);
             future.cancel(true);
         }
 
