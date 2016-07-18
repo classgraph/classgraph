@@ -98,7 +98,7 @@ public abstract class LoggedThread<T> implements Callable<T> {
         }
 
         @Override
-        public int compareTo(ThreadLogEntry o) {
+        public int compareTo(final ThreadLogEntry o) {
             return this.sortKey.compareTo(o.sortKey);
         }
     }
@@ -188,12 +188,12 @@ public abstract class LoggedThread<T> implements Callable<T> {
                         buf.append('\n');
                     }
                 }
-                ArrayList<ThreadLogEntry> entriesSorted = new ArrayList<>();
+                final ArrayList<ThreadLogEntry> entriesSorted = new ArrayList<>();
                 for (ThreadLogEntry logEntry; (logEntry = logEntries.poll()) != null;) {
                     entriesSorted.add(logEntry);
                 }
                 Collections.sort(entriesSorted);
-                for (ThreadLogEntry logEntry : entriesSorted) {
+                for (final ThreadLogEntry logEntry : entriesSorted) {
                     buf.append(logEntry.toString());
                     buf.append('\n');
                 }

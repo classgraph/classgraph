@@ -71,7 +71,7 @@ public class ClasspathElementResolver extends LoggedThread<List<File>> {
         this.numParallelTasks = numParallelTasks;
         try {
             // Get current dir in a canonical form, and remove any trailing slash, if present)
-            this.currentDirURI = FastPathResolver.resolve(null,
+            this.currentDirURI = FastPathResolver.resolve(
                     Paths.get("").toAbsolutePath().normalize().toRealPath(LinkOption.NOFOLLOW_LINKS).toString());
         } catch (final IOException e) {
             throw new RuntimeException(e);
@@ -83,88 +83,6 @@ public class ClasspathElementResolver extends LoggedThread<List<File>> {
 
     private static final String zeroPadFormatString(final int maxVal) {
         return "%0" + Integer.toString(maxVal).length() + "d";
-    }
-
-    private static boolean isEarliestOccurrenceOfPath(final String canonicalPath,
-            final OrderedClasspathElement orderedElement,
-            final ConcurrentHashMap<String, OrderedClasspathElement> pathToEarliestOrderedElement) {
-        OrderedClasspathElement olderOrderedElement = pathToEarliestOrderedElement.put(canonicalPath,
-                orderedElement);
-        if (olderOrderedElement == null) {
-            // First occurrence of this path
-            return true;
-        }
-        final int diff = olderOrderedElement.compareTo(orderedElement);
-        if (diff == 0) {
-            // Should not happen, because relative paths are unique within a given filesystem or jar
-            return false;
-        } else if (diff < 0) {
-            // olderOrderKey comes before orderKey, so this relative path is masked by an earlier one.
-            // Need to put older order key back in map, avoiding race condition
-            for (;;) {
-                final OrderedClasspathElement nextOlderOrderedElt = pathToEarliestOrderedElement.put(canonicalPath,
-                        olderOrderedElement);
-                if (nextOlderOrderedElt.compareTo(olderOrderedElement) <= 0) {
-                    break;
-                }
-                olderOrderedElement = nextOlderOrderedElt;
-            }
-            return false;
-        } else {
-            // orderKey comes before olderOrderKey, so this relative path masks an earlier one.
-            return true;
-        }
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /** Returns true if the path ends with a JAR extension, matching case. */
-    private static boolean isJarMatchCase(final String path) {
-        return path.length() > 4 && path.charAt(path.length() - 4) == '.' // 
-                && path.endsWith(".jar") || path.endsWith(".zip") || path.endsWith(".war") || path.endsWith(".car");
-    }
-
-    /** Returns true if the path ends with a JAR extension, ignoring case. */
-    private static boolean isJar(final String path) {
-        return isJarMatchCase(path) || isJarMatchCase(path.toLowerCase());
-    }
-
-    /**
-     * Recursively search within ancestral directories of a jarfile to see if rt.jar is present, in order to
-     * determine if the given jarfile is part of the JRE. This would typically be called with an initial
-     * ancestralScandepth of 2, since JRE jarfiles can be in the lib or lib/ext directories of the JRE.
-     */
-    private static boolean isJREJar(final File file, final int ancestralScanDepth,
-            final ConcurrentHashMap<String, String> knownJREPaths, final ThreadLog log) {
-        if (ancestralScanDepth == 0) {
-            return false;
-        } else {
-            final File parent = file.getParentFile();
-            if (parent == null) {
-                return false;
-            }
-            final String parentPathStr = parent.getPath();
-            if (knownJREPaths.containsKey(parentPathStr)) {
-                return true;
-            }
-            File rt = new File(parent, "rt.jar");
-            if (!rt.exists()) {
-                rt = new File(new File(parent, "lib"), "rt.jar");
-                if (!rt.exists()) {
-                    rt = new File(new File(new File(parent, "jre"), "lib.jar"), "rt.jar");
-                }
-            }
-            if (rt.exists()) {
-                // Found rt.jar; check its manifest file to make sure it's the JRE's rt.jar and not something else 
-                final FastManifestParser manifest = new FastManifestParser(rt, log);
-                if (manifest.isSystemJar) {
-                    // Found the JRE's rt.jar
-                    knownJREPaths.put(parentPathStr, parentPathStr);
-                    return true;
-                }
-            }
-            return isJREJar(parent, ancestralScanDepth - 1, knownJREPaths, log);
-        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -204,82 +122,32 @@ public class ClasspathElementResolver extends LoggedThread<List<File>> {
             // units to the queue while it is processing, and the work is not finished even though the queue
             // may be empty.
             try {
-                // Get absolute URI and File for classpathElt
-                final String path = classpathElt.getResolvedPath();
-                if (path == null) {
-                    // Got an http: or https: URI as a classpath element
-                    if (FastClasspathScanner.verbose) {
-                        log.log("Skipping non-local classpath element: " + classpathElt.relativePath);
-                    }
-                    continue;
-                }
-                final File file = classpathElt.getFile();
-                if (!file.exists()) {
-                    if (FastClasspathScanner.verbose) {
-                        log.log("Classpath element does not exist: " + file);
-                    }
-                    continue;
-                }
-                // Check that this classpath element is the earliest instance of the same canonical path
-                // on the classpath (i.e. only scan a classpath element once
-                String canonicalPath;
-                try {
-                    canonicalPath = classpathElt.getCanonicalPath();
-                } catch (final IOException e) {
-                    if (FastClasspathScanner.verbose) {
-                        log.log("Could not canonicalize path: " + file);
-                    }
-                    continue;
-                }
-                if (!isEarliestOccurrenceOfPath(canonicalPath, classpathElt, pathToEarliestOrderKey)) {
-                    if (FastClasspathScanner.verbose) {
-                        log.log("Ignoring duplicate classpath element: " + file);
-                    }
-                    continue;
-                }
-                final boolean isFile = file.isFile();
-                final boolean isDirectory = file.isDirectory();
-                if (!isFile && !isDirectory) {
-                    if (FastClasspathScanner.verbose) {
-                        log.log("Ignoring invalid classpath element: " + path);
-                    }
-                    continue;
-                }
-                if (isFile && !isJar(file.getPath())) {
-                    if (FastClasspathScanner.verbose) {
-                        log.log("Ignoring non-jar file on classpath: " + path);
-                    }
-                    continue;
-                }
-                if (isFile && blacklistSystemJars
-                        && isJREJar(file, /* ancestralScanDepth = */2, knownJREPaths, log)) {
-                    // Don't scan system jars if they are blacklisted
-                    if (FastClasspathScanner.verbose) {
-                        log.log("Skipping JRE jar: " + path);
-                    }
+                if (!classpathElt.isValid(pathToEarliestOrderKey, blacklistSystemJars, knownJREPaths, log)) {
                     continue;
                 }
 
                 // Classpath element is valid
                 uniqueValidCanonicalClasspathEltsOut.add(classpathElt);
                 if (FastClasspathScanner.verbose) {
-                    log.log("Found classpath element: " + path);
+                    log.log("Found classpath element: " + classpathElt.getResolvedPath());
                 }
 
                 // If this classpath element is a jar or zipfile, look for Class-Path entries in the manifest
                 // file. OpenJDK scans manifest-defined classpath elements after the jar that listed them, so
                 // we recursively call addClasspathElement if needed each time a jar is encountered. 
-                if (isFile) {
+                if (classpathElt.isFile()) {
+                    final File file = classpathElt.getFile();
                     final FastManifestParser manifest = new FastManifestParser(file, log);
                     if (manifest.classPath != null) {
                         final String[] manifestClassPathElts = manifest.classPath.split(" ");
                         if (FastClasspathScanner.verbose) {
-                            log.log("Found Class-Path entry in manifest of " + file + ": " + manifest.classPath);
+                            log.log("Found Class-Path entry in manifest of " + classpathElt.getResolvedPath() + ": "
+                                    + manifest.classPath);
                         }
 
                         // Class-Path entries in the manifest file should be resolved relative to
                         // the dir the manifest's jarfile is contained in.
-                        final String parentPath = FastPathResolver.resolve(null, file.getParent());
+                        final String parentPath = FastPathResolver.resolve(file.getParent());
 
                         // Class-Path entries in manifest files are a space-delimited list of URIs.
                         final String fmt = zeroPadFormatString(manifestClassPathElts.length - 1);
