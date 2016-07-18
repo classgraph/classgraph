@@ -88,15 +88,14 @@ public class FastPathResolver {
 
     /**
      * Strip away any "jar:" prefix from a filename URI, and convert it to a file path, handling possibly-broken
-     * mixes of filesystem and URI conventions; resolve relative paths relative to resolveBasePath. Switches either
-     * '/' or '\\' to SEP, if necessary. Returns null if relativePathStr is an "http(s):" path.
-     * 
-     * See:
-     * 
-     * http://stackoverflow.com/a/17870390/3950982
-     * https://weblogs.java.net/blog/kohsuke/archive/2007/04/how_to_convert.html
+     * mixes of filesystem and URI conventions; resolve relative paths relative to resolveBasePath. Returns null if
+     * relativePathStr is an "http(s):" path.
      */
     public static String resolve(final String resolveBasePath, final String relativePathStr) {
+        // See:
+        // http://stackoverflow.com/a/17870390/3950982
+        // https://weblogs.java.net/blog/kohsuke/archive/2007/04/how_to_convert.html
+
         if (relativePathStr.isEmpty()) {
             return resolveBasePath;
         }
@@ -171,5 +170,13 @@ public class FastPathResolver {
             // Path is a relative path -- resolve it relative to the base path
             return resolveBasePath + "/" + pathStr;
         }
+    }
+
+    /**
+     * Strip away any "jar:" prefix from a filename URI, and convert it to a file path, handling possibly-broken
+     * mixes of filesystem and URI conventions. Returns null if relativePathStr is an "http(s):" path.
+     */
+    public static String resolve(final String pathStr) {
+        return resolve(null, pathStr);
     }
 }
