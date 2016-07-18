@@ -75,7 +75,7 @@ public class ScanSpec {
     public String overrideClasspath;
 
     /** Manually-registered ClassLoaderHandlers. */
-    public final HashSet<ClassLoaderHandler> extraClassLoaderHandlers = new HashSet<>();
+    public final ArrayList<ClassLoaderHandler> extraClassLoaderHandlers = new ArrayList<>();
 
     /**
      * A map from (className + "." + staticFinalFieldName) to StaticFinalFieldMatchProcessor(s) that should be
@@ -126,7 +126,7 @@ public class ScanSpec {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    public ScanSpec(final String[] scanSpec, ThreadLog log) {
+    public ScanSpec(final String[] scanSpec, final ThreadLog log) {
         final HashSet<String> uniqueWhitelistedPathPrefixes = new HashSet<>();
         final HashSet<String> uniqueBlacklistedPathPrefixes = new HashSet<>();
         boolean scanJars = true, scanNonJars = true;

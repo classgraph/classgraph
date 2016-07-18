@@ -156,12 +156,13 @@ public class FastClasspathScanner {
      * classpath, in classloader resolution order. Classpath elements that do not exist are not included in the
      * list.
      */
-    public Future<List<File>> getUniqueClasspathElementsAsync(ExecutorService executorService) {
+    public Future<List<File>> getUniqueClasspathElementsAsync(final ExecutorService executorService,
+            final int numParallelTasks) {
         try (final ThreadLog log = new ThreadLog()) {
             if (FastClasspathScanner.verbose) {
                 log.log("Getting classpath elements");
             }
-            return executorService.submit(new ClasspathFinder(getScanSpec(), executorService));
+            return executorService.submit(new ClasspathFinder(getScanSpec(), executorService, numParallelTasks));
         }
     }
 
@@ -169,17 +170,20 @@ public class FastClasspathScanner {
      * Returns the list of all unique File objects representing directories or zip/jarfiles on the classpath, in
      * classloader resolution order. Classpath elements that do not exist are not included in the list.
      */
-    public List<File> getUniqueClasspathElements(ExecutorService executorService) {
+    public List<File> getUniqueClasspathElements(final ExecutorService executorService,
+            final int numParallelTasks) {
         if (classpathElts == null) {
             try (final ThreadLog log = new ThreadLog()) {
                 try {
-                    classpathElts = getUniqueClasspathElementsAsync(executorService).get();
-                } catch (InterruptedException e) {
+                    // for (int i = 0; i < 10000000; i++) { // TODO:
+                    classpathElts = getUniqueClasspathElementsAsync(executorService, numParallelTasks).get();
+                    //}
+                } catch (final InterruptedException e) {
                     if (FastClasspathScanner.verbose) {
                         log.log("Thread interrupted while getting classpath elements");
                     }
                     throw new ScanInterruptedException();
-                } catch (ExecutionException e) {
+                } catch (final ExecutionException e) {
                     if (FastClasspathScanner.verbose) {
                         log.log("Exception while getting classpath elements: " + e.getCause());
                     }
@@ -198,7 +202,7 @@ public class FastClasspathScanner {
         if (classpathElts == null) {
             try (AutocloseableExecutorService executorService = new AutocloseableExecutorService(
                     DEFAULT_NUM_WORKER_THREADS)) {
-                return getUniqueClasspathElements(executorService);
+                return getUniqueClasspathElements(executorService, DEFAULT_NUM_WORKER_THREADS);
             }
         }
         return classpathElts;
@@ -218,7 +222,7 @@ public class FastClasspathScanner {
 
     /** A ThreadPoolExecutor that can be used in a try-with-resources block. */
     private class AutocloseableExecutorService extends ThreadPoolExecutor implements AutoCloseable {
-        public AutocloseableExecutorService(int numThreads) {
+        public AutocloseableExecutorService(final int numThreads) {
             super(numThreads, numThreads, 0L, TimeUnit.MILLISECONDS,
                     // FIFO work queue
                     new LinkedBlockingQueue<Runnable>(),
@@ -803,8 +807,8 @@ public class FastClasspathScanner {
      */
     public synchronized Future<ScanResult> scanAsync(final ExecutorService executorService,
             final int numParallelTasks) {
-        return ScanExecutor.scan(getScanSpec(), getUniqueClasspathElements(), executorService,
-                Math.max(numParallelTasks, 1));
+        return ScanExecutor.scan(getScanSpec(), getUniqueClasspathElements(executorService, numParallelTasks),
+                executorService, Math.max(numParallelTasks, 1));
     }
 
     /**

@@ -30,45 +30,46 @@ package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.LinkOption;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.Arrays;
 import java.util.List;
-import java.util.ServiceLoader;
-import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
+import java.util.concurrent.PriorityBlockingQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.classloaderhandler.ClassLoaderHandler;
+import io.github.lukehutch.fastclasspathscanner.classloaderhandler.EquinoxClassLoaderHandler;
+import io.github.lukehutch.fastclasspathscanner.classloaderhandler.JBossClassLoaderHandler;
+import io.github.lukehutch.fastclasspathscanner.classloaderhandler.WeblogicClassLoaderHandler;
 import io.github.lukehutch.fastclasspathscanner.utils.AdditionOrderedSet;
 import io.github.lukehutch.fastclasspathscanner.utils.FastManifestParser;
+import io.github.lukehutch.fastclasspathscanner.utils.FastPathResolver;
 import io.github.lukehutch.fastclasspathscanner.utils.Join;
-import io.github.lukehutch.fastclasspathscanner.utils.LoggedThread.ThreadLog;
+import io.github.lukehutch.fastclasspathscanner.utils.LoggedThread;
 
-public class ClasspathFinder {
+public class ClasspathFinder extends LoggedThread<List<File>> {
     /** The scanning specification. */
     private final ScanSpec scanSpec;
 
+    /** The executor service. */
+    private final ExecutorService executorService;
+
+    /** The number of parallel tasks. */
+    private final int numParallelTasks;
+
     /** The list of raw classpath elements. */
-    private final ArrayList<String> rawClasspathElements = new ArrayList<>();
-
-    /** The unique elements of the classpath, as an ordered list. */
-    private final ArrayList<File> classpathElements = new ArrayList<>();
-
-    /** The unique elements of the classpath, as a set. */
-    private final HashSet<String> classpathElementsSet = new HashSet<>();
-
-    /** The set of JRE paths found so far in the classpath, cached for speed. */
-    private final HashSet<String> knownJREPaths = new HashSet<>();
+    private final List<String> rawClasspathElements = new ArrayList<>();
 
     /** The current directory. */
     private final String currentDirURI;
-
-    private final ThreadLog log;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -96,6 +97,8 @@ public class ClasspathFinder {
 
     }
 
+    // -------------------------------------------------------------------------------------------------------------
+
     /** Add all parents of a ClassLoader in top-down order, the same as in the JRE. */
     private static void addAllParentClassloaders(final ClassLoader classLoader,
             final AdditionOrderedSet<ClassLoader> classLoadersSetOut) {
@@ -114,6 +117,8 @@ public class ClasspathFinder {
             final AdditionOrderedSet<ClassLoader> classLoadersSetOut) {
         addAllParentClassloaders(klass.getClassLoader(), classLoadersSetOut);
     }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     /** ClassLoaderHandler that is able to extract the URLs from a URLClassLoader. */
     private static class URLClassLoaderHandler implements ClassLoaderHandler {
@@ -134,6 +139,12 @@ public class ClasspathFinder {
         }
     }
 
+    /** Default ClassLoaderHandlers */
+    private final List<ClassLoaderHandler> defaultClassLoaderHandlers = Arrays.asList(
+            new EquinoxClassLoaderHandler(), new JBossClassLoaderHandler(), new WeblogicClassLoaderHandler());
+
+    // -------------------------------------------------------------------------------------------------------------
+
     /** Returns true if the path ends with a JAR extension, matching case. */
     private static boolean isJarMatchCase(final String path) {
         return path.length() > 4 && path.charAt(path.length() - 4) == '.' // 
@@ -150,7 +161,8 @@ public class ClasspathFinder {
      * determine if the given jarfile is part of the JRE. This would typically be called with an initial
      * ancestralScandepth of 2, since JRE jarfiles can be in the lib or lib/ext directories of the JRE.
      */
-    private boolean isJREJar(final File file, final int ancestralScanDepth) {
+    private static boolean isJREJar(final File file, final int ancestralScanDepth,
+            final ConcurrentHashMap<String, String> knownJREPaths, final ThreadLog log) {
         if (ancestralScanDepth == 0) {
             return false;
         } else {
@@ -159,7 +171,7 @@ public class ClasspathFinder {
                 return false;
             }
             final String parentPathStr = parent.getPath();
-            if (knownJREPaths.contains(parentPathStr)) {
+            if (knownJREPaths.containsKey(parentPathStr)) {
                 return true;
             }
             File rt = new File(parent, "rt.jar");
@@ -174,79 +186,15 @@ public class ClasspathFinder {
                 final FastManifestParser manifest = new FastManifestParser(rt, log);
                 if (manifest.isSystemJar) {
                     // Found the JRE's rt.jar
-                    knownJREPaths.add(parentPathStr);
+                    knownJREPaths.put(parentPathStr, parentPathStr);
                     return true;
                 }
             }
-            return isJREJar(parent, ancestralScanDepth - 1);
+            return isJREJar(parent, ancestralScanDepth - 1, knownJREPaths, log);
         }
     }
 
-    /**
-     * Strip away any "jar:" prefix from a filename URI, and convert it to a file path, handling possibly-broken
-     * mixes of filesystem and URI conventions. Follows symbolic links, and resolves any relative paths relative to
-     * resolveBaseFile.
-     */
-    private File urlToFile(final String resolveBaseURI, final String relativePathStr) {
-        if (relativePathStr.isEmpty()) {
-            return null;
-        }
-        String pathStr = relativePathStr;
-        // Ignore "jar:", we look for ".jar" on the end of filenames instead
-        if (pathStr.startsWith("jar:")) {
-            pathStr = pathStr.substring(4);
-        }
-        // We don't fetch remote classpath entries, although they are theoretically valid if using a URLClassLoader
-        if (pathStr.startsWith("http:") || pathStr.startsWith("https:")) {
-            if (FastClasspathScanner.verbose) {
-                log.log("Ignoring remote entry in classpath: " + pathStr);
-            }
-            return null;
-        }
-        // Turn any backslash separators into forward slashes since we want to end up with a URL
-        if (pathStr.indexOf('\\') >= 0) {
-            pathStr = pathStr.replace('\\', '/');
-        }
-        // Strip off any "file:" prefix from relative path
-        if (pathStr.startsWith("file://")) {
-            pathStr = pathStr.substring(7);
-        }
-        if (pathStr.startsWith("file:")) {
-            pathStr = pathStr.substring(5);
-        }
-        // Handle windows drive designations by turning them into an absolute URL, if they're not already
-        if (pathStr.length() > 2 && Character.isLetter(pathStr.charAt(0)) && pathStr.charAt(1) == ':') {
-            pathStr = '/' + pathStr;
-        }
-        // Remove any trailing "/"
-        if (pathStr.endsWith("/") && !pathStr.equals("/")) {
-            pathStr = pathStr.substring(0, pathStr.length() - 1);
-        }
-        // Replace any "//" with "/"
-        pathStr = pathStr.replace("//", "/");
-        // Replace any spaces with %20
-        pathStr = pathStr.replace(" ", "%20");
-        try {
-            if (pathStr.startsWith("/")) {
-                // If path is an absolute path, ignore the base path.
-                // Need to deal with possibly-broken mixes of file:// URLs and system-dependent path formats -- see:
-                // https://weblogs.java.net/blog/kohsuke/archive/2007/04/how_to_convert.html
-                // http://stackoverflow.com/a/17870390/3950982
-                // i.e. the recommended way to do this is URL -> URI -> Path, especially to handle weirdness on
-                // Windows. However, we skip the last step, because Path is slow.
-                return new File(new URL("file://" + pathStr).toURI());
-            } else {
-                // If path is a relative path, resolve it relative to the base path
-                return new File(new URL(resolveBaseURI + "/" + pathStr).toURI());
-            }
-        } catch (MalformedURLException | URISyntaxException e) {
-            if (FastClasspathScanner.verbose) {
-                log.log("Exception while constructing classpath entry from base URI " + resolveBaseURI
-                        + " and relative path " + relativePathStr + ": " + e);
-            }
-            return null;
-        }
-    }
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Add a classpath element relative to a base file. May be called by a ClassLoaderHandler to add classpath
@@ -268,22 +216,9 @@ public class ClasspathFinder {
         }
     }
 
-    // -------------------------------------------------------------------------------------------------------------
-
-    public ClasspathFinder(final ScanSpec scanSpec, final ThreadLog log) {
-        this.scanSpec = scanSpec;
-        this.log = log;
-
-        final long startTime = System.nanoTime();
-        try {
-            final String currentDirURI = Paths.get("").toAbsolutePath().normalize()
-                    .toRealPath(LinkOption.NOFOLLOW_LINKS).toUri().toString();
-            this.currentDirURI = currentDirURI.endsWith("/")
-                    ? currentDirURI.substring(0, currentDirURI.length() - 1) : currentDirURI;
-        } catch (final IOException e) {
-            throw new RuntimeException(e);
-        }
-
+    /** Get the raw classpath elements from ClassLoaders. */
+    private void getRawClasspathElements() {
+        final long getRawElementsStartTime = System.nanoTime();
         if (scanSpec.overrideClasspath != null) {
             // Manual classpath override
             addClasspathElements(scanSpec.overrideClasspath);
@@ -322,61 +257,15 @@ public class ClasspathFinder {
             // handle URLClassLoaders (the most common form of ClassLoader) even if ServiceLoader can't find
             // other ClassLoaderHandlers (this can happen if FastClasspathScanner's package is renamed using
             // Maven Shade).
-            final Set<ClassLoaderHandler> classLoaderHandlers = new HashSet<>();
+            final List<ClassLoaderHandler> classLoaderHandlers = new ArrayList<>();
             classLoaderHandlers.add(new URLClassLoaderHandler());
-
-            // Find all ClassLoaderHandlers registered using ServiceLoader, given known ClassLoaders. 
-            // FastClasspathScanner ships with several of these, registered in:
-            // src/main/resources/META-INF/services
-            try {
-                final ServiceLoader<ClassLoaderHandler> serviceLoaderHandler = ServiceLoader
-                        .load(ClassLoaderHandler.class, null);
-                for (final ClassLoaderHandler handler : serviceLoaderHandler) {
-                    classLoaderHandlers.add(handler);
-                }
-                if (FastClasspathScanner.verbose) {
-                    log.log("Succeeded in calling ServiceLoader.load(" + ClassLoaderHandler.class.getSimpleName()
-                            + ",null)");
-                }
-            } catch (final Throwable e) {
-                if (FastClasspathScanner.verbose) {
-                    log.log("Failed when calling ServiceLoader.load(" + ClassLoaderHandler.class.getSimpleName()
-                            + ",null): " + e);
-                }
-            }
-            for (final ClassLoader classLoader : classLoaders) {
-                // Use ServiceLoader to find registered ClassLoaderHandlers, see:
-                // https://docs.oracle.com/javase/6/docs/api/java/util/ServiceLoader.html
-                try {
-                    final ServiceLoader<ClassLoaderHandler> classLoaderHandlerLoader = ServiceLoader
-                            .load(ClassLoaderHandler.class, classLoader);
-                    // Iterate through registered ClassLoaderHandlers
-                    for (final ClassLoaderHandler handler : classLoaderHandlerLoader) {
-                        classLoaderHandlers.add(handler);
-                    }
-                    if (FastClasspathScanner.verbose) {
-                        log.log("Succeeded in calling ServiceLoader.load("
-                                + ClassLoaderHandler.class.getSimpleName() + ".class, " + classLoader + ")");
-                    }
-                } catch (final Throwable e) {
-                    if (FastClasspathScanner.verbose) {
-                        log.log("Failed when calling ServiceLoader.load(" + ClassLoaderHandler.class.getSimpleName()
-                                + ".class, " + classLoader + "): " + e);
-                    }
-                }
-            }
-            // Add manually-added ClassLoaderHandlers
+            classLoaderHandlers.addAll(defaultClassLoaderHandlers);
             classLoaderHandlers.addAll(scanSpec.extraClassLoaderHandlers);
-            // Only keep one instance of each ClassLoaderHandler, in case multiple instances are loaded
-            // (due to multiple ClassLoaders covering the same classpath entries)
-            final Set<String> classLoaderHandlerNames = new HashSet<>();
-            final List<ClassLoaderHandler> classLoaderHandlersUnique = new ArrayList<>();
-            for (final ClassLoaderHandler classLoaderHandler : classLoaderHandlers) {
-                if (classLoaderHandlerNames.add(classLoaderHandler.getClass().getName())) {
-                    classLoaderHandlersUnique.add(classLoaderHandler);
-                }
-            }
             if (FastClasspathScanner.verbose && !classLoaderHandlers.isEmpty()) {
+                final List<String> classLoaderHandlerNames = new ArrayList<>();
+                for (final ClassLoaderHandler classLoaderHandler : classLoaderHandlers) {
+                    classLoaderHandlerNames.add(classLoaderHandler.getClass().getName());
+                }
                 log.log("ClassLoaderHandlers loaded: " + Join.join(", ", classLoaderHandlerNames));
             }
 
@@ -384,7 +273,7 @@ public class ClasspathFinder {
             for (final ClassLoader classLoader : classLoaders) {
                 // Iterate through registered ClassLoaderHandlers
                 boolean classloaderFound = false;
-                for (final ClassLoaderHandler handler : classLoaderHandlersUnique) {
+                for (final ClassLoaderHandler handler : classLoaderHandlers) {
                     try {
                         if (handler.handle(classLoader, this)) {
                             // Sucessfully handled
@@ -415,103 +304,345 @@ public class ClasspathFinder {
 
             if (FastClasspathScanner.verbose) {
                 log.log("Found " + rawClasspathElements.size() + " raw classpath elements in " + classLoaders.size()
-                        + " ClassLoaders", System.nanoTime() - startTime);
+                        + " ClassLoaders", System.nanoTime() - getRawElementsStartTime);
             }
-        }
-
-        for (final String rawClasspathElt : rawClasspathElements) {
-            addClasspathElement(currentDirURI, rawClasspathElt);
         }
     }
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Recursively add classpath elements. (Recursion occurs if a jarfile contains a Class-Path entry.) */
-    private void addClasspathElement(final String resolveBaseURI, final String pathElement) {
-        final File pathFile = urlToFile(resolveBaseURI, pathElement);
-        if (pathFile == null) {
-            return;
-        }
-        if (!pathFile.exists()) {
-            if (FastClasspathScanner.verbose) {
-                log.log("Classpath element does not exist: " + pathElement);
-            }
-            return;
-        }
-        final boolean isFile = pathFile.isFile();
-        final boolean isDirectory = pathFile.isDirectory();
-        if (!isFile && !isDirectory) {
-            if (FastClasspathScanner.verbose) {
-                log.log("Ignoring invalid classpath element: " + pathElement);
-            }
-            return;
-        }
-        if (isFile && !isJar(pathFile.getPath())) {
-            if (FastClasspathScanner.verbose) {
-                log.log("Ignoring non-jar file on classpath: " + pathElement);
-            }
-            return;
-        }
-        if (isFile) {
-            if (scanSpec.blacklistSystemJars() && isJREJar(pathFile, /* ancestralScanDepth = */2)) {
-                // Don't scan system jars if they are blacklisted
-                if (FastClasspathScanner.verbose) {
-                    log.log("Skipping JRE jar: " + pathElement);
-                }
-                return;
-            }
-        }
-        String canonicalPath;
+    public ClasspathFinder(final ScanSpec scanSpec, final ExecutorService executorService,
+            final int numParallelTasks) {
+        this.scanSpec = scanSpec;
+        this.executorService = executorService;
+        this.numParallelTasks = numParallelTasks;
         try {
-            canonicalPath = pathFile.getCanonicalPath();
+            // Get current dir in a canonical form, and remove any trailing slash, if present)
+            this.currentDirURI = FastPathResolver.resolve(null,
+                    Paths.get("").toAbsolutePath().normalize().toRealPath(LinkOption.NOFOLLOW_LINKS).toString());
         } catch (final IOException e) {
-            if (FastClasspathScanner.verbose) {
-                log.log("Exception while getting canonical path for classpath element " + pathElement + ": " + e);
-            }
-            return;
+            throw new RuntimeException(e);
         }
-        if (!classpathElementsSet.add(canonicalPath)) {
-            // Duplicate classpath element -- ignore
-            return;
-        }
-
-        // If this classpath element is a jar or zipfile, look for Class-Path entries in the manifest
-        // file. OpenJDK scans manifest-defined classpath elements after the jar that listed them, so
-        // we recursively call addClasspathElement if needed each time a jar is encountered. 
-        if (isFile) {
-            final FastManifestParser manifest = new FastManifestParser(pathFile, log);
-            if (manifest.classPath != null) {
-                if (FastClasspathScanner.verbose) {
-                    log.log("Found Class-Path entry in manifest of " + pathFile + ": " + manifest.classPath);
-                }
-
-                // Class-Path entries in the manifest file should be resolved relative to
-                // the dir the manifest's jarfile is contained in (i.e. pathFile.getParentFile()).
-                String parentPathURI = pathFile.getParentFile().toURI().toString();
-                if (parentPathURI.endsWith("/")) {
-                    parentPathURI = parentPathURI.substring(0, parentPathURI.length() - 1);
-                }
-
-                // Class-Path entries in manifest files are a space-delimited list of URIs.
-                for (final String manifestClassPathElement : manifest.classPath.split(" ")) {
-                    addClasspathElement(parentPathURI, manifestClassPathElement);
-                }
-            }
-        }
-
-        // Add the classpath element to the ordered list
-        if (FastClasspathScanner.verbose) {
-            log.log("Found classpath element: " + pathElement);
-        }
-        // Add the File object to classpathElements
-        classpathElements.add(pathFile);
     }
 
-    /**
-     * Returns the list of all unique File objects representing directories or zip/jarfiles on the classpath, in
-     * classloader resolution order. Classpath elements that do not exist are not included in the list.
-     */
-    public List<File> getUniqueClasspathElements() {
+    // -------------------------------------------------------------------------------------------------------------
+
+    private static class OrderedClasspathElement implements Comparable<OrderedClasspathElement> {
+        public final String orderKey;
+        public final String parentPath;
+        public final String relativePath;
+        private String path;
+        private boolean resolvedPath = false;
+        private File file;
+        private String canonicalPath;
+
+        public OrderedClasspathElement(final String orderKey, final String parentURI, final String relativePath) {
+            this.orderKey = orderKey;
+            this.parentPath = parentURI;
+            this.relativePath = relativePath;
+        }
+
+        public String getResolvedPath() {
+            if (!resolvedPath) {
+                path = FastPathResolver.resolve(parentPath, relativePath);
+                resolvedPath = true;
+            }
+            return path;
+        }
+
+        public File getFile() {
+            if (file == null) {
+                final String path = getResolvedPath();
+                if (path == null) {
+                    throw new RuntimeException(
+                            "Path " + relativePath + " could not be resolved relative to " + parentPath);
+                }
+                file = new File(path);
+            }
+            return file;
+        }
+
+        public String getCanonicalPath() throws IOException {
+            if (canonicalPath == null) {
+                final File file = getFile();
+                canonicalPath = file.getCanonicalPath();
+            }
+            return canonicalPath;
+        }
+
+        /** Sort in order of orderKey, then parentURI, then relativePath. */
+        @Override
+        public int compareTo(final OrderedClasspathElement o) {
+            int diff = orderKey.compareTo(o.orderKey);
+            if (diff == 0) {
+                diff = parentPath.compareTo(o.parentPath);
+            }
+            if (diff == 0) {
+                diff = relativePath.compareTo(o.relativePath);
+            }
+            return diff;
+        }
+
+        @Override
+        public boolean equals(final Object o) {
+            if (o == null || !(o instanceof OrderedClasspathElement)) {
+                return false;
+            }
+            final OrderedClasspathElement other = (OrderedClasspathElement) o;
+            return orderKey.equals(other.orderKey) && parentPath.equals(other.parentPath)
+                    && relativePath.equals(other.relativePath);
+        }
+
+        @Override
+        public int hashCode() {
+            return orderKey.hashCode() + parentPath.hashCode() * 7 + relativePath.hashCode() * 17;
+        }
+
+        @Override
+        public String toString() {
+            return orderKey + "!" + parentPath + "!" + relativePath;
+        }
+    }
+
+    private static final String zeroPadFormatString(final int maxVal) {
+        return "%0" + Integer.toString(maxVal).length() + "d";
+    }
+
+    private static boolean isEarliestOccurrenceOfPath(final String path,
+            final OrderedClasspathElement orderedElement,
+            final ConcurrentHashMap<String, OrderedClasspathElement> pathToEarliestOrderedElement) {
+        OrderedClasspathElement olderOrderedElement = pathToEarliestOrderedElement.put(path, orderedElement);
+        if (olderOrderedElement == null) {
+            // First occurrence of this path
+            return true;
+        }
+        final int diff = olderOrderedElement.compareTo(orderedElement);
+        if (diff == 0) {
+            // Should not happen, because relative paths are unique within a given filesystem or jar
+            throw new RuntimeException("Tried adding same relative path " + path
+                    + " twice for same ordered element " + orderedElement);
+        } else if (diff < 0) {
+            // olderOrderKey comes before orderKey, so this relative path is masked by an earlier one.
+            // Need to put older order key back in map, avoiding race condition
+            for (;;) {
+                final OrderedClasspathElement nextOlderOrderedElt = pathToEarliestOrderedElement.put(path,
+                        olderOrderedElement);
+                if (nextOlderOrderedElt.compareTo(olderOrderedElement) <= 0) {
+                    break;
+                }
+                olderOrderedElement = nextOlderOrderedElt;
+            }
+            return false;
+        } else {
+            // orderKey comes before olderOrderKey, so this relative path masks an earlier one.
+            return true;
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    private static void processWorkQueue(final PriorityBlockingQueue<OrderedClasspathElement> orderedWorkUnits,
+            final AtomicInteger numWorkUnitsRemaining,
+            final ConcurrentHashMap<String, OrderedClasspathElement> pathToEarliestOrderKey,
+            final boolean blacklistSystemJars, final ConcurrentHashMap<String, String> knownJREPaths,
+            final PriorityBlockingQueue<OrderedClasspathElement> uniqueValidCanonicalClasspathEltsOut,
+            final AtomicBoolean killAllThreads, final ThreadLog log) throws InterruptedException {
+        // Get next OrderedClasspathEntry from priority queue
+        while (numWorkUnitsRemaining.get() > 0) {
+            OrderedClasspathElement classpathElt = null;
+            while (numWorkUnitsRemaining.get() > 0) {
+                if (Thread.currentThread().isInterrupted() || killAllThreads.get()) {
+                    killAllThreads.set(true);
+                    throw new InterruptedException();
+                }
+                // Busy-wait on last numParallelTasks work units, in case they add additional work units
+                // as jarfiles with Class-Path entries
+                classpathElt = orderedWorkUnits.poll();
+                if (classpathElt != null) {
+                    // Got a work unit
+                    break;
+                }
+            }
+            if (classpathElt == null) {
+                // No work units remaining
+                return;
+            }
+
+            // Got a work unit -- hold numWorkUnitsRemaining high until work is complete, and decrement it in the
+            // finally block at the end of the work unit (so that at the instant the work unit was removed from
+            // the queue, numWorkUnitsRemaining will be one more than the length of the queue). This prevents any
+            // threads from exiting until the work queue is empty *and* all threads have finished processing the
+            // work units they removed from the queue). This is needed because a given work unit can add more work
+            // units to the queue while it is processing, and the work is not finished even though the queue
+            // may be empty.
+            try {
+                // Get absolute URI and File for classpathElt
+                final String path = classpathElt.getResolvedPath();
+                if (path == null) {
+                    // Got an http: or https: URI as a classpath element
+                    if (FastClasspathScanner.verbose) {
+                        log.log("Skipping non-local classpath element: " + classpathElt.relativePath);
+                    }
+                    continue;
+                }
+                final File file = classpathElt.getFile();
+                if (!file.exists()) {
+                    if (FastClasspathScanner.verbose) {
+                        log.log("Classpath element does not exist: " + file);
+                    }
+                    continue;
+                }
+                // Check that this classpath element is the earliest instance of the same canonical path
+                // on the classpath (i.e. only scan a classpath element once
+                String canonicalPath;
+                try {
+                    canonicalPath = classpathElt.getCanonicalPath();
+                } catch (final IOException e) {
+                    if (FastClasspathScanner.verbose) {
+                        log.log("Could not canonicalize path: " + file);
+                    }
+                    continue;
+                }
+                if (!isEarliestOccurrenceOfPath(canonicalPath, classpathElt, pathToEarliestOrderKey)) {
+                    if (FastClasspathScanner.verbose) {
+                        log.log("Ignoring duplicate classpath element: " + file);
+                    }
+                    continue;
+                }
+                final boolean isFile = file.isFile();
+                final boolean isDirectory = file.isDirectory();
+                if (!isFile && !isDirectory) {
+                    if (FastClasspathScanner.verbose) {
+                        log.log("Ignoring invalid classpath element: " + path);
+                    }
+                    continue;
+                }
+                if (isFile && !isJar(file.getPath())) {
+                    if (FastClasspathScanner.verbose) {
+                        log.log("Ignoring non-jar file on classpath: " + path);
+                    }
+                    continue;
+                }
+                if (isFile && blacklistSystemJars
+                        && isJREJar(file, /* ancestralScanDepth = */2, knownJREPaths, log)) {
+                    // Don't scan system jars if they are blacklisted
+                    if (FastClasspathScanner.verbose) {
+                        log.log("Skipping JRE jar: " + path);
+                    }
+                    continue;
+                }
+
+                // Classpath element is valid
+                uniqueValidCanonicalClasspathEltsOut.add(classpathElt);
+                if (FastClasspathScanner.verbose) {
+                    log.log("Found classpath element: " + path);
+                }
+
+                // If this classpath element is a jar or zipfile, look for Class-Path entries in the manifest
+                // file. OpenJDK scans manifest-defined classpath elements after the jar that listed them, so
+                // we recursively call addClasspathElement if needed each time a jar is encountered. 
+                if (isFile) {
+                    final FastManifestParser manifest = new FastManifestParser(file, log);
+                    if (manifest.classPath != null) {
+                        final String[] manifestClassPathElts = manifest.classPath.split(" ");
+                        if (FastClasspathScanner.verbose) {
+                            log.log("Found Class-Path entry in manifest of " + file + ": " + manifest.classPath);
+                        }
+
+                        // Class-Path entries in the manifest file should be resolved relative to
+                        // the dir the manifest's jarfile is contained in.
+                        final String parentPath = FastPathResolver.resolve(null, file.getParent());
+
+                        // Class-Path entries in manifest files are a space-delimited list of URIs.
+                        final String fmt = zeroPadFormatString(manifestClassPathElts.length - 1);
+                        for (int i = 0; i < manifestClassPathElts.length; i++) {
+                            final String manifestClassPathElt = manifestClassPathElts[i];
+                            // Give each sub-entry a new lexicographically-increasing order key.
+                            // The use of PriorityBlockingQueue ensures that these referenced jarfiles
+                            // will be processed next in the queue, reducing the chance of duplicate work,
+                            // in the case that the same jarfile is referenced later in the queue.
+                            final String orderKey = classpathElt.orderKey + "." + String.format(fmt, i);
+                            // Add new work unit at head of priority queue (the new order key is based on the
+                            // current order key, which was previously removed from the head of the queue). This
+                            // causes the linked jars to be processed as soon as possible, to reduce the possibility
+                            // of duplicate work if another link to the jar is found later in the classpath. (The
+                            // work would be duplicated if this earlier reference is scanned later, since this
+                            // earlier reference has a lower orderKey, so it will override the later reference.)
+                            numWorkUnitsRemaining.incrementAndGet();
+                            orderedWorkUnits
+                                    .add(new OrderedClasspathElement(orderKey, parentPath, manifestClassPathElt));
+                        }
+                    }
+                }
+            } finally {
+                numWorkUnitsRemaining.decrementAndGet();
+            }
+        }
+        System.err.println(Thread.currentThread().getName() + " exiting");
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    @Override
+    public List<File> doWork() throws Exception {
+        // Get raw classpath elements from ClassLoaders
+        getRawClasspathElements();
+
+        // Schedule raw classpath elements as original work units
+        final PriorityBlockingQueue<OrderedClasspathElement> orderedWorkUnits = new PriorityBlockingQueue<>();
+        final String fmt = zeroPadFormatString(rawClasspathElements.size() - 1);
+        for (int i = 0; i < rawClasspathElements.size(); i++) {
+            final String rawClasspathElt = rawClasspathElements.get(i);
+            final String orderKey = String.format(fmt, i);
+            orderedWorkUnits.add(new OrderedClasspathElement(orderKey, currentDirURI, rawClasspathElt));
+        }
+        final AtomicInteger numWorkUnitsRemaining = new AtomicInteger(rawClasspathElements.size());
+
+        // Resolve classpath elements: check raw classpath elements exist; check that their canonical
+        // path is unique; in the case of jarfiles, check for nested Class-Path manifest entries.
+        final ConcurrentHashMap<String, OrderedClasspathElement> pathToEarliestOrderKey = new ConcurrentHashMap<>();
+        // The set of JRE paths found so far in the classpath, cached for speed.
+        final ConcurrentHashMap<String, String> knownJREPaths = new ConcurrentHashMap<>();
+        final PriorityBlockingQueue<OrderedClasspathElement> uniqueValidCanonicalClasspathElts = //
+                new PriorityBlockingQueue<>();
+        final AtomicBoolean killAllThreads = new AtomicBoolean(false);
+        final List<Future<Void>> futures = new ArrayList<>();
+        for (int i = 0; i < numParallelTasks - 1; i++) {
+            futures.add(executorService.submit(new LoggedThread<Void>() {
+                @Override
+                public Void doWork() throws Exception {
+                    processWorkQueue(orderedWorkUnits, numWorkUnitsRemaining, pathToEarliestOrderKey,
+                            scanSpec.blacklistSystemJars(), knownJREPaths, uniqueValidCanonicalClasspathElts,
+                            killAllThreads, log);
+                    return null;
+                }
+            }));
+        }
+
+        // Process work queue in this thread too
+        processWorkQueue(orderedWorkUnits, numWorkUnitsRemaining, pathToEarliestOrderKey,
+                scanSpec.blacklistSystemJars(), knownJREPaths, uniqueValidCanonicalClasspathElts, killAllThreads,
+                log);
+        log.flush();
+
+        // Barrier to wait for task completion. Tasks should have all completed by this point, since all work
+        // work units have been processed. If any tasks have not been started, cancel them, because they never
+        // started. (This can happen if numParallelTasks is greater than the number of threads available in the
+        // ExecutorService.)
+        for (final Future<Void> future : futures) {
+            killAllThreads.set(true);
+            future.cancel(true);
+        }
+
+        // uniqueValidCanonicalClasspathElts now holds the unique classpath elements        
+        final List<File> classpathElements = new ArrayList<>(uniqueValidCanonicalClasspathElts.size());
+        for (final OrderedClasspathElement elt : uniqueValidCanonicalClasspathElts) {
+            final File eltFile = elt.getFile();
+            classpathElements.add(eltFile);
+            if (FastClasspathScanner.verbose) {
+                log.log("Found unique classpath element: " + eltFile);
+            }
+        }
         return classpathElements;
     }
 }

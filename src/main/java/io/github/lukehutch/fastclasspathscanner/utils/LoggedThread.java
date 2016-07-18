@@ -42,13 +42,14 @@ public abstract class LoggedThread<T> implements Callable<T> {
         private final SimpleDateFormat dateTimeFormatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mmX");
         private final DecimalFormat nanoFormatter = new DecimalFormat("0.000000");
 
-        public ThreadLogEntry(final int indentLevel, final String msg, final long elapsedTimeNanos, Throwable e) {
+        public ThreadLogEntry(final int indentLevel, final String msg, final long elapsedTimeNanos,
+                final Throwable e) {
             this.indentLevel = indentLevel;
             this.msg = msg;
             this.time = Calendar.getInstance().getTime();
             this.elapsedTimeNanos = elapsedTimeNanos;
             if (e != null) {
-                StringWriter writer = new StringWriter();
+                final StringWriter writer = new StringWriter();
                 e.printStackTrace(new PrintWriter(writer));
                 stackTrace = writer.toString();
             } else {
@@ -56,7 +57,7 @@ public abstract class LoggedThread<T> implements Callable<T> {
             }
         }
 
-        private void appendLogLine(String line, StringBuilder buf) {
+        private void appendLogLine(final String line, final StringBuilder buf) {
             synchronized (dateTimeFormatter) {
                 buf.append(dateTimeFormatter.format(time));
             }
@@ -72,7 +73,7 @@ public abstract class LoggedThread<T> implements Callable<T> {
             }
             buf.append(msg);
         }
-        
+
         @Override
         public String toString() {
             final StringBuilder buf = new StringBuilder();
@@ -83,7 +84,7 @@ public abstract class LoggedThread<T> implements Callable<T> {
                 buf.append(" sec");
             }
             if (stackTrace != null) {
-                String[] parts = stackTrace.split("\n");
+                final String[] parts = stackTrace.split("\n");
                 for (int i = 0; i < parts.length; i++) {
                     buf.append('\n');
                     appendLogLine(parts[1], buf);
@@ -139,7 +140,7 @@ public abstract class LoggedThread<T> implements Callable<T> {
                     if (FastClasspathScanner.verbose) {
                         // Log the version before the first log entry
                         buf.append(new ThreadLogEntry(0,
-                                "FastClasspathScanner version " + FastClasspathScanner.getVersion(), 1L, null)
+                                "FastClasspathScanner version " + FastClasspathScanner.getVersion(), -1L, null)
                                         .toString());
                         buf.append('\n');
                     }

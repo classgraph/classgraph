@@ -63,7 +63,7 @@ public class FastManifestParser {
                         }
                     }
                     final String classPath = buf.toString();
-                    if (!classPath.isEmpty()) {
+                    if (!classPath.isEmpty() && !classPath.equals(" ")) {
                         this.classPath = classPath;
                     }
                 }
