@@ -476,7 +476,7 @@ Matching field types also matches type parameters and array types. For example, 
 * `HashMap<String, Widget> idToWidget`
 * etc.
 
-Note that you must call `FastClasspathScanner#enableFieldTypeIndexing()` before `ScanResult#getNamesOfClassesWithFieldOfType(type)`, because field types are not indexed by default. (If you forget, you'll get an IllegalArgumentException.)
+Note that you must call `FastClasspathScanner#enableFieldTypeIndexing()` before `ScanResult#getNamesOfClassesWithFieldOfType(type)`, because field types are not indexed by default. (If you forget, you'll get an IllegalArgumentException.)  You also need to call  `FastClasspathScanner#ignoreFieldVisibility()` before `FastClasspathScanner#scan()` if you want to index types of non-public fields.
 
 By default, only the types of public fields are indexed. To override this (and allow the indexing of private, protected and package-private fields), call `FastClasspathScanner#ignoreFieldVisibility()` before calling `FastClasspathScanner#scan()`. This may cause the scan to take longer and consume more memory. (By default, only public fields are scanned for efficiency reasons, and to conservatively respect the Java visibility rules.)
 
@@ -714,7 +714,7 @@ or similar, generating a graph with the following conventions:
 **Notes:**
 
 1. Graph nodes will only be added for classes, interfaces and annotations that are within whitelisted (non-blacklisted) packages. In particular, the Java standard libraries are excluded by default from classpath scanning for efficiency, so these classes will not by default appear in class graph visualizations. (Override this by passing `"!"` or `"!!"` to the [constructor](#constructor).)
-2. Dependency edges between classes and the types of their fields are only shown if you call `FastClasspathScanner#enableFieldTypeIndexing()` before `FastClasspathScanner#scan()`. 
+2. Dependency edges between classes and the types of their fields are only shown if you call `FastClasspathScanner#enableFieldTypeIndexing()` before `FastClasspathScanner#scan()`. You also need to call  `FastClasspathScanner#ignoreFieldVisibility()` before `FastClasspathScanner#scan()` if you want to show type dependencies for non-public fields.
 3. Only public fields are scanned by default, so the graph won't show relationships between a class and its field types unless the fields are public. This can be overridden by calling `FastClasspathScanner#ignoreFieldVisibility()` before `FastClasspathScanner#scan()`.   
 
 ## Parallel classpath scanning
