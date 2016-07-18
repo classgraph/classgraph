@@ -182,19 +182,23 @@ public class ClasspathElementResolver extends LoggedThread<List<File>> {
     public List<File> doWork() throws Exception {
         // Schedule raw classpath elements as original work units
         final PriorityBlockingQueue<OrderedClasspathElement> orderedWorkUnits = new PriorityBlockingQueue<>();
-        final String fmt = zeroPadFormatString(rawClasspathElements.size() - 1);
-        for (int i = 0; i < rawClasspathElements.size(); i++) {
-            final String rawClasspathElt = rawClasspathElements.get(i);
-            final String orderKey = String.format(fmt, i);
-            orderedWorkUnits.add(new OrderedClasspathElement(orderKey, currentDirURI, rawClasspathElt));
-        }
-        final AtomicInteger numWorkUnitsRemaining = new AtomicInteger(rawClasspathElements.size());
-
-        // Resolve classpath elements: check raw classpath elements exist; check that their canonical
-        // path is unique; in the case of jarfiles, check for nested Class-Path manifest entries.
         final ConcurrentHashMap<String, OrderedClasspathElement> pathToEarliestOrderKey = new ConcurrentHashMap<>();
         // The set of JRE paths found so far in the classpath, cached for speed.
         final ConcurrentHashMap<String, String> knownJREPaths = new ConcurrentHashMap<>();
+        boolean blacklistSystemJars = scanSpec.blacklistSystemJars();
+        final String fmt = zeroPadFormatString(rawClasspathElements.size() - 1);
+        final AtomicInteger numWorkUnitsRemaining = new AtomicInteger();
+        for (int i = 0; i < rawClasspathElements.size(); i++) {
+            final String rawClasspathElt = rawClasspathElements.get(i);
+            final String orderKey = String.format(fmt, i);
+            OrderedClasspathElement classpathElt = new OrderedClasspathElement(orderKey, currentDirURI,
+                    rawClasspathElt);
+            numWorkUnitsRemaining.incrementAndGet();
+            orderedWorkUnits.add(classpathElt);
+        }
+
+        // Resolve classpath elements: check raw classpath elements exist; check that their canonical
+        // path is unique; in the case of jarfiles, check for nested Class-Path manifest entries.
         final PriorityBlockingQueue<OrderedClasspathElement> uniqueValidCanonicalClasspathElts = //
                 new PriorityBlockingQueue<>();
         final AtomicBoolean killAllThreads = new AtomicBoolean(false);
@@ -204,17 +208,16 @@ public class ClasspathElementResolver extends LoggedThread<List<File>> {
                 @Override
                 public Void doWork() throws Exception {
                     processWorkQueue(orderedWorkUnits, numWorkUnitsRemaining, pathToEarliestOrderKey,
-                            scanSpec.blacklistSystemJars(), knownJREPaths, uniqueValidCanonicalClasspathElts,
-                            killAllThreads, log);
+                            blacklistSystemJars, knownJREPaths, uniqueValidCanonicalClasspathElts, killAllThreads,
+                            log);
                     return null;
                 }
             }));
         }
 
         // Process work queue in this thread too, in case there is only one thread in ExecutorService
-        processWorkQueue(orderedWorkUnits, numWorkUnitsRemaining, pathToEarliestOrderKey,
-                scanSpec.blacklistSystemJars(), knownJREPaths, uniqueValidCanonicalClasspathElts, killAllThreads,
-                log);
+        processWorkQueue(orderedWorkUnits, numWorkUnitsRemaining, pathToEarliestOrderKey, blacklistSystemJars,
+                knownJREPaths, uniqueValidCanonicalClasspathElts, killAllThreads, log);
         log.flush();
 
         // Barrier to wait for task completion. Tasks should have all completed by this point, since all work
