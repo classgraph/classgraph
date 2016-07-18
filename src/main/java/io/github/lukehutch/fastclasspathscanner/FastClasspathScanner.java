@@ -51,7 +51,7 @@ import io.github.lukehutch.fastclasspathscanner.matchprocessor.InterfaceMatchPro
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.StaticFinalFieldMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubclassMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubinterfaceMatchProcessor;
-import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
+import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathElementResolver;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanExecutor;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
@@ -162,7 +162,8 @@ public class FastClasspathScanner {
             if (FastClasspathScanner.verbose) {
                 log.log("Getting classpath elements");
             }
-            return executorService.submit(new ClasspathFinder(getScanSpec(), executorService, numParallelTasks));
+            return executorService
+                    .submit(new ClasspathElementResolver(getScanSpec(), executorService, numParallelTasks));
         }
     }
 
