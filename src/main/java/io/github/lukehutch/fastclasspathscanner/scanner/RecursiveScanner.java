@@ -143,6 +143,7 @@ class RecursiveScanner {
         }
 
         final long startTime = System.nanoTime();
+        boolean matchedFileInDir = false;
         for (final File fileInDir : filesInDir) {
             if (Thread.currentThread().isInterrupted()) {
                 killAllThreads.set(true);
@@ -207,8 +208,13 @@ class RecursiveScanner {
                 if (matchedFile) {
                     numFilesScanned.incrementAndGet();
                     fileToTimestamp.put(fileInDir, fileInDir.lastModified());
+                    matchedFileInDir = true;
                 }
             }
+        }
+        if (matchedFileInDir && matchStatus == ScanSpecPathMatch.WITHIN_WHITELISTED_PATH) {
+            // Timestamp directory too, so that added files can be detected
+            fileToTimestamp.put(dir, dir.lastModified());
         }
         numDirsScanned.incrementAndGet();
         if (FastClasspathScanner.verbose) {
