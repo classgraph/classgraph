@@ -620,14 +620,14 @@ In most cases, calling `FastClasspathScanner#scan()` is the right call to use, a
 
 ### 9. Detecting changes to classpath contents after the scan
 
-When the classpath is scanned using `FastClasspathScanner#scan()`, the latest last modified timestamps of whitelisted directories, files and jarfiles encountered during the scan are recorded. After a scan has completed, it is possible to later call `ScanResult#classpathContentsModifiedSinceScan()` at any point to check if something within the whitelisted directories in the classpath has changed. If the latest last modified timestamp of any whitelisted resource has changed since the initial scan, this method will return true.
+When the classpath is scanned using `FastClasspathScanner#scan()`, the latest last modified timestamps of whitelisted directories, files and jarfiles encountered during the scan are recorded. After a scan has completed, it is possible to later call `ScanResult#classpathContentsModifiedSinceScan()` at any point to check if something within the whitelisted directories in the classpath has changed. If the latest last modified timestamp of any whitelisted directory, file or jarfile has changed since the initial scan, this method will return true.
 
 Since `ScanResult#classpathContentsModifiedSinceScan()` only checks file modification timestamps, it works much faster than the original call to `FastClasspathScanner#scan()`. It is therefore a very lightweight operation that can be called in a polling loop to periodically detect changes to classpath contents for hot reloading of resources.
 
 **Caveats:**
 
 1. This method does not look inside classfiles, does not call any match processors, and does not rebuild the class graph (so methods such as `ScanResult#getNamesOfAllClasses()` won't be affected).
-2. This method does not detect new directories being added to non-whitelisted directories in the classpath such a path is created that newly matches whitelist criteria -- you need to perform a full scan to detect these sorts of changes. However, `ScanResult#classpathContentsModifiedSinceScan()` will detect modifications of directories that were within a whitelisted path during the original scan, e.g. when a file is added or removed within a whitelisted directory. It will also detect modifications to whitelisted files, and modifications of any form to jarfiles. 
+2. This method does not detect new directories being added to non-whitelisted directories in the classpath such a path is created that newly matches whitelist criteria -- you need to perform a full scan to detect these sorts of changes. If you do use `ScanResult#classpathContentsModifiedSinceScan()` in a polling loop along with `FastClasspathScanner#scan()`, make sure you are always calling `classpathContentsModifiedSinceScan()` on the most recent `ScanResult` instance, since this will let you pick up the addition of newly-added paths that match the whitelist.
 
 The function `ScanResult#classpathContentsLastModifiedTime()` can also be called after `FastClasspathScanner#scan()` to find the maximum timestamp of all files in the classpath, in epoch millis. This will be less than the system time (timestamps greater than the system time are ignored). If anything on the classpath changes, this value should increase, assuming the timestamps and the system time are trustworthy and accurate. 
 
