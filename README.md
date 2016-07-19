@@ -59,7 +59,8 @@ This is the pattern shown in the following example. (Note: this example uses Jav
 // Package prefixes to scan are listed in the constructor:
 // -- "com.xyz.widget" is whitelisted for scanning;
 // -- "com.xyz.widget.internal" is blacklisted (ignored), as it is prefixed by "-".
-new FastClasspathScanner("com.xyz.widget", "-com.xyz.widget.internal")  
+ScanResult scanResult =
+  new FastClasspathScanner("com.xyz.widget", "-com.xyz.widget.internal")
     .matchSubclassesOf(Widget.class,
         // c is a subclass of Widget or a descendant subclass.
         // This lambda expression is of type SubclassMatchProcessor.
@@ -107,7 +108,7 @@ new FastClasspathScanner("com.xyz.widget", "-com.xyz.widget.internal")
 // previous scan. Much faster than standard classpath scanning, because
 // only timestamps are checked, and jarfiles don't have to be opened.
 boolean classpathContentsModified =
-    fastClassPathScanner.classpathContentsModifiedSinceScan();
+    scanResult.classpathContentsModifiedSinceScan();
 ```
 
 **Mechanism 2:** Construct a `FastClasspathScanner` instance, potentially without adding any MatchProcessors, then call `FastClasspathScanner#scan()` to scan the classpath. This will return a `ScanResult` object with additional `ScanResult#get...()` methods that will let you query for classes, interfaces and annotations of interest without actually calling the classloader on any matching classes.
@@ -117,14 +118,15 @@ The `ScanResult#getNamesOf...()` methods return sorted lists of strings, rather 
 An example of this usage pattern is:
 
 ```java
-List<String> subclassesOfWidget = new FastClasspathScanner("com.xyz.widget")
-    // No need to add any MatchProcessors, just create a new scanner and then call
-    // .scan() to parse the class hierarchy of all classfiles on the classpath.
-    // This will return an object of type ScanResult, which can be queried.
-    .scan()
-    // Get the names of all subclasses of Widget on the classpath from the
-    // ScanResult (without calling the classloader on any matching classes):
-    .getNamesOfSubclassesOf("com.xyz.widget.Widget");
+// No need to add any MatchProcessors, just create a new scanner and then call
+// .scan() to parse the class hierarchy of all classfiles on the classpath.
+// This will return an object of type ScanResult, which can be queried.
+ScanResult scanResult = new FastClasspathScanner("com.xyz.widget").scan();
+
+// Get the names of all subclasses of Widget on the classpath from the
+// ScanResult (without calling the classloader on any matching classes):
+List<String> subclassesOfWidget =
+    scanResult.getNamesOfSubclassesOf("com.xyz.widget.Widget");
 ```
 
 Note that Mechanism 2 only works with class, interface and annotation matches; there are no corresponding `ScanResult#getNamesOf...()` methods for filename pattern or static field matches, since these methods are only looking at the DAG of whitelisted classes and interfaces encountered during the scan.
@@ -608,25 +610,26 @@ Future<ScanResult> FastClasspathScanner#scanAsync(ExecutorService executorServic
 
 In most cases, calling `FastClasspathScanner#scan()` is the right call to use, although if you have your own ExecutorService already running, you can submit the scanning work to that ExecutorService using one of the other variants of `FastClasspathScanner#scan()`, or using `FastClasspathScanner#scanAsync()`.
 
-Note that classpath masking is in effect for all files on the classpath: if two or more files with the same relative path are encountered on the classpath, the second and subsequent occurrences are ignored, in order to follow Java's class masking behavior.
+**Classpath masking:** Note that classpath masking is in effect for all files on the classpath: if two or more files with the same relative path are encountered on the classpath, the second and subsequent occurrences are ignored, in order to follow Java's class masking behavior.
 
-The `FastClasspathScanner#scan()` method may be called multiple times on the same `FastClasspathScanner` object, although there is usually no point performing additional scans unless `classpathContentsModifiedSinceScan()` returns true (unless you need to detect the addition of new resources in whitelisted packages, since `classpathContentsModifiedSinceScan()` only detects changes to existing resources).
+**Repeated scanning:** The `FastClasspathScanner#scan()` method may be called as many times as desired on the same `FastClasspathScanner` object, although there is usually no point performing additional scans unless `ScanResult#classpathContentsModifiedSinceScan()` returns true (see below). Each new call to `FastClasspathScanner#scan()` will produce a new `ScanResult` object.
 
-There are some synchronization considerations when using the non-blocking `FastClasspathScanner#scanAsync()` with MatchProcessors -- see [Parallel Classpath Scanning](#parallel-classpath-scanning) for info.
+**Asynchronous scanning considerations:** There are some synchronization considerations when using the non-blocking `FastClasspathScanner#scanAsync()` with MatchProcessors -- see [Parallel Classpath Scanning](#parallel-classpath-scanning) for info.
 
-If the scan is interrupted by the interrupt status being set on the main thread or any worker threads, then `FastClasspathScanner#scan()` will throw the unchecked exception `ScanInterruptedException`. If you care about thread interruption, you should catch this exception.
+**Thread interruption:** If you want to be able to interrupt classpath scanning while it is in progress, you can call `Future<ScanResult> FastClasspathScanner#scanAsync()`, and then call `Future#cancel(true)` on the returned `Future`. This will interrupt the worker threads, and will cause `InterruptionException` or `ExecutionException` to be thrown. If instead you call the blocking `FastClasspathScanner#scan()`, but you or your ExecutorService set the interrupt status on any of the worker threads, then `FastClasspathScanner#scan()` will throw the unchecked exception `ScanInterruptedException`. In general, you don't need to catch ScanInterruptedException unless you are actively using thread interrupts (which is why the checked `InterruptedException` is re-thrown as an unchecked exception `ScanInterruptedException`).  
 
 ### 9. Detecting changes to classpath contents after the scan
 
-When the classpath is scanned using `FastClasspathScanner#scan()`, the latest last modified timestamp of whitelisted files and jarfiles encountered during the scan is recorded.
+When the classpath is scanned using `FastClasspathScanner#scan()`, the latest last modified timestamps of whitelisted directories, files and jarfiles encountered during the scan are recorded. After a scan has completed, it is possible to later call `ScanResult#classpathContentsModifiedSinceScan()` at any point to check if something within the whitelisted directories in the classpath has changed. If the latest last modified timestamp of any whitelisted resource has changed since the initial scan, this method will return true.
 
-After a call to `FastClasspathScanner#scan()`, it is possible to later call `FastClasspathScanner#classpathContentsModifiedSinceScan()` at any point to check if something within the classpath has changed. This method does not look inside classfiles and does not call any match processors, but merely looks at the last modified timestamps of files within whitelisted package prefixes on the classpath, and of whitelisted jars. If the latest last modified timestamp has changed since the initial scan, this method will return true.
+Since `ScanResult#classpathContentsModifiedSinceScan()` only checks file modification timestamps, it works much faster than the original call to `FastClasspathScanner#scan()`. It is therefore a very lightweight operation that can be called in a polling loop to periodically detect changes to classpath contents for hot reloading of resources.
 
-Since `FastClasspathScanner#classpathContentsModifiedSinceScan()` only checks file modification timestamps, it works much faster than the original call to `FastClasspathScanner#scan()`. It is therefore a very lightweight operation that can be called in a polling loop to periodically detect changes to classpath contents for hot reloading of resources.
+**Caveats:**
 
-**Important:** this method does not detect resources that are *newly added* to whitelisted packages (you need to perform a full scan for that), it only detects changes in the timestamps of files found during the previous scan. If you need to check for added/removed resources in a fast way, you can use a full scan to detect a specific file in a directory of interest, and then watch the directory yourself for added/removed files.     
+1. This method does not look inside classfiles, does not call any match processors, and does not rebuild the class graph (so methods such as `ScanResult#getNamesOfAllClasses()` won't be affected).
+2. This method does not detect new directories being added to non-whitelisted directories in the classpath such a path is created that newly matches whitelist criteria -- you need to perform a full scan to detect these sorts of changes. However, `ScanResult#classpathContentsModifiedSinceScan()` will detect modifications of directories that were within a whitelisted path during the original scan, e.g. when a file is added or removed within a whitelisted directory. It will also detect modifications to whitelisted files, and modifications of any form to jarfiles. 
 
-The function `ScanResult#classpathContentsLastModifiedTime()` can also be called after `FastClasspathScanner#scan()` to find the maximum timestamp of all files in the classpath, in epoch millis. This should be less than the system time, and if anything on the classpath changes, this value should increase, assuming the timestamps and the system time are trustworthy and accurate. 
+The function `ScanResult#classpathContentsLastModifiedTime()` can also be called after `FastClasspathScanner#scan()` to find the maximum timestamp of all files in the classpath, in epoch millis. This will be less than the system time (timestamps greater than the system time are ignored). If anything on the classpath changes, this value should increase, assuming the timestamps and the system time are trustworthy and accurate. 
 
 ```java
 boolean ScanResult#classpathContentsModifiedSinceScan()
