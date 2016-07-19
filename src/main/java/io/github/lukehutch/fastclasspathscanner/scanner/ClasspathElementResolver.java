@@ -34,12 +34,10 @@ import java.nio.file.LinkOption;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
 import java.util.concurrent.PriorityBlockingQueue;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.utils.FastManifestParser;
@@ -87,51 +85,26 @@ public class ClasspathElementResolver extends LoggedThread<List<File>> {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    private static void processWorkQueue(final PriorityBlockingQueue<OrderedClasspathElement> orderedWorkUnits,
-            final AtomicInteger numWorkUnitsRemaining,
-            final ConcurrentHashMap<String, OrderedClasspathElement> pathToEarliestOrderKey,
-            final boolean blacklistSystemJars, final ConcurrentHashMap<String, String> knownJREPaths,
-            final PriorityBlockingQueue<OrderedClasspathElement> uniqueValidCanonicalClasspathEltsOut,
-            final AtomicBoolean killAllThreads, final ThreadLog log) throws InterruptedException {
-        // Get next OrderedClasspathEntry from priority queue
-        while (numWorkUnitsRemaining.get() > 0) {
-            OrderedClasspathElement classpathElt = null;
-            while (numWorkUnitsRemaining.get() > 0) {
-                if (Thread.currentThread().isInterrupted() || killAllThreads.get()) {
-                    killAllThreads.set(true);
-                    throw new InterruptedException();
-                }
-                // Busy-wait on last numParallelTasks work units, in case additional work units are generated
-                // from jarfiles with Class-Path entries
-                classpathElt = orderedWorkUnits.poll();
-                if (classpathElt != null) {
-                    // Got a work unit
-                    break;
-                }
-            }
-            if (classpathElt == null) {
-                // No work units remaining
-                return;
+    @Override
+    public List<File> doWork() throws Exception {
+        final boolean blacklistSystemJars = scanSpec.blacklistSystemJars();
+        final ConcurrentHashMap<String, String> knownJREPaths = new ConcurrentHashMap<>();
+        final ConcurrentHashMap<String, OrderedClasspathElement> pathToEarliestOrderKey = new ConcurrentHashMap<>();
+        final PriorityBlockingQueue<OrderedClasspathElement> uniqueElts = new PriorityBlockingQueue<>();
+        try (final WorkQueue<OrderedClasspathElement> workQueue = new WorkQueue<OrderedClasspathElement>() {
+            @Override
+            public BlockingQueue<OrderedClasspathElement> createQueue() {
+                return new PriorityBlockingQueue<>();
             }
 
-            // Got a work unit -- hold numWorkUnitsRemaining high until work is complete, and decrement it in the
-            // finally block at the end of the work unit (so that at the instant the work unit was removed from
-            // the queue, numWorkUnitsRemaining will be one more than the length of the queue). This prevents any
-            // threads from exiting until the work queue is empty *and* all threads have finished processing the
-            // work units they removed from the queue). This is needed because a given work unit can add more work
-            // units to the queue while it is processing, and the work is not finished even though the queue
-            // may be empty.
-            try {
-                if (!classpathElt.isValid(pathToEarliestOrderKey, blacklistSystemJars, knownJREPaths, log)) {
-                    continue;
-                }
-
-                // Classpath element is valid
-                uniqueValidCanonicalClasspathEltsOut.add(classpathElt);
+            @Override
+            public void processWorkUnit(OrderedClasspathElement classpathElt, ThreadLog log) {
                 if (FastClasspathScanner.verbose) {
                     log.log("Found classpath element: " + classpathElt.getResolvedPath());
                 }
 
+                uniqueElts.add(classpathElt);
+                
                 // If this classpath element is a jar or zipfile, look for Class-Path entries in the manifest
                 // file. OpenJDK scans manifest-defined classpath elements after the jar that listed them, so
                 // we recursively call addClasspathElement if needed each time a jar is encountered. 
@@ -158,80 +131,59 @@ public class ClasspathElementResolver extends LoggedThread<List<File>> {
                             // will be processed next in the queue, reducing the chance of duplicate work,
                             // in the case that the same jarfile is referenced later in the queue.
                             final String orderKey = classpathElt.orderKey + "." + String.format(fmt, i);
-                            // Add new work unit at head of priority queue (the new order key is based on the
-                            // current order key, which was previously removed from the head of the queue). This
-                            // causes the linked jars to be processed as soon as possible, to reduce the possibility
-                            // of duplicate work if another link to the jar is found later in the classpath. (The
-                            // work would be duplicated if this earlier reference is scanned later, since this
-                            // earlier reference has a lower orderKey, so it will override the later reference.)
-                            numWorkUnitsRemaining.incrementAndGet();
-                            orderedWorkUnits
-                                    .add(new OrderedClasspathElement(orderKey, parentPath, manifestClassPathElt));
+                            OrderedClasspathElement linkedClasspathElt = new OrderedClasspathElement(orderKey,
+                                    parentPath, manifestClassPathElt);
+                            if (linkedClasspathElt.isValid(pathToEarliestOrderKey, blacklistSystemJars,
+                                    knownJREPaths, log)) {
+                                // Add new work unit at head of priority queue (the new order key is based on the
+                                // current order key, which was previously removed from the head of the queue).
+                                // This causes the linked jars to be processed as soon as possible, to reduce the
+                                // possibility of duplicate work if another link to the jar is found later in the
+                                // classpath. (The work would be duplicated if this earlier reference is scanned
+                                // later, since this earlier reference has a lower orderKey, so it will override
+                                // the later reference.)
+                                addWorkUnit(linkedClasspathElt);
+                            }
                         }
                     }
                 }
-            } finally {
-                numWorkUnitsRemaining.decrementAndGet();
             }
-        }
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    @Override
-    public List<File> doWork() throws Exception {
-        // Schedule raw classpath elements as original work units
-        final PriorityBlockingQueue<OrderedClasspathElement> orderedWorkUnits = new PriorityBlockingQueue<>();
-        final ConcurrentHashMap<String, OrderedClasspathElement> pathToEarliestOrderKey = new ConcurrentHashMap<>();
-        // The set of JRE paths found so far in the classpath, cached for speed.
-        final ConcurrentHashMap<String, String> knownJREPaths = new ConcurrentHashMap<>();
-        boolean blacklistSystemJars = scanSpec.blacklistSystemJars();
-        final String fmt = zeroPadFormatString(rawClasspathElements.size() - 1);
-        final AtomicInteger numWorkUnitsRemaining = new AtomicInteger();
-        for (int i = 0; i < rawClasspathElements.size(); i++) {
-            final String rawClasspathElt = rawClasspathElements.get(i);
-            final String orderKey = String.format(fmt, i);
-            OrderedClasspathElement classpathElt = new OrderedClasspathElement(orderKey, currentDirURI,
-                    rawClasspathElt);
-            numWorkUnitsRemaining.incrementAndGet();
-            orderedWorkUnits.add(classpathElt);
-        }
-
-        // Resolve classpath elements: check raw classpath elements exist; check that their canonical
-        // path is unique; in the case of jarfiles, check for nested Class-Path manifest entries.
-        final PriorityBlockingQueue<OrderedClasspathElement> uniqueValidCanonicalClasspathElts = //
-                new PriorityBlockingQueue<>();
-        final AtomicBoolean killAllThreads = new AtomicBoolean(false);
-        final List<Future<Void>> futures = new ArrayList<>();
-        for (int i = 0; i < numParallelTasks - 1; i++) {
-            futures.add(executorService.submit(new LoggedThread<Void>() {
-                @Override
-                public Void doWork() throws Exception {
-                    processWorkQueue(orderedWorkUnits, numWorkUnitsRemaining, pathToEarliestOrderKey,
-                            blacklistSystemJars, knownJREPaths, uniqueValidCanonicalClasspathElts, killAllThreads,
-                            log);
-                    return null;
+        }) {
+            // Schedule raw classpath elements as original work units
+            final String fmt = zeroPadFormatString(rawClasspathElements.size() - 1);
+            for (int i = 0; i < rawClasspathElements.size(); i++) {
+                final String rawClasspathElt = rawClasspathElements.get(i);
+                final String orderKey = String.format(fmt, i);
+                OrderedClasspathElement classpathElt = new OrderedClasspathElement(orderKey, currentDirURI,
+                        rawClasspathElt);
+                if (classpathElt.isValid(pathToEarliestOrderKey, blacklistSystemJars, knownJREPaths, log)) {
+                    workQueue.addWorkUnit(classpathElt);
                 }
-            }));
+            }
+
+            // Start workers
+            workQueue.startWorkers(executorService, numParallelTasks);
+
+            // Also do work in the main thread
+            workQueue.runWorkLoop(log);
+
+            // After work has completed, shut down work queue with Autocloseable
         }
 
-        // Process work queue in this thread too, in case there is only one thread in ExecutorService
-        processWorkQueue(orderedWorkUnits, numWorkUnitsRemaining, pathToEarliestOrderKey, blacklistSystemJars,
-                knownJREPaths, uniqueValidCanonicalClasspathElts, killAllThreads, log);
-        log.flush();
-
-        // Barrier to wait for task completion. Tasks should have all completed by this point, since all work
-        // work units have been processed. If any tasks have not been started, cancel them, because they never
-        // started. (This can happen if numParallelTasks is greater than the number of threads available in the
-        // ExecutorService.)
-        killAllThreads.set(true);
-        for (final Future<Void> future : futures) {
-            future.cancel(true);
+        // uniqueValidCanonicalClasspathElts now holds the unique classpath elements
+        StringBuilder buf = new StringBuilder();
+        for (OrderedClasspathElement c : pathToEarliestOrderKey.values()) {
+            buf.append(c.toString() + "\n");
         }
-
-        // uniqueValidCanonicalClasspathElts now holds the unique classpath elements        
-        final List<File> classpathElements = new ArrayList<>(uniqueValidCanonicalClasspathElts.size());
-        for (final OrderedClasspathElement elt : uniqueValidCanonicalClasspathElts) {
+        buf.append("\n\n");
+        for (OrderedClasspathElement c : uniqueElts) {
+            buf.append(c.toString() + "\n");
+        }
+        buf.append("\n");
+        System.out.println(buf);
+        
+        final List<File> classpathElements = new ArrayList<>(uniqueElts.size());
+        for (final OrderedClasspathElement elt : uniqueElts) {
             final File eltFile = elt.getFile();
             classpathElements.add(eltFile);
             if (FastClasspathScanner.verbose) {
