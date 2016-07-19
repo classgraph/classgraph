@@ -169,18 +169,6 @@ public class ClasspathElementResolver extends LoggedThread<List<File>> {
 
             // After work has completed, shut down work queue with Autocloseable
         }
-
-        // uniqueValidCanonicalClasspathElts now holds the unique classpath elements
-        StringBuilder buf = new StringBuilder();
-        for (OrderedClasspathElement c : pathToEarliestOrderKey.values()) {
-            buf.append(c.toString() + "\n");
-        }
-        buf.append("\n\n");
-        for (OrderedClasspathElement c : uniqueElts) {
-            buf.append(c.toString() + "\n");
-        }
-        buf.append("\n");
-        System.out.println(buf);
         
         final List<File> classpathElements = new ArrayList<>(uniqueElts.size());
         for (final OrderedClasspathElement elt : uniqueElts) {
