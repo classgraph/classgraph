@@ -9,10 +9,9 @@ import io.github.lukehutch.fastclasspathscanner.utils.FastManifestParser;
 import io.github.lukehutch.fastclasspathscanner.utils.FastPathResolver;
 import io.github.lukehutch.fastclasspathscanner.utils.LoggedThread.ThreadLog;
 
-/** A class to sort classpath elements by classpath entry index, then parent path, then relative path. */
-class OrderedClasspathElement implements Comparable<OrderedClasspathElement> {
-    public final String orderKey;
-    public final String parentPath;
+class ClasspathElement {
+    public final String parentCanonicalPath;
+    public final String pathToResolveAgainst;
     public final String relativePath;
 
     private String resolvedPathCached;
@@ -28,31 +27,51 @@ class OrderedClasspathElement implements Comparable<OrderedClasspathElement> {
     private boolean existsCached;
     private boolean existsIsCached;
 
-    public OrderedClasspathElement(final String orderKey, final String parentPath, final String relativePath) {
-        this.orderKey = orderKey;
-        this.parentPath = parentPath;
+    public ClasspathElement(final String parentCanonicalPath, final String pathToResolveAgainst,
+            final String relativePath) {
+        this.parentCanonicalPath = parentCanonicalPath;
+        this.pathToResolveAgainst = pathToResolveAgainst;
         this.relativePath = relativePath;
     }
 
+    /** Get the path of this classpath element, resolved against the parent path. */
     public String getResolvedPath() {
         if (!resolvedPathIsCached) {
-            resolvedPathCached = FastPathResolver.resolve(parentPath, relativePath);
+            resolvedPathCached = FastPathResolver.resolve(pathToResolveAgainst, relativePath);
             resolvedPathIsCached = true;
         }
         return resolvedPathCached;
     }
 
+    /** Get the File object for the resolved path. */
     public File getFile() {
         if (!fileIsCached) {
             final String path = getResolvedPath();
             if (path == null) {
                 throw new RuntimeException(
-                        "Path " + relativePath + " could not be resolved relative to " + parentPath);
+                        "Path " + relativePath + " could not be resolved relative to " + pathToResolveAgainst);
             }
             fileCached = new File(path);
             fileIsCached = true;
         }
         return fileCached;
+    }
+
+    /**
+     * Gets the canonical path of the File object corresponding to the resolved path, or null if the path could not
+     * be canonicalized.
+     */
+    public String getCanonicalPath() {
+        if (!canonicalPathIsCached) {
+            final File file = getFile();
+            try {
+                canonicalPathCached = file.getCanonicalPath();
+            } catch (final IOException e) {
+                // Return null
+            }
+            canonicalPathIsCached = true;
+        }
+        return canonicalPathCached;
     }
 
     public boolean isFile() {
@@ -77,48 +96,6 @@ class OrderedClasspathElement implements Comparable<OrderedClasspathElement> {
             existsIsCached = true;
         }
         return existsCached;
-    }
-
-    public String getCanonicalPath() throws IOException {
-        if (!canonicalPathIsCached) {
-            final File file = getFile();
-            canonicalPathCached = file.getCanonicalPath();
-            canonicalPathIsCached = true;
-        }
-        return canonicalPathCached;
-    }
-
-    /** Sort in order of orderKey, then parentURI, then relativePath. */
-    @Override
-    public int compareTo(final OrderedClasspathElement o) {
-        int diff = orderKey.compareTo(o.orderKey);
-        if (diff == 0) {
-            diff = parentPath.compareTo(o.parentPath);
-        }
-        if (diff == 0) {
-            diff = relativePath.compareTo(o.relativePath);
-        }
-        return diff;
-    }
-
-    @Override
-    public boolean equals(final Object o) {
-        if (o == null || !(o instanceof OrderedClasspathElement)) {
-            return false;
-        }
-        final OrderedClasspathElement other = (OrderedClasspathElement) o;
-        return orderKey.equals(other.orderKey) && parentPath.equals(other.parentPath)
-                && relativePath.equals(other.relativePath);
-    }
-
-    @Override
-    public int hashCode() {
-        return orderKey.hashCode() + parentPath.hashCode() * 7 + relativePath.hashCode() * 17;
-    }
-
-    @Override
-    public String toString() {
-        return orderKey + "!" + parentPath + "!" + relativePath;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -172,39 +149,7 @@ class OrderedClasspathElement implements Comparable<OrderedClasspathElement> {
         }
     }
 
-    private static boolean isEarliestOccurrenceOfPath(final String canonicalPath,
-            final OrderedClasspathElement orderedElement,
-            final ConcurrentHashMap<String, OrderedClasspathElement> pathToEarliestOrderedElement) {
-        OrderedClasspathElement olderOrderedElement = pathToEarliestOrderedElement.put(canonicalPath,
-                orderedElement);
-        if (olderOrderedElement == null) {
-            // First occurrence of this path
-            return true;
-        }
-        final int diff = olderOrderedElement.compareTo(orderedElement);
-        if (diff == 0) {
-            // Should not happen, because relative paths are unique within a given filesystem or jar
-            return false;
-        } else if (diff < 0) {
-            // olderOrderKey comes before orderKey, so this relative path is masked by an earlier one.
-            // Need to put older order key back in map, avoiding race condition
-            for (;;) {
-                final OrderedClasspathElement nextOlderOrderedElt = pathToEarliestOrderedElement.put(canonicalPath,
-                        olderOrderedElement);
-                if (nextOlderOrderedElt.compareTo(olderOrderedElement) <= 0) {
-                    break;
-                }
-                olderOrderedElement = nextOlderOrderedElt;
-            }
-            return false;
-        } else {
-            // orderKey comes before olderOrderKey, so this relative path masks an earlier one.
-            return true;
-        }
-    }
-
-    public boolean isValid(final ConcurrentHashMap<String, OrderedClasspathElement> pathToEarliestOrderKey,
-            final boolean blacklistSystemJars, final ConcurrentHashMap<String, String> knownJREPaths,
+    public boolean isValid(final boolean blacklistSystemJars, final ConcurrentHashMap<String, String> knownJREPaths,
             final ThreadLog log) {
         // Get absolute URI and File for classpathElt
         final String path = getResolvedPath();
@@ -218,23 +163,6 @@ class OrderedClasspathElement implements Comparable<OrderedClasspathElement> {
         if (!exists()) {
             if (FastClasspathScanner.verbose) {
                 log.log("Classpath element does not exist: " + getResolvedPath());
-            }
-            return false;
-        }
-        // Check that this classpath element is the earliest instance of the same canonical path
-        // on the classpath (i.e. only scan a classpath element once
-        String canonicalPath;
-        try {
-            canonicalPath = getCanonicalPath();
-        } catch (final IOException e) {
-            if (FastClasspathScanner.verbose) {
-                log.log("Could not canonicalize path: " + getResolvedPath());
-            }
-            return false;
-        }
-        if (!isEarliestOccurrenceOfPath(canonicalPath, this, pathToEarliestOrderKey)) {
-            if (FastClasspathScanner.verbose) {
-                log.log("Ignoring duplicate classpath element: " + getResolvedPath());
             }
             return false;
         }

@@ -33,16 +33,22 @@ import java.io.IOException;
 import java.nio.file.LinkOption;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map.Entry;
+import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.PriorityBlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.zip.ZipFile;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.utils.FastManifestParser;
 import io.github.lukehutch.fastclasspathscanner.utils.FastPathResolver;
 import io.github.lukehutch.fastclasspathscanner.utils.LoggedThread;
+import io.github.lukehutch.fastclasspathscanner.utils.WorkQueue;
 
 public class ClasspathElementResolver extends LoggedThread<List<File>> {
     /** The scanning specification. */
@@ -54,12 +60,6 @@ public class ClasspathElementResolver extends LoggedThread<List<File>> {
     /** The number of parallel tasks. */
     private final int numParallelTasks;
 
-    /** The list of raw classpath elements. */
-    private final List<String> rawClasspathElements;
-
-    /** The current directory. */
-    private final String currentDirURI;
-
     // -------------------------------------------------------------------------------------------------------------
 
     public ClasspathElementResolver(final ScanSpec scanSpec, final ExecutorService executorService,
@@ -67,117 +67,284 @@ public class ClasspathElementResolver extends LoggedThread<List<File>> {
         this.scanSpec = scanSpec;
         this.executorService = executorService;
         this.numParallelTasks = numParallelTasks;
-        try {
-            // Get current dir in a canonical form, and remove any trailing slash, if present)
-            this.currentDirURI = FastPathResolver.resolve(
-                    Paths.get("").toAbsolutePath().normalize().toRealPath(LinkOption.NOFOLLOW_LINKS).toString());
-        } catch (final IOException e) {
-            throw new RuntimeException(e);
-        }
-        this.rawClasspathElements = new ClasspathFinder(scanSpec, log).getRawClasspathElements();
     }
 
     // -------------------------------------------------------------------------------------------------------------
 
-    private static final String zeroPadFormatString(final int maxVal) {
-        return "%0" + Integer.toString(maxVal).length() + "d";
+    private static class ClasspathElementOpener {
+        private final ClasspathElement classpathElt;
+        private final ThreadLog log;
+
+        /** ZipFile, may be null if the ZipFile could not be opened. */
+        public ZipFile jarFile;
+
+        /** Manifest parser, may be null if the ZipFile could not be opened. */
+        public FastManifestParser manifestParser;
+
+        public ClasspathElementOpener(final ClasspathElement classpathElt, final ThreadLog log) {
+            this.classpathElt = classpathElt;
+            this.log = log;
+        }
+
+        public void open() {
+            if (classpathElt.isFile()) {
+                final File file = classpathElt.getFile();
+                try {
+                    // Open the ZipFile, and read the list of files
+                    jarFile = new ZipFile(file);
+                    // Parse the manifest, if present
+                    manifestParser = new FastManifestParser(jarFile, log);
+                } catch (final Exception e) {
+                    if (FastClasspathScanner.verbose) {
+                        log.log("Exception while opening zipfile " + file, e);
+                    }
+                }
+            }
+        }
+
+        public void close() {
+            if (jarFile != null) {
+                try {
+                    jarFile.close();
+                } catch (final IOException e) {
+                    if (FastClasspathScanner.verbose) {
+                        log.log("Exception while closing zipfile " + classpathElt.getFile(), e);
+                    }
+                }
+                jarFile = null;
+            }
+        }
+    }
+
+    public static class ClasspathElementOpenerMap {
+        private final ConcurrentMap<String, ClasspathElementOpener> map = new ConcurrentHashMap<>();
+        private final ConcurrentMap<String, Object> keyToLock = new ConcurrentHashMap<>();
+        private final ThreadLog log;
+
+        public ClasspathElementOpenerMap(final ThreadLog log) {
+            this.log = log;
+        }
+
+        private Object getLock(final String key) {
+            final Object object = new Object();
+            Object lock = keyToLock.putIfAbsent(key, object);
+            if (lock == null) {
+                lock = object;
+            }
+            return lock;
+        }
+
+        public boolean initializeIfFirst(final String canonicalPath, final ClasspathElement classpathElt) {
+            synchronized (getLock(canonicalPath)) {
+                ClasspathElementOpener elementOpener = map.get(canonicalPath);
+                if (elementOpener == null) {
+                    map.put(canonicalPath, elementOpener = new ClasspathElementOpener(classpathElt, log));
+                    return true;
+                }
+                return false;
+            }
+        }
+
+        public ClasspathElementOpener get(final String canonicalPath) {
+            return map.get(canonicalPath);
+        }
+
+        public Set<Entry<String, ClasspathElementOpener>> entrySet() {
+            return map.entrySet();
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    private static class ClasspathElementProcessor extends WorkQueue<ClasspathElement> {
+        private final ScanSpec scanSpec;
+
+        /** A cache of known JRE paths. */
+        private final ConcurrentHashMap<String, String> knownJREPaths = new ConcurrentHashMap<>();
+
+        private final ClasspathElementOpenerMap canonicalPathToClasspathElementOpener;
+
+        private final ConcurrentHashMap<String, List<String>> canonicalPathToChildCanonicalPaths;
+
+        public ClasspathElementProcessor(final ScanSpec scanSpec,
+                final ConcurrentHashMap<String, List<String>> canonicalPathToChildCanonicalPaths,
+                final ClasspathElementOpenerMap canonicalPathToClasspathElementOpener) {
+            this.scanSpec = scanSpec;
+            this.canonicalPathToChildCanonicalPaths = canonicalPathToChildCanonicalPaths;
+            this.canonicalPathToClasspathElementOpener = canonicalPathToClasspathElementOpener;
+        }
+
+        @Override
+        public BlockingQueue<ClasspathElement> createQueue() {
+            return new LinkedBlockingQueue<>();
+        }
+
+        @Override
+        public void processWorkUnit(final ClasspathElement classpathElt, final ThreadLog log) {
+            // Check the classpath entry exists and is not a blacklisted system jar
+            // TODO: also check jar blacklist here?
+            if (!classpathElt.isValid(scanSpec.blacklistSystemJars(), knownJREPaths, log)) {
+                return;
+            }
+
+            // Get canonical path
+            final String canonicalPath = classpathElt.getCanonicalPath();
+            if (canonicalPath == null) {
+                if (FastClasspathScanner.verbose) {
+                    log.log("Could not canonicalize path: " + classpathElt.getResolvedPath());
+                }
+                return;
+            }
+
+            // Open a single ZipFile per canonical path
+            final boolean firstOccurrenceOfCanonicalPath = canonicalPathToClasspathElementOpener
+                    .initializeIfFirst(canonicalPath, classpathElt);
+            if (firstOccurrenceOfCanonicalPath) {
+                if (FastClasspathScanner.verbose) {
+                    log.log("Found classpath element: " + classpathElt.getResolvedPath());
+                }
+                // isValid() above determined that if this is a file, it also has a jar extension
+                if (classpathElt.isFile()) {
+                    // Open ZipFile and read manifest
+                    final ClasspathElementOpener classpathElementOpener = canonicalPathToClasspathElementOpener
+                            .get(canonicalPath);
+                    classpathElementOpener.open();
+
+                    // If there was an exception opening the ZipFile, or there was no manifest, then
+                    // zipFileOpener.manifestParser will be null
+                    if (classpathElementOpener.manifestParser != null) {
+                        // If this jar is not a blacklisted system jar, and has a Class-Path entry
+                        if ((!scanSpec.blacklistSystemJars() || !classpathElementOpener.manifestParser.isSystemJar)
+                                && classpathElementOpener.manifestParser.classPath != null) {
+                            if (FastClasspathScanner.verbose) {
+                                log.log("Found Class-Path entry in manifest of " + classpathElt.getResolvedPath()
+                                        + ": " + classpathElementOpener.manifestParser.classPath);
+                            }
+                            // Get the classpath elements from the Class-Path manifest entry
+                            // (these are space-delimited).
+                            final String[] manifestClassPathElts = //
+                                    classpathElementOpener.manifestParser.classPath.split(" ");
+
+                            // Class-Path entries in the manifest file are resolved relative to
+                            // the dir the manifest's jarfile is contained in. Get the parent path.
+                            final String pathOfContainingDir = FastPathResolver
+                                    .resolve(classpathElt.getFile().getParent());
+
+                            // Enqueue child classpath elements
+                            List<String> resolvedChildPaths = new ArrayList<>(manifestClassPathElts.length);
+                            for (int i = 0; i < manifestClassPathElts.length; i++) {
+                                final String manifestClassPathElt = manifestClassPathElts[i];
+                                final ClasspathElement linkedClasspathElt = new ClasspathElement(
+                                        classpathElt.getCanonicalPath(), pathOfContainingDir, manifestClassPathElt);
+                                resolvedChildPaths.add(linkedClasspathElt.getCanonicalPath());
+                                // Add new work unit at head of queue
+                                addWorkUnit(linkedClasspathElt);
+                            }
+
+                            // Store the ordering of the child elements relative to this canonical path
+                            canonicalPathToChildCanonicalPaths.put(canonicalPath, resolvedChildPaths);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    private void findClasspathOrder(final String canonicalPath,
+            final ConcurrentHashMap<String, List<String>> canonicalPathToChildCanonicalPaths,
+            final ClasspathElementOpenerMap canonicalPathToClasspathElementOpener,
+            final HashSet<String> visitedCanonicalPaths, final ArrayList<ClasspathElement> order) {
+        if (visitedCanonicalPaths.add(canonicalPath)) {
+            final List<String> childPaths = canonicalPathToChildCanonicalPaths.get(canonicalPath);
+            if (childPaths != null) {
+                for (final String childPath : childPaths) {
+                    final ClasspathElementOpener childPathClasspathElementOpener = canonicalPathToClasspathElementOpener
+                            .get(childPath);
+                    if (childPathClasspathElementOpener != null) {
+                        order.add(childPathClasspathElementOpener.classpathElt);
+                        findClasspathOrder(childPath, canonicalPathToChildCanonicalPaths,
+                                canonicalPathToClasspathElementOpener, visitedCanonicalPaths, order);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Perform a depth-first search of jar interdependencies, breaking cycles if necessary, to determine the final
+     * classpath element order.
+     */
+    private List<ClasspathElement> findClasspathOrder(final String currentDirPath,
+            final ConcurrentHashMap<String, List<String>> canonicalPathToChildCanonicalPaths,
+            final ClasspathElementOpenerMap canonicalPathToClasspathElementOpener) {
+        final HashSet<String> visitedCanonicalPaths = new HashSet<>();
+        final ArrayList<ClasspathElement> order = new ArrayList<>();
+        findClasspathOrder(currentDirPath, canonicalPathToChildCanonicalPaths,
+                canonicalPathToClasspathElementOpener, visitedCanonicalPaths, order);
+        return order;
     }
 
     // -------------------------------------------------------------------------------------------------------------
 
     @Override
     public List<File> doWork() throws Exception {
-        final boolean blacklistSystemJars = scanSpec.blacklistSystemJars();
-        final ConcurrentHashMap<String, String> knownJREPaths = new ConcurrentHashMap<>();
-        final ConcurrentHashMap<String, OrderedClasspathElement> pathToEarliestOrderKey = new ConcurrentHashMap<>();
-        final PriorityBlockingQueue<OrderedClasspathElement> uniqueElts = new PriorityBlockingQueue<>();
-        try (final WorkQueue<OrderedClasspathElement> workQueue = new WorkQueue<OrderedClasspathElement>() {
-            @Override
-            public BlockingQueue<OrderedClasspathElement> createQueue() {
-                return new PriorityBlockingQueue<>();
-            }
+        final List<File> classpathElementsOrdered = new ArrayList<>();
 
-            @Override
-            public void processWorkUnit(OrderedClasspathElement classpathElt, ThreadLog log) {
-                if (FastClasspathScanner.verbose) {
-                    log.log("Found classpath element: " + classpathElt.getResolvedPath());
-                }
+        // Get raw classpath elements
+        final List<String> rawClasspathElementPaths = new ClasspathFinder(scanSpec, log).getRawClasspathElements();
 
-                uniqueElts.add(classpathElt);
-                
-                // If this classpath element is a jar or zipfile, look for Class-Path entries in the manifest
-                // file. OpenJDK scans manifest-defined classpath elements after the jar that listed them, so
-                // we recursively call addClasspathElement if needed each time a jar is encountered. 
-                if (classpathElt.isFile()) {
-                    final File file = classpathElt.getFile();
-                    final FastManifestParser manifest = new FastManifestParser(file, log);
-                    if (manifest.classPath != null) {
-                        final String[] manifestClassPathElts = manifest.classPath.split(" ");
-                        if (FastClasspathScanner.verbose) {
-                            log.log("Found Class-Path entry in manifest of " + classpathElt.getResolvedPath() + ": "
-                                    + manifest.classPath);
-                        }
-
-                        // Class-Path entries in the manifest file should be resolved relative to
-                        // the dir the manifest's jarfile is contained in.
-                        final String parentPath = FastPathResolver.resolve(file.getParent());
-
-                        // Class-Path entries in manifest files are a space-delimited list of URIs.
-                        final String fmt = zeroPadFormatString(manifestClassPathElts.length - 1);
-                        for (int i = 0; i < manifestClassPathElts.length; i++) {
-                            final String manifestClassPathElt = manifestClassPathElts[i];
-                            // Give each sub-entry a new lexicographically-increasing order key.
-                            // The use of PriorityBlockingQueue ensures that these referenced jarfiles
-                            // will be processed next in the queue, reducing the chance of duplicate work,
-                            // in the case that the same jarfile is referenced later in the queue.
-                            final String orderKey = classpathElt.orderKey + "." + String.format(fmt, i);
-                            OrderedClasspathElement linkedClasspathElt = new OrderedClasspathElement(orderKey,
-                                    parentPath, manifestClassPathElt);
-                            if (linkedClasspathElt.isValid(pathToEarliestOrderKey, blacklistSystemJars,
-                                    knownJREPaths, log)) {
-                                // Add new work unit at head of priority queue (the new order key is based on the
-                                // current order key, which was previously removed from the head of the queue).
-                                // This causes the linked jars to be processed as soon as possible, to reduce the
-                                // possibility of duplicate work if another link to the jar is found later in the
-                                // classpath. (The work would be duplicated if this earlier reference is scanned
-                                // later, since this earlier reference has a lower orderKey, so it will override
-                                // the later reference.)
-                                addWorkUnit(linkedClasspathElt);
-                            }
-                        }
-                    }
-                }
-            }
-        }) {
-            // Schedule raw classpath elements as original work units
-            final String fmt = zeroPadFormatString(rawClasspathElements.size() - 1);
-            for (int i = 0; i < rawClasspathElements.size(); i++) {
-                final String rawClasspathElt = rawClasspathElements.get(i);
-                final String orderKey = String.format(fmt, i);
-                OrderedClasspathElement classpathElt = new OrderedClasspathElement(orderKey, currentDirURI,
-                        rawClasspathElt);
-                if (classpathElt.isValid(pathToEarliestOrderKey, blacklistSystemJars, knownJREPaths, log)) {
-                    workQueue.addWorkUnit(classpathElt);
-                }
-            }
-
-            // Start workers
-            workQueue.startWorkers(executorService, numParallelTasks);
-
-            // Also do work in the main thread
-            workQueue.runWorkLoop(log);
-
-            // After work has completed, shut down work queue with Autocloseable
+        // Get current dir in a canonical form, and remove any trailing slash, if present)
+        String currentDirPath;
+        try {
+            currentDirPath = FastPathResolver.resolve(
+                    Paths.get("").toAbsolutePath().normalize().toRealPath(LinkOption.NOFOLLOW_LINKS).toString());
+        } catch (final IOException e) {
+            throw new RuntimeException(e);
         }
-        
-        final List<File> classpathElements = new ArrayList<>(uniqueElts.size());
-        for (final OrderedClasspathElement elt : uniqueElts) {
-            final File eltFile = elt.getFile();
-            classpathElements.add(eltFile);
-            if (FastClasspathScanner.verbose) {
-                log.log("Found unique classpath element: " + eltFile);
+
+        // A map from canonical path to child canonical paths.
+        final ConcurrentHashMap<String, List<String>> canonicalPathToChildCanonicalPaths = //
+                new ConcurrentHashMap<>();
+        canonicalPathToChildCanonicalPaths.put(currentDirPath, rawClasspathElementPaths);
+
+        // Map to hold ZipFiles, with atomic creation of entries, so that ZipFiles only get opened once
+        // (they are somewhat expensive to open).
+        final ClasspathElementOpenerMap canonicalPathToClasspathElementOpener = new ClasspathElementOpenerMap(log);
+        try {
+            // Create the work queue -- after work has completed, any workers that didn't start up will be killed
+            try (final WorkQueue<ClasspathElement> workQueue = new ClasspathElementProcessor(scanSpec,
+                    canonicalPathToChildCanonicalPaths, canonicalPathToClasspathElementOpener)) {
+                // Create initial work units from raw classpath elements
+                for (int eltIdx = 0; eltIdx < rawClasspathElementPaths.size(); eltIdx++) {
+                    final String rawClasspathElementPath = rawClasspathElementPaths.get(eltIdx);
+                    final ClasspathElement rawClasspathElt = new ClasspathElement(currentDirPath, currentDirPath,
+                            rawClasspathElementPath);
+                    workQueue.addWorkUnit(rawClasspathElt);
+                }
+                // Start workers
+                workQueue.startWorkers(executorService, numParallelTasks);
+                // Also do work in the main thread, until all work units have been completed
+                workQueue.runWorkLoop(log);
+            }
+
+            // Figure out total ordering of classpath elements
+            final List<ClasspathElement> classpathOrder = findClasspathOrder(currentDirPath,
+                    canonicalPathToChildCanonicalPaths, canonicalPathToClasspathElementOpener);
+
+            // TODO: scan files hierarchically before closing zipfiles
+            for (final ClasspathElement elt : classpathOrder) {
+                classpathElementsOrdered.add(elt.getFile());
+            }
+
+        } finally {
+            // Close any zipfiles that were opened
+            for (final Entry<String, ClasspathElementOpener> ent : canonicalPathToClasspathElementOpener
+                    .entrySet()) {
+                ent.getValue().close();
             }
         }
-        return classpathElements;
+        return classpathElementsOrdered;
     }
 }

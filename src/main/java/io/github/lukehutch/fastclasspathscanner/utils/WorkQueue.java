@@ -1,4 +1,4 @@
-package io.github.lukehutch.fastclasspathscanner.scanner;
+package io.github.lukehutch.fastclasspathscanner.utils;
 
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
@@ -9,7 +9,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-import io.github.lukehutch.fastclasspathscanner.utils.LoggedThread;
 import io.github.lukehutch.fastclasspathscanner.utils.LoggedThread.ThreadLog;
 
 public abstract class WorkQueue<T> implements AutoCloseable {
@@ -23,7 +22,7 @@ public abstract class WorkQueue<T> implements AutoCloseable {
     }
 
     /** Start worker threads with a shared log. */
-    public void startWorkers(ExecutorService executorService, int numWorkers, ThreadLog log) {
+    public void startWorkers(final ExecutorService executorService, final int numWorkers, final ThreadLog log) {
         for (int i = 0; i < numWorkers; i++) {
             workerFutures.add(executorService.submit(new Callable<Void>() {
                 @Override
@@ -36,7 +35,7 @@ public abstract class WorkQueue<T> implements AutoCloseable {
     }
 
     /** Start worker threads, each with their own log, which is flushed when the worker exits. */
-    public void startWorkers(ExecutorService executorService, int numWorkers) {
+    public void startWorkers(final ExecutorService executorService, final int numWorkers) {
         for (int i = 0; i < numWorkers; i++) {
             workerFutures.add(executorService.submit(new LoggedThread<Void>() {
                 @Override
@@ -54,7 +53,7 @@ public abstract class WorkQueue<T> implements AutoCloseable {
      * available as numParallelTasks. When this method returns, either all the work has been completed, or this or
      * some other thread was interrupted. If InterruptedException is thrown, this thread or another was interrupted.
      */
-    public void runWorkLoop(ThreadLog log) {
+    public void runWorkLoop(final ThreadLog log) {
         // Get next work unit from queue
         while (numWorkUnitsRemaining.get() > 0) {
             T workUnit = null;
@@ -82,7 +81,7 @@ public abstract class WorkQueue<T> implements AutoCloseable {
             try {
                 // Process the work unit
                 processWorkUnit(workUnit, log);
-            } catch (Exception e) {
+            } catch (final Exception e) {
                 if (FastClasspathScanner.verbose) {
                     log.log("Exception in worker thread", e);
                 }
@@ -98,7 +97,7 @@ public abstract class WorkQueue<T> implements AutoCloseable {
     }
 
     /** Add a unit of work. May be called by workers. */
-    public void addWorkUnit(T workUnit) {
+    public void addWorkUnit(final T workUnit) {
         numWorkUnitsRemaining.incrementAndGet();
         workQueue.add(workUnit);
     }
