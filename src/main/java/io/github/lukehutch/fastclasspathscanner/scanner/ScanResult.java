@@ -22,9 +22,6 @@ public class ScanResult {
      */
     private final Map<File, Long> fileToTimestamp;
 
-    /** The max of the last modified times of all the timestamped resources. */
-    private long maxLastModifiedTime = 0L;
-
     /** The class graph builder. */
     private final ClassGraphBuilder classGraphBuilder;
 
@@ -33,21 +30,13 @@ public class ScanResult {
     ScanResult(final ScanSpec scanSpec, final Map<String, ClassInfo> classNameToClassInfo,
             final Map<File, Long> fileToTimestamp, final ThreadLog log) {
         this.scanSpec = scanSpec;
+        this.fileToTimestamp = fileToTimestamp;
 
         // Build the class graph
         final long graphStartTime = System.nanoTime();
         this.classGraphBuilder = new ClassGraphBuilder(classNameToClassInfo);
         if (FastClasspathScanner.verbose) {
             log.log(1, "Built class graph", System.nanoTime() - graphStartTime);
-        }
-
-        // Find the max file last modified timestamp
-        this.fileToTimestamp = fileToTimestamp;
-        final long currTime = System.currentTimeMillis();
-        for (final long timestamp : fileToTimestamp.values()) {
-            if (timestamp > maxLastModifiedTime && timestamp < currTime) {
-                maxLastModifiedTime = timestamp;
-            }
         }
     }
 
@@ -69,7 +58,21 @@ public class ScanResult {
         return false;
     }
 
+    /**
+     * Find the maximum (most recent) timestamp of any whitelisted file/directory/jarfile encountered in the
+     * previous scan. Checks the current timestamps, so this should increase between calls if something changes in
+     * whitelisted paths. Requires file and system timestamps to be comparable (i.e. generated from the same clock,
+     * without modifications to the clock). Ignores timestamps greater than the system time.
+     */
     public long classpathContentsLastModifiedTime() {
+        // Find the max file last modified timestamp
+        long maxLastModifiedTime = 0L;
+        final long currTime = System.currentTimeMillis();
+        for (final long timestamp : fileToTimestamp.values()) {
+            if (timestamp > maxLastModifiedTime && timestamp < currTime) {
+                maxLastModifiedTime = timestamp;
+            }
+        }
         return maxLastModifiedTime;
     }
 
