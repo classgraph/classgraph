@@ -335,33 +335,18 @@ class RecursiveScanner {
             }
 
             // ClasspathFinder already determined that anything that is not a directory is a jarfile
-            final boolean isDirectory = classpathElt.isDirectory(), isJar = !isDirectory;
-
-            if (isDirectory && scanSpec.scanNonJars) {
+            if (classpathElt.isDirectory()) {
                 // Recursively scan dir for matching paths
                 scanDir(classpathElt, classpathElt, /* ignorePrefixLen = */ classpathElt.getPath().length() + 1,
                         /* inWhitelistedPath = */ false);
-
-            } else if (isJar && scanSpec.scanJars) {
+            } else /* is jarfile */ {
                 // Scan jarfile for matching paths
-                if (!scanSpec.jarIsWhitelisted(classpathElt.getName())) {
-                    if (FastClasspathScanner.verbose) {
-                        log.log(2, "Skipping jarfile that did not match whitelist/blacklist criteria: "
-                                + classpathElt.getName());
-                    }
-                    continue;
-                }
                 try (ZipFile zipFile = new ZipFile(classpathElt)) {
                     scanZipfile(classpathElt, zipFile);
                 } catch (final IOException e) {
                     if (FastClasspathScanner.verbose) {
                         log.log(2, "Error opening ZipFile " + classpathElt.getName() + ": " + e);
                     }
-                }
-
-            } else {
-                if (FastClasspathScanner.verbose) {
-                    log.log(2, "Skipping classpath element " + classpathElt.getPath());
                 }
             }
             if (Thread.currentThread().isInterrupted()) {

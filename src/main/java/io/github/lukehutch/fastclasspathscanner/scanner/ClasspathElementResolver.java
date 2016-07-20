@@ -71,6 +71,10 @@ public class ClasspathElementResolver extends LoggedThread<List<File>> {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /**
+     * Used for opening a ZipFile object and parsing its manifest, given a canonical path. Also used as a
+     * placeholder for non-jar (directory) classpath entries.
+     */
     private static class ClasspathElementOpener {
         private final ClasspathElement classpathElt;
         private final ThreadLog log;
@@ -116,6 +120,7 @@ public class ClasspathElementResolver extends LoggedThread<List<File>> {
         }
     }
 
+    /** A singleton map that maps a canonical path to a ClasspathElementOpener. */
     public static class ClasspathElementOpenerMap {
         private final ConcurrentMap<String, ClasspathElementOpener> map = new ConcurrentHashMap<>();
         private final ConcurrentMap<String, Object> keyToLock = new ConcurrentHashMap<>();
@@ -156,6 +161,11 @@ public class ClasspathElementResolver extends LoggedThread<List<File>> {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /**
+     * A work queue that takes classpath entries and determines if they are valid (i.e. that they exist, and if they
+     * are jarfiles, that they can be opened). For jarfiles, looks for Class-Path manifest entries and adds them to
+     * the classpath in the current order position.
+     */
     private static class ClasspathElementProcessor extends WorkQueue<ClasspathElement> {
         private final ScanSpec scanSpec;
 
@@ -182,8 +192,7 @@ public class ClasspathElementResolver extends LoggedThread<List<File>> {
         @Override
         public void processWorkUnit(final ClasspathElement classpathElt, final ThreadLog log) {
             // Check the classpath entry exists and is not a blacklisted system jar
-            // TODO: also check jar blacklist here?
-            if (!classpathElt.isValid(scanSpec.blacklistSystemJars(), knownJREPaths, log)) {
+            if (!classpathElt.isValid(scanSpec, knownJREPaths, log)) {
                 return;
             }
 
@@ -231,7 +240,7 @@ public class ClasspathElementResolver extends LoggedThread<List<File>> {
                                     .resolve(classpathElt.getFile().getParent());
 
                             // Enqueue child classpath elements
-                            List<String> resolvedChildPaths = new ArrayList<>(manifestClassPathElts.length);
+                            final List<String> resolvedChildPaths = new ArrayList<>(manifestClassPathElts.length);
                             for (int i = 0; i < manifestClassPathElts.length; i++) {
                                 final String manifestClassPathElt = manifestClassPathElts[i];
                                 final ClasspathElement linkedClasspathElt = new ClasspathElement(
@@ -252,6 +261,10 @@ public class ClasspathElementResolver extends LoggedThread<List<File>> {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /**
+     * Recursively perform a depth-first search of jar interdependencies, breaking cycles if necessary, to determine
+     * the final classpath element order.
+     */
     private void findClasspathOrder(final String canonicalPath,
             final ConcurrentHashMap<String, List<String>> canonicalPathToChildCanonicalPaths,
             final ClasspathElementOpenerMap canonicalPathToClasspathElementOpener,
@@ -273,8 +286,8 @@ public class ClasspathElementResolver extends LoggedThread<List<File>> {
     }
 
     /**
-     * Perform a depth-first search of jar interdependencies, breaking cycles if necessary, to determine the final
-     * classpath element order.
+     * Recursively perform a depth-first search of jar interdependencies, breaking cycles if necessary, to determine
+     * the final classpath element order.
      */
     private List<ClasspathElement> findClasspathOrder(final String currentDirPath,
             final ConcurrentHashMap<String, List<String>> canonicalPathToChildCanonicalPaths,
@@ -288,6 +301,7 @@ public class ClasspathElementResolver extends LoggedThread<List<File>> {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /** Determine and return the unique ordered classpath elements. */
     @Override
     public List<File> doWork() throws Exception {
         final List<File> classpathElementsOrdered = new ArrayList<>();

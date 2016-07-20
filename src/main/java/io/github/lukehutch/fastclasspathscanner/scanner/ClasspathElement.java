@@ -149,7 +149,7 @@ class ClasspathElement {
         }
     }
 
-    public boolean isValid(final boolean blacklistSystemJars, final ConcurrentHashMap<String, String> knownJREPaths,
+    public boolean isValid(final ScanSpec scanSpec, final ConcurrentHashMap<String, String> knownJREPaths,
             final ThreadLog log) {
         // Get absolute URI and File for classpathElt
         final String path = getResolvedPath();
@@ -168,24 +168,49 @@ class ClasspathElement {
         }
         final boolean isFile = isFile();
         final boolean isDirectory = isDirectory();
-        if (!isFile && !isDirectory) {
+        if (isFile != !isDirectory) {
+            // Exactly one of isFile and isDirectory should be true
             if (FastClasspathScanner.verbose) {
                 log.log("Ignoring invalid classpath element: " + getResolvedPath());
             }
             return false;
         }
-        if (isFile && !isJar(getResolvedPath())) {
-            if (FastClasspathScanner.verbose) {
-                log.log("Ignoring non-jar file on classpath: " + getResolvedPath());
+        if (isFile) {
+            // If a classpath entry is a file, it must be a jar
+            if (!isJar(getResolvedPath())) {
+                if (FastClasspathScanner.verbose) {
+                    log.log("Ignoring non-jar file on classpath: " + getResolvedPath());
+                }
+                return false;
             }
-            return false;
-        }
-        if (isFile && blacklistSystemJars && isJREJar(getFile(), /* ancestralScanDepth = */2, knownJREPaths, log)) {
-            // Don't scan system jars if they are blacklisted
-            if (FastClasspathScanner.verbose) {
-                log.log("Skipping JRE jar: " + getResolvedPath());
+            if (scanSpec.blacklistSystemJars()
+                    && isJREJar(getFile(), /* ancestralScanDepth = */2, knownJREPaths, log)) {
+                // Don't scan system jars if they are blacklisted
+                if (FastClasspathScanner.verbose) {
+                    log.log("Skipping JRE jar: " + getResolvedPath());
+                }
+                return false;
             }
-            return false;
+            if (!scanSpec.jarIsWhitelisted(getFile().getName())) {
+                if (FastClasspathScanner.verbose) {
+                    log.log("Skipping jarfile that did not match whitelist/blacklist criteria: "
+                            + getResolvedPath());
+                }
+                return false;
+            }
+            if (!scanSpec.scanJars) {
+                if (FastClasspathScanner.verbose) {
+                    log.log("Skipping jarfile, as jars are not being scanned: " + getResolvedPath());
+                }
+                return false;
+            }
+        } else {
+            if (!scanSpec.scanNonJars) {
+                if (FastClasspathScanner.verbose) {
+                    log.log("Skipping directory, as directories are not being scanned: " + getResolvedPath());
+                }
+                return false;
+            }
         }
         return true;
     }
