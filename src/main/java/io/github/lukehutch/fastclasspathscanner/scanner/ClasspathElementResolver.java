@@ -79,44 +79,87 @@ public class ClasspathElementResolver extends LoggedThread<List<File>> {
         private final ClasspathElement classpathElt;
         private final ThreadLog log;
 
-        /** ZipFile, may be null if the ZipFile could not be opened. */
-        public ZipFile jarFile;
+        /** All ZipFiles that have been opened for this classpath element. */
+        public ArrayList<ZipFile> openZipFiles = new ArrayList<>();
+
+        /** ZipFiles that are currently unused by any worker thread. */
+        public ArrayList<ZipFile> unusedOpenZipFiles = new ArrayList<>();
 
         /** Manifest parser, may be null if the ZipFile could not be opened. */
         public FastManifestParser manifestParser;
+
+        public Object manifestParserLock = new Object();
 
         public ClasspathElementOpener(final ClasspathElement classpathElt, final ThreadLog log) {
             this.classpathElt = classpathElt;
             this.log = log;
         }
 
-        public void open() {
+        /**
+         * Acquire a ZipFile object for this canonical path, or if there isn't one available, open one, parse its
+         * manifest (if present), and return the ZipFile object. Returns null if there was an error opening the
+         * ZipFile.
+         */
+        public ZipFile acquireZipFile() {
             if (classpathElt.isFile()) {
+                synchronized (unusedOpenZipFiles) {
+                    if (!unusedOpenZipFiles.isEmpty()) {
+                        ZipFile zipFile = unusedOpenZipFiles.get(unusedOpenZipFiles.size() - 1);
+                        unusedOpenZipFiles.remove(unusedOpenZipFiles.size() - 1);
+                        return zipFile;
+                    }
+                }
                 final File file = classpathElt.getFile();
                 try {
                     // Open the ZipFile, and read the list of files
-                    jarFile = new ZipFile(file);
-                    // Parse the manifest, if present
-                    manifestParser = new FastManifestParser(jarFile, log);
+                    ZipFile zipFile = new ZipFile(file);
+                    synchronized (openZipFiles) {
+                        openZipFiles.add(zipFile);
+                    }
+                    // Only parse the manifest the first time the zipfile is opened
+                    synchronized (manifestParserLock) {
+                        if (manifestParser == null) {
+                            // Parse the manifest, if present
+                            manifestParser = new FastManifestParser(zipFile, log);
+                        }
+                    }
+                    return zipFile;
                 } catch (final Exception e) {
                     if (FastClasspathScanner.verbose) {
                         log.log("Exception while opening zipfile " + file, e);
                     }
                 }
+                return null;
+            } else {
+                // Should not happen
+                throw new RuntimeException("Tried to call acquire() on a directory");
             }
         }
 
-        public void close() {
-            if (jarFile != null) {
+        /** Release (recycle) a ZipFile object. */
+        public void releaseZipFile(ZipFile jarFile) {
+            synchronized (unusedOpenZipFiles) {
+                unusedOpenZipFiles.add(jarFile);
+            }
+        }
+
+        /** Call this only after all workers have shut down. */
+        public void closeAllZipFiles() {
+            int unreleasedZipFiles = openZipFiles.size() - unusedOpenZipFiles.size();
+            if (unreleasedZipFiles != 0) {
+                // Should not happen
+                throw new RuntimeException("Unreleased ZipFiles: " + unreleasedZipFiles);
+            }
+            for (ZipFile zipFile : openZipFiles) {
                 try {
-                    jarFile.close();
+                    zipFile.close();
                 } catch (final IOException e) {
                     if (FastClasspathScanner.verbose) {
                         log.log("Exception while closing zipfile " + classpathElt.getFile(), e);
                     }
                 }
-                jarFile = null;
             }
+            openZipFiles.clear();
         }
     }
 
@@ -139,6 +182,10 @@ public class ClasspathElementResolver extends LoggedThread<List<File>> {
             return lock;
         }
 
+        /**
+         * Initialize a ClasspathElementOpener object for this canonical path and return true, if this is the first
+         * time this canonical path has been seen, otherwise return false.
+         */
         public boolean initializeIfFirst(final String canonicalPath, final ClasspathElement classpathElt) {
             synchronized (getLock(canonicalPath)) {
                 ClasspathElementOpener elementOpener = map.get(canonicalPath);
@@ -217,13 +264,16 @@ public class ClasspathElementResolver extends LoggedThread<List<File>> {
                     // Open ZipFile and read manifest
                     final ClasspathElementOpener classpathElementOpener = canonicalPathToClasspathElementOpener
                             .get(canonicalPath);
-                    classpathElementOpener.open();
 
-                    // If there was an exception opening the ZipFile, or there was no manifest, then
-                    // zipFileOpener.manifestParser will be null
-                    if (classpathElementOpener.manifestParser != null) {
-                        // If this jar is not a blacklisted system jar, and has a Class-Path entry
-                        if ((!scanSpec.blacklistSystemJars() || !classpathElementOpener.manifestParser.isSystemJar)
+                    ZipFile zipFile = null;
+                    try {
+                        // Open a ZipFile for this canonical path
+                        zipFile = classpathElementOpener.acquireZipFile();
+                        // If the zipFile could be opened, and it is not a blacklisted system jar, and the jar
+                        // has a manifest file, and the manifest file has a Class-Path entry
+                        if (zipFile != null
+                                && (!scanSpec.blacklistSystemJars()
+                                        || !classpathElementOpener.manifestParser.isSystemJar)
                                 && classpathElementOpener.manifestParser.classPath != null) {
                             if (FastClasspathScanner.verbose) {
                                 log.log("Found Class-Path entry in manifest of " + classpathElt.getResolvedPath()
@@ -252,6 +302,11 @@ public class ClasspathElementResolver extends LoggedThread<List<File>> {
 
                             // Store the ordering of the child elements relative to this canonical path
                             canonicalPathToChildCanonicalPaths.put(canonicalPath, resolvedChildPaths);
+                        }
+                    } finally {
+                        if (zipFile != null) {
+                            // Recycle this ZipFile instance
+                            classpathElementOpener.releaseZipFile(zipFile);
                         }
                     }
                 }
@@ -346,7 +401,7 @@ public class ClasspathElementResolver extends LoggedThread<List<File>> {
                     throw new InterruptedException();
                 }
             }
-            
+
             // Figure out total ordering of classpath elements
             final List<ClasspathElement> classpathOrder = findClasspathOrder(currentDirPath,
                     canonicalPathToChildCanonicalPaths, canonicalPathToClasspathElementOpener);
@@ -360,7 +415,7 @@ public class ClasspathElementResolver extends LoggedThread<List<File>> {
             // Close any zipfiles that were opened
             for (final Entry<String, ClasspathElementOpener> ent : canonicalPathToClasspathElementOpener
                     .entrySet()) {
-                ent.getValue().close();
+                ent.getValue().closeAllZipFiles();
             }
         }
         return classpathElementsOrdered;
