@@ -137,9 +137,9 @@ public class ClasspathElementResolver extends LoggedThread<List<File>> {
         }
 
         /** Release (recycle) a ZipFile object. */
-        public void releaseZipFile(ZipFile jarFile) {
+        public void releaseZipFile(ZipFile zipFile) {
             synchronized (unusedOpenZipFiles) {
-                unusedOpenZipFiles.add(jarFile);
+                unusedOpenZipFiles.add(zipFile);
             }
         }
 
@@ -302,6 +302,9 @@ public class ClasspathElementResolver extends LoggedThread<List<File>> {
 
                             // Store the ordering of the child elements relative to this canonical path
                             canonicalPathToChildCanonicalPaths.put(canonicalPath, resolvedChildPaths);
+
+                            // TODO: scan zipfile paths *******************************************************************************
+                            // (store list of paths in ClasspathElementOpener)
                         }
                     } finally {
                         if (zipFile != null) {
@@ -309,6 +312,8 @@ public class ClasspathElementResolver extends LoggedThread<List<File>> {
                             classpathElementOpener.releaseZipFile(zipFile);
                         }
                     }
+                } else {
+                    // TODO: scan directory recursively *******************************************************************************
                 }
             }
         }
@@ -324,14 +329,18 @@ public class ClasspathElementResolver extends LoggedThread<List<File>> {
             final ConcurrentHashMap<String, List<String>> canonicalPathToChildCanonicalPaths,
             final ClasspathElementOpenerMap canonicalPathToClasspathElementOpener,
             final HashSet<String> visitedCanonicalPaths, final ArrayList<ClasspathElement> order) {
-        if (visitedCanonicalPaths.add(canonicalPath)) {
-            final List<String> childPaths = canonicalPathToChildCanonicalPaths.get(canonicalPath);
-            if (childPaths != null) {
-                for (final String childPath : childPaths) {
-                    final ClasspathElementOpener childPathClasspathElementOpener = canonicalPathToClasspathElementOpener
-                            .get(childPath);
+        final List<String> childPaths = canonicalPathToChildCanonicalPaths.get(canonicalPath);
+        if (childPaths != null) {
+            for (final String childPath : childPaths) {
+                if (visitedCanonicalPaths.add(childPath)) {
+                    final ClasspathElementOpener childPathClasspathElementOpener = //
+                            canonicalPathToClasspathElementOpener.get(childPath);
                     if (childPathClasspathElementOpener != null) {
                         order.add(childPathClasspathElementOpener.classpathElt);
+
+                        // TODO: for all relative paths within child classpath elt: add relative path to list of paths that matched if it is the first occurrence across classpath, to implement masking.
+                        // Also do the same for classfile paths.
+
                         findClasspathOrder(childPath, canonicalPathToChildCanonicalPaths,
                                 canonicalPathToClasspathElementOpener, visitedCanonicalPaths, order);
                     }
@@ -344,13 +353,14 @@ public class ClasspathElementResolver extends LoggedThread<List<File>> {
      * Recursively perform a depth-first search of jar interdependencies, breaking cycles if necessary, to determine
      * the final classpath element order.
      */
-    private List<ClasspathElement> findClasspathOrder(final String currentDirPath,
+    private List<ClasspathElement> findClasspathOrder(
             final ConcurrentHashMap<String, List<String>> canonicalPathToChildCanonicalPaths,
             final ClasspathElementOpenerMap canonicalPathToClasspathElementOpener) {
         final HashSet<String> visitedCanonicalPaths = new HashSet<>();
+        visitedCanonicalPaths.add("");
         final ArrayList<ClasspathElement> order = new ArrayList<>();
-        findClasspathOrder(currentDirPath, canonicalPathToChildCanonicalPaths,
-                canonicalPathToClasspathElementOpener, visitedCanonicalPaths, order);
+        findClasspathOrder("", canonicalPathToChildCanonicalPaths, canonicalPathToClasspathElementOpener,
+                visitedCanonicalPaths, order);
         return order;
     }
 
@@ -376,7 +386,7 @@ public class ClasspathElementResolver extends LoggedThread<List<File>> {
         // A map from canonical path to child canonical paths.
         final ConcurrentHashMap<String, List<String>> canonicalPathToChildCanonicalPaths = //
                 new ConcurrentHashMap<>();
-        canonicalPathToChildCanonicalPaths.put(currentDirPath, rawClasspathElementPaths);
+        canonicalPathToChildCanonicalPaths.put("", rawClasspathElementPaths);
 
         // Map to hold ZipFiles, with atomic creation of entries, so that ZipFiles only get opened once
         // (they are somewhat expensive to open).
@@ -403,8 +413,8 @@ public class ClasspathElementResolver extends LoggedThread<List<File>> {
             }
 
             // Figure out total ordering of classpath elements
-            final List<ClasspathElement> classpathOrder = findClasspathOrder(currentDirPath,
-                    canonicalPathToChildCanonicalPaths, canonicalPathToClasspathElementOpener);
+            final List<ClasspathElement> classpathOrder = findClasspathOrder(canonicalPathToChildCanonicalPaths,
+                    canonicalPathToClasspathElementOpener);
 
             // TODO: scan files hierarchically before closing zipfiles
             for (final ClasspathElement elt : classpathOrder) {
