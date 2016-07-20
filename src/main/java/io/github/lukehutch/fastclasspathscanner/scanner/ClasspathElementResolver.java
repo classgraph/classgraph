@@ -303,7 +303,7 @@ public class ClasspathElementResolver extends LoggedThread<List<File>> {
 
     /** Determine and return the unique ordered classpath elements. */
     @Override
-    public List<File> doWork() throws Exception {
+    public List<File> doWork() throws InterruptedException {
         final List<File> classpathElementsOrdered = new ArrayList<>();
 
         // Get raw classpath elements
@@ -341,8 +341,12 @@ public class ClasspathElementResolver extends LoggedThread<List<File>> {
                 workQueue.startWorkers(executorService, numParallelTasks);
                 // Also do work in the main thread, until all work units have been completed
                 workQueue.runWorkLoop(log);
+                // Check if work termination was due to interruption
+                if (Thread.currentThread().isInterrupted()) {
+                    throw new InterruptedException();
+                }
             }
-
+            
             // Figure out total ordering of classpath elements
             final List<ClasspathElement> classpathOrder = findClasspathOrder(currentDirPath,
                     canonicalPathToChildCanonicalPaths, canonicalPathToClasspathElementOpener);
