@@ -15,7 +15,7 @@ import io.github.lukehutch.fastclasspathscanner.utils.LoggedThread.ThreadLog;
  * This class should only be used by a single thread at a time, but can be re-used to scan multiple classfiles in
  * sequence, to avoid re-allocating buffer memory.
  */
-class ClassfileBinaryParser {
+class ClassfileBinaryParser implements AutoCloseable {
     /** The ScanSpec. */
     private final ScanSpec scanSpec;
 
@@ -31,6 +31,10 @@ class ClassfileBinaryParser {
     ClassfileBinaryParser(final ScanSpec scanSpec, final ThreadLog log) {
         this.scanSpec = scanSpec;
         this.log = log;
+    }
+
+    @Override
+    public void close() {
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -475,12 +479,13 @@ class ClassfileBinaryParser {
             final Map<String, HashSet<String>> classNameToStaticFinalFieldsToMatch,
             final ConcurrentHashMap<String, String> stringInternMap) throws InterruptedException {
         try {
-            // Clear className and set inputStream for each new class
-            this.className = null;
+            // This class instance can be reused across scans, to avoid re-allocating the buffer.
+            // Initialize/clear fields for each new run. 
             this.inputStream = inputStream;
-
-            // Initialize buffer
+            className = null;
             curr = 0;
+
+            // Read first bufferful
             used = inputStream.read(buf, 0, INITIAL_BUFFER_CHUNK_SIZE);
             if (used < 0) {
                 throw new IOException("Classfile " + relativePath + " is empty");

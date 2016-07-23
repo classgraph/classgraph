@@ -183,6 +183,12 @@ class ClasspathElement {
                 }
                 return false;
             }
+            if (!scanSpec.scanJars) {
+                if (FastClasspathScanner.verbose) {
+                    log.log("Skipping jarfile, as jars are not being scanned: " + getResolvedPath());
+                }
+                return false;
+            }
             if (scanSpec.blacklistSystemJars()
                     && isJREJar(getFile(), /* ancestralScanDepth = */2, knownJREPaths, log)) {
                 // Don't scan system jars if they are blacklisted
@@ -198,14 +204,8 @@ class ClasspathElement {
                 }
                 return false;
             }
-            if (!scanSpec.scanJars) {
-                if (FastClasspathScanner.verbose) {
-                    log.log("Skipping jarfile, as jars are not being scanned: " + getResolvedPath());
-                }
-                return false;
-            }
         } else {
-            if (!scanSpec.scanNonJars) {
+            if (!scanSpec.scanDirs) {
                 if (FastClasspathScanner.verbose) {
                     log.log("Skipping directory, as directories are not being scanned: " + getResolvedPath());
                 }

@@ -1,6 +1,7 @@
 package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -10,8 +11,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.regex.Pattern;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.classloaderhandler.ClassLoaderHandler;
@@ -25,8 +27,9 @@ import io.github.lukehutch.fastclasspathscanner.matchprocessor.InterfaceMatchPro
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.StaticFinalFieldMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubclassMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubinterfaceMatchProcessor;
-import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathResourceQueueProcessor.ClasspathResourceProcessor;
 import io.github.lukehutch.fastclasspathscanner.utils.LoggedThread.ThreadLog;
+import io.github.lukehutch.fastclasspathscanner.utils.ZipFileRecycler;
+import io.github.lukehutch.fastclasspathscanner.utils.ZipFileRecycler.ZipFileCacheEntry;
 
 public class ScanSpec {
     /** Whitelisted package paths with "/" appended, or the empty list if all packages are whitelisted. */
@@ -62,11 +65,11 @@ public class ScanSpec {
     /** Blacklisted jarfile names containing a glob('*') character, converted to a regexp. (Leaf filename only.) */
     private final ArrayList<Pattern> blacklistedJarPatterns = new ArrayList<>();
 
-    /** True if jarfiles should be scanned. */
+    /** True if jarfiles on the classpath should be scanned. */
     final boolean scanJars;
 
-    /** True if non-jarfiles (directories) should be scanned. */
-    final boolean scanNonJars;
+    /** True if directories on the classpath should be scanned. */
+    final boolean scanDirs;
 
     /** If true, index types of fields. */
     public boolean enableFieldTypeIndexing;
@@ -246,7 +249,7 @@ public class ScanSpec {
         }
 
         this.scanJars = scanJars;
-        this.scanNonJars = scanNonJars;
+        this.scanDirs = scanNonJars;
 
         if (FastClasspathScanner.verbose) {
             log.log("Whitelisted relative path prefixes:  " + whitelistedPathPrefixes);
@@ -285,26 +288,47 @@ public class ScanSpec {
     /**
      * Run the MatchProcessors after a scan has completed.
      */
-    void callMatchProcessors(final ScanResult scanResult,
-            final LinkedBlockingQueue<ClasspathResource> matchingFiles, final ClasspathResource endOfQueueMarker,
-            final Map<String, ClassInfo> classNameToClassInfo, final ThreadLog log) throws InterruptedException {
+    void callMatchProcessors(final ScanResult scanResult, final List<ClasspathResource> fileMatches,
+            final Map<String, ClassInfo> classNameToClassInfo, final ZipFileRecycler zipFileRecycler,
+            final ThreadLog log) throws InterruptedException {
+
         // Call any FileMatchProcessors
-        ClasspathResourceQueueProcessor.processClasspathResourceQueue(matchingFiles, endOfQueueMarker,
-                new ClasspathResourceProcessor() {
-                    @Override
-                    public void processClasspathResource(final ClasspathResource classpathResource,
-                            final InputStream inputStream, final long inputStreamLength) {
+        for (final ClasspathResource fileMatch : fileMatches) {
+            final File classpathElt = fileMatch.classpathElt;
+            try {
+                if (classpathElt.isFile()) {
+                    // Open InputStream on relative path within zipfile
+                    final ZipFileCacheEntry zipFileCacheEntry = zipFileRecycler
+                            .get(classpathElt.getCanonicalPath());
+                    if (!zipFileCacheEntry.errorOpeningZipFile()) {
+                        ZipFile zipFile = null;
                         try {
-                            classpathResource.fileMatchProcessorWrapper.processMatch(classpathResource.classpathElt,
-                                    classpathResource.relativePath, inputStream, inputStreamLength);
-                        } catch (final Throwable e) {
-                            if (FastClasspathScanner.verbose) {
-                                log.log(4, "Exception while calling FileMatchProcessor for file "
-                                        + classpathResource.relativePath + " : " + e);
+                            zipFile = zipFileCacheEntry.acquire();
+                            final ZipEntry zipEntry = zipFile.getEntry(fileMatch.relativePath);
+                            try (InputStream inputStream = zipFile.getInputStream(zipEntry)) {
+                                // Run FileMatcher
+                                fileMatch.fileMatchProcessorWrapper.processMatch(classpathElt,
+                                        fileMatch.relativePath, inputStream, zipEntry.getSize());
                             }
+                        } finally {
+                            zipFileCacheEntry.release(zipFile);
                         }
                     }
-                }, log);
+                } else {
+                    // Open InputStream on relative path within directory
+                    try (InputStream inputStream = new FileInputStream(fileMatch.relativePathFile)) {
+                        // Run FileMatcher
+                        fileMatch.fileMatchProcessorWrapper.processMatch(classpathElt, fileMatch.relativePath,
+                                inputStream, fileMatch.relativePathFile.length());
+                    }
+                }
+            } catch (final IOException e) {
+                if (FastClasspathScanner.verbose) {
+                    log.log(4, "Exception while opening classpath resource " + fileMatch.classpathElt
+                            + (classpathElt.isFile() ? "!" : "/") + fileMatch.relativePath, e);
+                }
+            }
+        }
 
         // Call any class, interface or annotation MatchProcessors
         if (classMatchers != null) {

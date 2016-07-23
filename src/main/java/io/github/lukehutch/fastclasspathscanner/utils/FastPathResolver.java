@@ -5,6 +5,11 @@ import java.nio.charset.StandardCharsets;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * Resolve relative paths and URLs/URIs against a base path in a way that is faster than Java's URL/URI parser (and
+ * much faster than Path), while aiming for cross-platform compatibility, and hopefully in particular being robust
+ * to the many forms of Windows path weirdness.
+ */
 public class FastPathResolver {
 
     private static final Pattern percentMatcher = Pattern.compile("([%][0-9a-fA-F][0-9a-fA-F])+");

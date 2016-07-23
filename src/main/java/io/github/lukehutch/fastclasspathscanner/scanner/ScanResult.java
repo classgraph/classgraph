@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.utils.LoggedThread.ThreadLog;
 
 /** The result of a scan. */
@@ -15,29 +14,39 @@ public class ScanResult {
     /** The scan spec. */
     private final ScanSpec scanSpec;
 
+    /** The list of File objects for unique classpath elements (directories or jarfiles). */
+    final List<File> classpathElementFilesOrdered;
+
     /**
      * The file resources timestamped during a scan, along with their timestamp at the time of the scan. Includes
      * whitelisted files within directory classpath elements' hierarchy, and also whitelisted jarfiles (whose
-     * timestamp represents the timestamp of all files within the jarfile).
+     * timestamp represents the timestamp of all files within the jarfile). May be null, if this is the result of a
+     * call to FastClasspathScanner#getUniqueClasspathElementsAsync().
      */
-    private final Map<File, Long> fileToTimestamp;
+    private final Map<File, Long> fileToLastModified;
 
-    /** The class graph builder. */
+    /**
+     * The class graph builder. May be null, if this is the result of a call to
+     * FastClasspathScanner#getUniqueClasspathElementsAsync().
+     */
     private final ClassGraphBuilder classGraphBuilder;
 
     // -------------------------------------------------------------------------------------------------------------
 
-    ScanResult(final ScanSpec scanSpec, final Map<String, ClassInfo> classNameToClassInfo,
-            final Map<File, Long> fileToTimestamp, final ThreadLog log) {
+    ScanResult(final ScanSpec scanSpec, final List<File> classpathElementFilesOrdered,
+            final ClassGraphBuilder classGraphBuilder, final Map<File, Long> fileToLastModified,
+            final ThreadLog log) {
         this.scanSpec = scanSpec;
-        this.fileToTimestamp = fileToTimestamp;
+        this.classpathElementFilesOrdered = classpathElementFilesOrdered;
+        this.fileToLastModified = fileToLastModified;
+        this.classGraphBuilder = classGraphBuilder;
+    }
 
-        // Build the class graph
-        final long graphStartTime = System.nanoTime();
-        this.classGraphBuilder = new ClassGraphBuilder(classNameToClassInfo);
-        if (FastClasspathScanner.verbose) {
-            log.log(1, "Built class graph", System.nanoTime() - graphStartTime);
-        }
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** Returns the list of File objects for unique classpath elements (directories or jarfiles). */
+    public List<File> getClasspathElementFilesOrdered() {
+        return classpathElementFilesOrdered;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -50,7 +59,7 @@ public class ScanResult {
      * directories, and changes to the contents of jarfiles (since the timestamp of the whole jarfile changes).
      */
     public boolean classpathContentsModifiedSinceScan() {
-        for (final Entry<File, Long> ent : fileToTimestamp.entrySet()) {
+        for (final Entry<File, Long> ent : fileToLastModified.entrySet()) {
             if (ent.getKey().lastModified() != ent.getValue()) {
                 return true;
             }
@@ -68,7 +77,7 @@ public class ScanResult {
         // Find the max file last modified timestamp
         long maxLastModifiedTime = 0L;
         final long currTime = System.currentTimeMillis();
-        for (final long timestamp : fileToTimestamp.values()) {
+        for (final long timestamp : fileToLastModified.values()) {
             if (timestamp > maxLastModifiedTime && timestamp < currTime) {
                 maxLastModifiedTime = timestamp;
             }

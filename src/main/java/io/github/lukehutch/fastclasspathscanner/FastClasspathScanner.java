@@ -31,6 +31,7 @@ package io.github.lukehutch.fastclasspathscanner;
 import java.io.File;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -51,10 +52,9 @@ import io.github.lukehutch.fastclasspathscanner.matchprocessor.InterfaceMatchPro
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.StaticFinalFieldMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubclassMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubinterfaceMatchProcessor;
-import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathElementResolver;
-import io.github.lukehutch.fastclasspathscanner.scanner.ScanExecutor;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
+import io.github.lukehutch.fastclasspathscanner.scanner.ScannerCore;
 import io.github.lukehutch.fastclasspathscanner.utils.LoggedThread.ThreadLog;
 import io.github.lukehutch.fastclasspathscanner.utils.VersionFinder;
 
@@ -162,8 +162,14 @@ public class FastClasspathScanner {
             if (FastClasspathScanner.verbose) {
                 log.log("Getting classpath elements");
             }
-            return executorService
-                    .submit(new ClasspathElementResolver(getScanSpec(), executorService, numParallelTasks));
+            final Future<ScanResult> scanResult = executorService.submit(new ScannerCore(getScanSpec(),
+                    executorService, numParallelTasks, /* enableRecursiveScanning = */ false));
+            return executorService.submit(new Callable<List<File>>() {
+                @Override
+                public List<File> call() throws Exception {
+                    return scanResult.get().getClasspathElementFilesOrdered();
+                }
+            });
         }
     }
 
@@ -176,9 +182,7 @@ public class FastClasspathScanner {
         if (classpathElts == null) {
             try (final ThreadLog log = new ThreadLog()) {
                 try {
-                    // for (int i = 0; i < 10000000; i++) { // TODO:
                     classpathElts = getUniqueClasspathElementsAsync(executorService, numParallelTasks).get();
-                    //}
                 } catch (final InterruptedException e) {
                     if (FastClasspathScanner.verbose) {
                         log.log("Thread interrupted while getting classpath elements");
@@ -808,8 +812,8 @@ public class FastClasspathScanner {
      */
     public synchronized Future<ScanResult> scanAsync(final ExecutorService executorService,
             final int numParallelTasks) {
-        return ScanExecutor.scan(getScanSpec(), getUniqueClasspathElements(executorService, numParallelTasks),
-                executorService, Math.max(numParallelTasks, 1));
+        return executorService.submit(new ScannerCore(getScanSpec(), executorService, numParallelTasks,
+                /* enableRecursiveScanning = */ true));
     }
 
     /**
