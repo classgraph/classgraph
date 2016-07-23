@@ -35,10 +35,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import io.github.lukehutch.fastclasspathscanner.classloaderhandler.ClassLoaderHandler;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.ClassAnnotationMatchProcessor;
@@ -56,6 +54,7 @@ import io.github.lukehutch.fastclasspathscanner.scanner.ScanExecutor;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
 import io.github.lukehutch.fastclasspathscanner.utils.LoggedThread.ThreadLog;
+import io.github.lukehutch.fastclasspathscanner.utils.SimpleThreadFactory;
 import io.github.lukehutch.fastclasspathscanner.utils.VersionFinder;
 
 /**
@@ -178,7 +177,6 @@ public class FastClasspathScanner {
                 try {
                     // for (int i = 0; i < 10000000; i++) { // TODO:
                     classpathElts = getUniqueClasspathElementsAsync(executorService, numParallelTasks).get();
-                    //}
                 } catch (final InterruptedException e) {
                     if (FastClasspathScanner.verbose) {
                         log.log("Thread interrupted while getting classpath elements");
@@ -201,7 +199,7 @@ public class FastClasspathScanner {
      */
     public List<File> getUniqueClasspathElements() {
         if (classpathElts == null) {
-            try (AutocloseableExecutorService executorService = new AutocloseableExecutorService(
+            try (AutoCloseableExecutorService executorService = new AutoCloseableExecutorService(
                     DEFAULT_NUM_WORKER_THREADS)) {
                 return getUniqueClasspathElements(executorService, DEFAULT_NUM_WORKER_THREADS);
             }
@@ -219,32 +217,22 @@ public class FastClasspathScanner {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    private final static AtomicInteger threadIdx = new AtomicInteger();
+    private final static SimpleThreadFactory threadFactory = new SimpleThreadFactory("FastClasspathScanner-worker-", true);
 
     /** A ThreadPoolExecutor that can be used in a try-with-resources block. */
-    private class AutocloseableExecutorService extends ThreadPoolExecutor implements AutoCloseable {
-        public AutocloseableExecutorService(final int numThreads) {
+    private class AutoCloseableExecutorService extends ThreadPoolExecutor implements AutoCloseable {
+        public AutoCloseableExecutorService(final int numThreads) {
             super(numThreads, numThreads, 0L, TimeUnit.MILLISECONDS,
                     // FIFO work queue
                     new LinkedBlockingQueue<Runnable>(),
-                    // Thread factory that names threads and sets daemon status to true
-                    new ThreadFactory() {
-                        @Override
-                        public Thread newThread(final Runnable r) {
-                            final Thread t = new Thread(r,
-                                    "FastClasspathScanner-worker-" + threadIdx.getAndIncrement());
-                            // Kill worker threads if main thread dies
-                            t.setDaemon(true);
-                            return t;
-                        }
-                    });
+                    threadFactory);
         }
 
         /** Shut down thread pool on close(). */
         @Override
         public void close() {
             try {
-                shutdown();
+                shutdownNow();
             } catch (final Exception e) {
                 throw new RuntimeException("Exception shutting down ExecutorService: " + e);
             }
@@ -862,7 +850,7 @@ public class FastClasspathScanner {
      *             if any of the worker threads throws an uncaught exception.
      */
     public synchronized ScanResult scan(final int numThreads) {
-        try (AutocloseableExecutorService executorService = new AutocloseableExecutorService(numThreads)) {
+        try (AutoCloseableExecutorService executorService = new AutoCloseableExecutorService(numThreads)) {
             return scan(executorService, numThreads);
         }
     }
