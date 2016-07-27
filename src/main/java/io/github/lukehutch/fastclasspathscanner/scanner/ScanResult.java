@@ -35,8 +35,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import io.github.lukehutch.fastclasspathscanner.utils.LoggedThread.ThreadLog;
-
 /** The result of a scan. */
 public class ScanResult {
     /** The scan spec. */
@@ -62,8 +60,7 @@ public class ScanResult {
     // -------------------------------------------------------------------------------------------------------------
 
     ScanResult(final ScanSpec scanSpec, final List<File> classpathElementFilesOrdered,
-            final ClassGraphBuilder classGraphBuilder, final Map<File, Long> fileToLastModified,
-            final ThreadLog log) {
+            final ClassGraphBuilder classGraphBuilder, final Map<File, Long> fileToLastModified) {
         this.scanSpec = scanSpec;
         this.classpathElementFilesOrdered = classpathElementFilesOrdered;
         this.fileToLastModified = fileToLastModified;

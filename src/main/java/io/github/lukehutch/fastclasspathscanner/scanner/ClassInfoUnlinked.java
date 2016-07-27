@@ -37,9 +37,8 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.utils.Join;
-import io.github.lukehutch.fastclasspathscanner.utils.LoggedThread.ThreadLog;
+import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 
 /**
  * Class information that has been directly read from the binary classfile, before it is cross-linked with other
@@ -47,18 +46,15 @@ import io.github.lukehutch.fastclasspathscanner.utils.LoggedThread.ThreadLog;
  */
 class ClassInfoUnlinked {
     String className;
-    private boolean isInterface;
-    private boolean isAnnotation;
+    private final boolean isInterface;
+    private final boolean isAnnotation;
     // Superclass (can be null if no superclass, or if superclass is blacklisted)
     private String superclassName;
     private List<String> implementedInterfaces;
     private List<String> annotations;
     private Set<String> fieldTypes;
     private Map<String, Object> staticFinalFieldValues;
-    private ConcurrentHashMap<String, String> stringInternMap;
-
-    ClassInfoUnlinked() {
-    }
+    private final ConcurrentHashMap<String, String> stringInternMap;
 
     private String intern(final String string) {
         if (string == null) {
@@ -136,29 +132,30 @@ class ClassInfoUnlinked {
         }
     }
 
-    void logTo(final ThreadLog log) {
-        if (FastClasspathScanner.verbose) {
-            log.log(2, "Found " + (isAnnotation ? "annotation class" : isInterface ? "interface class" : "class")
+    void logTo(final LogNode log) {
+        if (log != null) {
+            final LogNode subLog = log.log("Found " //
+                    + (isAnnotation ? "annotation class" : isInterface ? "interface class" : "class") //
                     + " " + className);
             if (superclassName != null && !"java.lang.Object".equals(superclassName)) {
-                log.log(3,
+                subLog.log(
                         "Super" + (isInterface && !isAnnotation ? "interface" : "class") + ": " + superclassName);
             }
             if (implementedInterfaces != null) {
-                log.log(3, "Interfaces: " + Join.join(", ", implementedInterfaces));
+                subLog.log("Interfaces: " + Join.join(", ", implementedInterfaces));
             }
             if (annotations != null) {
-                log.log(3, "Annotations: " + Join.join(", ", annotations));
+                subLog.log("Annotations: " + Join.join(", ", annotations));
             }
             if (fieldTypes != null) {
-                log.log(3, "Field types: " + Join.join(", ", fieldTypes));
+                subLog.log("Field types: " + Join.join(", ", fieldTypes));
             }
             if (staticFinalFieldValues != null) {
                 final List<String> fieldInitializers = new ArrayList<>();
                 for (final Entry<String, Object> ent : staticFinalFieldValues.entrySet()) {
                     fieldInitializers.add(ent.getKey() + " = " + ent.getValue());
                 }
-                log.log(3, "Static final field values: " + Join.join(", ", fieldInitializers));
+                subLog.log("Static final field values: " + Join.join(", ", fieldInitializers));
             }
         }
     }

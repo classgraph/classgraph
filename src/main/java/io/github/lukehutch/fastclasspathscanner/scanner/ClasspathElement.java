@@ -40,10 +40,9 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.zip.ZipEntry;
 
-import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec.FileMatchProcessorWrapper;
 import io.github.lukehutch.fastclasspathscanner.utils.InterruptionChecker;
-import io.github.lukehutch.fastclasspathscanner.utils.LoggedThread.ThreadLog;
+import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.MultiMapKeyToList;
 import io.github.lukehutch.fastclasspathscanner.utils.WorkQueue;
 
@@ -54,43 +53,56 @@ abstract class ClasspathElement {
     List<ClasspathRelativePath> childClasspathElts;
     boolean ioExceptionOnOpen;
     protected InterruptionChecker interruptionChecker;
-    protected ThreadLog log;
 
-    MultiMapKeyToList<FileMatchProcessorWrapper, ClasspathResource> fileMatches;
-    List<ClasspathResource> classfileMatches;
-    Map<File, Long> fileToLastModified;
+    protected MultiMapKeyToList<FileMatchProcessorWrapper, ClasspathResource> fileMatches;
+    protected List<ClasspathResource> classfileMatches;
+    protected Map<File, Long> fileToLastModified;
 
-    ClasspathElement(final ClasspathRelativePath classpathElt, final ScanSpec scanSpec, final boolean scanFiles,
-            final InterruptionChecker interruptionChecker, final ThreadLog log) {
+    ClasspathElement(final ClasspathRelativePath classpathEltPath, final ScanSpec scanSpec, final boolean scanFiles,
+            final InterruptionChecker interruptionChecker, final LogNode log) {
         this.scanSpec = scanSpec;
         this.scanFiles = scanFiles;
         this.interruptionChecker = interruptionChecker;
-        this.log = log;
         try {
-            this.classpathElementFile = classpathElt.getFile();
+            this.classpathElementFile = classpathEltPath.getFile();
         } catch (final IOException e) {
             // Shouldn't happen, files have already been screened for this
             throw new RuntimeException(e);
         }
     }
 
+    @Override
+    public String toString() {
+        return classpathElementFile.toString();
+    }
+
+    /**
+     * Factory for creating a ClasspathElementDir singleton for directory classpath entries or a ClasspathElementZip
+     * singleton for jarfile classpath entries.
+     */
     static ClasspathElement newInstance(final ClasspathRelativePath classpathElt, final boolean scanFiles,
             final ScanSpec scanSpec, final InterruptionChecker interruptionChecker,
-            final WorkQueue<ClasspathRelativePath> workQueue, final ThreadLog log) throws IOException {
+            final WorkQueue<ClasspathRelativePath> workQueue, final LogNode log) throws IOException {
         boolean isDir;
         try {
             isDir = classpathElt.isDirectory();
         } catch (final IOException e) {
-            if (FastClasspathScanner.verbose) {
+            if (log != null) {
                 log.log("Exception while trying to canonicalize path " + classpathElt.getResolvedPath(), e);
             }
             throw e;
         }
-        if (isDir) {
-            return new ClasspathElementDir(classpathElt, scanSpec, scanFiles, interruptionChecker, log);
-        } else {
-            return new ClasspathElementZip(classpathElt, scanSpec, scanFiles, interruptionChecker, workQueue, log);
+        final LogNode logNode = log == null ? null
+                : log.log(classpathElt.toString(),
+                        "Scanning " + (isDir ? "directory " : "jarfile ") + classpathElt);
+        final ClasspathElement newInstance = isDir
+                ? new ClasspathElementDir(classpathElt, scanSpec, scanFiles, interruptionChecker, logNode)
+                : new ClasspathElementZip(classpathElt, scanSpec, scanFiles, interruptionChecker, workQueue,
+                        logNode);
+        if (logNode != null) {
+            logNode.addElapsedTime();
         }
+        return newInstance;
     }
 
     /**
@@ -113,6 +125,11 @@ abstract class ClasspathElement {
                 super(classpathEltFile, relativePath);
                 this.relativePathFile = relativePathFile;
             }
+
+            @Override
+            public String toString() {
+                return classpathEltFile + "/" + relativePath;
+            }
         }
 
         static class ClasspathResourceInZipFile extends ClasspathResource {
@@ -123,7 +140,13 @@ abstract class ClasspathElement {
                 super(classpathEltFile, relativePath);
                 this.zipEntry = zipEntry;
             }
+
+            @Override
+            public String toString() {
+                return "jar:" + classpathEltFile + "!" + relativePath;
+            }
         }
+
     }
 
     public int getNumClassfileMatches() {
@@ -134,25 +157,25 @@ abstract class ClasspathElement {
      * Apply relative path masking within this classpath resource -- remove relative paths that were found in an
      * earlier classpath element.
      */
-    void maskFiles(final HashSet<String> classpathRelativePathsFound) {
+    void maskFiles(final HashSet<String> classpathRelativePathsFound, final LogNode log) {
         if (!scanFiles) {
             // Should not happen
             throw new IllegalArgumentException("scanFiles is false");
         }
         // Take the union of classfile and file match relative paths, since matches can be in both lists
         // if a user adds a custom file path matcher that matches paths ending in ".class"
-        final HashSet<String> matchesUnion = new HashSet<>();
+        final HashSet<String> allMatchingRelativePathsForThisClasspathElement = new HashSet<>();
         for (final ClasspathResource res : classfileMatches) {
-            matchesUnion.add(res.relativePath);
+            allMatchingRelativePathsForThisClasspathElement.add(res.relativePath);
         }
         for (final Entry<FileMatchProcessorWrapper, List<ClasspathResource>> ent : fileMatches.entrySet()) {
             for (final ClasspathResource classpathResource : ent.getValue()) {
-                matchesUnion.add(classpathResource.relativePath);
+                allMatchingRelativePathsForThisClasspathElement.add(classpathResource.relativePath);
             }
         }
         // See which of these paths are masked, if any
         final HashSet<String> maskedRelativePaths = new HashSet<>();
-        for (final String match : matchesUnion) {
+        for (final String match : allMatchingRelativePathsForThisClasspathElement) {
             if (classpathRelativePathsFound.contains(match)) {
                 maskedRelativePaths.add(match);
             }
@@ -163,6 +186,12 @@ abstract class ClasspathElement {
             for (final ClasspathResource classfileMatch : classfileMatches) {
                 if (!maskedRelativePaths.contains(classfileMatch.relativePath)) {
                     filteredClassfileMatches.add(classfileMatch);
+                } else {
+                    if (log != null) {
+                        log.log("Ignoring duplicate path " + classfileMatch.relativePath + " in classpath element "
+                                + classfileMatch.classpathEltFile
+                                + " -- it is masked by the same relative path occurring in an earlier classpath entry");
+                    }
                 }
             }
             classfileMatches = filteredClassfileMatches;
@@ -173,22 +202,35 @@ abstract class ClasspathElement {
                 for (final ClasspathResource fileMatch : ent.getValue()) {
                     if (!maskedRelativePaths.contains(fileMatch.relativePath)) {
                         filteredFileMatches.put(ent.getKey(), fileMatch);
+                    } else {
+                        if (log != null) {
+                            log.log("Ignoring duplicate path " + fileMatch.relativePath + " in classpath element "
+                                    + fileMatch.classpathEltFile
+                                    + " -- it is masked by the same relative path occurring in an earlier classpath "
+                                    + "entry");
+                        }
                     }
                 }
             }
             fileMatches = filteredFileMatches;
         }
+        classpathRelativePathsFound.addAll(allMatchingRelativePathsForThisClasspathElement);
     }
 
-    void callFileMatchProcessors() throws InterruptedException, ExecutionException {
+    void callFileMatchProcessors(final LogNode log) throws InterruptedException, ExecutionException {
         for (final Entry<FileMatchProcessorWrapper, List<ClasspathResource>> ent : fileMatches.entrySet()) {
             final FileMatchProcessorWrapper fileMatchProcessorWrapper = ent.getKey();
             for (final ClasspathResource fileMatch : ent.getValue()) {
                 try {
+                    final LogNode logNode = log == null ? null
+                            : log.log("Calling MatchProcessor for matching file " + fileMatch);
                     openInputStreamAndProcessFileMatch(fileMatch, fileMatchProcessorWrapper);
+                    if (logNode != null) {
+                        logNode.addElapsedTime();
+                    }
                 } catch (final IOException e) {
-                    if (FastClasspathScanner.verbose) {
-                        log.log(4, "Exception while opening classpath resource " + fileMatch.classpathEltFile
+                    if (log != null) {
+                        log.log("Exception while opening file " + fileMatch.classpathEltFile
                                 + (fileMatch.classpathEltFile.isFile() ? "!" : "/") + fileMatch.relativePath, e);
                     }
                 }
@@ -199,18 +241,20 @@ abstract class ClasspathElement {
 
     void parseClassfiles(final ClassfileBinaryParser classfileBinaryParser, final int classfileStartIdx,
             final int classfileEndIdx, final ConcurrentHashMap<String, String> stringInternMap,
-            final ConcurrentLinkedQueue<ClassInfoUnlinked> classInfoUnlinked)
+            final ConcurrentLinkedQueue<ClassInfoUnlinked> classInfoUnlinked, final LogNode log)
             throws InterruptedException, ExecutionException {
         for (int i = classfileStartIdx; i < classfileEndIdx; i++) {
             final ClasspathResource classfileResource = classfileMatches.get(i);
             try {
+                final LogNode logNode = log == null ? null : log.log("Parsing classfile " + classfileResource);
                 openInputStreamAndParseClassfile(classfileResource, classfileBinaryParser, scanSpec,
-                        stringInternMap, classInfoUnlinked, log);
+                        stringInternMap, classInfoUnlinked, logNode);
+                if (logNode != null) {
+                    logNode.addElapsedTime();
+                }
             } catch (final IOException e) {
-                if (FastClasspathScanner.verbose) {
-                    log.log("Exception while trying to open " + classfileResource.classpathEltFile
-                            + (classfileResource.classpathEltFile.isFile() ? "!" : "/")
-                            + classfileResource.relativePath, e);
+                if (log != null) {
+                    log.log("Exception while parsing classfile " + classfileResource, e);
                 }
             }
             interruptionChecker.check();
@@ -220,7 +264,7 @@ abstract class ClasspathElement {
     protected abstract void openInputStreamAndParseClassfile(final ClasspathResource classfileResource,
             final ClassfileBinaryParser classfileBinaryParser, final ScanSpec scanSpec,
             final ConcurrentHashMap<String, String> stringInternMap,
-            final ConcurrentLinkedQueue<ClassInfoUnlinked> classInfoUnlinked, final ThreadLog log)
+            final ConcurrentLinkedQueue<ClassInfoUnlinked> classInfoUnlinked, final LogNode log)
             throws InterruptedException, IOException;
 
     protected abstract void openInputStreamAndProcessFileMatch(ClasspathResource fileMatch,

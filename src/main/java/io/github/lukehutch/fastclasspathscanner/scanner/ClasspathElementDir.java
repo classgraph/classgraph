@@ -38,28 +38,24 @@ import java.util.HashSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathElement.ClasspathResource.ClasspathResourceInDir;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec.FileMatchProcessorWrapper;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec.FilePathTesterAndMatchProcessorWrapper;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec.ScanSpecPathMatch;
 import io.github.lukehutch.fastclasspathscanner.utils.InterruptionChecker;
-import io.github.lukehutch.fastclasspathscanner.utils.LoggedThread.ThreadLog;
+import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.MultiMapKeyToList;
 
 class ClasspathElementDir extends ClasspathElement {
     ClasspathElementDir(final ClasspathRelativePath classpathElt, final ScanSpec scanSpec, final boolean scanFiles,
-            final InterruptionChecker interruptionChecker, final ThreadLog log) {
+            final InterruptionChecker interruptionChecker, final LogNode log) {
         super(classpathElt, scanSpec, scanFiles, interruptionChecker, log);
-        if (FastClasspathScanner.verbose) {
-            log.log("Found classpath directory: " + classpathElt);
-        }
         if (scanFiles) {
             File dir;
             try {
                 dir = classpathElt.getFile();
             } catch (final IOException e) {
-                if (FastClasspathScanner.verbose) {
+                if (log != null) {
                     log.log("Exception while trying to canonicalize path " + classpathElt.getResolvedPath(), e);
                 }
                 ioExceptionOnOpen = true;
@@ -73,33 +69,30 @@ class ClasspathElementDir extends ClasspathElement {
             final HashSet<String> scannedCanonicalPaths = new HashSet<>();
             final int[] entryIdx = new int[1];
             scanDir(dir, dir, /* ignorePrefixLen = */ dir.getPath().length() + 1, /* inWhitelistedPath = */ false,
-                    scannedCanonicalPaths, entryIdx);
+                    scannedCanonicalPaths, entryIdx, log);
         }
     }
 
     /** Recursively scan a directory for file path patterns matching the scan spec. */
     private void scanDir(final File classpathElt, final File dir, final int ignorePrefixLen,
-            boolean inWhitelistedPath, final HashSet<String> scannedCanonicalPaths, final int[] entryIdx) {
+            boolean inWhitelistedPath, final HashSet<String> scannedCanonicalPaths, final int[] entryIdx,
+            final LogNode log) {
         // See if this canonical path has been scanned before, so that recursive scanning doesn't get stuck in
         // an infinite loop due to symlinks
         String canonicalPath;
         try {
             canonicalPath = dir.getCanonicalPath();
             if (!scannedCanonicalPaths.add(canonicalPath)) {
-                if (FastClasspathScanner.verbose) {
-                    log.log(3, "Reached symlink cycle, stopping recursion: " + dir);
+                if (log != null) {
+                    log.log("Reached symlink cycle, stopping recursion: " + dir);
                 }
                 return;
             }
         } catch (final IOException | SecurityException e) {
-            if (FastClasspathScanner.verbose) {
-                log.log(3, "Could not canonicalize path: " + dir);
+            if (log != null) {
+                log.log("Could not canonicalize path: " + dir);
             }
             return;
-        }
-        if (FastClasspathScanner.verbose) {
-            log.log(2, "Scanning directory: " + dir
-                    + (dir.getPath().equals(canonicalPath) ? "" : " ; canonical path: " + canonicalPath));
         }
         final String dirPath = dir.getPath();
         final String dirRelativePath = ignorePrefixLen > dirPath.length() ? "/" //
@@ -108,8 +101,8 @@ class ClasspathElementDir extends ClasspathElement {
         if (matchStatus == ScanSpecPathMatch.NOT_WITHIN_WHITELISTED_PATH
                 || matchStatus == ScanSpecPathMatch.WITHIN_BLACKLISTED_PATH) {
             // Reached a non-whitelisted or blacklisted path -- stop the recursive scan
-            if (FastClasspathScanner.verbose) {
-                log.log(3, "Reached non-whitelisted (or blacklisted) directory: " + dirRelativePath);
+            if (log != null) {
+                log.log("Reached non-whitelisted (or blacklisted) directory: " + dirRelativePath);
             }
             return;
         } else if (matchStatus == ScanSpecPathMatch.WITHIN_WHITELISTED_PATH) {
@@ -118,13 +111,11 @@ class ClasspathElementDir extends ClasspathElement {
         }
         final File[] filesInDir = dir.listFiles();
         if (filesInDir == null) {
-            if (FastClasspathScanner.verbose) {
-                log.log(3, "Invalid directory " + dir);
+            if (log != null) {
+                log.log("Invalid directory " + dir);
             }
             return;
         }
-
-        final long startTime = System.nanoTime();
         for (final File fileInDir : filesInDir) {
             if ((entryIdx[0]++ & 0xff) == 0) {
                 if (interruptionChecker.checkAndReturn()) {
@@ -136,7 +127,10 @@ class ClasspathElementDir extends ClasspathElement {
                         || matchStatus == ScanSpecPathMatch.ANCESTOR_OF_WHITELISTED_PATH) {
                     // Recurse into subdirectory
                     scanDir(classpathElt, fileInDir, ignorePrefixLen, inWhitelistedPath, scannedCanonicalPaths,
-                            entryIdx);
+                            entryIdx,
+                            log == null ? null
+                                    : log.log("Scanning directory: " + dir + (dir.getPath().equals(canonicalPath)
+                                            ? "" : " ; canonical path: " + canonicalPath)));
                 }
             } else if (fileInDir.isFile()) {
                 final String fileInDirRelativePath = dirRelativePath.isEmpty() || "/".equals(dirRelativePath)
@@ -151,8 +145,8 @@ class ClasspathElementDir extends ClasspathElement {
                     continue;
                 }
 
-                if (FastClasspathScanner.verbose) {
-                    log.log(3, "Found whitelisted file: " + fileInDirRelativePath);
+                if (log != null) {
+                    log.log("Found whitelisted file: " + fileInDirRelativePath);
                 }
                 fileToLastModified.put(fileInDir, fileInDir.lastModified());
 
@@ -177,8 +171,8 @@ class ClasspathElementDir extends ClasspathElement {
             // Need to timestamp whitelisted directories too, so that added files can be detected
             fileToLastModified.put(dir, dir.lastModified());
         }
-        if (FastClasspathScanner.verbose) {
-            log.log(2, "Scanned subdirectories of " + dir, System.nanoTime() - startTime);
+        if (log != null) {
+            log.addElapsedTime();
         }
     }
 
@@ -186,7 +180,7 @@ class ClasspathElementDir extends ClasspathElement {
     protected void openInputStreamAndParseClassfile(final ClasspathResource classfileResource,
             final ClassfileBinaryParser classfileBinaryParser, final ScanSpec scanSpec,
             final ConcurrentHashMap<String, String> stringInternMap,
-            final ConcurrentLinkedQueue<ClassInfoUnlinked> classInfoUnlinked, final ThreadLog log)
+            final ConcurrentLinkedQueue<ClassInfoUnlinked> classInfoUnlinked, final LogNode log)
             throws InterruptedException, IOException {
         if (!ioExceptionOnOpen) {
             final File relativePathFile = ((ClasspathResourceInDir) classfileResource).relativePathFile;
@@ -194,7 +188,7 @@ class ClasspathElementDir extends ClasspathElement {
                 // Parse classpath binary format, creating a ClassInfoUnlinked object
                 final ClassInfoUnlinked thisClassInfoUnlinked = classfileBinaryParser
                         .readClassInfoFromClassfileHeader(classfileResource.relativePath, inputStream, scanSpec,
-                                stringInternMap);
+                                stringInternMap, log);
                 // If class was successfully read, output new ClassInfoUnlinked object
                 if (thisClassInfoUnlinked != null) {
                     classInfoUnlinked.add(thisClassInfoUnlinked);

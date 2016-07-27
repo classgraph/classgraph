@@ -39,7 +39,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
-import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathElement.ClasspathResource.ClasspathResourceInZipFile;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec.FileMatchProcessorWrapper;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec.FilePathTesterAndMatchProcessorWrapper;
@@ -47,7 +46,7 @@ import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec.ScanSpecPathMat
 import io.github.lukehutch.fastclasspathscanner.utils.FastManifestParser;
 import io.github.lukehutch.fastclasspathscanner.utils.FastPathResolver;
 import io.github.lukehutch.fastclasspathscanner.utils.InterruptionChecker;
-import io.github.lukehutch.fastclasspathscanner.utils.LoggedThread.ThreadLog;
+import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.MultiMapKeyToList;
 import io.github.lukehutch.fastclasspathscanner.utils.Recycler;
 import io.github.lukehutch.fastclasspathscanner.utils.WorkQueue;
@@ -58,16 +57,13 @@ class ClasspathElementZip extends ClasspathElement {
 
     ClasspathElementZip(final ClasspathRelativePath classpathElt, final ScanSpec scanSpec, final boolean scanFiles,
             final InterruptionChecker interruptionChecker, final WorkQueue<ClasspathRelativePath> workQueue,
-            final ThreadLog log) {
+            final LogNode log) {
         super(classpathElt, scanSpec, scanFiles, interruptionChecker, log);
-        if (FastClasspathScanner.verbose) {
-            log.log("Found classpath jar: " + classpathElt);
-        }
         File classpathEltFile;
         try {
             classpathEltFile = classpathElt.getFile();
         } catch (final IOException e) {
-            if (FastClasspathScanner.verbose) {
+            if (log != null) {
                 log.log("Exception while trying to canonicalize path " + classpathElt.getResolvedPath(), e);
             }
             ioExceptionOnOpen = true;
@@ -84,7 +80,7 @@ class ClasspathElementZip extends ClasspathElement {
             try {
                 zipFile = zipFileRecycler.acquire();
             } catch (final IOException e) {
-                if (FastClasspathScanner.verbose) {
+                if (log != null) {
                     log.log("Exception opening zipfile " + classpathEltFile, e);
                 }
                 ioExceptionOnOpen = true;
@@ -100,10 +96,10 @@ class ClasspathElementZip extends ClasspathElement {
                 fileMatches = new MultiMapKeyToList<>();
                 classfileMatches = new ArrayList<>(numEntries);
                 fileToLastModified = new HashMap<>();
-                scanZipFile(classpathEltFile, zipFile);
+                scanZipFile(classpathEltFile, zipFile, log);
             }
             if (fastManifestParser != null && fastManifestParser.classPath != null) {
-                if (FastClasspathScanner.verbose) {
+                if (log != null) {
                     log.log("Found Class-Path entry in manifest of " + classpathElt.getResolvedPath() + ": "
                             + fastManifestParser.classPath);
                 }
@@ -134,11 +130,7 @@ class ClasspathElementZip extends ClasspathElement {
     }
 
     /** Scan a zipfile for file path patterns matching the scan spec. */
-    private void scanZipFile(final File zipFileFile, final ZipFile zipFile) {
-        if (FastClasspathScanner.verbose) {
-            log.log(2, "Scanning jarfile: " + zipFileFile);
-        }
-        final long startTime = System.nanoTime();
+    private void scanZipFile(final File zipFileFile, final ZipFile zipFile, final LogNode log) {
         String prevParentRelativePath = null;
         ScanSpecPathMatch prevParentMatchStatus = null;
         int entryIdx = 0;
@@ -180,8 +172,8 @@ class ClasspathElementZip extends ClasspathElement {
                 continue;
             }
 
-            if (FastClasspathScanner.verbose) {
-                log.log(3, "Found whitelisted file in jarfile: " + relativePath);
+            if (log != null) {
+                log.log("Found whitelisted file in jarfile: " + relativePath);
             }
 
             // Store relative paths of any classfiles encountered
@@ -207,16 +199,13 @@ class ClasspathElementZip extends ClasspathElement {
             }
         }
         fileToLastModified.put(zipFileFile, zipFileFile.lastModified());
-        if (FastClasspathScanner.verbose) {
-            log.log(2, "Scanned jarfile " + zipFileFile, System.nanoTime() - startTime);
-        }
     }
 
     @Override
     protected void openInputStreamAndParseClassfile(final ClasspathResource classfileResource,
             final ClassfileBinaryParser classfileBinaryParser, final ScanSpec scanSpec,
             final ConcurrentHashMap<String, String> stringInternMap,
-            final ConcurrentLinkedQueue<ClassInfoUnlinked> classInfoUnlinked, final ThreadLog log)
+            final ConcurrentLinkedQueue<ClassInfoUnlinked> classInfoUnlinked, final LogNode log)
             throws InterruptedException, IOException {
         if (!ioExceptionOnOpen) {
             ZipFile zipFile = null;
@@ -227,7 +216,7 @@ class ClasspathElementZip extends ClasspathElement {
                     // Parse classpath binary format, creating a ClassInfoUnlinked object
                     final ClassInfoUnlinked thisClassInfoUnlinked = classfileBinaryParser
                             .readClassInfoFromClassfileHeader(classfileResource.relativePath, inputStream, scanSpec,
-                                    stringInternMap);
+                                    stringInternMap, log);
                     // If class was successfully read, output new ClassInfoUnlinked object
                     if (thisClassInfoUnlinked != null) {
                         classInfoUnlinked.add(thisClassInfoUnlinked);

@@ -34,8 +34,7 @@ import java.util.Arrays;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-import io.github.lukehutch.fastclasspathscanner.utils.LoggedThread.ThreadLog;
+import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.MultiMapKeyToSet;
 
 /**
@@ -47,18 +46,14 @@ class ClassfileBinaryParser implements AutoCloseable {
     /** The ScanSpec. */
     private final ScanSpec scanSpec;
 
-    /** The thread-local logger. */
-    private final ThreadLog log;
-
     /** The InputStream for the current classfile. Set by each call to readClassInfoFromClassfileHeader(). */
     private InputStream inputStream;
 
     /** The name of the current classfile. Determined early in the call to readClassInfoFromClassfileHeader(). */
     private String className;
 
-    ClassfileBinaryParser(final ScanSpec scanSpec, final ThreadLog log) {
+    ClassfileBinaryParser(final ScanSpec scanSpec) {
         this.scanSpec = scanSpec;
-        this.log = log;
     }
 
     @Override
@@ -483,7 +478,7 @@ class ClassfileBinaryParser implements AutoCloseable {
      *             if the operation was interrupted.
      */
     ClassInfoUnlinked readClassInfoFromClassfileHeader(final String relativePath, final InputStream inputStream,
-            final ScanSpec scanSpec, final ConcurrentHashMap<String, String> stringInternMap)
+            final ScanSpec scanSpec, final ConcurrentHashMap<String, String> stringInternMap, final LogNode log)
             throws InterruptedException {
         try {
             // This class instance can be reused across scans, to avoid re-allocating the buffer.
@@ -500,10 +495,8 @@ class ClassfileBinaryParser implements AutoCloseable {
 
             // Check magic number
             if (readInt() != 0xCAFEBABE) {
-                if (FastClasspathScanner.verbose) {
-                    throw new IOException(
-                            "Classfile " + relativePath + " does not have correct classfile magic number");
-                }
+                throw new IOException(
+                        "Classfile " + relativePath + " does not have correct classfile magic number");
             }
 
             // Minor version
@@ -584,15 +577,15 @@ class ClassfileBinaryParser implements AutoCloseable {
             // Make sure classname matches relative path
             if (!relativePath.endsWith(".class")) {
                 // Should not happen
-                if (FastClasspathScanner.verbose) {
-                    log.log(2, "File " + relativePath + " does not end in \".class\"");
+                if (log != null) {
+                    log.log("File " + relativePath + " does not end in \".class\"");
                 }
                 return null;
             }
             final int len = classNamePath.length();
             if (relativePath.length() != len + 6 || !classNamePath.regionMatches(0, relativePath, 0, len)) {
-                if (FastClasspathScanner.verbose) {
-                    log.log(2, "Class " + className + " is at incorrect relative path " + relativePath
+                if (log != null) {
+                    log.log("Class " + className + " is at incorrect relative path " + relativePath
                             + " -- ignoring");
                 }
                 return null;
@@ -732,23 +725,23 @@ class ClassfileBinaryParser implements AutoCloseable {
                             // No match, just skip attribute
                             skip(attributeLength);
                         }
-                        if (isMatchedFieldName && !foundConstantValue && FastClasspathScanner.verbose) {
+                        if (isMatchedFieldName && !foundConstantValue && log != null) {
                             boolean reasonFound = false;
                             if (!isStaticFinalField) {
-                                log.log(2, "Requested static final field match " //
+                                log.log("Requested static final field match " //
                                         + classInfoUnlinked.className + "." + getConstantPoolString(fieldNameCpIdx)
                                         + " is not declared as static final");
                                 reasonFound = true;
                             }
                             if (!isPublicField && !scanSpec.ignoreFieldVisibility) {
-                                log.log(2, "Requested static final field match " //
+                                log.log("Requested static final field match " //
                                         + classInfoUnlinked.className + "." + getConstantPoolString(fieldNameCpIdx)
                                         + " is not declared as public, and ignoreFieldVisibility was not set to"
                                         + " true before scan");
                                 reasonFound = true;
                             }
                             if (!reasonFound) {
-                                log.log(2, "Requested static final field match " //
+                                log.log("Requested static final field match " //
                                         + classInfoUnlinked.className + "." + getConstantPoolString(fieldNameCpIdx)
                                         + " does not have a constant literal initializer value");
                             }
@@ -795,7 +788,7 @@ class ClassfileBinaryParser implements AutoCloseable {
         final InterruptedException e) {
             throw e;
         } catch (final Exception e) {
-            log.log(2, "Exception while attempting to load classfile " + relativePath, e);
+            log.log("Exception while attempting to load classfile " + relativePath, e);
             return null;
         }
     }

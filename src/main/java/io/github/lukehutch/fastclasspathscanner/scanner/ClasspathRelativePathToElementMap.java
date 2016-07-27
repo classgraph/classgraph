@@ -31,7 +31,7 @@ package io.github.lukehutch.fastclasspathscanner.scanner;
 import java.io.IOException;
 
 import io.github.lukehutch.fastclasspathscanner.utils.InterruptionChecker;
-import io.github.lukehutch.fastclasspathscanner.utils.LoggedThread.ThreadLog;
+import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.SingletonMap;
 import io.github.lukehutch.fastclasspathscanner.utils.WorkQueue;
 
@@ -41,10 +41,10 @@ class ClasspathRelativePathToElementMap extends SingletonMap<ClasspathRelativePa
     private final ScanSpec scanSpec;
     private final InterruptionChecker interruptionChecker;
     private WorkQueue<ClasspathRelativePath> workQueue;
-    private final ThreadLog log;
+    private final LogNode log;
 
     ClasspathRelativePathToElementMap(final boolean scanFiles, final ScanSpec scanSpec,
-            final InterruptionChecker interruptionChecker, final ThreadLog log) {
+            final InterruptionChecker interruptionChecker, final LogNode log) {
         this.scanSpec = scanSpec;
         this.interruptionChecker = interruptionChecker;
         this.scanFiles = scanFiles;

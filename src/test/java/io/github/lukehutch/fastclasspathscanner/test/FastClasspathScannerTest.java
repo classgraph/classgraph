@@ -33,6 +33,7 @@ import static org.assertj.core.api.StrictAssertions.assertThat;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -43,6 +44,7 @@ import org.junit.Test;
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchContentsProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchContentsProcessorWithContext;
+import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.StaticFinalFieldMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubclassMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubinterfaceMatchProcessor;
@@ -368,5 +370,16 @@ public class FastClasspathScannerTest {
     @Test
     public void testGetClasspathElements() {
         assertThat(new FastClasspathScanner(ROOT_PACKAGE).getUniqueClasspathElements().size()).isGreaterThan(0);
+    }
+
+    @Test
+    public void getManifest() throws Exception {
+        new FastClasspathScanner().matchFilenamePathLeaf("MANIFEST.MF", new FileMatchProcessor() {
+            @Override
+            public void processMatch(final String relativePath, final InputStream inputStream,
+                    final long lengthBytes) throws IOException {
+                System.out.println(relativePath);
+            }
+        }).verbose().scan();
     }
 }

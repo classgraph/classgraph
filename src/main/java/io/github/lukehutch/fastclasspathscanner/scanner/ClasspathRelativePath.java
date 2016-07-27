@@ -32,10 +32,9 @@ import java.io.File;
 import java.io.IOException;
 import java.util.concurrent.ConcurrentHashMap;
 
-import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.utils.FastManifestParser;
 import io.github.lukehutch.fastclasspathscanner.utils.FastPathResolver;
-import io.github.lukehutch.fastclasspathscanner.utils.LoggedThread.ThreadLog;
+import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 
 class ClasspathRelativePath {
     private final String pathToResolveAgainst;
@@ -200,7 +199,7 @@ class ClasspathRelativePath {
      */
     private static boolean isJREJar(final File file, final int ancestralScanDepth,
             final ConcurrentHashMap<String, String> knownJREPaths,
-            final ConcurrentHashMap<String, String> knownNonJREPaths, final ThreadLog log) {
+            final ConcurrentHashMap<String, String> knownNonJREPaths, final LogNode log) {
         if (ancestralScanDepth == 0) {
             return false;
         } else {
@@ -245,13 +244,13 @@ class ClasspathRelativePath {
 
     public boolean isValid(final ScanSpec scanSpec, final ConcurrentHashMap<String, String> knownJREPaths,
             final ConcurrentHashMap<String, String> knownNonJREPaths,
-            final ClasspathRelativePathToElementMap classpathElementMap, final ThreadLog log)
+            final ClasspathRelativePathToElementMap classpathElementMap, final LogNode log)
             throws InterruptedException {
         // Get absolute URI and File for classpathElt
         final String path = getResolvedPath();
         if (path == null) {
             // Got an http: or https: URI as a classpath element
-            if (FastClasspathScanner.verbose) {
+            if (log != null) {
                 log.log("Ignoring non-local classpath element: " + relativePath);
             }
             return false;
@@ -259,14 +258,14 @@ class ClasspathRelativePath {
         // Check if classpath element is already in map -- saves some of the work below, and in the singleton
         // creation after this method exits.
         if (classpathElementMap.get(this) != null) {
-            if (FastClasspathScanner.verbose) {
+            if (log != null) {
                 log.log("Ignoring duplicate classpath element: " + path);
             }
             return false;
         }
         try {
             if (!exists()) {
-                if (FastClasspathScanner.verbose) {
+                if (log != null) {
                     log.log("Classpath element does not exist: " + path);
                 }
                 return false;
@@ -275,7 +274,7 @@ class ClasspathRelativePath {
             final boolean isDirectory = isDirectory();
             if (isFile != !isDirectory) {
                 // Exactly one of isFile and isDirectory should be true
-                if (FastClasspathScanner.verbose) {
+                if (log != null) {
                     log.log("Ignoring invalid classpath element: " + path);
                 }
                 return false;
@@ -283,13 +282,13 @@ class ClasspathRelativePath {
             if (isFile) {
                 // If a classpath entry is a file, it must be a jar
                 if (!isJar(getResolvedPath())) {
-                    if (FastClasspathScanner.verbose) {
+                    if (log != null) {
                         log.log("Ignoring non-jar file on classpath: " + path);
                     }
                     return false;
                 }
                 if (!scanSpec.scanJars) {
-                    if (FastClasspathScanner.verbose) {
+                    if (log != null) {
                         log.log("Ignoring jarfile, as jars are not being scanned: " + path);
                     }
                     return false;
@@ -297,27 +296,27 @@ class ClasspathRelativePath {
                 if (scanSpec.blacklistSystemJars()
                         && isJREJar(getFile(), /* ancestralScanDepth = */2, knownJREPaths, knownNonJREPaths, log)) {
                     // Don't scan system jars if they are blacklisted
-                    if (FastClasspathScanner.verbose) {
+                    if (log != null) {
                         log.log("Ignoring JRE jar: " + path);
                     }
                     return false;
                 }
                 if (!scanSpec.jarIsWhitelisted(getFile().getName())) {
-                    if (FastClasspathScanner.verbose) {
+                    if (log != null) {
                         log.log("Ignoring jarfile that did not match whitelist/blacklist criteria: " + path);
                     }
                     return false;
                 }
             } else {
                 if (!scanSpec.scanDirs) {
-                    if (FastClasspathScanner.verbose) {
+                    if (log != null) {
                         log.log("Ignoring directory, as directories are not being scanned: " + path);
                     }
                     return false;
                 }
             }
         } catch (final IOException e) {
-            if (FastClasspathScanner.verbose) {
+            if (log != null) {
                 log.log("Could not canonicalize path: " + path);
             }
             return false;

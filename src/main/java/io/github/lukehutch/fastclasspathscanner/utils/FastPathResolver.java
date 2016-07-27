@@ -134,9 +134,6 @@ public class FastPathResolver {
         }
         // We don't fetch remote classpath entries, although they are theoretically valid if using a URLClassLoader
         if (relativePathStr.startsWith("http:") || relativePathStr.startsWith("https:")) {
-            //            if (FastClasspathScanner.verbose) {
-            //                log.log("Ignoring remote entry in classpath: " + relativePathStr);
-            //            }
             return null;
         }
         int startIdx = 0;

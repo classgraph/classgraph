@@ -35,14 +35,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.classloaderhandler.ClassLoaderHandler;
 import io.github.lukehutch.fastclasspathscanner.classloaderhandler.EquinoxClassLoaderHandler;
 import io.github.lukehutch.fastclasspathscanner.classloaderhandler.JBossClassLoaderHandler;
 import io.github.lukehutch.fastclasspathscanner.classloaderhandler.WeblogicClassLoaderHandler;
 import io.github.lukehutch.fastclasspathscanner.utils.AdditionOrderedSet;
 import io.github.lukehutch.fastclasspathscanner.utils.Join;
-import io.github.lukehutch.fastclasspathscanner.utils.LoggedThread.ThreadLog;
+import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 
 public class ClasspathFinder {
     /** The list of raw classpath elements. */
@@ -142,8 +141,7 @@ public class ClasspathFinder {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    ClasspathFinder(final ScanSpec scanSpec, final ThreadLog log) {
-        final long getRawElementsStartTime = System.nanoTime();
+    ClasspathFinder(final ScanSpec scanSpec, final LogNode log) {
         if (scanSpec.overrideClasspath != null) {
             // Manual classpath override
             addClasspathElements(scanSpec.overrideClasspath);
@@ -167,7 +165,7 @@ public class ClasspathFinder {
                     addAllParentClassloaders(callStackClass, classLoadersSet);
                 }
             } else {
-                if (FastClasspathScanner.verbose) {
+                if (log != null) {
                     log.log(ClasspathFinder.class.getSimpleName() + " could not create "
                             + CallerResolver.class.getSimpleName() + ", current SecurityManager does not grant "
                             + "RuntimePermission(\"createSecurityManager\")");
@@ -186,7 +184,7 @@ public class ClasspathFinder {
             classLoaderHandlers.add(new URLClassLoaderHandler());
             classLoaderHandlers.addAll(defaultClassLoaderHandlers);
             classLoaderHandlers.addAll(scanSpec.extraClassLoaderHandlers);
-            if (FastClasspathScanner.verbose && !classLoaderHandlers.isEmpty()) {
+            if (log != null && !classLoaderHandlers.isEmpty()) {
                 final List<String> classLoaderHandlerNames = new ArrayList<>();
                 for (final ClassLoaderHandler classLoaderHandler : classLoaderHandlers) {
                     classLoaderHandlerNames.add(classLoaderHandler.getClass().getName());
@@ -202,7 +200,7 @@ public class ClasspathFinder {
                     try {
                         if (handler.handle(classLoader, this)) {
                             // Sucessfully handled
-                            if (FastClasspathScanner.verbose) {
+                            if (log != null) {
                                 log.log("Classpath elements from ClassLoader " + classLoader.getClass().getName()
                                         + " were extracted by ClassLoaderHandler " + handler.getClass().getName());
                             }
@@ -210,13 +208,13 @@ public class ClasspathFinder {
                             break;
                         }
                     } catch (final Exception e) {
-                        if (FastClasspathScanner.verbose) {
+                        if (log != null) {
                             log.log("Exception in " + classLoader.getClass().getName() + ": " + e.toString());
                         }
                     }
                 }
                 if (!classloaderFound) {
-                    if (FastClasspathScanner.verbose) {
+                    if (log != null) {
                         log.log("Found unknown ClassLoader type, cannot scan classes: "
                                 + classLoader.getClass().getName());
                     }
@@ -226,11 +224,6 @@ public class ClasspathFinder {
             // Add entries found in java.class.path, in case those entries were missed above due to some
             // non-standard classloader that uses this property
             addClasspathElements(System.getProperty("java.class.path"));
-
-            if (FastClasspathScanner.verbose) {
-                log.log("Found " + rawClasspathElements.size() + " raw classpath elements in " + classLoaders.size()
-                        + " ClassLoaders", System.nanoTime() - getRawElementsStartTime);
-            }
         }
     }
 

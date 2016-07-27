@@ -40,7 +40,6 @@ import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.regex.Pattern;
 
-import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.classloaderhandler.ClassLoaderHandler;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.ClassAnnotationMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.ClassMatchProcessor;
@@ -53,7 +52,7 @@ import io.github.lukehutch.fastclasspathscanner.matchprocessor.StaticFinalFieldM
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubclassMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubinterfaceMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.utils.InterruptionChecker;
-import io.github.lukehutch.fastclasspathscanner.utils.LoggedThread.ThreadLog;
+import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.MultiMapKeyToList;
 import io.github.lukehutch.fastclasspathscanner.utils.MultiMapKeyToSet;
 
@@ -123,7 +122,7 @@ public class ScanSpec {
 
     /** An interface used for testing if a class matches specified criteria. */
     private static interface ClassMatcher {
-        public abstract void lookForMatches(ScanResult scanResult, ThreadLog log);
+        public abstract void lookForMatches(ScanResult scanResult, LogNode log);
     }
 
     /** A list of class matchers to call once all classes have been read in from classpath. */
@@ -155,7 +154,7 @@ public class ScanSpec {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    public ScanSpec(final String[] scanSpec, final ThreadLog log) {
+    public ScanSpec(final String[] scanSpec, final LogNode log) {
         final HashSet<String> uniqueWhitelistedPathPrefixes = new HashSet<>();
         final HashSet<String> uniqueBlacklistedPathPrefixes = new HashSet<>();
         boolean scanJars = true, scanNonJars = true;
@@ -277,7 +276,7 @@ public class ScanSpec {
         this.scanJars = scanJars;
         this.scanDirs = scanNonJars;
 
-        if (FastClasspathScanner.verbose) {
+        if (log != null) {
             log.log("Whitelisted relative path prefixes:  " + whitelistedPathPrefixes);
             if (!blacklistedPathPrefixes.isEmpty()) {
                 log.log("Blacklisted relative path prefixes:  " + blacklistedPathPrefixes);
@@ -316,12 +315,14 @@ public class ScanSpec {
      */
     void callMatchProcessors(final ScanResult scanResult, final List<ClasspathElement> classpathOrder,
             final Map<String, ClassInfo> classNameToClassInfo, final InterruptionChecker interruptionChecker,
-            final ThreadLog log) throws InterruptedException, ExecutionException {
+            final LogNode log) throws InterruptedException, ExecutionException {
 
         // Call any FileMatchProcessors
         for (final ClasspathElement classpathElement : classpathOrder) {
-            if (classpathElement.fileMatches != null) {
-                classpathElement.callFileMatchProcessors();
+            if (classpathElement.fileMatches != null && !classpathElement.fileMatches.isEmpty()) {
+                classpathElement.callFileMatchProcessors( //
+                        log == null ? null
+                                : log.log("Calling FileMatchProcessor for classpath element " + classpathElement));
             }
         }
 
@@ -329,10 +330,11 @@ public class ScanSpec {
         if (classMatchers != null) {
             for (final ClassMatcher classMatcher : classMatchers) {
                 try {
-                    classMatcher.lookForMatches(scanResult, log);
+                    classMatcher.lookForMatches(scanResult, //
+                            log == null ? null : log.log("Calling ClassMatchProcessor"));
                 } catch (final Throwable e) {
-                    if (FastClasspathScanner.verbose) {
-                        log.log(4, "Exception while calling ClassMatchProcessor: " + e);
+                    if (log != null) {
+                        log.log("Exception while calling ClassMatchProcessor: " + e);
                     }
                 }
                 interruptionChecker.check();
@@ -350,14 +352,14 @@ public class ScanSpec {
                 if (classInfo != null) {
                     final String fieldName = fullyQualifiedFieldName.substring(dotIdx + 1);
                     if (classInfo.fieldValues == null || !classInfo.fieldValues.containsKey(fieldName)) {
-                        if (FastClasspathScanner.verbose) {
-                            log.log(1, "No matching field " + fieldName + " found in class " + className);
+                        if (log != null) {
+                            log.log("No matching field " + fieldName + " found in class " + className);
                         }
                     } else {
                         final Object constValue = classInfo.fieldValues.get(fieldName);
                         final List<StaticFinalFieldMatchProcessor> staticFinalFieldMatchProcessors = ent.getValue();
-                        if (FastClasspathScanner.verbose) {
-                            log.log(1, "Calling MatchProcessor"
+                        if (log != null) {
+                            log.log("Calling MatchProcessor"
                                     + (staticFinalFieldMatchProcessors.size() == 1 ? "" : "s")
                                     + " for static final field " + classInfo.className + "." + fieldName + " = "
                                     + ((constValue instanceof Character)
@@ -371,16 +373,16 @@ public class ScanSpec {
                                 staticFinalFieldMatchProcessor.processMatch(classInfo.className, fieldName,
                                         constValue);
                             } catch (final Throwable e) {
-                                if (FastClasspathScanner.verbose) {
-                                    log.log(4, "Exception while calling StaticFinalFieldMatchProcessor: " + e);
+                                if (log != null) {
+                                    log.log("Exception while calling StaticFinalFieldMatchProcessor: " + e);
                                 }
                             }
                             interruptionChecker.check();
                         }
                     }
                 } else {
-                    if (FastClasspathScanner.verbose) {
-                        log.log(1, "No matching class found in scan results for static final field "
+                    if (log != null) {
+                        log.log("No matching class found in scan results for static final field "
                                 + fullyQualifiedFieldName);
                     }
                 }
@@ -626,10 +628,10 @@ public class ScanSpec {
         }
         classMatchers.add(new ClassMatcher() {
             @Override
-            public void lookForMatches(final ScanResult scanResult, final ThreadLog log) {
+            public void lookForMatches(final ScanResult scanResult, final LogNode log) {
                 for (final String className : scanResult.getNamesOfAllClasses()) {
-                    if (FastClasspathScanner.verbose) {
-                        log.log(3, "Matched class: " + className);
+                    if (log != null) {
+                        log.log("Matched class: " + className);
                     }
                     // Call classloader
                     final Class<?> cls = loadClass(className);
@@ -654,10 +656,10 @@ public class ScanSpec {
         }
         classMatchers.add(new ClassMatcher() {
             @Override
-            public void lookForMatches(final ScanResult scanResult, final ThreadLog log) {
+            public void lookForMatches(final ScanResult scanResult, final LogNode log) {
                 for (final String className : scanResult.getNamesOfAllStandardClasses()) {
-                    if (FastClasspathScanner.verbose) {
-                        log.log(3, "Matched standard class: " + className);
+                    if (log != null) {
+                        log.log("Matched standard class: " + className);
                     }
                     // Call classloader
                     final Class<?> cls = loadClass(className);
@@ -682,10 +684,10 @@ public class ScanSpec {
         }
         classMatchers.add(new ClassMatcher() {
             @Override
-            public void lookForMatches(final ScanResult scanResult, final ThreadLog log) {
+            public void lookForMatches(final ScanResult scanResult, final LogNode log) {
                 for (final String className : scanResult.getNamesOfAllInterfaceClasses()) {
-                    if (FastClasspathScanner.verbose) {
-                        log.log(3, "Matched interface class: " + className);
+                    if (log != null) {
+                        log.log("Matched interface class: " + className);
                     }
                     // Call classloader
                     final Class<?> cls = loadClass(className);
@@ -710,10 +712,10 @@ public class ScanSpec {
         }
         classMatchers.add(new ClassMatcher() {
             @Override
-            public void lookForMatches(final ScanResult scanResult, final ThreadLog log) {
+            public void lookForMatches(final ScanResult scanResult, final LogNode log) {
                 for (final String className : scanResult.getNamesOfAllAnnotationClasses()) {
-                    if (FastClasspathScanner.verbose) {
-                        log.log(3, "Matched annotation class: " + className);
+                    if (log != null) {
+                        log.log("Matched annotation class: " + className);
                     }
                     // Call classloader
                     final Class<?> cls = loadClass(className);
@@ -741,11 +743,11 @@ public class ScanSpec {
         }
         classMatchers.add(new ClassMatcher() {
             @Override
-            public void lookForMatches(final ScanResult scanResult, final ThreadLog log) {
+            public void lookForMatches(final ScanResult scanResult, final LogNode log) {
                 final String superclassName = getStandardClassName(superclass);
                 for (final String subclassName : scanResult.getNamesOfSubclassesOf(superclassName)) {
-                    if (FastClasspathScanner.verbose) {
-                        log.log(3, "Matched subclass of " + superclassName + ": " + subclassName);
+                    if (log != null) {
+                        log.log("Matched subclass of " + superclassName + ": " + subclassName);
                     }
                     // Call classloader
                     final Class<? extends T> cls = loadClass(subclassName);
@@ -773,11 +775,11 @@ public class ScanSpec {
         }
         classMatchers.add(new ClassMatcher() {
             @Override
-            public void lookForMatches(final ScanResult scanResult, final ThreadLog log) {
+            public void lookForMatches(final ScanResult scanResult, final LogNode log) {
                 final String superinterfaceName = getInterfaceName(superinterface);
                 for (final String subinterfaceName : scanResult.getNamesOfSubinterfacesOf(superinterfaceName)) {
-                    if (FastClasspathScanner.verbose) {
-                        log.log(3, "Matched subinterface of " + superinterfaceName + ": " + subinterfaceName);
+                    if (log != null) {
+                        log.log("Matched subinterface of " + superinterfaceName + ": " + subinterfaceName);
                     }
                     // Call classloader
                     final Class<? extends T> cls = loadClass(subinterfaceName);
@@ -806,11 +808,11 @@ public class ScanSpec {
         }
         classMatchers.add(new ClassMatcher() {
             @Override
-            public void lookForMatches(final ScanResult scanResult, final ThreadLog log) {
+            public void lookForMatches(final ScanResult scanResult, final LogNode log) {
                 final String implementedInterfaceName = getInterfaceName(implementedInterface);
                 for (final String implClass : scanResult.getNamesOfClassesImplementing(implementedInterfaceName)) {
-                    if (FastClasspathScanner.verbose) {
-                        log.log(3, "Matched class implementing interface " + implementedInterfaceName + ": "
+                    if (log != null) {
+                        log.log("Matched class implementing interface " + implementedInterfaceName + ": "
                                 + implClass);
                     }
                     // Call classloader
@@ -841,11 +843,11 @@ public class ScanSpec {
         }
         classMatchers.add(new ClassMatcher() {
             @Override
-            public void lookForMatches(final ScanResult scanResult, final ThreadLog log) {
+            public void lookForMatches(final ScanResult scanResult, final LogNode log) {
                 final String fieldTypeName = getClassName(fieldType);
                 for (final String klass : scanResult.getNamesOfClassesWithFieldOfType(fieldTypeName)) {
-                    if (FastClasspathScanner.verbose) {
-                        log.log(3, "Matched class with field of type " + fieldTypeName + ": " + klass);
+                    if (log != null) {
+                        log.log("Matched class with field of type " + fieldTypeName + ": " + klass);
                     }
                     // Call classloader
                     final Class<? extends T> cls = loadClass(klass);
@@ -872,12 +874,12 @@ public class ScanSpec {
         }
         classMatchers.add(new ClassMatcher() {
             @Override
-            public void lookForMatches(final ScanResult scanResult, final ThreadLog log) {
+            public void lookForMatches(final ScanResult scanResult, final LogNode log) {
                 final String annotationName = getAnnotationName(annotation);
                 for (final String classWithAnnotation : scanResult
                         .getNamesOfClassesWithAnnotation(annotationName)) {
-                    if (FastClasspathScanner.verbose) {
-                        log.log(3, "Matched class with annotation " + annotationName + ": " + classWithAnnotation);
+                    if (log != null) {
+                        log.log("Matched class with annotation " + annotationName + ": " + classWithAnnotation);
                     }
                     // Call classloader
                     final Class<?> cls = loadClass(classWithAnnotation);
@@ -1003,7 +1005,7 @@ public class ScanSpec {
 
     /** An interface used to test whether a file's relative path matches a given specification. */
     private interface FilePathTester {
-        public boolean filePathMatches(final File classpathElt, final String relativePathStr, final ThreadLog log);
+        public boolean filePathMatches(final File classpathElt, final String relativePathStr, final LogNode log);
     }
 
     /** An interface called when the corresponding FilePathTester returns true. */
@@ -1022,7 +1024,7 @@ public class ScanSpec {
             this.fileMatchProcessorWrapper = fileMatchProcessorWrapper;
         }
 
-        boolean filePathMatches(final File classpathElt, final String relativePathStr, final ThreadLog log) {
+        boolean filePathMatches(final File classpathElt, final String relativePathStr, final LogNode log) {
             return filePathTester.filePathMatches(classpathElt, relativePathStr, log);
         }
     }
@@ -1104,10 +1106,10 @@ public class ScanSpec {
 
             @Override
             public boolean filePathMatches(final File classpathElt, final String relativePathStr,
-                    final ThreadLog log) {
+                    final LogNode log) {
                 final boolean matched = pattern.matcher(relativePathStr).matches();
-                if (matched && FastClasspathScanner.verbose) {
-                    log.log(3, "File " + relativePathStr + " matched filename pattern " + pathRegexp);
+                if (matched && log != null) {
+                    log.log("File " + relativePathStr + " matched filename pattern " + pathRegexp);
                 }
                 return matched;
             }
@@ -1180,10 +1182,10 @@ public class ScanSpec {
         return new FilePathTester() {
             @Override
             public boolean filePathMatches(final File classpathElt, final String relativePathStr,
-                    final ThreadLog log) {
+                    final LogNode log) {
                 final boolean matched = relativePathStr.equals(relativePathToMatch);
-                if (matched && FastClasspathScanner.verbose) {
-                    log.log(3, "Matched filename path " + relativePathToMatch);
+                if (matched && log != null) {
+                    log.log("Matched filename path " + relativePathToMatch);
                 }
                 return matched;
             }
@@ -1262,11 +1264,11 @@ public class ScanSpec {
 
             @Override
             public boolean filePathMatches(final File classpathElt, final String relativePathStr,
-                    final ThreadLog log) {
+                    final LogNode log) {
                 final String relativePathLeaf = relativePathStr.substring(relativePathStr.lastIndexOf('/') + 1);
                 final boolean matched = relativePathLeaf.equals(leafToMatch);
-                if (matched && FastClasspathScanner.verbose) {
-                    log.log(3, "File " + relativePathStr + " matched path leaf " + pathLeafToMatch);
+                if (matched && log != null) {
+                    log.log("File " + relativePathStr + " matched path leaf " + pathLeafToMatch);
                 }
                 return matched;
             }
@@ -1340,14 +1342,13 @@ public class ScanSpec {
             final int extLen = extensionToMatch.length();
 
             @Override
-            public boolean filePathMatches(final File classpathElt, final String relativePath,
-                    final ThreadLog log) {
+            public boolean filePathMatches(final File classpathElt, final String relativePath, final LogNode log) {
                 final int relativePathLen = relativePath.length();
                 final int extIdx = relativePathLen - extLen;
                 final boolean matched = relativePathLen > extLen + 1 && relativePath.charAt(extIdx - 1) == '.'
                         && relativePath.regionMatches(true, extIdx, extensionToMatch, 0, extLen);
-                if (matched && FastClasspathScanner.verbose) {
-                    log.log(3, "File " + relativePath + " matched extension ." + extensionToMatch);
+                if (matched && log != null) {
+                    log.log("File " + relativePath + " matched extension ." + extensionToMatch);
                 }
                 return matched;
             }

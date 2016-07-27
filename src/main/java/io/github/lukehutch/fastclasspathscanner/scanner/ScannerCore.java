@@ -37,24 +37,25 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 
-import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.utils.FastPathResolver;
 import io.github.lukehutch.fastclasspathscanner.utils.InterruptionChecker;
-import io.github.lukehutch.fastclasspathscanner.utils.LoggedThread;
+import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.Recycler;
 import io.github.lukehutch.fastclasspathscanner.utils.WorkQueue;
 import io.github.lukehutch.fastclasspathscanner.utils.WorkQueue.WorkUnitProcessor;
 
-public class ScannerCore extends LoggedThread<ScanResult> {
+public class ScannerCore implements Callable<ScanResult> {
     private final ScanSpec scanSpec;
     private final ExecutorService executorService;
     private final int numParallelTasks;
     private final boolean scanFiles;
+    private final LogNode log;
 
     /**
      * The number of files within a given classpath element (directory or zipfile) to send in a chunk to the workers
@@ -63,11 +64,12 @@ public class ScannerCore extends LoggedThread<ScanResult> {
     private static final int NUM_FILES_PER_CHUNK = 1000; // TODO: plot average time taken vs. chunk size, for initial run + 20th run 
 
     public ScannerCore(final ScanSpec scanSpec, final ExecutorService executorService, final int numParallelTasks,
-            final boolean enableRecursiveScanning) {
+            final boolean enableRecursiveScanning, final LogNode log) {
         this.scanSpec = scanSpec;
         this.executorService = executorService;
         this.numParallelTasks = numParallelTasks;
         this.scanFiles = enableRecursiveScanning;
+        this.log = log;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -156,150 +158,164 @@ public class ScannerCore extends LoggedThread<ScanResult> {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Determine and return the unique ordered classpath elements. */
+    /**
+     * Determine the unique ordered classpath elements, and run a scan looking for file or classfile matches if
+     * necessary.
+     */
     @Override
-    public ScanResult doWork() throws InterruptedException, ExecutionException {
-        final long scanStart = System.nanoTime();
-
-        // Get current dir (without resolving symlinks), and normalize path by calling FastPathResolver.resolve()
-        String currentDirPath;
+    public ScanResult call() throws InterruptedException, ExecutionException {
         try {
-            currentDirPath = FastPathResolver.resolve(
-                    Paths.get("").toAbsolutePath().normalize().toRealPath(LinkOption.NOFOLLOW_LINKS).toString());
-        } catch (final IOException e) {
-            throw new RuntimeException(e);
-        }
+            final long scanStart = System.nanoTime();
 
-        final List<File> classpathElementFilesOrdered = new ArrayList<>();
+            // Get current dir (without resolving symlinks), and normalize path by calling
+            // FastPathResolver.resolve()
+            String currentDirPath;
+            try {
+                currentDirPath = FastPathResolver.resolve(Paths.get("").toAbsolutePath().normalize()
+                        .toRealPath(LinkOption.NOFOLLOW_LINKS).toString());
+            } catch (final IOException e) {
+                throw new RuntimeException(e);
+            }
 
-        // Get raw classpath elements
-        final List<String> rawClasspathElementPathStrs = new ClasspathFinder(scanSpec, log)
-                .getRawClasspathElements();
+            final List<File> classpathElementFilesOrdered = new ArrayList<>();
 
-        // Create ClasspathElement objects for each raw classpath element path
-        final List<ClasspathRelativePath> rawClasspathElements = new ArrayList<>();
-        for (final String rawClasspathElementPathStr : rawClasspathElementPathStrs) {
-            // Resolve classpath elements relative to current dir, so that paths like "." are handled.
-            final ClasspathRelativePath classpathElt = new ClasspathRelativePath(currentDirPath,
-                    rawClasspathElementPathStr);
-            rawClasspathElements.add(classpathElt);
-        }
+            // Get raw classpath elements
+            final List<String> rawClasspathElementPathStrs = new ClasspathFinder(scanSpec, log)
+                    .getRawClasspathElements();
 
-        final InterruptionChecker interruptionChecker = new InterruptionChecker();
+            // Create ClasspathElement objects for each raw classpath element path
+            final List<ClasspathRelativePath> rawClasspathElements = new ArrayList<>();
+            for (final String rawClasspathElementPathStr : rawClasspathElementPathStrs) {
+                // Resolve classpath elements relative to current dir, so that paths like "." are handled.
+                final ClasspathRelativePath classpathElt = new ClasspathRelativePath(currentDirPath,
+                        rawClasspathElementPathStr);
+                rawClasspathElements.add(classpathElt);
+            }
 
-        // Recycle object instances across threads for efficiency
-        try (final Recycler<ClassfileBinaryParser, RuntimeException> classfileBinaryParserRecycler = //
-                new Recycler<ClassfileBinaryParser, RuntimeException>() {
-                    @Override
-                    public ClassfileBinaryParser newInstance() {
-                        return new ClassfileBinaryParser(scanSpec, log);
-                    }
-                }) {
-            // In parallel, resolve classpath elements to canonical paths, creating a ClasspathElementSingleton
-            // for each unique canonical path, and if the elements are jarfiles, read the manifest file if present.
-            // If enableRecursiveScanning is true, also recursively scan files in each classpath element, looking
-            // for file path matches.
-            final ClasspathRelativePathToElementMap classpathElementMap = new ClasspathRelativePathToElementMap(
-                    scanFiles, scanSpec, interruptionChecker, log);
-            final ConcurrentHashMap<String, String> knownJREPaths = new ConcurrentHashMap<>();
-            final ConcurrentHashMap<String, String> knownNonJREPaths = new ConcurrentHashMap<>();
-            try (WorkQueue<ClasspathRelativePath> workQueue = new WorkQueue<>(rawClasspathElements,
-                    new WorkUnitProcessor<ClasspathRelativePath>() {
+            final InterruptionChecker interruptionChecker = new InterruptionChecker();
+
+            // Recycle object instances across threads for efficiency
+            try (final Recycler<ClassfileBinaryParser, RuntimeException> classfileBinaryParserRecycler = //
+                    new Recycler<ClassfileBinaryParser, RuntimeException>() {
                         @Override
-                        public void processWorkUnit(ClasspathRelativePath rawClasspathElt) throws Exception {
-                            if (rawClasspathElt.isValid(scanSpec, knownJREPaths, knownNonJREPaths,
-                                    classpathElementMap, log)) {
-                                classpathElementMap.createSingleton(rawClasspathElt);
-                            }
+                        public ClassfileBinaryParser newInstance() {
+                            return new ClassfileBinaryParser(scanSpec);
                         }
-                    }, interruptionChecker, log)) {
-                classpathElementMap.setWorkQueue(workQueue);
-                // Start workers, then use this thread to do work too, in case there is only one thread available
-                // in the ExecutorService
-                workQueue.startWorkers(executorService, numParallelTasks - 1, log);
-                workQueue.runWorkLoop();
-            }
-
-            // Determine total ordering of classpath elements, inserting jars referenced in manifest Class-Path
-            // entries in-place into the ordering, if they haven't been listed earlier in the classpath already.
-            final List<ClasspathElement> classpathOrder = findClasspathOrder(rawClasspathElements,
-                    classpathElementMap);
-            final HashSet<String> classpathRelativePathsFound = new HashSet<>();
-            for (final ClasspathElement singleton : classpathOrder) {
-                classpathElementFilesOrdered.add(singleton.classpathElementFile);
-            }
-
-            ScanResult scanResult;
-            if (scanFiles) {
-                // Determine if any relative paths later in the classpath are masked by relative paths
-                // earlier in the classpath
-                for (final ClasspathElement classpathElement : classpathOrder) {
-                    // Implement classpath masking -- if the same relative path occurs multiple times in the
-                    // classpath, ignore (remove) the second and subsequent occurrences.
-                    classpathElement.maskFiles(classpathRelativePathsFound);
-                }
-
-                // Merge the maps from file to timestamp across all classpath elements
-                final Map<File, Long> fileToLastModified = new HashMap<>();
-                for (final ClasspathElement classpathElement : classpathOrder) {
-                    fileToLastModified.putAll(classpathElement.fileToLastModified);
-                }
-
-                // Scan classfile binary headers in parallel
-                final ConcurrentLinkedQueue<ClassInfoUnlinked> classInfoUnlinked = new ConcurrentLinkedQueue<>();
-                final ConcurrentHashMap<String, String> stringInternMap = new ConcurrentHashMap<>();
-                try (WorkQueue<ClassfileParserChunk> workQueue = new WorkQueue<>(
-                        getClassfileParserChunks(classpathOrder), //
-                        new WorkUnitProcessor<ClassfileParserChunk>() {
+                    }) {
+                // In parallel, resolve classpath elements to canonical paths, creating a ClasspathElement
+                // singleton for each unique canonical path, and if the elements are jarfiles, read the manifest
+                // file if present. If enableRecursiveScanning is true, also recursively scan files in each
+                // classpath element, looking for file path matches.
+                final ClasspathRelativePathToElementMap classpathElementMap = new ClasspathRelativePathToElementMap(
+                        scanFiles, scanSpec, interruptionChecker, log);
+                final ConcurrentHashMap<String, String> knownJREPaths = new ConcurrentHashMap<>();
+                final ConcurrentHashMap<String, String> knownNonJREPaths = new ConcurrentHashMap<>();
+                try (WorkQueue<ClasspathRelativePath> workQueue = new WorkQueue<>(rawClasspathElements,
+                        new WorkUnitProcessor<ClasspathRelativePath>() {
                             @Override
-                            public void processWorkUnit(ClassfileParserChunk chunk)
-                                    throws InterruptedException, ExecutionException {
-                                ClassfileBinaryParser classfileBinaryParser = null;
-                                try {
-                                    classfileBinaryParser = classfileBinaryParserRecycler.acquire();
-                                    chunk.classpathElement.parseClassfiles(classfileBinaryParser,
-                                            chunk.classfileStartIdx, chunk.classfileEndIdx, stringInternMap,
-                                            classInfoUnlinked);
-                                } finally {
-                                    classfileBinaryParserRecycler.release(classfileBinaryParser);
-                                    classfileBinaryParser = null;
+                            public void processWorkUnit(ClasspathRelativePath rawClasspathElt) throws Exception {
+                                if (rawClasspathElt.isValid(scanSpec, knownJREPaths, knownNonJREPaths,
+                                        classpathElementMap, log)) {
+                                    classpathElementMap.createSingleton(rawClasspathElt);
                                 }
                             }
                         }, interruptionChecker, log)) {
+                    classpathElementMap.setWorkQueue(workQueue);
+                    // Start workers, then use this thread to do work too, in case there is only one thread
+                    // available in the ExecutorService
                     workQueue.startWorkers(executorService, numParallelTasks - 1, log);
                     workQueue.runWorkLoop();
                 }
 
-                // Build the class graph: convert ClassInfoUnlinked to linked ClassInfo objects.
-                final Map<String, ClassInfo> classNameToClassInfo = new HashMap<>();
-                for (final ClassInfoUnlinked c : classInfoUnlinked) {
-                    // Create ClassInfo object from ClassInfoUnlinked object, and link into class graph
-                    c.link(classNameToClassInfo);
+                // Determine total ordering of classpath elements, inserting jars referenced in manifest Class-Path
+                // entries in-place into the ordering, if they haven't been listed earlier in the classpath already.
+                final List<ClasspathElement> classpathOrder = findClasspathOrder(rawClasspathElements,
+                        classpathElementMap);
+                final HashSet<String> classpathRelativePathsFound = new HashSet<>();
+                for (final ClasspathElement singleton : classpathOrder) {
+                    classpathElementFilesOrdered.add(singleton.classpathElementFile);
                 }
-                final ClassGraphBuilder classGraphBuilder = new ClassGraphBuilder(classNameToClassInfo);
-
-                // Create ScanResult
-                scanResult = new ScanResult(scanSpec, classpathElementFilesOrdered, classGraphBuilder,
-                        fileToLastModified, log);
-
-                // Call MatchProcessors 
-                final long startMatchProcessors = System.nanoTime();
-                scanSpec.callMatchProcessors(scanResult, classpathOrder, classNameToClassInfo, interruptionChecker,
-                        log);
-                if (FastClasspathScanner.verbose) {
-                    log.log(1, "Finished calling MatchProcessors", System.nanoTime() - startMatchProcessors);
+                if (log != null) {
+                    final LogNode logNode = log.log("Classpath element order:");
+                    for (int i = 0; i < classpathOrder.size(); i++) {
+                        final ClasspathElement classpathElt = classpathOrder.get(i);
+                        logNode.log(i + ": " + classpathElt);
+                    }
                 }
-            } else {
-                // This is the result of a call to FastClasspathScanner#getUniqueClasspathElementsAsync(), so
-                // just create placeholder ScanResult to contain classpathElementFilesOrdered.
-                scanResult = new ScanResult(scanSpec, classpathElementFilesOrdered, /* classGraphBuilder = */ null,
-                        /* fileToLastModified = */ null, log);
-            }
 
-            if (FastClasspathScanner.verbose) {
-                log.log("Finished scan", System.nanoTime() - scanStart);
+                ScanResult scanResult;
+                if (scanFiles) {
+                    // Determine if any relative paths later in the classpath are masked by relative paths
+                    // earlier in the classpath
+                    for (final ClasspathElement classpathElement : classpathOrder) {
+                        // Implement classpath masking -- if the same relative path occurs multiple times in the
+                        // classpath, ignore (remove) the second and subsequent occurrences.
+                        classpathElement.maskFiles(classpathRelativePathsFound, log);
+                    }
+
+                    // Merge the maps from file to timestamp across all classpath elements
+                    final Map<File, Long> fileToLastModified = new HashMap<>();
+                    for (final ClasspathElement classpathElement : classpathOrder) {
+                        fileToLastModified.putAll(classpathElement.fileToLastModified);
+                    }
+
+                    // Scan classfile binary headers in parallel
+                    final ConcurrentLinkedQueue<ClassInfoUnlinked> classInfoUnlinked = //
+                            new ConcurrentLinkedQueue<>();
+                    final ConcurrentHashMap<String, String> stringInternMap = new ConcurrentHashMap<>();
+                    try (WorkQueue<ClassfileParserChunk> workQueue = new WorkQueue<>(
+                            getClassfileParserChunks(classpathOrder), //
+                            new WorkUnitProcessor<ClassfileParserChunk>() {
+                                @Override
+                                public void processWorkUnit(ClassfileParserChunk chunk)
+                                        throws InterruptedException, ExecutionException {
+                                    ClassfileBinaryParser classfileBinaryParser = null;
+                                    try {
+                                        classfileBinaryParser = classfileBinaryParserRecycler.acquire();
+                                        chunk.classpathElement.parseClassfiles(classfileBinaryParser,
+                                                chunk.classfileStartIdx, chunk.classfileEndIdx, stringInternMap,
+                                                classInfoUnlinked, log);
+                                    } finally {
+                                        classfileBinaryParserRecycler.release(classfileBinaryParser);
+                                        classfileBinaryParser = null;
+                                    }
+                                }
+                            }, interruptionChecker, log)) {
+                        workQueue.startWorkers(executorService, numParallelTasks - 1, log);
+                        workQueue.runWorkLoop();
+                    }
+
+                    // Build the class graph: convert ClassInfoUnlinked to linked ClassInfo objects.
+                    final Map<String, ClassInfo> classNameToClassInfo = new HashMap<>();
+                    for (final ClassInfoUnlinked c : classInfoUnlinked) {
+                        // Create ClassInfo object from ClassInfoUnlinked object, and link into class graph
+                        c.link(classNameToClassInfo);
+                    }
+                    final ClassGraphBuilder classGraphBuilder = new ClassGraphBuilder(classNameToClassInfo);
+
+                    // Create ScanResult
+                    scanResult = new ScanResult(scanSpec, classpathElementFilesOrdered, classGraphBuilder,
+                            fileToLastModified);
+
+                    // Call MatchProcessors 
+                    scanSpec.callMatchProcessors(scanResult, classpathOrder, classNameToClassInfo,
+                            interruptionChecker, log);
+                } else {
+                    // This is the result of a call to FastClasspathScanner#getUniqueClasspathElementsAsync(), so
+                    // just create placeholder ScanResult to contain classpathElementFilesOrdered.
+                    scanResult = new ScanResult(scanSpec, classpathElementFilesOrdered,
+                            /* classGraphBuilder = */ null, /* fileToLastModified = */ null);
+                }
+
+                if (log != null) {
+                    log.log("Completed scan", System.nanoTime() - scanStart);
+                }
+                return scanResult;
             }
-            return scanResult;
+        } finally {
+            if (log != null) {
+                log.flush();
+            }
         }
     }
 }

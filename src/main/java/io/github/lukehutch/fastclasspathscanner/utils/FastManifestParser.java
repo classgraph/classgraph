@@ -35,17 +35,13 @@ import java.io.InputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
-import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-import io.github.lukehutch.fastclasspathscanner.utils.LoggedThread.ThreadLog;
-
 /** Fast parser for jar manifest files. */
 public class FastManifestParser {
     public boolean isSystemJar;
     public String classPath;
 
     /** Parse the manifest file. */
-    private void parseManifest(final ZipFile jarFile, final ZipEntry manifestEntry, final ThreadLog log)
-            throws IOException {
+    private void parseManifest(final ZipFile jarFile, final ZipEntry manifestEntry) throws IOException {
         if (manifestEntry != null) {
             try (InputStream inputStream = jarFile.getInputStream(manifestEntry)) {
                 final ByteArrayOutputStream byteBuf = new ByteArrayOutputStream();
@@ -106,12 +102,12 @@ public class FastManifestParser {
      * class, so has lower overhead. Only extracts a few specific entries from the manifest file, if present.
      * Assumes there is only one of each entry present in the manifest.
      */
-    public FastManifestParser(final ZipFile jarFile, final ZipEntry manifestEntry, final ThreadLog log) {
+    public FastManifestParser(final ZipFile jarFile, final ZipEntry manifestEntry, final LogNode log) {
         try {
-            parseManifest(jarFile, manifestEntry, log);
+            parseManifest(jarFile, manifestEntry);
         } catch (final IOException e) {
-            if (FastClasspathScanner.verbose) {
-                log.log("Exception while opening manifest in jarfile " + jarFile + " : " + e);
+            if (log != null) {
+                log.log("Exception while opening manifest in jarfile " + jarFile, e);
             }
         }
     }
@@ -121,13 +117,13 @@ public class FastManifestParser {
      * class, so has lower overhead. Only extracts a few specific entries from the manifest file, if present.
      * Assumes there is only one of each entry present in the manifest.
      */
-    public FastManifestParser(final File jarFile, final ThreadLog log) {
+    public FastManifestParser(final File jarFile, final LogNode log) {
         try (ZipFile zipFile = new ZipFile(jarFile)) {
             final ZipEntry manifestEntry = zipFile.getEntry("META-INF/MANIFEST.MF");
-            parseManifest(zipFile, manifestEntry, log);
+            parseManifest(zipFile, manifestEntry);
         } catch (final IOException e) {
-            if (FastClasspathScanner.verbose) {
-                log.log("Exception while opening jarfile " + jarFile + " : " + e);
+            if (log != null) {
+                log.log("Exception while opening jarfile " + jarFile, e);
             }
         }
     }

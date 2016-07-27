@@ -37,36 +37,33 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-import io.github.lukehutch.fastclasspathscanner.utils.LoggedThread.ThreadLog;
-
 public class WorkQueue<T> implements AutoCloseable {
     private final WorkUnitProcessor<T> workUnitProcessor;
     private final ConcurrentLinkedQueue<T> workQueue = new ConcurrentLinkedQueue<>();
     private final AtomicInteger numWorkUnitsRemaining = new AtomicInteger();
     private final ConcurrentLinkedQueue<Future<?>> workerFutures = new ConcurrentLinkedQueue<>();
     private final InterruptionChecker interruptionChecker;
-    private final ThreadLog log;
+    private final LogNode log;
 
     public interface WorkUnitProcessor<T> {
         public void processWorkUnit(T workUnit) throws Exception;
     }
 
     private WorkQueue(final WorkUnitProcessor<T> workUnitProcesor, final InterruptionChecker interruptionChecker,
-            final ThreadLog log) {
+            final LogNode log) {
         this.workUnitProcessor = workUnitProcesor;
         this.interruptionChecker = interruptionChecker;
         this.log = log;
     }
 
     public WorkQueue(final Collection<T> initialWorkUnits, final WorkUnitProcessor<T> workUnitProcesor,
-            final InterruptionChecker interruptionChecker, final ThreadLog log) {
+            final InterruptionChecker interruptionChecker, final LogNode log) {
         this(workUnitProcesor, interruptionChecker, log);
         addWorkUnits(initialWorkUnits);
     }
 
     /** Start worker threads with a shared log. */
-    public void startWorkers(final ExecutorService executorService, final int numWorkers, final ThreadLog log) {
+    public void startWorkers(final ExecutorService executorService, final int numWorkers, final LogNode log) {
         for (int i = 0; i < numWorkers; i++) {
             workerFutures.add(executorService.submit(new Callable<Void>() {
                 @Override
@@ -111,7 +108,7 @@ public class WorkQueue<T> implements AutoCloseable {
                 interruptionChecker.interrupt();
                 throw e;
             } catch (final Exception e) {
-                if (FastClasspathScanner.verbose) {
+                if (log != null) {
                     log.log("Exception in worker thread", e);
                 }
                 throw interruptionChecker.executionException(e);
@@ -159,7 +156,7 @@ public class WorkQueue<T> implements AutoCloseable {
             } catch (CancellationException | InterruptedException e) {
                 // Ignore
             } catch (final ExecutionException e) {
-                if (FastClasspathScanner.verbose) {
+                if (log != null) {
                     log.log("Closed work queue because worker thread threw exception", e);
                 }
                 interruptionChecker.executionException(e);
