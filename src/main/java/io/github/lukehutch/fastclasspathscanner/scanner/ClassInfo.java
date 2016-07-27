@@ -210,7 +210,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
     }
 
     /** Get the sorted list of the names of classes given a set of ClassInfo objects. */
-    static List<String> getClassNames(final Collection<ClassInfo> classInfoColl) {
+    public static List<String> getClassNames(final Collection<ClassInfo> classInfoColl) {
         if (classInfoColl.isEmpty()) {
             return Collections.emptyList();
         } else {
