@@ -35,6 +35,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
@@ -134,12 +135,14 @@ public class Scanner implements Callable<ScanResult> {
 
     /**
      * Break the classfiles that need to be scanned in each classpath element into chunks of approximately
-     * NUM_FILES_PER_CHUNK files.
+     * NUM_FILES_PER_CHUNK files. This helps with load leveling so that the worker threads all complete their work
+     * at approximately the same time.
      */
     private static List<ClassfileParserChunk> getClassfileParserChunks(
             final List<ClasspathElement> classpathOrder) {
-        final List<ClassfileParserChunk> chunks = new ArrayList<>();
+        LinkedList<LinkedList<ClassfileParserChunk>> chunks = new LinkedList<>();
         for (final ClasspathElement classpathElement : classpathOrder) {
+            final LinkedList<ClassfileParserChunk> chunksForClasspathElt = new LinkedList<>();
             final int numClassfileMatches = classpathElement.getNumClassfileMatches();
             if (numClassfileMatches > 0) {
                 final int numChunks = (int) Math.ceil((float) numClassfileMatches / (float) NUM_FILES_PER_CHUNK);
@@ -149,12 +152,35 @@ public class Scanner implements Callable<ScanResult> {
                     final int classfileEndIdx = i < numChunks - 1 ? (int) ((i + 1) * filesPerChunk)
                             : numClassfileMatches;
                     if (classfileEndIdx > classfileStartIdx) {
-                        chunks.add(new ClassfileParserChunk(classpathElement, classfileStartIdx, classfileEndIdx));
+                        chunksForClasspathElt.add(
+                                new ClassfileParserChunk(classpathElement, classfileStartIdx, classfileEndIdx));
                     }
                 }
             }
+            chunks.add(chunksForClasspathElt);
         }
-        return chunks;
+        // There should be no overlap between the relative paths in any of the chunks, because classpath masking
+        // has already been applied, so these chunks can be scanned in any order. But since a ZipFile instance
+        // can only be used by one thread at a time, we want to space the chunks for a given ZipFile as far apart
+        // as possible in the work queue to minimize the chance that two threads will try to open the same ZipFile
+        // at the same time, as this will cause a second copy of the ZipFile to have to be opened by the ZipFile
+        // recycler. The combination of chunking and interleaving therefore lets us achieve load leveling without
+        // work stealing or other more complex mechanism.
+        final List<ClassfileParserChunk> interleavedChunks = new ArrayList<>();
+        while (!chunks.isEmpty()) {
+            final LinkedList<LinkedList<ClassfileParserChunk>> nextChunks = new LinkedList<>();
+            for (final LinkedList<ClassfileParserChunk> chunksForClasspathElt : chunks) {
+                if (!chunksForClasspathElt.isEmpty()) {
+                    final ClassfileParserChunk head = chunksForClasspathElt.remove();
+                    interleavedChunks.add(head);
+                    if (!chunksForClasspathElt.isEmpty()) {
+                        nextChunks.add(chunksForClasspathElt);
+                    }
+                }
+            }
+            chunks = nextChunks;
+        }
+        return interleavedChunks;
     }
 
     // -------------------------------------------------------------------------------------------------------------
