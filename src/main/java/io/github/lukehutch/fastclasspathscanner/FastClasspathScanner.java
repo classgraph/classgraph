@@ -35,9 +35,6 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 
 import io.github.lukehutch.fastclasspathscanner.classloaderhandler.ClassLoaderHandler;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.ClassAnnotationMatchProcessor;
@@ -53,8 +50,8 @@ import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubinterfaceMatch
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScannerCore;
+import io.github.lukehutch.fastclasspathscanner.utils.AutoCloseableExecutorService;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
-import io.github.lukehutch.fastclasspathscanner.utils.SimpleThreadFactory;
 import io.github.lukehutch.fastclasspathscanner.utils.VersionFinder;
 
 /**
@@ -222,29 +219,6 @@ public class FastClasspathScanner {
             version = VersionFinder.getVersion();
         }
         return version;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    private final static SimpleThreadFactory threadFactory = new SimpleThreadFactory("FastClasspathScanner-worker-",
-            true);
-
-    /** A ThreadPoolExecutor that can be used in a try-with-resources block. */
-    private class AutoCloseableExecutorService extends ThreadPoolExecutor implements AutoCloseable {
-        public AutoCloseableExecutorService(final int numThreads) {
-            super(numThreads, numThreads, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(),
-                    threadFactory);
-        }
-
-        /** Shut down thread pool on close(). */
-        @Override
-        public void close() {
-            try {
-                shutdownNow();
-            } catch (final Exception e) {
-                throw new RuntimeException("Exception shutting down ExecutorService: " + e);
-            }
-        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
