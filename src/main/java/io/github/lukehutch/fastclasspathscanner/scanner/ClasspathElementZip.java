@@ -59,7 +59,7 @@ class ClasspathElementZip extends ClasspathElement {
             final InterruptionChecker interruptionChecker, final WorkQueue<ClasspathRelativePath> workQueue,
             final LogNode log) {
         super(classpathElt, scanSpec, scanFiles, interruptionChecker, log);
-        File classpathEltFile;
+        final File classpathEltFile;
         try {
             classpathEltFile = classpathElt.getFile();
         } catch (final IOException e) {
