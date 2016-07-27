@@ -47,18 +47,11 @@ class ClassGraphBuilder {
         this.allClassInfo = new HashSet<>(classNameToClassInfo.values());
     }
 
-    // -------------------------------------------------------------------------------------------------------------
-    // Find the transitive closure from a named node in the class graph
-
-    /**
-     * Find all classes reachable from the named start class (not including the start class itself), given a certain
-     * relationship type.
-     */
-    private Set<ClassInfo> getReachableClasses(final String startClassName, final RelType relType) {
-        final ClassInfo startClass = classNameToClassInfo.get(startClassName);
-        return startClass == null ? Collections.<ClassInfo> emptySet() : startClass.getReachableClasses(relType);
+    /** Get a map from class name to ClassInfo for the class. */
+    public Map<String, ClassInfo> getClassNameToClassInfo() {
+        return classNameToClassInfo;
     }
-
+    
     // -------------------------------------------------------------------------------------------------------------
     // Classes
 
@@ -76,16 +69,22 @@ class ClassGraphBuilder {
 
     /** Return the sorted list of names of all subclasses of the named class. */
     List<String> getNamesOfSubclassesOf(final String className) {
-        return ClassInfo.getClassNames( //
-                ClassInfo.filterClassInfo(getReachableClasses(className, RelType.SUBCLASSES),
-                        /* removeExternalClasses = */ true, ClassType.ALL));
+        final ClassInfo classInfo = classNameToClassInfo.get(className);
+        if (classInfo == null) {
+            return Collections.emptyList();
+        } else {
+            return classInfo.getNamesOfSubclasses();
+        }
     }
 
     /** Return the sorted list of names of all superclasses of the named class. */
     List<String> getNamesOfSuperclassesOf(final String className) {
-        return ClassInfo.getClassNames( //
-                ClassInfo.filterClassInfo(getReachableClasses(className, RelType.SUPERCLASSES),
-                        /* removeExternalClasses = */ true, ClassType.ALL));
+        final ClassInfo classInfo = classNameToClassInfo.get(className);
+        if (classInfo == null) {
+            return Collections.emptyList();
+        } else {
+            return classInfo.getNamesOfSuperclasses();
+        }
     }
 
     /**
@@ -120,30 +119,41 @@ class ClassGraphBuilder {
 
     /** Return the sorted list of names of all subinterfaces of the named interface. */
     List<String> getNamesOfSubinterfacesOf(final String interfaceName) {
-        return ClassInfo.getClassNames( //
-                ClassInfo.filterClassInfo(getReachableClasses(interfaceName, RelType.CLASSES_IMPLEMENTING),
-                        /* removeExternalClasses = */ true, ClassType.IMPLEMENTED_INTERFACE));
+        final ClassInfo classInfo = classNameToClassInfo.get(interfaceName);
+        if (classInfo == null) {
+            return null;
+        } else {
+            return classInfo.getNamesOfSubinterfaces();
+        }
     }
 
     /** Return the names of all superinterfaces of the named interface. */
     List<String> getNamesOfSuperinterfacesOf(final String interfaceName) {
-        return ClassInfo.getClassNames( //
-                ClassInfo.filterClassInfo(getReachableClasses(interfaceName, RelType.IMPLEMENTED_INTERFACES),
-                        /* removeExternalClasses = */ true, ClassType.IMPLEMENTED_INTERFACE));
+        final ClassInfo classInfo = classNameToClassInfo.get(interfaceName);
+        if (classInfo == null) {
+            return Collections.emptyList();
+        } else {
+            return classInfo.getNamesOfSuperinterfaces();
+        }
     }
 
     /** Return the sorted list of names of all classes implementing the named interface. */
     List<String> getNamesOfClassesImplementing(final String interfaceName) {
-        final Set<ClassInfo> implementingClasses = ClassInfo.filterClassInfo(
-                getReachableClasses(interfaceName, RelType.CLASSES_IMPLEMENTING),
-                /* removeExternalClasses = */ true, ClassType.STANDARD_CLASS);
-        // Subclasses of implementing classes also implement the interface
-        final Set<ClassInfo> allImplementingClasses = new HashSet<>();
-        for (final ClassInfo implementingClass : implementingClasses) {
-            allImplementingClasses.add(implementingClass);
-            allImplementingClasses.addAll(implementingClass.getReachableClasses(RelType.SUBCLASSES));
+        final ClassInfo interfaceClassInfo = classNameToClassInfo.get(interfaceName);
+        if (interfaceClassInfo == null) {
+            return Collections.emptyList();
+        } else {
+            final Set<ClassInfo> implementingClasses = ClassInfo.filterClassInfo(
+                    interfaceClassInfo.getReachableClasses(RelType.CLASSES_IMPLEMENTING),
+                    /* removeExternalClasses = */ true, ClassType.STANDARD_CLASS);
+            // Subclasses of implementing classes also implement the interface
+            final Set<ClassInfo> allImplementingClasses = new HashSet<>();
+            for (final ClassInfo implementingClass : implementingClasses) {
+                allImplementingClasses.add(implementingClass);
+                allImplementingClasses.addAll(implementingClass.getReachableClasses(RelType.SUBCLASSES));
+            }
+            return ClassInfo.getClassNames(allImplementingClasses);
         }
-        return ClassInfo.getClassNames(allImplementingClasses);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -160,17 +170,22 @@ class ClassGraphBuilder {
      * annotation or meta-annotation.
      */
     List<String> getNamesOfClassesWithAnnotation(final String annotationName) {
-        return ClassInfo.getClassNames( //
-                ClassInfo.filterClassInfo(getReachableClasses(annotationName, RelType.ANNOTATED_CLASSES),
-                        /* removeExternalClasses = */ true, ClassType.STANDARD_CLASS,
-                        ClassType.IMPLEMENTED_INTERFACE));
+        final ClassInfo classInfo = classNameToClassInfo.get(annotationName);
+        if (classInfo == null) {
+            return Collections.emptyList();
+        } else {
+            return classInfo.getNamesOfClassesWithAnnotation();
+        }
     }
 
     /** Return the sorted list of names of all annotations and meta-annotations on the named class. */
     List<String> getNamesOfAnnotationsOnClass(final String classOrInterfaceName) {
-        return ClassInfo.getClassNames( //
-                ClassInfo.filterClassInfo(getReachableClasses(classOrInterfaceName, RelType.ANNOTATIONS),
-                        /* removeExternalClasses = */ true, ClassType.ALL));
+        final ClassInfo classInfo = classNameToClassInfo.get(classOrInterfaceName);
+        if (classInfo == null) {
+            return Collections.emptyList();
+        } else {
+            return classInfo.getNamesOfAnnotationsOnClass();
+        }
     }
 
     /** Return the sorted list of names of all meta-annotations on the named annotation. */
@@ -180,9 +195,12 @@ class ClassGraphBuilder {
 
     /** Return the names of all annotations that have the named meta-annotation. */
     List<String> getNamesOfAnnotationsWithMetaAnnotation(final String metaAnnotationName) {
-        return ClassInfo.getClassNames( //
-                ClassInfo.filterClassInfo(getReachableClasses(metaAnnotationName, RelType.ANNOTATED_CLASSES),
-                        /* removeExternalClasses = */ true, ClassType.ANNOTATION));
+        final ClassInfo classInfo = classNameToClassInfo.get(metaAnnotationName);
+        if (classInfo == null) {
+            return Collections.emptyList();
+        } else {
+            return classInfo.getNamesOfAnnotationsWithMetaAnnotation();
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------

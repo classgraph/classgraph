@@ -40,7 +40,7 @@ import java.util.Set;
 
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 
-class ClassInfo implements Comparable<ClassInfo> {
+public class ClassInfo implements Comparable<ClassInfo> {
 
     /** Name of the class/interface/annotation. */
     String className;
@@ -236,7 +236,7 @@ class ClassInfo implements Comparable<ClassInfo> {
     Set<ClassInfo> getReachableClasses(final RelType relType) {
         final Set<ClassInfo> directlyRelatedClasses = this.getRelatedClasses(relType);
         if (directlyRelatedClasses.isEmpty()) {
-            return Collections.emptySet();
+            return directlyRelatedClasses;
         }
         final Set<ClassInfo> reachableClasses = new HashSet<>(directlyRelatedClasses);
         final LinkedList<ClassInfo> queue = new LinkedList<>();
@@ -263,36 +263,6 @@ class ClassInfo implements Comparable<ClassInfo> {
             relatedTypeToClassInfoSet.put(relType, classInfoSet = new HashSet<>(4));
         }
         return classInfoSet.add(classInfo);
-    }
-
-    /** Returns true if this ClassInfo corresponds to an annotation. */
-    public boolean isAnnotation() {
-        return isAnnotation;
-    }
-
-    /**
-     * Returns true if this ClassInfo corresponds to an "implemented interface" (meaning a non-annotation interface,
-     * or an annotation that has also been implemented as an interface by some class). Annotations are interfaces,
-     * but you can also implement an annotation, so to we need to check if an interface (even an annotation) is
-     * implemented by a class / extended by a subinterface (when classesImplementing contains at least one element),
-     * or (failing that) if it is not an interface but not an annotation.
-     * 
-     * (This is named "implemented interface" rather than just "interface" to distinguish it from an annotation.)
-     */
-    public boolean isImplementedInterface() {
-        return !getRelatedClasses(RelType.CLASSES_IMPLEMENTING).isEmpty() || isInterface && !isAnnotation;
-    }
-
-    /**
-     * Regular classes are not annotations, and should not be interfaces, but to be robust, even if it's an
-     * interface, check if there are super- or sub-classes (if the classpath can contain two versions of a class,
-     * once with it defined as a class, and once with it defined as an interface -- classpath masking should fix
-     * this, but this is to fix problems like issue #38 in future).
-     */
-    public boolean isStandardClass() {
-        return !isAnnotation && //
-                (!getRelatedClasses(RelType.SUBCLASSES).isEmpty()
-                        || !getRelatedClasses(RelType.SUPERCLASSES).isEmpty() || !isImplementedInterface());
     }
 
     /** Strip Scala auxiliary class suffixes from class name. */
@@ -400,6 +370,11 @@ class ClassInfo implements Comparable<ClassInfo> {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /** Get the name of this class. */
+    public String getClassName() {
+        return className;
+    }
+
     @Override
     public int compareTo(final ClassInfo o) {
         return this.className.compareTo(o.className);
@@ -428,5 +403,316 @@ class ClassInfo implements Comparable<ClassInfo> {
     @Override
     public String toString() {
         return className;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+    // Standard classes
+
+    /**
+     * Regular classes are not annotations, and should not be interfaces, but to be robust, even if it's an
+     * interface, check if there are super- or sub-classes (if the classpath can contain two versions of a class,
+     * once with it defined as a class, and once with it defined as an interface -- classpath masking should fix
+     * this, but this is to fix problems like issue #38 in future).
+     */
+    public boolean isStandardClass() {
+        return !isAnnotation && //
+                (!getRelatedClasses(RelType.SUBCLASSES).isEmpty()
+                        || !getRelatedClasses(RelType.SUPERCLASSES).isEmpty() || !isImplementedInterface());
+    }
+
+    // -------------
+
+    /** Return the set of all subclasses. */
+    public Set<ClassInfo> getSubclasses() {
+        return filterClassInfo(getReachableClasses(RelType.SUBCLASSES), /* removeExternalClasses = */ true,
+                ClassType.ALL);
+    }
+
+    /** Return the sorted list of names of all subclasses. */
+    public List<String> getNamesOfSubclasses() {
+        return getClassNames(getSubclasses());
+    }
+
+    /** Returns true if this class has the named subclass. */
+    public boolean hasSubclass(final String subclassName) {
+        return getNamesOfSubclasses().contains(subclassName);
+    }
+
+    // -------------
+
+    /** Return the set of all direct subclasses. */
+    public Set<ClassInfo> getDirectSubclasses() {
+        return filterClassInfo(getRelatedClasses(RelType.SUBCLASSES), /* removeExternalClasses = */ true,
+                ClassType.ALL);
+    }
+
+    /** Return the sorted list of names of all direct subclasses. */
+    public List<String> getNamesOfDirectSubclasses() {
+        return getClassNames(getDirectSubclasses());
+    }
+
+    /** Returns true if this class has the named direct subclass. */
+    public boolean hasDirectSubclass(final String directSubclassName) {
+        return getNamesOfDirectSubclasses().contains(directSubclassName);
+    }
+
+    // -------------
+
+    /** Return the set of all superclasses. */
+    public Set<ClassInfo> getSuperclasses() {
+        return filterClassInfo(getReachableClasses(RelType.SUPERCLASSES), /* removeExternalClasses = */ true,
+                ClassType.ALL);
+    }
+
+    /** Return the sorted list of names of all superclasses. */
+    public List<String> getNamesOfSuperclasses() {
+        return getClassNames(getSuperclasses());
+    }
+
+    /** Returns true if this class has the named superclass. */
+    public boolean hasSuperclass(final String superclassName) {
+        return getNamesOfSuperclasses().contains(superclassName);
+    }
+
+    // -------------
+
+    /** Return the set of all direct superclasses. */
+    public Set<ClassInfo> getDirectSuperclasses() {
+        return filterClassInfo(getRelatedClasses(RelType.SUPERCLASSES), /* removeExternalClasses = */ true,
+                ClassType.ALL);
+    }
+
+    /** Return the sorted list of names of all direct superclasses. */
+    public List<String> getNamesOfDirectSuperclasses() {
+        return getClassNames(getDirectSuperclasses());
+    }
+
+    /** Returns true if this class has the named direct subclass. */
+    public boolean hasDirectSuperclass(final String directSuperclassName) {
+        return getNamesOfDirectSuperclasses().contains(directSuperclassName);
+    }
+
+    // -------------
+
+    /**
+     * Return the sorted list of names of field types. Requires FastClasspathScanner#indexFieldTypes() to have been
+     * called before scanning.
+     */
+    public List<String> getFieldTypes() {
+        return getClassNames(filterClassInfo(getRelatedClasses(RelType.FIELD_TYPES),
+                /* removeExternalClasses = */ true, ClassType.ALL));
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+    // Interfaces
+
+    /**
+     * Returns true if this ClassInfo corresponds to an "implemented interface" (meaning a non-annotation interface,
+     * or an annotation that has also been implemented as an interface by some class). Annotations are interfaces,
+     * but you can also implement an annotation, so to we need to check if an interface (even an annotation) is
+     * implemented by a class / extended by a subinterface (when classesImplementing contains at least one element),
+     * or (failing that) if it is not an interface but not an annotation.
+     * 
+     * (This is named "implemented interface" rather than just "interface" to distinguish it from an annotation.)
+     */
+    public boolean isImplementedInterface() {
+        return !getRelatedClasses(RelType.CLASSES_IMPLEMENTING).isEmpty() || isInterface && !isAnnotation;
+    }
+
+    // -------------
+
+    /** Return the set of all subinterfaces. */
+    public Set<ClassInfo> getSubinterfaces() {
+        return filterClassInfo(getReachableClasses(RelType.CLASSES_IMPLEMENTING),
+                /* removeExternalClasses = */ true, ClassType.IMPLEMENTED_INTERFACE);
+    }
+
+    /** Return the sorted list of names of all subinterfaces. */
+    public List<String> getNamesOfSubinterfaces() {
+        return getClassNames(getSubinterfaces());
+    }
+
+    /** Returns true if this class has the named subinterface. */
+    public boolean hasSubinterface(final String subinterfaceName) {
+        return getNamesOfSubinterfaces().contains(subinterfaceName);
+    }
+
+    // -------------
+
+    /** Return the set of all direct subinterfaces. */
+    public Set<ClassInfo> getDirectSubinterfaces() {
+        return filterClassInfo(getRelatedClasses(RelType.CLASSES_IMPLEMENTING), /* removeExternalClasses = */ true,
+                ClassType.IMPLEMENTED_INTERFACE);
+    }
+
+    /** Return the sorted list of names of all direct subinterfaces. */
+    public List<String> getNamesOfDirectSubinterfaces() {
+        return getClassNames(getDirectSubinterfaces());
+    }
+
+    /** Returns true if this class has the named direct subinterface. */
+    public boolean hasDirectSubinterface(final String directSubinterfaceName) {
+        return getNamesOfDirectSubinterfaces().contains(directSubinterfaceName);
+    }
+
+    // -------------
+
+    /** Return the set of all superinterfaces. */
+    public Set<ClassInfo> getSuperinterfaces() {
+        return filterClassInfo(getReachableClasses(RelType.IMPLEMENTED_INTERFACES),
+                /* removeExternalClasses = */ true, ClassType.IMPLEMENTED_INTERFACE);
+    }
+
+    /** Return the sorted list of names of all superinterfaces. */
+    public List<String> getNamesOfSuperinterfaces() {
+        return getClassNames(getSuperinterfaces());
+    }
+
+    /** Returns true if this class has the named superinterface. */
+    public boolean hasSuperinterface(final String superinterfaceName) {
+        return getNamesOfSuperinterfaces().contains(superinterfaceName);
+    }
+
+    // -------------
+
+    /** Return the set of all direct superinterfaces. */
+    public Set<ClassInfo> getDirectSuperinterfaces() {
+        return filterClassInfo(getRelatedClasses(RelType.IMPLEMENTED_INTERFACES),
+                /* removeExternalClasses = */ true, ClassType.IMPLEMENTED_INTERFACE);
+    }
+
+    /** Return the names of all direct superinterfaces. */
+    public List<String> getNamesOfDirectSuperinterfaces() {
+        return getClassNames(getDirectSuperinterfaces());
+    }
+
+    /** Returns true if this class has the named direct superinterface. */
+    public boolean hasDirectSuperinterface(final String directSuperinterfaceName) {
+        return getNamesOfDirectSuperinterfaces().contains(directSuperinterfaceName);
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+    // Annotations
+
+    /** Returns true if this ClassInfo corresponds to an annotation. */
+    public boolean isAnnotation() {
+        return isAnnotation;
+    }
+
+    // -------------
+
+    /** Return the set of all standard classes or non-annotation interfaces that this class annotates. */
+    public Set<ClassInfo> getClassesWithAnnotation() {
+        return filterClassInfo(getReachableClasses(RelType.ANNOTATED_CLASSES), /* removeExternalClasses = */ true,
+                ClassType.STANDARD_CLASS, ClassType.IMPLEMENTED_INTERFACE);
+    }
+
+    /**
+     * Return the sorted list of names of all standard classes or non-annotation interfaces with this class as a
+     * class annotation or meta-annotation.
+     */
+    public List<String> getNamesOfClassesWithAnnotation() {
+        return getClassNames(getClassesWithAnnotation());
+    }
+
+    /** Returns true if this class annotates the named class. */
+    public boolean annotatesClass(final String annotatedClassName) {
+        return getNamesOfClassesWithAnnotation().contains(annotatedClassName);
+    }
+
+    // -------------
+
+    /**
+     * Return the set of all standard classes or non-annotation interfaces that are directly annotated with this
+     * class.
+     */
+    public Set<ClassInfo> getDirectlyAnnotatedClasses() {
+        return filterClassInfo(getRelatedClasses(RelType.ANNOTATED_CLASSES), /* removeExternalClasses = */ true,
+                ClassType.STANDARD_CLASS, ClassType.IMPLEMENTED_INTERFACE);
+    }
+
+    /**
+     * Return the sorted list of names of all standard classes or non-annotation interfaces that are directly
+     * annotated with this class.
+     */
+    public List<String> getNamesOfDirectlyAnnotatedClasses() {
+        return getClassNames(getDirectlyAnnotatedClasses());
+    }
+
+    /** Returns true if this class annotates the named class. */
+    public boolean directlyAnnotatesClass(final String directlyAnnotatedClassName) {
+        return getNamesOfDirectlyAnnotatedClasses().contains(directlyAnnotatedClassName);
+    }
+
+    // -------------
+
+    /** Return the set of all annotations and meta-annotations on this class. */
+    public Set<ClassInfo> getAnnotationsOnClass() {
+        return filterClassInfo(getReachableClasses(RelType.ANNOTATIONS), /* removeExternalClasses = */ true,
+                ClassType.ALL);
+    }
+
+    /** Return the sorted list of names of all annotations and meta-annotations on this class. */
+    public List<String> getNamesOfAnnotationsOnClass() {
+        return getClassNames(getAnnotationsOnClass());
+    }
+
+    /** Returns true if this class has the named class annotation or meta-annotation. */
+    public boolean hasClassAnnotation(final String annotationName) {
+        return getNamesOfAnnotationsOnClass().contains(annotationName);
+    }
+
+    // -------------
+
+    /** Return the set of all direct annotations on this class. */
+    public Set<ClassInfo> getDirectClassAnnotations() {
+        return filterClassInfo(getRelatedClasses(RelType.ANNOTATIONS), /* removeExternalClasses = */ true,
+                ClassType.ALL);
+    }
+
+    /** Return the sorted list of names of all direct annotations on this class. */
+    public List<String> getNamesOfDirectClassAnnotations() {
+        return getClassNames(getDirectClassAnnotations());
+    }
+
+    /** Returns true if this class has the named direct class annotation or meta-annotation. */
+    public boolean hasDirectClassAnnotation(final String directAnnotationName) {
+        return getNamesOfDirectClassAnnotations().contains(directAnnotationName);
+    }
+
+    // -------------
+
+    /** Return the set of all annotations that have this meta-annotation. */
+    public Set<ClassInfo> getAnnotationsWithMetaAnnotation() {
+        return filterClassInfo(getReachableClasses(RelType.ANNOTATED_CLASSES), /* removeExternalClasses = */ true,
+                ClassType.ANNOTATION);
+    }
+
+    /** Return the sorted list of names of all annotations that have this meta-annotation. */
+    public List<String> getNamesOfAnnotationsWithMetaAnnotation() {
+        return getClassNames(getAnnotationsWithMetaAnnotation());
+    }
+
+    /** Returns true if this annotation has the named meta-annotation. */
+    public boolean hasMetaAnnotation(final String metaAnnotationName) {
+        return getNamesOfAnnotationsWithMetaAnnotation().contains(metaAnnotationName);
+    }
+
+    // -------------
+
+    /** Return the set of all annotations that have this direct meta-annotation. */
+    public Set<ClassInfo> getAnnotationsWithDirectMetaAnnotation() {
+        return filterClassInfo(getRelatedClasses(RelType.ANNOTATED_CLASSES), /* removeExternalClasses = */ true,
+                ClassType.ANNOTATION);
+    }
+
+    /** Return the sorted list of names of all annotations that have this direct meta-annotation. */
+    public List<String> getNamesOfAnnotationsWithDirectMetaAnnotation() {
+        return getClassNames(getAnnotationsWithDirectMetaAnnotation());
+    }
+
+    /** Returns true if this annotation is directly meta-annotated with the named annotation. */
+    public boolean hasDirectMetaAnnotation(final String directMetaAnnotationName) {
+        return getNamesOfAnnotationsWithDirectMetaAnnotation().contains(directMetaAnnotationName);
     }
 }

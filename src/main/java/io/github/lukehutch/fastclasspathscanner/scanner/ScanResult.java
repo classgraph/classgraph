@@ -111,6 +111,17 @@ public class ScanResult {
     }
 
     // -------------------------------------------------------------------------------------------------------------
+    // ClassInfo (may be filtered as a Java 8 stream)
+
+    /**
+     * Get ClassInfo objects for all whitelisted classes found during the scan. The values() May be filtered using
+     * Java 8 stream processing, or you can get the info for a specific class directly from this map.
+     */
+    public Map<String, ClassInfo> getClassNameToClassInfo() {
+        return classGraphBuilder.getClassNameToClassInfo();
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
     // Classes
 
     /** Get the sorted unique names of all classes, interfaces and annotations found during the scan. */
