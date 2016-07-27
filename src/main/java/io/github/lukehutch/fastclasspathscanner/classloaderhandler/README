@@ -1,6 +1,6 @@
 
-This directory contains ClassLoaderHandlers that are loaded via the ServiceLoader mechanism.
-ClassLoaderHandlers are used to extract classpath elements from a ClassLoader.
+This directory contains ClassLoaderHandlers: classes that know how to extract classpath
+entries from different ClassLoaders.
 
 You can register your own custom ClassLoaderHandler with FastClasspathScanner by calling
 FastClasspathScanner#registerClassLoaderHandler() before calling #scan().
