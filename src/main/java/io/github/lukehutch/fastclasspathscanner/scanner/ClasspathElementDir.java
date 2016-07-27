@@ -77,42 +77,6 @@ class ClasspathElementDir extends ClasspathElement {
         }
     }
 
-    @Override
-    protected void openInputStreamAndParseClassfile(final ClasspathResource classfileResource,
-            final ClassfileBinaryParser classfileBinaryParser, final ScanSpec scanSpec,
-            final ConcurrentHashMap<String, String> stringInternMap,
-            final ConcurrentLinkedQueue<ClassInfoUnlinked> classInfoUnlinked, final ThreadLog log)
-            throws InterruptedException, IOException {
-        if (!ioExceptionOnOpen) {
-            final File relativePathFile = ((ClasspathResourceInDir) classfileResource).relativePathFile;
-            try (InputStream inputStream = new FileInputStream(relativePathFile)) {
-                // Parse classpath binary format, creating a ClassInfoUnlinked object
-                final ClassInfoUnlinked thisClassInfoUnlinked = classfileBinaryParser
-                        .readClassInfoFromClassfileHeader(classfileResource.relativePath, inputStream, scanSpec,
-                                stringInternMap);
-                // If class was successfully read, output new ClassInfoUnlinked object
-                if (thisClassInfoUnlinked != null) {
-                    classInfoUnlinked.add(thisClassInfoUnlinked);
-                    thisClassInfoUnlinked.logTo(log);
-                }
-            }
-        }
-    }
-
-    @Override
-    protected void openInputStreamAndProcessFileMatch(final ClasspathResource fileMatchResource,
-            final FileMatchProcessorWrapper fileMatchProcessorWrapper) throws IOException {
-        if (!ioExceptionOnOpen) {
-            // Open InputStream on relative path within directory
-            final File relativePathFile = ((ClasspathResourceInDir) fileMatchResource).relativePathFile;
-            try (InputStream inputStream = new FileInputStream(relativePathFile)) {
-                // Run FileMatcher
-                fileMatchProcessorWrapper.processMatch(fileMatchResource.classpathEltFile,
-                        fileMatchResource.relativePath, inputStream, relativePathFile.length());
-            }
-        }
-    }
-
     /** Recursively scan a directory for file path patterns matching the scan spec. */
     private void scanDir(final File classpathElt, final File dir, final int ignorePrefixLen,
             boolean inWhitelistedPath, final HashSet<String> scannedCanonicalPaths, final int[] entryIdx) {
@@ -215,6 +179,42 @@ class ClasspathElementDir extends ClasspathElement {
         }
         if (FastClasspathScanner.verbose) {
             log.log(2, "Scanned subdirectories of " + dir, System.nanoTime() - startTime);
+        }
+    }
+
+    @Override
+    protected void openInputStreamAndParseClassfile(final ClasspathResource classfileResource,
+            final ClassfileBinaryParser classfileBinaryParser, final ScanSpec scanSpec,
+            final ConcurrentHashMap<String, String> stringInternMap,
+            final ConcurrentLinkedQueue<ClassInfoUnlinked> classInfoUnlinked, final ThreadLog log)
+            throws InterruptedException, IOException {
+        if (!ioExceptionOnOpen) {
+            final File relativePathFile = ((ClasspathResourceInDir) classfileResource).relativePathFile;
+            try (InputStream inputStream = new FileInputStream(relativePathFile)) {
+                // Parse classpath binary format, creating a ClassInfoUnlinked object
+                final ClassInfoUnlinked thisClassInfoUnlinked = classfileBinaryParser
+                        .readClassInfoFromClassfileHeader(classfileResource.relativePath, inputStream, scanSpec,
+                                stringInternMap);
+                // If class was successfully read, output new ClassInfoUnlinked object
+                if (thisClassInfoUnlinked != null) {
+                    classInfoUnlinked.add(thisClassInfoUnlinked);
+                    thisClassInfoUnlinked.logTo(log);
+                }
+            }
+        }
+    }
+
+    @Override
+    protected void openInputStreamAndProcessFileMatch(final ClasspathResource fileMatchResource,
+            final FileMatchProcessorWrapper fileMatchProcessorWrapper) throws IOException {
+        if (!ioExceptionOnOpen) {
+            // Open InputStream on relative path within directory
+            final File relativePathFile = ((ClasspathResourceInDir) fileMatchResource).relativePathFile;
+            try (InputStream inputStream = new FileInputStream(relativePathFile)) {
+                // Run FileMatcher
+                fileMatchProcessorWrapper.processMatch(fileMatchResource.classpathEltFile,
+                        fileMatchResource.relativePath, inputStream, relativePathFile.length());
+            }
         }
     }
 

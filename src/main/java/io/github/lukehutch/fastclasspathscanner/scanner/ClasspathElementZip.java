@@ -133,54 +133,6 @@ class ClasspathElementZip extends ClasspathElement {
         }
     }
 
-    @Override
-    protected void openInputStreamAndParseClassfile(final ClasspathResource classfileResource,
-            final ClassfileBinaryParser classfileBinaryParser, final ScanSpec scanSpec,
-            final ConcurrentHashMap<String, String> stringInternMap,
-            final ConcurrentLinkedQueue<ClassInfoUnlinked> classInfoUnlinked, final ThreadLog log)
-            throws InterruptedException, IOException {
-        if (!ioExceptionOnOpen) {
-            ZipFile zipFile = null;
-            try {
-                zipFile = zipFileRecycler.acquire();
-                final ZipEntry zipEntry = ((ClasspathResourceInZipFile) classfileResource).zipEntry;
-                try (InputStream inputStream = zipFile.getInputStream(zipEntry)) {
-                    // Parse classpath binary format, creating a ClassInfoUnlinked object
-                    final ClassInfoUnlinked thisClassInfoUnlinked = classfileBinaryParser
-                            .readClassInfoFromClassfileHeader(classfileResource.relativePath, inputStream, scanSpec,
-                                    stringInternMap);
-                    // If class was successfully read, output new ClassInfoUnlinked object
-                    if (thisClassInfoUnlinked != null) {
-                        classInfoUnlinked.add(thisClassInfoUnlinked);
-                        thisClassInfoUnlinked.logTo(log);
-                    }
-                }
-            } finally {
-                zipFileRecycler.release(zipFile);
-            }
-        }
-    }
-
-    @Override
-    protected void openInputStreamAndProcessFileMatch(final ClasspathResource fileMatchResource,
-            final FileMatchProcessorWrapper fileMatchProcessorWrapper) throws IOException {
-        if (!ioExceptionOnOpen) {
-            // Open InputStream on relative path within zipfile
-            ZipFile zipFile = null;
-            try {
-                zipFile = zipFileRecycler.acquire();
-                final ZipEntry zipEntry = ((ClasspathResourceInZipFile) fileMatchResource).zipEntry;
-                try (InputStream inputStream = zipFile.getInputStream(zipEntry)) {
-                    // Run FileMatcher
-                    fileMatchProcessorWrapper.processMatch(fileMatchResource.classpathEltFile,
-                            fileMatchResource.relativePath, inputStream, zipEntry.getSize());
-                }
-            } finally {
-                zipFileRecycler.release(zipFile);
-            }
-        }
-    }
-
     /** Scan a zipfile for file path patterns matching the scan spec. */
     private void scanZipFile(final File zipFileFile, final ZipFile zipFile) {
         if (FastClasspathScanner.verbose) {
@@ -257,6 +209,54 @@ class ClasspathElementZip extends ClasspathElement {
         fileToLastModified.put(zipFileFile, zipFileFile.lastModified());
         if (FastClasspathScanner.verbose) {
             log.log(2, "Scanned jarfile " + zipFileFile, System.nanoTime() - startTime);
+        }
+    }
+
+    @Override
+    protected void openInputStreamAndParseClassfile(final ClasspathResource classfileResource,
+            final ClassfileBinaryParser classfileBinaryParser, final ScanSpec scanSpec,
+            final ConcurrentHashMap<String, String> stringInternMap,
+            final ConcurrentLinkedQueue<ClassInfoUnlinked> classInfoUnlinked, final ThreadLog log)
+            throws InterruptedException, IOException {
+        if (!ioExceptionOnOpen) {
+            ZipFile zipFile = null;
+            try {
+                zipFile = zipFileRecycler.acquire();
+                final ZipEntry zipEntry = ((ClasspathResourceInZipFile) classfileResource).zipEntry;
+                try (InputStream inputStream = zipFile.getInputStream(zipEntry)) {
+                    // Parse classpath binary format, creating a ClassInfoUnlinked object
+                    final ClassInfoUnlinked thisClassInfoUnlinked = classfileBinaryParser
+                            .readClassInfoFromClassfileHeader(classfileResource.relativePath, inputStream, scanSpec,
+                                    stringInternMap);
+                    // If class was successfully read, output new ClassInfoUnlinked object
+                    if (thisClassInfoUnlinked != null) {
+                        classInfoUnlinked.add(thisClassInfoUnlinked);
+                        thisClassInfoUnlinked.logTo(log);
+                    }
+                }
+            } finally {
+                zipFileRecycler.release(zipFile);
+            }
+        }
+    }
+
+    @Override
+    protected void openInputStreamAndProcessFileMatch(final ClasspathResource fileMatchResource,
+            final FileMatchProcessorWrapper fileMatchProcessorWrapper) throws IOException {
+        if (!ioExceptionOnOpen) {
+            // Open InputStream on relative path within zipfile
+            ZipFile zipFile = null;
+            try {
+                zipFile = zipFileRecycler.acquire();
+                final ZipEntry zipEntry = ((ClasspathResourceInZipFile) fileMatchResource).zipEntry;
+                try (InputStream inputStream = zipFile.getInputStream(zipEntry)) {
+                    // Run FileMatcher
+                    fileMatchProcessorWrapper.processMatch(fileMatchResource.classpathEltFile,
+                            fileMatchResource.relativePath, inputStream, zipEntry.getSize());
+                }
+            } finally {
+                zipFileRecycler.release(zipFile);
+            }
         }
     }
 
