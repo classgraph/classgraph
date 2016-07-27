@@ -61,4 +61,8 @@ public class MultiMapKeyToList<S, T> {
     public Map<S, List<T>> getRawMap() {
         return map;
     }
+    
+    public boolean isEmpty() {
+        return map.isEmpty();
+    }
 }

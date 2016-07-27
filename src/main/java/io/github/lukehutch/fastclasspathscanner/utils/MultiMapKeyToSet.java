@@ -60,4 +60,8 @@ public class MultiMapKeyToSet<S, T> {
     public Map<S, Set<T>> getRawMap() {
         return map;
     }
+    
+    public boolean isEmpty() {
+        return map.isEmpty();
+    }
 }
