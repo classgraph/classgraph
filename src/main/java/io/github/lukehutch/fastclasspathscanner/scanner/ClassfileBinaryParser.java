@@ -788,7 +788,9 @@ class ClassfileBinaryParser implements AutoCloseable {
         final InterruptedException e) {
             throw e;
         } catch (final Exception e) {
-            log.log("Exception while attempting to load classfile " + relativePath, e);
+            if (log != null) {
+                log.log("Exception while attempting to load classfile " + relativePath, e);
+            }
             return null;
         }
     }

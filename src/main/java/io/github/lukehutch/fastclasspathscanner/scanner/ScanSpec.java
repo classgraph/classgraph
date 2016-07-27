@@ -175,8 +175,10 @@ public class ScanSpec {
                     // Strip off "jar:"
                     spec = spec.substring(4);
                     if (spec.indexOf('/') >= 0) {
-                        log.log("Only a leaf filename may be used with a \"jar:\" entry in the "
-                                + "scan spec, got \"" + spec + "\" -- ignoring");
+                        if (log != null) {
+                            log.log("Only a leaf filename may be used with a \"jar:\" entry in the "
+                                    + "scan spec, got \"" + spec + "\" -- ignoring");
+                        }
                     } else {
                         if (spec.isEmpty()) {
                             if (blacklisted) {
@@ -234,7 +236,9 @@ public class ScanSpec {
             }
         }
         if (uniqueBlacklistedPathPrefixes.contains("/")) {
-            log.log("Ignoring blacklist of root package, it would prevent all scanning");
+            if (log != null) {
+                log.log("Ignoring blacklist of root package, it would prevent all scanning");
+            }
             uniqueBlacklistedPathPrefixes.remove("/");
         }
         uniqueWhitelistedPathPrefixes.removeAll(uniqueBlacklistedPathPrefixes);
@@ -245,7 +249,9 @@ public class ScanSpec {
         }
         if (!scanJars && !scanNonJars) {
             // Can't disable scanning of everything, so if specified, arbitrarily pick one to re-enable.
-            log.log("Scanning of jars and non-jars are both disabled -- re-enabling scanning of non-jars");
+            if (log != null) {
+                log.log("Scanning of jars and non-jars are both disabled -- re-enabling scanning of non-jars");
+            }
             scanNonJars = true;
         }
         if (uniqueWhitelistedPathPrefixes.isEmpty() || uniqueWhitelistedPathPrefixes.contains("/")) {
@@ -331,7 +337,7 @@ public class ScanSpec {
             for (final ClassMatcher classMatcher : classMatchers) {
                 try {
                     classMatcher.lookForMatches(scanResult, //
-                            log == null ? null : log.log("Calling ClassMatchProcessor"));
+                            log == null ? null : log.log("Calling ClassMatchProcessors"));
                 } catch (final Throwable e) {
                     if (log != null) {
                         log.log("Exception while calling ClassMatchProcessor: " + e);
