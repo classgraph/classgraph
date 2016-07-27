@@ -96,6 +96,10 @@ class ClasspathElementZip extends ClasspathElement {
             } else {
                 // Scan for path matches within jarfile, and record ZipEntry objects of matching files.
                 // Will parse the manifest file if it finds it.
+                final int numEntries = zipFile.size();
+                fileMatches = new MultiMapKeyToList<>();
+                classfileMatches = new ArrayList<>(numEntries);
+                fileToLastModified = new HashMap<>();
                 scanZipFile(classpathEltFile, zipFile);
             }
             if (fastManifestParser != null && fastManifestParser.classPath != null) {
@@ -179,10 +183,6 @@ class ClasspathElementZip extends ClasspathElement {
 
     /** Scan a zipfile for file path patterns matching the scan spec. */
     private void scanZipFile(final File zipFileFile, final ZipFile zipFile) {
-        final int numEntries = zipFile.size();
-        fileMatches = new MultiMapKeyToList<>();
-        classfileMatches = new ArrayList<>(numEntries);
-        fileToLastModified = new HashMap<>();
         if (FastClasspathScanner.verbose) {
             log.log(2, "Scanning jarfile: " + zipFileFile);
         }

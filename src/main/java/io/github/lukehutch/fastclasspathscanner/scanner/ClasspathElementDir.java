@@ -67,7 +67,13 @@ class ClasspathElementDir extends ClasspathElement {
             }
 
             // Hierarchically scan directory structure for classfiles and matching files
-            scanDir(dir);
+            fileMatches = new MultiMapKeyToList<>();
+            classfileMatches = new ArrayList<>();
+            fileToLastModified = new HashMap<>();
+            final HashSet<String> scannedCanonicalPaths = new HashSet<>();
+            final int[] entryIdx = new int[1];
+            scanDir(dir, dir, /* ignorePrefixLen = */ dir.getPath().length() + 1, /* inWhitelistedPath = */ false,
+                    scannedCanonicalPaths, entryIdx);
         }
     }
 
@@ -210,17 +216,6 @@ class ClasspathElementDir extends ClasspathElement {
         if (FastClasspathScanner.verbose) {
             log.log(2, "Scanned subdirectories of " + dir, System.nanoTime() - startTime);
         }
-    }
-
-    /** Scan a directory for file path patterns matching the scan spec. */
-    private void scanDir(final File dir) {
-        fileMatches = new MultiMapKeyToList<>();
-        classfileMatches = new ArrayList<>();
-        fileToLastModified = new HashMap<>();
-        final HashSet<String> scannedCanonicalPaths = new HashSet<>();
-        final int[] entryIdx = new int[1];
-        scanDir(dir, dir, /* ignorePrefixLen = */ dir.getPath().length() + 1, /* inWhitelistedPath = */ false,
-                scannedCanonicalPaths, entryIdx);
     }
 
     @Override
