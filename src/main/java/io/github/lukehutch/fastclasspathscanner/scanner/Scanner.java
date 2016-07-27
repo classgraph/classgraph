@@ -50,7 +50,7 @@ import io.github.lukehutch.fastclasspathscanner.utils.Recycler;
 import io.github.lukehutch.fastclasspathscanner.utils.WorkQueue;
 import io.github.lukehutch.fastclasspathscanner.utils.WorkQueue.WorkUnitProcessor;
 
-public class ScannerCore implements Callable<ScanResult> {
+public class Scanner implements Callable<ScanResult> {
     private final ScanSpec scanSpec;
     private final ExecutorService executorService;
     private final int numParallelTasks;
@@ -64,7 +64,7 @@ public class ScannerCore implements Callable<ScanResult> {
      */
     private static final int NUM_FILES_PER_CHUNK = 200;
 
-    public ScannerCore(final ScanSpec scanSpec, final ExecutorService executorService, final int numParallelTasks,
+    public Scanner(final ScanSpec scanSpec, final ExecutorService executorService, final int numParallelTasks,
             final boolean enableRecursiveScanning, final LogNode log) {
         this.scanSpec = scanSpec;
         this.executorService = executorService;

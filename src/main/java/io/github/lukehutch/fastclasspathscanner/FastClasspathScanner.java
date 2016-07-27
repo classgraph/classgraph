@@ -49,7 +49,7 @@ import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubclassMatchProc
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubinterfaceMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
-import io.github.lukehutch.fastclasspathscanner.scanner.ScannerCore;
+import io.github.lukehutch.fastclasspathscanner.scanner.Scanner;
 import io.github.lukehutch.fastclasspathscanner.utils.AutoCloseableExecutorService;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.VersionFinder;
@@ -155,7 +155,7 @@ public class FastClasspathScanner {
      */
     public Future<List<File>> getUniqueClasspathElementsAsync(final ExecutorService executorService,
             final int numParallelTasks) {
-        final Future<ScanResult> scanResult = executorService.submit(new ScannerCore(getScanSpec(), executorService,
+        final Future<ScanResult> scanResult = executorService.submit(new Scanner(getScanSpec(), executorService,
                 numParallelTasks, /* enableRecursiveScanning = */ false, log));
         final Future<List<File>> future = executorService.submit(new Callable<List<File>>() {
             @Override
@@ -778,7 +778,7 @@ public class FastClasspathScanner {
      */
     public synchronized Future<ScanResult> scanAsync(final ExecutorService executorService,
             final int numParallelTasks) {
-        return executorService.submit(new ScannerCore(getScanSpec(), executorService, numParallelTasks,
+        return executorService.submit(new Scanner(getScanSpec(), executorService, numParallelTasks,
                 /* enableRecursiveScanning = */ true, log));
     }
 
