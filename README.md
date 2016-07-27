@@ -168,7 +168,7 @@ FastClasspathScanner handles a number of classpath specification mechanisms, inc
 * The OSGi Equinox classloader (e.g. for Eclipse PDE).
 * Eventually, the Java 9 module system [work has not started on this yet -- patches are welcome].
 
-[Note that if you have a custom classloader in your runtime that is not covered by one of the above cases, [you can add your own ClassLoaderHandler](#working-with-non-standard-classloaders).
+[Note that if you have a custom classloader in your runtime that is not covered by one of the above cases, [you can add your own ClassLoaderHandler](#working-with-non-standard-classloaders).]
 
 Scanning is supported on Linux and Windows. (Mac OS X should work, please test and let me know.) 
 
