@@ -38,6 +38,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
+
 class ClassInfo implements Comparable<ClassInfo> {
 
     /** Name of the class/interface/annotation. */
@@ -354,7 +356,7 @@ class ClassInfo implements Comparable<ClassInfo> {
 
     /** Add a class that has just been scanned (as opposed to just referenced by a scanned class). */
     static ClassInfo addScannedClass(final String className, final boolean isInterface, final boolean isAnnotation,
-            final Map<String, ClassInfo> classNameToClassInfo) {
+            final Map<String, ClassInfo> classNameToClassInfo, final LogNode log) {
         // Handle Scala auxiliary classes (companion objects ending in "$" and trait methods classes
         // ending in "$class")
         final boolean isCompanionObjectClass = className.endsWith("$");
@@ -369,9 +371,14 @@ class ClassInfo implements Comparable<ClassInfo> {
             if (isNonAuxClass && classInfo.classfileScanned
                     || isCompanionObjectClass && classInfo.companionObjectClassfileScanned
                     || isTraitMethodClass && classInfo.traitMethodClassfileScanned) {
-                // The same class was encountered more than once on the classpath -- should not happen,
-                // since RecursiveScanner checks for this.
-                throw new RuntimeException("Encountered same class twice, should not happen: " + className);
+                // The same class was encountered more than once in a single jarfile -- should not happen.
+                // However, actually there is no restriction for paths within a zipfile to be unique (!!),
+                // and in fact zipfiles in the wild do contain the same classfiles multiple times with the
+                // same exact path, e.g.: xmlbeans-2.6.0.jar!org/apache/xmlbeans/xml/stream/Location.class
+                if (log != null) {
+                    log.log("Encountered class with same exact path more than once in the same jarfile: "
+                            + className + " (merging the info from all copies of the classfile)");
+                }
             }
         } else {
             classNameToClassInfo.put(classBaseName, classInfo = new ClassInfo(classBaseName));

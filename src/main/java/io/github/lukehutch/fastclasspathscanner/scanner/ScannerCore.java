@@ -286,12 +286,16 @@ public class ScannerCore implements Callable<ScanResult> {
                     }
 
                     // Build the class graph: convert ClassInfoUnlinked to linked ClassInfo objects.
+                    final LogNode classGraphLog = log == null ? null : log.log("Building class graph");
                     final Map<String, ClassInfo> classNameToClassInfo = new HashMap<>();
                     for (final ClassInfoUnlinked c : classInfoUnlinked) {
                         // Create ClassInfo object from ClassInfoUnlinked object, and link into class graph
-                        c.link(classNameToClassInfo);
+                        c.link(classNameToClassInfo, classGraphLog);
                     }
                     final ClassGraphBuilder classGraphBuilder = new ClassGraphBuilder(classNameToClassInfo);
+                    if (classGraphLog != null) {
+                        classGraphLog.addElapsedTime();
+                    }
 
                     // Create ScanResult
                     scanResult = new ScanResult(scanSpec, classpathElementFilesOrdered, classGraphBuilder,

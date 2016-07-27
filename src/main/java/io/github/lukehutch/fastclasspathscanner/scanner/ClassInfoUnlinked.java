@@ -104,9 +104,9 @@ class ClassInfoUnlinked {
         staticFinalFieldValues.put(intern(fieldName), staticFinalFieldValue);
     }
 
-    void link(final Map<String, ClassInfo> classNameToClassInfo) {
+    void link(final Map<String, ClassInfo> classNameToClassInfo, final LogNode log) {
         final ClassInfo classInfo = ClassInfo.addScannedClass(className, isInterface, isAnnotation,
-                classNameToClassInfo);
+                classNameToClassInfo, log);
         if (superclassName != null) {
             classInfo.addSuperclass(superclassName, classNameToClassInfo);
         }
