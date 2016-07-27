@@ -13,10 +13,12 @@ public class Java8Test {
     @Test
     public void stream() throws Exception {
         final ScanResult scanResult = new FastClasspathScanner().scan();
-        assertThat(scanResult.getClassNameToClassInfo().values().stream()
-                .filter(c -> c.getClassName().contains("ClsSub")).map(c -> c.getClassName())
-                .collect(Collectors.toSet())).containsExactly(
-                        "io.github.lukehutch.fastclasspathscanner.test.whitelisted.ClsSub",
-                        "io.github.lukehutch.fastclasspathscanner.test.whitelisted.ClsSubSub");
+        assertThat( //
+                scanResult.getClassNameToClassInfo().values().stream()
+                        .filter(c -> c.getClassName().contains("ClsSub")) //
+                        .map(c -> c.getClassName()) //
+                        .collect(Collectors.toSet())) //
+                                .containsExactly("io.github.lukehutch.fastclasspathscanner.test.whitelisted.ClsSub",
+                                        "io.github.lukehutch.fastclasspathscanner.test.whitelisted.ClsSubSub");
     }
 }
