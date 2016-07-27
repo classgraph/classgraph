@@ -746,7 +746,7 @@ FastClasspathScanner FastClasspathScanner#verbose(boolean verbose)
 
 FastClasspathScanner handles a number of non-standard ClassLoaders. There is [basic support](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/classloaderhandler) for JBoss/WildFly, WebLogic and OSGi Equinox, which implement their own ClassLoaders. Maven works when it sets `java.class.path`, but YMMV, since it [has its own](https://github.com/sonatype/plexus-classworlds) unique ClassLoader system that is not yet supported. Tomcat has a [complex](https://www.mulesoft.com/tcat/tomcat-classpath) classloading system, and is less likely to work, but you might get lucky.
 
-You can handle custom ClassLoaders without modifying FastClasspathScanner by writing a [ClassLoaderHandler](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/classloaderhandler/ClassLoaderHandler.java) and registering it by calling the following before calling `.scan()`: 
+You can handle custom ClassLoaders without modifying FastClasspathScanner by writing a [ClassLoaderHandler](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/classloaderhandler), and then registering it by calling the following method before calling `FastClasspathScanner#scan()`: 
 
 ```java
 FastClasspathScanner FastClasspathScanner#registerClassLoaderHandler(
