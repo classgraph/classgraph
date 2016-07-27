@@ -364,4 +364,9 @@ public class FastClasspathScannerTest {
                         HasFieldWithTypeCls5.class.getName(), HasFieldWithTypeCls6.class.getName(),
                         HasFieldWithTypeCls7.class.getName());
     }
+
+    @Test
+    public void testGetClasspathElements() {
+        assertThat(new FastClasspathScanner(ROOT_PACKAGE).getUniqueClasspathElements().size()).isGreaterThan(0);
+    }
 }
