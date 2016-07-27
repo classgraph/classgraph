@@ -377,7 +377,7 @@ class ClassInfo implements Comparable<ClassInfo> {
                 // same exact path, e.g.: xmlbeans-2.6.0.jar!org/apache/xmlbeans/xml/stream/Location.class
                 if (log != null) {
                     log.log("Encountered class with same exact path more than once in the same jarfile: "
-                            + className + " (merging the info from all copies of the classfile)");
+                            + className + " (merging info from all copies of the classfile)");
                 }
             }
         } else {
