@@ -85,7 +85,7 @@ public class FastClasspathScanner {
     // -------------------------------------------------------------------------------------------------------------
 
     /** If set to true, print info while scanning */
-    public static boolean verbose = false;
+    public static boolean verbose;
 
     /**
      * Switch on verbose mode (prints debug info to System.out). Call immediately after the constructor if you want
@@ -100,8 +100,8 @@ public class FastClasspathScanner {
      * Switch on verbose mode if verbosity == true. (Prints debug info to System.out.) Call immediately after the
      * constructor if you want full log output.
      */
-    public synchronized FastClasspathScanner verbose(final boolean verbosity) {
-        verbose = verbosity;
+    public synchronized FastClasspathScanner verbose(final boolean verbose) {
+        FastClasspathScanner.verbose = verbose;
         return this;
     }
 
@@ -120,9 +120,6 @@ public class FastClasspathScanner {
      */
     public FastClasspathScanner(final String... scanSpec) {
         this.scanSpecArgs = scanSpec;
-        // Switch off verbosity each time a new FastClassScanner is constructed, so that one setting of .verbose()
-        // doesn't affect the next construction
-        FastClasspathScanner.verbose = false;
     }
 
     /**
@@ -222,14 +219,13 @@ public class FastClasspathScanner {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    private final static SimpleThreadFactory threadFactory = new SimpleThreadFactory("FastClasspathScanner-worker-", true);
+    private final static SimpleThreadFactory threadFactory = new SimpleThreadFactory("FastClasspathScanner-worker-",
+            true);
 
     /** A ThreadPoolExecutor that can be used in a try-with-resources block. */
     private class AutoCloseableExecutorService extends ThreadPoolExecutor implements AutoCloseable {
         public AutoCloseableExecutorService(final int numThreads) {
-            super(numThreads, numThreads, 0L, TimeUnit.MILLISECONDS,
-                    // FIFO work queue
-                    new LinkedBlockingQueue<Runnable>(),
+            super(numThreads, numThreads, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(),
                     threadFactory);
         }
 

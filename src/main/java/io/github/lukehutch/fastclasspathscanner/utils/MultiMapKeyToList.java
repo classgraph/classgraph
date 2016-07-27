@@ -28,34 +28,37 @@
  */
 package io.github.lukehutch.fastclasspathscanner.utils;
 
-public class Join {
-    /** A replacement for Java 8's String.join(). */
-    public static String join(final String sep, final Iterable<?> iterable) {
-        final StringBuilder buf = new StringBuilder();
-        boolean first = true;
-        for (final Object item : iterable) {
-            if (first) {
-                first = false;
-            } else {
-                buf.append(sep);
-            }
-            buf.append(item);
-        }
-        return buf.toString();
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
+
+public class MultiMapKeyToList<S, T> {
+    private final HashMap<S, List<T>> map;
+
+    public MultiMapKeyToList() {
+        this.map = new HashMap<>();
     }
 
-    /** A replacement for Java 8's String.join(). */
-    public static String join(final String sep, final Object... items) {
-        final StringBuilder buf = new StringBuilder();
-        boolean first = true;
-        for (final Object item : items) {
-            if (first) {
-                first = false;
-            } else {
-                buf.append(sep);
-            }
-            buf.append(item);
+    public void put(final S key, final T value) {
+        List<T> list = map.get(key);
+        if (list == null) {
+            map.put(key, list = new ArrayList<>());
         }
-        return buf.toString();
+        list.add(value);
+    }
+
+    public List<T> get(final S key) {
+        return map.get(key);
+    }
+
+    public Set<Entry<S, List<T>>> entrySet() {
+        return map.entrySet();
+    }
+
+    public Map<S, List<T>> getRawMap() {
+        return map;
     }
 }

@@ -1,14 +1,42 @@
+/*
+ * This file is part of FastClasspathScanner.
+ * 
+ * Author: Luke Hutchison
+ * 
+ * Hosted at: https://github.com/lukehutch/fast-classpath-scanner
+ * 
+ * --
+ *
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2016 Luke Hutchison
+ * 
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without
+ * limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so, subject to the following
+ * conditions:
+ * 
+ * The above copyright notice and this permission notice shall be included in all copies or substantial
+ * portions of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
+ * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO
+ * EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
+ * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
+ * OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.utils.LoggedThread.ThreadLog;
+import io.github.lukehutch.fastclasspathscanner.utils.MultiMapKeyToSet;
 
 /**
  * A classfile binary format parser. Implements its own buffering to avoid the overhead of using DataInputStream.
@@ -446,27 +474,6 @@ class ClassfileBinaryParser implements AutoCloseable {
         }
     }
 
-    /** Returns true if the classname (e.g. com.x.MyClass) matches the relative path (e.g. com/x/MyClass.class). */
-    private boolean classNameMatches(final String relativePath) {
-        final int len = className.length();
-        if (len != relativePath.length() - 6) {
-            return false;
-        }
-        for (int i = 0; i < len; i++) {
-            final char c = className.charAt(i);
-            final char r = relativePath.charAt(i);
-            if (!((c == '.' && r == '/') || c == r)) {
-                return false;
-            }
-        }
-        for (int i = 0; i < 6; i++) {
-            if (relativePath.charAt(len + i) != ".class".charAt(i)) {
-                return false;
-            }
-        }
-        return true;
-    }
-
     /**
      * Directly examine contents of classfile binary header to determine annotations, implemented interfaces, the
      * super-class etc. Creates a new ClassInfo object, and adds it to classNameToClassInfoOut. Assumes classpath
@@ -476,8 +483,8 @@ class ClassfileBinaryParser implements AutoCloseable {
      *             if the operation was interrupted.
      */
     ClassInfoUnlinked readClassInfoFromClassfileHeader(final String relativePath, final InputStream inputStream,
-            final Map<String, HashSet<String>> classNameToStaticFinalFieldsToMatch,
-            final ConcurrentHashMap<String, String> stringInternMap) throws InterruptedException {
+            final ScanSpec scanSpec, final ConcurrentHashMap<String, String> stringInternMap)
+            throws InterruptedException {
         try {
             // This class instance can be reused across scans, to avoid re-allocating the buffer.
             // Initialize/clear fields for each new run. 
@@ -567,14 +574,23 @@ class ClassfileBinaryParser implements AutoCloseable {
             final boolean isAnnotation = (flags & 0x2000) != 0;
 
             // The fully-qualified class name of this class, with slashes replaced with dots
-            className = getConstantPoolClassName(readUnsignedShort());
+            final String classNamePath = getConstantPoolString(readUnsignedShort());
+            final String className = classNamePath.replace('/', '.');
             if ("java.lang.Object".equals(className)) {
                 // Don't process java.lang.Object
                 return null;
             }
 
             // Make sure classname matches relative path
-            if (!classNameMatches(relativePath)) {
+            if (!relativePath.endsWith(".class")) {
+                // Should not happen
+                if (FastClasspathScanner.verbose) {
+                    log.log(2, "File " + relativePath + " does not end in \".class\"");
+                }
+                return null;
+            }
+            final int len = classNamePath.length();
+            if (relativePath.length() != len + 6 || !classNamePath.regionMatches(0, relativePath, 0, len)) {
                 if (FastClasspathScanner.verbose) {
                     log.log(2, "Class " + className + " is at incorrect relative path " + relativePath
                             + " -- ignoring");
@@ -603,7 +619,9 @@ class ClassfileBinaryParser implements AutoCloseable {
             }
 
             // Fields
-            final HashSet<String> staticFinalFieldsToMatch = classNameToStaticFinalFieldsToMatch == null ? null
+            final MultiMapKeyToSet<String, String> classNameToStaticFinalFieldsToMatch = scanSpec
+                    .getClassNameToStaticFinalFieldsToMatch();
+            final Set<String> staticFinalFieldsToMatch = classNameToStaticFinalFieldsToMatch == null ? null
                     : classNameToStaticFinalFieldsToMatch.get(className);
             final boolean matchStaticFinalFields = staticFinalFieldsToMatch != null;
             final int fieldCount = readUnsignedShort();
@@ -777,7 +795,7 @@ class ClassfileBinaryParser implements AutoCloseable {
         final InterruptedException e) {
             throw e;
         } catch (final Exception e) {
-            log.log(2, "Exception while attempting to load classfile " + relativePath + ": " + e);
+            log.log(2, "Exception while attempting to load classfile " + relativePath, e);
             return null;
         }
     }

@@ -1,3 +1,31 @@
+/*
+ * This file is part of FastClasspathScanner.
+ * 
+ * Author: Luke Hutchison
+ * 
+ * Hosted at: https://github.com/lukehutch/fast-classpath-scanner
+ * 
+ * --
+ *
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2016 Luke Hutchison
+ * 
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without
+ * limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so, subject to the following
+ * conditions:
+ * 
+ * The above copyright notice and this permission notice shall be included in all copies or substantial
+ * portions of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
+ * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO
+ * EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
+ * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
+ * OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 package io.github.lukehutch.fastclasspathscanner.utils;
 
 import java.io.PrintWriter;
@@ -46,15 +74,15 @@ public abstract class LoggedThread<T> implements Callable<T> {
         private static final DecimalFormat nanoFormatter = new DecimalFormat("0.000000");
 
         public ThreadLogEntry(final String sortKey, final int indentLevel, final String msg,
-                final long elapsedTimeNanos, final Throwable e) {
+                final long elapsedTimeNanos, final Throwable exception) {
             this.indentLevel = indentLevel;
             this.msg = msg;
             this.sortKey = sortKey;
             this.time = Calendar.getInstance().getTime();
             this.elapsedTimeNanos = elapsedTimeNanos;
-            if (e != null) {
+            if (exception != null) {
                 final StringWriter writer = new StringWriter();
-                e.printStackTrace(new PrintWriter(writer));
+                exception.printStackTrace(new PrintWriter(writer));
                 stackTrace = writer.toString();
             } else {
                 stackTrace = null;
@@ -75,7 +103,7 @@ public abstract class LoggedThread<T> implements Callable<T> {
             if (numIndentChars > 0) {
                 buf.append(" ");
             }
-            buf.append(msg);
+            buf.append(line);
         }
 
         @Override
@@ -88,10 +116,11 @@ public abstract class LoggedThread<T> implements Callable<T> {
                 buf.append(" sec");
             }
             if (stackTrace != null) {
+                buf.append(" -- stacktrace:");
                 final String[] parts = stackTrace.split("\n");
                 for (int i = 0; i < parts.length; i++) {
                     buf.append('\n');
-                    appendLogLine(parts[1], buf);
+                    appendLogLine(parts[i], buf);
                 }
             }
             return buf.toString();
@@ -176,7 +205,7 @@ public abstract class LoggedThread<T> implements Callable<T> {
             logEntries.add(new ThreadLogEntry("", 0, msg, -1L, null));
         }
 
-        public synchronized void flush() {
+        private synchronized void flush() {
             if (!logEntries.isEmpty()) {
                 final StringBuilder buf = new StringBuilder();
                 if (versionLogged.compareAndSet(false, true)) {

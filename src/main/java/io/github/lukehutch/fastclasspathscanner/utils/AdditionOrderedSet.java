@@ -53,10 +53,4 @@ public class AdditionOrderedSet<T> {
     public List<T> getList() {
         return list;
     }
-
-    /** Clear the set (and corresponding list). */
-    public void clear() {
-        set.clear();
-        list.clear();
-    }
 }

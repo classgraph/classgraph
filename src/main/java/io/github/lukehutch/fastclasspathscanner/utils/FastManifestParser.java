@@ -1,3 +1,31 @@
+/*
+ * This file is part of FastClasspathScanner.
+ * 
+ * Author: Luke Hutchison
+ * 
+ * Hosted at: https://github.com/lukehutch/fast-classpath-scanner
+ * 
+ * --
+ *
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2016 Luke Hutchison
+ * 
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without
+ * limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so, subject to the following
+ * conditions:
+ * 
+ * The above copyright notice and this permission notice shall be included in all copies or substantial
+ * portions of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
+ * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO
+ * EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
+ * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
+ * OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 package io.github.lukehutch.fastclasspathscanner.utils;
 
 import java.io.ByteArrayOutputStream;
@@ -16,10 +44,10 @@ public class FastManifestParser {
     public String classPath;
 
     /** Parse the manifest file. */
-    private void parseManifest(final ZipFile jarFile, final ThreadLog log) throws IOException {
-        final ZipEntry zipEntry = jarFile.getEntry("META-INF/MANIFEST.MF");
-        if (zipEntry != null) {
-            try (InputStream inputStream = jarFile.getInputStream(zipEntry)) {
+    private void parseManifest(final ZipFile jarFile, final ZipEntry manifestEntry, final ThreadLog log)
+            throws IOException {
+        if (manifestEntry != null) {
+            try (InputStream inputStream = jarFile.getInputStream(manifestEntry)) {
                 final ByteArrayOutputStream byteBuf = new ByteArrayOutputStream();
                 byteBuf.write('\n');
                 final byte[] data = new byte[16384];
@@ -31,6 +59,8 @@ public class FastManifestParser {
                 final int len = manifest.length();
                 this.isSystemJar = manifest.indexOf("\nImplementation-Title: Java Runtime Environment") > 0
                         || manifest.indexOf("\nSpecification-Title: Java Platform API Specification") > 0;
+                // Manifest files support three different line terminator types, and entries can be split
+                // across lines with a line terminator followed by a space.
                 final int classPathIdx = manifest.indexOf("\nClass-Path:");
                 if (classPathIdx >= 0) {
                     final StringBuilder buf = new StringBuilder();
@@ -76,9 +106,9 @@ public class FastManifestParser {
      * class, so has lower overhead. Only extracts a few specific entries from the manifest file, if present.
      * Assumes there is only one of each entry present in the manifest.
      */
-    public FastManifestParser(final ZipFile jarFile, final ThreadLog log) {
+    public FastManifestParser(final ZipFile jarFile, final ZipEntry manifestEntry, final ThreadLog log) {
         try {
-            parseManifest(jarFile, log);
+            parseManifest(jarFile, manifestEntry, log);
         } catch (final IOException e) {
             if (FastClasspathScanner.verbose) {
                 log.log("Exception while opening manifest in jarfile " + jarFile + " : " + e);
@@ -93,7 +123,8 @@ public class FastManifestParser {
      */
     public FastManifestParser(final File jarFile, final ThreadLog log) {
         try (ZipFile zipFile = new ZipFile(jarFile)) {
-            parseManifest(zipFile, log);
+            final ZipEntry manifestEntry = zipFile.getEntry("META-INF/MANIFEST.MF");
+            parseManifest(zipFile, manifestEntry, log);
         } catch (final IOException e) {
             if (FastClasspathScanner.verbose) {
                 log.log("Exception while opening jarfile " + jarFile + " : " + e);

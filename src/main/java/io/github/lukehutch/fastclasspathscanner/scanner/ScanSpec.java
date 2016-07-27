@@ -1,19 +1,44 @@
+/*
+ * This file is part of FastClasspathScanner.
+ * 
+ * Author: Luke Hutchison
+ * 
+ * Hosted at: https://github.com/lukehutch/fast-classpath-scanner
+ * 
+ * --
+ *
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2016 Luke Hutchison
+ * 
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without
+ * limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so, subject to the following
+ * conditions:
+ * 
+ * The above copyright notice and this permission notice shall be included in all copies or substantial
+ * portions of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
+ * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO
+ * EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
+ * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
+ * OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.regex.Pattern;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipFile;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.classloaderhandler.ClassLoaderHandler;
@@ -27,9 +52,10 @@ import io.github.lukehutch.fastclasspathscanner.matchprocessor.InterfaceMatchPro
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.StaticFinalFieldMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubclassMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubinterfaceMatchProcessor;
+import io.github.lukehutch.fastclasspathscanner.utils.InterruptionChecker;
 import io.github.lukehutch.fastclasspathscanner.utils.LoggedThread.ThreadLog;
-import io.github.lukehutch.fastclasspathscanner.utils.ZipFileRecycler;
-import io.github.lukehutch.fastclasspathscanner.utils.ZipFileRecycler.ZipFileCacheEntry;
+import io.github.lukehutch.fastclasspathscanner.utils.MultiMapKeyToList;
+import io.github.lukehutch.fastclasspathscanner.utils.MultiMapKeyToSet;
 
 public class ScanSpec {
     /** Whitelisted package paths with "/" appended, or the empty list if all packages are whitelisted. */
@@ -69,7 +95,7 @@ public class ScanSpec {
     final boolean scanJars;
 
     /** True if directories on the classpath should be scanned. */
-    final boolean scanDirs;
+    boolean scanDirs;
 
     /** If true, index types of fields. */
     public boolean enableFieldTypeIndexing;
@@ -85,13 +111,13 @@ public class ScanSpec {
      * called if that class name and static final field name is encountered with a static constant initializer
      * during scan.
      */
-    private Map<String, ArrayList<StaticFinalFieldMatchProcessor>> //
+    private MultiMapKeyToList<String, StaticFinalFieldMatchProcessor> //
     fullyQualifiedFieldNameToStaticFinalFieldMatchProcessors;
 
     /** A map from className to a list of static final fields to match with StaticFinalFieldMatchProcessors. */
-    private Map<String, HashSet<String>> classNameToStaticFinalFieldsToMatch;
+    private MultiMapKeyToSet<String, String> classNameToStaticFinalFieldsToMatch;
 
-    public Map<String, HashSet<String>> getClassNameToStaticFinalFieldsToMatch() {
+    public MultiMapKeyToSet<String, String> getClassNameToStaticFinalFieldsToMatch() {
         return classNameToStaticFinalFieldsToMatch;
     }
 
@@ -288,45 +314,14 @@ public class ScanSpec {
     /**
      * Run the MatchProcessors after a scan has completed.
      */
-    void callMatchProcessors(final ScanResult scanResult, final List<ClasspathResource> fileMatches,
-            final Map<String, ClassInfo> classNameToClassInfo, final ZipFileRecycler zipFileRecycler,
-            final ThreadLog log) throws InterruptedException {
+    void callMatchProcessors(final ScanResult scanResult, final List<ClasspathElement> classpathOrder,
+            final Map<String, ClassInfo> classNameToClassInfo, final InterruptionChecker interruptionChecker,
+            final ThreadLog log) throws InterruptedException, ExecutionException {
 
         // Call any FileMatchProcessors
-        for (final ClasspathResource fileMatch : fileMatches) {
-            final File classpathElt = fileMatch.classpathElt;
-            try {
-                if (classpathElt.isFile()) {
-                    // Open InputStream on relative path within zipfile
-                    final ZipFileCacheEntry zipFileCacheEntry = zipFileRecycler
-                            .get(classpathElt.getCanonicalPath());
-                    if (!zipFileCacheEntry.errorOpeningZipFile()) {
-                        ZipFile zipFile = null;
-                        try {
-                            zipFile = zipFileCacheEntry.acquire();
-                            final ZipEntry zipEntry = zipFile.getEntry(fileMatch.relativePath);
-                            try (InputStream inputStream = zipFile.getInputStream(zipEntry)) {
-                                // Run FileMatcher
-                                fileMatch.fileMatchProcessorWrapper.processMatch(classpathElt,
-                                        fileMatch.relativePath, inputStream, zipEntry.getSize());
-                            }
-                        } finally {
-                            zipFileCacheEntry.release(zipFile);
-                        }
-                    }
-                } else {
-                    // Open InputStream on relative path within directory
-                    try (InputStream inputStream = new FileInputStream(fileMatch.relativePathFile)) {
-                        // Run FileMatcher
-                        fileMatch.fileMatchProcessorWrapper.processMatch(classpathElt, fileMatch.relativePath,
-                                inputStream, fileMatch.relativePathFile.length());
-                    }
-                }
-            } catch (final IOException e) {
-                if (FastClasspathScanner.verbose) {
-                    log.log(4, "Exception while opening classpath resource " + fileMatch.classpathElt
-                            + (classpathElt.isFile() ? "!" : "/") + fileMatch.relativePath, e);
-                }
+        for (final ClasspathElement classpathElement : classpathOrder) {
+            if (classpathElement.fileMatches != null) {
+                classpathElement.callFileMatchProcessors();
             }
         }
 
@@ -340,48 +335,53 @@ public class ScanSpec {
                         log.log(4, "Exception while calling ClassMatchProcessor: " + e);
                     }
                 }
-                if (Thread.currentThread().isInterrupted()) {
-                    throw new InterruptedException();
-                }
+                interruptionChecker.check();
             }
         }
 
         // Call any static final field match processors
         if (fullyQualifiedFieldNameToStaticFinalFieldMatchProcessors != null) {
-            for (final ClassInfo classInfo : classNameToClassInfo.values()) {
-                if (classInfo.fieldValues != null) {
-                    for (final Entry<String, Object> ent : classInfo.fieldValues.entrySet()) {
-                        final String fieldName = ent.getKey();
-                        final Object constValue = ent.getValue();
-                        final String fullyQualifiedFieldName = classInfo.className + "." + fieldName;
-                        final ArrayList<StaticFinalFieldMatchProcessor> staticFinalFieldMatchProcessors = //
-                                fullyQualifiedFieldNameToStaticFinalFieldMatchProcessors
-                                        .get(fullyQualifiedFieldName);
-                        if (staticFinalFieldMatchProcessors != null) {
-                            if (FastClasspathScanner.verbose) {
-                                log.log(1, "Calling MatchProcessor for static final field " + classInfo.className
-                                        + "." + fieldName + " = "
-                                        + ((constValue instanceof Character)
-                                                ? '\'' + constValue.toString().replace("'", "\\'") + '\''
-                                                : (constValue instanceof String)
-                                                        ? '"' + constValue.toString().replace("\"", "\\\"") + '"'
-                                                        : constValue.toString()));
-                            }
-                            for (final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor : //
-                            staticFinalFieldMatchProcessors) {
-                                try {
-                                    staticFinalFieldMatchProcessor.processMatch(classInfo.className, fieldName,
-                                            constValue);
-                                } catch (final Throwable e) {
-                                    if (FastClasspathScanner.verbose) {
-                                        log.log(4, "Exception while calling StaticFinalFieldMatchProcessor: " + e);
-                                    }
-                                }
-                                if (Thread.currentThread().isInterrupted()) {
-                                    throw new InterruptedException();
-                                }
-                            }
+            for (final Entry<String, List<StaticFinalFieldMatchProcessor>> ent : //
+            fullyQualifiedFieldNameToStaticFinalFieldMatchProcessors.getRawMap().entrySet()) {
+                final String fullyQualifiedFieldName = ent.getKey();
+                final int dotIdx = fullyQualifiedFieldName.lastIndexOf('.');
+                final String className = fullyQualifiedFieldName.substring(0, dotIdx);
+                final ClassInfo classInfo = classNameToClassInfo.get(className);
+                if (classInfo != null) {
+                    final String fieldName = fullyQualifiedFieldName.substring(dotIdx + 1);
+                    if (classInfo.fieldValues == null || !classInfo.fieldValues.containsKey(fieldName)) {
+                        if (FastClasspathScanner.verbose) {
+                            log.log(1, "No matching field " + fieldName + " found in class " + className);
                         }
+                    } else {
+                        final Object constValue = classInfo.fieldValues.get(fieldName);
+                        final List<StaticFinalFieldMatchProcessor> staticFinalFieldMatchProcessors = ent.getValue();
+                        if (FastClasspathScanner.verbose) {
+                            log.log(1, "Calling MatchProcessor"
+                                    + (staticFinalFieldMatchProcessors.size() == 1 ? "" : "s")
+                                    + " for static final field " + classInfo.className + "." + fieldName + " = "
+                                    + ((constValue instanceof Character)
+                                            ? '\'' + constValue.toString().replace("'", "\\'") + '\''
+                                            : (constValue instanceof String)
+                                                    ? '"' + constValue.toString().replace("\"", "\\\"") + '"'
+                                                    : constValue.toString()));
+                        }
+                        for (final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor : ent.getValue()) {
+                            try {
+                                staticFinalFieldMatchProcessor.processMatch(classInfo.className, fieldName,
+                                        constValue);
+                            } catch (final Throwable e) {
+                                if (FastClasspathScanner.verbose) {
+                                    log.log(4, "Exception while calling StaticFinalFieldMatchProcessor: " + e);
+                                }
+                            }
+                            interruptionChecker.check();
+                        }
+                    }
+                } else {
+                    if (FastClasspathScanner.verbose) {
+                        log.log(1, "No matching class found in scan results for static final field "
+                                + fullyQualifiedFieldName);
                     }
                 }
             }
@@ -499,7 +499,7 @@ public class ScanSpec {
      * be overridden by including "!!" in the scan spec. Disabling this blacklisting will increase the time or
      * memory required to scan the classpath.
      */
-    public boolean blacklistSystemJars() {
+    boolean blacklistSystemJars() {
         return blacklistSystemJars;
     }
 
@@ -898,21 +898,12 @@ public class ScanSpec {
             final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor) {
         final String fullyQualifiedFieldName = className + "." + fieldName;
         if (fullyQualifiedFieldNameToStaticFinalFieldMatchProcessors == null) {
-            fullyQualifiedFieldNameToStaticFinalFieldMatchProcessors = new HashMap<>();
-            classNameToStaticFinalFieldsToMatch = new HashMap<>();
+            fullyQualifiedFieldNameToStaticFinalFieldMatchProcessors = new MultiMapKeyToList<>();
+            classNameToStaticFinalFieldsToMatch = new MultiMapKeyToSet<>();
         }
-        ArrayList<StaticFinalFieldMatchProcessor> matchProcessorList = //
-                fullyQualifiedFieldNameToStaticFinalFieldMatchProcessors.get(fullyQualifiedFieldName);
-        if (matchProcessorList == null) {
-            fullyQualifiedFieldNameToStaticFinalFieldMatchProcessors.put(fullyQualifiedFieldName,
-                    matchProcessorList = new ArrayList<>(4));
-        }
-        matchProcessorList.add(staticFinalFieldMatchProcessor);
-        HashSet<String> staticFinalFieldsToMatch = classNameToStaticFinalFieldsToMatch.get(className);
-        if (staticFinalFieldsToMatch == null) {
-            classNameToStaticFinalFieldsToMatch.put(className, staticFinalFieldsToMatch = new HashSet<>());
-        }
-        staticFinalFieldsToMatch.add(fieldName);
+        fullyQualifiedFieldNameToStaticFinalFieldMatchProcessors.put(fullyQualifiedFieldName,
+                staticFinalFieldMatchProcessor);
+        classNameToStaticFinalFieldsToMatch.put(className, fieldName);
     }
 
     /**
@@ -1010,6 +1001,11 @@ public class ScanSpec {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /** An interface used to test whether a file's relative path matches a given specification. */
+    private interface FilePathTester {
+        public boolean filePathMatches(final File classpathElt, final String relativePathStr, final ThreadLog log);
+    }
+
     /** An interface called when the corresponding FilePathTester returns true. */
     interface FileMatchProcessorWrapper {
         public void processMatch(final File classpathElt, final String relativePath, final InputStream inputStream,
@@ -1017,13 +1013,17 @@ public class ScanSpec {
     }
 
     static class FilePathTesterAndMatchProcessorWrapper {
-        FilePathTester filePathTester;
+        private final FilePathTester filePathTester;
         FileMatchProcessorWrapper fileMatchProcessorWrapper;
 
         private FilePathTesterAndMatchProcessorWrapper(final FilePathTester filePathTester,
                 final FileMatchProcessorWrapper fileMatchProcessorWrapper) {
             this.filePathTester = filePathTester;
             this.fileMatchProcessorWrapper = fileMatchProcessorWrapper;
+        }
+
+        boolean filePathMatches(final File classpathElt, final String relativePathStr, final ThreadLog log) {
+            return filePathTester.filePathMatches(classpathElt, relativePathStr, log);
         }
     }
 
@@ -1337,13 +1337,15 @@ public class ScanSpec {
 
     private FilePathTester makeFilePathTesterMatchingFilenameExtension(final String extensionToMatch) {
         return new FilePathTester() {
-            private final String suffixToMatch = "." + extensionToMatch.toLowerCase();
+            final int extLen = extensionToMatch.length();
 
             @Override
             public boolean filePathMatches(final File classpathElt, final String relativePath,
                     final ThreadLog log) {
-                final boolean matched = relativePath.endsWith(suffixToMatch)
-                        || relativePath.toLowerCase().endsWith(suffixToMatch);
+                final int relativePathLen = relativePath.length();
+                final int extIdx = relativePathLen - extLen;
+                final boolean matched = relativePathLen > extLen + 1 && relativePath.charAt(extIdx - 1) == '.'
+                        && relativePath.regionMatches(true, extIdx, extensionToMatch, 0, extLen);
                 if (matched && FastClasspathScanner.verbose) {
                     log.log(3, "File " + relativePath + " matched extension ." + extensionToMatch);
                 }

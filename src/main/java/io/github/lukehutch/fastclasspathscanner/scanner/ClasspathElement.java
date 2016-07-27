@@ -1,217 +1,230 @@
+/*
+ * This file is part of FastClasspathScanner.
+ * 
+ * Author: Luke Hutchison
+ * 
+ * Hosted at: https://github.com/lukehutch/fast-classpath-scanner
+ * 
+ * --
+ *
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2016 Luke Hutchison
+ * 
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without
+ * limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so, subject to the following
+ * conditions:
+ * 
+ * The above copyright notice and this permission notice shall be included in all copies or substantial
+ * portions of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
+ * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO
+ * EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
+ * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
+ * OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutionException;
+import java.util.zip.ZipEntry;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-import io.github.lukehutch.fastclasspathscanner.utils.FastManifestParser;
-import io.github.lukehutch.fastclasspathscanner.utils.FastPathResolver;
+import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec.FileMatchProcessorWrapper;
+import io.github.lukehutch.fastclasspathscanner.utils.InterruptionChecker;
 import io.github.lukehutch.fastclasspathscanner.utils.LoggedThread.ThreadLog;
+import io.github.lukehutch.fastclasspathscanner.utils.MultiMapKeyToList;
+import io.github.lukehutch.fastclasspathscanner.utils.WorkQueue;
 
-class ClasspathElement {
-    public final String parentCanonicalPath;
-    public final String pathToResolveAgainst;
-    public final String relativePath;
+abstract class ClasspathElement {
+    final File classpathElementFile;
+    final ScanSpec scanSpec;
+    private final boolean scanFiles;
+    List<ClasspathRelativePath> childClasspathElts;
+    boolean ioExceptionOnOpen;
+    protected InterruptionChecker interruptionChecker;
+    protected ThreadLog log;
 
-    private String resolvedPathCached;
-    private boolean resolvedPathIsCached;
-    private File fileCached;
-    private boolean fileIsCached;
-    private String canonicalPathCached;
-    private boolean canonicalPathIsCached;
-    private boolean isFileCached;
-    private boolean isFileIsCached;
-    private boolean isDirectoryCached;
-    private boolean isDirectoryIsCached;
-    private boolean existsCached;
-    private boolean existsIsCached;
+    MultiMapKeyToList<FileMatchProcessorWrapper, ClasspathResource> fileMatches;
+    List<ClasspathResource> classfileMatches;
+    Map<File, Long> fileToLastModified;
 
-    public ClasspathElement(final String parentCanonicalPath, final String pathToResolveAgainst,
-            final String relativePath) {
-        this.parentCanonicalPath = parentCanonicalPath;
-        this.pathToResolveAgainst = pathToResolveAgainst;
-        this.relativePath = relativePath;
-    }
-
-    /** Get the path of this classpath element, resolved against the parent path. */
-    public String getResolvedPath() {
-        if (!resolvedPathIsCached) {
-            resolvedPathCached = FastPathResolver.resolve(pathToResolveAgainst, relativePath);
-            resolvedPathIsCached = true;
+    ClasspathElement(final ClasspathRelativePath classpathElt, final ScanSpec scanSpec, final boolean scanFiles,
+            final InterruptionChecker interruptionChecker, final ThreadLog log) {
+        this.scanSpec = scanSpec;
+        this.scanFiles = scanFiles;
+        this.interruptionChecker = interruptionChecker;
+        this.log = log;
+        try {
+            this.classpathElementFile = classpathElt.getFile();
+        } catch (final IOException e) {
+            // Shouldn't happen, files have already been screened for this
+            throw new RuntimeException(e);
         }
-        return resolvedPathCached;
     }
 
-    /** Get the File object for the resolved path. */
-    public File getFile() {
-        if (!fileIsCached) {
-            final String path = getResolvedPath();
-            if (path == null) {
-                throw new RuntimeException(
-                        "Path " + relativePath + " could not be resolved relative to " + pathToResolveAgainst);
+    static ClasspathElement newInstance(final ClasspathRelativePath classpathElt, final boolean scanFiles,
+            final ScanSpec scanSpec, final InterruptionChecker interruptionChecker,
+            final WorkQueue<ClasspathRelativePath> workQueue, final ThreadLog log) throws IOException {
+        boolean isDir;
+        try {
+            isDir = classpathElt.isDirectory();
+        } catch (final IOException e) {
+            if (FastClasspathScanner.verbose) {
+                log.log("Exception while trying to canonicalize path " + classpathElt.getResolvedPath(), e);
             }
-            fileCached = new File(path);
-            fileIsCached = true;
+            throw e;
         }
-        return fileCached;
+        if (isDir) {
+            return new ClasspathElementDir(classpathElt, scanSpec, scanFiles, interruptionChecker, log);
+        } else {
+            return new ClasspathElementZip(classpathElt, scanSpec, scanFiles, interruptionChecker, workQueue, log);
+        }
     }
 
     /**
-     * Gets the canonical path of the File object corresponding to the resolved path, or null if the path could not
-     * be canonicalized.
+     * The combination of a classpath element and a relative path within this classpath element.
      */
-    public String getCanonicalPath() {
-        if (!canonicalPathIsCached) {
-            final File file = getFile();
+    static class ClasspathResource {
+        File classpathEltFile;
+        String relativePath;
+
+        private ClasspathResource(final File classpathEltFile, final String relativePath) {
+            this.classpathEltFile = classpathEltFile;
+            this.relativePath = relativePath;
+        }
+
+        static class ClasspathResourceInDir extends ClasspathResource {
+            File relativePathFile;
+
+            ClasspathResourceInDir(final File classpathEltFile, final String relativePath,
+                    final File relativePathFile) {
+                super(classpathEltFile, relativePath);
+                this.relativePathFile = relativePathFile;
+            }
+        }
+
+        static class ClasspathResourceInZipFile extends ClasspathResource {
+            ZipEntry zipEntry;
+
+            ClasspathResourceInZipFile(final File classpathEltFile, final String relativePath,
+                    final ZipEntry zipEntry) {
+                super(classpathEltFile, relativePath);
+                this.zipEntry = zipEntry;
+            }
+        }
+    }
+
+    public int getNumClassfileMatches() {
+        return classfileMatches == null ? 0 : classfileMatches.size();
+    }
+
+    /**
+     * Apply relative path masking within this classpath resource -- remove relative paths that were found in an
+     * earlier classpath element.
+     */
+    void maskFiles(final HashSet<String> classpathRelativePathsFound) {
+        if (!scanFiles) {
+            // Should not happen
+            throw new IllegalArgumentException("scanFiles is false");
+        }
+        // Take the union of classfile and file match relative paths, since matches can be in both lists
+        // if a user adds a custom file path matcher that matches paths ending in ".class"
+        final HashSet<String> matchesUnion = new HashSet<>();
+        for (final ClasspathResource res : classfileMatches) {
+            matchesUnion.add(res.relativePath);
+        }
+        for (final Entry<FileMatchProcessorWrapper, List<ClasspathResource>> ent : fileMatches.entrySet()) {
+            for (final ClasspathResource classpathResource : ent.getValue()) {
+                matchesUnion.add(classpathResource.relativePath);
+            }
+        }
+        // See which of these paths are masked, if any
+        final HashSet<String> maskedRelativePaths = new HashSet<>();
+        for (final String match : matchesUnion) {
+            if (classpathRelativePathsFound.contains(match)) {
+                maskedRelativePaths.add(match);
+            }
+        }
+        if (!maskedRelativePaths.isEmpty()) {
+            // Replace the lists of matching resources with filtered versions with masked paths removed
+            final List<ClasspathResource> filteredClassfileMatches = new ArrayList<>();
+            for (final ClasspathResource classfileMatch : classfileMatches) {
+                if (!maskedRelativePaths.contains(classfileMatch.relativePath)) {
+                    filteredClassfileMatches.add(classfileMatch);
+                }
+            }
+            classfileMatches = filteredClassfileMatches;
+
+            final MultiMapKeyToList<FileMatchProcessorWrapper, ClasspathResource> filteredFileMatches = //
+                    new MultiMapKeyToList<>();
+            for (final Entry<FileMatchProcessorWrapper, List<ClasspathResource>> ent : fileMatches.entrySet()) {
+                for (final ClasspathResource fileMatch : ent.getValue()) {
+                    if (!maskedRelativePaths.contains(fileMatch.relativePath)) {
+                        filteredFileMatches.put(ent.getKey(), fileMatch);
+                    }
+                }
+            }
+            fileMatches = filteredFileMatches;
+        }
+    }
+
+    void callFileMatchProcessors() throws InterruptedException, ExecutionException {
+        for (final Entry<FileMatchProcessorWrapper, List<ClasspathResource>> ent : fileMatches.entrySet()) {
+            final FileMatchProcessorWrapper fileMatchProcessorWrapper = ent.getKey();
+            for (final ClasspathResource fileMatch : ent.getValue()) {
+                try {
+                    openInputStreamAndProcessFileMatch(fileMatch, fileMatchProcessorWrapper);
+                } catch (final IOException e) {
+                    if (FastClasspathScanner.verbose) {
+                        log.log(4, "Exception while opening classpath resource " + fileMatch.classpathEltFile
+                                + (fileMatch.classpathEltFile.isFile() ? "!" : "/") + fileMatch.relativePath, e);
+                    }
+                }
+                interruptionChecker.check();
+            }
+        }
+    }
+
+    void parseClassfiles(final ClassfileBinaryParser classfileBinaryParser, final int classfileStartIdx,
+            final int classfileEndIdx, final ConcurrentHashMap<String, String> stringInternMap,
+            final ConcurrentLinkedQueue<ClassInfoUnlinked> classInfoUnlinked)
+            throws InterruptedException, ExecutionException {
+        for (int i = classfileStartIdx; i < classfileEndIdx; i++) {
+            final ClasspathResource classfileResource = classfileMatches.get(i);
             try {
-                canonicalPathCached = file.getCanonicalPath();
+                openInputStreamAndParseClassfile(classfileResource, classfileBinaryParser, scanSpec,
+                        stringInternMap, classInfoUnlinked, log);
             } catch (final IOException e) {
-                // Return null
-            }
-            canonicalPathIsCached = true;
-        }
-        return canonicalPathCached;
-    }
-
-    public boolean isFile() {
-        if (!isFileIsCached) {
-            isFileCached = getFile().isFile();
-            isFileIsCached = true;
-        }
-        return isFileCached;
-    }
-
-    public boolean isDirectory() {
-        if (!isDirectoryIsCached) {
-            isDirectoryCached = getFile().isDirectory();
-            isDirectoryIsCached = true;
-        }
-        return isDirectoryCached;
-    }
-
-    public boolean exists() {
-        if (!existsIsCached) {
-            existsCached = getFile().exists();
-            existsIsCached = true;
-        }
-        return existsCached;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /** Returns true if the path ends with a JAR extension, matching case. */
-    private static boolean isJarMatchCase(final String path) {
-        return path.length() > 4 && path.charAt(path.length() - 4) == '.' // 
-                && path.endsWith(".jar") || path.endsWith(".zip") || path.endsWith(".war") || path.endsWith(".car");
-    }
-
-    /** Returns true if the path ends with a JAR extension, ignoring case. */
-    private static boolean isJar(final String path) {
-        return isJarMatchCase(path) || isJarMatchCase(path.toLowerCase());
-    }
-
-    /**
-     * Recursively search within ancestral directories of a jarfile to see if rt.jar is present, in order to
-     * determine if the given jarfile is part of the JRE. This would typically be called with an initial
-     * ancestralScandepth of 2, since JRE jarfiles can be in the lib or lib/ext directories of the JRE.
-     */
-    private static boolean isJREJar(final File file, final int ancestralScanDepth,
-            final ConcurrentHashMap<String, String> knownJREPaths, final ThreadLog log) {
-        if (ancestralScanDepth == 0) {
-            return false;
-        } else {
-            final File parent = file.getParentFile();
-            if (parent == null) {
-                return false;
-            }
-            final String parentPathStr = parent.getPath();
-            if (knownJREPaths.containsKey(parentPathStr)) {
-                return true;
-            }
-            File rt = new File(parent, "rt.jar");
-            if (!rt.exists()) {
-                rt = new File(new File(parent, "lib"), "rt.jar");
-                if (!rt.exists()) {
-                    rt = new File(new File(new File(parent, "jre"), "lib.jar"), "rt.jar");
-                }
-            }
-            if (rt.exists()) {
-                // Found rt.jar; check its manifest file to make sure it's the JRE's rt.jar and not something else 
-                final FastManifestParser manifest = new FastManifestParser(rt, log);
-                if (manifest.isSystemJar) {
-                    // Found the JRE's rt.jar
-                    knownJREPaths.put(parentPathStr, parentPathStr);
-                    return true;
-                }
-            }
-            return isJREJar(parent, ancestralScanDepth - 1, knownJREPaths, log);
-        }
-    }
-
-    public boolean isValid(final ScanSpec scanSpec, final ConcurrentHashMap<String, String> knownJREPaths,
-            final ThreadLog log) {
-        // Get absolute URI and File for classpathElt
-        final String path = getResolvedPath();
-        if (path == null) {
-            // Got an http: or https: URI as a classpath element
-            if (FastClasspathScanner.verbose) {
-                log.log("Skipping non-local classpath element: " + relativePath);
-            }
-            return false;
-        }
-        if (!exists()) {
-            if (FastClasspathScanner.verbose) {
-                log.log("Classpath element does not exist: " + getResolvedPath());
-            }
-            return false;
-        }
-        final boolean isFile = isFile();
-        final boolean isDirectory = isDirectory();
-        if (isFile != !isDirectory) {
-            // Exactly one of isFile and isDirectory should be true
-            if (FastClasspathScanner.verbose) {
-                log.log("Ignoring invalid classpath element: " + getResolvedPath());
-            }
-            return false;
-        }
-        if (isFile) {
-            // If a classpath entry is a file, it must be a jar
-            if (!isJar(getResolvedPath())) {
                 if (FastClasspathScanner.verbose) {
-                    log.log("Ignoring non-jar file on classpath: " + getResolvedPath());
+                    log.log("Exception while trying to open " + classfileResource.classpathEltFile
+                            + (classfileResource.classpathEltFile.isFile() ? "!" : "/")
+                            + classfileResource.relativePath, e);
                 }
-                return false;
             }
-            if (!scanSpec.scanJars) {
-                if (FastClasspathScanner.verbose) {
-                    log.log("Skipping jarfile, as jars are not being scanned: " + getResolvedPath());
-                }
-                return false;
-            }
-            if (scanSpec.blacklistSystemJars()
-                    && isJREJar(getFile(), /* ancestralScanDepth = */2, knownJREPaths, log)) {
-                // Don't scan system jars if they are blacklisted
-                if (FastClasspathScanner.verbose) {
-                    log.log("Skipping JRE jar: " + getResolvedPath());
-                }
-                return false;
-            }
-            if (!scanSpec.jarIsWhitelisted(getFile().getName())) {
-                if (FastClasspathScanner.verbose) {
-                    log.log("Skipping jarfile that did not match whitelist/blacklist criteria: "
-                            + getResolvedPath());
-                }
-                return false;
-            }
-        } else {
-            if (!scanSpec.scanDirs) {
-                if (FastClasspathScanner.verbose) {
-                    log.log("Skipping directory, as directories are not being scanned: " + getResolvedPath());
-                }
-                return false;
-            }
+            interruptionChecker.check();
         }
-        return true;
     }
+
+    protected abstract void openInputStreamAndParseClassfile(final ClasspathResource classfileResource,
+            final ClassfileBinaryParser classfileBinaryParser, final ScanSpec scanSpec,
+            final ConcurrentHashMap<String, String> stringInternMap,
+            final ConcurrentLinkedQueue<ClassInfoUnlinked> classInfoUnlinked, final ThreadLog log)
+            throws InterruptedException, IOException;
+
+    protected abstract void openInputStreamAndProcessFileMatch(ClasspathResource fileMatch,
+            FileMatchProcessorWrapper fileMatchProcessorWrapper) throws IOException;
+
+    public abstract void close();
 }

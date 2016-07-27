@@ -142,7 +142,7 @@ public class ClasspathFinder {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    public ClasspathFinder(final ScanSpec scanSpec, final ThreadLog log) {
+    ClasspathFinder(final ScanSpec scanSpec, final ThreadLog log) {
         final long getRawElementsStartTime = System.nanoTime();
         if (scanSpec.overrideClasspath != null) {
             // Manual classpath override
