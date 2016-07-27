@@ -59,9 +59,10 @@ public class ScannerCore implements Callable<ScanResult> {
 
     /**
      * The number of files within a given classpath element (directory or zipfile) to send in a chunk to the workers
-     * that are calling the classfile binary parser.
+     * that are calling the classfile binary parser. The smaller this number is, the better the load leveling at the
+     * end of the scan, but the higher the overhead in re-opening the same ZipFile in different worker threads.
      */
-    private static final int NUM_FILES_PER_CHUNK = 1000; // TODO: plot average time taken vs. chunk size, for initial run + 20th run 
+    private static final int NUM_FILES_PER_CHUNK = 200;
 
     public ScannerCore(final ScanSpec scanSpec, final ExecutorService executorService, final int numParallelTasks,
             final boolean enableRecursiveScanning, final LogNode log) {
