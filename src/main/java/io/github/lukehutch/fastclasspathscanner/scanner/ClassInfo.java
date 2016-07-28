@@ -599,38 +599,64 @@ public class ClassInfo implements Comparable<ClassInfo> {
 
     // -------------
 
-    /** Return the set of all interfaces implemented by this standard class. */
+    /** Return the set of all interfaces implemented by this standard class, or by one of its superclasses. */
     public Set<ClassInfo> getImplementedInterfaces() {
-        return !isStandardClass() ? Collections.emptySet()
-                : filterClassInfo(getReachableClasses(RelType.IMPLEMENTED_INTERFACES),
-                        /* removeExternalClasses = */ true, ClassType.IMPLEMENTED_INTERFACE);
+        if (!isStandardClass()) {
+            return Collections.emptySet();
+        } else {
+            final Set<ClassInfo> superclasses = ClassInfo.filterClassInfo(getReachableClasses(RelType.SUPERCLASSES),
+                    /* removeExternalClasses = */ true, ClassType.STANDARD_CLASS);
+            // Subclasses of implementing classes also implement the interface
+            final Set<ClassInfo> allInterfaces = new HashSet<>();
+            allInterfaces.addAll(getReachableClasses(RelType.IMPLEMENTED_INTERFACES));
+            for (final ClassInfo superClass : superclasses) {
+                allInterfaces.addAll(superClass.getReachableClasses(RelType.IMPLEMENTED_INTERFACES));
+            }
+            return allInterfaces;
+        }
     }
 
-    /** Return the set of all interfaces implemented by this standard class. */
+    /** Return the set of all interfaces implemented by this standard class, or by one of its superclasses. */
     public List<String> getNamesOfImplementedInterfaces() {
         return getClassNames(getImplementedInterfaces());
     }
 
-    /** Returns true if this standard class implements the named interface. */
+    /** Returns true if this standard class implements the named interface, or by one of its superclasses. */
     public boolean implementsInterface(final String interfaceName) {
         return getNamesOfImplementedInterfaces().contains(interfaceName);
     }
 
     // -------------
 
-    /** Return the set of all interfaces directly implemented by this standard class. */
+    /**
+     * Return the set of all interfaces directly implemented by this standard class, or by one of its superclasses.
+     */
     public Set<ClassInfo> getDirectlyImplementedInterfaces() {
-        return !isStandardClass() ? Collections.emptySet()
-                : filterClassInfo(getRelatedClasses(RelType.IMPLEMENTED_INTERFACES),
-                        /* removeExternalClasses = */ true, ClassType.IMPLEMENTED_INTERFACE);
+        if (!isStandardClass()) {
+            return Collections.emptySet();
+        } else {
+            final Set<ClassInfo> superclasses = ClassInfo.filterClassInfo(getReachableClasses(RelType.SUPERCLASSES),
+                    /* removeExternalClasses = */ true, ClassType.STANDARD_CLASS);
+            // Subclasses of implementing classes also implement the interface
+            final Set<ClassInfo> allInterfaces = new HashSet<>();
+            allInterfaces.addAll(getRelatedClasses(RelType.IMPLEMENTED_INTERFACES));
+            for (final ClassInfo superClass : superclasses) {
+                allInterfaces.addAll(superClass.getRelatedClasses(RelType.IMPLEMENTED_INTERFACES));
+            }
+            return allInterfaces;
+        }
     }
 
-    /** Return the set of all interfaces directly implemented by this standard class. */
+    /**
+     * Return the set of all interfaces directly implemented by this standard class, or by one of its superclasses.
+     */
     public List<String> getNamesOfDirectlyImplementedInterfaces() {
         return getClassNames(getDirectlyImplementedInterfaces());
     }
 
-    /** Returns true if this standard class directly implements the named interface. */
+    /**
+     * Returns true if this standard class directly implements the named interface, or by one of its superclasses.
+     */
     public boolean directlyImplementsInterface(final String interfaceName) {
         return getNamesOfDirectlyImplementedInterfaces().contains(interfaceName);
     }
