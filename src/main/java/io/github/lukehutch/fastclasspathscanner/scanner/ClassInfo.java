@@ -597,6 +597,55 @@ public class ClassInfo implements Comparable<ClassInfo> {
         return getNamesOfDirectSuperinterfaces().contains(directSuperinterfaceName);
     }
 
+    // -------------
+
+    /** Return the set of all class implementing this interface, and all their subclasses. */
+    public Set<ClassInfo> getClassesImplementing() {
+        if (!isImplementedInterface()) {
+            return Collections.emptySet();
+        } else {
+            final Set<ClassInfo> implementingClasses = ClassInfo.filterClassInfo(
+                    getReachableClasses(RelType.CLASSES_IMPLEMENTING), /* removeExternalClasses = */ true,
+                    ClassType.STANDARD_CLASS);
+            // Subclasses of implementing classes also implement the interface
+            final Set<ClassInfo> allImplementingClasses = new HashSet<>();
+            for (final ClassInfo implementingClass : implementingClasses) {
+                allImplementingClasses.add(implementingClass);
+                allImplementingClasses.addAll(implementingClass.getReachableClasses(RelType.SUBCLASSES));
+            }
+            return allImplementingClasses;
+        }
+    }
+
+    /** Return the names of all classes implementing this interface, and all their subclasses. */
+    public List<String> getNamesOfClassesImplementing() {
+        return getClassNames(getClassesImplementing());
+    }
+
+    /** Returns true if this class is implemented by the named class, or by one of its superclasses. */
+    public boolean isImplementedByClass(final String className) {
+        return getNamesOfClassesImplementing().contains(className);
+    }
+
+    // -------------
+
+    /** Return the set of all class directly implementing this interface. */
+    public Set<ClassInfo> getClassesDirectlyImplementing() {
+        return !isImplementedInterface() ? Collections.emptySet()
+                : ClassInfo.filterClassInfo(getRelatedClasses(RelType.CLASSES_IMPLEMENTING),
+                        /* removeExternalClasses = */ true, ClassType.STANDARD_CLASS);
+    }
+
+    /** Return the names of all classes directly implementing this interface. */
+    public List<String> getNamesOfClassesDirectlyImplementing() {
+        return getClassNames(getClassesDirectlyImplementing());
+    }
+
+    /** Returns true if this class is directly implemented by the named class. */
+    public boolean isDirectlyImplementedByClass(final String className) {
+        return getNamesOfClassesDirectlyImplementing().contains(className);
+    }
+
     // -------------------------------------------------------------------------------------------------------------
     // Annotations
 

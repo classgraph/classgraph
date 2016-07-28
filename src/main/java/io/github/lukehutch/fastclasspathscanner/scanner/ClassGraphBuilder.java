@@ -137,22 +137,13 @@ class ClassGraphBuilder {
         }
     }
 
-    /** Return the sorted list of names of all classes implementing the named interface. */
+    /** Return the sorted list of names of all classes implementing the named interface, and their subclasses. */
     List<String> getNamesOfClassesImplementing(final String interfaceName) {
-        final ClassInfo interfaceClassInfo = classNameToClassInfo.get(interfaceName);
-        if (interfaceClassInfo == null) {
+        final ClassInfo classInfo = classNameToClassInfo.get(interfaceName);
+        if (classInfo == null) {
             return Collections.emptyList();
         } else {
-            final Set<ClassInfo> implementingClasses = ClassInfo.filterClassInfo(
-                    interfaceClassInfo.getReachableClasses(RelType.CLASSES_IMPLEMENTING),
-                    /* removeExternalClasses = */ true, ClassType.STANDARD_CLASS);
-            // Subclasses of implementing classes also implement the interface
-            final Set<ClassInfo> allImplementingClasses = new HashSet<>();
-            for (final ClassInfo implementingClass : implementingClasses) {
-                allImplementingClasses.add(implementingClass);
-                allImplementingClasses.addAll(implementingClass.getReachableClasses(RelType.SUBCLASSES));
-            }
-            return ClassInfo.getClassNames(allImplementingClasses);
+            return classInfo.getNamesOfClassesImplementing();
         }
     }
 

@@ -157,6 +157,26 @@ new FastClasspathScanner("com.xyz.widget")
     .scan();
 ```
 
+**Mechanism 3:** Call `ScanResult#classNameToClassInfo()` after calling `FastClasspathScanner#scan()`, then query the class graph directly. Java 8 streams can be used for creating complex multi-criterion class filters using this mechanism.
+
+```
+// Manually query classNameToClassInfo
+ScanResult scanResult = new FastClasspathScanner().scan();
+Map<String, ClassInfo> classNameToClassInfo = scanResult.getClassNameToClassInfo();
+ClassInfo callableClassInfo = classNameToClassInfo.get(Callable.class.getName());
+List<String> callables = callableClassInfo == null ? Collections.emptyList()
+        : callableClassInfo.getNamesOfClassesImplementing();
+
+// Filter all ClassInfo using Java 8 stream filtering:
+List<String> runnableWidgets = new FastClasspathScanner().scan()
+        .getClassNameToClassInfo().values().stream()
+                .filter(c -> c.hasSuperinterface(Runnable.class.getName()))
+                .filter(c -> c.hasSuperclass(Widget.class.getName()))
+                .map(c -> c.getClassName())
+                .collect(Collectors.toList());
+```
+
+
 ### Classpath mechanisms handled by FastClasspathScanner
 
 FastClasspathScanner handles a number of classpath specification mechanisms, including some non-standard ClassLoader implementations:
