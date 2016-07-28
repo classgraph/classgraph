@@ -37,7 +37,7 @@ Classpath scanning can also be used to produce a visualization of the class grap
 1. FastClasspathScanner parses the classfile binary format directly, instead of using reflection, which makes scanning particularly fast. (Reflection causes the classloader to load each class, which can take an order of magnitude more time than parsing the classfile directly, and can lead to unexpected behavior due to static initializer blocks of classes being called on class load.)
 2. FastClasspathScanner appears to be the only classpath scanning library that supports multithreaded scanning (overlapping disk/SSD reading, jar decompression, and classfile binary format parsing on different threads). Disk/SSD bandwidth consequently becomes the bottleneck, making FastClasspathScanner the fastest possible solution for classpath scanning.
 2. FastClasspathScanner is extremely lightweight, as it does not depend on any classfile/bytecode parsing or manipulation libraries like [Javassist](http://jboss-javassist.github.io/javassist/) or [ObjectWeb ASM](http://asm.ow2.org/).
-3. FastClasspathScanner handles many [diverse and complicated means](#classpath-mechanisms-handled-by-fastclasspathscanner) used to specify the classpath, and has a pluggable architecture for handling other classpath specification methods (in the general case, finding all classpath elements is not as simple as reading the `java.class.path` system property and/or getting the path URLs from the system `URLClassLoader`).
+3. FastClasspathScanner handles many [diverse and complicated means](#classpath-mechanisms-and-classloaders-handled-by-fastclasspathscanner) used to specify the classpath, and has a pluggable architecture for handling other classpath specification methods (in the general case, finding all classpath elements is not as simple as reading the `java.class.path` system property and/or getting the path URLs from the system `URLClassLoader`).
 4. FastClasspathScanner has built-in support for generating GraphViz visualizations of the classgraph, as shown above.
 5. FastClasspathScanner can find classes not just by annotation, but also by [meta-annotation](#4-matching-classes-with-a-specific-annotation-or-meta-annotation) (e.g. if annotation `A` annotates annotation `B`, and annotation `B` annotates class `C`, you can find class `C` by scanning for classes annotated by annotation `A`). This makes annotations more powerful, as they can be used as a hierarchy of inherited traits (similar to how interfaces work in Java). In the graph above, the class `Figure` has the annotation `@UIWidget`, and the annotation class `UIWidget` has the annotation `@UIElement`, so by transitivity, `Figure` also has the meta-annotation `@UIElement`. 
 6. FastClasspathScanner can find all classes that have [fields of a given type](#6-find-all-classes-that-contain-a-field-of-a-given-type) (this feature is normally only found in an IDE, e.g. `References > Workspace` in Eclipse).
@@ -84,6 +84,8 @@ new FastClasspathScanner("com.xyz.widget")
     .scan();
 ```
 
+Many of the methods of `FastClasspathScanner` return `this`, so that you can use the [method chaining](http://en.wikipedia.org/wiki/Method_chaining) / "fluent" calling style, as shown in the example above.
+
 **Mechanism 2:**
 
 1. Construct a `FastClasspathScanner` instance.
@@ -110,7 +112,7 @@ List<String> subclassesOfWidget =
 2. Call `FastClasspathScanner#scan()` to scan the classpath and obtain a `ScanResult`.
 3. Call `Map<String, ClassInfo> classNameToClassInfo = ScanResult#getClassNameToClassInfo()` to get a map from class name to a `ClassInfo` object describing the class.
 4. Use the classNameToClassInfo map to get information about a specific class, by calling `ClassInfo classInfo = classNameToClassInfo.get(className)`. (Note that the result will be null if the named class was not found during the scan, e.g. if the class exists, but did not match the whitelist criteria for the scan.) Then call `ClassInfo` methods such as `classInfo.getNamesOfSubinterfaces()` or `classInfo.getClassesImplementing()` to obtain information about how the named class is related to other classes.
-5. Alternatively, if using Java 8, call `ScanResult#classNameToClassInfo()#values()#stream()` to create a stream of ClassInfo instances that may be filtered for specific criteria, e.g. using `.filter(c -> c.hasSuperclass(MySuperclass.class.getName()))`.
+5. Alternatively, if using Java 8, call `ScanResult#classNameToClassInfo()#values()#stream()` to create a stream of ClassInfo instances that may be filtered for specific criteria.
 
 ```java
 // Java 7 / Java 8: manually query classNameToClassInfo
@@ -130,7 +132,7 @@ List<String> widgetSubClasses = new FastClasspathScanner("com.xyz.widget").scan(
                 .collect(Collectors.toList());
 ```
 
-### Classpath mechanisms handled by FastClasspathScanner
+### Classpath mechanisms and ClassLoaders handled by FastClasspathScanner
 
 FastClasspathScanner handles a number of classpath specification mechanisms, including some non-standard ClassLoader implementations:
 * The `java.class.path` system property, supporting specification of the classpath using the `-cp` JRE commandline switch.
@@ -144,12 +146,6 @@ FastClasspathScanner handles a number of classpath specification mechanisms, inc
 [Note that if you have a custom classloader in your runtime that is not covered by one of the above cases, [you can add your own ClassLoaderHandler](#working-with-non-standard-classloaders).]
 
 Scanning is supported on Linux and Windows. (Mac OS X should work, please test and let me know.) 
-
-# API
-
-Most of the methods in the API return `this` (of type `FastClasspathScanner`), so that you can use the [method chaining](http://en.wikipedia.org/wiki/Method_chaining) calling style, as shown in the example above.
-
-Note that the `|` character is used below to compactly describe overloaded methods below, e.g. `getNamesOfSuperclassesOf(Class<?> subclass | String subclassName)`. 
 
 ## Constructor
 
@@ -464,12 +460,11 @@ boolean ClassInfo#metaAnnotatesAnnotation(final String annotationName)
 Set<ClassInfo> ClassInfo#getAnnotationsWithDirectMetaAnnotation()
 List<String> ClassInfo#getNamesOfAnnotationsWithDirectMetaAnnotation()
 boolean ClassInfo#hasDirectMetaAnnotation(final String directMetaAnnotationName)
-}
 ```
 
 Properties of the annotation scanning API:
 
-1. There are convenience methods for matching classes that have **AnyOf** a given list of annotations/meta-annotations (an **OR** operator), and methods for matching classes that have **AllOf** a given list of annotations/meta-annotations (an **AND** operator). 
+1. There are convenience methods for matching classes that have **AnyOf** a given list of annotations/meta-annotations (an **OR** operator), and methods for matching classes that have **AllOf** a given list of annotations/meta-annotations (an **AND** operator). N.B. The "AllOf" operator could also be accomplished using Java 8 stream filtering of `ClassInfo` objects with multiple `.filter()` stages added to the stream pipeline. 
 2. The method `getNamesOfClassesWithAnnotation()` (which maps from an annotation/meta-annotation to classes it annotates/meta-annotates) is the inverse of the method `getNamesOfAnnotationsOnClass()` (which maps from a class to annotations/meta-annotations on the class; this is related to `Class.getAnnotations()` in the Java reflections API, but it returns not just direct annotations on a class, but also meta-annotations that are in the transitive closure of the annotation graph, starting at the class of interest). Note that this method does not return annotations that are meta-annotated with the requested (meta-)annotation, it only returns standard classes or interfaces that have the requested (meta-)annotation.
 3. The method `getNamesOfAnnotationsWithMetaAnnotation()` (which maps from meta-annotations to annotations they meta-annotate) is the inverse of the method `getNamesOfMetaAnnotationsOnAnnotation()` (which maps from annotations to the meta-annotations that annotate them; this also retuns the transitive closure of the annotation graph, starting at an annotation of interest).
 
@@ -538,7 +533,7 @@ Matching field types also matches type parameters and array types. For example, 
 * `HashMap<String, Widget> idToWidget`
 * etc.
 
-Note that you must call `FastClasspathScanner#enableFieldTypeIndexing()` before `ScanResult#getNamesOfClassesWithFieldOfType(type)`, because field types are not indexed by default. (If you forget, you'll get an IllegalArgumentException.)  You also need to call  `FastClasspathScanner#ignoreFieldVisibility()` before `FastClasspathScanner#scan()` if you want to index types of non-public fields.
+Note that you must call `FastClasspathScanner#enableFieldTypeIndexing()` before `ScanResult#getNamesOfClassesWithFieldOfType(type)`, because field types are not indexed by default. (If you forget, you'll get an IllegalArgumentException.) (If you call `FastClasspathScanner#matchClassesWithFieldOfType()`, it will automatically call `FastClasspathScanner#enableFieldTypeIndexing()` for you.)
 
 By default, only the types of public fields are indexed. To override this (and allow the indexing of private, protected and package-private fields), call `FastClasspathScanner#ignoreFieldVisibility()` before calling `FastClasspathScanner#scan()`. This may cause the scan to take longer and consume more memory. (By default, only public fields are scanned for efficiency reasons, and to conservatively respect the Java visibility rules.)
 
@@ -741,6 +736,29 @@ List<String> ScanResult#getNamesOfAllInterfaceClasses()
 
 // Get names of all annotations
 List<String> ScanResult#getNamesOfAllAnnotationClasses()
+
+// Mechanism 3: Related ClassInfo methods
+
+// Get map from class name to all ClassInfo objects
+Map<String, ClassInfo> ScanResult#getClassNameToClassInfo()
+
+// Java 8: get stream of all ClassInfo objects
+Map<String, ClassInfo> ScanResult#getClassNameToClassInfo()#values#stream()
+
+// The following can be used with Java 8 stream filtering of ClassInfo objects:
+
+// Returns true if this ClassInfo corresponds to a standard class
+// (meaning a class that is not an interface or annotation)
+public boolean isStandardClass()
+
+// Returns true if this ClassInfo corresponds to an "implemented interface"
+// (meaning a standard, non-annotation interface, or an annotation that has
+// also been implemented as an interface by some class -- it turns out you
+// can implement annotations!).
+public boolean isImplementedInterface()
+
+// Returns true if this ClassInfo corresponds to an annotation.
+public boolean isAnnotation()
 ```
 
 ### 11. Get all unique directories and files on the classpath
