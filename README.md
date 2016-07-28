@@ -86,11 +86,11 @@ new FastClasspathScanner("com.xyz.widget")
 
 **Mechanism 2:**
 
-1. Construct a `FastClasspathScanner` instance, potentially without adding any MatchProcessors.
-2. Call `FastClasspathScanner#scan()` to scan the classpath. The return value is of type `ScanResult`.
+1. Construct a `FastClasspathScanner` instance.
+2. Call `FastClasspathScanner#scan()` to scan the classpath and obtain a `ScanResult`.
 3. Call `ScanResult#getNamesOf...()` methods to query for classes, interfaces and annotations of interest.
 
-This method does not call the classloader on any matching classes, which can be useful if the static initializer code for matching classes would trigger unwanted side effects if run during a classpath scan. (The `ScanResult#getNamesOf...()` methods return lists of strings, rather than lists of `Class<?>` references -- resolving a class reference requires calling the classloader.)
+This method does not call the classloader on any matching classes, which avoids the overhead of classfile loading, and means that static initializer blocks are not run for matching classes during the scan. (The `ScanResult#getNamesOf...()` methods return class name strings rather than `Class<?>` references, and FastClasspathScanner reads the classfile binary headers directly, which is why the classloader does not need to be run to return results using this mechanism.)
 
 ```java
 // No need to add any MatchProcessors, just create a new scanner and then call
@@ -106,11 +106,11 @@ List<String> subclassesOfWidget =
 
 **Mechanism 3:**
 
-1. Construct a `FastClasspathScanner` instance, potentially without adding any MatchProcessors.
-2. Call `FastClasspathScanner#scan()` to scan the classpath. The return value is of type `ScanResult`.
-3. Call `ScanResult#classNameToClassInfo()` to get a map from class name to a `ClassInfo` object describing the class.
-4. Call `classNameToClassInfo.get(className)` to get info about a specific class.
-5. Alternatively, call `ScanResult#classNameToClassInfo()#values()#stream()` in Java 8 to filter for classes that match specific criteria.
+1. Construct a `FastClasspathScanner` instance.
+2. Call `FastClasspathScanner#scan()` to scan the classpath and obtain a `ScanResult`.
+3. Call `Map<String, ClassInfo> classNameToClassInfo = ScanResult#getClassNameToClassInfo()` to get a map from class name to a `ClassInfo` object describing the class.
+4. Use the classNameToClassInfo map to get information about a specific class, by calling `ClassInfo classInfo = classNameToClassInfo.get(className)`. (Note that the result will be null if the named class was not found during the scan, e.g. if the class exists, but did not match the whitelist criteria for the scan.) Then call `ClassInfo` methods such as `classInfo.getNamesOfSubinterfaces()` or `classInfo.getClassesImplementing()` to obtain information about how the named class is related to other classes.
+5. Alternatively, if using Java 8, call `ScanResult#classNameToClassInfo()#values()#stream()` to create a stream of ClassInfo instances that may be filtered for specific criteria, e.g. using `.filter(c -> c.hasSuperclass(MySuperclass.class.getName()))`.
 
 ```java
 // Manually query classNameToClassInfo
