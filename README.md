@@ -132,21 +132,6 @@ List<String> widgetSubClasses = new FastClasspathScanner("com.xyz.widget").scan(
                 .collect(Collectors.toList());
 ```
 
-### Classpath mechanisms and ClassLoaders handled by FastClasspathScanner
-
-FastClasspathScanner handles a number of classpath specification mechanisms, including some non-standard ClassLoader implementations:
-* The `java.class.path` system property, supporting specification of the classpath using the `-cp` JRE commandline switch.
-* The standard Java `URLClassLoader`, and both standard and custom subclasses. (Some runtime environments override URLClassLoader for their own purposes, but do not set `java.class.path` -- FastClasspathScanner fetches classpath URLs from all visible URLClassLoaders.)
-* [Class-Path references](https://docs.oracle.com/javase/tutorial/deployment/jar/downman.html) in a jarfile's `META-INF/MANIFEST.MF`, whereby jarfiles may add other external jarfiles to their own classpaths. FastClasspathScanner is able to determine the transitive closure of these references, breaking cycles if necessary.
-* The JBoss/WildFly classloader.
-* The WebLogic classloader.
-* The OSGi Equinox classloader (e.g. for Eclipse PDE).
-* Eventually, the Java 9 module system [work has not started on this yet -- patches are welcome].
-
-[Note that if you have a custom classloader in your runtime that is not covered by one of the above cases, [you can add your own ClassLoaderHandler](#working-with-non-standard-classloaders).]
-
-Scanning is supported on Linux and Windows. (Mac OS X should work, please test and let me know.) 
-
 ## Constructor
 
 You can pass a scanning specification to the constructor of `FastClasspathScanner` to describe what should be scanned. This prevents irrelevant classpath entries from being unecessarily scanned, which can be time-consuming. (Note that calling the constructor does not start the scan, you must separately call `FastClasspathScanner#scan()` to perform the actual scan.)
@@ -801,16 +786,6 @@ or similar, generating a graph with the following conventions:
 2. Dependency edges between classes and the types of their fields are only shown if you call `FastClasspathScanner#enableFieldTypeIndexing()` before `FastClasspathScanner#scan()`. You also need to call  `FastClasspathScanner#ignoreFieldVisibility()` before `FastClasspathScanner#scan()` if you want to show type dependencies for non-public fields.
 3. Only public fields are scanned by default, so the graph won't show relationships between a class and its field types unless the fields are public. This can be overridden by calling `FastClasspathScanner#ignoreFieldVisibility()` before `FastClasspathScanner#scan()`.   
 
-## Parallel classpath scanning
-
-As of version 1.90.0, FastClasspathScanner performs multithreaded scanning, which overlaps disk/SSD reads, jarfile decompression and classfile parsing across multiple threads. This can produce a speedup in scanning of anywhere between 1.3x to 3x. (The speedup will increase by a factor of two or more on the second and subsequent scan of the same classpath by the same JVM instance, due to the use of caching within the JVM, e.g. for path canonicalization.)
-
-Note that any custom MatchProcessors that you add are all currently run on a single thread, so they do not necessarily need to be threadsafe relative to each other (though it's a good futureproofing habit to always write threadsafe code, even in supposedly single-threaded contexts). However, MatchProcessors are run in a different thread than the main thread. If you use the blocking call `FastClasspathScanner#scan()`, then the main thread is blocked waiting on the result of the scan when the MatchProcessors are run. However, if you use the non-blocking call `FastClasspathScanner#scanAsync()`, which returns a `Future<ScanResult>`, then your main thread will return immediately, and will potentially be running in parallel with the thread that runs the MatchProcessors. You therefore need to properly synchronize communication and data access between MatchProcessors and the main thread in the async case. 
-
-If you want to do CPU-intensive processing in a `MatchProcessor`, and need the speed advantage of doing the work in parallel across all matching classes, you should use the `MatchProcessor` to obtain the data you need on matching classes, and then schedule the work to be done in parallel after `FastClasspathScanner#scan()` has finished.
-
-With this change, according to profiling results, FastClasspathScanner is running at close to the theoretical maximum possible speed for a classpath scanner, because it is I/O-bound, as well as limited by the decompression speed of `java.util.zip` (which is a JNI wrapper over a native decompressor, and appears to currently be the fastest unzip library for Java).
-
 ## Debugging
 
 If FastClasspathScanner is not finding the classes, interfaces or files you think it should be finding, you can debug the scanning behavior by calling 'FastClasspathScanner#verbose()` before `FastClasspathScanner#scan()`:
@@ -821,13 +796,30 @@ FastClasspathScanner FastClasspathScanner#verbose()
 FastClasspathScanner FastClasspathScanner#verbose(boolean verbose)
 ```
 
-## More complex usage
+## Parallel classpath scanning
 
-### Use with Java 7
+As of version 1.90.0, FastClasspathScanner performs multithreaded scanning, which overlaps disk/SSD reads, jarfile decompression and classfile parsing across multiple threads. This can produce a speedup in scanning of anywhere between 1.3x to 3x. (The speedup will increase by a factor of two or more on the second and subsequent scan of the same classpath by the same JVM instance, due to the use of caching within the JVM, e.g. for path canonicalization.)
 
-FastClasspathScanner needs to be built with JDK 8, since [`MatchProcessors`](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) are declared with a `@FunctionalInterface` annotation, which does not exist in JDK 7. (There are no other Java 8 features in use in FastClasspathScanner currently.) If you need to build with JDK 1.7, you can always manually remove the `@FunctionalInterface` annotations from the MatchProcessors. However, the project can be compiled in Java 7 compatibility mode, which does not complain about these annotations, and can generate a jarfile that works with both Java 7 and Java 8. The jarfile available from [Maven Central](#downloading) is compatible with Java 7.
+Note that any custom MatchProcessors that you add are all currently run on a single thread, so they do not necessarily need to be threadsafe relative to each other (though it's a good futureproofing habit to always write threadsafe code, even in supposedly single-threaded contexts). However, MatchProcessors are run in a different thread than the main thread. If you use the blocking call `FastClasspathScanner#scan()`, then the main thread is blocked waiting on the result of the scan when the MatchProcessors are run. However, if you use the non-blocking call `FastClasspathScanner#scanAsync()`, which returns a `Future<ScanResult>`, then your main thread will return immediately, and will potentially be running in parallel with the thread that runs the MatchProcessors. You therefore need to properly synchronize communication and data access between MatchProcessors and the main thread in the async case. 
 
-Note that the first usage of Java 8 features like lambda expressions or Streams incurs a one-time startup penalty of 30-40ms (this startup cost is incurred by the JDK, not by FastClasspathScanner).
+If you want to do CPU-intensive processing in a `MatchProcessor`, and need the speed advantage of doing the work in parallel across all matching classes, you should use the `MatchProcessor` to obtain the data you need on matching classes, and then schedule the work to be done in parallel after `FastClasspathScanner#scan()` has finished.
+
+With this change, according to profiling results, FastClasspathScanner is running at close to the theoretical maximum possible speed for a classpath scanner, because it is I/O-bound, as well as limited by the decompression speed of `java.util.zip` (which is a JNI wrapper over a native decompressor, and appears to currently be the fastest unzip library for Java).
+
+## Classpath mechanisms and ClassLoaders handled by FastClasspathScanner
+
+FastClasspathScanner handles a number of classpath specification mechanisms, including some non-standard ClassLoader implementations:
+* The `java.class.path` system property, supporting specification of the classpath using the `-cp` JRE commandline switch.
+* The standard Java `URLClassLoader`, and both standard and custom subclasses. (Some runtime environments override URLClassLoader for their own purposes, but do not set `java.class.path` -- FastClasspathScanner fetches classpath URLs from all visible URLClassLoaders.)
+* [Class-Path references](https://docs.oracle.com/javase/tutorial/deployment/jar/downman.html) in a jarfile's `META-INF/MANIFEST.MF`, whereby jarfiles may add other external jarfiles to their own classpaths. FastClasspathScanner is able to determine the transitive closure of these references, breaking cycles if necessary.
+* The JBoss/WildFly classloader.
+* The WebLogic classloader.
+* The OSGi Equinox classloader (e.g. for Eclipse PDE).
+* Eventually, the Java 9 module system [work has not started on this yet -- patches are welcome].
+
+[Note that if you have a custom classloader in your runtime that is not covered by one of the above cases, [you can add your own ClassLoaderHandler](#working-with-non-standard-classloaders).]
+
+Scanning is supported on Linux and Windows. (Mac OS X should work, please test and let me know.) 
 
 ### Working with non-standard ClassLoaders
 
@@ -848,7 +840,13 @@ Note that you can always override the system classpath with your own path, using
 FastClasspathScanner FastClasspathScanner#overrideClasspath(String classpath)
 ```
 
-### Getting generic class references for parameterized classes
+## Use with Java 7
+
+FastClasspathScanner needs to be built with JDK 8, since [`MatchProcessors`](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) are declared with a `@FunctionalInterface` annotation, which does not exist in JDK 7. (There are no other Java 8 features in use in FastClasspathScanner currently.) If you need to build with JDK 1.7, you can always manually remove the `@FunctionalInterface` annotations from the MatchProcessors. However, the project can be compiled in Java 7 compatibility mode, which does not complain about these annotations, and can generate a jarfile that works with both Java 7 and Java 8. The jarfile available from [Maven Central](#downloading) is compatible with Java 7.
+
+Note that the first usage of Java 8 features like lambda expressions or Streams incurs a one-time startup penalty of 30-40ms (this startup cost is incurred by the JDK, not by FastClasspathScanner).
+
+## Advanced: getting generic class references for parameterized classes
 
 A problem arises when using class-based matchers with parameterized classes, e.g. `Widget<K>`. Because of type erasure, The expression `Widget<K>.class` is not defined, and therefore it is impossible to cast `Class<Widget>` to `Class<Widget<K>>`. More specifically:
 
