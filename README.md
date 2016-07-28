@@ -111,8 +111,8 @@ List<String> subclassesOfWidget =
 1. Construct a `FastClasspathScanner` instance.
 2. Call `FastClasspathScanner#scan()` to scan the classpath and obtain a `ScanResult`.
 3. Call `Map<String, ClassInfo> classNameToClassInfo = ScanResult#getClassNameToClassInfo()` to get a map from class name to a `ClassInfo` object describing the class.
-4. Use the classNameToClassInfo map to get information about a specific class, by calling `ClassInfo classInfo = classNameToClassInfo.get(className)`. (Note that the result will be null if the named class was not found during the scan, e.g. if the class exists, but did not match the whitelist criteria for the scan.) Then call `ClassInfo` methods such as `classInfo.getNamesOfSubinterfaces()` or `classInfo.getClassesImplementing()` to obtain information about how the named class is related to other classes.
-5. Alternatively, if using Java 8, call `ScanResult#classNameToClassInfo()#values()#stream()` to create a stream of ClassInfo instances that may be filtered for specific criteria.
+4. Use the `classNameToClassInfo` map to get information about a specific class, by calling `ClassInfo classInfo = classNameToClassInfo.get(className)`. (Note that the result will be null if the named class was not found during the scan, e.g. if the class exists, but did not match the whitelist criteria for the scan.) Then call `ClassInfo` methods such as `classInfo.getNamesOfSubinterfaces()` or `classInfo.getClassesImplementing()` to obtain information about how the named class is related to other classes.
+5. Alternatively, if using Java 8, call `ScanResult#classNameToClassInfo()#values()#stream()` to create a stream of ClassInfo instances that may be filtered for specific criteria using `ClassInfo` predicate functions, e.g. `.filter(ci -> ci.implementsInterface(Runnable.class.getName()))`.
 
 ```java
 // Java 7 / Java 8: manually query classNameToClassInfo
