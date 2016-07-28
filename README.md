@@ -113,15 +113,16 @@ List<String> subclassesOfWidget =
 5. Alternatively, if using Java 8, call `ScanResult#classNameToClassInfo()#values()#stream()` to create a stream of ClassInfo instances that may be filtered for specific criteria, e.g. using `.filter(c -> c.hasSuperclass(MySuperclass.class.getName()))`.
 
 ```java
-// Manually query classNameToClassInfo
+// Java 7 / Java 8: manually query classNameToClassInfo
 ScanResult scanResult = new FastClasspathScanner("com.xyz.widget").scan();
 Map<String, ClassInfo> classNameToClassInfo = scanResult.getClassNameToClassInfo();
 ClassInfo widgetClassInfo = classNameToClassInfo.get("com.xyz.widget.Widget");
 List<String> widgetSubClasses = widgetClassInfo == null ? Collections.emptyList()
         : widgetClassInfo.getNamesOfSubclasses();
 
-// Or filter all ClassInfo using Java 8 stream filtering (note that multiple
-// filter() stages can be added to locate classes that meet multiple criteria):
+// Alternatively, in Java 8: filter ClassInfo objects for all whitelisted classes
+// using Java 8 stream processing. Note that multiple filter() stages can be added
+// to specify multiple matching criteria (only one filter stage is shown below):
 List<String> widgetSubClasses = new FastClasspathScanner("com.xyz.widget").scan()
         .getClassNameToClassInfo().values().stream()
                 .filter(ci -> ci.hasSuperclass(Widget.class.getName()))
