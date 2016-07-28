@@ -44,7 +44,7 @@ Classpath scanning can also be used to produce a visualization of the class grap
 
 ### Usage
 
-There are three different mechanisms for using FastClasspathScanner (multiple of these mechanisms can be used together if necessary):
+There are three different mechanisms for using FastClasspathScanner (these mechanisms can be used together if necessary):
 
 1. Add `MatchProcessors` to a new `FastClasspathScanner` instance, then call `FastClasspathScanner#scan()` to start the scan. If matching classes or files are found, the method `MatchProcessor#processMatch()` will be called.
 2. Call `FastClasspathScanner#scan()` to create a `ScanResult` instance, then query this instance for classes matching certain criteria.
@@ -52,10 +52,10 @@ There are three different mechanisms for using FastClasspathScanner (multiple of
 
 **Mechanism 1:**
 
-1. Create a FastClasspathScanner instance, [passing the constructor](#constructor) a whitelist of package prefixes to scan within (and/or a blacklist of package prefixes to ignore);
-2. Add one or more [`MatchProcessor`](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) instances to the FastClasspathScanner by calling a `FastClasspathScanner#match...()` method on the FastClasspathScanner instance;
-3. Optionally call 'FastClasspathScanner#verbose()` to give verbose output for debugging purposes; and
-4. Call `FastClasspathScanner#scan()` to start the scan.
+a. Create a FastClasspathScanner instance, [passing the constructor](#constructor) a whitelist of package prefixes to scan within (and/or a blacklist of package prefixes to ignore, prefixed with `'-'`);
+b. Add one or more [`MatchProcessor`](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) instances to the FastClasspathScanner by calling a `#match...()` method on the `FastClasspathScanner` instance;
+c. Optionally call 'FastClasspathScanner#verbose()` to give verbose output for debugging purposes; and
+d. Call `FastClasspathScanner#scan()` to start the scan.
  
 ```java
 // Java 7 version:
@@ -74,7 +74,7 @@ new FastClasspathScanner("com.xyz.widget")
 // Java 8 version:
 new FastClasspathScanner("com.xyz.widget")  
     .matchSubclassesOf(Widget.class, 
-            c -> System.out.println("Subclass of Widget: " + matchingClass))
+            c -> System.out.println("Subclass of Widget: " + c))
     .scan();
     
 // Alternative Java 8 version using a method reference:
@@ -84,9 +84,13 @@ new FastClasspathScanner("com.xyz.widget")
     .scan();
 ```
 
-**Mechanism 2:** Construct a `FastClasspathScanner` instance, potentially without adding any MatchProcessors, then call `FastClasspathScanner#scan()` to scan the classpath. This will return a `ScanResult` object with additional `ScanResult#get...()` methods that will let you query for classes, interfaces and annotations of interest without actually calling the classloader on any matching classes.
+**Mechanism 2:**
 
-The `ScanResult#getNamesOf...()` methods return sorted lists of strings, rather than lists of `Class<?>` references (because returning class references requires calling the classloader). Since scanning is done by reading the classfile directly, the classloader does not need to be called for these `ScanResult#get...()` methods to return their results. This can be useful if the static initializer code for matching classes would trigger unwanted side effects if run during a classpath scan.
+a. Construct a `FastClasspathScanner` instance, potentially without adding any MatchProcessors.
+b. Call `FastClasspathScanner#scan()` to scan the classpath. The return value is of type `ScanResult`.
+c. Call `ScanResult#getNamesOf...()` methods to query for classes, interfaces and annotations of interest.
+
+This method does not call the classloader on any matching classes, which can be useful if the static initializer code for matching classes would trigger unwanted side effects if run during a classpath scan. (The `ScanResult#getNamesOf...()` methods return lists of strings, rather than lists of `Class<?>` references -- resolving a class reference requires calling the classloader.)
 
 ```java
 // No need to add any MatchProcessors, just create a new scanner and then call
@@ -100,7 +104,13 @@ List<String> subclassesOfWidget =
     scanResult.getNamesOfSubclassesOf(Widget.class.getName());
 ```
 
-**Mechanism 3:** Call `ScanResult#classNameToClassInfo()` after calling `FastClasspathScanner#scan()` to get a map from class name to a `ClassInfo` object describing the class, then query the class graph directly. Note that Java 8 streams can be used as a nice way of creating complex multi-criterion class filters using this mechanism.
+**Mechanism 3:**
+
+a. Construct a `FastClasspathScanner` instance, potentially without adding any MatchProcessors.
+b. Call `FastClasspathScanner#scan()` to scan the classpath. The return value is of type `ScanResult`.
+c. Call `ScanResult#classNameToClassInfo()` to get a map from class name to a `ClassInfo` object describing the class.
+d. Call `classNameToClassInfo.get(className)` to get info about a specific class.
+e. Alternatively, call `ScanResult#classNameToClassInfo()#values()#stream()` in Java 8 to filter for classes that match specific criteria.
 
 ```java
 // Manually query classNameToClassInfo
@@ -111,7 +121,7 @@ List<String> widgetSubClasses = widgetClassInfo == null ? Collections.emptyList(
         : widgetClassInfo.getNamesOfSubclasses();
 
 // Or filter all ClassInfo using Java 8 stream filtering (note that multiple
-// filter() stages can be added to locate classes that satisfy multiple criteria):
+// filter() stages can be added to locate classes that meet multiple criteria):
 List<String> widgetSubClasses = new FastClasspathScanner("com.xyz.widget").scan()
         .getClassNameToClassInfo().values().stream()
                 .filter(ci -> ci.hasSuperclass(Widget.class.getName()))
