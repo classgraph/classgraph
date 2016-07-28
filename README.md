@@ -1,9 +1,7 @@
 FastClasspathScanner
 ====================
 
-FastClasspathScanner is an uber-fast, ultra-lightweight classpath scanner for Java, Scala and other JVM languages. Users have reported an order of magnitude speedup when switching to FastClasspathScanner from other classpath scanning methods such as [Reflections](https://github.com/ronmamo/reflections).
-
-**UPDATE:** FastClasspathScanner now supports [multithreaded classpath scanning](#parallel-classpath-scanning) by default for extra speed.
+FastClasspathScanner is an uber-fast, ultra-lightweight classpath scanner for Java, Scala and other JVM languages.
 
 **What is classpath scanning?** Classpath scanning involves scanning directories and jar/zip files on the classpath to find files (especially classfiles) that meet certain criteria. In many ways, classpath scanning offers the *inverse of the Java reflection API:*
 
@@ -11,7 +9,9 @@ FastClasspathScanner is an uber-fast, ultra-lightweight classpath scanner for Ja
 * The Java reflection API can give you the list of annotations on a given class, but classpath scanning can find all classes that are annotated with a given annotation.
 * etc. (Many other classpath scanning objectives are listed below.)
 
-Classpath scanning can also be used to produce a visualization of the class graph (the "class hierarchy"). Class graph visualizations can be useful in understanding complex codebases, and for finding architectural design issues (e.g. in the graph visualization below, you can see that `ShapeImpl` only needs to implement `Shape`, not `Renderable`, because `Renderable` is already a superinterface of `Shape`). [[see graph legend here]](#12-generate-a-graphviz-dot-file-from-the-classgraph)<a name="visualization"></a>
+**How fast is FastClasspathScanner?** FastClasspathScanner has been carefully profiled, tuned and multithreaded to overlap disk/SSD reads, jarfile decompression and classfile parsing across multiple threads, achieving close to the theoretical maximum possible speed for a classpath scanner. Users have reported an order of magnitude speedup when switching to FastClasspathScanner from other classpath scanning methods such as [Reflections](https://github.com/ronmamo/reflections).
+
+**Classpath scanning for class graph visualization:** Classpath scanning can also be used to produce a visualization of the class graph (the "class hierarchy"). Class graph visualizations can be useful in understanding complex codebases, and for finding architectural design issues (e.g. in the graph visualization below, you can see that `ShapeImpl` only needs to implement `Shape`, not `Renderable`, because `Renderable` is already a superinterface of `Shape`). [[see graph legend here]](#12-generate-a-graphviz-dot-file-from-the-classgraph)<a name="visualization"></a>
 
 <p align="center">
   <img src="https://github.com/lukehutch/fast-classpath-scanner/blob/master/src/test/java/com/xyz/classgraph-fig.png" alt="Class graph visualization"/>
@@ -798,13 +798,11 @@ FastClasspathScanner FastClasspathScanner#verbose(boolean verbose)
 
 ## Parallel classpath scanning
 
-As of version 1.90.0, FastClasspathScanner performs multithreaded scanning, which overlaps disk/SSD reads, jarfile decompression and classfile parsing across multiple threads. This can produce a speedup in scanning of anywhere between 1.3x to 3x. (The speedup will increase by a factor of two or more on the second and subsequent scan of the same classpath by the same JVM instance, due to the use of caching within the JVM, e.g. for path canonicalization.)
+As of version 1.90.0, FastClasspathScanner performs multithreaded scanning, which overlaps disk/SSD reads, jarfile decompression and classfile parsing across multiple threads. This can produce a speedup in scanning of anywhere between 1.3x to 3x compared to earlier versions of FastClasspathScanner. (The speedup will increase by a factor of two or more on the second and subsequent scan of the same classpath by the same JVM instance, due to the use of caching within the JVM, e.g. for path canonicalization.)
 
 Note that any custom MatchProcessors that you add are all currently run on a single thread, so they do not necessarily need to be threadsafe relative to each other (though it's a good futureproofing habit to always write threadsafe code, even in supposedly single-threaded contexts). However, MatchProcessors are run in a different thread than the main thread. If you use the blocking call `FastClasspathScanner#scan()`, then the main thread is blocked waiting on the result of the scan when the MatchProcessors are run. However, if you use the non-blocking call `FastClasspathScanner#scanAsync()`, which returns a `Future<ScanResult>`, then your main thread will return immediately, and will potentially be running in parallel with the thread that runs the MatchProcessors. You therefore need to properly synchronize communication and data access between MatchProcessors and the main thread in the async case. 
 
 If you want to do CPU-intensive processing in a `MatchProcessor`, and need the speed advantage of doing the work in parallel across all matching classes, you should use the `MatchProcessor` to obtain the data you need on matching classes, and then schedule the work to be done in parallel after `FastClasspathScanner#scan()` has finished.
-
-With this change, according to profiling results, FastClasspathScanner is running at close to the theoretical maximum possible speed for a classpath scanner, because it is I/O-bound, as well as limited by the decompression speed of `java.util.zip` (which is a JNI wrapper over a native decompressor, and appears to currently be the fastest unzip library for Java).
 
 ## Classpath mechanisms and ClassLoaders handled by FastClasspathScanner
 
