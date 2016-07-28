@@ -405,6 +405,9 @@ List<String> ScanResult#getNamesOfAnnotationsOnClass(
     Class<?> classOrInterfaceOrAnnotation
     | String classOrInterfaceOrAnnotationName)
 
+List<String> ScanResult#getNamesOfAnnotationsWithMetaAnnotation(
+    Class<?> annotation | String annotationName)
+
 ```
 
 Properties of the annotation scanning API:

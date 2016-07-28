@@ -679,6 +679,25 @@ public class ClassInfo implements Comparable<ClassInfo> {
 
     // -------------
 
+    /** Return the set of all annotations and meta-annotations, if this is an annotation class. */
+    public Set<ClassInfo> getMetaAnnotations() {
+        return !isAnnotation() ? Collections.emptySet()
+                : filterClassInfo(getReachableClasses(RelType.ANNOTATIONS), /* removeExternalClasses = */ true,
+                        ClassType.ALL);
+    }
+
+    /** Return the sorted list of names of all annotations and meta-annotations, if this is an annotation class. */
+    public List<String> getNamesOfMetaAnnotations() {
+        return getClassNames(getMetaAnnotations());
+    }
+
+    /** Returns true if this is an annotation class and it has the named meta-annotation. */
+    public boolean hasMetaAnnotation(final String metaAnnotationName) {
+        return getNamesOfMetaAnnotations().contains(metaAnnotationName);
+    }
+
+    // -------------
+
     /**
      * Return the set of all direct annotations and meta-annotations on this class or interface, or of direct
      * meta-annotations if this is an annotation. (This is equivalent to the reflection call Class#getAnnotations(),
@@ -709,20 +728,20 @@ public class ClassInfo implements Comparable<ClassInfo> {
     // -------------
 
     /** Return the set of all annotations that have this meta-annotation. */
-    public Set<ClassInfo> getAnnotationsWithMetaAnnotation() {
+    public Set<ClassInfo> getAnnotationsWithThisMetaAnnotation() {
         return !isAnnotation() ? Collections.emptySet()
                 : filterClassInfo(getReachableClasses(RelType.ANNOTATED_CLASSES),
                         /* removeExternalClasses = */ true, ClassType.ANNOTATION);
     }
 
     /** Return the sorted list of names of all annotations that have this meta-annotation. */
-    public List<String> getNamesOfAnnotationsWithMetaAnnotation() {
-        return getClassNames(getAnnotationsWithMetaAnnotation());
+    public List<String> getNamesOfAnnotationsWithThisMetaAnnotation() {
+        return getClassNames(getAnnotationsWithThisMetaAnnotation());
     }
 
     /** Returns true if this annotation has the named meta-annotation. */
-    public boolean hasMetaAnnotation(final String metaAnnotationName) {
-        return getNamesOfAnnotationsWithMetaAnnotation().contains(metaAnnotationName);
+    public boolean metaAnnotatesAnnotation(final String annotationName) {
+        return getNamesOfAnnotationsWithThisMetaAnnotation().contains(annotationName);
     }
 
     // -------------
