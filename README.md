@@ -400,11 +400,10 @@ List<String> ScanResult#getNamesOfAnnotationsWithMetaAnnotation(
 // or the meta-annotations on an annotation. This is more powerful than
 // Class.getAnnotations(), because it also returns meta-annotations.
 
-List<String> ScanResult#getNamesOfAnnotationsOnClass(
-    Class<?> classOrInterface | String classOrInterfaceName)
+List<String> ScanResult#getNamesOfAnnotations(
+    Class<?> classOrInterfaceOrAnnotation
+    | String classOrInterfaceOrAnnotationName)
 
-List<String> ScanResult#getNamesOfMetaAnnotationsOnAnnotation(
-    Class<?> annotation | String annotationName)
 ```
 
 Properties of the annotation scanning API:

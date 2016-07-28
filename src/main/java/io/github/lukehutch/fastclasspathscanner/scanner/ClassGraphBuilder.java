@@ -179,18 +179,13 @@ class ClassGraphBuilder {
     }
 
     /** Return the sorted list of names of all annotations and meta-annotations on the named class. */
-    List<String> getNamesOfAnnotationsOnClass(final String classOrInterfaceName) {
-        final ClassInfo classInfo = classNameToClassInfo.get(classOrInterfaceName);
+    List<String> getNamesOfAnnotations(final String classOrInterfaceOrAnnotationName) {
+        final ClassInfo classInfo = classNameToClassInfo.get(classOrInterfaceOrAnnotationName);
         if (classInfo == null) {
             return Collections.emptyList();
         } else {
-            return classInfo.getNamesOfAnnotationsOnClass();
+            return classInfo.getNamesOfAnnotations();
         }
-    }
-
-    /** Return the sorted list of names of all meta-annotations on the named annotation. */
-    List<String> getNamesOfMetaAnnotationsOnAnnotation(final String annotationName) {
-        return getNamesOfAnnotationsOnClass(annotationName);
     }
 
     /** Return the names of all annotations that have the named meta-annotation. */
