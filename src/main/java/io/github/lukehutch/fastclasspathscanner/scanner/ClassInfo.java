@@ -777,20 +777,20 @@ public class ClassInfo implements Comparable<ClassInfo> {
     // -------------
 
     /** Return the set of all annotations that have this meta-annotation. */
-    public Set<ClassInfo> getAnnotationsWithThisMetaAnnotation() {
+    public Set<ClassInfo> getAnnotationsWithMetaAnnotation() {
         return !isAnnotation() ? Collections.emptySet()
                 : filterClassInfo(getReachableClasses(RelType.ANNOTATED_CLASSES),
                         /* removeExternalClasses = */ true, ClassType.ANNOTATION);
     }
 
     /** Return the sorted list of names of all annotations that have this meta-annotation. */
-    public List<String> getNamesOfAnnotationsWithThisMetaAnnotation() {
-        return getClassNames(getAnnotationsWithThisMetaAnnotation());
+    public List<String> getNamesOfAnnotationsWithMetaAnnotation() {
+        return getClassNames(getAnnotationsWithMetaAnnotation());
     }
 
     /** Returns true if this annotation has the named meta-annotation. */
     public boolean metaAnnotatesAnnotation(final String annotationName) {
-        return getNamesOfAnnotationsWithThisMetaAnnotation().contains(annotationName);
+        return getNamesOfAnnotationsWithMetaAnnotation().contains(annotationName);
     }
 
     // -------------

@@ -195,7 +195,7 @@ class ClassGraphBuilder {
         if (classInfo == null) {
             return Collections.emptyList();
         } else {
-            return classInfo.getNamesOfAnnotationsWithThisMetaAnnotation();
+            return classInfo.getNamesOfAnnotationsWithMetaAnnotation();
         }
     }
 
