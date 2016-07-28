@@ -570,7 +570,8 @@ class ClassfileBinaryParser implements AutoCloseable {
             final String classNamePath = getConstantPoolString(readUnsignedShort());
             final String className = classNamePath.replace('/', '.');
             if ("java.lang.Object".equals(className)) {
-                // Don't process java.lang.Object
+                // Don't process java.lang.Object (it has a null superclass), though you can still search for
+                // classes that are subclasses of java.lang.Object if you add "!" to the scan spec.
                 return null;
             }
 

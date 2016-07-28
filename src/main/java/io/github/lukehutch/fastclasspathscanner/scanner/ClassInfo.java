@@ -287,7 +287,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
     }
 
     void addSuperclass(final String superclassName, final Map<String, ClassInfo> classNameToClassInfo) {
-        if (superclassName != null && !"java.lang.Object".equals(superclassName)) {
+        if (superclassName != null) {
             final ClassInfo superclassClassInfo = getOrCreateClassInfo(scalaBaseClassName(superclassName),
                     classNameToClassInfo);
             this.addRelatedClass(RelType.SUPERCLASSES, superclassClassInfo);
@@ -513,7 +513,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
 
     /** Return the set of all subinterfaces of an interface. */
     public Set<ClassInfo> getSubinterfaces() {
-        return !isImplementedInterface() ? Collections.<ClassInfo>emptySet()
+        return !isImplementedInterface() ? Collections.<ClassInfo> emptySet()
                 : filterClassInfo(getReachableClasses(RelType.CLASSES_IMPLEMENTING),
                         /* removeExternalClasses = */ true, ClassType.IMPLEMENTED_INTERFACE);
     }
@@ -532,7 +532,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
 
     /** Return the set of all direct subinterfaces of an interface. */
     public Set<ClassInfo> getDirectSubinterfaces() {
-        return !isImplementedInterface() ? Collections.<ClassInfo>emptySet()
+        return !isImplementedInterface() ? Collections.<ClassInfo> emptySet()
                 : filterClassInfo(getRelatedClasses(RelType.CLASSES_IMPLEMENTING),
                         /* removeExternalClasses = */ true, ClassType.IMPLEMENTED_INTERFACE);
     }
@@ -551,7 +551,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
 
     /** Return the set of all superinterfaces of an interface. */
     public Set<ClassInfo> getSuperinterfaces() {
-        return !isImplementedInterface() ? Collections.<ClassInfo>emptySet()
+        return !isImplementedInterface() ? Collections.<ClassInfo> emptySet()
                 : filterClassInfo(getReachableClasses(RelType.IMPLEMENTED_INTERFACES),
                         /* removeExternalClasses = */ true, ClassType.IMPLEMENTED_INTERFACE);
     }
@@ -570,7 +570,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
 
     /** Return the set of all direct superinterfaces of an interface. */
     public Set<ClassInfo> getDirectSuperinterfaces() {
-        return !isImplementedInterface() ? Collections.<ClassInfo>emptySet()
+        return !isImplementedInterface() ? Collections.<ClassInfo> emptySet()
                 : filterClassInfo(getRelatedClasses(RelType.IMPLEMENTED_INTERFACES),
                         /* removeExternalClasses = */ true, ClassType.IMPLEMENTED_INTERFACE);
     }
@@ -590,7 +590,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
     /** Return the set of all interfaces implemented by this standard class, or by one of its superclasses. */
     public Set<ClassInfo> getImplementedInterfaces() {
         if (!isStandardClass()) {
-            return Collections.<ClassInfo>emptySet();
+            return Collections.<ClassInfo> emptySet();
         } else {
             final Set<ClassInfo> superclasses = ClassInfo.filterClassInfo(getReachableClasses(RelType.SUPERCLASSES),
                     /* removeExternalClasses = */ true, ClassType.STANDARD_CLASS);
@@ -621,7 +621,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
      */
     public Set<ClassInfo> getDirectlyImplementedInterfaces() {
         if (!isStandardClass()) {
-            return Collections.<ClassInfo>emptySet();
+            return Collections.<ClassInfo> emptySet();
         } else {
             final Set<ClassInfo> superclasses = ClassInfo.filterClassInfo(getReachableClasses(RelType.SUPERCLASSES),
                     /* removeExternalClasses = */ true, ClassType.STANDARD_CLASS);
@@ -654,7 +654,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
     /** Return the set of all class implementing this interface, and all their subclasses. */
     public Set<ClassInfo> getClassesImplementing() {
         if (!isImplementedInterface()) {
-            return Collections.<ClassInfo>emptySet();
+            return Collections.<ClassInfo> emptySet();
         } else {
             final Set<ClassInfo> implementingClasses = ClassInfo.filterClassInfo(
                     getReachableClasses(RelType.CLASSES_IMPLEMENTING), /* removeExternalClasses = */ true,
@@ -683,7 +683,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
 
     /** Return the set of all class directly implementing this interface. */
     public Set<ClassInfo> getClassesDirectlyImplementing() {
-        return !isImplementedInterface() ? Collections.<ClassInfo>emptySet()
+        return !isImplementedInterface() ? Collections.<ClassInfo> emptySet()
                 : ClassInfo.filterClassInfo(getRelatedClasses(RelType.CLASSES_IMPLEMENTING),
                         /* removeExternalClasses = */ true, ClassType.STANDARD_CLASS);
     }
@@ -710,7 +710,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
 
     /** Return the set of all standard classes or non-annotation interfaces that this annotation class annotates. */
     public Set<ClassInfo> getClassesWithAnnotation() {
-        return !isAnnotation() ? Collections.<ClassInfo>emptySet()
+        return !isAnnotation() ? Collections.<ClassInfo> emptySet()
                 : filterClassInfo(getReachableClasses(RelType.ANNOTATED_CLASSES),
                         /* removeExternalClasses = */ true, ClassType.STANDARD_CLASS,
                         ClassType.IMPLEMENTED_INTERFACE);
@@ -736,7 +736,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
      * annotation class.
      */
     public Set<ClassInfo> getDirectlyAnnotatedClasses() {
-        return !isAnnotation() ? Collections.<ClassInfo>emptySet()
+        return !isAnnotation() ? Collections.<ClassInfo> emptySet()
                 : filterClassInfo(getRelatedClasses(RelType.ANNOTATED_CLASSES), /* removeExternalClasses = */ true,
                         ClassType.STANDARD_CLASS, ClassType.IMPLEMENTED_INTERFACE);
     }
@@ -782,7 +782,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
 
     /** Return the set of all annotations and meta-annotations, if this is an annotation class. */
     public Set<ClassInfo> getMetaAnnotations() {
-        return !isAnnotation() ? Collections.<ClassInfo>emptySet()
+        return !isAnnotation() ? Collections.<ClassInfo> emptySet()
                 : filterClassInfo(getReachableClasses(RelType.ANNOTATIONS), /* removeExternalClasses = */ true,
                         ClassType.ALL);
     }
@@ -830,7 +830,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
 
     /** Return the set of all annotations that have this meta-annotation. */
     public Set<ClassInfo> getAnnotationsWithMetaAnnotation() {
-        return !isAnnotation() ? Collections.<ClassInfo>emptySet()
+        return !isAnnotation() ? Collections.<ClassInfo> emptySet()
                 : filterClassInfo(getReachableClasses(RelType.ANNOTATED_CLASSES),
                         /* removeExternalClasses = */ true, ClassType.ANNOTATION);
     }
@@ -849,7 +849,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
 
     /** Return the set of all annotations that have this direct meta-annotation. */
     public Set<ClassInfo> getAnnotationsWithDirectMetaAnnotation() {
-        return !isAnnotation() ? Collections.<ClassInfo>emptySet()
+        return !isAnnotation() ? Collections.<ClassInfo> emptySet()
                 : filterClassInfo(getRelatedClasses(RelType.ANNOTATED_CLASSES), /* removeExternalClasses = */ true,
                         ClassType.ANNOTATION);
     }
@@ -872,7 +872,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
      * called before scanning.
      */
     public List<String> getFieldTypes() {
-        return !isStandardClass() ? Collections.<String>emptyList()
+        return !isStandardClass() ? Collections.<String> emptyList()
                 : getClassNames(filterClassInfo(getRelatedClasses(RelType.FIELD_TYPES),
                         /* removeExternalClasses = */ true, ClassType.ALL));
     }

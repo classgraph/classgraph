@@ -137,7 +137,7 @@ class ClassInfoUnlinked {
             final LogNode subLog = log.log("Found " //
                     + (isAnnotation ? "annotation class" : isInterface ? "interface class" : "class") //
                     + " " + className);
-            if (superclassName != null && !"java.lang.Object".equals(superclassName)) {
+            if (superclassName != null) {
                 subLog.log(
                         "Super" + (isInterface && !isAnnotation ? "interface" : "class") + ": " + superclassName);
             }
