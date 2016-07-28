@@ -401,7 +401,7 @@ List<String> ScanResult#getNamesOfAnnotationsWithMetaAnnotation(
 // Class.getAnnotations(), because it also returns meta-annotations,
 // and it also does not require calling the classloader.
 
-List<String> ScanResult#getNamesOfAnnotations(
+List<String> ScanResult#getNamesOfAnnotationsOnClass(
     Class<?> classOrInterfaceOrAnnotation
     | String classOrInterfaceOrAnnotationName)
 

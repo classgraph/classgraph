@@ -51,7 +51,7 @@ class ClassGraphBuilder {
     public Map<String, ClassInfo> getClassNameToClassInfo() {
         return classNameToClassInfo;
     }
-    
+
     // -------------------------------------------------------------------------------------------------------------
     // Classes
 
@@ -179,7 +179,7 @@ class ClassGraphBuilder {
     }
 
     /** Return the sorted list of names of all annotations and meta-annotations on the named class. */
-    List<String> getNamesOfAnnotations(final String classOrInterfaceOrAnnotationName) {
+    List<String> getNamesOfAnnotationsOnClass(final String classOrInterfaceOrAnnotationName) {
         final ClassInfo classInfo = classNameToClassInfo.get(classOrInterfaceOrAnnotationName);
         if (classInfo == null) {
             return Collections.emptyList();

@@ -31,7 +31,6 @@ public class Java8Test {
         final ScanResult scanResult = new FastClasspathScanner().scan();
         assertThat( //
                 scanResult.getClassNameToClassInfo().values().stream() //
-                        .filter(c -> c.isImplementedInterface()) //
                         .filter(c -> c.hasSuperinterface(Iface.class.getName())) //
                         .map(c -> c.getClassName()) //
                         .collect(Collectors.toSet())) //
