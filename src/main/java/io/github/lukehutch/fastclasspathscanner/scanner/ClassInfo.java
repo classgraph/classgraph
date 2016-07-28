@@ -599,6 +599,44 @@ public class ClassInfo implements Comparable<ClassInfo> {
 
     // -------------
 
+    /** Return the set of all interfaces implemented by this standard class. */
+    public Set<ClassInfo> getImplementedInterfaces() {
+        return !isStandardClass() ? Collections.emptySet()
+                : filterClassInfo(getReachableClasses(RelType.IMPLEMENTED_INTERFACES),
+                        /* removeExternalClasses = */ true, ClassType.IMPLEMENTED_INTERFACE);
+    }
+
+    /** Return the set of all interfaces implemented by this standard class. */
+    public List<String> getNamesOfImplementedInterfaces() {
+        return getClassNames(getImplementedInterfaces());
+    }
+
+    /** Returns true if this standard class implements the named interface. */
+    public boolean implementsInterface(final String interfaceName) {
+        return getNamesOfImplementedInterfaces().contains(interfaceName);
+    }
+
+    // -------------
+
+    /** Return the set of all interfaces directly implemented by this standard class. */
+    public Set<ClassInfo> getDirectlyImplementedInterfaces() {
+        return !isStandardClass() ? Collections.emptySet()
+                : filterClassInfo(getRelatedClasses(RelType.IMPLEMENTED_INTERFACES),
+                        /* removeExternalClasses = */ true, ClassType.IMPLEMENTED_INTERFACE);
+    }
+
+    /** Return the set of all interfaces directly implemented by this standard class. */
+    public List<String> getNamesOfDirectlyImplementedInterfaces() {
+        return getClassNames(getDirectlyImplementedInterfaces());
+    }
+
+    /** Returns true if this standard class directly implements the named interface. */
+    public boolean directlyImplementsInterface(final String interfaceName) {
+        return getNamesOfDirectlyImplementedInterfaces().contains(interfaceName);
+    }
+
+    // -------------
+
     /** Return the set of all class implementing this interface, and all their subclasses. */
     public Set<ClassInfo> getClassesImplementing() {
         if (!isImplementedInterface()) {
