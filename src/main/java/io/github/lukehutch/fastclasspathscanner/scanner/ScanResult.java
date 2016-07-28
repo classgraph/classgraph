@@ -400,35 +400,20 @@ public class ScanResult {
     }
 
     /** Return the sorted list of names of all annotations and meta-annotations on the named class. */
-    public List<String> getNamesOfAnnotationsOnClass(final String classOrInterfaceName) {
-        return classGraphBuilder.getNamesOfAnnotationsOnClass(classOrInterfaceName);
+    public List<String> getNamesOfAnnotations(final String classOrInterfaceName) {
+        return classGraphBuilder.getNamesOfAnnotations(classOrInterfaceName);
     }
 
     /**
-     * Return the names of all annotations and meta-annotations on the specified class or interface.
+     * Return the names of all annotations and meta-annotations on the specified class or interface, or the
+     * meta-annotation on the specified annotation class.
      * 
-     * @param classOrInterface
-     *            The class or interface.
+     * @param classOrInterfaceOrAnnotation
+     *            The class, interface or annotation.
      * @return A list of the names of annotations and meta-annotations on the class, or the empty list if none.
      */
-    public List<String> getNamesOfAnnotationsOnClass(final Class<?> classOrInterface) {
-        return getNamesOfAnnotationsOnClass(scanSpec.getClassOrInterfaceName(classOrInterface));
-    }
-
-    /** Return the sorted list of names of all meta-annotations on the named annotation. */
-    public List<String> getNamesOfMetaAnnotationsOnAnnotation(final String annotationName) {
-        return classGraphBuilder.getNamesOfMetaAnnotationsOnAnnotation(annotationName);
-    }
-
-    /**
-     * Return the names of all meta-annotations on the specified annotation.
-     * 
-     * @param annotation
-     *            The specified annotation.
-     * @return A list of the names of meta-annotations on the specified annotation, or the empty list if none.
-     */
-    public List<String> getNamesOfMetaAnnotationsOnAnnotation(final Class<?> annotation) {
-        return getNamesOfMetaAnnotationsOnAnnotation(scanSpec.getAnnotationName(annotation));
+    public List<String> getNamesOfAnnotations(final Class<?> classOrInterfaceOrAnnotation) {
+        return getNamesOfAnnotations(scanSpec.getClassOrInterfaceName(classOrInterfaceOrAnnotation));
     }
 
     /** Return the names of all annotations that have the named meta-annotation. */
