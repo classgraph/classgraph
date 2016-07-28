@@ -19,7 +19,7 @@ import io.github.lukehutch.fastclasspathscanner.test.whitelisted.IfaceSub;
 import io.github.lukehutch.fastclasspathscanner.test.whitelisted.IfaceSubSub;
 import io.github.lukehutch.fastclasspathscanner.test.whitelisted.Impl1;
 
-public class Java8Test {
+public class ClassInfoTest {
     @Test
     public void stream() throws Exception {
         final ScanResult scanResult = new FastClasspathScanner().scan();
