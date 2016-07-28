@@ -44,7 +44,11 @@ Classpath scanning can also be used to produce a visualization of the class grap
 
 ### Usage
 
-There are two different mechanisms for using FastClasspathScanner. (The two mechanisms can be used together.)
+There are three different mechanisms for using FastClasspathScanner (multiple of these mechanisms can be used together if necessary):
+
+1. Add `MatchProcessors` to a new `FastClasspathScanner` instance, then call `FastClasspathScanner#scan()` to start the scan. If matching classes or files are found, the method `MatchProcessor#processMatch()` will be called.
+2. Call `FastClasspathScanner#scan()` to create a `ScanResult` instance, then query this instance for classes matching certain criteria.
+3. Call `FastClasspathScanner#scan()` to create a `ScanResult` instance, then call `ScanResult#getClassNameToClassInfo()` to get a mapping from class name to an object describing the class' relationship to other classes. This map can be queried for specific classes, or you can iterate through the values of the map to get info about all whitelisted classes encountered during the scan, e.g. using Java 8 streams, and filter for classes that match specific criteria.
 
 **Mechanism 1:**
 
@@ -52,70 +56,37 @@ There are two different mechanisms for using FastClasspathScanner. (The two mech
 2. Add one or more [`MatchProcessor`](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) instances to the FastClasspathScanner by calling a `FastClasspathScanner#match...()` method on the FastClasspathScanner instance;
 3. Optionally call 'FastClasspathScanner#verbose()` to give verbose output for debugging purposes; and
 4. Call `FastClasspathScanner#scan()` to start the scan.
-
-This is the pattern shown in the following example. (Note: this example uses Java 8 lambda expressions to automatically construct the appropriate type of `MatchProcessor` corresponding to each `FastClasspathScanner#match...()` method, based on a `MatchProcessor` being a `FunctionalInterface`. See the [Tips](#tips) section for the Java 7 equivalent.)
  
 ```java
-// Package prefixes to scan are listed in the constructor:
-// -- "com.xyz.widget" is whitelisted for scanning;
-// -- "com.xyz.widget.internal" is blacklisted (ignored), as it is prefixed by "-".
-ScanResult scanResult =
-  new FastClasspathScanner("com.xyz.widget", "-com.xyz.widget.internal")
-    .matchSubclassesOf(Widget.class,
-        // c is a subclass of Widget or a descendant subclass.
-        // This lambda expression is of type SubclassMatchProcessor.
-        c -> System.out.println("Subclass of Widget: " + c.getName()))
-    .matchSubinterfacesOf(Tweakable.class,
-        // c is an interface that extends the interface Tweakable.
-        // This lambda expression is of type SubinterfaceMatchProcessor.
-        c -> System.out.println("Subinterface of Tweakable: " + c.getName()))
-    .matchClassesImplementing(Changeable.class,
-        // c is a class that implements the interface Changeable; more precisely,
-        // c or one of its superclasses implements the interface Changeable, or
-        // implements an interface that is a descendant of Changeable.
-        // This lambda expression is of type InterfaceMatchProcessor.
-        c -> System.out.println("Implements Changeable: " + c.getName()))
-    .matchClassesWithAnnotation(BindTo.class,
-        // c is a class annotated with BindTo.
-        // This lambda expression is of type AnnotationMatchProcessor.
-        c -> System.out.println("Has a BindTo class annotation: " + c.getName()))
-    .matchStaticFinalFieldNames("com.xyz.widget.Widget.LOG_LEVEL",
-        // The following method is called when any static final fields with
-        // names matching one of the above fully-qualified names are
-        // encountered, as long as those fields are initialized to constant
-        // values. The value returned is the value in the classfile, not the
-        // value that would be returned by reflection, so this can be useful
-        // in hot-swapping of changes.
-        // This lambda expression is of type StaticFinalFieldMatchProcessor.
-        (String className, String fieldName, Object fieldConstantValue) ->
-            System.out.println("Static field " + fieldName + " in class "
-            + className + " " + " currently has constant literal value "
-            + fieldConstantValue + " in the classfile"))
-    .matchFilenamePattern("^template/.*\\.html",
-        // relativePath is the section of the matching path relative to the
-        // classpath element it is contained in; fileContentBytes is the content
-        // of the file.
-        // This lambda expression is of type FileMatchContentProcessor.
-        (relativePath, fileContentBytes) ->
-            registerTemplate(relativePath, new String(fileContentBytes, "UTF-8")))
+// Java 7 version:
+new FastClasspathScanner("com.xyz.widget")  
+    .matchSubclassesOf(Widget.class, new SubclassMatchProcessor<Widget>() {
+        @Override
+        public void processMatch(Class<? extends Widget> matchingClass) {
+            System.out.println("Subclass of Widget: " + matchingClass))
+        }
+    })
     // Optional, in case you want to debug any issues with scanning
     .verbose()
-    // Actually perform the scan
+    // Actually perform the scan -- don't forget this call, or nothing will happen
     .scan();
 
-// [...Some time later...]
-// See if any timestamps on the classpath are more recent than the time of the
-// previous scan. Much faster than standard classpath scanning, because
-// only timestamps are checked, and jarfiles don't have to be opened.
-boolean classpathContentsModified =
-    scanResult.classpathContentsModifiedSinceScan();
+// Java 8 version:
+new FastClasspathScanner("com.xyz.widget")  
+    .matchSubclassesOf(Widget.class, 
+            c -> System.out.println("Subclass of Widget: " + matchingClass))
+    .scan();
+    
+// Alternative Java 8 version using a method reference:
+List<Class<? extends Widget>> widgetSubclasses = new ArrayList<>();
+new FastClasspathScanner("com.xyz.widget")
+    .matchSubclassesOf(Widget.class, widgetSubclasses::add)
+    .scan();
 ```
 
 **Mechanism 2:** Construct a `FastClasspathScanner` instance, potentially without adding any MatchProcessors, then call `FastClasspathScanner#scan()` to scan the classpath. This will return a `ScanResult` object with additional `ScanResult#get...()` methods that will let you query for classes, interfaces and annotations of interest without actually calling the classloader on any matching classes.
 
 The `ScanResult#getNamesOf...()` methods return sorted lists of strings, rather than lists of `Class<?>` references (because returning class references requires calling the classloader). Since scanning is done by reading the classfile directly, the classloader does not need to be called for these `ScanResult#get...()` methods to return their results. This can be useful if the static initializer code for matching classes would trigger unwanted side effects if run during a classpath scan.
-
-An example of this usage pattern is:
 
 ```java
 // No need to add any MatchProcessors, just create a new scanner and then call
@@ -126,56 +97,27 @@ ScanResult scanResult = new FastClasspathScanner("com.xyz.widget").scan();
 // Get the names of all subclasses of Widget on the classpath from the
 // ScanResult (without calling the classloader on any matching classes):
 List<String> subclassesOfWidget =
-    scanResult.getNamesOfSubclassesOf("com.xyz.widget.Widget");
+    scanResult.getNamesOfSubclassesOf(Widget.class.getName());
 ```
 
-Note that Mechanism 2 only works with class, interface and annotation matches; there are no corresponding `ScanResult#getNamesOf...()` methods for filename pattern or static field matches, since these methods are only looking at the DAG of whitelisted classes and interfaces encountered during the scan.
-
-**Use with Java 7:** FastClasspathScanner needs to be built with JDK 8, since [`MatchProcessors`](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) are declared with a `@FunctionalInterface` annotation, which does not exist in JDK 7. (There are no other Java 8 features in use in FastClasspathScanner currently.) If you need to build with JDK 1.7, you can always manually remove the `@FunctionalInterface` annotations from the MatchProcessors. However, the project can be compiled in Java 7 compatibility mode, which does not complain about these annotations, and can generate a jarfile that works with both Java 7 and Java 8. The jarfile available from [Maven Central](#downloading) is compatible with Java 7.
-
-The usage examples shown above use lambda expressions (functional interfaces) from Java 8 in the Mechanism 1 examples for syntactic simplicity. The Java 7 equivalent is as follows (note that there is a different [`MatchProcessor`](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) class corresponding to each `FastClasspathScanner#match...()` method, e.g. `FastClasspathScanner#matchSubclassesOf()` takes a `SubclassMatchProcessor`):
+**Mechanism 3:** Call `ScanResult#classNameToClassInfo()` after calling `FastClasspathScanner#scan()` to get a map from class name to a `ClassInfo` object describing the class, then query the class graph directly. Note that Java 8 streams can be used as a nice way of creating complex multi-criterion class filters using this mechanism.
 
 ```java
-new FastClasspathScanner("com.xyz.widget")  
-    .matchSubclassesOf(Widget.class, new SubclassMatchProcessor<Widget>() {
-        @Override
-        public void processMatch(Class<? extends Widget> matchingClass) {
-            System.out.println("Subclass of Widget: " + matchingClass))
-        }
-    })
-    .scan();
-```
-
-Note that the first usage of Java 8 features like lambda expressions or Streams incurs a one-time startup penalty of 30-40ms (this startup cost is incurred by the JDK, not FastClasspathScanner).
-
-**Protip: using Java 8 method references:** The `FastClasspathScanner#match...()` methods (e.g. `FastClasspathScanner#matchSubclassesOf()`) take a [`MatchProcessor`](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) as one of their arguments, which are single-method interfaces annotated with `@FunctionalInterface`. FunctionalInterfaces are interchangeable as long as the number and types of arguments match. You may find it useful to use Java 8 method references in the place of MatchProcessors, e.g. if you have a variable `List<Class<? extends Widget>> matchingClasses`, its `.add()` method can be referenced using `matchingClasses::add`, which has a single parameter of type `Class<? extends Widget>`. This method reference is interchangeable with `SubclassMatchProcessor<T>::processMatch(Class<? extends T> matchingClass)` assuming you call the `FastClasspathScanner#matchSubclassesOf()` with `Widget.class` as the type parameter:
-
-```java
-List<Class<? extends Widget>> matchingClasses = new ArrayList<>();
-new FastClasspathScanner("com.xyz.widget")
-    .matchSubclassesOf(Widget.class, matchingClasses::add)  // Method ref for List.add()
-    .scan();
-```
-
-**Mechanism 3:** Call `ScanResult#classNameToClassInfo()` after calling `FastClasspathScanner#scan()`, then query the class graph directly. Java 8 streams can be used for creating complex multi-criterion class filters using this mechanism.
-
-```
 // Manually query classNameToClassInfo
-ScanResult scanResult = new FastClasspathScanner().scan();
+ScanResult scanResult = new FastClasspathScanner("com.xyz.widget").scan();
 Map<String, ClassInfo> classNameToClassInfo = scanResult.getClassNameToClassInfo();
-ClassInfo callableClassInfo = classNameToClassInfo.get(Callable.class.getName());
-List<String> callables = callableClassInfo == null ? Collections.emptyList()
-        : callableClassInfo.getNamesOfClassesImplementing();
+ClassInfo widgetClassInfo = classNameToClassInfo.get("com.xyz.widget.Widget");
+List<String> widgetSubClasses = widgetClassInfo == null ? Collections.emptyList()
+        : widgetClassInfo.getNamesOfSubclasses();
 
-// Filter all ClassInfo using Java 8 stream filtering:
-List<String> runnableWidgets = new FastClasspathScanner().scan()
+// Or filter all ClassInfo using Java 8 stream filtering (note that multiple
+// filter() stages can be added to locate classes that satisfy multiple criteria):
+List<String> widgetSubClasses = new FastClasspathScanner("com.xyz.widget").scan()
         .getClassNameToClassInfo().values().stream()
-                .filter(c -> c.hasSuperinterface(Runnable.class.getName()))
-                .filter(c -> c.hasSuperclass(Widget.class.getName()))
-                .map(c -> c.getClassName())
+                .filter(ci -> ci.hasSuperclass(Widget.class.getName()))
+                .map(ci -> ci.getClassName())
                 .collect(Collectors.toList());
 ```
-
 
 ### Classpath mechanisms handled by FastClasspathScanner
 
@@ -299,6 +241,24 @@ List<String> ScanResult#getNamesOfSubclassesOf(
 
 List<String> ScanResult#getNamesOfSuperclassesOf(
     Class<?> subclass | String subclassName)
+
+// Mechanism 3: Call one of the following methods on a ClassInfo object:
+
+Set<ClassInfo> ClassInfo#getSubclasses()
+List<String> ClassInfo#getNamesOfSubclasses()
+boolean ClassInfo#hasSubclass(final String subclassName)
+
+Set<ClassInfo> ClassInfo#getDirectSubclasses()
+List<String> ClassInfo#getNamesOfDirectSubclasses()
+boolean ClassInfo#hasDirectSubclass(final String directSubclassName)
+
+Set<ClassInfo> ClassInfo#getSuperclasses()
+List<String> ClassInfo#getNamesOfSuperclasses()
+boolean ClassInfo#hasSuperclass(final String superclassName)
+
+Set<ClassInfo> ClassInfo#getDirectSuperclasses()
+List<String> ClassInfo#getNamesOfDirectSuperclasses()
+boolean ClassInfo#hasDirectSuperclass(final String directSuperclassName)
 ```
 
 ### 2. Matching the subinterfaces (or finding the superinterfaces) of an interface
@@ -330,6 +290,24 @@ List<String> ScanResult#getNamesOfSubinterfacesOf(
 
 List<String> ScanResult#getNamesOfSuperinterfacesOf(
     Class<?> subinterface | String subinterfaceName)
+
+// Mechanism 3: Call one of the following methods on a ClassInfo object:
+
+Set<ClassInfo> ClassInfo#getSubinterfaces()
+List<String> ClassInfo#getNamesOfSubinterfaces()
+boolean ClassInfo#hasSubinterface(final String subinterfaceName)
+
+Set<ClassInfo> ClassInfo#getDirectSubinterfaces()
+List<String> ClassInfo#getNamesOfDirectSubinterfaces()
+boolean ClassInfo#hasDirectSubinterface(final String directSubinterfaceName)
+
+Set<ClassInfo> ClassInfo#getSuperinterfaces()
+List<String> ClassInfo#getNamesOfSuperinterfaces()
+boolean ClassInfo#hasSuperinterface(final String superinterfaceName)
+
+Set<ClassInfo> ClassInfo#getDirectSuperinterfaces()
+List<String> ClassInfo#getNamesOfDirectSuperinterfaces()
+boolean ClassInfo#hasDirectSuperinterface(final String directSuperinterfaceName)
 ```
 
 ### 3. Matching the classes that implement an interface
@@ -361,6 +339,24 @@ List<String> ScanResult#getNamesOfClassesImplementing(
 
 List<String> ScanResult#getNamesOfClassesImplementingAllOf(
     Class<?>... implementedInterfaces | String... implementedInterfaceNames)
+
+// Mechanism 3: Call one of the following methods on a ClassInfo object:
+
+Set<ClassInfo> ClassInfo#getImplementedInterfaces()
+List<String> ClassInfo#getNamesOfImplementedInterfaces()
+boolean ClassInfo#implementsInterface(final String interfaceName)
+
+Set<ClassInfo> ClassInfo#getDirectlyImplementedInterfaces()
+List<String> ClassInfo#getNamesOfDirectlyImplementedInterfaces()
+boolean ClassInfo#directlyImplementsInterface(final String interfaceName)
+
+Set<ClassInfo> ClassInfo#getClassesImplementing()
+List<String> ClassInfo#getNamesOfClassesImplementing()
+boolean ClassInfo#isImplementedByClass(final String className)
+
+Set<ClassInfo> ClassInfo#getClassesDirectlyImplementing()
+List<String> ClassInfo#getNamesOfClassesDirectlyImplementing()
+boolean ClassInfo#isDirectlyImplementedByClass(final String className)
 ```
 
 ### 4. Matching classes with a specific annotation or meta-annotation
@@ -428,6 +424,36 @@ List<String> ScanResult#getNamesOfAnnotationsOnClass(
 List<String> ScanResult#getNamesOfAnnotationsWithMetaAnnotation(
     Class<?> annotation | String annotationName)
 
+// Mechanism 3: Call one of the following methods on a ClassInfo object:
+
+Set<ClassInfo> ClassInfo#getClassesWithAnnotation()
+List<String> ClassInfo#getNamesOfClassesWithAnnotation()
+boolean ClassInfo#annotatesClass(final String annotatedClassName)
+
+Set<ClassInfo> ClassInfo#getDirectlyAnnotatedClasses()
+List<String> ClassInfo#getNamesOfDirectlyAnnotatedClasses()
+boolean ClassInfo#directlyAnnotatesClass(final String directlyAnnotatedClassName)
+
+Set<ClassInfo> ClassInfo#getAnnotations()
+List<String> ClassInfo#getNamesOfAnnotations()
+boolean ClassInfo#hasAnnotation(final String annotationName)
+
+Set<ClassInfo> ClassInfo#getMetaAnnotations()
+List<String> ClassInfo#getNamesOfMetaAnnotations()
+boolean ClassInfo#hasMetaAnnotation(final String metaAnnotationName)
+
+Set<ClassInfo> ClassInfo#getDirectAnnotations()
+List<String> ClassInfo#getNamesOfDirectAnnotations()
+boolean ClassInfo#hasDirectAnnotation(final String directAnnotationName)
+
+Set<ClassInfo> ClassInfo#getAnnotationsWithMetaAnnotation()
+List<String> ClassInfo#getNamesOfAnnotationsWithMetaAnnotation()
+boolean ClassInfo#metaAnnotatesAnnotation(final String annotationName)
+
+Set<ClassInfo> ClassInfo#getAnnotationsWithDirectMetaAnnotation()
+List<String> ClassInfo#getNamesOfAnnotationsWithDirectMetaAnnotation()
+boolean ClassInfo#hasDirectMetaAnnotation(final String directMetaAnnotationName)
+}
 ```
 
 Properties of the annotation scanning API:
@@ -527,6 +553,9 @@ FastClasspathScanner FastClasspathScanner#enableFieldTypeIndexing()
 List<String> ScanResult#getNamesOfClassesWithFieldOfType(
         Class<?> fieldType | String fieldTypeName)
         
+// Mechanism 3: Call the following method on a ClassInfo object:
+
+List<String> ClassInfo#getFieldTypes()
 ```
 
 ### 7. Finding files (even non-classfiles) anywhere on the classpath whose path matches a given string or regular expression
@@ -764,6 +793,12 @@ FastClasspathScanner FastClasspathScanner#verbose(boolean verbose)
 ```
 
 ## More complex usage
+
+### Use with Java 7
+
+FastClasspathScanner needs to be built with JDK 8, since [`MatchProcessors`](https://github.com/lukehutch/fast-classpath-scanner/tree/master/src/main/java/io/github/lukehutch/fastclasspathscanner/matchprocessor) are declared with a `@FunctionalInterface` annotation, which does not exist in JDK 7. (There are no other Java 8 features in use in FastClasspathScanner currently.) If you need to build with JDK 1.7, you can always manually remove the `@FunctionalInterface` annotations from the MatchProcessors. However, the project can be compiled in Java 7 compatibility mode, which does not complain about these annotations, and can generate a jarfile that works with both Java 7 and Java 8. The jarfile available from [Maven Central](#downloading) is compatible with Java 7.
+
+Note that the first usage of Java 8 features like lambda expressions or Streams incurs a one-time startup penalty of 30-40ms (this startup cost is incurred by the JDK, not by FastClasspathScanner).
 
 ### Working with non-standard ClassLoaders
 
