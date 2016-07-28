@@ -119,7 +119,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
      * The static constant initializer values of static final fields, if a StaticFinalFieldMatchProcessor matched a
      * field in this class.
      */
-    Map<String, Object> fieldValues;
+    Map<String, Object> staticFinalFieldNameToConstantInitializerValue;
 
     private ClassInfo(final String className) {
         this.className = className;
@@ -317,11 +317,11 @@ public class ClassInfo implements Comparable<ClassInfo> {
         this.addRelatedClass(RelType.FIELD_TYPES, fieldTypeClassInfo);
     }
 
-    void addFieldConstantValue(final String fieldName, final Object constValue) {
-        if (this.fieldValues == null) {
-            this.fieldValues = new HashMap<>();
+    void addStaticFinalFieldConstantInitializerValue(final String fieldName, final Object constValue) {
+        if (this.staticFinalFieldNameToConstantInitializerValue == null) {
+            this.staticFinalFieldNameToConstantInitializerValue = new HashMap<>();
         }
-        this.fieldValues.put(fieldName, constValue);
+        this.staticFinalFieldNameToConstantInitializerValue.put(fieldName, constValue);
     }
 
     /** Add a class that has just been scanned (as opposed to just referenced by a scanned class). */
@@ -490,18 +490,6 @@ public class ClassInfo implements Comparable<ClassInfo> {
     /** Returns true if this class has the named direct subclass. */
     public boolean hasDirectSuperclass(final String directSuperclassName) {
         return getNamesOfDirectSuperclasses().contains(directSuperclassName);
-    }
-
-    // -------------
-
-    /**
-     * Return the sorted list of names of field types. Requires FastClasspathScanner#indexFieldTypes() to have been
-     * called before scanning.
-     */
-    public List<String> getFieldTypes() {
-        return !isStandardClass() ? Collections.emptyList()
-                : getClassNames(filterClassInfo(getRelatedClasses(RelType.FIELD_TYPES),
-                        /* removeExternalClasses = */ true, ClassType.ALL));
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -874,5 +862,18 @@ public class ClassInfo implements Comparable<ClassInfo> {
     /** Returns true if this annotation is directly meta-annotated with the named annotation. */
     public boolean hasDirectMetaAnnotation(final String directMetaAnnotationName) {
         return getNamesOfAnnotationsWithDirectMetaAnnotation().contains(directMetaAnnotationName);
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+    // Fields
+
+    /**
+     * Return the sorted list of names of field types. Requires FastClasspathScanner#indexFieldTypes() to have been
+     * called before scanning.
+     */
+    public List<String> getFieldTypes() {
+        return !isStandardClass() ? Collections.emptyList()
+                : getClassNames(filterClassInfo(getRelatedClasses(RelType.FIELD_TYPES),
+                        /* removeExternalClasses = */ true, ClassType.ALL));
     }
 }

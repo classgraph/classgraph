@@ -357,12 +357,14 @@ public class ScanSpec {
                 final ClassInfo classInfo = classNameToClassInfo.get(className);
                 if (classInfo != null) {
                     final String fieldName = fullyQualifiedFieldName.substring(dotIdx + 1);
-                    if (classInfo.fieldValues == null || !classInfo.fieldValues.containsKey(fieldName)) {
+                    if (classInfo.staticFinalFieldNameToConstantInitializerValue == null
+                            || !classInfo.staticFinalFieldNameToConstantInitializerValue.containsKey(fieldName)) {
                         if (log != null) {
                             log.log("No matching field " + fieldName + " found in class " + className);
                         }
                     } else {
-                        final Object constValue = classInfo.fieldValues.get(fieldName);
+                        final Object constValue = classInfo.staticFinalFieldNameToConstantInitializerValue
+                                .get(fieldName);
                         final List<StaticFinalFieldMatchProcessor> staticFinalFieldMatchProcessors = ent.getValue();
                         if (log != null) {
                             log.log("Calling MatchProcessor"

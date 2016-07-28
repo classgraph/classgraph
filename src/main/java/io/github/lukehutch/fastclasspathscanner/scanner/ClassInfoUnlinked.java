@@ -127,7 +127,7 @@ class ClassInfoUnlinked {
         }
         if (staticFinalFieldValues != null) {
             for (final Entry<String, Object> ent : staticFinalFieldValues.entrySet()) {
-                classInfo.addFieldConstantValue(ent.getKey(), ent.getValue());
+                classInfo.addStaticFinalFieldConstantInitializerValue(ent.getKey(), ent.getValue());
             }
         }
     }
