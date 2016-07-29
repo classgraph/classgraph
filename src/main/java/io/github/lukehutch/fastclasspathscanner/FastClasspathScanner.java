@@ -130,8 +130,10 @@ public class FastClasspathScanner {
      * ClassLoaderHandler for your specific ClassLoader, or if you want to manually register your own
      * ClassLoaderHandler rather than using the ServiceLoader framework.
      */
-    public synchronized void registerClassLoaderHandler(final ClassLoaderHandler extraClassLoaderHandler) {
+    public synchronized FastClasspathScanner registerClassLoaderHandler(
+            final ClassLoaderHandler extraClassLoaderHandler) {
         getScanSpec().extraClassLoaderHandlers.add(extraClassLoaderHandler);
+        return this;
     }
 
     /** Override the automatically-detected classpath with a custom search path. */
