@@ -2,25 +2,21 @@
 
 FastClasspathScanner is an uber-fast, ultra-lightweight classpath scanner for Java, Scala and other JVM languages.
 
-**What is classpath scanning?** Classpath scanning involves scanning directories and jar/zip files on the classpath to find files (especially classfiles) that meet certain criteria. In many ways, classpath scanning offers the *inverse of the Java reflection API:*
-
-* The Java reflection API can tell you the superclass of a given class, but classpath scanning can find all classes that extend a given superclass.
-* The Java reflection API can give you the list of annotations on a given class, but classpath scanning can find all classes that are annotated with a given annotation.
-* etc. (Many other classpath scanning objectives are listed below.)
+**What is classpath scanning?** Classpath scanning involves scanning directories and jar/zip files on the classpath to find files (especially classfiles) that meet certain criteria. In many ways, classpath scanning offers the *inverse of the Java reflection API:* the Java reflection API can tell you the superclass of a given class, but classpath scanning can find all classes that extend a given superclass. The Java reflection API can give you the list of annotations on a given class, but classpath scanning can find all classes that are annotated with a given annotation. (etc.)
 
 **FastClasspathScanner is able to:**
 
-1. [find classes that subclass/extend a given class](https://github.com/lukehutch/fast-classpath-scanner/wiki/3.1.-Finding-subclasses-or-superclasses);
-2. [find classes that implement an interface](https://github.com/lukehutch/fast-classpath-scanner/wiki/3.2.-Finding-classes-that-implement-an-interface) or one of its subinterfaces, or whose superclasses implement the interface or one of its subinterfaces;
-3. [find interfaces that extend a given interface](https://github.com/lukehutch/fast-classpath-scanner/wiki/3.3.-Finding-subinterfaces-or-superinterfaces) or one of its subinterfaces;
-4. [find classes that have a specific class annotation or meta-annotation](https://github.com/lukehutch/fast-classpath-scanner/wiki/3.4.-Finding-classes-with-specific-annotations-or-meta-annotations);
-5. read the constant literal initializer value in a classfile's constant pool for a [specified static final field](https://github.com/lukehutch/fast-classpath-scanner/wiki/3.5.-Reading-constant-initializer-values-of-static-final-fields);
-6. [find all classes that contain a field of a given type](https://github.com/lukehutch/fast-classpath-scanner/wiki/3.6.-Finding-classes-with-fields-of-a-given-type) (including identifying fields based on array element type and generic parameter type); 
-7. find files (even non-classfiles) anywhere on the classpath that have a [path that matches a given string or regular expression](https://github.com/lukehutch/fast-classpath-scanner/wiki/3.7.-Finding-classpath-files-based-on-filename-pattern);
-8. return a list of the [names of all classes, interfaces and/or annotations on the classpath](https://github.com/lukehutch/fast-classpath-scanner/wiki/3.8.-Enumerating-all-classes-on-the-classpath) (after whitelist and blacklist filtering);
-9. return a list of [all directories and files on the classpath](https://github.com/lukehutch/fast-classpath-scanner/wiki/1.-Usage#listing-classpath-elements) (i.e. all classpath elements) as a list of File objects, with the list deduplicated and filtered to include only classpath directories and files that actually exist, saving you from the complexities of working with the classpath and classloaders; and
-10. [detect changes](https://github.com/lukehutch/fast-classpath-scanner/wiki/1.-Usage#detecting-changes-to-classpath-contents) to the files within the classpath since the first time the classpath was scanned;
-11. [generate a GraphViz .dot file](https://github.com/lukehutch/fast-classpath-scanner/wiki/3.9.-Generating-a-GraphViz-dot-file-from-the-classgraph) from the class graph for visualization purposes, as shown below. A class graph visualizatoin depicts connections between classes, interfaces, annotations and meta-annotations, and connections between classes and the types of their fields.
+* [Find classes that subclass/extend a given class](https://github.com/lukehutch/fast-classpath-scanner/wiki/3.1.-Finding-subclasses-or-superclasses).
+* [Find classes that implement an interface](https://github.com/lukehutch/fast-classpath-scanner/wiki/3.2.-Finding-classes-that-implement-an-interface) or one of its subinterfaces, or whose superclasses implement the interface or one of its subinterfaces.
+* [Find interfaces that extend a given interface](https://github.com/lukehutch/fast-classpath-scanner/wiki/3.3.-Finding-subinterfaces-or-superinterfaces) or one of its subinterfaces.
+* [Find classes that have a specific class annotation or meta-annotation](https://github.com/lukehutch/fast-classpath-scanner/wiki/3.4.-Finding-classes-with-specific-annotations-or-meta-annotations).
+* Read the constant literal initializer value in a classfile's constant pool for a [specified static final field](https://github.com/lukehutch/fast-classpath-scanner/wiki/3.5.-Reading-constant-initializer-values-of-static-final-fields).
+* [Find all classes that contain a field of a given type](https://github.com/lukehutch/fast-classpath-scanner/wiki/3.6.-Finding-classes-with-fields-of-a-given-type) (including identifying fields based on array element type and generic parameter type); 
+* Find files (even non-classfiles) anywhere on the classpath that have a [path that matches a given string or regular expression](https://github.com/lukehutch/fast-classpath-scanner/wiki/3.7.-Finding-classpath-files-based-on-filename-pattern).
+* Return a list of the [names of all classes, interfaces and/or annotations on the classpath](https://github.com/lukehutch/fast-classpath-scanner/wiki/3.8.-Enumerating-all-classes-on-the-classpath) (after whitelist and blacklist filtering).
+* Return a list of [all directories and files on the classpath](https://github.com/lukehutch/fast-classpath-scanner/wiki/1.-Usage#listing-classpath-elements) (i.e. all classpath elements) as a list of File objects, with the list deduplicated and filtered to include only classpath directories and files that actually exist, saving you from the complexities of working with the classpath and classloaders.
+* [Detect changes](https://github.com/lukehutch/fast-classpath-scanner/wiki/1.-Usage#detecting-changes-to-classpath-contents) to the files within the classpath since the first time the classpath was scanned.
+* [Generate a GraphViz .dot file](https://github.com/lukehutch/fast-classpath-scanner/wiki/3.9.-Generating-a-GraphViz-dot-file-from-the-classgraph) from the class graph for visualization purposes, as shown below. A class graph visualizatoin depicts connections between classes, interfaces, annotations and meta-annotations, and connections between classes and the types of their fields.
 
 <p align="center">
   <img src="https://github.com/lukehutch/fast-classpath-scanner/blob/master/src/test/java/com/xyz/classgraph-fig.png" alt="Class graph visualization"/>
