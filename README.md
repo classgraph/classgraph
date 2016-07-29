@@ -28,7 +28,7 @@ FastClasspathScanner is an uber-fast, ultra-lightweight classpath scanner for Ja
 
 ## Downloading
 
-You can get a pre-built JAR (usable in JRE 1.7 or later) from [Sonatype](https://oss.sonatype.org/#nexus-search;quick~fast-classpath-scanner), or add the following Maven Central dependency:
+Use the "Clone or download" button at the top right of this page to get the source. You can get a pre-built JAR (usable in JRE 1.7 or later) from [Sonatype](https://oss.sonatype.org/#nexus-search;quick~fast-classpath-scanner), or add the following Maven Central dependency:
 
 ```xml
 <dependency>
@@ -37,8 +37,6 @@ You can get a pre-built JAR (usable in JRE 1.7 or later) from [Sonatype](https:/
     <version>LATEST</version>
 </dependency>
 ```
-
-Or use the "Clone or download" button at the top right of this page.
 
 ## License
 
