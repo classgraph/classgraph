@@ -772,7 +772,7 @@ class ClassfileBinaryParser implements AutoCloseable {
                     final int annotationCount = readUnsignedShort();
                     for (int m = 0; m < annotationCount; m++) {
                         final String annotationName = readAnnotation();
-                        // Add non-blacklisted annotations; by default, "java.*" and "sun.*" are blacklisted,
+                        // Add non-blacklisted annotations; by default, java.*, javax.* and sun.* are blacklisted,
                         // so java.lang.annotation annotations will be ignored (Target/Retention/Documented etc.)
                         if (scanSpec.classIsNotBlacklisted(annotationName)) {
                             classInfoUnlinked.addAnnotation(annotationName);

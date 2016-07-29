@@ -264,6 +264,7 @@ public class ScanSpec {
         if (blacklistSystemPackages) {
             // Blacklist Java types by default
             uniqueBlacklistedPathPrefixes.add("java/");
+            uniqueBlacklistedPathPrefixes.add("javax/");
             uniqueBlacklistedPathPrefixes.add("sun/");
         }
         blacklistedPathPrefixes.addAll(uniqueBlacklistedPathPrefixes);
