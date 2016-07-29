@@ -472,7 +472,8 @@ public class ScanSpec {
     /** Checks that the named class is not blacklisted. Throws IllegalArgumentException otherwise. */
     synchronized void checkClassIsNotBlacklisted(final String className) {
         if (!classIsNotBlacklisted(className)) {
-            final boolean isSystemPackage = className.startsWith("java.") || className.startsWith("sun.");
+            final boolean isSystemPackage = className.startsWith("java.") || className.startsWith("javax.")
+                    || className.startsWith("sun.");
             throw new IllegalArgumentException("Can't scan for " + className + ", it is in a blacklisted "
                     + (!isSystemPackage ? "package"
                             : "system package -- you can override this by adding \"!\" or \"!!\" to the "
