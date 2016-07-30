@@ -411,14 +411,14 @@ public class ClassInfo implements Comparable<ClassInfo> {
 
     /** Get the sorted unique names of all classes, interfaces and annotations found during the scan. */
     static List<String> getNamesOfAllClasses(final ScanSpec scanSpec, final Set<ClassInfo> allClassInfo) {
-        return getClassNames(
-                filterClassInfo(allClassInfo, /* removeExternalClasses = */ true, scanSpec, ClassType.ALL));
+        return getClassNames(filterClassInfo(allClassInfo, /* removeExternalClassesIfStrictWhitelist = */ true,
+                scanSpec, ClassType.ALL));
     }
 
     /** Get the sorted unique names of all standard (non-interface/annotation) classes found during the scan. */
     static List<String> getNamesOfAllStandardClasses(final ScanSpec scanSpec, final Set<ClassInfo> allClassInfo) {
-        return getClassNames(filterClassInfo(allClassInfo, /* removeExternalClasses = */ true, scanSpec,
-                ClassType.STANDARD_CLASS));
+        return getClassNames(filterClassInfo(allClassInfo, /* removeExternalClassesIfStrictWhitelist = */ true,
+                scanSpec, ClassType.STANDARD_CLASS));
     }
 
     /** Regular classes are not annotations or interfaces. */
@@ -430,8 +430,8 @@ public class ClassInfo implements Comparable<ClassInfo> {
 
     /** Return the set of all subclasses. */
     public Set<ClassInfo> getSubclasses() {
-        return filterClassInfo(getReachableClasses(RelType.SUBCLASSES), /* removeExternalClasses = */ true,
-                scanSpec, ClassType.ALL);
+        return filterClassInfo(getReachableClasses(RelType.SUBCLASSES),
+                /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.ALL);
     }
 
     /** Return the sorted list of names of all subclasses. */
@@ -448,8 +448,8 @@ public class ClassInfo implements Comparable<ClassInfo> {
 
     /** Return the set of all direct subclasses. */
     public Set<ClassInfo> getDirectSubclasses() {
-        return filterClassInfo(getRelatedClasses(RelType.SUBCLASSES), /* removeExternalClasses = */ true, scanSpec,
-                ClassType.ALL);
+        return filterClassInfo(getRelatedClasses(RelType.SUBCLASSES),
+                /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.ALL);
     }
 
     /** Return the sorted list of names of all direct subclasses. */
@@ -466,8 +466,8 @@ public class ClassInfo implements Comparable<ClassInfo> {
 
     /** Return the set of all superclasses. */
     public Set<ClassInfo> getSuperclasses() {
-        return filterClassInfo(getReachableClasses(RelType.SUPERCLASSES), /* removeExternalClasses = */ true,
-                scanSpec, ClassType.ALL);
+        return filterClassInfo(getReachableClasses(RelType.SUPERCLASSES),
+                /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.ALL);
     }
 
     /** Return the sorted list of names of all superclasses. */
@@ -484,8 +484,8 @@ public class ClassInfo implements Comparable<ClassInfo> {
 
     /** Return the set of all direct superclasses. */
     public Set<ClassInfo> getDirectSuperclasses() {
-        return filterClassInfo(getRelatedClasses(RelType.SUPERCLASSES), /* removeExternalClasses = */ true,
-                scanSpec, ClassType.ALL);
+        return filterClassInfo(getRelatedClasses(RelType.SUPERCLASSES),
+                /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.ALL);
     }
 
     /** Return the sorted list of names of all direct superclasses. */
@@ -503,8 +503,8 @@ public class ClassInfo implements Comparable<ClassInfo> {
 
     /** Return the sorted unique names of all interface classes found during the scan. */
     static List<String> getNamesOfAllInterfaceClasses(final ScanSpec scanSpec, final Set<ClassInfo> allClassInfo) {
-        return getClassNames(filterClassInfo(allClassInfo, /* removeExternalClasses = */ true, scanSpec,
-                ClassType.IMPLEMENTED_INTERFACE));
+        return getClassNames(filterClassInfo(allClassInfo, /* removeExternalClassesIfStrictWhitelist = */ true,
+                scanSpec, ClassType.IMPLEMENTED_INTERFACE));
     }
 
     /**
@@ -527,7 +527,8 @@ public class ClassInfo implements Comparable<ClassInfo> {
     public Set<ClassInfo> getSubinterfaces() {
         return !isImplementedInterface() ? Collections.<ClassInfo> emptySet()
                 : filterClassInfo(getReachableClasses(RelType.CLASSES_IMPLEMENTING),
-                        /* removeExternalClasses = */ true, scanSpec, ClassType.IMPLEMENTED_INTERFACE);
+                        /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec,
+                        ClassType.IMPLEMENTED_INTERFACE);
     }
 
     /** Return the sorted list of names of all subinterfaces of an interface. */
@@ -546,7 +547,8 @@ public class ClassInfo implements Comparable<ClassInfo> {
     public Set<ClassInfo> getDirectSubinterfaces() {
         return !isImplementedInterface() ? Collections.<ClassInfo> emptySet()
                 : filterClassInfo(getRelatedClasses(RelType.CLASSES_IMPLEMENTING),
-                        /* removeExternalClasses = */ true, scanSpec, ClassType.IMPLEMENTED_INTERFACE);
+                        /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec,
+                        ClassType.IMPLEMENTED_INTERFACE);
     }
 
     /** Return the sorted list of names of all direct subinterfaces of an interface. */
@@ -565,7 +567,8 @@ public class ClassInfo implements Comparable<ClassInfo> {
     public Set<ClassInfo> getSuperinterfaces() {
         return !isImplementedInterface() ? Collections.<ClassInfo> emptySet()
                 : filterClassInfo(getReachableClasses(RelType.IMPLEMENTED_INTERFACES),
-                        /* removeExternalClasses = */ true, scanSpec, ClassType.IMPLEMENTED_INTERFACE);
+                        /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec,
+                        ClassType.IMPLEMENTED_INTERFACE);
     }
 
     /** Return the sorted list of names of all superinterfaces of an interface. */
@@ -584,7 +587,8 @@ public class ClassInfo implements Comparable<ClassInfo> {
     public Set<ClassInfo> getDirectSuperinterfaces() {
         return !isImplementedInterface() ? Collections.<ClassInfo> emptySet()
                 : filterClassInfo(getRelatedClasses(RelType.IMPLEMENTED_INTERFACES),
-                        /* removeExternalClasses = */ true, scanSpec, ClassType.IMPLEMENTED_INTERFACE);
+                        /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec,
+                        ClassType.IMPLEMENTED_INTERFACE);
     }
 
     /** Return the names of all direct superinterfaces of an interface. */
@@ -605,7 +609,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
             return Collections.<ClassInfo> emptySet();
         } else {
             final Set<ClassInfo> superclasses = filterClassInfo(getReachableClasses(RelType.SUPERCLASSES),
-                    /* removeExternalClasses = */ true, scanSpec, ClassType.STANDARD_CLASS);
+                    /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.STANDARD_CLASS);
             // Subclasses of implementing classes also implement the interface
             final Set<ClassInfo> allInterfaces = new HashSet<>();
             allInterfaces.addAll(getReachableClasses(RelType.IMPLEMENTED_INTERFACES));
@@ -636,7 +640,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
             return Collections.<ClassInfo> emptySet();
         } else {
             final Set<ClassInfo> superclasses = filterClassInfo(getReachableClasses(RelType.SUPERCLASSES),
-                    /* removeExternalClasses = */ true, scanSpec, ClassType.STANDARD_CLASS);
+                    /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.STANDARD_CLASS);
             // Subclasses of implementing classes also implement the interface
             final Set<ClassInfo> allInterfaces = new HashSet<>();
             allInterfaces.addAll(getRelatedClasses(RelType.IMPLEMENTED_INTERFACES));
@@ -669,8 +673,8 @@ public class ClassInfo implements Comparable<ClassInfo> {
             return Collections.<ClassInfo> emptySet();
         } else {
             final Set<ClassInfo> implementingClasses = filterClassInfo(
-                    getReachableClasses(RelType.CLASSES_IMPLEMENTING), /* removeExternalClasses = */ true, scanSpec,
-                    ClassType.STANDARD_CLASS);
+                    getReachableClasses(RelType.CLASSES_IMPLEMENTING),
+                    /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.STANDARD_CLASS);
             // Subclasses of implementing classes also implement the interface
             final Set<ClassInfo> allImplementingClasses = new HashSet<>();
             for (final ClassInfo implementingClass : implementingClasses) {
@@ -697,7 +701,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
     public Set<ClassInfo> getClassesDirectlyImplementing() {
         return !isImplementedInterface() ? Collections.<ClassInfo> emptySet()
                 : filterClassInfo(getRelatedClasses(RelType.CLASSES_IMPLEMENTING),
-                        /* removeExternalClasses = */ true, scanSpec, ClassType.STANDARD_CLASS);
+                        /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.STANDARD_CLASS);
     }
 
     /** Return the names of all classes directly implementing this interface. */
@@ -715,8 +719,8 @@ public class ClassInfo implements Comparable<ClassInfo> {
 
     /** Return the sorted unique names of all annotation classes found during the scan. */
     static List<String> getNamesOfAllAnnotationClasses(final ScanSpec scanSpec, final Set<ClassInfo> allClassInfo) {
-        return getClassNames(
-                filterClassInfo(allClassInfo, /* removeExternalClasses = */ true, scanSpec, ClassType.ANNOTATION));
+        return getClassNames(filterClassInfo(allClassInfo, /* removeExternalClassesIfStrictWhitelist = */ true,
+                scanSpec, ClassType.ANNOTATION));
     }
 
     /** Returns true if this ClassInfo corresponds to an annotation. */
@@ -730,7 +734,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
     public Set<ClassInfo> getClassesWithAnnotation() {
         return !isAnnotation() ? Collections.<ClassInfo> emptySet()
                 : filterClassInfo(getReachableClasses(RelType.ANNOTATED_CLASSES),
-                        /* removeExternalClasses = */ true, scanSpec, ClassType.STANDARD_CLASS,
+                        /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.STANDARD_CLASS,
                         ClassType.IMPLEMENTED_INTERFACE);
     }
 
@@ -755,8 +759,9 @@ public class ClassInfo implements Comparable<ClassInfo> {
      */
     public Set<ClassInfo> getDirectlyAnnotatedClasses() {
         return !isAnnotation() ? Collections.<ClassInfo> emptySet()
-                : filterClassInfo(getRelatedClasses(RelType.ANNOTATED_CLASSES), /* removeExternalClasses = */ true,
-                        scanSpec, ClassType.STANDARD_CLASS, ClassType.IMPLEMENTED_INTERFACE);
+                : filterClassInfo(getRelatedClasses(RelType.ANNOTATED_CLASSES),
+                        /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.STANDARD_CLASS,
+                        ClassType.IMPLEMENTED_INTERFACE);
     }
 
     /**
@@ -779,8 +784,8 @@ public class ClassInfo implements Comparable<ClassInfo> {
      * this is an annotation.
      */
     public Set<ClassInfo> getAnnotations() {
-        return filterClassInfo(getReachableClasses(RelType.ANNOTATIONS), /* removeExternalClasses = */ true,
-                scanSpec, ClassType.ALL);
+        return filterClassInfo(getReachableClasses(RelType.ANNOTATIONS),
+                /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.ALL);
     }
 
     /**
@@ -801,8 +806,8 @@ public class ClassInfo implements Comparable<ClassInfo> {
     /** Return the set of all annotations and meta-annotations, if this is an annotation class. */
     public Set<ClassInfo> getMetaAnnotations() {
         return !isAnnotation() ? Collections.<ClassInfo> emptySet()
-                : filterClassInfo(getReachableClasses(RelType.ANNOTATIONS), /* removeExternalClasses = */ true,
-                        scanSpec, ClassType.ALL);
+                : filterClassInfo(getReachableClasses(RelType.ANNOTATIONS),
+                        /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.ALL);
     }
 
     /** Return the sorted list of names of all annotations and meta-annotations, if this is an annotation class. */
@@ -823,8 +828,8 @@ public class ClassInfo implements Comparable<ClassInfo> {
      * except that it does not require calling the classloader.)
      */
     public Set<ClassInfo> getDirectAnnotations() {
-        return filterClassInfo(getRelatedClasses(RelType.ANNOTATIONS), /* removeExternalClasses = */ true, scanSpec,
-                ClassType.ALL);
+        return filterClassInfo(getRelatedClasses(RelType.ANNOTATIONS),
+                /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.ALL);
     }
 
     /**
@@ -850,7 +855,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
     public Set<ClassInfo> getAnnotationsWithMetaAnnotation() {
         return !isAnnotation() ? Collections.<ClassInfo> emptySet()
                 : filterClassInfo(getReachableClasses(RelType.ANNOTATED_CLASSES),
-                        /* removeExternalClasses = */ true, scanSpec, ClassType.ANNOTATION);
+                        /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.ANNOTATION);
     }
 
     /** Return the sorted list of names of all annotations that have this meta-annotation. */
@@ -868,8 +873,8 @@ public class ClassInfo implements Comparable<ClassInfo> {
     /** Return the set of all annotations that have this direct meta-annotation. */
     public Set<ClassInfo> getAnnotationsWithDirectMetaAnnotation() {
         return !isAnnotation() ? Collections.<ClassInfo> emptySet()
-                : filterClassInfo(getRelatedClasses(RelType.ANNOTATED_CLASSES), /* removeExternalClasses = */ true,
-                        scanSpec, ClassType.ANNOTATION);
+                : filterClassInfo(getRelatedClasses(RelType.ANNOTATED_CLASSES),
+                        /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.ANNOTATION);
     }
 
     /** Return the sorted list of names of all annotations that have this direct meta-annotation. */
@@ -892,7 +897,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
     public List<String> getFieldTypes() {
         return !isStandardClass() ? Collections.<String> emptyList()
                 : getClassNames(filterClassInfo(getRelatedClasses(RelType.FIELD_TYPES),
-                        /* removeExternalClasses = */ true, scanSpec, ClassType.ALL));
+                        /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.ALL));
     }
 
     /**
@@ -953,12 +958,12 @@ public class ClassInfo implements Comparable<ClassInfo> {
         buf.append("splines=true;\n");
         buf.append("pack=true;\n");
 
-        final Set<ClassInfo> standardClassNodes = filterClassInfo(allClassInfo, /* removeExternalClasses = */ false,
-                scanSpec, ClassType.STANDARD_CLASS);
-        final Set<ClassInfo> interfaceNodes = filterClassInfo(allClassInfo, /* removeExternalClasses = */ false,
-                scanSpec, ClassType.IMPLEMENTED_INTERFACE);
-        final Set<ClassInfo> annotationNodes = filterClassInfo(allClassInfo, /* removeExternalClasses = */ false,
-                scanSpec, ClassType.ANNOTATION);
+        final Set<ClassInfo> standardClassNodes = filterClassInfo(allClassInfo,
+                /* removeExternalClassesIfStrictWhitelist = */ false, scanSpec, ClassType.STANDARD_CLASS);
+        final Set<ClassInfo> interfaceNodes = filterClassInfo(allClassInfo,
+                /* removeExternalClassesIfStrictWhitelist = */ false, scanSpec, ClassType.IMPLEMENTED_INTERFACE);
+        final Set<ClassInfo> annotationNodes = filterClassInfo(allClassInfo,
+                /* removeExternalClassesIfStrictWhitelist = */ false, scanSpec, ClassType.ANNOTATION);
 
         buf.append("\nnode[shape=box,style=filled,fillcolor=\"#fff2b6\"];\n");
         for (final ClassInfo node : standardClassNodes) {
