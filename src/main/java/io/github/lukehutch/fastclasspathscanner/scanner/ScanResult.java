@@ -69,7 +69,10 @@ public class ScanResult {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Returns the list of File objects for unique classpath elements (directories or jarfiles). */
+    /**
+     * Returns the list of File objects for unique classpath elements (directories or jarfiles), in classloader
+     * resolution order.
+     */
     public List<File> getUniqueClasspathElements() {
         return uniqueClasspathElements;
     }
