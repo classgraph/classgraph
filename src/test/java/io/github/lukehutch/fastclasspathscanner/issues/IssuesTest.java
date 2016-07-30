@@ -8,6 +8,8 @@ import org.junit.Test;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.issues.issue38.ImplementsNamed;
+import io.github.lukehutch.fastclasspathscanner.test.external.ExternalSuperclass;
+import io.github.lukehutch.fastclasspathscanner.test.internal.InternalExtendsExternal;
 import io.github.lukehutch.fastclasspathscanner.test.whitelisted.Impl1;
 import io.github.lukehutch.fastclasspathscanner.test.whitelisted.Impl1Sub;
 
@@ -42,5 +44,32 @@ public class IssuesTest {
                 .doesNotContain(Object.class.getName());
         assertThat(new FastClasspathScanner("!").scan().getNamesOfSuperclassesOf(Impl1Sub.class))
                 .contains(Object.class.getName());
+    }
+
+    @Test
+    public void strictExtendsExternal() {
+        assertThat(new FastClasspathScanner(InternalExtendsExternal.class.getPackage().getName()).strictWhitelist()
+                .scan().getNamesOfSuperclassesOf(InternalExtendsExternal.class)).isEmpty();
+    }
+
+    @Test
+    public void nonStrictExtendsExternal() {
+        assertThat(new FastClasspathScanner(InternalExtendsExternal.class.getPackage().getName()).scan()
+                .getNamesOfSuperclassesOf(InternalExtendsExternal.class))
+                        .containsExactly(ExternalSuperclass.class.getName());
+    }
+
+    @Test
+    public void strictExtendsExternalSubclass() {
+        assertThat(new FastClasspathScanner(InternalExtendsExternal.class.getPackage().getName()).strictWhitelist()
+                .scan().getNamesOfSubclassesOf(ExternalSuperclass.class))
+                        .containsExactly(InternalExtendsExternal.class.getName());
+    }
+
+    @Test
+    public void nonStrictExtendsExternalSubclass() {
+        assertThat(new FastClasspathScanner(InternalExtendsExternal.class.getPackage().getName()).scan()
+                .getNamesOfSubclassesOf(ExternalSuperclass.class))
+                        .containsExactly(InternalExtendsExternal.class.getName());
     }
 }
