@@ -165,7 +165,7 @@ public class FastClasspathScanner {
                 if (log != null) {
                     log.log("Getting classpath elements");
                 }
-                return scanResult.get().getClasspathElementFilesOrdered();
+                return scanResult.get().getUniqueClasspathElements();
             }
         });
         if (log != null) {

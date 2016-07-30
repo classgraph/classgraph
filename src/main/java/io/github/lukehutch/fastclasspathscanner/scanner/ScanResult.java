@@ -41,7 +41,7 @@ public class ScanResult {
     private final ScanSpec scanSpec;
 
     /** The list of File objects for unique classpath elements (directories or jarfiles). */
-    private final List<File> classpathElementFilesOrdered;
+    private final List<File> uniqueClasspathElements;
 
     /**
      * The file resources timestamped during a scan, along with their timestamp at the time of the scan. Includes
@@ -59,10 +59,10 @@ public class ScanResult {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    ScanResult(final ScanSpec scanSpec, final List<File> classpathElementFilesOrdered,
+    ScanResult(final ScanSpec scanSpec, final List<File> uniqueClasspathElements,
             final ClassGraphBuilder classGraphBuilder, final Map<File, Long> fileToLastModified) {
         this.scanSpec = scanSpec;
-        this.classpathElementFilesOrdered = classpathElementFilesOrdered;
+        this.uniqueClasspathElements = uniqueClasspathElements;
         this.fileToLastModified = fileToLastModified;
         this.classGraphBuilder = classGraphBuilder;
     }
@@ -70,8 +70,8 @@ public class ScanResult {
     // -------------------------------------------------------------------------------------------------------------
 
     /** Returns the list of File objects for unique classpath elements (directories or jarfiles). */
-    public List<File> getClasspathElementFilesOrdered() {
-        return classpathElementFilesOrdered;
+    public List<File> getUniqueClasspathElements() {
+        return uniqueClasspathElements;
     }
 
     // -------------------------------------------------------------------------------------------------------------
