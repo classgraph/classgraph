@@ -102,6 +102,14 @@ public class ScanSpec {
     /** If non-null, specifies a classpath to override the default one. */
     public String overrideClasspath;
 
+    /**
+     * If true, remove "external" classes from consideration (i.e. classes outside of whitelisted packages that are
+     * referred to by classes within whitelisted packages, e.g. as a superclass). This affects both the ability to
+     * use an external classname as a matching criterion, and whether external classes are returned to the user by
+     * ScanResult methods.
+     */
+    public boolean strictWhitelist;
+
     /** Manually-registered ClassLoaderHandlers. */
     public final ArrayList<ClassLoaderHandler> extraClassLoaderHandlers = new ArrayList<>();
 
@@ -358,19 +366,17 @@ public class ScanSpec {
                 final ClassInfo classInfo = classNameToClassInfo.get(className);
                 if (classInfo != null) {
                     final String fieldName = fullyQualifiedFieldName.substring(dotIdx + 1);
-                    if (classInfo.staticFinalFieldNameToConstantInitializerValue == null
-                            || !classInfo.staticFinalFieldNameToConstantInitializerValue.containsKey(fieldName)) {
+                    final Object constValue = classInfo.getStaticFinalFieldConstantInitializerValue(fieldName);
+                    if (constValue == null) {
                         if (log != null) {
-                            log.log("No matching field " + fieldName + " found in class " + className);
+                            log.log("No constant initializer value found for field " + className + "." + fieldName);
                         }
                     } else {
-                        final Object constValue = classInfo.staticFinalFieldNameToConstantInitializerValue
-                                .get(fieldName);
                         final List<StaticFinalFieldMatchProcessor> staticFinalFieldMatchProcessors = ent.getValue();
                         if (log != null) {
                             log.log("Calling MatchProcessor"
                                     + (staticFinalFieldMatchProcessors.size() == 1 ? "" : "s")
-                                    + " for static final field " + classInfo.className + "." + fieldName + " = "
+                                    + " for static final field " + className + "." + fieldName + " = "
                                     + ((constValue instanceof Character)
                                             ? '\'' + constValue.toString().replace("'", "\\'") + '\''
                                             : (constValue instanceof String)
@@ -379,8 +385,7 @@ public class ScanSpec {
                         }
                         for (final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor : ent.getValue()) {
                             try {
-                                staticFinalFieldMatchProcessor.processMatch(classInfo.className, fieldName,
-                                        constValue);
+                                staticFinalFieldMatchProcessor.processMatch(className, fieldName, constValue);
                             } catch (final Throwable e) {
                                 if (log != null) {
                                     log.log("Exception while calling StaticFinalFieldMatchProcessor: " + e);
@@ -457,27 +462,32 @@ public class ScanSpec {
                 && !specificallyBlacklistedClassRelativePaths.contains(relativePath));
     }
 
-    /** Returns true if the class is not specifically blacklisted, and is not within a blacklisted package. */
-    boolean classIsNotBlacklisted(final String className) {
+    /** Returns true if the class is specifically blacklisted, or is within a blacklisted package. */
+    boolean classIsBlacklisted(final String className) {
+        boolean classIsBlacklisted = false;
         if (specificallyBlacklistedClassNames.contains(className)) {
-            return false;
-        }
-        for (final String blacklistedPackagePrefix : blacklistedPackagePrefixes) {
-            if (className.startsWith(blacklistedPackagePrefix)) {
-                return false;
+            classIsBlacklisted = true;
+        } else {
+            for (final String blacklistedPackagePrefix : blacklistedPackagePrefixes) {
+                if (className.startsWith(blacklistedPackagePrefix)) {
+                    classIsBlacklisted = true;
+                    break;
+                }
             }
         }
-        return true;
+        return classIsBlacklisted;
     }
 
     /** Checks that the named class is not blacklisted. Throws IllegalArgumentException otherwise. */
     synchronized void checkClassIsNotBlacklisted(final String className) {
-        if (!classIsNotBlacklisted(className)) {
+        if (strictWhitelist && classIsBlacklisted(className)) {
             final boolean isSystemPackage = className.startsWith("java.") || className.startsWith("javax.")
                     || className.startsWith("sun.");
             throw new IllegalArgumentException("Can't scan for " + className + ", it is in a blacklisted "
-                    + (!isSystemPackage ? "package"
-                            : "system package -- you can override this by adding \"!\" or \"!!\" to the "
+                    + (!isSystemPackage ? "package" : "system package")
+                    + ", and and strictWhitelist() was called before scan()."
+                    + (!isSystemPackage ? ""
+                            : "You can override this by adding \"!\" or \"!!\" to the "
                                     + "scan spec to disable system package blacklisting or system jar "
                                     + "blacklisting respectively (see the docs)"));
         }

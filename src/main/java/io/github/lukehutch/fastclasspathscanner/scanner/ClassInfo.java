@@ -41,9 +41,8 @@ import java.util.Set;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 
 public class ClassInfo implements Comparable<ClassInfo> {
-
     /** Name of the class/interface/annotation. */
-    String className;
+    private final String className;
 
     /** True if the classfile indicated this is an interface. */
     private boolean isInterface;
@@ -70,7 +69,49 @@ public class ClassInfo implements Comparable<ClassInfo> {
      */
     private boolean traitMethodClassfileScanned;
 
-    enum RelType {
+    /** The scan spec. */
+    private final ScanSpec scanSpec;
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** Get the name of this class. */
+    public String getClassName() {
+        return className;
+    }
+
+    @Override
+    public int compareTo(final ClassInfo o) {
+        return this.className.compareTo(o.className);
+    }
+
+    @Override
+    public boolean equals(final Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (obj == null) {
+            return false;
+        }
+        if (this.getClass() == obj.getClass()) {
+            final ClassInfo other = (ClassInfo) obj;
+            return className != null ? className.equals(other.className) : other.className == null;
+        }
+        return false;
+    }
+
+    @Override
+    public int hashCode() {
+        return className != null ? className.hashCode() : 33;
+    }
+
+    @Override
+    public String toString() {
+        return className;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    private enum RelType {
 
         // Classes:
 
@@ -119,14 +160,15 @@ public class ClassInfo implements Comparable<ClassInfo> {
      * The static constant initializer values of static final fields, if a StaticFinalFieldMatchProcessor matched a
      * field in this class.
      */
-    Map<String, Object> staticFinalFieldNameToConstantInitializerValue;
+    private Map<String, Object> staticFinalFieldNameToConstantInitializerValue;
 
-    private ClassInfo(final String className) {
+    private ClassInfo(final String className, final ScanSpec scanSpec) {
         this.className = className;
+        this.scanSpec = scanSpec;
     }
 
     /** The class type to return. */
-    enum ClassType {
+    private enum ClassType {
         /** Return all class types. */
         ALL,
         /** A standard class (not an interface or annotation). */
@@ -143,7 +185,8 @@ public class ClassInfo implements Comparable<ClassInfo> {
     }
 
     /** Get the ClassInfo objects for the classes related to this one in the specified way. */
-    static Set<ClassInfo> filterClassInfo(final Set<ClassInfo> classInfoSet, final boolean removeExternalClasses,
+    private static Set<ClassInfo> filterClassInfo(final Set<ClassInfo> classInfoSet,
+            final boolean removeExternalClassesIfStrictWhitelist, final ScanSpec scanSpec,
             final ClassType... classTypes) {
         if (classInfoSet == null) {
             return Collections.emptySet();
@@ -177,39 +220,33 @@ public class ClassInfo implements Comparable<ClassInfo> {
             includeAllTypes = true;
         }
         // Do two passes with the same filter logic to avoid copying the set if nothing is filtered out
-        boolean hasFilteredOutClass = false;
+        final Set<ClassInfo> classInfoSetFiltered = new HashSet<>(classInfoSet.size());
         for (final ClassInfo classInfo : classInfoSet) {
-            if ((!removeExternalClasses || classInfo.classfileScanned) && //
-                    (includeAllTypes //
-                            || includeStandardClasses && classInfo.isStandardClass()
-                            || includeImplementedInterfaces && classInfo.isImplementedInterface()
-                            || includeAnnotations && classInfo.isAnnotation())) {
-                // Do nothing
-            } else {
-                hasFilteredOutClass = true;
-                break;
-            }
-        }
-        if (!hasFilteredOutClass) {
-            // Nothing to filter out
-            return classInfoSet;
-        } else {
-            // Need to filter out one or more classes from set
-            final Set<ClassInfo> classInfoSetFiltered = new HashSet<>(classInfoSet.size());
-            for (final ClassInfo classInfo : classInfoSet) {
-                if ((!removeExternalClasses || classInfo.classfileScanned) && //
-                        (includeAllTypes //
-                                || includeStandardClasses && classInfo.isStandardClass()
-                                || includeImplementedInterfaces && classInfo.isImplementedInterface()
-                                || includeAnnotations && classInfo.isAnnotation())) {
+            // Check class type against requested type(s)
+            if (includeAllTypes //
+                    || includeStandardClasses && classInfo.isStandardClass()
+                    || includeImplementedInterfaces && classInfo.isImplementedInterface()
+                    || includeAnnotations && classInfo.isAnnotation()) {
+                // Check whether class should be visible in results
+                final boolean isExternal = !classInfo.classfileScanned;
+                final boolean isBlacklisted = scanSpec.classIsBlacklisted(classInfo.className);
+                final boolean isWhitelisted = !isExternal && !isBlacklisted;
+                final boolean removeExternalClasses = removeExternalClassesIfStrictWhitelist
+                        && scanSpec.strictWhitelist;
+                final boolean isVisibleExternal = isExternal && !removeExternalClasses && !isBlacklisted;
+                if (isWhitelisted || isVisibleExternal) {
+                    // Class passed filter criteria
                     classInfoSetFiltered.add(classInfo);
                 }
             }
-            return classInfoSetFiltered;
         }
+        return classInfoSetFiltered;
     }
 
-    /** Get the sorted list of the names of classes given a set of ClassInfo objects. */
+    /**
+     * Get the sorted list of the names of classes given a collection of ClassInfo objects. (Class names are not
+     * deduplicated.)
+     */
     public static List<String> getClassNames(final Collection<ClassInfo> classInfoColl) {
         if (classInfoColl.isEmpty()) {
             return Collections.emptyList();
@@ -224,7 +261,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
     }
 
     /** Get the ClassInfo objects for the classes related to this one in the specified way. */
-    Set<ClassInfo> getRelatedClasses(final RelType relType) {
+    private Set<ClassInfo> getRelatedClasses(final RelType relType) {
         final Set<ClassInfo> relatedClassClassInfo = relatedTypeToClassInfoSet.get(relType);
         return relatedClassClassInfo == null ? Collections.<ClassInfo> emptySet() : relatedClassClassInfo;
     }
@@ -233,7 +270,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
      * Find all ClassInfo nodes reachable from this ClassInfo node over the given relationship type links (not
      * including this class itself).
      */
-    Set<ClassInfo> getReachableClasses(final RelType relType) {
+    private Set<ClassInfo> getReachableClasses(final RelType relType) {
         final Set<ClassInfo> directlyRelatedClasses = this.getRelatedClasses(relType);
         if (directlyRelatedClasses.isEmpty()) {
             return directlyRelatedClasses;
@@ -277,18 +314,18 @@ public class ClassInfo implements Comparable<ClassInfo> {
     }
 
     // N.B. not threadsafe, but this class should only ever be called by a single thread.
-    private static ClassInfo getOrCreateClassInfo(final String className,
+    private static ClassInfo getOrCreateClassInfo(final String className, final ScanSpec scanSpec,
             final Map<String, ClassInfo> classNameToClassInfo) {
         ClassInfo classInfo = classNameToClassInfo.get(className);
         if (classInfo == null) {
-            classNameToClassInfo.put(className, classInfo = new ClassInfo(className));
+            classNameToClassInfo.put(className, classInfo = new ClassInfo(className, scanSpec));
         }
         return classInfo;
     }
 
     void addSuperclass(final String superclassName, final Map<String, ClassInfo> classNameToClassInfo) {
         if (superclassName != null) {
-            final ClassInfo superclassClassInfo = getOrCreateClassInfo(scalaBaseClassName(superclassName),
+            final ClassInfo superclassClassInfo = getOrCreateClassInfo(scalaBaseClassName(superclassName), scanSpec,
                     classNameToClassInfo);
             this.addRelatedClass(RelType.SUPERCLASSES, superclassClassInfo);
             superclassClassInfo.addRelatedClass(RelType.SUBCLASSES, this);
@@ -296,7 +333,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
     }
 
     void addAnnotation(final String annotationName, final Map<String, ClassInfo> classNameToClassInfo) {
-        final ClassInfo annotationClassInfo = getOrCreateClassInfo(scalaBaseClassName(annotationName),
+        final ClassInfo annotationClassInfo = getOrCreateClassInfo(scalaBaseClassName(annotationName), scanSpec,
                 classNameToClassInfo);
         annotationClassInfo.isAnnotation = true;
         this.addRelatedClass(RelType.ANNOTATIONS, annotationClassInfo);
@@ -304,7 +341,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
     }
 
     void addImplementedInterface(final String interfaceName, final Map<String, ClassInfo> classNameToClassInfo) {
-        final ClassInfo interfaceClassInfo = getOrCreateClassInfo(scalaBaseClassName(interfaceName),
+        final ClassInfo interfaceClassInfo = getOrCreateClassInfo(scalaBaseClassName(interfaceName), scanSpec,
                 classNameToClassInfo);
         interfaceClassInfo.isInterface = true;
         this.addRelatedClass(RelType.IMPLEMENTED_INTERFACES, interfaceClassInfo);
@@ -313,7 +350,8 @@ public class ClassInfo implements Comparable<ClassInfo> {
 
     void addFieldType(final String fieldTypeName, final Map<String, ClassInfo> classNameToClassInfo) {
         final String fieldTypeBaseName = scalaBaseClassName(fieldTypeName);
-        final ClassInfo fieldTypeClassInfo = getOrCreateClassInfo(fieldTypeBaseName, classNameToClassInfo);
+        final ClassInfo fieldTypeClassInfo = getOrCreateClassInfo(fieldTypeBaseName, scanSpec,
+                classNameToClassInfo);
         this.addRelatedClass(RelType.FIELD_TYPES, fieldTypeClassInfo);
     }
 
@@ -326,7 +364,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
 
     /** Add a class that has just been scanned (as opposed to just referenced by a scanned class). */
     static ClassInfo addScannedClass(final String className, final boolean isInterface, final boolean isAnnotation,
-            final Map<String, ClassInfo> classNameToClassInfo, final LogNode log) {
+            final ScanSpec scanSpec, final Map<String, ClassInfo> classNameToClassInfo, final LogNode log) {
         // Handle Scala auxiliary classes (companion objects ending in "$" and trait methods classes
         // ending in "$class")
         final boolean isCompanionObjectClass = className.endsWith("$");
@@ -351,7 +389,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
                 }
             }
         } else {
-            classNameToClassInfo.put(classBaseName, classInfo = new ClassInfo(classBaseName));
+            classNameToClassInfo.put(classBaseName, classInfo = new ClassInfo(classBaseName, scanSpec));
         }
         // Mark the appropriate class type as scanned (aux classes all need to be merged into a single
         // ClassInfo object for Scala, but we only want to use the first instance of a given class on the
@@ -369,55 +407,23 @@ public class ClassInfo implements Comparable<ClassInfo> {
     }
 
     // -------------------------------------------------------------------------------------------------------------
-
-    /** Get the name of this class. */
-    public String getClassName() {
-        return className;
-    }
-
-    @Override
-    public int compareTo(final ClassInfo o) {
-        return this.className.compareTo(o.className);
-    }
-
-    @Override
-    public boolean equals(final Object obj) {
-        if (this == obj) {
-            return true;
-        }
-        if (obj == null) {
-            return false;
-        }
-        if (this.getClass() == obj.getClass()) {
-            final ClassInfo other = (ClassInfo) obj;
-            return className != null ? className.equals(other.className) : other.className == null;
-        }
-        return false;
-    }
-
-    @Override
-    public int hashCode() {
-        return className != null ? className.hashCode() : 33;
-    }
-
-    @Override
-    public String toString() {
-        return className;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
     // Standard classes
 
-    /**
-     * Regular classes are not annotations, and should not be interfaces, but to be robust, even if it's an
-     * interface, check if there are super- or sub-classes (if the classpath can contain two versions of a class,
-     * once with it defined as a class, and once with it defined as an interface -- classpath masking should fix
-     * this, but this is to fix problems like issue #38 in future).
-     */
+    /** Get the sorted unique names of all classes, interfaces and annotations found during the scan. */
+    static List<String> getNamesOfAllClasses(final ScanSpec scanSpec, final Set<ClassInfo> allClassInfo) {
+        return getClassNames(
+                filterClassInfo(allClassInfo, /* removeExternalClasses = */ true, scanSpec, ClassType.ALL));
+    }
+
+    /** Get the sorted unique names of all standard (non-interface/annotation) classes found during the scan. */
+    static List<String> getNamesOfAllStandardClasses(final ScanSpec scanSpec, final Set<ClassInfo> allClassInfo) {
+        return getClassNames(filterClassInfo(allClassInfo, /* removeExternalClasses = */ true, scanSpec,
+                ClassType.STANDARD_CLASS));
+    }
+
+    /** Regular classes are not annotations or interfaces. */
     public boolean isStandardClass() {
-        return !isAnnotation && //
-                (!getRelatedClasses(RelType.SUBCLASSES).isEmpty()
-                        || !getRelatedClasses(RelType.SUPERCLASSES).isEmpty() || !isImplementedInterface());
+        return !(isAnnotation || isInterface);
     }
 
     // -------------
@@ -425,7 +431,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
     /** Return the set of all subclasses. */
     public Set<ClassInfo> getSubclasses() {
         return filterClassInfo(getReachableClasses(RelType.SUBCLASSES), /* removeExternalClasses = */ true,
-                ClassType.ALL);
+                scanSpec, ClassType.ALL);
     }
 
     /** Return the sorted list of names of all subclasses. */
@@ -442,7 +448,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
 
     /** Return the set of all direct subclasses. */
     public Set<ClassInfo> getDirectSubclasses() {
-        return filterClassInfo(getRelatedClasses(RelType.SUBCLASSES), /* removeExternalClasses = */ true,
+        return filterClassInfo(getRelatedClasses(RelType.SUBCLASSES), /* removeExternalClasses = */ true, scanSpec,
                 ClassType.ALL);
     }
 
@@ -461,7 +467,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
     /** Return the set of all superclasses. */
     public Set<ClassInfo> getSuperclasses() {
         return filterClassInfo(getReachableClasses(RelType.SUPERCLASSES), /* removeExternalClasses = */ true,
-                ClassType.ALL);
+                scanSpec, ClassType.ALL);
     }
 
     /** Return the sorted list of names of all superclasses. */
@@ -479,7 +485,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
     /** Return the set of all direct superclasses. */
     public Set<ClassInfo> getDirectSuperclasses() {
         return filterClassInfo(getRelatedClasses(RelType.SUPERCLASSES), /* removeExternalClasses = */ true,
-                ClassType.ALL);
+                scanSpec, ClassType.ALL);
     }
 
     /** Return the sorted list of names of all direct superclasses. */
@@ -494,6 +500,12 @@ public class ClassInfo implements Comparable<ClassInfo> {
 
     // -------------------------------------------------------------------------------------------------------------
     // Interfaces
+
+    /** Return the sorted unique names of all interface classes found during the scan. */
+    static List<String> getNamesOfAllInterfaceClasses(final ScanSpec scanSpec, final Set<ClassInfo> allClassInfo) {
+        return getClassNames(filterClassInfo(allClassInfo, /* removeExternalClasses = */ true, scanSpec,
+                ClassType.IMPLEMENTED_INTERFACE));
+    }
 
     /**
      * Returns true if this ClassInfo corresponds to an "implemented interface" (meaning a standard, non-annotation
@@ -515,7 +527,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
     public Set<ClassInfo> getSubinterfaces() {
         return !isImplementedInterface() ? Collections.<ClassInfo> emptySet()
                 : filterClassInfo(getReachableClasses(RelType.CLASSES_IMPLEMENTING),
-                        /* removeExternalClasses = */ true, ClassType.IMPLEMENTED_INTERFACE);
+                        /* removeExternalClasses = */ true, scanSpec, ClassType.IMPLEMENTED_INTERFACE);
     }
 
     /** Return the sorted list of names of all subinterfaces of an interface. */
@@ -534,7 +546,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
     public Set<ClassInfo> getDirectSubinterfaces() {
         return !isImplementedInterface() ? Collections.<ClassInfo> emptySet()
                 : filterClassInfo(getRelatedClasses(RelType.CLASSES_IMPLEMENTING),
-                        /* removeExternalClasses = */ true, ClassType.IMPLEMENTED_INTERFACE);
+                        /* removeExternalClasses = */ true, scanSpec, ClassType.IMPLEMENTED_INTERFACE);
     }
 
     /** Return the sorted list of names of all direct subinterfaces of an interface. */
@@ -553,7 +565,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
     public Set<ClassInfo> getSuperinterfaces() {
         return !isImplementedInterface() ? Collections.<ClassInfo> emptySet()
                 : filterClassInfo(getReachableClasses(RelType.IMPLEMENTED_INTERFACES),
-                        /* removeExternalClasses = */ true, ClassType.IMPLEMENTED_INTERFACE);
+                        /* removeExternalClasses = */ true, scanSpec, ClassType.IMPLEMENTED_INTERFACE);
     }
 
     /** Return the sorted list of names of all superinterfaces of an interface. */
@@ -572,7 +584,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
     public Set<ClassInfo> getDirectSuperinterfaces() {
         return !isImplementedInterface() ? Collections.<ClassInfo> emptySet()
                 : filterClassInfo(getRelatedClasses(RelType.IMPLEMENTED_INTERFACES),
-                        /* removeExternalClasses = */ true, ClassType.IMPLEMENTED_INTERFACE);
+                        /* removeExternalClasses = */ true, scanSpec, ClassType.IMPLEMENTED_INTERFACE);
     }
 
     /** Return the names of all direct superinterfaces of an interface. */
@@ -592,8 +604,8 @@ public class ClassInfo implements Comparable<ClassInfo> {
         if (!isStandardClass()) {
             return Collections.<ClassInfo> emptySet();
         } else {
-            final Set<ClassInfo> superclasses = ClassInfo.filterClassInfo(getReachableClasses(RelType.SUPERCLASSES),
-                    /* removeExternalClasses = */ true, ClassType.STANDARD_CLASS);
+            final Set<ClassInfo> superclasses = filterClassInfo(getReachableClasses(RelType.SUPERCLASSES),
+                    /* removeExternalClasses = */ true, scanSpec, ClassType.STANDARD_CLASS);
             // Subclasses of implementing classes also implement the interface
             final Set<ClassInfo> allInterfaces = new HashSet<>();
             allInterfaces.addAll(getReachableClasses(RelType.IMPLEMENTED_INTERFACES));
@@ -623,8 +635,8 @@ public class ClassInfo implements Comparable<ClassInfo> {
         if (!isStandardClass()) {
             return Collections.<ClassInfo> emptySet();
         } else {
-            final Set<ClassInfo> superclasses = ClassInfo.filterClassInfo(getReachableClasses(RelType.SUPERCLASSES),
-                    /* removeExternalClasses = */ true, ClassType.STANDARD_CLASS);
+            final Set<ClassInfo> superclasses = filterClassInfo(getReachableClasses(RelType.SUPERCLASSES),
+                    /* removeExternalClasses = */ true, scanSpec, ClassType.STANDARD_CLASS);
             // Subclasses of implementing classes also implement the interface
             final Set<ClassInfo> allInterfaces = new HashSet<>();
             allInterfaces.addAll(getRelatedClasses(RelType.IMPLEMENTED_INTERFACES));
@@ -656,8 +668,8 @@ public class ClassInfo implements Comparable<ClassInfo> {
         if (!isImplementedInterface()) {
             return Collections.<ClassInfo> emptySet();
         } else {
-            final Set<ClassInfo> implementingClasses = ClassInfo.filterClassInfo(
-                    getReachableClasses(RelType.CLASSES_IMPLEMENTING), /* removeExternalClasses = */ true,
+            final Set<ClassInfo> implementingClasses = filterClassInfo(
+                    getReachableClasses(RelType.CLASSES_IMPLEMENTING), /* removeExternalClasses = */ true, scanSpec,
                     ClassType.STANDARD_CLASS);
             // Subclasses of implementing classes also implement the interface
             final Set<ClassInfo> allImplementingClasses = new HashSet<>();
@@ -684,8 +696,8 @@ public class ClassInfo implements Comparable<ClassInfo> {
     /** Return the set of all class directly implementing this interface. */
     public Set<ClassInfo> getClassesDirectlyImplementing() {
         return !isImplementedInterface() ? Collections.<ClassInfo> emptySet()
-                : ClassInfo.filterClassInfo(getRelatedClasses(RelType.CLASSES_IMPLEMENTING),
-                        /* removeExternalClasses = */ true, ClassType.STANDARD_CLASS);
+                : filterClassInfo(getRelatedClasses(RelType.CLASSES_IMPLEMENTING),
+                        /* removeExternalClasses = */ true, scanSpec, ClassType.STANDARD_CLASS);
     }
 
     /** Return the names of all classes directly implementing this interface. */
@@ -701,6 +713,12 @@ public class ClassInfo implements Comparable<ClassInfo> {
     // -------------------------------------------------------------------------------------------------------------
     // Annotations
 
+    /** Return the sorted unique names of all annotation classes found during the scan. */
+    static List<String> getNamesOfAllAnnotationClasses(final ScanSpec scanSpec, final Set<ClassInfo> allClassInfo) {
+        return getClassNames(
+                filterClassInfo(allClassInfo, /* removeExternalClasses = */ true, scanSpec, ClassType.ANNOTATION));
+    }
+
     /** Returns true if this ClassInfo corresponds to an annotation. */
     public boolean isAnnotation() {
         return isAnnotation;
@@ -712,7 +730,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
     public Set<ClassInfo> getClassesWithAnnotation() {
         return !isAnnotation() ? Collections.<ClassInfo> emptySet()
                 : filterClassInfo(getReachableClasses(RelType.ANNOTATED_CLASSES),
-                        /* removeExternalClasses = */ true, ClassType.STANDARD_CLASS,
+                        /* removeExternalClasses = */ true, scanSpec, ClassType.STANDARD_CLASS,
                         ClassType.IMPLEMENTED_INTERFACE);
     }
 
@@ -738,7 +756,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
     public Set<ClassInfo> getDirectlyAnnotatedClasses() {
         return !isAnnotation() ? Collections.<ClassInfo> emptySet()
                 : filterClassInfo(getRelatedClasses(RelType.ANNOTATED_CLASSES), /* removeExternalClasses = */ true,
-                        ClassType.STANDARD_CLASS, ClassType.IMPLEMENTED_INTERFACE);
+                        scanSpec, ClassType.STANDARD_CLASS, ClassType.IMPLEMENTED_INTERFACE);
     }
 
     /**
@@ -762,7 +780,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
      */
     public Set<ClassInfo> getAnnotations() {
         return filterClassInfo(getReachableClasses(RelType.ANNOTATIONS), /* removeExternalClasses = */ true,
-                ClassType.ALL);
+                scanSpec, ClassType.ALL);
     }
 
     /**
@@ -784,7 +802,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
     public Set<ClassInfo> getMetaAnnotations() {
         return !isAnnotation() ? Collections.<ClassInfo> emptySet()
                 : filterClassInfo(getReachableClasses(RelType.ANNOTATIONS), /* removeExternalClasses = */ true,
-                        ClassType.ALL);
+                        scanSpec, ClassType.ALL);
     }
 
     /** Return the sorted list of names of all annotations and meta-annotations, if this is an annotation class. */
@@ -805,7 +823,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
      * except that it does not require calling the classloader.)
      */
     public Set<ClassInfo> getDirectAnnotations() {
-        return filterClassInfo(getRelatedClasses(RelType.ANNOTATIONS), /* removeExternalClasses = */ true,
+        return filterClassInfo(getRelatedClasses(RelType.ANNOTATIONS), /* removeExternalClasses = */ true, scanSpec,
                 ClassType.ALL);
     }
 
@@ -832,7 +850,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
     public Set<ClassInfo> getAnnotationsWithMetaAnnotation() {
         return !isAnnotation() ? Collections.<ClassInfo> emptySet()
                 : filterClassInfo(getReachableClasses(RelType.ANNOTATED_CLASSES),
-                        /* removeExternalClasses = */ true, ClassType.ANNOTATION);
+                        /* removeExternalClasses = */ true, scanSpec, ClassType.ANNOTATION);
     }
 
     /** Return the sorted list of names of all annotations that have this meta-annotation. */
@@ -851,7 +869,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
     public Set<ClassInfo> getAnnotationsWithDirectMetaAnnotation() {
         return !isAnnotation() ? Collections.<ClassInfo> emptySet()
                 : filterClassInfo(getRelatedClasses(RelType.ANNOTATED_CLASSES), /* removeExternalClasses = */ true,
-                        ClassType.ANNOTATION);
+                        scanSpec, ClassType.ANNOTATION);
     }
 
     /** Return the sorted list of names of all annotations that have this direct meta-annotation. */
@@ -874,6 +892,132 @@ public class ClassInfo implements Comparable<ClassInfo> {
     public List<String> getFieldTypes() {
         return !isStandardClass() ? Collections.<String> emptyList()
                 : getClassNames(filterClassInfo(getRelatedClasses(RelType.FIELD_TYPES),
-                        /* removeExternalClasses = */ true, ClassType.ALL));
+                        /* removeExternalClasses = */ true, scanSpec, ClassType.ALL));
+    }
+
+    /**
+     * Return a sorted list of classes that have a field of the named type, where the field type is in a whitelisted
+     * (non-blacklisted) package.
+     */
+    static List<String> getNamesOfClassesWithFieldOfType(final String fieldTypeName,
+            final Set<ClassInfo> allClassInfo) {
+        // This method will not likely be used for a large number of different field types, so perform a linear
+        // search on each invocation, rather than building an index on classpath scan (so we don't slow down more
+        // common methods).
+        final ArrayList<String> namesOfClassesWithFieldOfType = new ArrayList<>();
+        for (final ClassInfo classInfo : allClassInfo) {
+            for (final ClassInfo fieldType : classInfo.getRelatedClasses(RelType.FIELD_TYPES)) {
+                if (fieldType.className.equals(fieldTypeName)) {
+                    namesOfClassesWithFieldOfType.add(classInfo.className);
+                    break;
+                }
+            }
+        }
+        Collections.sort(namesOfClassesWithFieldOfType);
+        return namesOfClassesWithFieldOfType;
+    }
+
+    /** Get the constant initializer value for the named static final field, if present. */
+    Object getStaticFinalFieldConstantInitializerValue(final String fieldName) {
+        return staticFinalFieldNameToConstantInitializerValue == null ? null
+                : staticFinalFieldNameToConstantInitializerValue.get(fieldName);
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Splits a .dot node label into two text lines, putting the package on one line and the class name on the next.
+     */
+    private static String label(final ClassInfo node) {
+        final String className = node.className;
+        final int dotIdx = className.lastIndexOf('.');
+        if (dotIdx < 0) {
+            return className;
+        }
+        return className.substring(0, dotIdx + 1) + "\\n" + className.substring(dotIdx + 1);
+    }
+
+    /**
+     * Generates a .dot file which can be fed into GraphViz for layout and visualization of the class graph. The
+     * sizeX and sizeY parameters are the image output size to use (in inches) when GraphViz is asked to render the
+     * .dot file.
+     */
+    static String generateClassGraphDotFile(final ScanSpec scanSpec, final Set<ClassInfo> allClassInfo,
+            final float sizeX, final float sizeY) {
+        final StringBuilder buf = new StringBuilder();
+        buf.append("digraph {\n");
+        buf.append("size=\"" + sizeX + "," + sizeY + "\";\n");
+        buf.append("layout=dot;\n");
+        buf.append("rankdir=\"BT\";\n");
+        buf.append("overlap=false;\n");
+        buf.append("splines=true;\n");
+        buf.append("pack=true;\n");
+
+        final Set<ClassInfo> standardClassNodes = filterClassInfo(allClassInfo, /* removeExternalClasses = */ false,
+                scanSpec, ClassType.STANDARD_CLASS);
+        final Set<ClassInfo> interfaceNodes = filterClassInfo(allClassInfo, /* removeExternalClasses = */ false,
+                scanSpec, ClassType.IMPLEMENTED_INTERFACE);
+        final Set<ClassInfo> annotationNodes = filterClassInfo(allClassInfo, /* removeExternalClasses = */ false,
+                scanSpec, ClassType.ANNOTATION);
+
+        buf.append("\nnode[shape=box,style=filled,fillcolor=\"#fff2b6\"];\n");
+        for (final ClassInfo node : standardClassNodes) {
+            if (!node.getClassName().equals("java.lang.Object")) {
+                buf.append("  \"" + label(node) + "\"\n");
+            }
+        }
+
+        buf.append("\nnode[shape=diamond,style=filled,fillcolor=\"#b6e7ff\"];\n");
+        for (final ClassInfo node : interfaceNodes) {
+            buf.append("  \"" + label(node) + "\"\n");
+        }
+
+        buf.append("\nnode[shape=oval,style=filled,fillcolor=\"#f3c9ff\"];\n");
+        for (final ClassInfo node : annotationNodes) {
+            buf.append("  \"" + label(node) + "\"\n");
+        }
+
+        buf.append("\n");
+        for (final ClassInfo classNode : standardClassNodes) {
+            for (final ClassInfo superclassNode : classNode.getRelatedClasses(RelType.SUPERCLASSES)) {
+                // class --> superclass
+                if (!superclassNode.equals("java.lang.Object")) {
+                    buf.append("  \"" + label(classNode) + "\" -> \"" + label(superclassNode) + "\"\n");
+                }
+            }
+            for (final ClassInfo implementedInterfaceNode : classNode
+                    .getRelatedClasses(RelType.IMPLEMENTED_INTERFACES)) {
+                // class --<> implemented interface
+                buf.append("  \"" + label(classNode) + "\" -> \"" + label(implementedInterfaceNode)
+                        + "\" [arrowhead=diamond]\n");
+            }
+            for (final ClassInfo fieldTypeNode : classNode.getRelatedClasses(RelType.FIELD_TYPES)) {
+                // class --[] whitelisted field type
+                buf.append("  \"" + label(fieldTypeNode) + "\" -> \"" + label(classNode)
+                        + "\" [arrowtail=obox, dir=back]\n");
+            }
+        }
+        for (final ClassInfo interfaceNode : interfaceNodes) {
+            for (final ClassInfo superinterfaceNode : interfaceNode
+                    .getRelatedClasses(RelType.IMPLEMENTED_INTERFACES)) {
+                // interface --> superinterface
+                buf.append("  \"" + label(interfaceNode) + "\" -> \"" + label(superinterfaceNode)
+                        + "\" [arrowhead=diamond]\n");
+            }
+        }
+        for (final ClassInfo annotationNode : annotationNodes) {
+            for (final ClassInfo metaAnnotationNode : annotationNode.getRelatedClasses(RelType.ANNOTATIONS)) {
+                // annotation --o meta-annotation
+                buf.append("  \"" + label(annotationNode) + "\" -> \"" + label(metaAnnotationNode)
+                        + "\" [arrowhead=dot]\n");
+            }
+            for (final ClassInfo annotatedClassNode : annotationNode.getRelatedClasses(RelType.ANNOTATIONS)) {
+                // annotated class --o annotation
+                buf.append("  \"" + label(annotatedClassNode) + "\" -> \"" + label(annotationNode)
+                        + "\" [arrowhead=dot]\n");
+            }
+        }
+        buf.append("}");
+        return buf.toString();
     }
 }

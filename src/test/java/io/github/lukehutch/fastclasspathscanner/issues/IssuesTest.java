@@ -19,17 +19,28 @@ public class IssuesTest {
 
     @Test
     public void testImplementsNamed() {
-        assertThat(new FastClasspathScanner("").scan().getNamesOfClassesImplementing(Named.class))
+        assertThat(new FastClasspathScanner().scan().getNamesOfClassesImplementing(Named.class))
                 .contains(ImplementsNamed.class.getName());
     }
 
-    @Test
-    public void issue70() {
-        assertThat(new FastClasspathScanner("").scan().getNamesOfSubclassesOf("java.lang.Object"))
+    @Test(expected = IllegalArgumentException.class)
+    public void testImplementsNamedStrict() {
+        new FastClasspathScanner().strictWhitelist().scan().getNamesOfClassesImplementing(Named.class);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void issue70Strict() {
+        assertThat(new FastClasspathScanner().strictWhitelist().scan().getNamesOfSubclassesOf(Object.class))
                 .doesNotContain(Impl1.class.getName());
-        assertThat(new FastClasspathScanner("!").verbose().scan().getNamesOfSubclassesOf("java.lang.Object"))
-                .contains(Impl1Sub.class.getName());
-        assertThat(new FastClasspathScanner("!").scan().getNamesOfSubclassesOf("java.lang.Object"))
-                .doesNotContain(Impl1Sub.class.getName());
+    }
+
+    @Test
+    public void issue70NonStrict() {
+        assertThat(new FastClasspathScanner().scan().getNamesOfSubclassesOf(Object.class))
+                .contains(Impl1.class.getName());
+        assertThat(new FastClasspathScanner().scan().getNamesOfSuperclassesOf(Impl1Sub.class))
+                .doesNotContain(Object.class.getName());
+        assertThat(new FastClasspathScanner("!").scan().getNamesOfSuperclassesOf(Impl1Sub.class))
+                .contains(Object.class.getName());
     }
 }

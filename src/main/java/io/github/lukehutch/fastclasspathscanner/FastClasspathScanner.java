@@ -268,6 +268,28 @@ public class FastClasspathScanner {
         return this;
     }
 
+    /**
+     * If strictWhitelist is true, remove "external" classes from consideration (i.e. classes outside of whitelisted
+     * packages that are referred to by classes within whitelisted packages, e.g. as a superclass). This affects
+     * both the ability to use an external classname as a matching criterion, and whether external classes are
+     * returned to the user by ScanResult methods.
+     */
+    public FastClasspathScanner strictWhitelist(final boolean strictWhitelist) {
+        getScanSpec().strictWhitelist = strictWhitelist;
+        return this;
+    }
+
+    /**
+     * Remove "external" classes from consideration (i.e. classes outside of whitelisted packages that are referred
+     * to by classes within whitelisted packages, e.g. as a superclass). This affects both the ability to use an
+     * external classname as a matching criterion, and whether external classes are returned to the user by
+     * ScanResult methods.
+     */
+    public FastClasspathScanner strictWhitelist() {
+        strictWhitelist(true);
+        return this;
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**

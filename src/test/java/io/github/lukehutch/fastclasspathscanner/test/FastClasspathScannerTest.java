@@ -189,12 +189,19 @@ public class FastClasspathScannerTest {
     }
 
     @Test
-    public void testWhitelistedWithoutException() throws Exception {
-        final ScanResult scanResult = new FastClasspathScanner(WHITELIST_PACKAGE).scan();
+    public void testWhitelistedWithoutExceptionWithStrictWhitelist() throws Exception {
+        final ScanResult scanResult = new FastClasspathScanner(WHITELIST_PACKAGE).strictWhitelist().scan();
         assertThat(scanResult.getNamesOfSuperclassesOf(Whitelisted.class)).isEmpty();
         assertThat(scanResult.getNamesOfSubclassesOf(Whitelisted.class)).isEmpty();
         assertThat(scanResult.getNamesOfSuperinterfacesOf(WhitelistedInterface.class)).isEmpty();
         assertThat(scanResult.getNamesOfSubinterfacesOf(WhitelistedInterface.class)).isEmpty();
+    }
+
+    @Test
+    public void testWhitelistedWithoutExceptionWithoutStrictWhitelist() throws Exception {
+        final ScanResult scanResult = new FastClasspathScanner(WHITELIST_PACKAGE).scan();
+        assertThat(scanResult.getNamesOfSuperclassesOf(Whitelisted.class))
+                .containsExactly(BlacklistedSuperclass.class.getName());
     }
 
     public void testCanQueryWithBlacklistedAnnotation() throws Exception {
@@ -224,8 +231,15 @@ public class FastClasspathScannerTest {
     }
 
     @Test
-    public void testNonWhitelistedAnnotationNotReturned() throws Exception {
+    public void testNonWhitelistedAnnotationReturnedWithoutStrictWhitelist() throws Exception {
         final ScanResult scanResult = new FastClasspathScanner(WHITELIST_PACKAGE).scan();
+        assertThat(scanResult.getNamesOfAnnotationsOnClass(Whitelisted.class))
+                .containsOnly(BlacklistedAnnotation.class.getName());
+    }
+
+    @Test
+    public void testNonWhitelistedAnnotationNotReturnedWithStrictWhitelist() throws Exception {
+        final ScanResult scanResult = new FastClasspathScanner(WHITELIST_PACKAGE).strictWhitelist().scan();
         assertThat(scanResult.getNamesOfAnnotationsOnClass(Whitelisted.class)).isEmpty();
     }
 

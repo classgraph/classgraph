@@ -43,18 +43,11 @@ import io.github.lukehutch.fastclasspathscanner.utils.MultiMapKeyToSet;
  * sequence, to avoid re-allocating buffer memory.
  */
 class ClassfileBinaryParser implements AutoCloseable {
-    /** The ScanSpec. */
-    private final ScanSpec scanSpec;
-
     /** The InputStream for the current classfile. Set by each call to readClassInfoFromClassfileHeader(). */
     private InputStream inputStream;
 
     /** The name of the current classfile. Determined early in the call to readClassInfoFromClassfileHeader(). */
     private String className;
-
-    ClassfileBinaryParser(final ScanSpec scanSpec) {
-        this.scanSpec = scanSpec;
-    }
 
     @Override
     public void close() {
@@ -462,9 +455,7 @@ class ClassfileBinaryParser implements AutoCloseable {
                 }
                 final String typeName = new String(typeNameChars);
                 // Check if the type of this field falls within a non-blacklisted package, and if not, add it
-                if (scanSpec.classIsNotBlacklisted(typeName)) {
-                    classInfoUnlinked.addFieldType(typeName);
-                }
+                classInfoUnlinked.addFieldType(typeName);
             }
         }
     }
@@ -599,17 +590,13 @@ class ClassfileBinaryParser implements AutoCloseable {
                     stringInternMap);
 
             // Connect class to superclass
-            if (scanSpec.classIsNotBlacklisted(superclassName)) {
-                classInfoUnlinked.addSuperclass(superclassName);
-            }
+            classInfoUnlinked.addSuperclass(superclassName);
 
             // Interfaces
             final int interfaceCount = readUnsignedShort();
             for (int i = 0; i < interfaceCount; i++) {
                 final String interfaceName = getConstantPoolClassName(readUnsignedShort());
-                if (scanSpec.classIsNotBlacklisted(interfaceName)) {
-                    classInfoUnlinked.addImplementedInterface(interfaceName);
-                }
+                classInfoUnlinked.addImplementedInterface(interfaceName);
             }
 
             // Fields
@@ -772,11 +759,7 @@ class ClassfileBinaryParser implements AutoCloseable {
                     final int annotationCount = readUnsignedShort();
                     for (int m = 0; m < annotationCount; m++) {
                         final String annotationName = readAnnotation();
-                        // Add non-blacklisted annotations; by default, java.*, javax.* and sun.* are blacklisted,
-                        // so java.lang.annotation annotations will be ignored (Target/Retention/Documented etc.)
-                        if (scanSpec.classIsNotBlacklisted(annotationName)) {
-                            classInfoUnlinked.addAnnotation(annotationName);
-                        }
+                        classInfoUnlinked.addAnnotation(annotationName);
                     }
                 } else {
                     skip(attributeLength);

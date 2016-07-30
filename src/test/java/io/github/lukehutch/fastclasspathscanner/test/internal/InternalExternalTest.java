@@ -15,6 +15,15 @@ public class InternalExternalTest {
     public void testWhitelistingExternalClasses() {
         final ScanResult scanResult = new FastClasspathScanner(InternalExternalTest.class.getPackage().getName(),
                 ExternalAnnotation.class.getName()).scan();
+        assertThat(scanResult.getNamesOfAllStandardClasses()).containsOnly(ExternalSuperclass.class.getName(),
+                InternalExternalTest.class.getName(), InternalExtendsExternal.class.getName(),
+                InternalImplementsExternal.class.getName(), InternalAnnotatedByExternal.class.getName());
+    }
+
+    @Test
+    public void testWhitelistingExternalClassesWithStrictWhitelist() {
+        final ScanResult scanResult = new FastClasspathScanner(InternalExternalTest.class.getPackage().getName(),
+                ExternalAnnotation.class.getName()).strictWhitelist().scan();
         assertThat(scanResult.getNamesOfAllStandardClasses()).containsOnly(InternalExternalTest.class.getName(),
                 InternalExtendsExternal.class.getName(), InternalImplementsExternal.class.getName(),
                 InternalAnnotatedByExternal.class.getName());
@@ -31,7 +40,7 @@ public class InternalExternalTest {
     @Test
     public void testIncludeReferencedClasses() {
         final ScanResult scanResult = new FastClasspathScanner(InternalExternalTest.class.getPackage().getName())
-                .scan();
+                .strictWhitelist().scan();
         assertThat(scanResult.getNamesOfAllStandardClasses()).doesNotContain(ExternalSuperclass.class.getName());
         assertThat(scanResult.getNamesOfSubclassesOf(ExternalSuperclass.class.getName()))
                 .containsExactly(InternalExtendsExternal.class.getName());

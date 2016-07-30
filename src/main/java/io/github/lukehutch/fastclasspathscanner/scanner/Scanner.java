@@ -226,7 +226,7 @@ public class Scanner implements Callable<ScanResult> {
                     new Recycler<ClassfileBinaryParser, RuntimeException>() {
                         @Override
                         public ClassfileBinaryParser newInstance() {
-                            return new ClassfileBinaryParser(scanSpec);
+                            return new ClassfileBinaryParser();
                         }
                     }) {
                 // In parallel, resolve classpath elements to canonical paths, creating a ClasspathElement
@@ -317,9 +317,10 @@ public class Scanner implements Callable<ScanResult> {
                     final Map<String, ClassInfo> classNameToClassInfo = new HashMap<>();
                     for (final ClassInfoUnlinked c : classInfoUnlinked) {
                         // Create ClassInfo object from ClassInfoUnlinked object, and link into class graph
-                        c.link(classNameToClassInfo, classGraphLog);
+                        c.link(scanSpec, classNameToClassInfo, classGraphLog);
                     }
-                    final ClassGraphBuilder classGraphBuilder = new ClassGraphBuilder(classNameToClassInfo);
+                    final ClassGraphBuilder classGraphBuilder = new ClassGraphBuilder(scanSpec,
+                            classNameToClassInfo);
                     if (classGraphLog != null) {
                         classGraphLog.addElapsedTime();
                     }

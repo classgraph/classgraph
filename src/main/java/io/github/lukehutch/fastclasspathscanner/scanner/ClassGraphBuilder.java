@@ -28,27 +28,25 @@
  */
 package io.github.lukehutch.fastclasspathscanner.scanner;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import io.github.lukehutch.fastclasspathscanner.scanner.ClassInfo.ClassType;
-import io.github.lukehutch.fastclasspathscanner.scanner.ClassInfo.RelType;
-
 class ClassGraphBuilder {
     private final Map<String, ClassInfo> classNameToClassInfo;
+    private final ScanSpec scanSpec;
     private final Set<ClassInfo> allClassInfo;
 
-    ClassGraphBuilder(final Map<String, ClassInfo> classNameToClassInfo) {
+    ClassGraphBuilder(final ScanSpec scanSpec, final Map<String, ClassInfo> classNameToClassInfo) {
+        this.scanSpec = scanSpec;
         this.classNameToClassInfo = classNameToClassInfo;
         this.allClassInfo = new HashSet<>(classNameToClassInfo.values());
     }
 
     /** Get a map from class name to ClassInfo for the class. */
-    public Map<String, ClassInfo> getClassNameToClassInfo() {
+    Map<String, ClassInfo> getClassNameToClassInfo() {
         return classNameToClassInfo;
     }
 
@@ -56,15 +54,13 @@ class ClassGraphBuilder {
     // Classes
 
     /** Get the sorted unique names of all classes, interfaces and annotations found during the scan. */
-    public List<String> getNamesOfAllClasses() {
-        return ClassInfo.getClassNames(
-                ClassInfo.filterClassInfo(allClassInfo, /* removeExternalClasses = */ true, ClassType.ALL));
+    List<String> getNamesOfAllClasses() {
+        return ClassInfo.getNamesOfAllClasses(scanSpec, allClassInfo);
     }
 
     /** Get the sorted unique names of all standard (non-interface/annotation) classes found during the scan. */
-    public List<String> getNamesOfAllStandardClasses() {
-        return ClassInfo.getClassNames(ClassInfo.filterClassInfo(allClassInfo, /* removeExternalClasses = */ true,
-                ClassType.STANDARD_CLASS));
+    List<String> getNamesOfAllStandardClasses() {
+        return ClassInfo.getNamesOfAllStandardClasses(scanSpec, allClassInfo);
     }
 
     /** Return the sorted list of names of all subclasses of the named class. */
@@ -92,29 +88,15 @@ class ClassGraphBuilder {
      * (non-blacklisted) package.
      */
     List<String> getNamesOfClassesWithFieldOfType(final String fieldTypeName) {
-        // This method will not likely be used for a large number of different field types, so perform a linear
-        // search on each invocation, rather than building an index on classpath scan (so we don't slow down more
-        // common methods).
-        final ArrayList<String> namesOfClassesWithFieldOfType = new ArrayList<>();
-        for (final ClassInfo classInfo : allClassInfo) {
-            for (final ClassInfo fieldType : classInfo.getRelatedClasses(RelType.FIELD_TYPES)) {
-                if (fieldType.className.equals(fieldTypeName)) {
-                    namesOfClassesWithFieldOfType.add(classInfo.className);
-                    break;
-                }
-            }
-        }
-        Collections.sort(namesOfClassesWithFieldOfType);
-        return namesOfClassesWithFieldOfType;
+        return ClassInfo.getNamesOfClassesWithFieldOfType(fieldTypeName, allClassInfo);
     }
 
     // -------------------------------------------------------------------------------------------------------------
     // Interfaces
 
     /** Return the sorted unique names of all interface classes found during the scan. */
-    public List<String> getNamesOfAllInterfaceClasses() {
-        return ClassInfo.getClassNames(ClassInfo.filterClassInfo(allClassInfo, /* removeExternalClasses = */ true,
-                ClassType.IMPLEMENTED_INTERFACE));
+    List<String> getNamesOfAllInterfaceClasses() {
+        return ClassInfo.getNamesOfAllInterfaceClasses(scanSpec, allClassInfo);
     }
 
     /** Return the sorted list of names of all subinterfaces of the named interface. */
@@ -151,9 +133,8 @@ class ClassGraphBuilder {
     // Annotations
 
     /** Return the sorted unique names of all annotation classes found during the scan. */
-    public List<String> getNamesOfAllAnnotationClasses() {
-        return ClassInfo.getClassNames(
-                ClassInfo.filterClassInfo(allClassInfo, /* removeExternalClasses = */ true, ClassType.ANNOTATION));
+    List<String> getNamesOfAllAnnotationClasses() {
+        return ClassInfo.getNamesOfAllAnnotationClasses(scanSpec, allClassInfo);
     }
 
     /**
@@ -203,93 +184,11 @@ class ClassGraphBuilder {
     // Class graph visualization
 
     /**
-     * Splits a .dot node label into two text lines, putting the package on one line and the class name on the next.
-     */
-    private static String label(final ClassInfo node) {
-        final String className = node.className;
-        final int dotIdx = className.lastIndexOf('.');
-        if (dotIdx < 0) {
-            return className;
-        }
-        return className.substring(0, dotIdx + 1) + "\\n" + className.substring(dotIdx + 1);
-    }
-
-    /**
      * Generates a .dot file which can be fed into GraphViz for layout and visualization of the class graph. The
      * sizeX and sizeY parameters are the image output size to use (in inches) when GraphViz is asked to render the
      * .dot file.
      */
     String generateClassGraphDotFile(final float sizeX, final float sizeY) {
-        final StringBuilder buf = new StringBuilder();
-        buf.append("digraph {\n");
-        buf.append("size=\"" + sizeX + "," + sizeY + "\";\n");
-        buf.append("layout=dot;\n");
-        buf.append("rankdir=\"BT\";\n");
-        buf.append("overlap=false;\n");
-        buf.append("splines=true;\n");
-        buf.append("pack=true;\n");
-
-        final Set<ClassInfo> standardClassNodes = ClassInfo.filterClassInfo(allClassInfo,
-                /* removeExternalClasses = */ false, ClassType.STANDARD_CLASS);
-        final Set<ClassInfo> interfaceNodes = ClassInfo.filterClassInfo(allClassInfo,
-                /* removeExternalClasses = */ false, ClassType.IMPLEMENTED_INTERFACE);
-        final Set<ClassInfo> annotationNodes = ClassInfo.filterClassInfo(allClassInfo,
-                /* removeExternalClasses = */ false, ClassType.ANNOTATION);
-
-        buf.append("\nnode[shape=box,style=filled,fillcolor=\"#fff2b6\"];\n");
-        for (final ClassInfo node : standardClassNodes) {
-            buf.append("  \"" + label(node) + "\"\n");
-        }
-
-        buf.append("\nnode[shape=diamond,style=filled,fillcolor=\"#b6e7ff\"];\n");
-        for (final ClassInfo node : interfaceNodes) {
-            buf.append("  \"" + label(node) + "\"\n");
-        }
-
-        buf.append("\nnode[shape=oval,style=filled,fillcolor=\"#f3c9ff\"];\n");
-        for (final ClassInfo node : annotationNodes) {
-            buf.append("  \"" + label(node) + "\"\n");
-        }
-
-        buf.append("\n");
-        for (final ClassInfo classNode : standardClassNodes) {
-            for (final ClassInfo superclassNode : classNode.getRelatedClasses(RelType.SUPERCLASSES)) {
-                // class --> superclass
-                buf.append("  \"" + label(classNode) + "\" -> \"" + label(superclassNode) + "\"\n");
-            }
-            for (final ClassInfo implementedInterfaceNode : classNode
-                    .getRelatedClasses(RelType.IMPLEMENTED_INTERFACES)) {
-                // class --<> implemented interface
-                buf.append("  \"" + label(classNode) + "\" -> \"" + label(implementedInterfaceNode)
-                        + "\" [arrowhead=diamond]\n");
-            }
-            for (final ClassInfo fieldTypeNode : classNode.getRelatedClasses(RelType.FIELD_TYPES)) {
-                // class --[] whitelisted field type
-                buf.append("  \"" + label(fieldTypeNode) + "\" -> \"" + label(classNode)
-                        + "\" [arrowtail=obox, dir=back]\n");
-            }
-        }
-        for (final ClassInfo interfaceNode : interfaceNodes) {
-            for (final ClassInfo superinterfaceNode : interfaceNode
-                    .getRelatedClasses(RelType.IMPLEMENTED_INTERFACES)) {
-                // interface --> superinterface
-                buf.append("  \"" + label(interfaceNode) + "\" -> \"" + label(superinterfaceNode)
-                        + "\" [arrowhead=diamond]\n");
-            }
-        }
-        for (final ClassInfo annotationNode : annotationNodes) {
-            for (final ClassInfo metaAnnotationNode : annotationNode.getRelatedClasses(RelType.ANNOTATIONS)) {
-                // annotation --o meta-annotation
-                buf.append("  \"" + label(annotationNode) + "\" -> \"" + label(metaAnnotationNode)
-                        + "\" [arrowhead=dot]\n");
-            }
-            for (final ClassInfo annotatedClassNode : annotationNode.getRelatedClasses(RelType.ANNOTATIONS)) {
-                // annotated class --o annotation
-                buf.append("  \"" + label(annotatedClassNode) + "\" -> \"" + label(annotationNode)
-                        + "\" [arrowhead=dot]\n");
-            }
-        }
-        buf.append("}");
-        return buf.toString();
+        return ClassInfo.generateClassGraphDotFile(scanSpec, allClassInfo, sizeX, sizeY);
     }
 }

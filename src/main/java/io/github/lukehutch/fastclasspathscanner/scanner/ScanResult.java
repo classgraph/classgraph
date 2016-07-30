@@ -139,6 +139,7 @@ public class ScanResult {
 
     /** Return the sorted list of names of all subclasses of the named class. */
     public List<String> getNamesOfSubclassesOf(final String className) {
+        scanSpec.checkClassIsNotBlacklisted(className);
         return classGraphBuilder.getNamesOfSubclassesOf(className);
     }
 
@@ -157,6 +158,7 @@ public class ScanResult {
 
     /** Return the sorted list of names of all superclasses of the named class. */
     public List<String> getNamesOfSuperclassesOf(final String className) {
+        scanSpec.checkClassIsNotBlacklisted(className);
         return classGraphBuilder.getNamesOfSuperclassesOf(className);
     }
 
@@ -210,6 +212,7 @@ public class ScanResult {
 
     /** Return the sorted list of names of all subinterfaces of the named interface. */
     public List<String> getNamesOfSubinterfacesOf(final String interfaceName) {
+        scanSpec.checkClassIsNotBlacklisted(interfaceName);
         return classGraphBuilder.getNamesOfSubinterfacesOf(interfaceName);
     }
 
@@ -229,6 +232,7 @@ public class ScanResult {
 
     /** Return the names of all superinterfaces of the named interface. */
     public List<String> getNamesOfSuperinterfacesOf(final String interfaceName) {
+        scanSpec.checkClassIsNotBlacklisted(interfaceName);
         return classGraphBuilder.getNamesOfSuperinterfacesOf(interfaceName);
     }
 
@@ -248,6 +252,7 @@ public class ScanResult {
 
     /** Return the sorted list of names of all classes implementing the named interface. */
     public List<String> getNamesOfClassesImplementing(final String interfaceName) {
+        scanSpec.checkClassIsNotBlacklisted(interfaceName);
         return classGraphBuilder.getNamesOfClassesImplementing(interfaceName);
     }
 
@@ -316,6 +321,7 @@ public class ScanResult {
      * annotation or meta-annotation.
      */
     public List<String> getNamesOfClassesWithAnnotation(final String annotationName) {
+        scanSpec.checkClassIsNotBlacklisted(annotationName);
         return classGraphBuilder.getNamesOfClassesWithAnnotation(annotationName);
     }
 
@@ -404,6 +410,7 @@ public class ScanResult {
 
     /** Return the sorted list of names of all annotations and meta-annotations on the named class. */
     public List<String> getNamesOfAnnotationsOnClass(final String classOrInterfaceName) {
+        scanSpec.checkClassIsNotBlacklisted(classOrInterfaceName);
         return classGraphBuilder.getNamesOfAnnotationsOnClass(classOrInterfaceName);
     }
 
@@ -421,6 +428,7 @@ public class ScanResult {
 
     /** Return the names of all annotations that have the named meta-annotation. */
     public List<String> getNamesOfAnnotationsWithMetaAnnotation(final String metaAnnotationName) {
+        scanSpec.checkClassIsNotBlacklisted(metaAnnotationName);
         return classGraphBuilder.getNamesOfAnnotationsWithMetaAnnotation(metaAnnotationName);
     }
 
