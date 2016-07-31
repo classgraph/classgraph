@@ -29,6 +29,8 @@
 package io.github.lukehutch.fastclasspathscanner;
 
 public class ScanInterruptedException extends RuntimeException {
+    private static final long serialVersionUID = 1L;
+
     public ScanInterruptedException() {
         super();
     }
