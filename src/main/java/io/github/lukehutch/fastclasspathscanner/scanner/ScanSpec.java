@@ -327,7 +327,7 @@ public class ScanSpec {
         }
 
         // Find classloaders
-        this.classLoaders = findAllClassLoaders(log == null ? null : log.log("Detecting ClassLoaders"));
+        this.classLoaders = findAllClassLoaders(log == null ? null : log.log("Finding ClassLoaders"));
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -375,7 +375,7 @@ public class ScanSpec {
         addAllParentClassloaders(klass.getClassLoader(), classLoadersSetOut);
     }
 
-    private List<ClassLoader> findAllClassLoaders(final LogNode log) {
+    private static List<ClassLoader> findAllClassLoaders(final LogNode log) {
         // Look for all unique classloaders.
         // Need both a set and a list so we can keep them unique, but in an order that (hopefully) reflects
         // the order in which the JDK calls classloaders.
