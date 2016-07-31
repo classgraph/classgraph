@@ -406,7 +406,7 @@ public class ScanSpec {
         final List<ClassLoader> classLoaders = classLoadersSet.getList();
         classLoaders.remove(null);
         if (log != null) {
-            for (ClassLoader classLoader : classLoaders) {
+            for (final ClassLoader classLoader : classLoaders) {
                 log.log("Found ClassLoader " + classLoader.getClass().getName());
             }
             log.addElapsedTime();
