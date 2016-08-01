@@ -44,21 +44,21 @@ public class ScanResult {
     private final List<File> uniqueClasspathElements;
 
     /**
-     * The file resources timestamped during a scan, along with their timestamp at the time of the scan. Includes
-     * whitelisted files within directory classpath elements' hierarchy, and also whitelisted jarfiles (whose
-     * timestamp represents the timestamp of all files within the jarfile). May be null, if this is the result of a
-     * call to FastClasspathScanner#getUniqueClasspathElementsAsync().
+     * The file, directory and jarfile resources timestamped during a scan, along with their timestamp at the time
+     * of the scan. For jarfiles, the timestamp represents the timestamp of all files within the jar. May be null,
+     * if this ScanResult object is the result of a call to FastClasspathScanner#getUniqueClasspathElementsAsync().
      */
     private final Map<File, Long> fileToLastModified;
 
     /**
-     * The class graph builder. May be null, if this is the result of a call to
+     * The class graph builder. May be null, if this ScanResult object is the result of a call to
      * FastClasspathScanner#getUniqueClasspathElementsAsync().
      */
     private final ClassGraphBuilder classGraphBuilder;
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /** The result of a scan. */
     ScanResult(final ScanSpec scanSpec, final List<File> uniqueClasspathElements,
             final ClassGraphBuilder classGraphBuilder, final Map<File, Long> fileToLastModified) {
         this.scanSpec = scanSpec;
@@ -72,6 +72,8 @@ public class ScanResult {
     /**
      * Returns the list of File objects for unique classpath elements (directories or jarfiles), in classloader
      * resolution order.
+     * 
+     * @return The unique classpath elements.
      */
     public List<File> getUniqueClasspathElements() {
         return uniqueClasspathElements;
@@ -80,34 +82,42 @@ public class ScanResult {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Returns true if the classpath contents have been modified since the last scan. Checks the timestamps of files
-     * and jarfiles encountered during the previous scan to see if they have changed. Does not perform a full scan,
-     * so cannot detect the addition of files to whitelisted paths in regular (non-jar) directories -- you need to
-     * perform a full scan to detect those changes. However, can detect the deletion of files from whitelisted
-     * directories, and changes to the contents of jarfiles (since the timestamp of the whole jarfile changes).
+     * Determine whether the classpath contents have been modified since the last scan. Checks the timestamps of
+     * files and jarfiles encountered during the previous scan to see if they have changed. Does not perform a full
+     * scan, so cannot detect the addition of directories that newly match whitelist criteria -- you need to perform
+     * a full scan to detect those changes.
+     * 
+     * @return true if the classpath contents have been modified since the last scan.
      */
     public boolean classpathContentsModifiedSinceScan() {
-        for (final Entry<File, Long> ent : fileToLastModified.entrySet()) {
-            if (ent.getKey().lastModified() != ent.getValue()) {
-                return true;
+        if (fileToLastModified == null) {
+            return true;
+        } else {
+            for (final Entry<File, Long> ent : fileToLastModified.entrySet()) {
+                if (ent.getKey().lastModified() != ent.getValue()) {
+                    return true;
+                }
             }
+            return false;
         }
-        return false;
     }
 
     /**
-     * Find the maximum (most recent) timestamp of any whitelisted file/directory/jarfile encountered in the
-     * previous scan. Checks the current timestamps, so this should increase between calls if something changes in
-     * whitelisted paths. Requires file and system timestamps to be comparable (i.e. generated from the same clock,
-     * without modifications to the clock). Ignores timestamps greater than the system time.
+     * Find the maximum last-modified timestamp of any whitelisted file/directory/jarfile encountered during the
+     * scan. Checks the current timestamps, so this should increase between calls if something changes in
+     * whitelisted paths. Assumes both file and system timestamps were generated from clocks whose time was
+     * accurate. Ignores timestamps greater than the system time.
+     * 
+     * @return the maximum last-modified time for whitelisted files/directories/jars encountered during the scan.
      */
     public long classpathContentsLastModifiedTime() {
-        // Find the max file last modified timestamp
         long maxLastModifiedTime = 0L;
-        final long currTime = System.currentTimeMillis();
-        for (final long timestamp : fileToLastModified.values()) {
-            if (timestamp > maxLastModifiedTime && timestamp < currTime) {
-                maxLastModifiedTime = timestamp;
+        if (fileToLastModified != null) {
+            final long currTime = System.currentTimeMillis();
+            for (final long timestamp : fileToLastModified.values()) {
+                if (timestamp > maxLastModifiedTime && timestamp < currTime) {
+                    maxLastModifiedTime = timestamp;
+                }
             }
         }
         return maxLastModifiedTime;
@@ -117,8 +127,13 @@ public class ScanResult {
     // ClassInfo (may be filtered as a Java 8 stream)
 
     /**
-     * Get ClassInfo objects for all whitelisted classes found during the scan. The values() May be filtered using
-     * Java 8 stream processing, or you can get the info for a specific class directly from this map.
+     * Get a map from class name to ClassInfo object for all whitelisted classes found during the scan. You can get
+     * the info for a specific class directly from this map, or the values() of this map may be filtered using Java
+     * 8 stream processing, see here:
+     * 
+     * https://github.com/lukehutch/fast-classpath-scanner/wiki/1.-Usage#mechanism-3
+     * 
+     * @return A map from class name to ClassInfo object for the class.
      */
     public Map<String, ClassInfo> getClassNameToClassInfo() {
         return classGraphBuilder.getClassNameToClassInfo();
@@ -127,59 +142,79 @@ public class ScanResult {
     // -------------------------------------------------------------------------------------------------------------
     // Classes
 
-    /** Get the sorted unique names of all classes, interfaces and annotations found during the scan. */
+    /**
+     * Get the names of all classes, interfaces and annotations found during the scan.
+     * 
+     * @return The sorted list of the names of all whitelisted classes found during the scan, or the empty list if
+     *         none.
+     */
     public List<String> getNamesOfAllClasses() {
         return classGraphBuilder.getNamesOfAllClasses();
     }
 
-    /** Get the sorted unique names of all standard (non-interface/annotation) classes found during the scan. */
+    /**
+     * Get the names of all standard (non-interface/non-annotation) classes found during the scan.
+     * 
+     * @return The sorted list of the names of all encountered standard classes, or the empty list if none.
+     */
     public List<String> getNamesOfAllStandardClasses() {
         return classGraphBuilder.getNamesOfAllStandardClasses();
     }
 
-    /** Return the sorted list of names of all subclasses of the named class. */
-    public List<String> getNamesOfSubclassesOf(final String className) {
-        scanSpec.checkClassIsNotBlacklisted(className);
-        return classGraphBuilder.getNamesOfSubclassesOf(className);
+    /**
+     * Get the names of all subclasses of the named class.
+     * 
+     * @param superclassName
+     *            The name of the superclass.
+     * @return The sorted list of the names of matching subclasses, or the empty list if none.
+     */
+    public List<String> getNamesOfSubclassesOf(final String superclassName) {
+        scanSpec.checkClassIsNotBlacklisted(superclassName);
+        return classGraphBuilder.getNamesOfSubclassesOf(superclassName);
     }
 
     /**
-     * Returns the names of classes on the classpath that extend the specified superclass. Should be called after
-     * scan(), and returns matching classes whether or not a SubclassMatchProcessor was added to the scanner before
-     * the call to scan(). Does not call the classloader on the matching classes, just returns their names.
+     * Get the names of classes on the classpath that extend the specified superclass.
      * 
      * @param superclass
      *            The superclass to match (i.e. the class that subclasses need to extend to match).
-     * @return A list of the names of matching classes, or the empty list if none.
+     * @return The sorted list of the names of matching subclasses, or the empty list if none.
      */
     public List<String> getNamesOfSubclassesOf(final Class<?> superclass) {
         return classGraphBuilder.getNamesOfSubclassesOf(scanSpec.getStandardClassName(superclass));
     }
 
-    /** Return the sorted list of names of all superclasses of the named class. */
-    public List<String> getNamesOfSuperclassesOf(final String className) {
-        scanSpec.checkClassIsNotBlacklisted(className);
-        return classGraphBuilder.getNamesOfSuperclassesOf(className);
+    /**
+     * Get the names of classes on the classpath that are superclasses of the named subclass.
+     * 
+     * @param subclassName
+     *            The name of the subclass.
+     * @return The sorted list of the names of superclasses of the named subclass, or the empty list if none.
+     */
+    public List<String> getNamesOfSuperclassesOf(final String subclassName) {
+        scanSpec.checkClassIsNotBlacklisted(subclassName);
+        return classGraphBuilder.getNamesOfSuperclassesOf(subclassName);
     }
 
     /**
-     * Returns the names of classes on the classpath that are superclasses of the specified subclass. Should be
-     * called after scan(), and returns matching classes whether or not a SubclassMatchProcessor was added to the
-     * scanner before the call to scan(). Does not call the classloader on the matching classes, just returns their
-     * names.
+     * Get the names of classes on the classpath that are superclasses of the specified subclass.
      * 
      * @param subclass
      *            The subclass to match (i.e. the class that needs to extend a superclass for the superclass to
      *            match).
-     * @return A list of the names of matching classes, or the empty list if none.
+     * @return The sorted list of the names of superclasses of the subclass, or the empty list if none.
      */
     public List<String> getNamesOfSuperclassesOf(final Class<?> subclass) {
         return getNamesOfSuperclassesOf(scanSpec.getStandardClassName(subclass));
     }
 
     /**
-     * Return a sorted list of classes that have a field of the named type, where the field type is in a whitelisted
-     * (non-blacklisted) package.
+     * Get the names of classes that have a field of the named type, or that have the given type as a type
+     * parameter.
+     * 
+     * @param fieldTypeName
+     *            the field type to match; should be in a whitelisted package.
+     * @return The sorted list of the names of classes with a field of the named type, or the empty list if none.
      */
     public List<String> getNamesOfClassesWithFieldOfType(final String fieldTypeName) {
         scanSpec.checkClassIsNotBlacklisted(fieldTypeName);
@@ -192,10 +227,12 @@ public class ScanResult {
     }
 
     /**
-     * Returns the names of classes that have a field of the given type. Returns classes that have fields with the
-     * same type as the requested type, array fields with an element type that matches the requested type, and
-     * fields of parameterized type that have a type parameter of the requested type. The field type must be
-     * declared in a package that is whitelisted (and not blacklisted).
+     * Get the names of classes that have a field of the given type, or that have the given type as a type
+     * parameter.
+     * 
+     * @param fieldType
+     *            the field type to match; should be in a whitelisted package.
+     * @return The sorted list of the names of classes with a field of the given type, or the empty list if none.
      */
     public List<String> getNamesOfClassesWithFieldOfType(final Class<?> fieldType) {
         final String fieldTypeName = fieldType.getName();
@@ -205,80 +242,97 @@ public class ScanResult {
     // -------------------------------------------------------------------------------------------------------------
     // Interfaces
 
-    /** Return the sorted unique names of all interface classes found during the scan. */
+    /**
+     * Get the names of all interface classes found during the scan.
+     * 
+     * @return The sorted list of the names of all whitelisted interfaces found during the scan, or the empty list
+     *         if none.
+     */
     public List<String> getNamesOfAllInterfaceClasses() {
         return classGraphBuilder.getNamesOfAllInterfaceClasses();
     }
 
-    /** Return the sorted list of names of all subinterfaces of the named interface. */
+    /**
+     * Get the names of all subinterfaces of the named interface.
+     * 
+     * @param interfaceName
+     *            The interface name.
+     * @return The sorted list of the names of all subinterfaces of the named interface, or the empty list if none.
+     */
     public List<String> getNamesOfSubinterfacesOf(final String interfaceName) {
         scanSpec.checkClassIsNotBlacklisted(interfaceName);
         return classGraphBuilder.getNamesOfSubinterfacesOf(interfaceName);
     }
 
     /**
-     * Returns the names of interfaces on the classpath that extend a given superinterface. Should be called after
-     * scan(), and returns matching interfaces whether or not a SubinterfaceMatchProcessor was added to the scanner
-     * before the call to scan(). Does not call the classloader on the matching interfaces, just returns their
-     * names.
+     * Get the names of interfaces on the classpath that extend a given superinterface.
      * 
      * @param superInterface
-     *            The superinterface to match (i.e. the interface that subinterfaces need to extend to match).
-     * @return A list of the names of matching interfaces, or the empty list if none.
+     *            The superinterface.
+     * @return The sorted list of the names of subinterfaces of the given superinterface, or the empty list if none.
      */
     public List<String> getNamesOfSubinterfacesOf(final Class<?> superInterface) {
         return getNamesOfSubinterfacesOf(scanSpec.getInterfaceName(superInterface));
     }
 
-    /** Return the names of all superinterfaces of the named interface. */
-    public List<String> getNamesOfSuperinterfacesOf(final String interfaceName) {
-        scanSpec.checkClassIsNotBlacklisted(interfaceName);
-        return classGraphBuilder.getNamesOfSuperinterfacesOf(interfaceName);
+    /**
+     * Get the names of all superinterfaces of the named interface.
+     * 
+     * @param subInterfaceName
+     *            The subinterface name.
+     * @return The sorted list of the names of superinterfaces of the named subinterface, or the empty list if none.
+     */
+    public List<String> getNamesOfSuperinterfacesOf(final String subInterfaceName) {
+        scanSpec.checkClassIsNotBlacklisted(subInterfaceName);
+        return classGraphBuilder.getNamesOfSuperinterfacesOf(subInterfaceName);
     }
 
     /**
-     * Returns the names of interfaces on the classpath that are superinterfaces of a given subinterface. Should be
-     * called after scan(), and returns matching interfaces whether or not a SubinterfaceMatchProcessor was added to
-     * the scanner before the call to scan(). Does not call the classloader on the matching interfaces, just returns
-     * their names.
+     * Get the names of all superinterfaces of the given subinterface.
      * 
      * @param subInterface
-     *            The superinterface to match (i.e. the interface that subinterfaces need to extend to match).
-     * @return A list of the names of matching interfaces, or the empty list if none.
+     *            The subinterface.
+     * @return The sorted list of the names of superinterfaces of the given subinterface, or the empty list if none.
      */
     public List<String> getNamesOfSuperinterfacesOf(final Class<?> subInterface) {
         return getNamesOfSuperinterfacesOf(scanSpec.getInterfaceName(subInterface));
     }
 
-    /** Return the sorted list of names of all classes implementing the named interface. */
+    /**
+     * Get the names of all classes that implement (or have superclasses that implement) the named interface (or one
+     * of its subinterfaces).
+     * 
+     * @param interfaceName
+     *            The interface name.
+     * @return The sorted list of the names of all classes that implement the named interface, or the empty list if
+     *         none.
+     */
     public List<String> getNamesOfClassesImplementing(final String interfaceName) {
         scanSpec.checkClassIsNotBlacklisted(interfaceName);
         return classGraphBuilder.getNamesOfClassesImplementing(interfaceName);
     }
 
     /**
-     * Returns the names of classes on the classpath that implement the specified interface or a subinterface, or
-     * whose superclasses implement the specified interface or a sub-interface. Should be called after scan(), and
-     * returns matching interfaces whether or not an InterfaceMatchProcessor was added to the scanner before the
-     * call to scan(). Does not call the classloader on the matching classes, just returns their names.
+     * Get the names of all classes that implement (or have superclasses that implement) the given interface (or one
+     * of its subinterfaces).
      * 
      * @param implementedInterface
-     *            The interface that classes need to implement to match.
-     * @return A list of the names of matching classes, or the empty list if none.
+     *            The interface.
+     * @return The sorted list of the names of all classes that implement the given interface, or the empty list if
+     *         none.
      */
     public List<String> getNamesOfClassesImplementing(final Class<?> implementedInterface) {
         return getNamesOfClassesImplementing(scanSpec.getInterfaceName(implementedInterface));
     }
 
     /**
-     * Returns the names of classes on the classpath that implement (or have superclasses that implement) all of the
-     * specified interfaces or their subinterfaces. Should be called after scan(), and returns matching interfaces
-     * whether or not an InterfaceMatchProcessor was added to the scanner before the call to scan(). Does not call
-     * the classloader on the matching classes, just returns their names.
+     * Get the names of all classes that implement (or have superclasses that implement) all of the named interfaces
+     * (or their subinterfaces).
      * 
      * @param implementedInterfaceNames
-     *            The name of the interfaces that classes need to implement.
-     * @return A list of the names of matching classes, or the empty list if none.
+     *            The names of the interfaces.
+     * @return The sorted list of the names of all classes that implement all of the named interfaces, or the empty
+     *         list if none.
      */
     public List<String> getNamesOfClassesImplementingAllOf(final String... implementedInterfaceNames) {
         final HashSet<String> classNames = new HashSet<>();
@@ -295,14 +349,13 @@ public class ScanResult {
     }
 
     /**
-     * Returns the names of classes on the classpath that implement (or have superclasses that implement) all of the
-     * specified interfaces or their subinterfaces. Should be called after scan(), and returns matching interfaces
-     * whether or not an InterfaceMatchProcessor was added to the scanner before the call to scan(). Does not call
-     * the classloader on the matching classes, just returns their names.
+     * Get the names of all classes that implement (or have superclasses that implement) all of the given interfaces
+     * (or their subinterfaces).
      * 
      * @param implementedInterfaces
-     *            The name of the interfaces that classes need to implement.
-     * @return A list of the names of matching classes, or the empty list if none.
+     *            The interfaces.
+     * @return The sorted list of the names of all classes that implement all of the given interfaces, or the empty
+     *         list if none.
      */
     public List<String> getNamesOfClassesImplementingAllOf(final Class<?>... implementedInterfaces) {
         return getNamesOfClassesImplementingAllOf(scanSpec.getInterfaceNames(implementedInterfaces));
@@ -311,14 +364,23 @@ public class ScanResult {
     // -------------------------------------------------------------------------------------------------------------
     // Annotations
 
-    /** Return the sorted unique names of all annotation classes found during the scan. */
+    /**
+     * Get the names of all annotation classes found during the scan.
+     *
+     * @return The sorted list of the names of all annotation classes found during the scan, or the empty list if
+     *         none.
+     */
     public List<String> getNamesOfAllAnnotationClasses() {
         return classGraphBuilder.getNamesOfAllAnnotationClasses();
     }
 
     /**
-     * Return the sorted list of names of all standard classes or non-annotation interfaces with the named class
-     * annotation or meta-annotation.
+     * Get the names of non-annotation classes with the named class annotation or meta-annotation.
+     *
+     * @param annotationName
+     *            The name of the class annotation or meta-annotation.
+     * @return The sorted list of the names of all non-annotation classes that were found with the named class
+     *         annotation during the scan, or the empty list if none.
      */
     public List<String> getNamesOfClassesWithAnnotation(final String annotationName) {
         scanSpec.checkClassIsNotBlacklisted(annotationName);
@@ -326,27 +388,24 @@ public class ScanResult {
     }
 
     /**
-     * Returns the names of classes on the classpath that have the specified annotation. Should be called after
-     * scan(), and returns matching classes whether or not a ClassAnnotationMatchProcessor was added to the scanner
-     * before the call to scan(). Does not call the classloader on the matching classes, just returns their names.
-     * 
+     * Get the names of non-annotation classes with the given class annotation or meta-annotation.
+     *
      * @param annotation
-     *            The class annotation.
-     * @return A list of the names of classes with the class annotation, or the empty list if none.
+     *            The class annotation or meta-annotation to match.
+     * @return The sorted list of the names of all non-annotation classes that were found with the given class
+     *         annotation during the scan, or the empty list if none.
      */
     public List<String> getNamesOfClassesWithAnnotation(final Class<?> annotation) {
         return getNamesOfClassesWithAnnotation(scanSpec.getAnnotationName(annotation));
     }
 
     /**
-     * Returns the names of classes on the classpath that have all of the specified annotations. Should be called
-     * after scan(), and returns matching classes whether or not a ClassAnnotationMatchProcessor was added to the
-     * scanner before the call to scan(). Does not call the classloader on the matching classes, just returns their
-     * names.
+     * Get the names of classes that have all of the named annotations.
      * 
      * @param annotationNames
-     *            The annotation names.
-     * @return A list of the names of classes that have all of the annotations, or the empty list if none.
+     *            The class annotation names.
+     * @return The sorted list of the names of classes that have all of the named class annotations, or the empty
+     *         list if none.
      */
     public List<String> getNamesOfClassesWithAnnotationsAllOf(final String... annotationNames) {
         final HashSet<String> classNames = new HashSet<>();
@@ -363,28 +422,24 @@ public class ScanResult {
     }
 
     /**
-     * Returns the names of classes on the classpath that have all of the specified annotations. Should be called
-     * after scan(), and returns matching classes whether or not a ClassAnnotationMatchProcessor was added to the
-     * scanner before the call to scan(). Does not call the classloader on the matching classes, just returns their
-     * names.
+     * Get the names of classes that have all of the given annotations.
      * 
      * @param annotations
-     *            The annotations.
-     * @return A list of the names of classes that have all of the annotations, or the empty list if none.
+     *            The class annotations.
+     * @return The sorted list of the names of classes that have all of the given class annotations, or the empty
+     *         list if none.
      */
     public List<String> getNamesOfClassesWithAnnotationsAllOf(final Class<?>... annotations) {
         return getNamesOfClassesWithAnnotationsAllOf(scanSpec.getAnnotationNames(annotations));
     }
 
     /**
-     * Returns the names of classes on the classpath that have any of the specified annotations. Should be called
-     * after scan(), and returns matching classes whether or not a ClassAnnotationMatchProcessor was added to the
-     * scanner before the call to scan(). Does not call the classloader on the matching classes, just returns their
-     * names.
+     * Get the names of classes that have any of the named annotations.
      * 
      * @param annotationNames
      *            The annotation names.
-     * @return A list of the names of classes that have one or more of the annotations, or the empty list if none.
+     * @return The sorted list of the names of classes that have any of the named class annotations, or the empty
+     *         list if none.
      */
     public List<String> getNamesOfClassesWithAnnotationsAnyOf(final String... annotationNames) {
         final HashSet<String> classNames = new HashSet<>();
@@ -395,50 +450,62 @@ public class ScanResult {
     }
 
     /**
-     * Returns the names of classes on the classpath that have any of the specified annotations. Should be called
-     * after scan(), and returns matching classes whether or not a ClassAnnotationMatchProcessor was added to the
-     * scanner before the call to scan(). Does not call the classloader on the matching classes, just returns their
-     * names.
+     * Get the names of classes that have any of the given annotations.
      * 
      * @param annotations
      *            The annotations.
-     * @return A list of the names of classes that have one or more of the annotations, or the empty list if none.
+     * @return The sorted list of the names of classes that have any of the given class annotations, or the empty
+     *         list if none.
      */
     public List<String> getNamesOfClassesWithAnnotationsAnyOf(final Class<?>... annotations) {
         return getNamesOfClassesWithAnnotationsAnyOf(scanSpec.getAnnotationNames(annotations));
     }
 
-    /** Return the sorted list of names of all annotations and meta-annotations on the named class. */
-    public List<String> getNamesOfAnnotationsOnClass(final String classOrInterfaceName) {
-        scanSpec.checkClassIsNotBlacklisted(classOrInterfaceName);
-        return classGraphBuilder.getNamesOfAnnotationsOnClass(classOrInterfaceName);
+    /**
+     * Get the names of all annotations and meta-annotations on the named class.
+     * 
+     * @param className
+     *            The class name.
+     * @return The sorted list of the names of annotations and meta-annotations on the named class, or the empty
+     *         list if none.
+     */
+    public List<String> getNamesOfAnnotationsOnClass(final String className) {
+        scanSpec.checkClassIsNotBlacklisted(className);
+        return classGraphBuilder.getNamesOfAnnotationsOnClass(className);
     }
 
     /**
-     * Return the names of all annotations and meta-annotations on the specified class or interface, or the
-     * meta-annotation on the specified annotation class.
+     * Get the names of all annotations and meta-annotations on the given class.
      * 
-     * @param classOrInterfaceOrAnnotation
-     *            The class, interface or annotation.
-     * @return A list of the names of annotations and meta-annotations on the class, or the empty list if none.
+     * @param klass
+     *            The class.
+     * @return The sorted list of the names of annotations and meta-annotations on the given class, or the empty
+     *         list if none.
      */
-    public List<String> getNamesOfAnnotationsOnClass(final Class<?> classOrInterfaceOrAnnotation) {
-        return getNamesOfAnnotationsOnClass(scanSpec.getClassOrInterfaceName(classOrInterfaceOrAnnotation));
+    public List<String> getNamesOfAnnotationsOnClass(final Class<?> klass) {
+        return getNamesOfAnnotationsOnClass(scanSpec.getClassOrInterfaceName(klass));
     }
 
-    /** Return the names of all annotations that have the named meta-annotation. */
+    /**
+     * Return the names of all annotations that have the named meta-annotation.
+     * 
+     * @param metaAnnotationName
+     *            The name of the meta-annotation.
+     * @return The sorted list of the names of annotations that have the named meta-annotation, or the empty list if
+     *         none.
+     */
     public List<String> getNamesOfAnnotationsWithMetaAnnotation(final String metaAnnotationName) {
         scanSpec.checkClassIsNotBlacklisted(metaAnnotationName);
         return classGraphBuilder.getNamesOfAnnotationsWithMetaAnnotation(metaAnnotationName);
     }
 
     /**
-     * Return the names of all annotations that are annotated with the specified meta-annotation.
+     * Return the names of all annotations that have the named meta-annotation.
      * 
      * @param metaAnnotation
-     *            The specified meta-annotation.
-     * @return A list of the names of annotations that are annotated with the specified meta annotation, or the
-     *         empty list if none.
+     *            The meta-annotation.
+     * @return The sorted list of the names of annotations that have the given meta-annotation, or the empty list if
+     *         none.
      */
     public List<String> getNamesOfAnnotationsWithMetaAnnotation(final Class<?> metaAnnotation) {
         return getNamesOfAnnotationsWithMetaAnnotation(scanSpec.getAnnotationName(metaAnnotation));
@@ -447,9 +514,15 @@ public class ScanResult {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Generates a .dot file which can be fed into GraphViz for layout and visualization of the class graph. The
+     * Generate a .dot file which can be fed into GraphViz for layout and visualization of the class graph. The
      * sizeX and sizeY parameters are the image output size to use (in inches) when GraphViz is asked to render the
      * .dot file.
+     * 
+     * @param sizeX
+     *            The GraphViz layout width in inches.
+     * @param sizeY
+     *            The GraphViz layout width in inches.
+     * @return the GraphViz file contents.
      */
     public String generateClassGraphDotFile(final float sizeX, final float sizeY) {
         return classGraphBuilder.generateClassGraphDotFile(sizeX, sizeY);

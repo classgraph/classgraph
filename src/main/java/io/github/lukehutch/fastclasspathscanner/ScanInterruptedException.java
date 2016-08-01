@@ -28,9 +28,11 @@
  */
 package io.github.lukehutch.fastclasspathscanner;
 
+/** Thrown if scanning was interrupted by the interrupt status being set on one of the worker threads. */
 public class ScanInterruptedException extends RuntimeException {
     private static final long serialVersionUID = 1L;
 
+    /** Thrown if scanning was interrupted by the interrupt status being set on one of the worker threads. */
     public ScanInterruptedException() {
         super();
     }

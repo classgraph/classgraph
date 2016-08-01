@@ -57,6 +57,10 @@ import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.MultiMapKeyToList;
 import io.github.lukehutch.fastclasspathscanner.utils.MultiMapKeyToSet;
 
+/**
+ * Parses the scanning specification that was passed to the FastClasspathScanner constructor, and finds all
+ * ClassLoaders. Also defines core MatchProcessor matching logic.
+ */
 public class ScanSpec {
     /** Whitelisted package paths with "/" appended, or the empty list if all packages are whitelisted. */
     private final ArrayList<String> whitelistedPathPrefixes = new ArrayList<>();
@@ -162,10 +166,14 @@ public class ScanSpec {
     public boolean ignoreFieldVisibility = false;
 
     /** All the visible classloaders that were able to be found. */
-    List<ClassLoader> classLoaders;
+    final List<ClassLoader> classLoaders;
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /**
+     * Parses the scanning specification that was passed to the FastClasspathScanner constructor, and finds all
+     * ClassLoaders.
+     */
     public ScanSpec(final String[] scanSpec, final LogNode log) {
         final HashSet<String> uniqueWhitelistedPathPrefixes = new HashSet<>();
         final HashSet<String> uniqueBlacklistedPathPrefixes = new HashSet<>();
@@ -353,7 +361,6 @@ public class ScanSpec {
         protected Class<?>[] getClassContext() {
             return super.getClassContext();
         }
-
     }
 
     /** Add all parents of a ClassLoader in top-down order, the same as in the JRE. */
@@ -727,8 +734,7 @@ public class ScanSpec {
 
     /**
      * Calls the provided ClassMatchProcessor for all standard classes, interfaces and annotations found in
-     * whitelisted packages on the classpath. Calls the class loader on each matching class (using Class.forName())
-     * before calling the ClassMatchProcessor.
+     * whitelisted packages on the classpath.
      * 
      * @param classMatchProcessor
      *            the ClassMatchProcessor to call when a match is found.
@@ -755,8 +761,7 @@ public class ScanSpec {
 
     /**
      * Calls the provided ClassMatchProcessor for all standard classes (i.e. non-interface, non-annotation classes)
-     * found in whitelisted packages on the classpath. Calls the class loader on each matching class (using
-     * Class.forName()) before calling the ClassMatchProcessor.
+     * found in whitelisted packages on the classpath.
      * 
      * @param classMatchProcessor
      *            the ClassMatchProcessor to call when a match is found.
@@ -783,8 +788,7 @@ public class ScanSpec {
 
     /**
      * Calls the provided ClassMatchProcessor for all interface classes (interface definitions) found in whitelisted
-     * packages on the classpath. Calls the class loader on each matching interface class (using Class.forName())
-     * before calling the ClassMatchProcessor.
+     * packages on the classpath.
      * 
      * @param ClassMatchProcessor
      *            the ClassMatchProcessor to call when a match is found.
@@ -811,8 +815,7 @@ public class ScanSpec {
 
     /**
      * Calls the provided ClassMatchProcessor for all annotation classes (annotation definitions) found in
-     * whitelisted packages on the classpath. Calls the class loader on each matching annotation class (using
-     * Class.forName()) before calling the ClassMatchProcessor.
+     * whitelisted packages on the classpath.
      * 
      * @param ClassMatchProcessor
      *            the ClassMatchProcessor to call when a match is found.
@@ -837,10 +840,11 @@ public class ScanSpec {
         });
     }
 
+    // -------------------------------------------------------------------------------------------------------------
+
     /**
      * Calls the provided SubclassMatchProcessor if classes are found on the classpath that extend the specified
-     * superclass. Calls the class loader on each matching class (using Class.forName()) before calling the
-     * SubclassMatchProcessor. Does not call the classloader on non-matching classes or interfaces.
+     * superclass.
      * 
      * @param superclass
      *            The superclass to match (i.e. the class that subclasses need to extend to match).
@@ -869,10 +873,11 @@ public class ScanSpec {
         });
     }
 
+    // -------------------------------------------------------------------------------------------------------------
+
     /**
      * Calls the provided SubinterfaceMatchProcessor if an interface that extends a given superinterface is found on
-     * the classpath. Will call the class loader on each matching interface (using Class.forName()) before calling
-     * the SubinterfaceMatchProcessor. Does not call the classloader on non-matching classes or interfaces.
+     * the classpath.
      * 
      * @param superinterface
      *            The superinterface to match (i.e. the interface that subinterfaces need to extend to match).
@@ -901,11 +906,11 @@ public class ScanSpec {
         });
     }
 
+    // -------------------------------------------------------------------------------------------------------------
+
     /**
      * Calls the provided InterfaceMatchProcessor for classes on the classpath that implement the specified
-     * interface or a subinterface, or whose superclasses implement the specified interface or a sub-interface. Will
-     * call the class loader on each matching interface (using Class.forName()) before calling the
-     * InterfaceMatchProcessor. Does not call the classloader on non-matching classes or interfaces.
+     * interface or a subinterface, or whose superclasses implement the specified interface or a sub-interface.
      * 
      * @param implementedInterface
      *            The interface that classes need to implement.
@@ -935,12 +940,14 @@ public class ScanSpec {
         });
     }
 
+    // -------------------------------------------------------------------------------------------------------------
+
     /**
      * Calls the provided ClassMatchProcessor for classes on the classpath that have a field of the given type.
      * Matches classes that have fields of the given type, array fields with an element type of the given type, and
-     * fields of parameterized type that have a type parameter of the given type. (Does not call the classloader on
-     * non-matching classes.) The field type must be declared in a package that is whitelisted (and not
-     * blacklisted).
+     * fields of parameterized type that have a type parameter of the given type.
+     * 
+     * Calls enableFieldTypeIndexing() for you.
      * 
      * @param fieldType
      *            The type of the field to match..
@@ -969,9 +976,11 @@ public class ScanSpec {
         });
     }
 
+    // -------------------------------------------------------------------------------------------------------------
+
     /**
-     * Calls the provided ClassMatchProcessor if classes are found on the classpath that have the specified
-     * annotation.
+     * Calls the provided ClassAnnotationMatchProcessor if classes are found on the classpath that have the
+     * specified annotation.
      * 
      * @param annotation
      *            The class annotation to match.
@@ -1024,7 +1033,7 @@ public class ScanSpec {
      * final fields that match one of a set of fully-qualified field names, e.g.
      * "com.package.ClassName.STATIC_FIELD_NAME".
      * 
-     * Field values are obtained from the constant pool in classfiles, *not* from a loaded class using reflection.
+     * Field values are obtained from the constant pool in classfiles, not from a loaded class using reflection.
      * This allows you to detect changes to the classpath and then run another scan that picks up the new values of
      * selected static constants without reloading the class. (Class reloading is fraught with issues, see:
      * http://tutorials.jenkov.com/java-reflection/dynamic-class-loading-reloading.html )
@@ -1033,8 +1042,7 @@ public class ScanSpec {
      * that are the result of an expression or reference, except for cases where the compiler is able to simplify an
      * expression into a single constant at compiletime, such as in the case of string concatenation.
      * 
-     * Note that the visibility of the fields is not checked; the value of the field in the classfile is returned
-     * whether or not it should be visible to the caller.
+     * Note that the visibility of the fields is not checked if ignoreFieldVisibility() was called before scan().
      * 
      * @param fullyQualifiedStaticFinalFieldNames
      *            The set of fully-qualified static field names to match.
@@ -1066,8 +1074,7 @@ public class ScanSpec {
      * that are the result of an expression or reference, except for cases where the compiler is able to simplify an
      * expression into a single constant at compiletime, such as in the case of string concatenation.
      * 
-     * Note that the visibility of the fields is not checked; the value of the field in the classfile is returned
-     * whether or not it should be visible to the caller.
+     * Note that the visibility of the fields is not checked if ignoreFieldVisibility() was called before scan().
      * 
      * @param fullyQualifiedStaticFinalFieldName
      *            The fully-qualified static field name to match
@@ -1095,8 +1102,7 @@ public class ScanSpec {
      * that are the result of an expression or reference, except for cases where the compiler is able to simplify an
      * expression into a single constant at compiletime, such as in the case of string concatenation.
      * 
-     * Note that the visibility of the fields is not checked; the value of the field in the classfile is returned
-     * whether or not it should be visible to the caller.
+     * Note that the visibility of the fields is not checked if ignoreFieldVisibility() was called before scan().
      * 
      * @param fullyQualifiedStaticFinalFieldNames
      *            The list of fully-qualified static field names to match.
@@ -1228,21 +1234,6 @@ public class ScanSpec {
     }
 
     /**
-     * Calls the given FileMatchProcessorWithContext if files are found on the classpath with the given regexp
-     * pattern in their path.
-     * 
-     * @param pathRegexp
-     *            The regexp to match, e.g. "app/templates/.*\\.html"
-     * @param fileMatchProcessorWithContext
-     *            The FileMatchProcessorWithContext to call when each match is found.
-     */
-    public synchronized void matchFilenamePattern(final String pathRegexp,
-            final FileMatchProcessorWithContext fileMatchProcessorWithContext) {
-        addFilePathMatcher(makeFilePathTesterMatchingRegexp(pathRegexp),
-                makeFileMatchProcessorWrapper(fileMatchProcessorWithContext));
-    }
-
-    /**
      * Calls the given FileMatchProcessor if files are found on the classpath with the given regexp pattern in their
      * path.
      * 
@@ -1258,21 +1249,6 @@ public class ScanSpec {
     }
 
     /**
-     * Calls the given FileMatchContentsProcessorWithContext if files are found on the classpath with the given
-     * regexp pattern in their path.
-     * 
-     * @param pathRegexp
-     *            The regexp to match, e.g. "app/templates/.*\\.html"
-     * @param fileMatchContentsProcessorWithContext
-     *            The FileMatchContentsProcessorWithContext to call when each match is found.
-     */
-    public synchronized void matchFilenamePattern(final String pathRegexp,
-            final FileMatchContentsProcessorWithContext fileMatchContentsProcessorWithContext) {
-        addFilePathMatcher(makeFilePathTesterMatchingRegexp(pathRegexp),
-                makeFileMatchProcessorWrapper(fileMatchContentsProcessorWithContext));
-    }
-
-    /**
      * Calls the given FileMatchContentsProcessor if files are found on the classpath with the given regexp pattern
      * in their path.
      * 
@@ -1285,6 +1261,36 @@ public class ScanSpec {
             final FileMatchContentsProcessor fileMatchContentsProcessor) {
         addFilePathMatcher(makeFilePathTesterMatchingRegexp(pathRegexp),
                 makeFileMatchProcessorWrapper(fileMatchContentsProcessor));
+    }
+
+    /**
+     * Calls the given FileMatchProcessorWithContext if files are found on the classpath with the given regexp
+     * pattern in their path.
+     * 
+     * @param pathRegexp
+     *            The regexp to match, e.g. "app/templates/.*\\.html"
+     * @param fileMatchProcessorWithContext
+     *            The FileMatchProcessorWithContext to call when each match is found.
+     */
+    public synchronized void matchFilenamePattern(final String pathRegexp,
+            final FileMatchProcessorWithContext fileMatchProcessorWithContext) {
+        addFilePathMatcher(makeFilePathTesterMatchingRegexp(pathRegexp),
+                makeFileMatchProcessorWrapper(fileMatchProcessorWithContext));
+    }
+
+    /**
+     * Calls the given FileMatchContentsProcessorWithContext if files are found on the classpath with the given
+     * regexp pattern in their path.
+     * 
+     * @param pathRegexp
+     *            The regexp to match, e.g. "app/templates/.*\\.html"
+     * @param fileMatchContentsProcessorWithContext
+     *            The FileMatchContentsProcessorWithContext to call when each match is found.
+     */
+    public synchronized void matchFilenamePattern(final String pathRegexp,
+            final FileMatchContentsProcessorWithContext fileMatchContentsProcessorWithContext) {
+        addFilePathMatcher(makeFilePathTesterMatchingRegexp(pathRegexp),
+                makeFileMatchProcessorWrapper(fileMatchContentsProcessorWithContext));
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -1304,22 +1310,6 @@ public class ScanSpec {
     }
 
     /**
-     * Calls the given FileMatchProcessorWithContext if files are found on the classpath that exactly match the
-     * given relative path.
-     * 
-     * @param relativePathToMatch
-     *            The complete path to match relative to the classpath entry, e.g.
-     *            "app/templates/WidgetTemplate.html"
-     * @param fileMatchProcessorWithContext
-     *            The FileMatchProcessorWithContext to call when each match is found.
-     */
-    public synchronized void matchFilenamePath(final String relativePathToMatch,
-            final FileMatchProcessorWithContext fileMatchProcessorWithContext) {
-        addFilePathMatcher(makeFilePathTesterMatchingRelativePath(relativePathToMatch),
-                makeFileMatchProcessorWrapper(fileMatchProcessorWithContext));
-    }
-
-    /**
      * Calls the given FileMatchProcessor if files are found on the classpath that exactly match the given relative
      * path.
      * 
@@ -1336,22 +1326,6 @@ public class ScanSpec {
     }
 
     /**
-     * Calls the given FileMatchContentsProcessorWithContext if files are found on the classpath that exactly match
-     * the given relative path.
-     * 
-     * @param relativePathToMatch
-     *            The complete path to match relative to the classpath entry, e.g.
-     *            "app/templates/WidgetTemplate.html"
-     * @param fileMatchContentsProcessorWithContext
-     *            The FileMatchContentsProcessorWithContext to call when each match is found.
-     */
-    public synchronized void matchFilenamePath(final String relativePathToMatch,
-            final FileMatchContentsProcessorWithContext fileMatchContentsProcessorWithContext) {
-        addFilePathMatcher(makeFilePathTesterMatchingRelativePath(relativePathToMatch),
-                makeFileMatchProcessorWrapper(fileMatchContentsProcessorWithContext));
-    }
-
-    /**
      * Calls the given FileMatchContentsProcessor if files are found on the classpath that exactly match the given
      * relative path.
      * 
@@ -1365,6 +1339,38 @@ public class ScanSpec {
             final FileMatchContentsProcessor fileMatchContentsProcessor) {
         addFilePathMatcher(makeFilePathTesterMatchingRelativePath(relativePathToMatch),
                 makeFileMatchProcessorWrapper(fileMatchContentsProcessor));
+    }
+
+    /**
+     * Calls the given FileMatchProcessorWithContext if files are found on the classpath that exactly match the
+     * given relative path.
+     * 
+     * @param relativePathToMatch
+     *            The complete path to match relative to the classpath entry, e.g.
+     *            "app/templates/WidgetTemplate.html"
+     * @param fileMatchProcessorWithContext
+     *            The FileMatchProcessorWithContext to call when each match is found.
+     */
+    public synchronized void matchFilenamePath(final String relativePathToMatch,
+            final FileMatchProcessorWithContext fileMatchProcessorWithContext) {
+        addFilePathMatcher(makeFilePathTesterMatchingRelativePath(relativePathToMatch),
+                makeFileMatchProcessorWrapper(fileMatchProcessorWithContext));
+    }
+
+    /**
+     * Calls the given FileMatchContentsProcessorWithContext if files are found on the classpath that exactly match
+     * the given relative path.
+     * 
+     * @param relativePathToMatch
+     *            The complete path to match relative to the classpath entry, e.g.
+     *            "app/templates/WidgetTemplate.html"
+     * @param fileMatchContentsProcessorWithContext
+     *            The FileMatchContentsProcessorWithContext to call when each match is found.
+     */
+    public synchronized void matchFilenamePath(final String relativePathToMatch,
+            final FileMatchContentsProcessorWithContext fileMatchContentsProcessorWithContext) {
+        addFilePathMatcher(makeFilePathTesterMatchingRelativePath(relativePathToMatch),
+                makeFileMatchProcessorWrapper(fileMatchContentsProcessorWithContext));
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -1387,21 +1393,6 @@ public class ScanSpec {
     }
 
     /**
-     * Calls the given FileMatchProcessorWithContext if files are found on the classpath that exactly match the
-     * given path leafname.
-     * 
-     * @param pathLeafToMatch
-     *            The complete path leaf to match, e.g. "WidgetTemplate.html"
-     * @param fileMatchProcessorWithContext
-     *            The FileMatchProcessorWithContext to call when each match is found.
-     */
-    public synchronized void matchFilenamePathLeaf(final String pathLeafToMatch,
-            final FileMatchProcessorWithContext fileMatchProcessorWithContext) {
-        addFilePathMatcher(makeFilePathTesterMatchingPathLeaf(pathLeafToMatch),
-                makeFileMatchProcessorWrapper(fileMatchProcessorWithContext));
-    }
-
-    /**
      * Calls the given FileMatchProcessor if files are found on the classpath that exactly match the given path
      * leafname.
      * 
@@ -1417,21 +1408,6 @@ public class ScanSpec {
     }
 
     /**
-     * Calls the given FileMatchContentsProcessorWithContext if files are found on the classpath that exactly match
-     * the given path leafname.
-     * 
-     * @param pathLeafToMatch
-     *            The complete path leaf to match, e.g. "WidgetTemplate.html"
-     * @param fileMatchContentsProcessorWithContext
-     *            The FileMatchContentsProcessorWithContext to call when each match is found.
-     */
-    public synchronized void matchFilenamePathLeaf(final String pathLeafToMatch,
-            final FileMatchContentsProcessorWithContext fileMatchContentsProcessorWithContext) {
-        addFilePathMatcher(makeFilePathTesterMatchingPathLeaf(pathLeafToMatch),
-                makeFileMatchProcessorWrapper(fileMatchContentsProcessorWithContext));
-    }
-
-    /**
      * Calls the given FileMatchContentsProcessor if files are found on the classpath that exactly match the given
      * path leafname.
      * 
@@ -1444,6 +1420,36 @@ public class ScanSpec {
             final FileMatchContentsProcessor fileMatchContentsProcessor) {
         addFilePathMatcher(makeFilePathTesterMatchingPathLeaf(pathLeafToMatch),
                 makeFileMatchProcessorWrapper(fileMatchContentsProcessor));
+    }
+
+    /**
+     * Calls the given FileMatchProcessorWithContext if files are found on the classpath that exactly match the
+     * given path leafname.
+     * 
+     * @param pathLeafToMatch
+     *            The complete path leaf to match, e.g. "WidgetTemplate.html"
+     * @param fileMatchProcessorWithContext
+     *            The FileMatchProcessorWithContext to call when each match is found.
+     */
+    public synchronized void matchFilenamePathLeaf(final String pathLeafToMatch,
+            final FileMatchProcessorWithContext fileMatchProcessorWithContext) {
+        addFilePathMatcher(makeFilePathTesterMatchingPathLeaf(pathLeafToMatch),
+                makeFileMatchProcessorWrapper(fileMatchProcessorWithContext));
+    }
+
+    /**
+     * Calls the given FileMatchContentsProcessorWithContext if files are found on the classpath that exactly match
+     * the given path leafname.
+     * 
+     * @param pathLeafToMatch
+     *            The complete path leaf to match, e.g. "WidgetTemplate.html"
+     * @param fileMatchContentsProcessorWithContext
+     *            The FileMatchContentsProcessorWithContext to call when each match is found.
+     */
+    public synchronized void matchFilenamePathLeaf(final String pathLeafToMatch,
+            final FileMatchContentsProcessorWithContext fileMatchContentsProcessorWithContext) {
+        addFilePathMatcher(makeFilePathTesterMatchingPathLeaf(pathLeafToMatch),
+                makeFileMatchProcessorWrapper(fileMatchContentsProcessorWithContext));
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -1467,21 +1473,6 @@ public class ScanSpec {
     }
 
     /**
-     * Calls the given FileMatchProcessorWithContext if files are found on the classpath that have the given file
-     * extension.
-     * 
-     * @param extensionToMatch
-     *            The extension to match, e.g. "html" matches "WidgetTemplate.html" and "WIDGET.HTML".
-     * @param fileMatchProcessorWithContext
-     *            The FileMatchProcessorWithContext to call when each match is found.
-     */
-    public synchronized void matchFilenameExtension(final String extensionToMatch,
-            final FileMatchProcessorWithContext fileMatchProcessorWithContext) {
-        addFilePathMatcher(makeFilePathTesterMatchingFilenameExtension(extensionToMatch),
-                makeFileMatchProcessorWrapper(fileMatchProcessorWithContext));
-    }
-
-    /**
      * Calls the given FileMatchProcessor if files are found on the classpath that have the given file extension.
      * 
      * @param extensionToMatch
@@ -1493,21 +1484,6 @@ public class ScanSpec {
             final FileMatchProcessor fileMatchProcessor) {
         addFilePathMatcher(makeFilePathTesterMatchingFilenameExtension(extensionToMatch),
                 makeFileMatchProcessorWrapper(fileMatchProcessor));
-    }
-
-    /**
-     * Calls the given FileMatchProcessorWithContext if files are found on the classpath that have the given file
-     * extension.
-     * 
-     * @param extensionToMatch
-     *            The extension to match, e.g. "html" matches "WidgetTemplate.html".
-     * @param fileMatchContentsProcessorWithContext
-     *            The FileMatchContentsProcessorWithContext to call when each match is found.
-     */
-    public synchronized void matchFilenameExtension(final String extensionToMatch,
-            final FileMatchContentsProcessorWithContext fileMatchContentsProcessorWithContext) {
-        addFilePathMatcher(makeFilePathTesterMatchingFilenameExtension(extensionToMatch),
-                makeFileMatchProcessorWrapper(fileMatchContentsProcessorWithContext));
     }
 
     /**
@@ -1524,4 +1500,33 @@ public class ScanSpec {
                 makeFileMatchProcessorWrapper(fileMatchContentsProcessor));
     }
 
+    /**
+     * Calls the given FileMatchProcessorWithContext if files are found on the classpath that have the given file
+     * extension.
+     * 
+     * @param extensionToMatch
+     *            The extension to match, e.g. "html" matches "WidgetTemplate.html" and "WIDGET.HTML".
+     * @param fileMatchProcessorWithContext
+     *            The FileMatchProcessorWithContext to call when each match is found.
+     */
+    public synchronized void matchFilenameExtension(final String extensionToMatch,
+            final FileMatchProcessorWithContext fileMatchProcessorWithContext) {
+        addFilePathMatcher(makeFilePathTesterMatchingFilenameExtension(extensionToMatch),
+                makeFileMatchProcessorWrapper(fileMatchProcessorWithContext));
+    }
+
+    /**
+     * Calls the given FileMatchProcessorWithContext if files are found on the classpath that have the given file
+     * extension.
+     * 
+     * @param extensionToMatch
+     *            The extension to match, e.g. "html" matches "WidgetTemplate.html".
+     * @param fileMatchContentsProcessorWithContext
+     *            The FileMatchContentsProcessorWithContext to call when each match is found.
+     */
+    public synchronized void matchFilenameExtension(final String extensionToMatch,
+            final FileMatchContentsProcessorWithContext fileMatchContentsProcessorWithContext) {
+        addFilePathMatcher(makeFilePathTesterMatchingFilenameExtension(extensionToMatch),
+                makeFileMatchProcessorWrapper(fileMatchContentsProcessorWithContext));
+    }
 }
