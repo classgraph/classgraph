@@ -107,8 +107,7 @@ class ClasspathElementZip extends ClasspathElement {
             }
             if (fastManifestParser != null && fastManifestParser.classPath != null) {
                 if (log != null) {
-                    log.log("Found Class-Path entry in manifest of " + classpathElt.getResolvedPath() + ": "
-                            + fastManifestParser.classPath);
+                    log.log("Found Class-Path entry in manifest: " + fastManifestParser.classPath);
                 }
                 // Get the classpath elements from the Class-Path manifest entry
                 // (these are space-delimited).
