@@ -47,28 +47,28 @@ import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 public class LogNode {
     /** The timestamp at which the log node was created. */
     private final long timeStamp = System.nanoTime();
-    
+
     /** The log message. */
     private final String msg;
-    
+
     /** The stacktrace, if this log entry was due to an exception. */
     private String stackTrace;
-    
+
     /** The time between when this log entry was created and addElapsedTime() was called. */
     private long elapsedTimeNanos;
-    
+
     /** The child nodes of this log node. */
     private final Map<String, LogNode> children = new ConcurrentSkipListMap<>();
-    
+
     /** The sort key prefix for deterministic ordering of log entries. */
     private String sortKeyPrefix = "";
-    
+
     /** The sort key suffix for this log entry, used to make sort keys unique. */
     private static AtomicInteger sortKeyUniqueSuffix = new AtomicInteger(0);
 
     /** The date/time formatter (not threadsafe). */
     private static final SimpleDateFormat dateTimeFormatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mmX");
-    
+
     /** The elapsed time formatter. */
     private static final DecimalFormat nanoFormatter = new DecimalFormat("0.000000");
 
@@ -134,15 +134,8 @@ public class LogNode {
         }
 
         for (final Entry<String, LogNode> ent : children.entrySet()) {
-            final String key = ent.getKey();
             final LogNode child = ent.getValue();
             child.toString(indentLevel + 1, buf);
-            // Remove the child node once it has been written, although double-check first to see if additional
-            // log entries have been added to the child, as a soft protection against race conditions. In general
-            // though, the toplevel toString() method should only be called after all worker threads have stopped. 
-            if (child.children.isEmpty()) {
-                children.remove(key);
-            }
         }
     }
 
@@ -249,9 +242,16 @@ public class LogNode {
         return addChild("", msg, -1L, null);
     }
 
-    /** Flush out the log to stderr. */
+    /**
+     * Flush out the log to stderr, and clear the log contents. Only call this on the toplevel log node, when
+     * threads do not have access to references of internal log nodes so that they cannot add more log entries
+     * inside the tree, otherwise log entries may be lost.
+     */
     public void flush() {
-        System.err.print(this.toString());
+        String logOutput = this.toString();
+        this.children.clear();
+        System.out.flush();
+        System.err.print(logOutput);
         System.err.flush();
     }
 }
