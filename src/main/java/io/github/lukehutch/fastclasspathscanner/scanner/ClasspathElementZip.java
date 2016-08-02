@@ -106,9 +106,6 @@ class ClasspathElementZip extends ClasspathElement {
                 scanZipFile(classpathEltFile, zipFile, log);
             }
             if (fastManifestParser != null && fastManifestParser.classPath != null) {
-                if (log != null) {
-                    log.log("Found Class-Path entry in manifest: " + fastManifestParser.classPath);
-                }
                 // Get the classpath elements from the Class-Path manifest entry
                 // (these are space-delimited).
                 final String[] manifestClassPathElts = fastManifestParser.classPath.split(" ");
@@ -122,8 +119,13 @@ class ClasspathElementZip extends ClasspathElement {
                 for (int i = 0; i < manifestClassPathElts.length; i++) {
                     final String manifestClassPathElt = manifestClassPathElts[i];
                     if (!manifestClassPathElt.isEmpty()) {
-                        childClasspathElts
-                                .add(new ClasspathRelativePath(pathOfContainingDir, manifestClassPathElt));
+                        ClasspathRelativePath childRelativePath = new ClasspathRelativePath(pathOfContainingDir,
+                                manifestClassPathElt);
+                        childClasspathElts.add(childRelativePath);
+                        if (log != null) {
+                            log.log("Found Class-Path entry in manifest: " + manifestClassPathElt + " -> "
+                                    + childRelativePath);
+                        }
                     }
                 }
 
