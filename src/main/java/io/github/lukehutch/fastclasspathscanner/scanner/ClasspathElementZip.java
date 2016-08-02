@@ -95,10 +95,10 @@ class ClasspathElementZip extends ClasspathElement {
             }
             if (!scanFiles) {
                 // If not performing a scan, just get the manifest entry manually
-                fastManifestParser = new FastManifestParser(zipFile, zipFile.getEntry("META-INF/MANIFEST.MF"), log);
+                fastManifestParser = new FastManifestParser(zipFile, log);
             } else {
                 // Scan for path matches within jarfile, and record ZipEntry objects of matching files.
-                // Will parse the manifest file if it finds it.
+                // Sets fastManifestParser if it finds a manifest file.
                 final int numEntries = zipFile.size();
                 fileMatches = new MultiMapKeyToList<>();
                 classfileMatches = new ArrayList<>(numEntries);
@@ -106,26 +106,26 @@ class ClasspathElementZip extends ClasspathElement {
                 scanZipFile(classpathEltFile, zipFile, log);
             }
             if (fastManifestParser != null && fastManifestParser.classPath != null) {
+                final LogNode manifestLog = log == null ? null
+                        : log.log("Manifest file " + FastManifestParser.MANIFEST_PATH + " has Class-Path entries");
+
                 // Get the classpath elements from the Class-Path manifest entry
                 // (these are space-delimited).
-                final String[] manifestClassPathElts = fastManifestParser.classPath.split(" ");
+                childClasspathElts = new ArrayList<>(fastManifestParser.classPath.size());
 
                 // Class-Path entries in the manifest file are resolved relative to
                 // the dir the manifest's jarfile is contaiin. Get the parent path.
                 final String pathOfContainingDir = FastPathResolver.resolve(classpathEltFile.getParent());
 
                 // Create child classpath elements from Class-Path entry
-                childClasspathElts = new ArrayList<>(manifestClassPathElts.length);
-                for (int i = 0; i < manifestClassPathElts.length; i++) {
-                    final String manifestClassPathElt = manifestClassPathElts[i];
-                    if (!manifestClassPathElt.isEmpty()) {
-                        ClasspathRelativePath childRelativePath = new ClasspathRelativePath(pathOfContainingDir,
-                                manifestClassPathElt);
-                        childClasspathElts.add(childRelativePath);
-                        if (log != null) {
-                            log.log("Found Class-Path entry in manifest: " + manifestClassPathElt + " -> "
-                                    + childRelativePath);
-                        }
+                for (int i = 0; i < fastManifestParser.classPath.size(); i++) {
+                    final String manifestClassPathElt = fastManifestParser.classPath.get(i);
+                    final ClasspathRelativePath childRelativePath = new ClasspathRelativePath(pathOfContainingDir,
+                            manifestClassPathElt);
+                    childClasspathElts.add(childRelativePath);
+                    if (manifestLog != null) {
+                        manifestLog.log("Found Class-Path entry in manifest: " + manifestClassPathElt + " -> "
+                                + childRelativePath);
                     }
                 }
 
@@ -173,10 +173,7 @@ class ClasspathElementZip extends ClasspathElement {
             prevParentMatchStatus = parentMatchStatus;
 
             // Store entry for manifest file, if present, so that the entry doesn't have to be looked up by name
-            if (relativePath.equalsIgnoreCase("META-INF/MANIFEST.MF")) {
-                if (log != null) {
-                    log.log("Found manifest file: " + relativePath);
-                }
+            if (relativePath.equalsIgnoreCase(FastManifestParser.MANIFEST_PATH)) {
                 fastManifestParser = new FastManifestParser(zipFile, zipEntry, log);
             }
 
