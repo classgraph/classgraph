@@ -78,5 +78,6 @@ public abstract class Recycler<T extends AutoCloseable, E extends Exception> imp
         unusedInstances.clear();
     }
 
+    /** Create a new instance. */
     public abstract T newInstance() throws E;
 }

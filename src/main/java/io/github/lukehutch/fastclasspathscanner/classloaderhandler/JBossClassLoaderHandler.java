@@ -33,8 +33,11 @@ import java.lang.reflect.Array;
 import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
 import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
 
-// See:
-// https://github.com/jboss-modules/jboss-modules/blob/master/src/main/java/org/jboss/modules/ModuleClassLoader.java
+/**
+ * Extract classpath entries from the JBoss ClassLoader. See:
+ *
+ * https://github.com/jboss-modules/jboss-modules/blob/master/src/main/java/org/jboss/modules/ModuleClassLoader.java
+ */
 public class JBossClassLoaderHandler implements ClassLoaderHandler {
     @Override
     public boolean handle(final ClassLoader classloader, final ClasspathFinder classpathFinder) throws Exception {

@@ -28,6 +28,7 @@
  */
 package io.github.lukehutch.fastclasspathscanner.utils;
 
+/** A replacement for Java 8's String.join(). */
 public class Join {
     /** A replacement for Java 8's String.join(). */
     public static String join(final String sep, final Iterable<?> iterable) {

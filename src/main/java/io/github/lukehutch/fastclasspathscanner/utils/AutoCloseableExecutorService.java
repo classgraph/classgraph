@@ -34,6 +34,7 @@ import java.util.concurrent.TimeUnit;
 
 /** A ThreadPoolExecutor that can be used in a try-with-resources block. */
 public class AutoCloseableExecutorService extends ThreadPoolExecutor implements AutoCloseable {
+    /** A ThreadPoolExecutor that can be used in a try-with-resources block. */
     public AutoCloseableExecutorService(final int numThreads) {
         super(numThreads, numThreads, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(),
                 new SimpleThreadFactory("FastClasspathScanner-worker-", true));

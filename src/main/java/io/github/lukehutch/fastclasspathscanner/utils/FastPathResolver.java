@@ -40,9 +40,11 @@ import java.util.regex.Pattern;
  */
 public class FastPathResolver {
 
+    /** Match %-encoded characters in URLs. */
     private static final Pattern percentMatcher = Pattern.compile("([%][0-9a-fA-F][0-9a-fA-F])+");
 
-    private static final char SEP = File.separatorChar;
+    /** True if we're running on Windows. */
+    private static final boolean WINDOWS = File.separatorChar == '\\';
 
     /** Translate backslashes to forward slashes, optionally removing trailing separator. */
     private static void translateSeparator(final String path, final int startIdx, final int endIdx,
@@ -146,7 +148,7 @@ public class FastPathResolver {
         String prefix = "";
         if (relativePathStr.startsWith("file:", startIdx)) {
             startIdx += 5;
-            if (SEP == '\\') {
+            if (WINDOWS) {
                 if (relativePathStr.startsWith("\\\\\\\\", startIdx)
                         || relativePathStr.startsWith("////", startIdx)) {
                     // Windows UNC URL 
@@ -162,14 +164,14 @@ public class FastPathResolver {
             if (relativePathStr.startsWith("//", startIdx)) {
                 startIdx += 2;
             }
-        } else if (SEP == '\\' && (relativePathStr.startsWith("//") || relativePathStr.startsWith("\\\\"))) {
+        } else if (WINDOWS && (relativePathStr.startsWith("//") || relativePathStr.startsWith("\\\\"))) {
             // Windows UNC path
             startIdx += 2;
             prefix = "//";
             isAbsolutePath = true;
         }
         // Handle Windows paths starting with a drive designation as an absolute path
-        if (SEP == '\\') {
+        if (WINDOWS) {
             if (relativePathStr.length() - startIdx > 2 && Character.isLetter(relativePathStr.charAt(startIdx))
                     && relativePathStr.charAt(startIdx + 1) == ':') {
                 isAbsolutePath = true;

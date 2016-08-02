@@ -31,36 +31,9 @@ package io.github.lukehutch.fastclasspathscanner.matchprocessor;
 /**
  * The method to run when a class with the matching class name and with a final static field with the matching field
  * name is found on the classpath. The constant value of the final static field is obtained directly from the
- * constant pool of the classfile.
+ * constant pool of the classfile. See the documentation here:
  * 
- * Field values are obtained directly from the constant pool in classfiles, not from a loaded class using
- * reflection. This allows you to detect changes to the classpath and then run another scan that picks up the new
- * values of selected static constants without reloading the class. (Class reloading is fraught with issues, see:
- * http://tutorials.jenkov.com/java-reflection/dynamic-class-loading-reloading.html )
- * 
- * Note: Only static final fields with constant-valued literals are matched, not fields with initializer values that
- * are the result of an expression or reference, except for cases where the compiler is able to simplify an
- * expression into a single constant at compiletime, such as in the case of string concatenation (see
- * https://docs.oracle.com/javase/specs/jvms/se7/html/jvms-5.html#jvms-5.1 ). The following are examples of constant
- * static final fields:
- * 
- * <code>
- *   public static final int w = 5;
- *   public static final String x = "a";
- *   static final String y = "a" + "b";  // Referentially equal to the interned String object "ab"
- *   private static final int z = 1;     // Private field values are also returned 
- *   static final byte b = 0x7f;         // Primitive constants are autoboxed, e.g. byte -> Byte
- * </code>
- * 
- * whereas the following fields are non-constant assignments, so these fields cannot be matched:
- * 
- * <code>
- *   public static final Integer w = 5;  // Non-constant due to autoboxing
- *   static final String y = "a" + w;    // Non-constant expression, because x is non-constant
- *   static final int[] arr = {1, 2, 3}; // Arrays are non-constant
- *   static int n = 100;                 // Non-final 
- *   final int N = 100;                  // Non-static 
- * </code>
+ * https://github.com/lukehutch/fast-classpath-scanner/wiki/3.5.-Reading-constant-initializer-values-of-static-final-fields
  * 
  * @param className
  *            The class name, e.g. "com.package.ClassName".

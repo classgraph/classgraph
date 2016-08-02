@@ -40,22 +40,45 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 
+/**
+ * A tree-structured threadsafe log that allows you to add log entries in arbitrary order, and have the output
+ * retain a sane order. The order may also be made deterministic by specifying a sort key for log entries.
+ */
 public class LogNode {
+    /** The timestamp at which the log node was created. */
     private final long timeStamp = System.nanoTime();
+    
+    /** The log message. */
     private final String msg;
+    
+    /** The stacktrace, if this log entry was due to an exception. */
     private String stackTrace;
+    
+    /** The time between when this log entry was created and addElapsedTime() was called. */
     private long elapsedTimeNanos;
+    
+    /** The child nodes of this log node. */
     private final Map<String, LogNode> children = new ConcurrentSkipListMap<>();
+    
+    /** The sort key prefix for deterministic ordering of log entries. */
     private String sortKeyPrefix = "";
+    
+    /** The sort key suffix for this log entry, used to make sort keys unique. */
     private static AtomicInteger sortKeyUniqueSuffix = new AtomicInteger(0);
-    public boolean verbose;
 
+    /** The date/time formatter (not threadsafe). */
     private static final SimpleDateFormat dateTimeFormatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mmX");
+    
+    /** The elapsed time formatter. */
     private static final DecimalFormat nanoFormatter = new DecimalFormat("0.000000");
 
-    private LogNode(final String sortKeyPrefix, final String msg, final long elapsedTimeNanos,
+    /**
+     * Create a non-toplevel log node. The order may also be made deterministic by specifying a sort key for log
+     * entries.
+     */
+    private LogNode(final String sortKey, final String msg, final long elapsedTimeNanos,
             final Throwable exception) {
-        this.sortKeyPrefix = sortKeyPrefix;
+        this.sortKeyPrefix = sortKey;
         this.msg = msg;
         this.elapsedTimeNanos = elapsedTimeNanos;
         if (exception != null) {
@@ -67,10 +90,12 @@ public class LogNode {
         }
     }
 
+    /** Create a toplevel log node. */
     public LogNode() {
         this("", "", /* elapsedTimeNanos = */ -1L, /* exception = */ null);
     }
 
+    /** Append a line to the log output, indenting this log entry according to tree structure. */
     private void appendLine(final String timeStampStr, final int indentLevel, final String line,
             final StringBuilder buf) {
         buf.append(timeStampStr);
@@ -88,6 +113,7 @@ public class LogNode {
         buf.append('\n');
     }
 
+    /** Recursively build the log output. */
     private void toString(final int indentLevel, final StringBuilder buf) {
         final Calendar cal = Calendar.getInstance();
         cal.setTimeInMillis(timeStamp * 1_000_000);
@@ -120,6 +146,7 @@ public class LogNode {
         }
     }
 
+    /** Build the log output. Call this on the toplevel log node. */
     @Override
     public String toString() {
         // DateTimeFormatter is not threadsafe
@@ -131,13 +158,14 @@ public class LogNode {
     }
 
     /**
-     * Call this once the work corresponding with a given log entry has completed to show the elapsed time after the
-     * log entry.
+     * Call this once the work corresponding with a given log entry has completed if you want to show the time taken
+     * after the log entry.
      */
     public void addElapsedTime() {
         elapsedTimeNanos = System.nanoTime() - timeStamp;
     }
 
+    /** Add a child log node. */
     private LogNode addChild(final String sortKey, final String msg, final long elapsedTimeNanos,
             final Throwable exception) {
         final String newSortKey = sortKeyPrefix + String.format("-%09d", sortKeyUniqueSuffix.getAndIncrement())
@@ -149,39 +177,81 @@ public class LogNode {
         return newChild;
     }
 
+    /**
+     * Add a log entry with sort key for deterministic ordering.
+     * 
+     * @return a child log node, which can be used to add sub-entries.
+     */
     public LogNode log(final String sortKey, final String msg, final long elapsedTimeNanos, final Throwable e) {
         return addChild(sortKey, msg, elapsedTimeNanos, e);
     }
 
+    /**
+     * Add a log entry with sort key for deterministic ordering.
+     * 
+     * @return a child log node, which can be used to add sub-entries.
+     */
     public LogNode log(final String sortKey, final String msg, final long elapsedTimeNanos) {
         return addChild(sortKey, msg, elapsedTimeNanos, null);
     }
 
+    /**
+     * Add a log entry with sort key for deterministic ordering.
+     * 
+     * @return a child log node, which can be used to add sub-entries.
+     */
     public LogNode log(final String sortKey, final String msg, final Throwable e) {
         return addChild(sortKey, msg, -1L, e);
     }
 
+    /**
+     * Add a log entry with sort key for deterministic ordering.
+     * 
+     * @return a child log node, which can be used to add sub-entries.
+     */
     public LogNode log(final String sortKey, final String msg) {
         return addChild(sortKey, msg, -1L, null);
     }
 
+    /**
+     * Add a log entry.
+     * 
+     * @return a child log node, which can be used to add sub-entries.
+     */
     public LogNode log(final String msg, final long elapsedTimeNanos, final Throwable e) {
         return addChild("", msg, elapsedTimeNanos, e);
     }
 
+    /**
+     * Add a log entry.
+     * 
+     * @return a child log node, which can be used to add sub-entries.
+     */
     public LogNode log(final String msg, final long elapsedTimeNanos) {
         return addChild("", msg, elapsedTimeNanos, null);
     }
 
+    /**
+     * Add a log entry.
+     * 
+     * @return a child log node, which can be used to add sub-entries.
+     */
     public LogNode log(final String msg, final Throwable e) {
         return addChild("", msg, -1L, e);
     }
 
+    /**
+     * Add a log entry.
+     * 
+     * @return a child log node, which can be used to add sub-entries.
+     */
     public LogNode log(final String msg) {
         return addChild("", msg, -1L, null);
     }
 
+    /** Flush out the log to stderr. */
     public void flush() {
         System.err.print(this.toString());
+        System.err.flush();
     }
 }

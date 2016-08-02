@@ -51,6 +51,7 @@ import io.github.lukehutch.fastclasspathscanner.utils.Recycler;
 import io.github.lukehutch.fastclasspathscanner.utils.WorkQueue;
 import io.github.lukehutch.fastclasspathscanner.utils.WorkQueue.WorkUnitProcessor;
 
+/** The classpath scanner. */
 public class Scanner implements Callable<ScanResult> {
     private final ScanSpec scanSpec;
     private final ExecutorService executorService;
@@ -65,6 +66,7 @@ public class Scanner implements Callable<ScanResult> {
      */
     private static final int NUM_FILES_PER_CHUNK = 200;
 
+    /** The classpath scanner. */
     public Scanner(final ScanSpec scanSpec, final ExecutorService executorService, final int numParallelTasks,
             final boolean enableRecursiveScanning, final LogNode log) {
         this.scanSpec = scanSpec;
@@ -241,7 +243,7 @@ public class Scanner implements Callable<ScanResult> {
                         new WorkUnitProcessor<ClasspathRelativePath>() {
                             @Override
                             public void processWorkUnit(ClasspathRelativePath rawClasspathElt) throws Exception {
-                                if (rawClasspathElt.isValid(scanSpec, knownJREPaths, knownNonJREPaths,
+                                if (rawClasspathElt.isValidClasspathElement(scanSpec, knownJREPaths, knownNonJREPaths,
                                         classpathElementMap, log)) {
                                     classpathElementMap.createSingleton(rawClasspathElt);
                                 }

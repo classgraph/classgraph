@@ -46,7 +46,9 @@ import io.github.lukehutch.fastclasspathscanner.utils.InterruptionChecker;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.MultiMapKeyToList;
 
+/** A directory classpath element. */
 class ClasspathElementDir extends ClasspathElement {
+    /** A directory classpath element. */
     ClasspathElementDir(final ClasspathRelativePath classpathElt, final ScanSpec scanSpec, final boolean scanFiles,
             final InterruptionChecker interruptionChecker, final LogNode log) {
         super(classpathElt, scanSpec, scanFiles, interruptionChecker, log);
@@ -176,6 +178,25 @@ class ClasspathElementDir extends ClasspathElement {
         }
     }
 
+    /**
+     * Open an input stream and call a FileMatchProcessor on a specific whitelisted match found within this
+     * directory.
+     */
+    @Override
+    protected void openInputStreamAndProcessFileMatch(final ClasspathResource fileMatchResource,
+            final FileMatchProcessorWrapper fileMatchProcessorWrapper) throws IOException {
+        if (!ioExceptionOnOpen) {
+            // Open InputStream on relative path within directory
+            final File relativePathFile = ((ClasspathResourceInDir) fileMatchResource).relativePathFile;
+            try (InputStream inputStream = new FileInputStream(relativePathFile)) {
+                // Run FileMatcher
+                fileMatchProcessorWrapper.processMatch(fileMatchResource.classpathEltFile,
+                        fileMatchResource.relativePath, inputStream, relativePathFile.length());
+            }
+        }
+    }
+
+    /** Open an input stream and parse a specific classfile found within this directory. */
     @Override
     protected void openInputStreamAndParseClassfile(final ClasspathResource classfileResource,
             final ClassfileBinaryParser classfileBinaryParser, final ScanSpec scanSpec,
@@ -198,22 +219,8 @@ class ClasspathElementDir extends ClasspathElement {
         }
     }
 
-    @Override
-    protected void openInputStreamAndProcessFileMatch(final ClasspathResource fileMatchResource,
-            final FileMatchProcessorWrapper fileMatchProcessorWrapper) throws IOException {
-        if (!ioExceptionOnOpen) {
-            // Open InputStream on relative path within directory
-            final File relativePathFile = ((ClasspathResourceInDir) fileMatchResource).relativePathFile;
-            try (InputStream inputStream = new FileInputStream(relativePathFile)) {
-                // Run FileMatcher
-                fileMatchProcessorWrapper.processMatch(fileMatchResource.classpathEltFile,
-                        fileMatchResource.relativePath, inputStream, relativePathFile.length());
-            }
-        }
-    }
-
+    /** Nothing to close in the case of dirs. */
     @Override
     public void close() {
-        // Nothing to close in the case of dirs
     }
 }

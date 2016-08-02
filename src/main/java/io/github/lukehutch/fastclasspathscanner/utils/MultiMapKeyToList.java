@@ -35,13 +35,17 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
+/** A multimap from key to a list of values. */
 public class MultiMapKeyToList<S, T> {
+    /** The underlying map. */
     private final HashMap<S, List<T>> map;
 
+    /** A multimap from key to a list of values. */
     public MultiMapKeyToList() {
         this.map = new HashMap<>();
     }
 
+    /** Put a value into the multimap. */
     public void put(final S key, final T value) {
         List<T> list = map.get(key);
         if (list == null) {
@@ -50,18 +54,22 @@ public class MultiMapKeyToList<S, T> {
         list.add(value);
     }
 
+    /** Get a value from the multimap. */
     public List<T> get(final S key) {
         return map.get(key);
     }
 
+    /** Get the entry set from the underlying map. */
     public Set<Entry<S, List<T>>> entrySet() {
         return map.entrySet();
     }
 
+    /** Get the underlying map. */
     public Map<S, List<T>> getRawMap() {
         return map;
     }
 
+    /** Return true if this map is empty. */
     public boolean isEmpty() {
         return map.isEmpty();
     }

@@ -37,18 +37,45 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 
+/**
+ * A parallel work queue.
+ * 
+ * @param <T>
+ *            The work unit type.
+ */
 public class WorkQueue<T> implements AutoCloseable {
+    /** The work unit processor. */
     private final WorkUnitProcessor<T> workUnitProcessor;
+
+    /** The queue of work units. */
     private final ConcurrentLinkedQueue<T> workQueue = new ConcurrentLinkedQueue<>();
+
+    /**
+     * The number of work units remaining. This will always be at least workQueue.size(), but will be higher if work
+     * units have been removed from the queue and are currently being processed. Holding this high while work is
+     * being done allows us to use this count to safely detect when all work has been completed. This is needed
+     * because work units can add new work units to the work queue.
+     */
     private final AtomicInteger numWorkUnitsRemaining = new AtomicInteger();
+
+    /** The Future object added for each worker, used to detect worker completion. */
     private final ConcurrentLinkedQueue<Future<?>> workerFutures = new ConcurrentLinkedQueue<>();
+
+    /**
+     * The shared InterruptionChecker, used to detect thread interruption and execution exceptions, and to shut down
+     * all threads if either of these occurs.
+     */
     private final InterruptionChecker interruptionChecker;
+    
+    /** The log node. */
     private final LogNode log;
 
+    /** A work unit processor. */
     public interface WorkUnitProcessor<T> {
         public void processWorkUnit(T workUnit) throws Exception;
     }
 
+    /** A parallel work queue. */
     private WorkQueue(final WorkUnitProcessor<T> workUnitProcesor, final InterruptionChecker interruptionChecker,
             final LogNode log) {
         this.workUnitProcessor = workUnitProcesor;
@@ -56,6 +83,7 @@ public class WorkQueue<T> implements AutoCloseable {
         this.log = log;
     }
 
+    /** A parallel work queue. */
     public WorkQueue(final Collection<T> initialWorkUnits, final WorkUnitProcessor<T> workUnitProcesor,
             final InterruptionChecker interruptionChecker, final LogNode log) {
         this(workUnitProcesor, interruptionChecker, log);

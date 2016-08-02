@@ -31,6 +31,9 @@ package io.github.lukehutch.fastclasspathscanner.classloaderhandler;
 import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
 import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
 
+/**
+ * Extract classpath entries from the Weblogic ClassLoader. See:
+ */
 public class WeblogicClassLoaderHandler implements ClassLoaderHandler {
     @Override
     public boolean handle(final ClassLoader classloader, final ClasspathFinder classpathFinder) throws Exception {

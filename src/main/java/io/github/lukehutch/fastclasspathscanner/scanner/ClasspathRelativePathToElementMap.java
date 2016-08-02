@@ -35,6 +35,7 @@ import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.SingletonMap;
 import io.github.lukehutch.fastclasspathscanner.utils.WorkQueue;
 
+/** A map from relative path to classpath element singleton. */
 class ClasspathRelativePathToElementMap extends SingletonMap<ClasspathRelativePath, ClasspathElement>
         implements AutoCloseable {
     private final boolean scanFiles;
@@ -43,6 +44,7 @@ class ClasspathRelativePathToElementMap extends SingletonMap<ClasspathRelativePa
     private WorkQueue<ClasspathRelativePath> workQueue;
     private final LogNode log;
 
+    /** A map from relative path to classpath element singleton. */
     ClasspathRelativePathToElementMap(final boolean scanFiles, final ScanSpec scanSpec,
             final InterruptionChecker interruptionChecker, final LogNode log) {
         this.scanSpec = scanSpec;
@@ -59,15 +61,17 @@ class ClasspathRelativePathToElementMap extends SingletonMap<ClasspathRelativePa
         this.workQueue = workQueue;
     }
 
+    /** Create a new classpath element singleton instance. */
     @Override
     public ClasspathElement newInstance(final ClasspathRelativePath classpathElt) throws IOException {
         return ClasspathElement.newInstance(classpathElt, scanFiles, scanSpec, interruptionChecker, workQueue, log);
     }
 
+    /** Close the classpath elements. */
     @Override
     public void close() throws Exception {
-        for (final ClasspathElement root : values()) {
-            root.close();
+        for (final ClasspathElement classpathElt : values()) {
+            classpathElt.close();
         }
     }
 }

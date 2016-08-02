@@ -31,16 +31,13 @@ package io.github.lukehutch.fastclasspathscanner.utils;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * "Simple" implementation of thread factory.
+ * Simple implementation of a thread factory.
  *
  * @author Johno Crawford (johno@sulake.com)
  */
 public class SimpleThreadFactory implements java.util.concurrent.ThreadFactory {
-
     private final String threadNamePrefix;
-
     private final static AtomicInteger threadIdx = new AtomicInteger();
-
     private final boolean daemon;
 
     /**

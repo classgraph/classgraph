@@ -34,11 +34,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+/** Builds the class graph, and provides methods for querying it. */
 class ClassGraphBuilder {
     private final Map<String, ClassInfo> classNameToClassInfo;
     private final ScanSpec scanSpec;
     private final Set<ClassInfo> allClassInfo;
 
+    /** Builds the class graph, and provides methods for querying it. */
     ClassGraphBuilder(final ScanSpec scanSpec, final Map<String, ClassInfo> classNameToClassInfo) {
         this.scanSpec = scanSpec;
         this.classNameToClassInfo = classNameToClassInfo;

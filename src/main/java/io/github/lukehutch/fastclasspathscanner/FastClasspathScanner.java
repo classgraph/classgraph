@@ -57,8 +57,11 @@ import io.github.lukehutch.fastclasspathscanner.utils.VersionFinder;
 /**
  * Uber-fast, ultra-lightweight Java classpath scanner. Scans the classpath by parsing the classfile binary format
  * directly rather than by using reflection. (Reflection causes the classloader to load each class, which can take
- * an order of magnitude more time than parsing the classfile directly.) See the accompanying README.md file for
- * documentation.
+ * an order of magnitude more time than parsing the classfile directly.)
+ * 
+ * Documentation:
+ * 
+ * https://github.com/lukehutch/fast-classpath-scanner/wiki
  */
 public class FastClasspathScanner {
     /** The scanning specification (whitelisted and blacklisted packages, etc.), as passed into the constructor. */
@@ -85,14 +88,16 @@ public class FastClasspathScanner {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Constructs a FastClasspathScanner instance. You can pass a scanning specification to the constructor to
+     * Construct a FastClasspathScanner instance. You can pass a scanning specification to the constructor to
      * describe what should be scanned -- see the docs for info:
      * 
      * https://github.com/lukehutch/fast-classpath-scanner/wiki/2.-Constructor
      * 
      * The scanSpec, if non-empty, prevents irrelevant classpath entries from being unecessarily scanned, which can
-     * be time-consuming. (Note that calling the constructor does not start the scan, you must separately call
-     * .scan() to perform the actual scan.)
+     * be time-consuming.
+     * 
+     * Note that calling the constructor does not start the scan, you must separately call .scan() to perform the
+     * actual scan.
      * 
      * @param scanSpec
      *            The constructor accepts a list of whitelisted package prefixes / jar names to scan, as well as

@@ -46,18 +46,45 @@ import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.MultiMapKeyToList;
 import io.github.lukehutch.fastclasspathscanner.utils.WorkQueue;
 
+/** A classpath element (a directory or jarfile on the classpath). */
 abstract class ClasspathElement {
+    /** The File for this classpath element. */
     final File classpathElementFile;
-    final ScanSpec scanSpec;
-    private final boolean scanFiles;
-    List<ClasspathRelativePath> childClasspathElts;
+
+    /** True if there was an exception when trying to open this classpath element (e.g. a corrupt ZipFile). */
     boolean ioExceptionOnOpen;
+
+    /**
+     * The child classpath elements. These are the entries obtained from Class-Path entries in the manifest file, if
+     * this classpath element is a jarfile.
+     */
+    List<ClasspathRelativePath> childClasspathElts;
+
+    /** The scan spec. */
+    final ScanSpec scanSpec;
+
+    /**
+     * If true, recursively scan directores, and iterate through ZipEntries inside ZipFiles looking for whitelisted
+     * file and classfile matches. If false, only find unique classpath elements.
+     */
+    private final boolean scanFiles;
+
+    /**
+     * Used to detect interruption of threads, and to shut down all workers in the case of interruption or execution
+     * exceptions.
+     */
     protected InterruptionChecker interruptionChecker;
 
+    /** The list of classpath resources that matched for each FileMatchProcessor. */
     protected MultiMapKeyToList<FileMatchProcessorWrapper, ClasspathResource> fileMatches;
+
+    /** The list of whitelisted classfiles found within this classpath resource, if scanFiles is true. */
     protected List<ClasspathResource> classfileMatches;
+
+    /** The map from File to last modified timestamp, if scanFiles is true. */
     protected Map<File, Long> fileToLastModified;
 
+    /** A classpath element (a directory or jarfile on the classpath). */
     ClasspathElement(final ClasspathRelativePath classpathEltPath, final ScanSpec scanSpec, final boolean scanFiles,
             final InterruptionChecker interruptionChecker, final LogNode log) {
         this.scanSpec = scanSpec;
@@ -71,6 +98,7 @@ abstract class ClasspathElement {
         }
     }
 
+    /** Return the classpath element's path. */
     @Override
     public String toString() {
         return classpathElementFile.toString();
@@ -149,6 +177,7 @@ abstract class ClasspathElement {
 
     }
 
+    /** Get the number of classfile matches. */
     public int getNumClassfileMatches() {
         return classfileMatches == null ? 0 : classfileMatches.size();
     }
@@ -217,6 +246,9 @@ abstract class ClasspathElement {
         classpathRelativePathsFound.addAll(allMatchingRelativePathsForThisClasspathElement);
     }
 
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** Call FileMatchProcessors for any whitelisted matches found within this classpath element. */
     void callFileMatchProcessors(final LogNode log) throws InterruptedException, ExecutionException {
         for (final Entry<FileMatchProcessorWrapper, List<ClasspathResource>> ent : fileMatches.entrySet()) {
             final FileMatchProcessorWrapper fileMatchProcessorWrapper = ent.getKey();
@@ -239,6 +271,16 @@ abstract class ClasspathElement {
         }
     }
 
+    /**
+     * Open an input stream and call a FileMatchProcessor on a specific whitelisted match found within this
+     * classpath element. Implemented in the directory- and zipfile-specific sublclasses.
+     */
+    protected abstract void openInputStreamAndProcessFileMatch(ClasspathResource fileMatch,
+            FileMatchProcessorWrapper fileMatchProcessorWrapper) throws IOException;
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** Parse any classfiles for any whitelisted classes found within this classpath element. */
     void parseClassfiles(final ClassfileBinaryParser classfileBinaryParser, final int classfileStartIdx,
             final int classfileEndIdx, final ConcurrentHashMap<String, String> stringInternMap,
             final ConcurrentLinkedQueue<ClassInfoUnlinked> classInfoUnlinked, final LogNode log)
@@ -261,14 +303,18 @@ abstract class ClasspathElement {
         }
     }
 
+    /**
+     * Open an input stream and parse a specific classfile found within this classpath element. Implemented in the
+     * directory- and zipfile-specific sublclasses.
+     */
     protected abstract void openInputStreamAndParseClassfile(final ClasspathResource classfileResource,
             final ClassfileBinaryParser classfileBinaryParser, final ScanSpec scanSpec,
             final ConcurrentHashMap<String, String> stringInternMap,
             final ConcurrentLinkedQueue<ClassInfoUnlinked> classInfoUnlinked, final LogNode log)
             throws InterruptedException, IOException;
 
-    protected abstract void openInputStreamAndProcessFileMatch(ClasspathResource fileMatch,
-            FileMatchProcessorWrapper fileMatchProcessorWrapper) throws IOException;
+    // -------------------------------------------------------------------------------------------------------------
 
+    /** Close the classpath element's resources. (Used by zipfile-specific subclass.) */
     public abstract void close();
 }

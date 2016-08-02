@@ -44,11 +44,12 @@ import org.w3c.dom.Document;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 
+/** Finds the version number of FastClasspathScanner. */
 public class VersionFinder {
     private static final String MAVEN_PACKAGE = "io.github.lukehutch";
     private static final String MAVEN_ARTIFACT = "fast-classpath-scanner";
 
-    /** Get the version number of FastClasspathScanner */
+    /** Finds the version number of FastClasspathScanner. */
     public synchronized static final String getVersion() {
         // Try to get version number from pom.xml (available when running in Eclipse)
         final Class<?> cls = FastClasspathScanner.class;

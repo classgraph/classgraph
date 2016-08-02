@@ -114,6 +114,7 @@ class ClassfileBinaryParser implements AutoCloseable {
         }
     }
 
+    /** Read an unsigned byte from the buffer. */
     private int readUnsignedByte() throws IOException, InterruptedException {
         if (curr > used - 1) {
             readMore(1);
@@ -121,11 +122,13 @@ class ClassfileBinaryParser implements AutoCloseable {
         return buf[curr++] & 0xff;
     }
 
+    /** Read an unsigned byte from the buffer at a specific offset before the current read point. */
     @SuppressWarnings("unused")
     private int readUnsignedByte(final int offset) {
         return buf[offset] & 0xff;
     }
 
+    /** Read an unsigned short from the buffer. */
     private int readUnsignedShort() throws IOException, InterruptedException {
         if (curr > used - 2) {
             readMore(2);
@@ -135,10 +138,12 @@ class ClassfileBinaryParser implements AutoCloseable {
         return val;
     }
 
+    /** Read an unsigned short from the buffer at a specific offset before the current read point. */
     private int readUnsignedShort(final int offset) {
         return ((buf[offset] & 0xff) << 8) | (buf[offset + 1] & 0xff);
     }
 
+    /** Read an int from the buffer. */
     private int readInt() throws IOException, InterruptedException {
         if (curr > used - 4) {
             readMore(4);
@@ -149,11 +154,13 @@ class ClassfileBinaryParser implements AutoCloseable {
         return val;
     }
 
+    /** Read an int from the buffer at a specific offset before the current read point. */
     private int readInt(final int offset) throws IOException {
         return ((buf[offset] & 0xff) << 24) | ((buf[offset + 1] & 0xff) << 16) | ((buf[offset + 2] & 0xff) << 8)
                 | (buf[offset + 3] & 0xff);
     }
 
+    /** Read a long from the buffer. */
     @SuppressWarnings("unused")
     private long readLong() throws IOException, InterruptedException {
         if (curr > used - 8) {
@@ -166,6 +173,7 @@ class ClassfileBinaryParser implements AutoCloseable {
         return val;
     }
 
+    /** Read a long from the buffer at a specific offset before the current read point. */
     private long readLong(final int offset) throws IOException {
         return (((long) (((buf[offset] & 0xff) << 24) | ((buf[offset + 1] & 0xff) << 16)
                 | ((buf[offset + 2] & 0xff) << 8) | (buf[offset + 3] & 0xff))) << 32)
@@ -173,6 +181,7 @@ class ClassfileBinaryParser implements AutoCloseable {
                 | ((buf[offset + 6] & 0xff) << 8) | (buf[offset + 7] & 0xff);
     }
 
+    /** Skip the given number of bytes in the input stream. */
     private void skip(final int bytesToSkip) throws IOException, InterruptedException {
         if (curr > used - bytesToSkip) {
             readMore(bytesToSkip);

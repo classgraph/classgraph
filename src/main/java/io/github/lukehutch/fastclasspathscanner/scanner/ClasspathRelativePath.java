@@ -36,25 +36,53 @@ import io.github.lukehutch.fastclasspathscanner.utils.FastManifestParser;
 import io.github.lukehutch.fastclasspathscanner.utils.FastPathResolver;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 
+/**
+ * A relative path. This is used for paths relative to the current directory (for classpath elements), and also for
+ * relative paths within classpath elements (e.g. the files within a ZipFile).
+ */
 class ClasspathRelativePath {
+    /** Base path for path resolution. */
     private final String pathToResolveAgainst;
+
+    /** The relative path. */
     private final String relativePath;
 
+    /** The resolved path. */
     private String resolvedPathCached;
+    /** True if the path has been resolved. */
     private boolean resolvedPathIsCached;
+
+    /** The canonical file for the relative path. */
     private File fileCached;
+    /** True if the resolved path has been canonicalized. */
     private boolean fileIsCached;
+
+    /** The path of the canonical file. */
     private String canonicalPathCached;
+    /** True if the path of the canonical file has been read. */
     private boolean canonicalPathIsCached;
+
+    /** True if getFile().isFile(). */
     private boolean isFileCached;
+    /** True if isFileCached has been cached. */
     private boolean isFileIsCached;
+
+    /** True if getFile().isDirectory(). */
     private boolean isDirectoryCached;
+    /** True if isDirectoryCached has been cached. */
     private boolean isDirectoryIsCached;
+
+    /** True if getFile().exists(). */
     private boolean existsCached;
+    /** True if existsCached has been cached. */
     private boolean existsIsCached;
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /**
+     * A relative path. This is used for paths relative to the current directory (for classpath elements), and also
+     * for relative paths within classpath elements (e.g. the files within a ZipFile).
+     */
     public ClasspathRelativePath(final String pathToResolveAgainst, final String relativePath) {
         this.pathToResolveAgainst = pathToResolveAgainst;
         this.relativePath = relativePath;
@@ -93,6 +121,7 @@ class ClasspathRelativePath {
         }
     }
 
+    /** Return the canonical path. */
     @Override
     public String toString() {
         try {
@@ -144,6 +173,7 @@ class ClasspathRelativePath {
         return canonicalPathCached;
     }
 
+    /** True if this relative path corresponds with a file. */
     public boolean isFile() throws IOException {
         if (!isFileIsCached) {
             isFileCached = getFile().isFile();
@@ -152,6 +182,7 @@ class ClasspathRelativePath {
         return isFileCached;
     }
 
+    /** True if this relative path corresponds with a directory. */
     public boolean isDirectory() throws IOException {
         if (!isDirectoryIsCached) {
             isDirectoryCached = getFile().isDirectory();
@@ -171,6 +202,7 @@ class ClasspathRelativePath {
         return isClassfile(getResolvedPath());
     }
 
+    /** True if this relative path corresponds with a file or directory that exists. */
     private boolean exists() throws IOException {
         if (!existsIsCached) {
             existsCached = getFile().exists();
@@ -242,7 +274,12 @@ class ClasspathRelativePath {
         }
     }
 
-    public boolean isValid(final ScanSpec scanSpec, final ConcurrentHashMap<String, String> knownJREPaths,
+    /**
+     * True if this relative path is a valid classpath element: that its path can be canonicalized, that it exists,
+     * that it is a jarfile or directory, that it is not a blacklisted jar, that it should be scanned, etc.
+     */
+    public boolean isValidClasspathElement(final ScanSpec scanSpec,
+            final ConcurrentHashMap<String, String> knownJREPaths,
             final ConcurrentHashMap<String, String> knownNonJREPaths,
             final ClasspathRelativePathToElementMap classpathElementMap, final LogNode log)
             throws InterruptedException {

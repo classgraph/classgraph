@@ -32,6 +32,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
+/** Reflection utility methods that can be used by ClassLoaderHandlers. */
 public class ReflectionUtils {
     /** Get the named field in the given object or any of its superclasses. */
     public static Object getFieldVal(final Object obj, final String fieldName)

@@ -51,10 +51,17 @@ import io.github.lukehutch.fastclasspathscanner.utils.MultiMapKeyToList;
 import io.github.lukehutch.fastclasspathscanner.utils.Recycler;
 import io.github.lukehutch.fastclasspathscanner.utils.WorkQueue;
 
+/** A zip/jarfile classpath element. */
 class ClasspathElementZip extends ClasspathElement {
+    /**
+     * ZipFile recycler -- creates one ZipFile per thread that wants to concurrently access this classpath element.
+     */
     private Recycler<ZipFile, IOException> zipFileRecycler;
+
+    /** Result of parsing the manifest file for this jarfile. */
     private FastManifestParser fastManifestParser;
 
+    /** A zip/jarfile classpath element. */
     ClasspathElementZip(final ClasspathRelativePath classpathElt, final ScanSpec scanSpec, final boolean scanFiles,
             final InterruptionChecker interruptionChecker, final WorkQueue<ClasspathRelativePath> workQueue,
             final LogNode log) {
@@ -201,6 +208,30 @@ class ClasspathElementZip extends ClasspathElement {
         fileToLastModified.put(zipFileFile, zipFileFile.lastModified());
     }
 
+    /**
+     * Open an input stream and call a FileMatchProcessor on a specific whitelisted match found within this zipfile.
+     */
+    @Override
+    protected void openInputStreamAndProcessFileMatch(final ClasspathResource fileMatchResource,
+            final FileMatchProcessorWrapper fileMatchProcessorWrapper) throws IOException {
+        if (!ioExceptionOnOpen) {
+            // Open InputStream on relative path within zipfile
+            ZipFile zipFile = null;
+            try {
+                zipFile = zipFileRecycler.acquire();
+                final ZipEntry zipEntry = ((ClasspathResourceInZipFile) fileMatchResource).zipEntry;
+                try (InputStream inputStream = zipFile.getInputStream(zipEntry)) {
+                    // Run FileMatcher
+                    fileMatchProcessorWrapper.processMatch(fileMatchResource.classpathEltFile,
+                            fileMatchResource.relativePath, inputStream, zipEntry.getSize());
+                }
+            } finally {
+                zipFileRecycler.release(zipFile);
+            }
+        }
+    }
+
+    /** Open an input stream and parse a specific classfile found within this zipfile. */
     @Override
     protected void openInputStreamAndParseClassfile(final ClasspathResource classfileResource,
             final ClassfileBinaryParser classfileBinaryParser, final ScanSpec scanSpec,
@@ -229,26 +260,7 @@ class ClasspathElementZip extends ClasspathElement {
         }
     }
 
-    @Override
-    protected void openInputStreamAndProcessFileMatch(final ClasspathResource fileMatchResource,
-            final FileMatchProcessorWrapper fileMatchProcessorWrapper) throws IOException {
-        if (!ioExceptionOnOpen) {
-            // Open InputStream on relative path within zipfile
-            ZipFile zipFile = null;
-            try {
-                zipFile = zipFileRecycler.acquire();
-                final ZipEntry zipEntry = ((ClasspathResourceInZipFile) fileMatchResource).zipEntry;
-                try (InputStream inputStream = zipFile.getInputStream(zipEntry)) {
-                    // Run FileMatcher
-                    fileMatchProcessorWrapper.processMatch(fileMatchResource.classpathEltFile,
-                            fileMatchResource.relativePath, inputStream, zipEntry.getSize());
-                }
-            } finally {
-                zipFileRecycler.release(zipFile);
-            }
-        }
-    }
-
+    /** Close all open ZipFiles. */
     @Override
     public void close() {
         if (zipFileRecycler != null) {

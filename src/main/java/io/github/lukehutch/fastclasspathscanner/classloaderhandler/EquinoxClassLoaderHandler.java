@@ -33,6 +33,7 @@ import java.lang.reflect.Array;
 import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
 import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
 
+/** Extract classpath entries from the Eclipse Equinox ClassLoader. */
 public class EquinoxClassLoaderHandler implements ClassLoaderHandler {
     private boolean readSystemBundles = false;
 

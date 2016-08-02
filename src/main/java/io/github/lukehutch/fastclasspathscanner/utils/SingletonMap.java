@@ -88,13 +88,16 @@ public abstract class SingletonMap<K, V> {
         }
     }
 
+    /** Construct a new singleton instance. */
     public abstract V newInstance(K key) throws Exception;
 
+    /** Get the singleton for a given key. */
     public V get(final K key) throws InterruptedException {
         final SingletonHolder<V> singletonHolder = map.get(key);
         return singletonHolder == null ? null : singletonHolder.get();
     }
 
+    /** Get all singletons in the map. */
     public List<V> values() throws InterruptedException {
         final List<V> entries = new ArrayList<>(map.size());
         for (final Entry<K, SingletonHolder<V>> ent : map.entrySet()) {
