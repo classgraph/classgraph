@@ -171,6 +171,14 @@ class ClasspathElementZip extends ClasspathElement {
             prevParentRelativePath = parentRelativePath;
             prevParentMatchStatus = parentMatchStatus;
 
+            // Store entry for manifest file, if present, so that the entry doesn't have to be looked up by name
+            if (relativePath.equalsIgnoreCase("META-INF/MANIFEST.MF")) {
+                if (log != null) {
+                    log.log("Found manifest file: " + relativePath);
+                }
+                fastManifestParser = new FastManifestParser(zipFile, zipEntry, log);
+            }
+
             // Class can only be scanned if it's within a whitelisted path subtree, or if it is a classfile
             // that has been specifically-whitelisted
             if (parentMatchStatus != ScanSpecPathMatch.WITHIN_WHITELISTED_PATH
@@ -198,11 +206,6 @@ class ClasspathElementZip extends ClasspathElement {
                     fileMatches.put(fileMatcher.fileMatchProcessorWrapper,
                             new ClasspathResourceInZipFile(zipFileFile, relativePath, zipEntry));
                 }
-            }
-
-            // Store entry for manifest file, if present, so that the entry doesn't have to be looked up by name
-            if (relativePath.equalsIgnoreCase("META-INF/MANIFEST.MF")) {
-                fastManifestParser = new FastManifestParser(zipFile, zipEntry, log);
             }
         }
         fileToLastModified.put(zipFileFile, zipFileFile.lastModified());
