@@ -28,8 +28,6 @@
  */
 package io.github.lukehutch.fastclasspathscanner.scanner;
 
-import java.io.IOException;
-
 import io.github.lukehutch.fastclasspathscanner.utils.InterruptionChecker;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.SingletonMap;
@@ -63,7 +61,7 @@ class ClasspathRelativePathToElementMap extends SingletonMap<ClasspathRelativePa
 
     /** Create a new classpath element singleton instance. */
     @Override
-    public ClasspathElement newInstance(final ClasspathRelativePath classpathElt) throws IOException {
+    public ClasspathElement newInstance(final ClasspathRelativePath classpathElt) {
         return ClasspathElement.newInstance(classpathElt, scanFiles, scanSpec, interruptionChecker, workQueue, log);
     }
 

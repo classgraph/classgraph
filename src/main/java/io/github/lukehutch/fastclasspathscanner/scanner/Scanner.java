@@ -243,9 +243,15 @@ public class Scanner implements Callable<ScanResult> {
                         new WorkUnitProcessor<ClasspathRelativePath>() {
                             @Override
                             public void processWorkUnit(ClasspathRelativePath rawClasspathElt) throws Exception {
-                                if (rawClasspathElt.isValidClasspathElement(scanSpec, knownJREPaths, knownNonJREPaths,
-                                        classpathElementMap, log)) {
-                                    classpathElementMap.createSingleton(rawClasspathElt);
+                                if (rawClasspathElt.isValidClasspathElement(scanSpec, knownJREPaths,
+                                        knownNonJREPaths, classpathElementMap, log)) {
+                                    try {
+                                        classpathElementMap.createSingleton(rawClasspathElt);
+                                    } catch (IllegalArgumentException e) {
+                                        // Could not create singleton due to path canonicalization problem
+                                        log.log("Could not locate classpath element " + rawClasspathElt
+                                                + " -- skipping");
+                                    }
                                 }
                             }
                         }, interruptionChecker, log)) {

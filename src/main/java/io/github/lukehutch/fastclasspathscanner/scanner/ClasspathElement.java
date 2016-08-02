@@ -110,19 +110,23 @@ abstract class ClasspathElement {
      */
     static ClasspathElement newInstance(final ClasspathRelativePath classpathElt, final boolean scanFiles,
             final ScanSpec scanSpec, final InterruptionChecker interruptionChecker,
-            final WorkQueue<ClasspathRelativePath> workQueue, final LogNode log) throws IOException {
+            final WorkQueue<ClasspathRelativePath> workQueue, final LogNode log) {
         boolean isDir;
+        String canonicalPath;
+        File file;
         try {
+            file = classpathElt.getFile();
             isDir = classpathElt.isDirectory();
+            canonicalPath = classpathElt.getCanonicalPath();
         } catch (final IOException e) {
             if (log != null) {
                 log.log("Exception while trying to canonicalize path " + classpathElt.getResolvedPath(), e);
             }
-            throw e;
+            return null;
         }
         final LogNode logNode = log == null ? null
-                : log.log(classpathElt.toString(),
-                        "Scanning " + (isDir ? "directory " : "jarfile ") + classpathElt);
+                : log.log(canonicalPath, "Scanning " + (isDir ? "directory " : "jarfile ") + classpathElt
+                        + (file.getPath().equals(canonicalPath) ? "" : " ; canonical path: " + canonicalPath));
         final ClasspathElement newInstance = isDir
                 ? new ClasspathElementDir(classpathElt, scanSpec, scanFiles, interruptionChecker, logNode)
                 : new ClasspathElementZip(classpathElt, scanSpec, scanFiles, interruptionChecker, workQueue,

@@ -66,7 +66,7 @@ public class WorkQueue<T> implements AutoCloseable {
      * all threads if either of these occurs.
      */
     private final InterruptionChecker interruptionChecker;
-    
+
     /** The log node. */
     private final LogNode log;
 

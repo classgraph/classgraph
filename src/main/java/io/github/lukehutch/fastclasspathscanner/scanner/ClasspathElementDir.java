@@ -57,6 +57,7 @@ class ClasspathElementDir extends ClasspathElement {
             try {
                 dir = classpathElt.getFile();
             } catch (final IOException e) {
+                // Technically can't happen, was already checked by caller
                 if (log != null) {
                     log.log("Exception while trying to canonicalize path " + classpathElt.getResolvedPath(), e);
                 }
@@ -131,8 +132,9 @@ class ClasspathElementDir extends ClasspathElement {
                     scanDir(classpathElt, fileInDir, ignorePrefixLen, inWhitelistedPath, scannedCanonicalPaths,
                             entryIdx,
                             log == null ? null
-                                    : log.log("Scanning directory: " + dir + (dir.getPath().equals(canonicalPath)
-                                            ? "" : " ; canonical path: " + canonicalPath)));
+                                    : log.log(canonicalPath,
+                                            "Scanning directory: " + dir + (dir.getPath().equals(canonicalPath) ? ""
+                                                    : " ; canonical path: " + canonicalPath)));
                 }
             } else if (fileInDir.isFile()) {
                 final String fileInDirRelativePath = dirRelativePath.isEmpty() || "/".equals(dirRelativePath)

@@ -248,7 +248,7 @@ public class LogNode {
      * inside the tree, otherwise log entries may be lost.
      */
     public void flush() {
-        String logOutput = this.toString();
+        final String logOutput = this.toString();
         this.children.clear();
         System.out.flush();
         System.err.print(logOutput);
