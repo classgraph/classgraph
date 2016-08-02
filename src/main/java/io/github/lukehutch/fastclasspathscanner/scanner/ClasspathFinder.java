@@ -29,8 +29,6 @@
 package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import java.io.File;
-import java.net.URL;
-import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -38,37 +36,24 @@ import java.util.List;
 import io.github.lukehutch.fastclasspathscanner.classloaderhandler.ClassLoaderHandler;
 import io.github.lukehutch.fastclasspathscanner.classloaderhandler.EquinoxClassLoaderHandler;
 import io.github.lukehutch.fastclasspathscanner.classloaderhandler.JBossClassLoaderHandler;
+import io.github.lukehutch.fastclasspathscanner.classloaderhandler.URLClassLoaderHandler;
 import io.github.lukehutch.fastclasspathscanner.classloaderhandler.WeblogicClassLoaderHandler;
 import io.github.lukehutch.fastclasspathscanner.utils.Join;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 
+/** A class to find the unique ordered classpath elements. */
 public class ClasspathFinder {
     /** The list of raw classpath elements. */
     private final List<String> rawClasspathElements = new ArrayList<>();
 
-    // -------------------------------------------------------------------------------------------------------------
-
-    /** ClassLoaderHandler that is able to extract the URLs from a URLClassLoader. */
-    private static class URLClassLoaderHandler implements ClassLoaderHandler {
-        @Override
-        public boolean handle(final ClassLoader classloader, final ClasspathFinder classpathFinder) {
-            if (classloader instanceof URLClassLoader) {
-                final URL[] urls = ((URLClassLoader) classloader).getURLs();
-                if (urls != null) {
-                    for (final URL url : urls) {
-                        if (url != null) {
-                            classpathFinder.addClasspathElement(url.toString());
-                        }
-                    }
-                }
-                return true;
-            }
-            return false;
-        }
-    }
-
-    /** Default ClassLoaderHandlers */
-    private final List<ClassLoaderHandler> defaultClassLoaderHandlers = Arrays.asList(
+    /**
+     * Default ClassLoaderHandlers. If a ClassLoaderHandler is added to FastClasspathScanner, it should be added to
+     * this list.
+     */
+    private static final List<ClassLoaderHandler> DEFAULT_CLASS_LOADER_HANDLERS = Arrays.asList(
+            // The main default ClassLoaderHandler -- URLClassLoader is the most common ClassLoader
+            new URLClassLoaderHandler(),
+            // ClassLoaderHandlers for other ClassLoaders that are handled by FastClasspathScanner
             new EquinoxClassLoaderHandler(), new JBossClassLoaderHandler(), new WeblogicClassLoaderHandler());
 
     // -------------------------------------------------------------------------------------------------------------
@@ -95,6 +80,7 @@ public class ClasspathFinder {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /** A class to find the unique ordered classpath elements. */
     ClasspathFinder(final ScanSpec scanSpec, final LogNode log) {
         if (scanSpec.overrideClasspath != null) {
             // Manual classpath override
@@ -105,8 +91,7 @@ public class ClasspathFinder {
             // other ClassLoaderHandlers (this can happen if FastClasspathScanner's package is renamed using
             // Maven Shade).
             final List<ClassLoaderHandler> classLoaderHandlers = new ArrayList<>();
-            classLoaderHandlers.add(new URLClassLoaderHandler());
-            classLoaderHandlers.addAll(defaultClassLoaderHandlers);
+            classLoaderHandlers.addAll(DEFAULT_CLASS_LOADER_HANDLERS);
             classLoaderHandlers.addAll(scanSpec.extraClassLoaderHandlers);
             if (log != null && !classLoaderHandlers.isEmpty()) {
                 final List<String> classLoaderHandlerNames = new ArrayList<>();
