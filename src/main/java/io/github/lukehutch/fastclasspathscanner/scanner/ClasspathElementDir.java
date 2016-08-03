@@ -119,6 +119,9 @@ class ClasspathElementDir extends ClasspathElement {
             }
             return;
         }
+        final LogNode dirLog = log == null ? null
+                : log.log(canonicalPath, "Scanning directory: " + dir
+                        + (dir.getPath().equals(canonicalPath) ? "" : " ; canonical path: " + canonicalPath));
         for (final File fileInDir : filesInDir) {
             if ((entryIdx[0]++ & 0xff) == 0) {
                 if (interruptionChecker.checkAndReturn()) {
@@ -130,11 +133,7 @@ class ClasspathElementDir extends ClasspathElement {
                         || matchStatus == ScanSpecPathMatch.ANCESTOR_OF_WHITELISTED_PATH) {
                     // Recurse into subdirectory
                     scanDir(classpathElt, fileInDir, ignorePrefixLen, inWhitelistedPath, scannedCanonicalPaths,
-                            entryIdx,
-                            log == null ? null
-                                    : log.log(canonicalPath,
-                                            "Scanning directory: " + dir + (dir.getPath().equals(canonicalPath) ? ""
-                                                    : " ; canonical path: " + canonicalPath)));
+                            entryIdx, dirLog);
                 }
             } else if (fileInDir.isFile()) {
                 final String fileInDirRelativePath = dirRelativePath.isEmpty() || "/".equals(dirRelativePath)

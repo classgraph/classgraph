@@ -29,6 +29,7 @@
 package io.github.lukehutch.fastclasspathscanner.classloaderhandler;
 
 import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
+import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 
 /**
  * A ClassLoader handler.
@@ -53,8 +54,11 @@ public interface ClassLoaderHandler {
      *            ensure subclasses of the target ClassLoader are correctly detected.
      * @param classpathFinder
      *            The ClasspathFinder to register any discovered classpath elements with.
+     * @param log
+     *            A logger instance -- write debug information using log.log("message"), then switch on verbose mode
+     *            to view it.
      * @return true if the passed ClassLoader was handled by this ClassLoaderHandler, else false.
      */
-    public abstract boolean handle(final ClassLoader classloader, final ClasspathFinder classpathFinder)
-            throws Exception;
+    public abstract boolean handle(final ClassLoader classloader, final ClasspathFinder classpathFinder,
+            LogNode log) throws Exception;
 }

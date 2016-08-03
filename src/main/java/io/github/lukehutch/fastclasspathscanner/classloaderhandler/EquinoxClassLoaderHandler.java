@@ -31,6 +31,7 @@ package io.github.lukehutch.fastclasspathscanner.classloaderhandler;
 import java.lang.reflect.Array;
 
 import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
+import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
 
 /** Extract classpath entries from the Eclipse Equinox ClassLoader. */
@@ -38,7 +39,8 @@ public class EquinoxClassLoaderHandler implements ClassLoaderHandler {
     private boolean readSystemBundles = false;
 
     @Override
-    public boolean handle(final ClassLoader classloader, final ClasspathFinder classpathFinder) throws Exception {
+    public boolean handle(final ClassLoader classloader, final ClasspathFinder classpathFinder, final LogNode log)
+            throws Exception {
         for (Class<?> c = classloader.getClass(); c != null; c = c.getSuperclass()) {
             if ("org.eclipse.osgi.internal.loader.EquinoxClassLoader".equals(c.getName())) {
                 // type ClasspathManager
@@ -59,10 +61,10 @@ public class EquinoxClassLoaderHandler implements ClassLoaderHandler {
                             if (cp != null) {
                                 // We found the base file and a classpath
                                 // element, e.g. "bin/"
-                                classpathFinder.addClasspathElement(basefile.toString() + "/" + cp.toString());
+                                classpathFinder.addClasspathElement(basefile.toString() + "/" + cp.toString(), log);
                             } else {
                                 // No classpath element found, just use basefile
-                                classpathFinder.addClasspathElement(basefile.toString());
+                                classpathFinder.addClasspathElement(basefile.toString(), log);
                             }
                         }
                     }
@@ -102,7 +104,7 @@ public class EquinoxClassLoaderHandler implements ClassLoaderHandler {
                                 final int fileIdx = location.indexOf("file:");
                                 if (fileIdx >= 0) {
                                     location = location.substring(fileIdx);
-                                    classpathFinder.addClasspathElement(location);
+                                    classpathFinder.addClasspathElement(location, log);
                                 }
                             }
                         }

@@ -29,6 +29,7 @@
 package io.github.lukehutch.fastclasspathscanner.classloaderhandler;
 
 import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
+import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
 
 /**
@@ -36,11 +37,12 @@ import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
  */
 public class WeblogicClassLoaderHandler implements ClassLoaderHandler {
     @Override
-    public boolean handle(final ClassLoader classloader, final ClasspathFinder classpathFinder) throws Exception {
+    public boolean handle(final ClassLoader classloader, final ClasspathFinder classpathFinder, final LogNode log)
+            throws Exception {
         for (Class<?> c = classloader.getClass(); c != null; c = c.getSuperclass()) {
             if ("weblogic.utils.classloaders.ChangeAwareClassLoader".equals(c.getName())) {
                 final String classpath = (String) ReflectionUtils.invokeMethod(classloader, "getClassPath");
-                classpathFinder.addClasspathElements(classpath);
+                classpathFinder.addClasspathElements(classpath, log);
                 return true;
             }
         }

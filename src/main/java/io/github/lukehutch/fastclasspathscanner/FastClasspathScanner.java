@@ -969,7 +969,7 @@ public class FastClasspathScanner {
                 throw new ScanInterruptedException();
             } catch (final ExecutionException e) {
                 if (log != null) {
-                    log.log("Exception while getting classpath elements: " + e.getCause());
+                    log.log("Exception while getting classpath elements", e);
                 }
                 throw new RuntimeException(e.getCause());
             }

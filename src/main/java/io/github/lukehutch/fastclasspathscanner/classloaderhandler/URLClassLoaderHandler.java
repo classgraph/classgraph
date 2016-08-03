@@ -32,17 +32,18 @@ import java.net.URL;
 import java.net.URLClassLoader;
 
 import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
+import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 
 /** ClassLoaderHandler that is able to extract the URLs from a URLClassLoader. */
 public class URLClassLoaderHandler implements ClassLoaderHandler {
     @Override
-    public boolean handle(final ClassLoader classloader, final ClasspathFinder classpathFinder) {
+    public boolean handle(final ClassLoader classloader, final ClasspathFinder classpathFinder, final LogNode log) {
         if (classloader instanceof URLClassLoader) {
             final URL[] urls = ((URLClassLoader) classloader).getURLs();
             if (urls != null) {
                 for (final URL url : urls) {
                     if (url != null) {
-                        classpathFinder.addClasspathElement(url.toString());
+                        classpathFinder.addClasspathElement(url.toString(), log);
                     }
                 }
             }

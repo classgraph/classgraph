@@ -38,7 +38,6 @@ import io.github.lukehutch.fastclasspathscanner.classloaderhandler.EquinoxClassL
 import io.github.lukehutch.fastclasspathscanner.classloaderhandler.JBossClassLoaderHandler;
 import io.github.lukehutch.fastclasspathscanner.classloaderhandler.URLClassLoaderHandler;
 import io.github.lukehutch.fastclasspathscanner.classloaderhandler.WeblogicClassLoaderHandler;
-import io.github.lukehutch.fastclasspathscanner.utils.Join;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 
 /** A class to find the unique ordered classpath elements. */
@@ -62,18 +61,21 @@ public class ClasspathFinder {
      * Add a classpath element relative to a base file. May be called by a ClassLoaderHandler to add classpath
      * elements that it knows about.
      */
-    public void addClasspathElement(final String pathElement) {
+    public void addClasspathElement(final String pathElement, final LogNode log) {
         rawClasspathElements.add(pathElement);
+        if (log != null) {
+            log.log("Adding classpath element: " + pathElement);
+        }
     }
 
     /**
      * Add classpath elements, separated by the system path separator character. May be called by a
      * ClassLoaderHandler to add a path string that it knows about.
      */
-    public void addClasspathElements(final String pathStr) {
+    public void addClasspathElements(final String pathStr, final LogNode log) {
         if (pathStr != null && !pathStr.isEmpty()) {
             for (final String pathElement : pathStr.split(File.pathSeparator)) {
-                addClasspathElement(pathElement);
+                addClasspathElement(pathElement, log);
             }
         }
     }
@@ -84,7 +86,8 @@ public class ClasspathFinder {
     ClasspathFinder(final ScanSpec scanSpec, final LogNode log) {
         if (scanSpec.overrideClasspath != null) {
             // Manual classpath override
-            addClasspathElements(scanSpec.overrideClasspath);
+            final LogNode overrideLog = log == null ? null : log.log("Overriding classpath");
+            addClasspathElements(scanSpec.overrideClasspath, overrideLog);
         } else {
             // Always include a ClassLoaderHandler for URLClassLoader subclasses as a default, so that we can
             // handle URLClassLoaders (the most common form of ClassLoader) even if ServiceLoader can't find
@@ -93,46 +96,43 @@ public class ClasspathFinder {
             final List<ClassLoaderHandler> classLoaderHandlers = new ArrayList<>();
             classLoaderHandlers.addAll(DEFAULT_CLASS_LOADER_HANDLERS);
             classLoaderHandlers.addAll(scanSpec.extraClassLoaderHandlers);
-            if (log != null && !classLoaderHandlers.isEmpty()) {
-                final List<String> classLoaderHandlerNames = new ArrayList<>();
+            if (log != null) {
+                final LogNode classLoaderHandlerLog = log.log("ClassLoaderHandlers loaded:");
                 for (final ClassLoaderHandler classLoaderHandler : classLoaderHandlers) {
-                    classLoaderHandlerNames.add(classLoaderHandler.getClass().getName());
+                    classLoaderHandlerLog.log(classLoaderHandler.getClass().getName());
                 }
-                log.log("ClassLoaderHandlers loaded: " + Join.join(", ", classLoaderHandlerNames));
             }
 
             // Try finding a handler for each of the classloaders discovered above
             for (final ClassLoader classLoader : scanSpec.classLoaders) {
+                final LogNode classLoaderLog = log == null ? null
+                        : log.log("Finding classpath elements in ClassLoader " + classLoader);
                 // Iterate through registered ClassLoaderHandlers
                 boolean classloaderFound = false;
                 for (final ClassLoaderHandler handler : classLoaderHandlers) {
                     try {
-                        if (handler.handle(classLoader, this)) {
-                            // Sucessfully handled
-                            if (log != null) {
-                                log.log("Classpath elements from ClassLoader " + classLoader.getClass().getName()
-                                        + " were extracted by ClassLoaderHandler " + handler.getClass().getName());
-                            }
+                        if (handler.handle(classLoader, this, classLoaderLog)) {
                             classloaderFound = true;
                             break;
                         }
                     } catch (final Exception e) {
-                        if (log != null) {
-                            log.log("Exception in " + classLoader.getClass().getName() + ": " + e.toString());
+                        if (classLoaderLog != null) {
+                            classLoaderLog.log("Exception in ClassLoaderHandler", e);
                         }
                     }
                 }
                 if (!classloaderFound) {
-                    if (log != null) {
-                        log.log("Found unknown ClassLoader type, cannot scan classes: "
-                                + classLoader.getClass().getName());
+                    if (classLoaderLog != null) {
+                        classLoaderLog.log("Unknown ClassLoader type, cannot scan classes");
                     }
                 }
             }
 
             // Add entries found in java.class.path, in case those entries were missed above due to some
             // non-standard classloader that uses this property
-            addClasspathElements(System.getProperty("java.class.path"));
+            final LogNode sysPropLog = log == null ? null
+                    : log.log("Getting classpath entries from java.class.path");
+            addClasspathElements(System.getProperty("java.class.path"), sysPropLog);
         }
     }
 

@@ -31,6 +31,7 @@ package io.github.lukehutch.fastclasspathscanner.classloaderhandler;
 import java.lang.reflect.Array;
 
 import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
+import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
 
 /**
@@ -40,7 +41,8 @@ import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
  */
 public class JBossClassLoaderHandler implements ClassLoaderHandler {
     @Override
-    public boolean handle(final ClassLoader classloader, final ClasspathFinder classpathFinder) throws Exception {
+    public boolean handle(final ClassLoader classloader, final ClasspathFinder classpathFinder, final LogNode log)
+            throws Exception {
         for (Class<?> c = classloader.getClass(); c != null; c = c.getSuperclass()) {
             if ("org.jboss.modules.ModuleClassLoader".equals(c.getName())) {
                 // type VFSResourceLoader[]
@@ -53,7 +55,7 @@ public class JBossClassLoaderHandler implements ClassLoaderHandler {
                             // type VirtualFile
                             final Object root = ReflectionUtils.getFieldVal(resourceLoader, "root");
                             final String pathElement = (String) ReflectionUtils.invokeMethod(root, "getPathName");
-                            classpathFinder.addClasspathElement(pathElement);
+                            classpathFinder.addClasspathElement(pathElement, log);
                         }
                     }
                 }
