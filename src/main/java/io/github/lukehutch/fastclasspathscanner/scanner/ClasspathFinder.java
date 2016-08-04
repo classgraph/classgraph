@@ -49,11 +49,11 @@ public class ClasspathFinder {
      * Default ClassLoaderHandlers. If a ClassLoaderHandler is added to FastClasspathScanner, it should be added to
      * this list.
      */
-    private static final List<ClassLoaderHandler> DEFAULT_CLASS_LOADER_HANDLERS = Arrays.asList(
+    private static final List<Class<? extends ClassLoaderHandler>> DEFAULT_CLASS_LOADER_HANDLERS = Arrays.asList(
             // The main default ClassLoaderHandler -- URLClassLoader is the most common ClassLoader
-            new URLClassLoaderHandler(),
+            URLClassLoaderHandler.class,
             // ClassLoaderHandlers for other ClassLoaders that are handled by FastClasspathScanner
-            new EquinoxClassLoaderHandler(), new JBossClassLoaderHandler(), new WeblogicClassLoaderHandler());
+            EquinoxClassLoaderHandler.class, JBossClassLoaderHandler.class, WeblogicClassLoaderHandler.class);
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -94,8 +94,24 @@ public class ClasspathFinder {
             // other ClassLoaderHandlers (this can happen if FastClasspathScanner's package is renamed using
             // Maven Shade).
             final List<ClassLoaderHandler> classLoaderHandlers = new ArrayList<>();
-            classLoaderHandlers.addAll(DEFAULT_CLASS_LOADER_HANDLERS);
-            classLoaderHandlers.addAll(scanSpec.extraClassLoaderHandlers);
+            for (final Class<? extends ClassLoaderHandler> classLoaderHandlerClass : DEFAULT_CLASS_LOADER_HANDLERS) {
+                try {
+                    classLoaderHandlers.add(classLoaderHandlerClass.newInstance());
+                } catch (InstantiationException | IllegalAccessException e) {
+                    if (log != null) {
+                        log.log("Could not instantiate " + classLoaderHandlerClass.getName(), e);
+                    }
+                }
+            }
+            for (final Class<? extends ClassLoaderHandler> classLoaderHandlerClass : scanSpec.extraClassLoaderHandlers) {
+                try {
+                    classLoaderHandlers.add(classLoaderHandlerClass.newInstance());
+                } catch (InstantiationException | IllegalAccessException e) {
+                    if (log != null) {
+                        log.log("Could not instantiate " + classLoaderHandlerClass.getName(), e);
+                    }
+                }
+            }
             if (log != null) {
                 final LogNode classLoaderHandlerLog = log.log("ClassLoaderHandlers loaded:");
                 for (final ClassLoaderHandler classLoaderHandler : classLoaderHandlers) {

@@ -264,12 +264,12 @@ public class FastClasspathScanner {
      * https://github.com/lukehutch/fast-classpath-scanner/wiki/4.-Working-with-nonstandard-ClassLoaders
      * 
      * @param extraClassLoaderHandler
-     *            The ClassLoaderHandler instance to register.
+     *            The ClassLoaderHandler class to register.
      * @return this (for method chaining).
      */
     public synchronized FastClasspathScanner registerClassLoaderHandler(
-            final ClassLoaderHandler extraClassLoaderHandler) {
-        getScanSpec().extraClassLoaderHandlers.add(extraClassLoaderHandler);
+            final Class<? extends ClassLoaderHandler> classLoaderHandlerClass) {
+        getScanSpec().extraClassLoaderHandlers.add(classLoaderHandlerClass);
         return this;
     }
 

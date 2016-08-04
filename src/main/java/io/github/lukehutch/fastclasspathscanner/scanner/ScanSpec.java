@@ -116,7 +116,7 @@ public class ScanSpec {
     public boolean strictWhitelist;
 
     /** Manually-registered ClassLoaderHandlers. */
-    public final ArrayList<ClassLoaderHandler> extraClassLoaderHandlers = new ArrayList<>();
+    public final ArrayList<Class<? extends ClassLoaderHandler>> extraClassLoaderHandlers = new ArrayList<>();
 
     /**
      * A map from (className + "." + staticFinalFieldName) to StaticFinalFieldMatchProcessor(s) that should be
