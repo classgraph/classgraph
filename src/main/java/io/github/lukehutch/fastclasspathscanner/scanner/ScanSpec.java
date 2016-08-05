@@ -47,7 +47,7 @@ import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchContents
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchContentsProcessorWithContext;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchProcessorWithContext;
-import io.github.lukehutch.fastclasspathscanner.matchprocessor.InterfaceMatchProcessor;
+import io.github.lukehutch.fastclasspathscanner.matchprocessor.ImplementingClassMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.StaticFinalFieldMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubclassMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubinterfaceMatchProcessor;
@@ -918,7 +918,7 @@ public class ScanSpec {
      *            the ClassMatchProcessor to call when a match is found.
      */
     public synchronized <T> void matchClassesImplementing(final Class<T> implementedInterface,
-            final InterfaceMatchProcessor<T> interfaceMatchProcessor) {
+            final ImplementingClassMatchProcessor<T> interfaceMatchProcessor) {
         if (classMatchers == null) {
             classMatchers = new ArrayList<>();
         }
