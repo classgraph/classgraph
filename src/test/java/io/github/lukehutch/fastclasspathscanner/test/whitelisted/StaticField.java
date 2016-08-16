@@ -1,12 +1,14 @@
 package io.github.lukehutch.fastclasspathscanner.test.whitelisted;
 
 public class StaticField {
-    public static final String stringField = "Static field contents";
-    public static final int intField = 3;
-    public static final boolean boolField = true;
-    public static final char charField = 'y';
+    // Non-public -- need ignoreFieldVisibility() to match these 
+    static final String stringField = "Static field contents";
+    static final int intField = 3;
+    @SuppressWarnings("unused")
+    private static final boolean boolField = true;
+    protected static final char charField = 'y';
 
-    // Not a initializers, due to autoboxing
+    // Non-constant initializers, due to autoboxing
     public static final Integer integerField = 5;
     public static final Boolean booleanField = true;
 }

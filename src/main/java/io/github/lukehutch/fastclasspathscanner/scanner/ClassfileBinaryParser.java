@@ -616,9 +616,9 @@ class ClassfileBinaryParser implements AutoCloseable {
             final boolean matchStaticFinalFields = staticFinalFieldsToMatch != null;
             final int fieldCount = readUnsignedShort();
             for (int i = 0; i < fieldCount; i++) {
-                // Info on accessFlags: http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.6
+                // Info on accessFlags: http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.5
                 final int accessFlags = readUnsignedShort();
-                final boolean isPublicField = ((accessFlags & 0x0002) == 0x0002);
+                final boolean isPublicField = ((accessFlags & 0x0001) == 0x0001);
                 final boolean isStaticFinalField = ((accessFlags & 0x0018) == 0x0018);
                 final boolean fieldIsVisible = isPublicField || scanSpec.ignoreFieldVisibility;
                 final boolean matchThisStaticFinalField = matchStaticFinalFields && isStaticFinalField
