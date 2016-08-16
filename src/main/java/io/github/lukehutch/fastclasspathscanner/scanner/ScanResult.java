@@ -213,7 +213,7 @@ public class ScanResult {
      * parameter.
      * 
      * @param fieldTypeName
-     *            the field type to match; should be in a whitelisted package.
+     *            the name of the field type.
      * @return The sorted list of the names of classes with a field of the named type, or the empty list if none.
      */
     public List<String> getNamesOfClassesWithFieldOfType(final String fieldTypeName) {
@@ -231,12 +231,40 @@ public class ScanResult {
      * parameter.
      * 
      * @param fieldType
-     *            the field type to match; should be in a whitelisted package.
+     *            the field type.
      * @return The sorted list of the names of classes with a field of the given type, or the empty list if none.
      */
     public List<String> getNamesOfClassesWithFieldOfType(final Class<?> fieldType) {
         final String fieldTypeName = fieldType.getName();
         return getNamesOfClassesWithFieldOfType(fieldTypeName);
+    }
+
+    /**
+     * Get the names of classes that have a method with an annotation of the named type.
+     * 
+     * @param annotationName
+     *            the name of the method annotation.
+     * @return The sorted list of the names of classes with a field of the named type, or the empty list if none.
+     */
+    public List<String> getNamesOfClassesWithMethodAnnotation(final String annotationName) {
+        scanSpec.checkClassIsNotBlacklisted(annotationName);
+        if (!scanSpec.enableMethodAnnotationIndexing) {
+            throw new IllegalArgumentException(
+                    "Please call FastClasspathScanner#enableMethodAnnotationIndexing() before calling scan() -- "
+                            + "method annotation indexing is disabled by default for speed and memory efficiency");
+        }
+        return classGraphBuilder.getNamesOfClassesWithMethodAnnotation(annotationName);
+    }
+
+    /**
+     * Get the names of classes that have a method with an annotation of the given type.
+     * 
+     * @param annotation
+     *            the method annotation.
+     * @return The sorted list of the names of classes with a field of the given type, or the empty list if none.
+     */
+    public List<String> getNamesOfClassesWithMethodAnnotation(final Class<?> annotation) {
+        return getNamesOfClassesWithMethodAnnotation(scanSpec.getAnnotationName(annotation));
     }
 
     // -------------------------------------------------------------------------------------------------------------

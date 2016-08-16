@@ -28,8 +28,20 @@
  */
 package io.github.lukehutch.fastclasspathscanner.utils;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Set;
+
 /** A replacement for Java 8's String.join(). */
 public class Join {
+    /** A replacement for Java 8's String.join(). In the case of a set, sorts elements for consistency. */
+    public static <T extends Comparable<T>> String join(final String sep, final Set<T> set) {
+        final List<T> sorted = new ArrayList<>(set);
+        Collections.sort(sorted);
+        return join(sep, sorted);
+    }
+
     /** A replacement for Java 8's String.join(). */
     public static String join(final String sep, final Iterable<?> iterable) {
         final StringBuilder buf = new StringBuilder();

@@ -146,7 +146,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
         /** Classes that implement this interface (including sub-interfaces), if this is an interface. */
         CLASSES_IMPLEMENTING,
 
-        // Annotations:
+        // Class annotations:
 
         /**
          * Annotations on this class, if this is a regular class, or meta-annotations on this annotation, if this is
@@ -154,8 +154,16 @@ public class ClassInfo implements Comparable<ClassInfo> {
          */
         ANNOTATIONS,
 
-        /** Classes annotated by this annotation, if this is an annotation. */
+        /** Classes annotated with this annotation, if this is an annotation. */
         ANNOTATED_CLASSES,
+
+        // Method annotations:
+
+        /** Annotations on one or more methods of this class. */
+        METHOD_ANNOTATIONS,
+
+        /** Classes that have one or more methods annotated with this annotation, if this is an annotation. */
+        CLASSES_WITH_METHOD_ANNOTATION,
     }
 
     /** The set of classes related to this one. */
@@ -347,6 +355,15 @@ public class ClassInfo implements Comparable<ClassInfo> {
         annotationClassInfo.isAnnotation = true;
         this.addRelatedClass(RelType.ANNOTATIONS, annotationClassInfo);
         annotationClassInfo.addRelatedClass(RelType.ANNOTATED_CLASSES, this);
+    }
+
+    /** Add a method annotation to this class. */
+    void addMethodAnnotation(final String annotationName, final Map<String, ClassInfo> classNameToClassInfo) {
+        final ClassInfo annotationClassInfo = getOrCreateClassInfo(scalaBaseClassName(annotationName), scanSpec,
+                classNameToClassInfo);
+        annotationClassInfo.isAnnotation = true;
+        this.addRelatedClass(RelType.METHOD_ANNOTATIONS, annotationClassInfo);
+        annotationClassInfo.addRelatedClass(RelType.CLASSES_WITH_METHOD_ANNOTATION, this);
     }
 
     /** Add an implemented interface to this class. */
@@ -1185,7 +1202,9 @@ public class ClassInfo implements Comparable<ClassInfo> {
                 }
             }
         }
-        Collections.sort(namesOfClassesWithFieldOfType);
+        if (!namesOfClassesWithFieldOfType.isEmpty()) {
+            Collections.sort(namesOfClassesWithFieldOfType);
+        }
         return namesOfClassesWithFieldOfType;
     }
 
@@ -1197,6 +1216,35 @@ public class ClassInfo implements Comparable<ClassInfo> {
     Object getStaticFinalFieldConstantInitializerValue(final String fieldName) {
         return staticFinalFieldNameToConstantInitializerValue == null ? null
                 : staticFinalFieldNameToConstantInitializerValue.get(fieldName);
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+    // Methods
+
+    /**
+     * Return a sorted list of classes that have a method with the named annotation.
+     * 
+     * @return the sorted list of names of classes that have a method with the named annotation, or the empty list
+     *         if none.
+     */
+    static List<String> getNamesOfClassesWithMethodAnnotation(final String annotationName,
+            final Set<ClassInfo> allClassInfo) {
+        // This method will not likely be used for a large number of different annotation types, so perform a linear
+        // search on each invocation, rather than building an index on classpath scan (so we don't slow down more
+        // common methods).
+        final ArrayList<String> namesOfClassesWithNamedMethodAnnotation = new ArrayList<>();
+        for (final ClassInfo classInfo : allClassInfo) {
+            for (final ClassInfo fieldType : classInfo.getDirectlyRelatedClasses(RelType.METHOD_ANNOTATIONS)) {
+                if (fieldType.className.equals(annotationName)) {
+                    namesOfClassesWithNamedMethodAnnotation.add(classInfo.className);
+                    break;
+                }
+            }
+        }
+        if (!namesOfClassesWithNamedMethodAnnotation.isEmpty()) {
+            Collections.sort(namesOfClassesWithNamedMethodAnnotation);
+        }
+        return namesOfClassesWithNamedMethodAnnotation;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -1284,17 +1332,17 @@ public class ClassInfo implements Comparable<ClassInfo> {
             }
         }
         for (final ClassInfo annotationNode : annotationNodes) {
-            for (final ClassInfo metaAnnotationNode : annotationNode
-                    .getDirectlyRelatedClasses(RelType.ANNOTATIONS)) {
-                // annotation --o meta-annotation
-                buf.append("  \"" + label(annotationNode) + "\" -> \"" + label(metaAnnotationNode)
-                        + "\" [arrowhead=dot]\n");
-            }
             for (final ClassInfo annotatedClassNode : annotationNode
-                    .getDirectlyRelatedClasses(RelType.ANNOTATIONS)) {
+                    .getDirectlyRelatedClasses(RelType.ANNOTATED_CLASSES)) {
                 // annotated class --o annotation
                 buf.append("  \"" + label(annotatedClassNode) + "\" -> \"" + label(annotationNode)
                         + "\" [arrowhead=dot]\n");
+            }
+            for (final ClassInfo classWithMethodAnnotationNode : annotationNode
+                    .getDirectlyRelatedClasses(RelType.CLASSES_WITH_METHOD_ANNOTATION)) {
+                // class with method annotation --o method annotation
+                buf.append("  \"" + label(classWithMethodAnnotationNode) + "\" -> \"" + label(annotationNode)
+                        + "\" [arrowhead=odot]\n");
             }
         }
         buf.append("}");

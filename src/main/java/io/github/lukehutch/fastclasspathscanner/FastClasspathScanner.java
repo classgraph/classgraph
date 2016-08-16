@@ -29,6 +29,7 @@
 package io.github.lukehutch.fastclasspathscanner;
 
 import java.io.File;
+import java.lang.annotation.Annotation;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Callable;
@@ -44,6 +45,7 @@ import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchContents
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchProcessorWithContext;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.ImplementingClassMatchProcessor;
+import io.github.lukehutch.fastclasspathscanner.matchprocessor.MethodAnnotationMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.StaticFinalFieldMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubclassMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubinterfaceMatchProcessor;
@@ -194,7 +196,33 @@ public class FastClasspathScanner {
     }
 
     /**
-     * If enableFieldIndexing is true, enables field type indexing, which allows you to call
+     * If ignoreMethodVisibility is true, causes FastClasspathScanner to ignore method visibility, enabling it to
+     * see private, package-private and protected methods. This affects finding classes that have methods with a
+     * given annotation. If false, methods must be public for the containing classes to be indexed/matched.
+     * 
+     * @param ignoreMethodVisibility
+     *            Whether or not to ignore the method visibility modifier.
+     * @return this (for method chaining).
+     */
+    public FastClasspathScanner ignoreMethodVisibility(final boolean ignoreMethodVisibility) {
+        getScanSpec().ignoreMethodVisibility = ignoreMethodVisibility;
+        return this;
+    }
+
+    /**
+     * This method causes FastClasspathScanner to ignore method visibility, enabling it to see private,
+     * package-private and protected methods. This affects finding classes that have methods with a given
+     * annotation. If false, methods must be public for the containing classes to be indexed/matched.
+     * 
+     * @return this (for method chaining).
+     */
+    public FastClasspathScanner ignoreMethodVisibility() {
+        ignoreMethodVisibility(true);
+        return this;
+    }
+
+    /**
+     * If enableFieldTypeIndexing is true, enables field type indexing, which allows you to call
      * ScanResult#getClassesWithFieldsOfType(type). (If you add a field type match processor, this method is called
      * for you.) Field type indexing is disabled by default, because it is expensive in terms of time (adding ~10%
      * to the scan time) and memory, and it is not needed for most uses of FastClasspathScanner.
@@ -218,6 +246,34 @@ public class FastClasspathScanner {
      */
     public FastClasspathScanner enableFieldTypeIndexing() {
         enableFieldTypeIndexing(true);
+        return this;
+    }
+
+    /**
+     * If enableMethodAnnotationIndexing is true, enables method annotation indexing, which allows you to call
+     * ScanResult#getClassesWithMethodAnnotations(annotationType). (If you add a method annotation match processor,
+     * this method is called for you.) Method annotation indexing is disabled by default, because it is expensive in
+     * terms of time, and it is not needed for most uses of FastClasspathScanner.
+     * 
+     * @param enableMethodAnnotationIndexing
+     *            Whether or not to enable method annotation indexing.
+     * @return this (for method chaining).
+     */
+    public FastClasspathScanner enableMethodAnnotationIndexing(final boolean enableMethodAnnotationIndexing) {
+        getScanSpec().enableMethodAnnotationIndexing = enableMethodAnnotationIndexing;
+        return this;
+    }
+
+    /**
+     * Enables method annotation indexing, which allows you to call
+     * ScanResult#getClassesWithMethodAnnotations(annotationType). (If you add a method annotation match processor,
+     * this method is called for you.) Method annotation indexing is disabled by default, because it is expensive in
+     * terms of time, and it is not needed for most uses of FastClasspathScanner.
+     * 
+     * @return this (for method chaining).
+     */
+    public FastClasspathScanner enableMethodAnnotationIndexing() {
+        enableMethodAnnotationIndexing(true);
         return this;
     }
 
@@ -435,6 +491,28 @@ public class FastClasspathScanner {
     public synchronized FastClasspathScanner matchClassesWithAnnotation(final Class<?> annotation,
             final ClassAnnotationMatchProcessor classAnnotationMatchProcessor) {
         getScanSpec().matchClassesWithAnnotation(annotation, classAnnotationMatchProcessor);
+        return this;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Calls the provided MethodAnnotationMatchProcessor if classes are found on the classpath that have one or more
+     * methods with the specified annotation.
+     * 
+     * Calls enableMethodAnnotationIndexing() for you.
+     * 
+     * @param annotation
+     *            The method annotation to match.
+     * @param methodAnnotationMatchProcessor
+     *            the MethodAnnotationMatchProcessor to call when a match is found.
+     * @return this (for method chaining).
+     */
+    public synchronized FastClasspathScanner matchClassesWithMethodAnnotation(
+            final Class<? extends Annotation> annotation,
+            final MethodAnnotationMatchProcessor methodAnnotationMatchProcessor) {
+        enableMethodAnnotationIndexing();
+        getScanSpec().matchClassesWithMethodAnnotation(annotation, methodAnnotationMatchProcessor);
         return this;
     }
 

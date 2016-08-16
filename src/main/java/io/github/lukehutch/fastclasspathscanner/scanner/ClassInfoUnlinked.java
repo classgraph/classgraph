@@ -52,6 +52,7 @@ class ClassInfoUnlinked {
     private String superclassName;
     private List<String> implementedInterfaces;
     private List<String> annotations;
+    private Set<String> methodAnnotations;
     private Set<String> fieldTypes;
     private Map<String, Object> staticFinalFieldValues;
     private final ConcurrentHashMap<String, String> stringInternMap;
@@ -90,6 +91,13 @@ class ClassInfoUnlinked {
         annotations.add(intern(annotationName));
     }
 
+    public void addMethodAnnotation(final String annotationName) {
+        if (methodAnnotations == null) {
+            methodAnnotations = new HashSet<>();
+        }
+        methodAnnotations.add(intern(annotationName));
+    }
+
     void addFieldType(final String fieldTypeName) {
         if (fieldTypes == null) {
             fieldTypes = new HashSet<>();
@@ -120,6 +128,11 @@ class ClassInfoUnlinked {
                 classInfo.addAnnotation(annotationName, classNameToClassInfo);
             }
         }
+        if (methodAnnotations != null) {
+            for (final String annotationName : methodAnnotations) {
+                classInfo.addMethodAnnotation(annotationName, classNameToClassInfo);
+            }
+        }
         if (fieldTypes != null) {
             for (final String fieldTypeName : fieldTypes) {
                 classInfo.addFieldType(fieldTypeName, classNameToClassInfo);
@@ -146,6 +159,9 @@ class ClassInfoUnlinked {
             }
             if (annotations != null) {
                 subLog.log("Annotations: " + Join.join(", ", annotations));
+            }
+            if (methodAnnotations != null) {
+                subLog.log("Method annotations: " + Join.join(", ", methodAnnotations));
             }
             if (fieldTypes != null) {
                 subLog.log("Field types: " + Join.join(", ", fieldTypes));

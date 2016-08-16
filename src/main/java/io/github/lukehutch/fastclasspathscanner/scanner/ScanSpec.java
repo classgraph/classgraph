@@ -31,6 +31,8 @@ package io.github.lukehutch.fastclasspathscanner.scanner;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.annotation.Annotation;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -48,6 +50,7 @@ import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchContents
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchProcessorWithContext;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.ImplementingClassMatchProcessor;
+import io.github.lukehutch.fastclasspathscanner.matchprocessor.MethodAnnotationMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.StaticFinalFieldMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubclassMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubinterfaceMatchProcessor;
@@ -103,6 +106,9 @@ public class ScanSpec {
 
     /** If true, index types of fields. */
     public boolean enableFieldTypeIndexing;
+
+    /** If true, index method annotations. */
+    public boolean enableMethodAnnotationIndexing;
 
     /** If non-null, specifies a classpath to override the default one. */
     public String overrideClasspath;
@@ -164,6 +170,12 @@ public class ScanSpec {
      * final fields with constant initializers). If false, fields must be public to be indexed/matched.
      */
     public boolean ignoreFieldVisibility = false;
+
+    /**
+     * If true, ignore method visibility (affects finding methods with annotations of a given type). If false,
+     * methods must be public to be indexed/matched.
+     */
+    public boolean ignoreMethodVisibility = false;
 
     /** All the visible classloaders that were able to be found. */
     final List<ClassLoader> classLoaders;
@@ -947,8 +959,6 @@ public class ScanSpec {
      * Matches classes that have fields of the given type, array fields with an element type of the given type, and
      * fields of parameterized type that have a type parameter of the given type.
      * 
-     * Calls enableFieldTypeIndexing() for you.
-     * 
      * @param fieldType
      *            The type of the field to match..
      * @param classMatchProcessor
@@ -1005,6 +1015,46 @@ public class ScanSpec {
                     final Class<?> cls = loadClass(classWithAnnotation);
                     // Process match
                     classAnnotationMatchProcessor.processMatch(cls);
+                }
+            }
+        });
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Calls the provided MethodAnnotationMatchProcessor if classes are found on the classpath that have one or more
+     * methods with the specified annotation.
+     * 
+     * @param annotation
+     *            The method annotation to match.
+     * @param methodAnnotationMatchProcessor
+     *            the MethodAnnotationMatchProcessor to call when a match is found.
+     */
+    public void matchClassesWithMethodAnnotation(final Class<? extends Annotation> annotation,
+            final MethodAnnotationMatchProcessor methodAnnotationMatchProcessor) {
+        if (classMatchers == null) {
+            classMatchers = new ArrayList<>();
+        }
+        classMatchers.add(new ClassMatcher() {
+            @Override
+            public void lookForMatches(final ScanResult scanResult, final LogNode log) {
+                final String annotationName = getAnnotationName(annotation);
+                for (final String classWithAnnotation : scanResult
+                        .getNamesOfClassesWithMethodAnnotation(annotationName)) {
+                    // Call classloader
+                    final Class<?> cls = loadClass(classWithAnnotation);
+                    // Find methods with the specified annotation
+                    for (final Method method : ignoreMethodVisibility ? cls.getDeclaredMethods()
+                            : cls.getMethods()) {
+                        if (method.isAnnotationPresent(annotation)) {
+                            if (log != null) {
+                                log.log("Matched method annotation " + annotationName + ": " + method);
+                            }
+                            // Process match
+                            methodAnnotationMatchProcessor.processMatch(cls, method);
+                        }
+                    }
                 }
             }
         });

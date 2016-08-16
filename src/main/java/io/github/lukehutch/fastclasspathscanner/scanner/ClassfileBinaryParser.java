@@ -750,12 +750,34 @@ class ClassfileBinaryParser implements AutoCloseable {
             // Methods
             final int methodCount = readUnsignedShort();
             for (int i = 0; i < methodCount; i++) {
-                skip(6); // access_flags, name_index, descriptor_index
+                // Info on accessFlags: http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.6
+                final int accessFlags = readUnsignedShort();
+                skip(4); // name_index, descriptor_index
                 final int attributesCount = readUnsignedShort();
-                for (int j = 0; j < attributesCount; j++) {
-                    skip(2); // attribute_name_index
-                    final int attributeLength = readInt();
-                    skip(attributeLength);
+                final boolean isPublicMethod = ((accessFlags & 0x0001) == 0x0001);
+                final boolean methodIsVisible = isPublicMethod || scanSpec.ignoreMethodVisibility;
+                if (!methodIsVisible || !scanSpec.enableMethodAnnotationIndexing) {
+                    // Skip method attributes
+                    for (int j = 0; j < attributesCount; j++) {
+                        skip(2); // attribute_name_index
+                        final int attributeLength = readInt();
+                        skip(attributeLength);
+                    }
+                } else {
+                    // Look for method annotations
+                    for (int j = 0; j < attributesCount; j++) {
+                        final int attributeNameCpIdx = readUnsignedShort();
+                        final int attributeLength = readInt();
+                        if (constantPoolStringEquals(attributeNameCpIdx, "RuntimeVisibleAnnotations")) {
+                            final int annotationCount = readUnsignedShort();
+                            for (int m = 0; m < annotationCount; m++) {
+                                final String annotationName = readAnnotation();
+                                classInfoUnlinked.addMethodAnnotation(annotationName);
+                            }
+                        } else {
+                            skip(attributeLength);
+                        }
+                    }
                 }
             }
 

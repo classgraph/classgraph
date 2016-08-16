@@ -86,11 +86,17 @@ class ClassGraphBuilder {
     }
 
     /**
-     * Return a sorted list of classes that have a field of the named type, where the field type is in a whitelisted
-     * (non-blacklisted) package.
+     * Return a sorted list of classes that have a field of the named type.
      */
     List<String> getNamesOfClassesWithFieldOfType(final String fieldTypeName) {
         return ClassInfo.getNamesOfClassesWithFieldOfType(fieldTypeName, allClassInfo);
+    }
+
+    /**
+     * Return a sorted list of classes that have a method with the named annotation.
+     */
+    List<String> getNamesOfClassesWithMethodAnnotation(final String annotationName) {
+        return ClassInfo.getNamesOfClassesWithMethodAnnotation(annotationName, allClassInfo);
     }
 
     // -------------------------------------------------------------------------------------------------------------
