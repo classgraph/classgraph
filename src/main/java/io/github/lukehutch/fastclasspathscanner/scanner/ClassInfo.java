@@ -1169,6 +1169,68 @@ public class ClassInfo implements Comparable<ClassInfo> {
     }
 
     // -------------------------------------------------------------------------------------------------------------
+    // Method annotations
+
+    /**
+     * Get the method annotations on this class.
+     * 
+     * @return the set of method annotations on this class, or the empty set if none.
+     */
+    public Set<ClassInfo> getMethodAnnotations() {
+        return filterClassInfo(getDirectlyRelatedClasses(RelType.METHOD_ANNOTATIONS),
+                /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.ANNOTATION);
+    }
+
+    /**
+     * Get the names of method annotations on this class.
+     * 
+     * @return the sorted list of names of method annotations on this class, or the empty list if none.
+     */
+    public List<String> getNamesOfMethodAnnotations() {
+        return getClassNames(getMethodAnnotations());
+    }
+
+    /**
+     * Test whether this class has a method with the named method annotation.
+     * 
+     * @return true if this class has a method with the named method annotation.
+     */
+    public boolean hasMethodWithAnnotation(final String annotationName) {
+        return getNamesOfMethodAnnotations().contains(annotationName);
+    }
+
+    // -------------
+
+    /**
+     * Get the classes that have a method with this annotation.
+     * 
+     * @return the set of classes that have a method with this annotation, or the empty set if none.
+     */
+    public Set<ClassInfo> getClassesWithMethodAnnotation() {
+        return filterClassInfo(getDirectlyRelatedClasses(RelType.CLASSES_WITH_METHOD_ANNOTATION),
+                /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.ALL);
+    }
+
+    /**
+     * Get the names of classes that have a method with this annotation.
+     * 
+     * @return the sorted list of names of classes that have a method with this annotation, or the empty list if
+     *         none.
+     */
+    public List<String> getNamesOfClassesWithMethodAnnotation() {
+        return getClassNames(getClassesWithMethodAnnotation());
+    }
+
+    /**
+     * Test whether this annotation annotates a method of the named class.
+     * 
+     * @return true if this annotation annotates a method of the named class.
+     */
+    public boolean annotatesMethodOfClass(final String className) {
+        return getNamesOfClassesWithMethodAnnotation().contains(className);
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
     // Fields
 
     /**
