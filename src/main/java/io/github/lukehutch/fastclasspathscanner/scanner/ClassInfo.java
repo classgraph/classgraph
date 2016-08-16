@@ -611,7 +611,14 @@ public class ClassInfo implements Comparable<ClassInfo> {
      * @return true if this class has the named class as its direct superclass.
      */
     public boolean hasDirectSuperclass(final String directSuperclassName) {
-        return getNameOfDirectSuperclass().contains(directSuperclassName);
+        String nameOfDirectSuperclass = getNameOfDirectSuperclass();
+        if (directSuperclassName == null && nameOfDirectSuperclass == null) {
+            return true;
+        } else if (directSuperclassName == null || nameOfDirectSuperclass == null) {
+            return false;
+        } else {
+            return nameOfDirectSuperclass.equals(directSuperclassName);
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
