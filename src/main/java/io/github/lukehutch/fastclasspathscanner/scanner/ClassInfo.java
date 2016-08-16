@@ -1234,15 +1234,25 @@ public class ClassInfo implements Comparable<ClassInfo> {
     // Fields
 
     /**
-     * Get the names of field types. Requires FastClasspathScanner#indexFieldTypes() to have been called before
-     * scanning.
+     * Get the types of this class' fields. Requires FastClasspathScanner#indexFieldTypes() to have been called
+     * before scanning.
+     * 
+     * @return the set of field types for this class, or the empty set if none.
+     */
+    public Set<ClassInfo> getFieldTypes() {
+        return !isStandardClass() ? Collections.<ClassInfo> emptySet()
+                : filterClassInfo(getDirectlyRelatedClasses(RelType.FIELD_TYPES),
+                        /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.ALL);
+    }
+
+    /**
+     * Get the names of the types of this class' fields. Requires FastClasspathScanner#indexFieldTypes() to have
+     * been called before scanning.
      * 
      * @return the sorted list of names of field types, or the empty list if none.
      */
-    public List<String> getFieldTypes() {
-        return !isStandardClass() ? Collections.<String> emptyList()
-                : getClassNames(filterClassInfo(getDirectlyRelatedClasses(RelType.FIELD_TYPES),
-                        /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.ALL));
+    public List<String> getNamesOfFieldTypes() {
+        return getClassNames(getFieldTypes());
     }
 
     /**
@@ -1342,11 +1352,11 @@ public class ClassInfo implements Comparable<ClassInfo> {
         buf.append("pack=true;\n");
 
         final Set<ClassInfo> standardClassNodes = filterClassInfo(allClassInfo,
-                /* removeExternalClassesIfStrictWhitelist = */ false, scanSpec, ClassType.STANDARD_CLASS);
+                /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.STANDARD_CLASS);
         final Set<ClassInfo> interfaceNodes = filterClassInfo(allClassInfo,
-                /* removeExternalClassesIfStrictWhitelist = */ false, scanSpec, ClassType.IMPLEMENTED_INTERFACE);
+                /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.IMPLEMENTED_INTERFACE);
         final Set<ClassInfo> annotationNodes = filterClassInfo(allClassInfo,
-                /* removeExternalClassesIfStrictWhitelist = */ false, scanSpec, ClassType.ANNOTATION);
+                /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.ANNOTATION);
 
         buf.append("\nnode[shape=box,style=filled,fillcolor=\"#fff2b6\"];\n");
         for (final ClassInfo node : standardClassNodes) {
@@ -1367,41 +1377,37 @@ public class ClassInfo implements Comparable<ClassInfo> {
 
         buf.append("\n");
         for (final ClassInfo classNode : standardClassNodes) {
-            for (final ClassInfo superclassNode : classNode.getDirectlyRelatedClasses(RelType.SUPERCLASSES)) {
+            for (final ClassInfo superclassNode : classNode.getDirectSuperclasses()) {
                 // class --> superclass
-                if (!superclassNode.equals("java.lang.Object")) {
+                if (!superclassNode.getClassName().equals("java.lang.Object")) {
                     buf.append("  \"" + label(classNode) + "\" -> \"" + label(superclassNode) + "\"\n");
                 }
             }
-            for (final ClassInfo implementedInterfaceNode : classNode
-                    .getDirectlyRelatedClasses(RelType.IMPLEMENTED_INTERFACES)) {
+            for (final ClassInfo implementedInterfaceNode : classNode.getDirectlyImplementedInterfaces()) {
                 // class --<> implemented interface
                 buf.append("  \"" + label(classNode) + "\" -> \"" + label(implementedInterfaceNode)
                         + "\" [arrowhead=diamond]\n");
             }
-            for (final ClassInfo fieldTypeNode : classNode.getDirectlyRelatedClasses(RelType.FIELD_TYPES)) {
+            for (final ClassInfo fieldTypeNode : classNode.getFieldTypes()) {
                 // class --[] whitelisted field type
                 buf.append("  \"" + label(fieldTypeNode) + "\" -> \"" + label(classNode)
                         + "\" [arrowtail=obox, dir=back]\n");
             }
         }
         for (final ClassInfo interfaceNode : interfaceNodes) {
-            for (final ClassInfo superinterfaceNode : interfaceNode
-                    .getDirectlyRelatedClasses(RelType.IMPLEMENTED_INTERFACES)) {
+            for (final ClassInfo superinterfaceNode : interfaceNode.getDirectlyImplementedInterfaces()) {
                 // interface --> superinterface
                 buf.append("  \"" + label(interfaceNode) + "\" -> \"" + label(superinterfaceNode)
                         + "\" [arrowhead=diamond]\n");
             }
         }
         for (final ClassInfo annotationNode : annotationNodes) {
-            for (final ClassInfo annotatedClassNode : annotationNode
-                    .getDirectlyRelatedClasses(RelType.ANNOTATED_CLASSES)) {
+            for (final ClassInfo annotatedClassNode : annotationNode.getDirectlyAnnotatedClasses()) {
                 // annotated class --o annotation
                 buf.append("  \"" + label(annotatedClassNode) + "\" -> \"" + label(annotationNode)
                         + "\" [arrowhead=dot]\n");
             }
-            for (final ClassInfo classWithMethodAnnotationNode : annotationNode
-                    .getDirectlyRelatedClasses(RelType.CLASSES_WITH_METHOD_ANNOTATION)) {
+            for (final ClassInfo classWithMethodAnnotationNode : annotationNode.getClassesWithMethodAnnotation()) {
                 // class with method annotation --o method annotation
                 buf.append("  \"" + label(classWithMethodAnnotationNode) + "\" -> \"" + label(annotationNode)
                         + "\" [arrowhead=odot]\n");
