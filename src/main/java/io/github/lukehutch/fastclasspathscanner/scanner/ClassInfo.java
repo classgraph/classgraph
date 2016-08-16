@@ -751,11 +751,10 @@ public class ClassInfo implements Comparable<ClassInfo> {
     // -------------
 
     /**
-     * Get the interfaces implemented by the standard class represented by this ClassInfo object, or by one of its
-     * superclasses.
+     * Get the interfaces implemented by this standard class, or by one of its superclasses.
      * 
-     * @return the set of interfaces implemented by the standard class represented by this ClassInfo object, or by
-     *         one of its superclasses. Returns the empty set if none.
+     * @return the set of interfaces implemented by this standard class, or by one of its superclasses. Returns the
+     *         empty set if none.
      */
     public Set<ClassInfo> getImplementedInterfaces() {
         if (!isStandardClass()) {
@@ -774,11 +773,10 @@ public class ClassInfo implements Comparable<ClassInfo> {
     }
 
     /**
-     * Get the interfaces implemented by the standard class represented by this ClassInfo object, or by one of its
-     * superclasses.
+     * Get the interfaces implemented by this standard class, or by one of its superclasses.
      * 
-     * @return the set of interfaces implemented by the standard class represented by this ClassInfo object, or by
-     *         one of its superclasses. Returns the empty list if none.
+     * @return the set of interfaces implemented by this standard class, or by one of its superclasses. Returns the
+     *         empty list if none.
      */
     public List<String> getNamesOfImplementedInterfaces() {
         return getClassNames(getImplementedInterfaces());
@@ -797,31 +795,19 @@ public class ClassInfo implements Comparable<ClassInfo> {
     // -------------
 
     /**
-     * Get the interfaces directly implemented by the standard class represented by this ClassInfo object, or by one
-     * of its superclasses.
+     * Get the interfaces directly implemented by this standard class.
      * 
-     * @return the set of interfaces directly implemented by the standard class represented by this ClassInfo
-     *         object, or by one of its superclasses. Returns the empty set if none.
+     * @return the set of interfaces directly implemented by this standard class. Returns the empty set if none.
      */
     public Set<ClassInfo> getDirectlyImplementedInterfaces() {
-        if (!isStandardClass()) {
-            return Collections.<ClassInfo> emptySet();
-        } else {
-            final Set<ClassInfo> superclasses = filterClassInfo(getReachableClasses(RelType.SUPERCLASSES),
-                    /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.STANDARD_CLASS);
-            // Subclasses of implementing classes also implement the interface
-            final Set<ClassInfo> allInterfaces = new HashSet<>();
-            allInterfaces.addAll(getDirectlyRelatedClasses(RelType.IMPLEMENTED_INTERFACES));
-            for (final ClassInfo superClass : superclasses) {
-                allInterfaces.addAll(superClass.getDirectlyRelatedClasses(RelType.IMPLEMENTED_INTERFACES));
-            }
-            return allInterfaces;
-        }
+        return !isStandardClass() ? Collections.<ClassInfo> emptySet()
+                : filterClassInfo(getDirectlyRelatedClasses(RelType.IMPLEMENTED_INTERFACES),
+                        /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec,
+                        ClassType.IMPLEMENTED_INTERFACE);
     }
 
     /**
-     * Get the interfaces directly implemented by the standard class represented by this ClassInfo object, or by one
-     * of its superclasses.
+     * Get the interfaces directly implemented by this standard class, or by one of its superclasses.
      * 
      * @return the set of interfaces directly implemented by the standard class represented by this ClassInfo
      *         object, or by one of its superclasses. Returns the empty list if none.
