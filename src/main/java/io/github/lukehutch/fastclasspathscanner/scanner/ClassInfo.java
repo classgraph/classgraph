@@ -345,6 +345,28 @@ public class ClassInfo implements Comparable<ClassInfo> {
                     classNameToClassInfo);
             this.addRelatedClass(RelType.SUPERCLASSES, superclassClassInfo);
             superclassClassInfo.addRelatedClass(RelType.SUBCLASSES, this);
+
+            // There should only ever be one superclass. In case merging Scala companion classes adds both a normal
+            // superclass and a reference to java.lang.Object, remove the java.lang.Object link.
+            final Set<ClassInfo> allSuperclasses = getDirectlyRelatedClasses(RelType.SUPERCLASSES);
+            if (allSuperclasses.size() > 2) {
+                throw new RuntimeException("Multiple superclasses of class " + getClassName() + " : "
+                        + getClassNames(allSuperclasses));
+            } else if (allSuperclasses.size() == 2) {
+                final List<ClassInfo> superclasses = new ArrayList<>(allSuperclasses);
+                final int objIdx = superclasses.get(0).getClassName().equals(Object.class.getName()) ? 0
+                        : superclasses.get(1).getClassName().equals(Object.class.getName()) ? 0 : -1;
+                if (objIdx == -1) {
+                    throw new RuntimeException("Multiple superclasses of class " + getClassName() + " : "
+                            + getClassNames(allSuperclasses));
+                }
+                // One of the superclasses is java.lang.Object -- unlink it so that there is only one superclass
+                final ClassInfo object = superclasses.get(objIdx);
+                final Set<ClassInfo> objectSubclasses = object.relatedTypeToClassInfoSet.get(RelType.SUBCLASSES);
+                objectSubclasses.remove(this);
+                final Set<ClassInfo> thisSuperclasses = this.relatedTypeToClassInfoSet.get(RelType.SUPERCLASSES);
+                thisSuperclasses.remove(object);
+            }
         }
     }
 
@@ -533,7 +555,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
     // -------------
 
     /**
-     * Get the superclasses of this class.
+     * Get all superclasses of this class.
      * 
      * @return the set of superclasses of this class, or the empty set if none.
      */
@@ -543,9 +565,9 @@ public class ClassInfo implements Comparable<ClassInfo> {
     }
 
     /**
-     * Get the names of superclasses of this class.
+     * Get the names of all superclasses of this class.
      * 
-     * @return the sorted list of names of superclasses of this class, or the empty list if none.
+     * @return the sorted list of names of all superclasses of this class, or the empty list if none.
      */
     public List<String> getNamesOfSuperclasses() {
         return getClassNames(getSuperclasses());
@@ -563,31 +585,33 @@ public class ClassInfo implements Comparable<ClassInfo> {
     // -------------
 
     /**
-     * Get the direct superclasses of this class.
+     * Get the direct superclass of this class.
      * 
-     * @return the set of direct superclasses of this class, or the empty set if none.
+     * @return the direct superclass of this class, or null if none.
      */
-    public Set<ClassInfo> getDirectSuperclasses() {
-        return filterClassInfo(getDirectlyRelatedClasses(RelType.SUPERCLASSES),
+    public ClassInfo getDirectSuperclass() {
+        final Set<ClassInfo> directSuperclasses = filterClassInfo(getDirectlyRelatedClasses(RelType.SUPERCLASSES),
                 /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.ALL);
+        return directSuperclasses.isEmpty() ? null : directSuperclasses.iterator().next();
     }
 
     /**
-     * Get the names of direct superclasses of this class.
+     * Get the name of the direct superclass of this class, or null if none.
      * 
-     * @return the sorted list of names of direct superclasses of this class, or the empty list if none.
+     * @return the direct superclass of this class, or null if none.
      */
-    public List<String> getNamesOfDirectSuperclasses() {
-        return getClassNames(getDirectSuperclasses());
+    public String getNameOfDirectSuperclass() {
+        final ClassInfo directSuperclass = getDirectSuperclass();
+        return directSuperclass == null ? null : directSuperclass.getClassName();
     }
 
     /**
-     * Test whether this class has the named direct superclass.
+     * Test whether this class has the named class as its direct superclass.
      * 
-     * @return true if this class has the named direct superclass.
+     * @return true if this class has the named class as its direct superclass.
      */
     public boolean hasDirectSuperclass(final String directSuperclassName) {
-        return getNamesOfDirectSuperclasses().contains(directSuperclassName);
+        return getNameOfDirectSuperclass().contains(directSuperclassName);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -1363,10 +1387,11 @@ public class ClassInfo implements Comparable<ClassInfo> {
 
         buf.append("\n");
         for (final ClassInfo classNode : standardClassNodes) {
-            for (final ClassInfo superclassNode : classNode.getDirectSuperclasses()) {
+            final ClassInfo directSuperclassNode = classNode.getDirectSuperclass();
+            if (directSuperclassNode != null) {
                 // class --> superclass
-                if (!superclassNode.getClassName().equals("java.lang.Object")) {
-                    buf.append("  \"" + label(classNode) + "\" -> \"" + label(superclassNode) + "\"\n");
+                if (!directSuperclassNode.getClassName().equals("java.lang.Object")) {
+                    buf.append("  \"" + label(classNode) + "\" -> \"" + label(directSuperclassNode) + "\"\n");
                 }
             }
             for (final ClassInfo implementedInterfaceNode : classNode.getDirectlyImplementedInterfaces()) {
@@ -1381,8 +1406,8 @@ public class ClassInfo implements Comparable<ClassInfo> {
             }
         }
         for (final ClassInfo interfaceNode : interfaceNodes) {
-            for (final ClassInfo superinterfaceNode : interfaceNode.getDirectlyImplementedInterfaces()) {
-                // interface --> superinterface
+            for (final ClassInfo superinterfaceNode : interfaceNode.getDirectSuperinterfaces()) {
+                // interface --<> superinterface
                 buf.append("  \"" + label(interfaceNode) + "\" -> \"" + label(superinterfaceNode)
                         + "\" [arrowhead=diamond]\n");
             }
@@ -1390,6 +1415,11 @@ public class ClassInfo implements Comparable<ClassInfo> {
         for (final ClassInfo annotationNode : annotationNodes) {
             for (final ClassInfo annotatedClassNode : annotationNode.getDirectlyAnnotatedClasses()) {
                 // annotated class --o annotation
+                buf.append("  \"" + label(annotatedClassNode) + "\" -> \"" + label(annotationNode)
+                        + "\" [arrowhead=dot]\n");
+            }
+            for (final ClassInfo annotatedClassNode : annotationNode.getAnnotationsWithDirectMetaAnnotation()) {
+                // annotation --o meta-annotation
                 buf.append("  \"" + label(annotatedClassNode) + "\" -> \"" + label(annotationNode)
                         + "\" [arrowhead=dot]\n");
             }
