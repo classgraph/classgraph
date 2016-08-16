@@ -809,8 +809,8 @@ public class ClassInfo implements Comparable<ClassInfo> {
     /**
      * Get the interfaces directly implemented by this standard class, or by one of its superclasses.
      * 
-     * @return the set of interfaces directly implemented by the standard class represented by this ClassInfo
-     *         object, or by one of its superclasses. Returns the empty list if none.
+     * @return the set of interfaces directly implemented by this standard class, or by one of its superclasses.
+     *         Returns the empty list if none.
      */
     public List<String> getNamesOfDirectlyImplementedInterfaces() {
         return getClassNames(getDirectlyImplementedInterfaces());
