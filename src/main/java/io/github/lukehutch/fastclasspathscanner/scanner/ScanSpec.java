@@ -589,7 +589,7 @@ public class ScanSpec {
     }
 
     /** Checks that the named class is not blacklisted. Throws IllegalArgumentException otherwise. */
-    synchronized void checkClassIsNotBlacklisted(final String className) {
+    void checkClassIsNotBlacklisted(final String className) {
         if (strictWhitelist && classIsBlacklisted(className)) {
             final boolean isSystemPackage = className.startsWith("java.") || className.startsWith("javax.")
                     || className.startsWith("sun.");
@@ -640,7 +640,7 @@ public class ScanSpec {
     /**
      * Call the classloader using Class.forName(className). Re-throws classloading exceptions as RuntimeException.
      */
-    private synchronized <T> Class<? extends T> loadClass(final String className) {
+    private <T> Class<? extends T> loadClass(final String className) {
         try {
             @SuppressWarnings("unchecked")
             final Class<? extends T> cls = (Class<? extends T>) Class.forName(className);
@@ -656,7 +656,7 @@ public class ScanSpec {
      * Check a class is an annotation, and that it is in a whitelisted package. Throws IllegalArgumentException
      * otherwise. Returns the name of the annotation.
      */
-    synchronized String getAnnotationName(final Class<?> annotation) {
+    String getAnnotationName(final Class<?> annotation) {
         final String annotationName = annotation.getName();
         checkClassIsNotBlacklisted(annotationName);
         if (!annotation.isAnnotation()) {
@@ -669,7 +669,7 @@ public class ScanSpec {
      * Check each element of an array of classes is an annotation, and that it is in a whitelisted package. Throws
      * IllegalArgumentException otherwise. Returns the names of the classes as an array of strings.
      */
-    synchronized String[] getAnnotationNames(final Class<?>[] annotations) {
+    String[] getAnnotationNames(final Class<?>[] annotations) {
         final String[] annotationNames = new String[annotations.length];
         for (int i = 0; i < annotations.length; i++) {
             annotationNames[i] = getAnnotationName(annotations[i]);
@@ -681,7 +681,7 @@ public class ScanSpec {
      * Check a class is an interface, and that it is in a whitelisted package. Throws IllegalArgumentException
      * otherwise. Returns the name of the interface.
      */
-    synchronized String getInterfaceName(final Class<?> iface) {
+    String getInterfaceName(final Class<?> iface) {
         final String ifaceName = iface.getName();
         checkClassIsNotBlacklisted(ifaceName);
         if (!iface.isInterface()) {
@@ -694,7 +694,7 @@ public class ScanSpec {
      * Check each element of an array of classes is an interface, and that it is in a whitelisted package. Throws
      * IllegalArgumentException otherwise. Returns the names of the classes as an array of strings.
      */
-    synchronized String[] getInterfaceNames(final Class<?>[] interfaces) {
+    String[] getInterfaceNames(final Class<?>[] interfaces) {
         final String[] interfaceNames = new String[interfaces.length];
         for (int i = 0; i < interfaces.length; i++) {
             interfaceNames[i] = getInterfaceName(interfaces[i]);
@@ -706,7 +706,7 @@ public class ScanSpec {
      * Check a class is a regular class or interface and not an annotation, and that it is in a whitelisted package.
      * Throws IllegalArgumentException otherwise. Returns the name of the class or interface.
      */
-    synchronized String getClassOrInterfaceName(final Class<?> classOrInterface) {
+    String getClassOrInterfaceName(final Class<?> classOrInterface) {
         final String classOrIfaceName = classOrInterface.getName();
         checkClassIsNotBlacklisted(classOrIfaceName);
         if (classOrInterface.isAnnotation()) {
@@ -721,7 +721,7 @@ public class ScanSpec {
      * Returns the name of the class if it is a standard class and it is in a whitelisted package, otherwise throws
      * an IllegalArgumentException.
      */
-    synchronized String getStandardClassName(final Class<?> cls) {
+    String getStandardClassName(final Class<?> cls) {
         final String className = cls.getName();
         checkClassIsNotBlacklisted(className);
         if (cls.isAnnotation()) {
@@ -736,7 +736,7 @@ public class ScanSpec {
      * Check a class is in a whitelisted package. Returns the name of the class if it is in a whitelisted package,
      * otherwise throws an IllegalArgumentException.
      */
-    private synchronized String getClassName(final Class<?> cls) {
+    private String getClassName(final Class<?> cls) {
         final String className = cls.getName();
         checkClassIsNotBlacklisted(className);
         return className;
@@ -751,7 +751,7 @@ public class ScanSpec {
      * @param classMatchProcessor
      *            the ClassMatchProcessor to call when a match is found.
      */
-    public synchronized void matchAllClasses(final ClassMatchProcessor classMatchProcessor) {
+    public void matchAllClasses(final ClassMatchProcessor classMatchProcessor) {
         if (classMatchers == null) {
             classMatchers = new ArrayList<>();
         }
@@ -778,7 +778,7 @@ public class ScanSpec {
      * @param classMatchProcessor
      *            the ClassMatchProcessor to call when a match is found.
      */
-    public synchronized void matchAllStandardClasses(final ClassMatchProcessor classMatchProcessor) {
+    public void matchAllStandardClasses(final ClassMatchProcessor classMatchProcessor) {
         if (classMatchers == null) {
             classMatchers = new ArrayList<>();
         }
@@ -805,7 +805,7 @@ public class ScanSpec {
      * @param ClassMatchProcessor
      *            the ClassMatchProcessor to call when a match is found.
      */
-    public synchronized void matchAllInterfaceClasses(final ClassMatchProcessor ClassMatchProcessor) {
+    public void matchAllInterfaceClasses(final ClassMatchProcessor ClassMatchProcessor) {
         if (classMatchers == null) {
             classMatchers = new ArrayList<>();
         }
@@ -832,7 +832,7 @@ public class ScanSpec {
      * @param ClassMatchProcessor
      *            the ClassMatchProcessor to call when a match is found.
      */
-    public synchronized void matchAllAnnotationClasses(final ClassMatchProcessor ClassMatchProcessor) {
+    public void matchAllAnnotationClasses(final ClassMatchProcessor ClassMatchProcessor) {
         if (classMatchers == null) {
             classMatchers = new ArrayList<>();
         }
@@ -863,7 +863,7 @@ public class ScanSpec {
      * @param subclassMatchProcessor
      *            the SubclassMatchProcessor to call when a match is found.
      */
-    public synchronized <T> void matchSubclassesOf(final Class<T> superclass,
+    public <T> void matchSubclassesOf(final Class<T> superclass,
             final SubclassMatchProcessor<T> subclassMatchProcessor) {
         if (classMatchers == null) {
             classMatchers = new ArrayList<>();
@@ -896,7 +896,7 @@ public class ScanSpec {
      * @param subinterfaceMatchProcessor
      *            the SubinterfaceMatchProcessor to call when a match is found.
      */
-    public synchronized <T> void matchSubinterfacesOf(final Class<T> superinterface,
+    public <T> void matchSubinterfacesOf(final Class<T> superinterface,
             final SubinterfaceMatchProcessor<T> subinterfaceMatchProcessor) {
         if (classMatchers == null) {
             classMatchers = new ArrayList<>();
@@ -929,7 +929,7 @@ public class ScanSpec {
      * @param interfaceMatchProcessor
      *            the ClassMatchProcessor to call when a match is found.
      */
-    public synchronized <T> void matchClassesImplementing(final Class<T> implementedInterface,
+    public <T> void matchClassesImplementing(final Class<T> implementedInterface,
             final ImplementingClassMatchProcessor<T> interfaceMatchProcessor) {
         if (classMatchers == null) {
             classMatchers = new ArrayList<>();
@@ -964,7 +964,7 @@ public class ScanSpec {
      * @param classMatchProcessor
      *            the ClassMatchProcessor to call when a match is found.
      */
-    public synchronized <T> void matchClassesWithFieldOfType(final Class<T> fieldType,
+    public <T> void matchClassesWithFieldOfType(final Class<T> fieldType,
             final ClassMatchProcessor classMatchProcessor) {
         if (classMatchers == null) {
             classMatchers = new ArrayList<>();
@@ -997,7 +997,7 @@ public class ScanSpec {
      * @param classAnnotationMatchProcessor
      *            the ClassAnnotationMatchProcessor to call when a match is found.
      */
-    public synchronized void matchClassesWithAnnotation(final Class<?> annotation,
+    public void matchClassesWithAnnotation(final Class<?> annotation,
             final ClassAnnotationMatchProcessor classAnnotationMatchProcessor) {
         if (classMatchers == null) {
             classMatchers = new ArrayList<>();
@@ -1066,7 +1066,7 @@ public class ScanSpec {
      * Add a StaticFinalFieldMatchProcessor that should be called if a static final field with the given name is
      * encountered with a constant initializer value while reading a classfile header.
      */
-    private synchronized void addStaticFinalFieldProcessor(final String className, final String fieldName,
+    private void addStaticFinalFieldProcessor(final String className, final String fieldName,
             final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor) {
         final String fullyQualifiedFieldName = className + "." + fieldName;
         if (fullyQualifiedFieldNameToStaticFinalFieldMatchProcessors == null) {
@@ -1099,7 +1099,7 @@ public class ScanSpec {
      * @param staticFinalFieldMatchProcessor
      *            the StaticFinalFieldMatchProcessor to call when a match is found.
      */
-    public synchronized void matchStaticFinalFieldNames(final Set<String> fullyQualifiedStaticFinalFieldNames,
+    public void matchStaticFinalFieldNames(final Set<String> fullyQualifiedStaticFinalFieldNames,
             final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor) {
         for (final String fullyQualifiedFieldName : fullyQualifiedStaticFinalFieldNames) {
             final int lastDotIdx = fullyQualifiedFieldName.lastIndexOf('.');
@@ -1131,7 +1131,7 @@ public class ScanSpec {
      * @param staticFinalFieldMatchProcessor
      *            the StaticFinalFieldMatchProcessor to call when a match is found.
      */
-    public synchronized void matchStaticFinalFieldNames(final String fullyQualifiedStaticFinalFieldName,
+    public void matchStaticFinalFieldNames(final String fullyQualifiedStaticFinalFieldName,
             final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor) {
         final HashSet<String> fullyQualifiedStaticFinalFieldNamesSet = new HashSet<>();
         fullyQualifiedStaticFinalFieldNamesSet.add(fullyQualifiedStaticFinalFieldName);
@@ -1159,7 +1159,7 @@ public class ScanSpec {
      * @param staticFinalFieldMatchProcessor
      *            the StaticFinalFieldMatchProcessor to call when a match is found.
      */
-    public synchronized void matchStaticFinalFieldNames(final String[] fullyQualifiedStaticFinalFieldNames,
+    public void matchStaticFinalFieldNames(final String[] fullyQualifiedStaticFinalFieldNames,
             final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor) {
         final HashSet<String> fullyQualifiedStaticFinalFieldNamesSet = new HashSet<>();
         for (final String fullyQualifiedFieldName : fullyQualifiedStaticFinalFieldNames) {
@@ -1292,8 +1292,7 @@ public class ScanSpec {
      * @param fileMatchProcessor
      *            The FileMatchProcessor to call when each match is found.
      */
-    public synchronized void matchFilenamePattern(final String pathRegexp,
-            final FileMatchProcessor fileMatchProcessor) {
+    public void matchFilenamePattern(final String pathRegexp, final FileMatchProcessor fileMatchProcessor) {
         addFilePathMatcher(makeFilePathTesterMatchingRegexp(pathRegexp),
                 makeFileMatchProcessorWrapper(fileMatchProcessor));
     }
@@ -1307,7 +1306,7 @@ public class ScanSpec {
      * @param fileMatchContentsProcessor
      *            The FileMatchContentsProcessor to call when each match is found.
      */
-    public synchronized void matchFilenamePattern(final String pathRegexp,
+    public void matchFilenamePattern(final String pathRegexp,
             final FileMatchContentsProcessor fileMatchContentsProcessor) {
         addFilePathMatcher(makeFilePathTesterMatchingRegexp(pathRegexp),
                 makeFileMatchProcessorWrapper(fileMatchContentsProcessor));
@@ -1322,7 +1321,7 @@ public class ScanSpec {
      * @param fileMatchProcessorWithContext
      *            The FileMatchProcessorWithContext to call when each match is found.
      */
-    public synchronized void matchFilenamePattern(final String pathRegexp,
+    public void matchFilenamePattern(final String pathRegexp,
             final FileMatchProcessorWithContext fileMatchProcessorWithContext) {
         addFilePathMatcher(makeFilePathTesterMatchingRegexp(pathRegexp),
                 makeFileMatchProcessorWrapper(fileMatchProcessorWithContext));
@@ -1337,7 +1336,7 @@ public class ScanSpec {
      * @param fileMatchContentsProcessorWithContext
      *            The FileMatchContentsProcessorWithContext to call when each match is found.
      */
-    public synchronized void matchFilenamePattern(final String pathRegexp,
+    public void matchFilenamePattern(final String pathRegexp,
             final FileMatchContentsProcessorWithContext fileMatchContentsProcessorWithContext) {
         addFilePathMatcher(makeFilePathTesterMatchingRegexp(pathRegexp),
                 makeFileMatchProcessorWrapper(fileMatchContentsProcessorWithContext));
@@ -1369,8 +1368,7 @@ public class ScanSpec {
      * @param fileMatchProcessor
      *            The FileMatchProcessor to call when each match is found.
      */
-    public synchronized void matchFilenamePath(final String relativePathToMatch,
-            final FileMatchProcessor fileMatchProcessor) {
+    public void matchFilenamePath(final String relativePathToMatch, final FileMatchProcessor fileMatchProcessor) {
         addFilePathMatcher(makeFilePathTesterMatchingRelativePath(relativePathToMatch),
                 makeFileMatchProcessorWrapper(fileMatchProcessor));
     }
@@ -1385,7 +1383,7 @@ public class ScanSpec {
      * @param fileMatchContentsProcessor
      *            The FileMatchContentsProcessor to call when each match is found.
      */
-    public synchronized void matchFilenamePath(final String relativePathToMatch,
+    public void matchFilenamePath(final String relativePathToMatch,
             final FileMatchContentsProcessor fileMatchContentsProcessor) {
         addFilePathMatcher(makeFilePathTesterMatchingRelativePath(relativePathToMatch),
                 makeFileMatchProcessorWrapper(fileMatchContentsProcessor));
@@ -1401,7 +1399,7 @@ public class ScanSpec {
      * @param fileMatchProcessorWithContext
      *            The FileMatchProcessorWithContext to call when each match is found.
      */
-    public synchronized void matchFilenamePath(final String relativePathToMatch,
+    public void matchFilenamePath(final String relativePathToMatch,
             final FileMatchProcessorWithContext fileMatchProcessorWithContext) {
         addFilePathMatcher(makeFilePathTesterMatchingRelativePath(relativePathToMatch),
                 makeFileMatchProcessorWrapper(fileMatchProcessorWithContext));
@@ -1417,7 +1415,7 @@ public class ScanSpec {
      * @param fileMatchContentsProcessorWithContext
      *            The FileMatchContentsProcessorWithContext to call when each match is found.
      */
-    public synchronized void matchFilenamePath(final String relativePathToMatch,
+    public void matchFilenamePath(final String relativePathToMatch,
             final FileMatchContentsProcessorWithContext fileMatchContentsProcessorWithContext) {
         addFilePathMatcher(makeFilePathTesterMatchingRelativePath(relativePathToMatch),
                 makeFileMatchProcessorWrapper(fileMatchContentsProcessorWithContext));
@@ -1451,8 +1449,7 @@ public class ScanSpec {
      * @param fileMatchProcessor
      *            The FileMatchProcessor to call when each match is found.
      */
-    public synchronized void matchFilenamePathLeaf(final String pathLeafToMatch,
-            final FileMatchProcessor fileMatchProcessor) {
+    public void matchFilenamePathLeaf(final String pathLeafToMatch, final FileMatchProcessor fileMatchProcessor) {
         addFilePathMatcher(makeFilePathTesterMatchingPathLeaf(pathLeafToMatch),
                 makeFileMatchProcessorWrapper(fileMatchProcessor));
     }
@@ -1466,7 +1463,7 @@ public class ScanSpec {
      * @param fileMatchContentsProcessor
      *            The FileMatchContentsProcessor to call when each match is found.
      */
-    public synchronized void matchFilenamePathLeaf(final String pathLeafToMatch,
+    public void matchFilenamePathLeaf(final String pathLeafToMatch,
             final FileMatchContentsProcessor fileMatchContentsProcessor) {
         addFilePathMatcher(makeFilePathTesterMatchingPathLeaf(pathLeafToMatch),
                 makeFileMatchProcessorWrapper(fileMatchContentsProcessor));
@@ -1481,7 +1478,7 @@ public class ScanSpec {
      * @param fileMatchProcessorWithContext
      *            The FileMatchProcessorWithContext to call when each match is found.
      */
-    public synchronized void matchFilenamePathLeaf(final String pathLeafToMatch,
+    public void matchFilenamePathLeaf(final String pathLeafToMatch,
             final FileMatchProcessorWithContext fileMatchProcessorWithContext) {
         addFilePathMatcher(makeFilePathTesterMatchingPathLeaf(pathLeafToMatch),
                 makeFileMatchProcessorWrapper(fileMatchProcessorWithContext));
@@ -1496,7 +1493,7 @@ public class ScanSpec {
      * @param fileMatchContentsProcessorWithContext
      *            The FileMatchContentsProcessorWithContext to call when each match is found.
      */
-    public synchronized void matchFilenamePathLeaf(final String pathLeafToMatch,
+    public void matchFilenamePathLeaf(final String pathLeafToMatch,
             final FileMatchContentsProcessorWithContext fileMatchContentsProcessorWithContext) {
         addFilePathMatcher(makeFilePathTesterMatchingPathLeaf(pathLeafToMatch),
                 makeFileMatchProcessorWrapper(fileMatchContentsProcessorWithContext));
@@ -1530,8 +1527,7 @@ public class ScanSpec {
      * @param fileMatchProcessor
      *            The FileMatchProcessor to call when each match is found.
      */
-    public synchronized void matchFilenameExtension(final String extensionToMatch,
-            final FileMatchProcessor fileMatchProcessor) {
+    public void matchFilenameExtension(final String extensionToMatch, final FileMatchProcessor fileMatchProcessor) {
         addFilePathMatcher(makeFilePathTesterMatchingFilenameExtension(extensionToMatch),
                 makeFileMatchProcessorWrapper(fileMatchProcessor));
     }
@@ -1544,7 +1540,7 @@ public class ScanSpec {
      * @param fileMatchContentsProcessor
      *            The FileMatchContentsProcessor to call when each match is found.
      */
-    public synchronized void matchFilenameExtension(final String extensionToMatch,
+    public void matchFilenameExtension(final String extensionToMatch,
             final FileMatchContentsProcessor fileMatchContentsProcessor) {
         addFilePathMatcher(makeFilePathTesterMatchingFilenameExtension(extensionToMatch),
                 makeFileMatchProcessorWrapper(fileMatchContentsProcessor));
@@ -1559,7 +1555,7 @@ public class ScanSpec {
      * @param fileMatchProcessorWithContext
      *            The FileMatchProcessorWithContext to call when each match is found.
      */
-    public synchronized void matchFilenameExtension(final String extensionToMatch,
+    public void matchFilenameExtension(final String extensionToMatch,
             final FileMatchProcessorWithContext fileMatchProcessorWithContext) {
         addFilePathMatcher(makeFilePathTesterMatchingFilenameExtension(extensionToMatch),
                 makeFileMatchProcessorWrapper(fileMatchProcessorWithContext));
@@ -1574,7 +1570,7 @@ public class ScanSpec {
      * @param fileMatchContentsProcessorWithContext
      *            The FileMatchContentsProcessorWithContext to call when each match is found.
      */
-    public synchronized void matchFilenameExtension(final String extensionToMatch,
+    public void matchFilenameExtension(final String extensionToMatch,
             final FileMatchContentsProcessorWithContext fileMatchContentsProcessorWithContext) {
         addFilePathMatcher(makeFilePathTesterMatchingFilenameExtension(extensionToMatch),
                 makeFileMatchProcessorWrapper(fileMatchContentsProcessorWithContext));

@@ -115,7 +115,7 @@ public class FastClasspathScanner {
      *
      * @return the FastClasspathScanner version, or "unknown" if it could not be determined.
      */
-    public synchronized static final String getVersion() {
+    public static final String getVersion() {
         if (version == null) {
             version = VersionFinder.getVersion();
         }
@@ -145,7 +145,7 @@ public class FastClasspathScanner {
      *            Whether or not to give verbose output.
      * @return this (for method chaining).
      */
-    public synchronized FastClasspathScanner verbose(final boolean verbose) {
+    public FastClasspathScanner verbose(final boolean verbose) {
         if (verbose) {
             if (log == null) {
                 log = new LogNode();
@@ -162,7 +162,7 @@ public class FastClasspathScanner {
      * 
      * @return this (for method chaining).
      */
-    public synchronized FastClasspathScanner verbose() {
+    public FastClasspathScanner verbose() {
         verbose(true);
         return this;
     }
@@ -323,7 +323,7 @@ public class FastClasspathScanner {
      *            The ClassLoaderHandler class to register.
      * @return this (for method chaining).
      */
-    public synchronized FastClasspathScanner registerClassLoaderHandler(
+    public FastClasspathScanner registerClassLoaderHandler(
             final Class<? extends ClassLoaderHandler> classLoaderHandlerClass) {
         getScanSpec().extraClassLoaderHandlers.add(classLoaderHandlerClass);
         return this;
@@ -338,7 +338,7 @@ public class FastClasspathScanner {
      *            The custom classpath to use for scanning, with path elements separated by File.pathSeparatorChar.
      * @return this (for method chaining).
      */
-    public synchronized FastClasspathScanner overrideClasspath(final String classpath) {
+    public FastClasspathScanner overrideClasspath(final String classpath) {
         getScanSpec().overrideClasspath = classpath;
         return this;
     }
@@ -353,7 +353,7 @@ public class FastClasspathScanner {
      *            the ClassMatchProcessor to call when a match is found.
      * @return this (for method chaining).
      */
-    public synchronized FastClasspathScanner matchAllClasses(final ClassMatchProcessor classMatchProcessor) {
+    public FastClasspathScanner matchAllClasses(final ClassMatchProcessor classMatchProcessor) {
         getScanSpec().matchAllClasses(classMatchProcessor);
         return this;
     }
@@ -366,8 +366,7 @@ public class FastClasspathScanner {
      *            the ClassMatchProcessor to call when a match is found.
      * @return this (for method chaining).
      */
-    public synchronized FastClasspathScanner matchAllStandardClasses(
-            final ClassMatchProcessor classMatchProcessor) {
+    public FastClasspathScanner matchAllStandardClasses(final ClassMatchProcessor classMatchProcessor) {
         getScanSpec().matchAllStandardClasses(classMatchProcessor);
         return this;
     }
@@ -380,8 +379,7 @@ public class FastClasspathScanner {
      *            the ClassMatchProcessor to call when a match is found.
      * @return this (for method chaining).
      */
-    public synchronized FastClasspathScanner matchAllInterfaceClasses(
-            final ClassMatchProcessor ClassMatchProcessor) {
+    public FastClasspathScanner matchAllInterfaceClasses(final ClassMatchProcessor ClassMatchProcessor) {
         getScanSpec().matchAllInterfaceClasses(ClassMatchProcessor);
         return this;
     }
@@ -394,8 +392,7 @@ public class FastClasspathScanner {
      *            the ClassMatchProcessor to call when a match is found.
      * @return this (for method chaining).
      */
-    public synchronized FastClasspathScanner matchAllAnnotationClasses(
-            final ClassMatchProcessor ClassMatchProcessor) {
+    public FastClasspathScanner matchAllAnnotationClasses(final ClassMatchProcessor ClassMatchProcessor) {
         getScanSpec().matchAllAnnotationClasses(ClassMatchProcessor);
         return this;
     }
@@ -412,7 +409,7 @@ public class FastClasspathScanner {
      *            the SubclassMatchProcessor to call when a match is found.
      * @return this (for method chaining).
      */
-    public synchronized <T> FastClasspathScanner matchSubclassesOf(final Class<T> superclass,
+    public <T> FastClasspathScanner matchSubclassesOf(final Class<T> superclass,
             final SubclassMatchProcessor<T> subclassMatchProcessor) {
         getScanSpec().matchSubclassesOf(superclass, subclassMatchProcessor);
         return this;
@@ -430,7 +427,7 @@ public class FastClasspathScanner {
      *            the SubinterfaceMatchProcessor to call when a match is found.
      * @return this (for method chaining).
      */
-    public synchronized <T> FastClasspathScanner matchSubinterfacesOf(final Class<T> superinterface,
+    public <T> FastClasspathScanner matchSubinterfacesOf(final Class<T> superinterface,
             final SubinterfaceMatchProcessor<T> subinterfaceMatchProcessor) {
         getScanSpec().matchSubinterfacesOf(superinterface, subinterfaceMatchProcessor);
         return this;
@@ -448,7 +445,7 @@ public class FastClasspathScanner {
      *            the ClassMatchProcessor to call when a match is found.
      * @return this (for method chaining).
      */
-    public synchronized <T> FastClasspathScanner matchClassesImplementing(final Class<T> implementedInterface,
+    public <T> FastClasspathScanner matchClassesImplementing(final Class<T> implementedInterface,
             final ImplementingClassMatchProcessor<T> interfaceMatchProcessor) {
         getScanSpec().matchClassesImplementing(implementedInterface, interfaceMatchProcessor);
         return this;
@@ -469,7 +466,7 @@ public class FastClasspathScanner {
      *            the ClassMatchProcessor to call when a match is found.
      * @return this (for method chaining).
      */
-    public synchronized <T> FastClasspathScanner matchClassesWithFieldOfType(final Class<T> fieldType,
+    public <T> FastClasspathScanner matchClassesWithFieldOfType(final Class<T> fieldType,
             final ClassMatchProcessor classMatchProcessor) {
         enableFieldTypeIndexing();
         getScanSpec().matchClassesWithFieldOfType(fieldType, classMatchProcessor);
@@ -488,7 +485,7 @@ public class FastClasspathScanner {
      *            the ClassAnnotationMatchProcessor to call when a match is found.
      * @return this (for method chaining).
      */
-    public synchronized FastClasspathScanner matchClassesWithAnnotation(final Class<?> annotation,
+    public FastClasspathScanner matchClassesWithAnnotation(final Class<?> annotation,
             final ClassAnnotationMatchProcessor classAnnotationMatchProcessor) {
         getScanSpec().matchClassesWithAnnotation(annotation, classAnnotationMatchProcessor);
         return this;
@@ -508,8 +505,7 @@ public class FastClasspathScanner {
      *            the MethodAnnotationMatchProcessor to call when a match is found.
      * @return this (for method chaining).
      */
-    public synchronized FastClasspathScanner matchClassesWithMethodAnnotation(
-            final Class<? extends Annotation> annotation,
+    public FastClasspathScanner matchClassesWithMethodAnnotation(final Class<? extends Annotation> annotation,
             final MethodAnnotationMatchProcessor methodAnnotationMatchProcessor) {
         enableMethodAnnotationIndexing();
         getScanSpec().matchClassesWithMethodAnnotation(annotation, methodAnnotationMatchProcessor);
@@ -540,8 +536,7 @@ public class FastClasspathScanner {
      *            the StaticFinalFieldMatchProcessor to call when a match is found.
      * @return this (for method chaining).
      */
-    public synchronized FastClasspathScanner matchStaticFinalFieldNames(
-            final Set<String> fullyQualifiedStaticFinalFieldNames,
+    public FastClasspathScanner matchStaticFinalFieldNames(final Set<String> fullyQualifiedStaticFinalFieldNames,
             final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor) {
         getScanSpec().matchStaticFinalFieldNames(fullyQualifiedStaticFinalFieldNames,
                 staticFinalFieldMatchProcessor);
@@ -569,8 +564,7 @@ public class FastClasspathScanner {
      *            the StaticFinalFieldMatchProcessor to call when a match is found.
      * @return this (for method chaining).
      */
-    public synchronized FastClasspathScanner matchStaticFinalFieldNames(
-            final String fullyQualifiedStaticFinalFieldName,
+    public FastClasspathScanner matchStaticFinalFieldNames(final String fullyQualifiedStaticFinalFieldName,
             final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor) {
         getScanSpec().matchStaticFinalFieldNames(fullyQualifiedStaticFinalFieldName,
                 staticFinalFieldMatchProcessor);
@@ -599,8 +593,7 @@ public class FastClasspathScanner {
      *            the StaticFinalFieldMatchProcessor to call when a match is found.
      * @return this (for method chaining).
      */
-    public synchronized FastClasspathScanner matchStaticFinalFieldNames(
-            final String[] fullyQualifiedStaticFinalFieldNames,
+    public FastClasspathScanner matchStaticFinalFieldNames(final String[] fullyQualifiedStaticFinalFieldNames,
             final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor) {
         getScanSpec().matchStaticFinalFieldNames(fullyQualifiedStaticFinalFieldNames,
                 staticFinalFieldMatchProcessor);
@@ -619,7 +612,7 @@ public class FastClasspathScanner {
      *            The FileMatchProcessor to call when each match is found.
      * @return this (for method chaining).
      */
-    public synchronized FastClasspathScanner matchFilenamePattern(final String pathRegexp,
+    public FastClasspathScanner matchFilenamePattern(final String pathRegexp,
             final FileMatchProcessor fileMatchProcessor) {
         getScanSpec().matchFilenamePattern(pathRegexp, fileMatchProcessor);
         return this;
@@ -635,7 +628,7 @@ public class FastClasspathScanner {
      *            The FileMatchContentsProcessor to call when each match is found.
      * @return this (for method chaining).
      */
-    public synchronized FastClasspathScanner matchFilenamePattern(final String pathRegexp,
+    public FastClasspathScanner matchFilenamePattern(final String pathRegexp,
             final FileMatchContentsProcessor fileMatchContentsProcessor) {
         getScanSpec().matchFilenamePattern(pathRegexp, fileMatchContentsProcessor);
         return this;
@@ -651,7 +644,7 @@ public class FastClasspathScanner {
      *            The FileMatchProcessorWithContext to call when each match is found.
      * @return this (for method chaining).
      */
-    public synchronized FastClasspathScanner matchFilenamePattern(final String pathRegexp,
+    public FastClasspathScanner matchFilenamePattern(final String pathRegexp,
             final FileMatchProcessorWithContext fileMatchProcessorWithContext) {
         getScanSpec().matchFilenamePattern(pathRegexp, fileMatchProcessorWithContext);
         return this;
@@ -667,7 +660,7 @@ public class FastClasspathScanner {
      *            The FileMatchContentsProcessorWithContext to call when each match is found.
      * @return this (for method chaining).
      */
-    public synchronized FastClasspathScanner matchFilenamePattern(final String pathRegexp,
+    public FastClasspathScanner matchFilenamePattern(final String pathRegexp,
             final FileMatchContentsProcessorWithContext fileMatchContentsProcessorWithContext) {
         getScanSpec().matchFilenamePattern(pathRegexp, fileMatchContentsProcessorWithContext);
         return this;
@@ -686,7 +679,7 @@ public class FastClasspathScanner {
      *            The FileMatchProcessor to call when each match is found.
      * @return this (for method chaining).
      */
-    public synchronized FastClasspathScanner matchFilenamePath(final String relativePathToMatch,
+    public FastClasspathScanner matchFilenamePath(final String relativePathToMatch,
             final FileMatchProcessor fileMatchProcessor) {
         getScanSpec().matchFilenamePath(relativePathToMatch, fileMatchProcessor);
         return this;
@@ -703,7 +696,7 @@ public class FastClasspathScanner {
      *            The FileMatchContentsProcessor to call when each match is found.
      * @return this (for method chaining).
      */
-    public synchronized FastClasspathScanner matchFilenamePath(final String relativePathToMatch,
+    public FastClasspathScanner matchFilenamePath(final String relativePathToMatch,
             final FileMatchContentsProcessor fileMatchContentsProcessor) {
         getScanSpec().matchFilenamePath(relativePathToMatch, fileMatchContentsProcessor);
         return this;
@@ -720,7 +713,7 @@ public class FastClasspathScanner {
      *            The FileMatchProcessorWithContext to call when each match is found.
      * @return this (for method chaining).
      */
-    public synchronized FastClasspathScanner matchFilenamePath(final String relativePathToMatch,
+    public FastClasspathScanner matchFilenamePath(final String relativePathToMatch,
             final FileMatchProcessorWithContext fileMatchProcessorWithContext) {
         getScanSpec().matchFilenamePath(relativePathToMatch, fileMatchProcessorWithContext);
         return this;
@@ -737,7 +730,7 @@ public class FastClasspathScanner {
      *            The FileMatchContentsProcessorWithContext to call when each match is found.
      * @return this (for method chaining).
      */
-    public synchronized FastClasspathScanner matchFilenamePath(final String relativePathToMatch,
+    public FastClasspathScanner matchFilenamePath(final String relativePathToMatch,
             final FileMatchContentsProcessorWithContext fileMatchContentsProcessorWithContext) {
         getScanSpec().matchFilenamePath(relativePathToMatch, fileMatchContentsProcessorWithContext);
         return this;
@@ -755,7 +748,7 @@ public class FastClasspathScanner {
      *            The FileMatchProcessor to call when each match is found.
      * @return this (for method chaining).
      */
-    public synchronized FastClasspathScanner matchFilenamePathLeaf(final String pathLeafToMatch,
+    public FastClasspathScanner matchFilenamePathLeaf(final String pathLeafToMatch,
             final FileMatchProcessor fileMatchProcessor) {
         getScanSpec().matchFilenamePathLeaf(pathLeafToMatch, fileMatchProcessor);
         return this;
@@ -771,7 +764,7 @@ public class FastClasspathScanner {
      *            The FileMatchContentsProcessor to call when each match is found.
      * @return this (for method chaining).
      */
-    public synchronized FastClasspathScanner matchFilenamePathLeaf(final String pathLeafToMatch,
+    public FastClasspathScanner matchFilenamePathLeaf(final String pathLeafToMatch,
             final FileMatchContentsProcessor fileMatchContentsProcessor) {
         getScanSpec().matchFilenamePathLeaf(pathLeafToMatch, fileMatchContentsProcessor);
         return this;
@@ -787,7 +780,7 @@ public class FastClasspathScanner {
      *            The FileMatchProcessorWithContext to call when each match is found.
      * @return this (for method chaining).
      */
-    public synchronized FastClasspathScanner matchFilenamePathLeaf(final String pathLeafToMatch,
+    public FastClasspathScanner matchFilenamePathLeaf(final String pathLeafToMatch,
             final FileMatchProcessorWithContext fileMatchProcessorWithContext) {
         getScanSpec().matchFilenamePathLeaf(pathLeafToMatch, fileMatchProcessorWithContext);
         return this;
@@ -803,7 +796,7 @@ public class FastClasspathScanner {
      *            The FileMatchContentsProcessorWithContext to call when each match is found.
      * @return this (for method chaining).
      */
-    public synchronized FastClasspathScanner matchFilenamePathLeaf(final String pathLeafToMatch,
+    public FastClasspathScanner matchFilenamePathLeaf(final String pathLeafToMatch,
             final FileMatchContentsProcessorWithContext fileMatchContentsProcessorWithContext) {
         getScanSpec().matchFilenamePathLeaf(pathLeafToMatch, fileMatchContentsProcessorWithContext);
         return this;
@@ -820,7 +813,7 @@ public class FastClasspathScanner {
      *            The FileMatchProcessor to call when each match is found.
      * @return this (for method chaining).
      */
-    public synchronized FastClasspathScanner matchFilenameExtension(final String extensionToMatch,
+    public FastClasspathScanner matchFilenameExtension(final String extensionToMatch,
             final FileMatchProcessor fileMatchProcessor) {
         getScanSpec().matchFilenameExtension(extensionToMatch, fileMatchProcessor);
         return this;
@@ -835,7 +828,7 @@ public class FastClasspathScanner {
      *            The FileMatchContentsProcessor to call when each match is found.
      * @return this (for method chaining).
      */
-    public synchronized FastClasspathScanner matchFilenameExtension(final String extensionToMatch,
+    public FastClasspathScanner matchFilenameExtension(final String extensionToMatch,
             final FileMatchContentsProcessor fileMatchContentsProcessor) {
         getScanSpec().matchFilenameExtension(extensionToMatch, fileMatchContentsProcessor);
         return this;
@@ -851,7 +844,7 @@ public class FastClasspathScanner {
      *            The FileMatchProcessorWithContext to call when each match is found.
      * @return this (for method chaining).
      */
-    public synchronized FastClasspathScanner matchFilenameExtension(final String extensionToMatch,
+    public FastClasspathScanner matchFilenameExtension(final String extensionToMatch,
             final FileMatchProcessorWithContext fileMatchProcessorWithContext) {
         getScanSpec().matchFilenameExtension(extensionToMatch, fileMatchProcessorWithContext);
         return this;
@@ -867,7 +860,7 @@ public class FastClasspathScanner {
      *            The FileMatchContentsProcessorWithContext to call when each match is found.
      * @return this (for method chaining).
      */
-    public synchronized FastClasspathScanner matchFilenameExtension(final String extensionToMatch,
+    public FastClasspathScanner matchFilenameExtension(final String extensionToMatch,
             final FileMatchContentsProcessorWithContext fileMatchContentsProcessorWithContext) {
         getScanSpec().matchFilenameExtension(extensionToMatch, fileMatchContentsProcessorWithContext);
         return this;
@@ -897,8 +890,7 @@ public class FastClasspathScanner {
      *         ScanResult object contains info about the class graph within whitelisted packages encountered during
      *         the scan.
      */
-    public synchronized Future<ScanResult> scanAsync(final ExecutorService executorService,
-            final int numParallelTasks) {
+    public Future<ScanResult> scanAsync(final ExecutorService executorService, final int numParallelTasks) {
         return executorService.submit(new Scanner(getScanSpec(), executorService, numParallelTasks,
                 /* enableRecursiveScanning = */ true, log));
     }
@@ -926,7 +918,7 @@ public class FastClasspathScanner {
      * @return a new ScanResult object, containing info about the class graph within whitelisted packages
      *         encountered during the scan.
      */
-    public synchronized ScanResult scan(final ExecutorService executorService, final int numParallelTasks) {
+    public ScanResult scan(final ExecutorService executorService, final int numParallelTasks) {
         try {
             // Start the scan, and then wait for scan completion
             return scanAsync(executorService, numParallelTasks).get();
@@ -958,7 +950,7 @@ public class FastClasspathScanner {
      * @return a new ScanResult object, containing info about the class graph within whitelisted packages
      *         encountered during the scan.
      */
-    public synchronized ScanResult scan(final int numThreads) {
+    public ScanResult scan(final int numThreads) {
         try (AutoCloseableExecutorService executorService = new AutoCloseableExecutorService(numThreads)) {
             return scan(executorService, numThreads);
         }
@@ -978,7 +970,7 @@ public class FastClasspathScanner {
      * @return a new ScanResult object, containing info about the class graph within whitelisted packages
      *         encountered during the scan.
      */
-    public synchronized ScanResult scan() {
+    public ScanResult scan() {
         return scan(DEFAULT_NUM_WORKER_THREADS);
     }
 
