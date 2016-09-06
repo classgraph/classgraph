@@ -355,7 +355,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
             } else if (allSuperclasses.size() == 2) {
                 final List<ClassInfo> superclasses = new ArrayList<>(allSuperclasses);
                 final int objIdx = superclasses.get(0).getClassName().equals(Object.class.getName()) ? 0
-                        : superclasses.get(1).getClassName().equals(Object.class.getName()) ? 0 : -1;
+                        : superclasses.get(1).getClassName().equals(Object.class.getName()) ? 1 : -1;
                 if (objIdx == -1) {
                     throw new RuntimeException("Multiple superclasses of class " + getClassName() + " : "
                             + getClassNames(allSuperclasses));
