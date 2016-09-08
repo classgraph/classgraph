@@ -589,7 +589,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
      * 
      * @return the direct superclass of this class, or null if the class does not have a superclass.
      * @throws IllegalArgumentException
-     *             if there are multiple direct superclasses of this class, e.g. in the case of Scala mixins.
+     *             if there are multiple direct superclasses of this class (in the case of Scala mixins).
      */
     public ClassInfo getDirectSuperclass() {
         final Set<ClassInfo> directSuperclasses = getDirectSuperclasses();
@@ -619,12 +619,12 @@ public class ClassInfo implements Comparable<ClassInfo> {
     /**
      * Convenience method for getting the name of the single direct superclass of this class. Returns null if the
      * class does not have a superclass (e.g. in the case of interfaces). Throws IllegalArgumentException if there
-     * are multiple direct superclasses (e.g. in the case of Scala mixins) -- use getNamesDirectSuperclasses() if
+     * are multiple direct superclasses (e.g. in the case of Scala mixins) -- use getNamesOfDirectSuperclasses() if
      * you need to deal with mixins.
      * 
      * @return the name of the direct superclass of this class, or null if the class does not have a superclass.
      * @throws IllegalArgumentException
-     *             if there are multiple direct superclasses of this class, e.g. in the case of Scala mixins.
+     *             if there are multiple direct superclasses of this class (in the case of Scala mixins).
      */
     public String getNameOfDirectSuperclass() {
         final List<String> namesOfDirectSuperclasses = getNamesOfDirectSuperclasses();
@@ -636,7 +636,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
                     "Class has multiple direct superclasses: " + namesOfDirectSuperclasses.toString()
                             + " -- need to call getNamesOfDirectSuperclasses() instead");
         } else {
-            return namesOfDirectSuperclasses.iterator().next();
+            return namesOfDirectSuperclasses.get(0);
         }
     }
 
