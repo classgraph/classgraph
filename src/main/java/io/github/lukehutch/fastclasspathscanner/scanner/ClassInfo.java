@@ -345,28 +345,6 @@ public class ClassInfo implements Comparable<ClassInfo> {
                     classNameToClassInfo);
             this.addRelatedClass(RelType.SUPERCLASSES, superclassClassInfo);
             superclassClassInfo.addRelatedClass(RelType.SUBCLASSES, this);
-
-            // There should only ever be one superclass. In case merging Scala companion classes adds both a normal
-            // superclass and a reference to java.lang.Object, remove the java.lang.Object link.
-            final Set<ClassInfo> allSuperclasses = getDirectlyRelatedClasses(RelType.SUPERCLASSES);
-            if (allSuperclasses.size() > 2) {
-                throw new RuntimeException("Multiple superclasses of class " + getClassName() + " : "
-                        + getClassNames(allSuperclasses));
-            } else if (allSuperclasses.size() == 2) {
-                final List<ClassInfo> superclasses = new ArrayList<>(allSuperclasses);
-                final int objIdx = superclasses.get(0).getClassName().equals(Object.class.getName()) ? 0
-                        : superclasses.get(1).getClassName().equals(Object.class.getName()) ? 1 : -1;
-                if (objIdx == -1) {
-                    throw new RuntimeException("Multiple superclasses of class " + getClassName() + " : "
-                            + getClassNames(allSuperclasses));
-                }
-                // One of the superclasses is java.lang.Object -- unlink it so that there is only one superclass
-                final ClassInfo object = superclasses.get(objIdx);
-                final Set<ClassInfo> objectSubclasses = object.relatedTypeToClassInfoSet.get(RelType.SUBCLASSES);
-                objectSubclasses.remove(this);
-                final Set<ClassInfo> thisSuperclasses = this.relatedTypeToClassInfoSet.get(RelType.SUPERCLASSES);
-                thisSuperclasses.remove(object);
-            }
         }
     }
 
@@ -555,9 +533,12 @@ public class ClassInfo implements Comparable<ClassInfo> {
     // -------------
 
     /**
-     * Get all superclasses of this class.
+     * Get all direct and indirect superclasses of this class (i.e. the direct superclass(es) of this class, and
+     * their superclass(es), all the way up to the top of the class hierarchy).
      * 
-     * @return the set of superclasses of this class, or the empty set if none.
+     * (Includes the union of all mixin superclass hierarchies in the case of Scala mixins.)
+     * 
+     * @return the set of all superclasses of this class, or the empty set if none.
      */
     public Set<ClassInfo> getSuperclasses() {
         return filterClassInfo(getReachableClasses(RelType.SUPERCLASSES),
@@ -565,7 +546,10 @@ public class ClassInfo implements Comparable<ClassInfo> {
     }
 
     /**
-     * Get the names of all superclasses of this class.
+     * Get the names of all direct and indirect superclasses of this class (i.e. the direct superclass(es) of this
+     * class, and their superclass(es), all the way up to the top of the class hierarchy).
+     * 
+     * (Includes the union of all mixin superclass hierarchies in the case of Scala mixins.)
      * 
      * @return the sorted list of names of all superclasses of this class, or the empty list if none.
      */
@@ -574,9 +558,9 @@ public class ClassInfo implements Comparable<ClassInfo> {
     }
 
     /**
-     * Test whether this class has the named superclass.
+     * Test whether this class extends the named superclass, directly or indirectly.
      * 
-     * @return true if this class has the named superclass.
+     * @return true if this class has the named direct or indirect superclass.
      */
     public boolean hasSuperclass(final String superclassName) {
         return getNamesOfSuperclasses().contains(superclassName);
@@ -585,39 +569,98 @@ public class ClassInfo implements Comparable<ClassInfo> {
     // -------------
 
     /**
-     * Get the direct superclass of this class.
+     * Get the direct superclasses of this class.
      * 
-     * @return the direct superclass of this class, or null if none.
+     * Typically the returned set will contain zero or one direct superclass(es), but may contain more than one
+     * direct superclass in the case of Scala mixins.
+     * 
+     * @return the direct superclasses of this class, or the empty set if none.
+     */
+    public Set<ClassInfo> getDirectSuperclasses() {
+        return filterClassInfo(getDirectlyRelatedClasses(RelType.SUPERCLASSES),
+                /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.ALL);
+    }
+
+    /**
+     * Convenience method for getting the single direct superclass of this class. Returns null if the class does not
+     * have a superclass (e.g. in the case of interfaces). Throws IllegalArgumentException if there are multiple
+     * direct superclasses (e.g. in the case of Scala mixins) -- use getDirectSuperclasses() if you need to deal
+     * with mixins.
+     * 
+     * @return the direct superclass of this class, or null if the class does not have a superclass.
+     * @throws IllegalArgumentException
+     *             if there are multiple direct superclasses of this class, e.g. in the case of Scala mixins.
      */
     public ClassInfo getDirectSuperclass() {
-        final Set<ClassInfo> directSuperclasses = filterClassInfo(getDirectlyRelatedClasses(RelType.SUPERCLASSES),
-                /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.ALL);
-        return directSuperclasses.isEmpty() ? null : directSuperclasses.iterator().next();
+        final Set<ClassInfo> directSuperclasses = getDirectSuperclasses();
+        final int numDirectSuperclasses = directSuperclasses.size();
+        if (numDirectSuperclasses == 0) {
+            return null;
+        } else if (numDirectSuperclasses > 1) {
+            throw new IllegalArgumentException("Class has multiple direct superclasses: "
+                    + directSuperclasses.toString() + " -- need to call getDirectSuperclasses() instead");
+        } else {
+            return directSuperclasses.iterator().next();
+        }
     }
 
     /**
-     * Get the name of the direct superclass of this class, or null if none.
+     * Get the names of direct superclasses of this class.
      * 
-     * @return the direct superclass of this class, or null if none.
+     * Typically the returned list will contain zero or one direct superclass name(s), but may contain more than one
+     * direct superclass name in the case of Scala mixins.
+     * 
+     * @return the direct superclasses of this class, or the empty set if none.
+     */
+    public List<String> getNamesOfDirectSuperclasses() {
+        return getClassNames(getDirectSuperclasses());
+    }
+
+    /**
+     * Convenience method for getting the name of the single direct superclass of this class. Returns null if the
+     * class does not have a superclass (e.g. in the case of interfaces). Throws IllegalArgumentException if there
+     * are multiple direct superclasses (e.g. in the case of Scala mixins) -- use getNamesDirectSuperclasses() if
+     * you need to deal with mixins.
+     * 
+     * @return the name of the direct superclass of this class, or null if the class does not have a superclass.
+     * @throws IllegalArgumentException
+     *             if there are multiple direct superclasses of this class, e.g. in the case of Scala mixins.
      */
     public String getNameOfDirectSuperclass() {
-        final ClassInfo directSuperclass = getDirectSuperclass();
-        return directSuperclass == null ? null : directSuperclass.getClassName();
+        final List<String> namesOfDirectSuperclasses = getNamesOfDirectSuperclasses();
+        final int numDirectSuperclasses = namesOfDirectSuperclasses.size();
+        if (numDirectSuperclasses == 0) {
+            return null;
+        } else if (numDirectSuperclasses > 1) {
+            throw new IllegalArgumentException(
+                    "Class has multiple direct superclasses: " + namesOfDirectSuperclasses.toString()
+                            + " -- need to call getNamesOfDirectSuperclasses() instead");
+        } else {
+            return namesOfDirectSuperclasses.iterator().next();
+        }
     }
 
     /**
-     * Test whether this class has the named class as its direct superclass.
+     * Test whether this class directly extends the named superclass.
      * 
-     * @return true if this class has the named class as its direct superclass.
+     * If this class has multiple direct superclasses (in the case of Scala mixins), returns true if the named
+     * superclass is one of the direct superclasses of this class.
+     * 
+     * @param directSuperclassName
+     *            The direct superclass name to match. If null, matches classes without a direct superclass (e.g.
+     *            interfaces). Note that standard classes that do not extend another class have java.lang.Object as
+     *            their superclass.
+     * @return true if this class has the named class as its direct superclass (or as one of its direct
+     *         superclasses, in the case of Scala mixins).
      */
     public boolean hasDirectSuperclass(final String directSuperclassName) {
-        final String nameOfDirectSuperclass = getNameOfDirectSuperclass();
-        if (directSuperclassName == null && nameOfDirectSuperclass == null) {
+        final List<String> namesOfDirectSuperclasses = getNamesOfDirectSuperclasses();
+        if (directSuperclassName == null && namesOfDirectSuperclasses.isEmpty()) {
             return true;
-        } else if (directSuperclassName == null || nameOfDirectSuperclass == null) {
+        } else if (directSuperclassName == null || namesOfDirectSuperclasses.isEmpty()) {
             return false;
         } else {
-            return nameOfDirectSuperclass.equals(directSuperclassName);
+            return namesOfDirectSuperclasses.contains(directSuperclassName);
         }
     }
 
