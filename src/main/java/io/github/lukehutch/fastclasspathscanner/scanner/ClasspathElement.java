@@ -52,6 +52,9 @@ abstract class ClasspathElement {
     /** The File for this classpath element. */
     final File classpathElementFile;
 
+    /** The path for this classpath element, possibly including a '!' jar-internal path suffix. */
+    private final String classpathElementFilePath;
+
     /** True if there was an exception when trying to open this classpath element (e.g. a corrupt ZipFile). */
     boolean ioExceptionOnOpen;
 
@@ -93,6 +96,7 @@ abstract class ClasspathElement {
         this.interruptionChecker = interruptionChecker;
         try {
             this.classpathElementFile = classpathEltPath.getFile();
+            this.classpathElementFilePath = classpathEltPath.toString();
         } catch (final IOException e) {
             // Shouldn't happen, files have already been screened for this
             throw new RuntimeException(e);
@@ -102,7 +106,7 @@ abstract class ClasspathElement {
     /** Return the classpath element's path. */
     @Override
     public String toString() {
-        return classpathElementFile.toString();
+        return classpathElementFilePath;
     }
 
     /**
