@@ -3,7 +3,7 @@
 
 	<groupId>io.github.lukehutch</groupId>
 	<artifactId>fast-classpath-scanner</artifactId>
-	<version>2.0.4-SNAPSHOT</version>
+	<version>2.0.3-SNAPSHOT</version>
 	<name>Fast Classpath Scanner</name>
 
 	<description>
@@ -157,10 +157,7 @@
 
 		<testResources>
 			<testResource>
-				<directory>src/test/resources</directory>
-				<includes>
-					<include>**/*</include>
-				</includes>
+				<directory>${project.basedir}/src/test/resources</directory>
 			</testResource>
 		</testResources>
 	</build>
