@@ -195,8 +195,8 @@ public class Scanner implements Callable<ScanResult> {
      */
     @Override
     public ScanResult call() throws InterruptedException, ExecutionException {
-        try (NestedJarHandler nestedJarHandler = new NestedJarHandler(interruptionChecker,
-                log == null ? null : log.log("Created new " + NestedJarHandler.class.getSimpleName()))) {
+        final LogNode classpathFinderLog = log == null ? null : log.log("Finding classpath entries");
+        try (NestedJarHandler nestedJarHandler = new NestedJarHandler(interruptionChecker, classpathFinderLog)) {
             final long scanStart = System.nanoTime();
 
             // Get current dir (without resolving symlinks), and normalize path by calling
@@ -212,7 +212,7 @@ public class Scanner implements Callable<ScanResult> {
             final List<File> classpathElementFilesOrdered = new ArrayList<>();
 
             // Get raw classpath elements
-            final List<String> rawClasspathElementPathStrs = new ClasspathFinder(scanSpec, log)
+            final List<String> rawClasspathElementPathStrs = new ClasspathFinder(scanSpec, classpathFinderLog)
                     .getRawClasspathElements();
 
             // Create ClasspathElement objects for each raw classpath element path
@@ -235,7 +235,7 @@ public class Scanner implements Callable<ScanResult> {
                 // In parallel, resolve raw classpath elements to canonical paths, creating a ClasspathElement
                 // singleton for each unique canonical path.
                 final ClasspathRelativePathToElementMap classpathElementMap = new ClasspathRelativePathToElementMap(
-                        scanFiles, scanSpec, nestedJarHandler, interruptionChecker, log);
+                        scanFiles, scanSpec, nestedJarHandler, interruptionChecker, classpathFinderLog);
                 final ConcurrentHashMap<String, String> knownJREPaths = new ConcurrentHashMap<>();
                 final ConcurrentHashMap<String, String> knownNonJREPaths = new ConcurrentHashMap<>();
                 try (WorkQueue<ClasspathRelativePath> workQueue = new WorkQueue<>(rawClasspathElements,
@@ -245,26 +245,26 @@ public class Scanner implements Callable<ScanResult> {
                                 // Check if classpath element is already in the singleton map -- saves needlessly
                                 // repeating work in isValidClasspathElement() and createSingleton()
                                 if (classpathElementMap.get(rawClasspathElt) != null) {
-                                    if (log != null) {
-                                        log.log("Ignoring duplicate classpath element: "
+                                    if (classpathFinderLog != null) {
+                                        classpathFinderLog.log("Ignoring duplicate classpath element: "
                                                 + rawClasspathElt.getResolvedPath());
                                     }
                                 } else if (rawClasspathElt.isValidClasspathElement(scanSpec, knownJREPaths,
-                                        knownNonJREPaths, log)) {
+                                        knownNonJREPaths, classpathFinderLog)) {
                                     try {
                                         classpathElementMap.createSingleton(rawClasspathElt);
                                     } catch (IllegalArgumentException e) {
                                         // Could not create singleton due to path canonicalization problem
-                                        log.log("Could not locate classpath element " + rawClasspathElt
-                                                + " -- skipping");
+                                        classpathFinderLog.log("Could not locate classpath element "
+                                                + rawClasspathElt + " -- skipping");
                                     }
                                 }
                             }
-                        }, interruptionChecker, log)) {
+                        }, interruptionChecker, classpathFinderLog)) {
                     classpathElementMap.setWorkQueue(workQueue);
                     // Start workers, then use this thread to do work too, in case there is only one thread
                     // available in the ExecutorService
-                    workQueue.startWorkers(executorService, numParallelTasks - 1, log);
+                    workQueue.startWorkers(executorService, numParallelTasks - 1, classpathFinderLog);
                     workQueue.runWorkLoop();
                 }
 

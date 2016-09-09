@@ -90,26 +90,28 @@ public class NestedJarHandler implements AutoCloseable {
                         canonicalFile = pathFile.getCanonicalFile();
                     } catch (final IOException e) {
                         if (log != null) {
-                            log.log("Path component could not be canonicalized: " + nestedJarPath, e);
+                            log.log(nestedJarPath, "Path component could not be canonicalized: " + nestedJarPath,
+                                    e);
                         }
                         return null;
                     }
                     if (!canonicalFile.exists()) {
                         if (log != null) {
-                            log.log("Path component does not exist: " + nestedJarPath);
+                            log.log(nestedJarPath, "Path component does not exist: " + nestedJarPath);
                         }
                         return null;
                     }
                     if (!canonicalFile.isFile()) {
                         if (log != null) {
-                            log.log("Path component is not a file: " + nestedJarPath);
+                            log.log(nestedJarPath, "Path component is not a file: " + nestedJarPath);
                         }
                         return null;
                     }
                     if (!JarUtils.isJar(canonicalFile.getPath())) {
                         // Should not happen, this has already been checked for
                         if (log != null) {
-                            log.log("Ignoring classpath element with non-jar path component: " + nestedJarPath);
+                            log.log(nestedJarPath,
+                                    "Ignoring classpath element with non-jar path component: " + nestedJarPath);
                         }
                         return null;
                     }
@@ -126,7 +128,8 @@ public class NestedJarHandler implements AutoCloseable {
                     if (!JarUtils.isJar(childPath)) {
                         // Should not happen, this has already been checked for
                         if (log != null) {
-                            log.log("Ignoring classpath element with non-jar path component: " + nestedJarPath);
+                            log.log(nestedJarPath,
+                                    "Ignoring classpath element with non-jar path component: " + nestedJarPath);
                         }
                         return null;
                     }
@@ -157,8 +160,8 @@ public class NestedJarHandler implements AutoCloseable {
                         final ZipEntry childZipEntry = parentZipFile.getEntry(childPath);
                         if (childZipEntry == null) {
                             if (log != null) {
-                                log.log("Child path component " + childPath + " does not exist in jarfile "
-                                        + parentPath);
+                                log.log(nestedJarPath, "Child path component " + childPath
+                                        + " does not exist in jarfile " + parentPath);
                             }
                             return null;
                         }
@@ -256,24 +259,26 @@ public class NestedJarHandler implements AutoCloseable {
         tempFile.deleteOnExit();
         tempFiles.add(tempFile);
         if (log != null) {
-            log.log("Unzipping zip entry " + zipFile.getName() + "!" + zipEntryPath + " to temporary file "
-                    + tempFile.getPath());
+            final String qualifiedPath = zipFile.getName() + "!" + zipEntryPath;
+            final LogNode subLog = log.log(qualifiedPath, "Unzipping zip entry " + qualifiedPath);
+            subLog.log("Writing temporary file " + tempFile.getPath());
         }
         Files.copy(zipFile.getInputStream(zipEntry), tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
         return tempFile;
     }
 
     /** Delete temporary files and release other resources. */
+    @SuppressWarnings("unused")
     @Override
     public void close() {
         while (!tempFiles.isEmpty()) {
             final File head = tempFiles.remove();
             final String path = head.getPath();
             final boolean success = head.delete();
-            if (log != null) {
-                log.log((success ? "Successfully removed" : "Unsuccessful in removing") + " temporary file "
-                        + path);
-            }
+            //            if (log != null) {
+            //                log.log((success ? "Successfully removed" : "Unsuccessful in removing")
+            //                        + " temporary file " + path);
+            //            }
         }
         try {
             for (final Recycler<ZipFile, IOException> recycler : canonicalPathToZipFileRecyclerMap.values()) {
