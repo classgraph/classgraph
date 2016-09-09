@@ -203,6 +203,9 @@ class ClasspathRelativePath {
                     // Last segment is not a jarfile, so it represents a classpath root within the jarfile
                     // corresponding to the second-to-last element
                     zipClasspathBaseDir = parts[parts.length - 1];
+                    if (zipClasspathBaseDir.startsWith("/")) {
+                        zipClasspathBaseDir = zipClasspathBaseDir.substring(1);
+                    }
                     nestedJarPath = path.substring(0, path.lastIndexOf('!'));
                 } else {
                     nestedJarPath = path;
