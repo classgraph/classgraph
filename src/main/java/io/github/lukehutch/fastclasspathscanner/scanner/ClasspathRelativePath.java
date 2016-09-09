@@ -119,7 +119,7 @@ class ClasspathRelativePath {
     @Override
     public int hashCode() {
         try {
-            return getCanonicalPath().hashCode();
+            return getCanonicalPath().hashCode() + zipClasspathBaseDir.hashCode() * 57;
         } catch (final IOException e) {
             return 0;
         }
@@ -142,7 +142,10 @@ class ClasspathRelativePath {
             if (thisCp == null || otherCp == null) {
                 return false;
             }
-            return thisCp.equals(otherCp);
+            if (!thisCp.equals(otherCp)) {
+                return false;
+            }
+            return getZipClasspathBaseDir().equals(other.getZipClasspathBaseDir());
         } catch (final IOException e) {
             return false;
         }
@@ -152,7 +155,8 @@ class ClasspathRelativePath {
     @Override
     public String toString() {
         try {
-            return getCanonicalPath();
+            return zipClasspathBaseDir.isEmpty() ? getCanonicalPath()
+                    : getCanonicalPath() + "!" + zipClasspathBaseDir;
         } catch (final IOException e) {
             return getResolvedPath();
         }
