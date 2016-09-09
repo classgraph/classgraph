@@ -319,7 +319,7 @@ public class FastClasspathScanner {
      * 
      * https://github.com/lukehutch/fast-classpath-scanner/wiki/4.-Working-with-nonstandard-ClassLoaders
      * 
-     * @param extraClassLoaderHandler
+     * @param classLoaderHandlerClass
      *            The ClassLoaderHandler class to register.
      * @return this (for method chaining).
      */
