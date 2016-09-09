@@ -45,8 +45,11 @@ import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
  * retain a sane order. The order may also be made deterministic by specifying a sort key for log entries.
  */
 public class LogNode {
-    /** The timestamp at which the log node was created. */
-    private final long timeStamp = System.nanoTime();
+    /** The timestamp at which the log node was created (relative to some arbitrary system timepoint). */
+    private final long timeStampNano = System.nanoTime();
+
+    /** The timestamp at which the log node was created, in epoch millis. */
+    private final long timeStampMillis = System.currentTimeMillis();
 
     /** The log message. */
     private final String msg;
@@ -116,7 +119,7 @@ public class LogNode {
     /** Recursively build the log output. */
     private void toString(final int indentLevel, final StringBuilder buf) {
         final Calendar cal = Calendar.getInstance();
-        cal.setTimeInMillis(timeStamp * 1_000_000);
+        cal.setTimeInMillis(timeStampMillis);
         final String timeStampStr = dateTimeFormatter.format(cal.getTime());
 
         final String logMsg = indentLevel == 0 ? "FastClasspathScanner version " + FastClasspathScanner.getVersion()
@@ -153,7 +156,7 @@ public class LogNode {
      * after the log entry.
      */
     public void addElapsedTime() {
-        elapsedTimeNanos = System.nanoTime() - timeStamp;
+        elapsedTimeNanos = System.nanoTime() - timeStampNano;
     }
 
     /** Add a child log node. */
