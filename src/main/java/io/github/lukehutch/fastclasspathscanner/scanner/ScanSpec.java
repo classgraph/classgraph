@@ -178,7 +178,7 @@ public class ScanSpec {
     public boolean ignoreMethodVisibility = false;
 
     /** All the visible classloaders that were able to be found. */
-    final List<ClassLoader> classLoaders;
+    List<ClassLoader> classLoaders;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -394,8 +394,8 @@ public class ScanSpec {
         addAllParentClassloaders(klass.getClassLoader(), classLoadersSetOut);
     }
 
+    /** Find all unique classloaders. */
     private static List<ClassLoader> findAllClassLoaders(final LogNode log) {
-        // Look for all unique classloaders.
         // Need both a set and a list so we can keep them unique, but in an order that (hopefully) reflects
         // the order in which the JDK calls classloaders.
         //
@@ -431,6 +431,23 @@ public class ScanSpec {
             log.addElapsedTime();
         }
         return classLoaders;
+    }
+
+    /** Add a ClassLoader to the list of ClassLoaders to scan. */
+    public void addClassLoader(final ClassLoader classLoader) {
+        // This is O(N^2) in the number of calls, but this method shouldn't be called many times, if at all
+        if (!classLoaders.contains(classLoader)) {
+            classLoaders.add(classLoader);
+        }
+    }
+
+    /** Override the list of ClassLoaders to scan. */
+    public void overrideClassLoaders(final ClassLoader... overrideClassLoaders) {
+        final AdditionOrderedSet<ClassLoader> classLoadersSet = new AdditionOrderedSet<>();
+        for (final ClassLoader classLoader : overrideClassLoaders) {
+            classLoadersSet.add(classLoader);
+        }
+        classLoaders = classLoadersSet.getList();
     }
 
     // -------------------------------------------------------------------------------------------------------------

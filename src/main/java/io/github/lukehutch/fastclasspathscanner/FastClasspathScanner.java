@@ -343,6 +343,27 @@ public class FastClasspathScanner {
         return this;
     }
 
+    /**
+     * Add a ClassLoader to the list of ClassLoaders to scan. (This only works if overrideClasspath() is not
+     * called.)
+     * 
+     * @param classLoader
+     *            The additional ClassLoader to scan.
+     */
+    public void addClassLoader(final ClassLoader classLoader) {
+        getScanSpec().addClassLoader(classLoader);
+    }
+
+    /**
+     * Completely override the list of ClassLoaders to scan. (This only works if overrideClasspath() is not called.)
+     * 
+     * @param overrideClassLoaders
+     *            The ClassLoaders to scan instead of the automatically-detected ClassLoaders.
+     */
+    public void overrideClassLoaders(final ClassLoader... overrideClassLoaders) {
+        getScanSpec().overrideClassLoaders(overrideClassLoaders);
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
