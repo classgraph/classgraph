@@ -1,0 +1,287 @@
+/*
+ * This file is part of FastClasspathScanner.
+ * 
+ * Author: Luke Hutchison
+ * 
+ * Hosted at: https://github.com/lukehutch/fast-classpath-scanner
+ * 
+ * --
+ *
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2016 Luke Hutchison
+ * 
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without
+ * limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so, subject to the following
+ * conditions:
+ * 
+ * The above copyright notice and this permission notice shall be included in all copies or substantial
+ * portions of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
+ * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO
+ * EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
+ * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
+ * OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+package io.github.lukehutch.fastclasspathscanner.utils;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
+import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
+
+/**
+ * Unzip a jarfile within a jarfile to a temporary file on disk.
+ * 
+ * Somewhat paradoxically, the fastest way to support scanning zipfiles-within-zipfiles is to unzip the inner
+ * zipfile to a temporary file on disk, because the inner zipfile can only be read using ZipInputStream, not ZipFile
+ * (the ZipFile constructors only take a File argument). ZipInputStream doesn't have methods for reading the zip
+ * directory at the beginning of the stream, so using ZipInputStream rather than ZipFile, you have to decompress the
+ * entire zipfile to read all the directory entries. However, there may be many non-whitelisted entries in the
+ * zipfile, so this could be a lot of wasted work.
+ * 
+ * FastClasspathScanner makes two passes, one to read the zipfile directory, which whitelist and blacklist criteria
+ * are applied to (this is a fast operation when using ZipFile), and then an additional pass to read only
+ * whitelisted (non-blacklisted) entries. Therefore, in the general case, the ZipFile API is always going to be
+ * faster than ZipInputStream. Therefore, decompressing the inner zipfile to disk is the only efficient option.
+ */
+public class NestedJarHandler implements AutoCloseable {
+    private final ConcurrentLinkedDeque<File> tempFiles = new ConcurrentLinkedDeque<>();
+    private final SingletonMap<String, File> nestedPathToJarfileMap;
+    private final SingletonMap<String, Recycler<ZipFile, IOException>> canonicalPathToZipFileRecyclerMap;
+    private final InterruptionChecker interruptionChecker;
+    private final LogNode log;
+
+    public NestedJarHandler(final InterruptionChecker interruptionChecker, final LogNode log) {
+        this.interruptionChecker = interruptionChecker;
+        this.log = log;
+
+        // Set up a singleton map from canonical path to ZipFile recycler
+        this.canonicalPathToZipFileRecyclerMap = new SingletonMap<String, Recycler<ZipFile, IOException>>() {
+            @Override
+            public Recycler<ZipFile, IOException> newInstance(final String canonicalPath) throws Exception {
+                return new Recycler<ZipFile, IOException>() {
+                    @Override
+                    public ZipFile newInstance() throws IOException {
+                        return new ZipFile(canonicalPath);
+                    }
+                };
+            }
+        };
+
+        // Create a singleton map from path to zipfile File, in order to eliminate repeatedly unzipping
+        // the same file when there are multiple jars-within-jars that need unzipping to temporary files. 
+        this.nestedPathToJarfileMap = new SingletonMap<String, File>() {
+            @Override
+            public File newInstance(final String nestedJarPath) throws Exception {
+                final int lastPlingIdx = nestedJarPath.lastIndexOf('!');
+                if (lastPlingIdx < 0) {
+                    // This portion of the file path is the highest parent (i.e. doesn't have any '!' sections).
+                    // It should end with a jar extension, and the file needs to exist and be a file.
+                    final File pathFile = new File(nestedJarPath);
+                    File canonicalFile;
+                    try {
+                        canonicalFile = pathFile.getCanonicalFile();
+                    } catch (final IOException e) {
+                        if (log != null) {
+                            log.log("Path component could not be canonicalized: " + nestedJarPath, e);
+                        }
+                        return null;
+                    }
+                    if (!canonicalFile.exists()) {
+                        if (log != null) {
+                            log.log("Path component does not exist: " + nestedJarPath);
+                        }
+                        return null;
+                    }
+                    if (!canonicalFile.isFile()) {
+                        if (log != null) {
+                            log.log("Path component is not a file: " + nestedJarPath);
+                        }
+                        return null;
+                    }
+                    if (!JarUtils.isJar(canonicalFile.getPath())) {
+                        // Should not happen, this has already been checked for
+                        if (log != null) {
+                            log.log("Ignoring classpath element with non-jar path component: " + nestedJarPath);
+                        }
+                        return null;
+                    }
+                    // Return canonical file as the singleton entry for this path
+                    return canonicalFile;
+
+                } else {
+                    // This path has one or more '!' sections
+                    final String parentPath = nestedJarPath.substring(0, lastPlingIdx);
+                    String childPath = nestedJarPath.substring(lastPlingIdx + 1);
+                    if (childPath.startsWith("/")) {
+                        childPath = childPath.substring(1);
+                    }
+                    if (!JarUtils.isJar(childPath)) {
+                        // Should not happen, this has already been checked for
+                        if (log != null) {
+                            log.log("Ignoring classpath element with non-jar path component: " + nestedJarPath);
+                        }
+                        return null;
+                    }
+
+                    // Recursively get parent jarfile. This is guaranteed to terminate because parentPath
+                    // is one '!'-section shorter with each recursion.
+                    final File parentJarfile = nestedPathToJarfileMap.getOrCreateSingleton(parentPath);
+                    if (parentJarfile == null) {
+                        // Failed to get parent jarfile
+                        return null;
+                    }
+
+                    // Avoid decompressing the same nested jarfiles multiple times for different non-canonical
+                    // parent paths. This recursion is guaranteed to terminate after one extra recursion if
+                    // File.getCanonicalFile() is idempotent, which it should be by definition.
+                    if (!parentJarfile.getPath().equals(parentPath)) {
+                        return nestedPathToJarfileMap
+                                .getOrCreateSingleton(parentJarfile.getPath() + "!" + childPath);
+                    }
+
+                    // Get the ZipFile recycler for the parent jar's canonical path
+                    final Recycler<ZipFile, IOException> parentJarRecycler = canonicalPathToZipFileRecyclerMap
+                            .getOrCreateSingleton(parentJarfile.getCanonicalPath());
+                    ZipFile parentZipFile = null;
+                    try {
+                        // Look up the child path within the parent zipfile
+                        parentZipFile = parentJarRecycler.acquire();
+                        final ZipEntry childZipEntry = parentZipFile.getEntry(childPath);
+                        if (childZipEntry == null) {
+                            if (log != null) {
+                                log.log("Child path component " + childPath + " does not exist in jarfile "
+                                        + parentPath);
+                            }
+                            return null;
+                        }
+
+                        // Unzip the child zipfile to a temporary file
+                        final File childTempFile = unzipToTempFile(parentZipFile, childZipEntry);
+
+                        // Stop the nested unzipping process if this thread was interrupted,
+                        // and notify other threads
+                        if (interruptionChecker.checkAndReturn()) {
+                            return null;
+                        }
+
+                        // Return the child temp zipfile
+                        return childTempFile;
+
+                    } finally {
+                        parentJarRecycler.release(parentZipFile);
+                    }
+                }
+            }
+        };
+    }
+
+    /**
+     * Get a File for a given (possibly nested) jarfile path, unzipping the first N-1 segments of an N-segment
+     * '!'-delimited path to temporary files, then returning the N-th temporary file. If the path does not contain
+     * '!', returns the file represented by the path.
+     * 
+     * All path segments should end in a jarfile extension, e.g. ".jar" or ".zip".
+     * 
+     * @return the File for the innermost jar, or null if any path segment does not exist, or if an exception was
+     *         thrown during singleton creation, or the operation was interrupted.
+     */
+    public File getNestedJarfile(final String nestedJarfilePath) {
+        try {
+            return nestedPathToJarfileMap.getOrCreateSingleton(nestedJarfilePath);
+        } catch (final InterruptedException e) {
+            // Stop other threads
+            interruptionChecker.interrupt();
+        } catch (final Exception e) {
+            if (log != null) {
+                log.log("Exception while creating singleton", e);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Get a ZipFile recycler given the (non-nested) canonical path of a jarfile.
+     * 
+     * @return The ZipFile recycler, or null if an exception was thrown during singleton creation, or if the thread
+     *         was interrupted.
+     */
+    public Recycler<ZipFile, IOException> getZipFileRecycler(final String canonicalPath) {
+        try {
+            return canonicalPathToZipFileRecyclerMap.getOrCreateSingleton(canonicalPath);
+        } catch (final InterruptedException e) {
+            // Stop other threads
+            interruptionChecker.interrupt();
+        } catch (final Exception e) {
+            if (log != null) {
+                log.log("Exception while creating singleton", e);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Given a nested jar path consisting of jar names separated by '!', decompress each nested jarfile to a
+     * temporary file, and return the File reference for the innermost jarfile.
+     * 
+     * @return null if any of the nested jars don't exist, or if an exception was thrown during singleton creation,
+     *         or if the thread was interrupted.
+     */
+    public File getInnermostNestedJar(final String nestedJarPath) {
+        try {
+            return nestedPathToJarfileMap.getOrCreateSingleton(nestedJarPath);
+        } catch (final InterruptedException e) {
+            // Stop other threads
+            interruptionChecker.interrupt();
+        } catch (final Exception e) {
+            if (log != null) {
+                log.log("Exception while creating singleton", e);
+            }
+        }
+        return null;
+    }
+
+    /** Unzip a ZipEntry to a temporary file, then return the temporary file. */
+    public File unzipToTempFile(final ZipFile zipFile, final ZipEntry zipEntry) throws IOException {
+        final String zipEntryPath = zipEntry.getName();
+        final String leafName = zipEntryPath.substring(zipEntryPath.lastIndexOf('/') + 1);
+        final File tempFile = File.createTempFile("FastClasspathScanner-", "-" + leafName);
+        tempFile.deleteOnExit();
+        tempFiles.add(tempFile);
+        if (log != null) {
+            log.log("Unzipping zip entry " + zipFile.getName() + "!" + zipEntryPath + " to temporary file "
+                    + tempFile.getPath());
+        }
+        Files.copy(zipFile.getInputStream(zipEntry), tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        return tempFile;
+    }
+
+    /** Delete temporary files and release other resources. */
+    @Override
+    public void close() {
+        while (!tempFiles.isEmpty()) {
+            final File head = tempFiles.remove();
+            final String path = head.getPath();
+            final boolean success = head.delete();
+            if (log != null) {
+                log.log((success ? "Successfully removed" : "Unsuccessful in removing") + " temporary file "
+                        + path);
+            }
+        }
+        try {
+            for (final Recycler<ZipFile, IOException> recycler : canonicalPathToZipFileRecyclerMap.values()) {
+                recycler.close();
+            }
+        } catch (final InterruptedException e) {
+            // Stop other threads
+            interruptionChecker.interrupt();
+        }
+    }
+}

@@ -102,7 +102,7 @@ public class FastPathResolver {
             final StringBuilder buf = new StringBuilder();
             if (!hasPercent) {
                 // Fast path -- no '%', don't do regexp matching
-                translateSeparator(path, 0, len, true, buf);
+                translateSeparator(path, 0, len, /* stripFinalSeparator = */ true, buf);
                 return buf.toString();
             } else {
                 // Translate '%'-encoding
@@ -111,11 +111,12 @@ public class FastPathResolver {
                 while (matcher.find()) {
                     final int startMatchIdx = matcher.start();
                     final int endMatchIdx = matcher.end();
-                    translateSeparator(path, prevEndMatchIdx, startMatchIdx, false, buf);
+                    translateSeparator(path, prevEndMatchIdx, startMatchIdx, /* stripFinalSeparator = */ false,
+                            buf);
                     unescapePercentEncoding(path, startMatchIdx, endMatchIdx, buf);
                     prevEndMatchIdx = endMatchIdx;
                 }
-                translateSeparator(path, prevEndMatchIdx, len, true, buf);
+                translateSeparator(path, prevEndMatchIdx, len, /* stripFinalSeparator = */ true, buf);
             }
             return buf.toString();
         }

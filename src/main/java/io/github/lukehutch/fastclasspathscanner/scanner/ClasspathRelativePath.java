@@ -32,9 +32,10 @@ import java.io.File;
 import java.io.IOException;
 import java.util.concurrent.ConcurrentHashMap;
 
-import io.github.lukehutch.fastclasspathscanner.utils.FastManifestParser;
 import io.github.lukehutch.fastclasspathscanner.utils.FastPathResolver;
+import io.github.lukehutch.fastclasspathscanner.utils.JarUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
+import io.github.lukehutch.fastclasspathscanner.utils.NestedJarHandler;
 
 /**
  * A relative path. This is used for paths relative to the current directory (for classpath elements), and also for
@@ -46,6 +47,16 @@ class ClasspathRelativePath {
 
     /** The relative path. */
     private final String relativePath;
+
+    /** If true, this is a jarfile. */
+    private final boolean isJar;
+    /**
+     * If isJar is true, this gives the trailing zip-internal path, if the section of the path after the last '!' is
+     * not a jarfile.
+     */
+    private String zipClasspathBaseDir = "";
+    /** Handler for nested jars. */
+    private final NestedJarHandler nestedJarHandler;
 
     /** The resolved path. */
     private String resolvedPathCached;
@@ -83,9 +94,25 @@ class ClasspathRelativePath {
      * A relative path. This is used for paths relative to the current directory (for classpath elements), and also
      * for relative paths within classpath elements (e.g. the files within a ZipFile).
      */
-    public ClasspathRelativePath(final String pathToResolveAgainst, final String relativePath) {
+    public ClasspathRelativePath(final String pathToResolveAgainst, final String relativePath,
+            final NestedJarHandler nestedJarHandler) {
         this.pathToResolveAgainst = pathToResolveAgainst;
-        this.relativePath = relativePath;
+        this.nestedJarHandler = nestedJarHandler;
+
+        // Fix Spring relative paths with empty zip resource sections
+        if (relativePath.endsWith("!")) {
+            this.relativePath = relativePath.substring(0, relativePath.length() - 1);
+        } else if (relativePath.endsWith("!/")) {
+            this.relativePath = relativePath.substring(0, relativePath.length() - 2);
+        } else if (relativePath.endsWith("/!")) {
+            this.relativePath = relativePath.substring(0, relativePath.length() - 2);
+        } else if (relativePath.endsWith("/!/")) {
+            this.relativePath = relativePath.substring(0, relativePath.length() - 3);
+        } else {
+            this.relativePath = relativePath;
+        }
+
+        this.isJar = this.relativePath.contains("!") || JarUtils.isJar(this.relativePath);
     }
 
     /** Hash based on canonical path. */
@@ -155,10 +182,48 @@ class ClasspathRelativePath {
                 throw new IOException(
                         "Path " + relativePath + " could not be resolved relative to " + pathToResolveAgainst);
             }
-            fileCached = new File(path).getCanonicalFile();
+
+            // check if this is a nested jarfile
+            final int plingIdx = path.indexOf('!');
+            if (plingIdx > 0) {
+                // Check that each segment of path is a jarfile, optionally excluding the last segment
+                final String[] parts = path.split("!");
+                for (int i = 0, ii = parts.length - 1; i < ii; i++) {
+                    if (!JarUtils.isJar(parts[i])) {
+                        throw new IOException("Path " + path + " uses nested jar syntax, "
+                                + "but contains a segment that does not have a jar extension");
+                    }
+                }
+                String nestedJarPath;
+                if (!JarUtils.isJar(parts[parts.length - 1])) {
+                    // Last segment is not a jarfile, so it represents a classpath root within the jarfile
+                    // corresponding to the second-to-last element
+                    zipClasspathBaseDir = parts[parts.length - 1];
+                    nestedJarPath = path.substring(0, path.lastIndexOf('!'));
+                } else {
+                    nestedJarPath = path;
+                }
+                // Recursively unzip the nested jarfiles to temporary files, then return the innermost jarfile
+                fileCached = nestedJarHandler.getInnermostNestedJar(nestedJarPath);
+                if (fileCached == null) {
+                    throw new IOException("Could not unzip nested jarfile: " + path);
+                }
+
+            } else {
+                fileCached = new File(path);
+            }
+            fileCached = fileCached.getCanonicalFile();
             fileIsCached = true;
         }
         return fileCached;
+    }
+
+    /**
+     * If non-empty, this path represents a classpath root within a jarfile, e.g. if the path is
+     * "spring-project.jar!/BOOT-INF/classes", the zipClasspathBaseDir is "BOOT-INF/classes".
+     */
+    public String getZipClasspathBaseDir() {
+        return zipClasspathBaseDir;
     }
 
     /**
@@ -191,6 +256,11 @@ class ClasspathRelativePath {
         return isDirectoryCached;
     }
 
+    /** True if this relative path corresponds with a jarfile. */
+    public boolean isJar() {
+        return isJar;
+    }
+
     /** Returns true if path has a .class extension, ignoring case. */
     public static boolean isClassfile(final String path) {
         final int len = path.length();
@@ -213,75 +283,13 @@ class ClasspathRelativePath {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Returns true if the path ends with a jarfile extension, ignoring case. */
-    private static boolean isJar(final String path) {
-        final int len = path.length();
-        final int extIdx = len - 3;
-        return len > 4 && path.charAt(len - 4) == '.' // 
-                && (path.regionMatches(true, extIdx, "jar", 0, 3) //
-                        || path.regionMatches(true, extIdx, "zip", 0, 3) //
-                        || path.regionMatches(true, extIdx, "war", 0, 3) //
-                        || path.regionMatches(true, extIdx, "car", 0, 3));
-    }
-
-    /**
-     * Recursively search within ancestral directories of a jarfile to see if rt.jar is present, in order to
-     * determine if the given jarfile is part of the JRE. This would typically be called with an initial
-     * ancestralScandepth of 2, since JRE jarfiles can be in the lib or lib/ext directories of the JRE.
-     */
-    private static boolean isJREJar(final File file, final int ancestralScanDepth,
-            final ConcurrentHashMap<String, String> knownJREPaths,
-            final ConcurrentHashMap<String, String> knownNonJREPaths, final LogNode log) {
-        if (ancestralScanDepth == 0) {
-            return false;
-        } else {
-            final File parent = file.getParentFile();
-            if (parent == null) {
-                return false;
-            }
-            final String parentPathStr = parent.getPath();
-            if (knownJREPaths.containsKey(parentPathStr)) {
-                return true;
-            }
-            if (knownNonJREPaths.containsKey(parentPathStr)) {
-                return false;
-            }
-            File rt = new File(parent, "jre/lib/rt.jar");
-            if (!rt.exists()) {
-                rt = new File(parent, "lib/rt.jar");
-                if (!rt.exists()) {
-                    rt = new File(parent, "rt.jar");
-                }
-            }
-            boolean isJREJar = false;
-            if (rt.exists()) {
-                // Found rt.jar; check its manifest file to make sure it's the JRE's rt.jar and not something else 
-                final FastManifestParser manifest = new FastManifestParser(rt, log);
-                if (manifest.isSystemJar) {
-                    // Found the JRE's rt.jar
-                    isJREJar = true;
-                }
-            }
-            if (!isJREJar) {
-                isJREJar = isJREJar(parent, ancestralScanDepth - 1, knownJREPaths, knownNonJREPaths, log);
-            }
-            if (!isJREJar) {
-                knownNonJREPaths.put(parentPathStr, parentPathStr);
-            } else {
-                knownJREPaths.put(parentPathStr, parentPathStr);
-            }
-            return isJREJar;
-        }
-    }
-
     /**
      * True if this relative path is a valid classpath element: that its path can be canonicalized, that it exists,
      * that it is a jarfile or directory, that it is not a blacklisted jar, that it should be scanned, etc.
      */
     public boolean isValidClasspathElement(final ScanSpec scanSpec,
             final ConcurrentHashMap<String, String> knownJREPaths,
-            final ConcurrentHashMap<String, String> knownNonJREPaths,
-            final ClasspathRelativePathToElementMap classpathElementMap, final LogNode log)
+            final ConcurrentHashMap<String, String> knownNonJREPaths, final LogNode log)
             throws InterruptedException {
         // Get absolute URI and File for classpathElt
         final String path = getResolvedPath();
@@ -289,14 +297,6 @@ class ClasspathRelativePath {
             // Got an http: or https: URI as a classpath element
             if (log != null) {
                 log.log("Ignoring non-local classpath element: " + relativePath);
-            }
-            return false;
-        }
-        // Check if classpath element is already in map -- saves some of the work below, and in the singleton
-        // creation after this method exits.
-        if (classpathElementMap.get(this) != null) {
-            if (log != null) {
-                log.log("Ignoring duplicate classpath element: " + path);
             }
             return false;
         }
@@ -318,7 +318,8 @@ class ClasspathRelativePath {
             }
             if (isFile) {
                 // If a classpath entry is a file, it must be a jar
-                if (!isJar(getResolvedPath())) {
+                final String canonicalPath = getCanonicalPath();
+                if (!JarUtils.isJar(canonicalPath)) {
                     if (log != null) {
                         log.log("Ignoring non-jar file on classpath: " + path);
                     }
@@ -330,15 +331,15 @@ class ClasspathRelativePath {
                     }
                     return false;
                 }
-                if (scanSpec.blacklistSystemJars()
-                        && isJREJar(getFile(), /* ancestralScanDepth = */2, knownJREPaths, knownNonJREPaths, log)) {
+                if (scanSpec.blacklistSystemJars() && JarUtils.isJREJar(getFile(), /* ancestralScanDepth = */2,
+                        knownJREPaths, knownNonJREPaths, log)) {
                     // Don't scan system jars if they are blacklisted
                     if (log != null) {
                         log.log("Ignoring JRE jar: " + path);
                     }
                     return false;
                 }
-                if (!scanSpec.jarIsWhitelisted(getFile().getName())) {
+                if (!scanSpec.jarIsWhitelisted(canonicalPath)) {
                     if (log != null) {
                         log.log("Ignoring jarfile that did not match whitelist/blacklist criteria: " + path);
                     }

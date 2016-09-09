@@ -47,6 +47,7 @@ import java.util.concurrent.ExecutorService;
 import io.github.lukehutch.fastclasspathscanner.utils.FastPathResolver;
 import io.github.lukehutch.fastclasspathscanner.utils.InterruptionChecker;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
+import io.github.lukehutch.fastclasspathscanner.utils.NestedJarHandler;
 import io.github.lukehutch.fastclasspathscanner.utils.Recycler;
 import io.github.lukehutch.fastclasspathscanner.utils.WorkQueue;
 import io.github.lukehutch.fastclasspathscanner.utils.WorkQueue.WorkUnitProcessor;
@@ -57,6 +58,7 @@ public class Scanner implements Callable<ScanResult> {
     private final ExecutorService executorService;
     private final int numParallelTasks;
     private final boolean scanFiles;
+    private final InterruptionChecker interruptionChecker = new InterruptionChecker();
     private final LogNode log;
 
     /**
@@ -193,7 +195,8 @@ public class Scanner implements Callable<ScanResult> {
      */
     @Override
     public ScanResult call() throws InterruptedException, ExecutionException {
-        try {
+        try (NestedJarHandler nestedJarHandler = new NestedJarHandler(interruptionChecker,
+                log == null ? null : log.log("Created new " + NestedJarHandler.class.getSimpleName()))) {
             final long scanStart = System.nanoTime();
 
             // Get current dir (without resolving symlinks), and normalize path by calling
@@ -217,11 +220,9 @@ public class Scanner implements Callable<ScanResult> {
             for (final String rawClasspathElementPathStr : rawClasspathElementPathStrs) {
                 // Resolve classpath elements relative to current dir, so that paths like "." are handled.
                 final ClasspathRelativePath classpathElt = new ClasspathRelativePath(currentDirPath,
-                        rawClasspathElementPathStr);
+                        rawClasspathElementPathStr, nestedJarHandler);
                 rawClasspathElements.add(classpathElt);
             }
-
-            final InterruptionChecker interruptionChecker = new InterruptionChecker();
 
             // Recycle object instances across threads for efficiency
             try (final Recycler<ClassfileBinaryParser, RuntimeException> classfileBinaryParserRecycler = //
@@ -231,20 +232,25 @@ public class Scanner implements Callable<ScanResult> {
                             return new ClassfileBinaryParser();
                         }
                     }) {
-                // In parallel, resolve classpath elements to canonical paths, creating a ClasspathElement
-                // singleton for each unique canonical path, and if the elements are jarfiles, read the manifest
-                // file if present. If enableRecursiveScanning is true, also recursively scan files in each
-                // classpath element, looking for file path matches.
+                // In parallel, resolve raw classpath elements to canonical paths, creating a ClasspathElement
+                // singleton for each unique canonical path.
                 final ClasspathRelativePathToElementMap classpathElementMap = new ClasspathRelativePathToElementMap(
-                        scanFiles, scanSpec, interruptionChecker, log);
+                        scanFiles, scanSpec, nestedJarHandler, interruptionChecker, log);
                 final ConcurrentHashMap<String, String> knownJREPaths = new ConcurrentHashMap<>();
                 final ConcurrentHashMap<String, String> knownNonJREPaths = new ConcurrentHashMap<>();
                 try (WorkQueue<ClasspathRelativePath> workQueue = new WorkQueue<>(rawClasspathElements,
                         new WorkUnitProcessor<ClasspathRelativePath>() {
                             @Override
                             public void processWorkUnit(ClasspathRelativePath rawClasspathElt) throws Exception {
-                                if (rawClasspathElt.isValidClasspathElement(scanSpec, knownJREPaths,
-                                        knownNonJREPaths, classpathElementMap, log)) {
+                                // Check if classpath element is already in the singleton map -- saves needlessly
+                                // repeating work in isValidClasspathElement() and createSingleton()
+                                if (classpathElementMap.get(rawClasspathElt) != null) {
+                                    if (log != null) {
+                                        log.log("Ignoring duplicate classpath element: "
+                                                + rawClasspathElt.getResolvedPath());
+                                    }
+                                } else if (rawClasspathElt.isValidClasspathElement(scanSpec, knownJREPaths,
+                                        knownNonJREPaths, log)) {
                                     try {
                                         classpathElementMap.createSingleton(rawClasspathElt);
                                     } catch (IllegalArgumentException e) {

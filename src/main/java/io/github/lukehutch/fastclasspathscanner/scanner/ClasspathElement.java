@@ -44,6 +44,7 @@ import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec.FileMatchProces
 import io.github.lukehutch.fastclasspathscanner.utils.InterruptionChecker;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.MultiMapKeyToList;
+import io.github.lukehutch.fastclasspathscanner.utils.NestedJarHandler;
 import io.github.lukehutch.fastclasspathscanner.utils.WorkQueue;
 
 /** A classpath element (a directory or jarfile on the classpath). */
@@ -108,29 +109,31 @@ abstract class ClasspathElement {
      * Factory for creating a ClasspathElementDir singleton for directory classpath entries or a ClasspathElementZip
      * singleton for jarfile classpath entries.
      */
-    static ClasspathElement newInstance(final ClasspathRelativePath classpathElt, final boolean scanFiles,
-            final ScanSpec scanSpec, final InterruptionChecker interruptionChecker,
-            final WorkQueue<ClasspathRelativePath> workQueue, final LogNode log) {
+    static ClasspathElement newInstance(final ClasspathRelativePath classpathRelativePath, final boolean scanFiles,
+            final ScanSpec scanSpec, final NestedJarHandler nestedJarHandler,
+            final WorkQueue<ClasspathRelativePath> workQueue, final InterruptionChecker interruptionChecker,
+            final LogNode log) {
         boolean isDir;
         String canonicalPath;
         File file;
         try {
-            file = classpathElt.getFile();
-            isDir = classpathElt.isDirectory();
-            canonicalPath = classpathElt.getCanonicalPath();
+            file = classpathRelativePath.getFile();
+            isDir = classpathRelativePath.isDirectory();
+            canonicalPath = classpathRelativePath.getCanonicalPath();
         } catch (final IOException e) {
             if (log != null) {
-                log.log("Exception while trying to canonicalize path " + classpathElt.getResolvedPath(), e);
+                log.log("Exception while trying to canonicalize path " + classpathRelativePath.getResolvedPath(),
+                        e);
             }
             return null;
         }
         final LogNode logNode = log == null ? null
-                : log.log(canonicalPath, "Scanning " + (isDir ? "directory " : "jarfile ") + classpathElt
+                : log.log(canonicalPath, "Scanning " + (isDir ? "directory " : "jarfile ") + classpathRelativePath
                         + (file.getPath().equals(canonicalPath) ? "" : " ; canonical path: " + canonicalPath));
         final ClasspathElement newInstance = isDir
-                ? new ClasspathElementDir(classpathElt, scanSpec, scanFiles, interruptionChecker, logNode)
-                : new ClasspathElementZip(classpathElt, scanSpec, scanFiles, interruptionChecker, workQueue,
-                        logNode);
+                ? new ClasspathElementDir(classpathRelativePath, scanSpec, scanFiles, interruptionChecker, logNode)
+                : new ClasspathElementZip(classpathRelativePath, scanSpec, scanFiles, nestedJarHandler, workQueue,
+                        interruptionChecker, logNode);
         if (logNode != null) {
             logNode.addElapsedTime();
         }

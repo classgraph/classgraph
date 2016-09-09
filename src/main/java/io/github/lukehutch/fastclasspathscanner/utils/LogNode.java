@@ -124,11 +124,9 @@ public class LogNode {
                         : msg;
         appendLine(timeStampStr, indentLevel, logMsg, buf);
 
-        if (stackTrace != null) {
-            buf.append(" -- stacktrace:");
+        if (stackTrace != null && !stackTrace.isEmpty()) {
             final String[] parts = stackTrace.split("\n");
             for (int i = 0; i < parts.length; i++) {
-                buf.append('\n');
                 appendLine(timeStampStr, indentLevel, parts[i], buf);
             }
         }

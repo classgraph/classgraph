@@ -49,17 +49,17 @@ import io.github.lukehutch.fastclasspathscanner.utils.MultiMapKeyToList;
 /** A directory classpath element. */
 class ClasspathElementDir extends ClasspathElement {
     /** A directory classpath element. */
-    ClasspathElementDir(final ClasspathRelativePath classpathElt, final ScanSpec scanSpec, final boolean scanFiles,
-            final InterruptionChecker interruptionChecker, final LogNode log) {
-        super(classpathElt, scanSpec, scanFiles, interruptionChecker, log);
+    ClasspathElementDir(final ClasspathRelativePath classpathEltPath, final ScanSpec scanSpec,
+            final boolean scanFiles, final InterruptionChecker interruptionChecker, final LogNode log) {
+        super(classpathEltPath, scanSpec, scanFiles, interruptionChecker, log);
         if (scanFiles) {
             File dir;
             try {
-                dir = classpathElt.getFile();
+                dir = classpathEltPath.getFile();
             } catch (final IOException e) {
                 // Technically can't happen, was already checked by caller
                 if (log != null) {
-                    log.log("Exception while trying to canonicalize path " + classpathElt.getResolvedPath(), e);
+                    log.log("Exception while trying to canonicalize path " + classpathEltPath.getResolvedPath(), e);
                 }
                 ioExceptionOnOpen = true;
                 return;

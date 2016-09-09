@@ -48,40 +48,40 @@ import io.github.lukehutch.fastclasspathscanner.utils.FastPathResolver;
 import io.github.lukehutch.fastclasspathscanner.utils.InterruptionChecker;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.MultiMapKeyToList;
+import io.github.lukehutch.fastclasspathscanner.utils.NestedJarHandler;
 import io.github.lukehutch.fastclasspathscanner.utils.Recycler;
 import io.github.lukehutch.fastclasspathscanner.utils.WorkQueue;
 
 /** A zip/jarfile classpath element. */
 class ClasspathElementZip extends ClasspathElement {
-    /**
-     * ZipFile recycler -- creates one ZipFile per thread that wants to concurrently access this classpath element.
-     */
-    private Recycler<ZipFile, IOException> zipFileRecycler;
-
     /** Result of parsing the manifest file for this jarfile. */
     private FastManifestParser fastManifestParser;
+    private Recycler<ZipFile, IOException> zipFileRecycler;
 
     /** A zip/jarfile classpath element. */
-    ClasspathElementZip(final ClasspathRelativePath classpathElt, final ScanSpec scanSpec, final boolean scanFiles,
-            final InterruptionChecker interruptionChecker, final WorkQueue<ClasspathRelativePath> workQueue,
+    ClasspathElementZip(final ClasspathRelativePath classpathEltPath, final ScanSpec scanSpec,
+            final boolean scanFiles, final NestedJarHandler nestedJarHandler,
+            final WorkQueue<ClasspathRelativePath> workQueue, final InterruptionChecker interruptionChecker,
             final LogNode log) {
-        super(classpathElt, scanSpec, scanFiles, interruptionChecker, log);
+        super(classpathEltPath, scanSpec, scanFiles, interruptionChecker, log);
         final File classpathEltFile;
         try {
-            classpathEltFile = classpathElt.getFile();
+            classpathEltFile = classpathEltPath.getFile();
         } catch (final IOException e) {
             if (log != null) {
-                log.log("Exception while trying to canonicalize path " + classpathElt.getResolvedPath(), e);
+                log.log("Exception while trying to canonicalize path " + classpathEltPath.getResolvedPath(), e);
             }
             ioExceptionOnOpen = true;
             return;
         }
-        zipFileRecycler = new Recycler<ZipFile, IOException>() {
-            @Override
-            public ZipFile newInstance() throws IOException {
-                return new ZipFile(classpathEltFile);
+        if (classpathEltFile == null || !classpathEltFile.exists()) {
+            if (log != null) {
+                log.log("Skipping non-existent jarfile " + classpathEltPath.getResolvedPath());
             }
-        };
+            ioExceptionOnOpen = true;
+            return;
+        }
+        this.zipFileRecycler = nestedJarHandler.getZipFileRecycler(classpathEltFile.getPath());
         ZipFile zipFile = null;
         try {
             try {
@@ -103,7 +103,7 @@ class ClasspathElementZip extends ClasspathElement {
                 fileMatches = new MultiMapKeyToList<>();
                 classfileMatches = new ArrayList<>(numEntries);
                 fileToLastModified = new HashMap<>();
-                scanZipFile(classpathEltFile, zipFile, log);
+                scanZipFile(classpathEltFile, zipFile, classpathEltPath.getZipClasspathBaseDir(), log);
             }
             if (fastManifestParser != null && fastManifestParser.classPath != null) {
                 final LogNode manifestLog = log == null ? null
@@ -121,7 +121,7 @@ class ClasspathElementZip extends ClasspathElement {
                 for (int i = 0; i < fastManifestParser.classPath.size(); i++) {
                     final String manifestClassPathElt = fastManifestParser.classPath.get(i);
                     final ClasspathRelativePath childRelativePath = new ClasspathRelativePath(pathOfContainingDir,
-                            manifestClassPathElt);
+                            manifestClassPathElt, nestedJarHandler);
                     childClasspathElts.add(childRelativePath);
                     if (manifestLog != null) {
                         manifestLog.log("Found Class-Path entry in manifest: " + manifestClassPathElt + " -> "
@@ -138,27 +138,55 @@ class ClasspathElementZip extends ClasspathElement {
     }
 
     /** Scan a zipfile for file path patterns matching the scan spec. */
-    private void scanZipFile(final File zipFileFile, final ZipFile zipFile, final LogNode log) {
+    private void scanZipFile(final File zipFileFile, final ZipFile zipFile, final String classpathBaseDir,
+            final LogNode log) {
+        // Support specification of a classpath root within a jarfile, as required by Spring,
+        // e.g. "spring-project.jar!/BOOT-INF/classes"
+        String requiredPrefix;
+        if (!classpathBaseDir.isEmpty()) {
+            if (log != null) {
+                log.log("Classpath prefix within jarfile: " + classpathBaseDir);
+            }
+            requiredPrefix = classpathBaseDir + "/";
+        } else {
+            requiredPrefix = "";
+        }
+        final int requiredPrefixLen = requiredPrefix.length();
+
         String prevParentRelativePath = null;
         ScanSpecPathMatch prevParentMatchStatus = null;
         int entryIdx = 0;
         for (final Enumeration<? extends ZipEntry> entries = zipFile.entries(); entries.hasMoreElements();) {
+            // Check for interruption every 1024 entries
             if ((entryIdx++ & 0x3ff) == 0) {
                 if (interruptionChecker.checkAndReturn()) {
                     return;
                 }
             }
+
+            // Get next ZipEntry
             final ZipEntry zipEntry = entries.nextElement();
+
+            // Ignore directory entries, they are not used
+            final boolean isDir = zipEntry.isDirectory();
+            if (isDir) {
+                continue;
+            }
+
+            // Normalize path of ZipEntry
             String relativePath = zipEntry.getName();
             if (relativePath.startsWith("/")) {
                 // Shouldn't happen with the standard Java zipfile implementation (but just to be safe)
                 relativePath = relativePath.substring(1);
             }
 
-            // Ignore directory entries, they are not needed
-            final boolean isDir = zipEntry.isDirectory();
-            if (isDir) {
-                continue;
+            // Ignore entries without the correct classpath root prefix
+            if (requiredPrefixLen > 0) {
+                if (!relativePath.startsWith(requiredPrefix)) {
+                    continue;
+                }
+                // Strip the classpath root prefix from the relative path
+                relativePath = relativePath.substring(requiredPrefixLen);
             }
 
             // Get match status of the parent directory if this zipentry file's relative path

@@ -30,6 +30,7 @@ package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import io.github.lukehutch.fastclasspathscanner.utils.InterruptionChecker;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
+import io.github.lukehutch.fastclasspathscanner.utils.NestedJarHandler;
 import io.github.lukehutch.fastclasspathscanner.utils.SingletonMap;
 import io.github.lukehutch.fastclasspathscanner.utils.WorkQueue;
 
@@ -38,16 +39,19 @@ class ClasspathRelativePathToElementMap extends SingletonMap<ClasspathRelativePa
         implements AutoCloseable {
     private final boolean scanFiles;
     private final ScanSpec scanSpec;
+    private final NestedJarHandler nestedJarHandler;
     private final InterruptionChecker interruptionChecker;
-    private WorkQueue<ClasspathRelativePath> workQueue;
     private final LogNode log;
+    private WorkQueue<ClasspathRelativePath> workQueue;
 
     /** A map from relative path to classpath element singleton. */
     ClasspathRelativePathToElementMap(final boolean scanFiles, final ScanSpec scanSpec,
-            final InterruptionChecker interruptionChecker, final LogNode log) {
-        this.scanSpec = scanSpec;
-        this.interruptionChecker = interruptionChecker;
+            final NestedJarHandler nestedJarHandler, final InterruptionChecker interruptionChecker,
+            final LogNode log) {
         this.scanFiles = scanFiles;
+        this.scanSpec = scanSpec;
+        this.nestedJarHandler = nestedJarHandler;
+        this.interruptionChecker = interruptionChecker;
         this.log = log;
     }
 
@@ -62,7 +66,8 @@ class ClasspathRelativePathToElementMap extends SingletonMap<ClasspathRelativePa
     /** Create a new classpath element singleton instance. */
     @Override
     public ClasspathElement newInstance(final ClasspathRelativePath classpathElt) {
-        return ClasspathElement.newInstance(classpathElt, scanFiles, scanSpec, interruptionChecker, workQueue, log);
+        return ClasspathElement.newInstance(classpathElt, scanFiles, scanSpec, nestedJarHandler, workQueue,
+                interruptionChecker, log);
     }
 
     /** Close the classpath elements. */

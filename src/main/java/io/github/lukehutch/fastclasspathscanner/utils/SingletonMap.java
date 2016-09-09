@@ -73,18 +73,42 @@ public abstract class SingletonMap<K, V> {
         }
         final SingletonHolder<V> oldSingletonHolder = map.putIfAbsent(key, newSingletonHolder);
         if (oldSingletonHolder == null) {
-            // Initialize SingletonHolder with new instance of value.
+            // Initialize newSingletonHolder with new instance of value.
 
-            final V newInstance = newInstance(key);
-            if (newInstance == null) {
-                throw new IllegalArgumentException("newInstance(key) returned null");
+            V newInstance = null;
+            try {
+                newInstance = newInstance(key);
+                if (newInstance == null) {
+                    throw new IllegalArgumentException("newInstance(key) returned null");
+                }
+            } finally {
+                // Have to call .set() even if an exception is thrown by newInstance(), or if newInstance is null,
+                // since .set() calls initialized.countDown(). Otherwise threads that call .get() can end up
+                // waiting forever.
+                newSingletonHolder.set(newInstance);
             }
-            newSingletonHolder.set(newInstance);
             return true;
         } else {
             // There was already a singleton in the map for this key
             singletonHolderRecycler.add(newSingletonHolder);
             return false;
+        }
+    }
+
+    /**
+     * Check if the given key is in the map, and if so, return it. If not, create a singleton value for that key,
+     * and return the created value.
+     */
+    public V getOrCreateSingleton(final K key) throws Exception {
+        final V existingSingleton = get(key);
+        if (existingSingleton != null) {
+            return existingSingleton;
+        } else {
+            // Create singleton
+            // (in case of race condition, only one thread will cause a new singleton to be created for this key)
+            createSingleton(key);
+            // Look up newly-created singleton, and get the created value
+            return get(key);
         }
     }
 
