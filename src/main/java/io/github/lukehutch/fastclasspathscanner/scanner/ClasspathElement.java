@@ -148,8 +148,8 @@ abstract class ClasspathElement {
      * The combination of a classpath element and a relative path within this classpath element.
      */
     static class ClasspathResource {
-        File classpathEltFile;
-        String relativePath;
+        final File classpathEltFile;
+        final String relativePath;
 
         private ClasspathResource(final File classpathEltFile, final String relativePath) {
             this.classpathEltFile = classpathEltFile;
@@ -157,7 +157,7 @@ abstract class ClasspathElement {
         }
 
         static class ClasspathResourceInDir extends ClasspathResource {
-            File relativePathFile;
+            final File relativePathFile;
 
             ClasspathResourceInDir(final File classpathEltFile, final String relativePath,
                     final File relativePathFile) {
@@ -172,12 +172,14 @@ abstract class ClasspathElement {
         }
 
         static class ClasspathResourceInZipFile extends ClasspathResource {
-            ZipEntry zipEntry;
+            final ZipEntry zipEntry;
+            final String pathRelativeToClasspathPrefix;
 
-            ClasspathResourceInZipFile(final File classpathEltFile, final String relativePath,
-                    final ZipEntry zipEntry) {
-                super(classpathEltFile, relativePath);
+            ClasspathResourceInZipFile(final File classpathEltFile, final String classpathPrefix,
+                    final String relativePath, final ZipEntry zipEntry) {
+                super(classpathEltFile, classpathPrefix + relativePath);
                 this.zipEntry = zipEntry;
+                this.pathRelativeToClasspathPrefix = relativePath;
             }
 
             @Override

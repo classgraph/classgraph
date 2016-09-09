@@ -219,7 +219,8 @@ class ClasspathElementZip extends ClasspathElement {
 
             // Store relative paths of any classfiles encountered
             if (ClasspathRelativePath.isClassfile(relativePath)) {
-                classfileMatches.add(new ClasspathResourceInZipFile(zipFileFile, relativePath, zipEntry));
+                classfileMatches
+                        .add(new ClasspathResourceInZipFile(zipFileFile, requiredPrefix, relativePath, zipEntry));
             }
 
             // Match file paths against path patterns
@@ -230,7 +231,7 @@ class ClasspathElementZip extends ClasspathElement {
                     // Don't use the last modified time from the individual zipEntry objects,
                     // we use the last modified time for the zipfile itself instead.
                     fileMatches.put(fileMatcher.fileMatchProcessorWrapper,
-                            new ClasspathResourceInZipFile(zipFileFile, relativePath, zipEntry));
+                            new ClasspathResourceInZipFile(zipFileFile, requiredPrefix, relativePath, zipEntry));
                 }
             }
         }
@@ -248,11 +249,14 @@ class ClasspathElementZip extends ClasspathElement {
             ZipFile zipFile = null;
             try {
                 zipFile = zipFileRecycler.acquire();
-                final ZipEntry zipEntry = ((ClasspathResourceInZipFile) fileMatchResource).zipEntry;
+                final ClasspathResourceInZipFile classpathResourceInZipFile = //
+                        (ClasspathResourceInZipFile) fileMatchResource;
+                final ZipEntry zipEntry = classpathResourceInZipFile.zipEntry;
                 try (InputStream inputStream = zipFile.getInputStream(zipEntry)) {
                     // Run FileMatcher
-                    fileMatchProcessorWrapper.processMatch(fileMatchResource.classpathEltFile,
-                            fileMatchResource.relativePath, inputStream, zipEntry.getSize());
+                    fileMatchProcessorWrapper.processMatch(classpathResourceInZipFile.classpathEltFile,
+                            classpathResourceInZipFile.pathRelativeToClasspathPrefix, inputStream,
+                            zipEntry.getSize());
                 }
             } finally {
                 zipFileRecycler.release(zipFile);
@@ -271,11 +275,14 @@ class ClasspathElementZip extends ClasspathElement {
             ZipFile zipFile = null;
             try {
                 zipFile = zipFileRecycler.acquire();
-                final ZipEntry zipEntry = ((ClasspathResourceInZipFile) classfileResource).zipEntry;
+                final ClasspathResourceInZipFile classpathResourceInZipFile = //
+                        (ClasspathResourceInZipFile) classfileResource;
+                final ZipEntry zipEntry = classpathResourceInZipFile.zipEntry;
                 try (InputStream inputStream = zipFile.getInputStream(zipEntry)) {
                     // Parse classpath binary format, creating a ClassInfoUnlinked object
                     final ClassInfoUnlinked thisClassInfoUnlinked = classfileBinaryParser
-                            .readClassInfoFromClassfileHeader(classfileResource.relativePath, inputStream, scanSpec,
+                            .readClassInfoFromClassfileHeader(
+                                    classpathResourceInZipFile.pathRelativeToClasspathPrefix, inputStream, scanSpec,
                                     stringInternMap, log);
                     // If class was successfully read, output new ClassInfoUnlinked object
                     if (thisClassInfoUnlinked != null) {
