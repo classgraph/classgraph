@@ -70,7 +70,7 @@ public class LogNode {
     private static AtomicInteger sortKeyUniqueSuffix = new AtomicInteger(0);
 
     /** The date/time formatter (not threadsafe). */
-    private static final SimpleDateFormat dateTimeFormatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mmX");
+    private static final SimpleDateFormat dateTimeFormatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZZ");
 
     /** The elapsed time formatter. */
     private static final DecimalFormat nanoFormatter = new DecimalFormat("0.000000");
