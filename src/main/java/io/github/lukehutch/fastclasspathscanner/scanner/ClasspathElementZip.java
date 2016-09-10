@@ -81,7 +81,18 @@ class ClasspathElementZip extends ClasspathElement {
             ioExceptionOnOpen = true;
             return;
         }
-        this.zipFileRecycler = nestedJarHandler.getZipFileRecycler(classpathEltFile.getPath());
+        try {
+            zipFileRecycler = nestedJarHandler.getZipFileRecycler(classpathEltFile.getPath());
+        } catch (final Exception e) {
+            // Stop other threads
+            interruptionChecker.interrupt();
+            if (log != null) {
+                log.log("Exception while creating zipfile recycler", e);
+            }
+            ioExceptionOnOpen = true;
+            return;
+        }
+
         ZipFile zipFile = null;
         try {
             try {

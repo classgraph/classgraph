@@ -40,7 +40,7 @@ public class InterruptionChecker {
     private ExecutionException executionException;
 
     /** Interrupt all threads that share this InterruptionChecker. */
-    void interrupt() {
+    public void interrupt() {
         interrupted.set(true);
     }
 
@@ -70,7 +70,7 @@ public class InterruptionChecker {
     }
 
     /** Stop all threads that share this InterruptionChecker due to an exception being thrown in one of them. */
-    ExecutionException executionException(final Exception e) {
+    public ExecutionException executionException(final Exception e) {
         final ExecutionException newExecutionException = e instanceof ExecutionException ? (ExecutionException) e
                 : new ExecutionException(e);
         executionException = newExecutionException;

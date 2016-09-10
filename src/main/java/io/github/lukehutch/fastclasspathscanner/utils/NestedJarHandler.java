@@ -134,52 +134,57 @@ public class NestedJarHandler implements AutoCloseable {
                         return null;
                     }
 
-                    // Recursively get parent jarfile. This is guaranteed to terminate because parentPath
-                    // is one '!'-section shorter with each recursion.
-                    final File parentJarfile = nestedPathToJarfileMap.getOrCreateSingleton(parentPath);
-                    if (parentJarfile == null) {
-                        // Failed to get parent jarfile
-                        return null;
-                    }
-
-                    // Avoid decompressing the same nested jarfiles multiple times for different non-canonical
-                    // parent paths. This recursion is guaranteed to terminate after one extra recursion if
-                    // File.getCanonicalFile() is idempotent, which it should be by definition.
-                    if (!parentJarfile.getPath().equals(parentPath)) {
-                        return nestedPathToJarfileMap
-                                .getOrCreateSingleton(parentJarfile.getPath() + "!" + childPath);
-                    }
-
-                    // Get the ZipFile recycler for the parent jar's canonical path
-                    final Recycler<ZipFile, IOException> parentJarRecycler = canonicalPathToZipFileRecyclerMap
-                            .getOrCreateSingleton(parentJarfile.getCanonicalPath());
-                    ZipFile parentZipFile = null;
                     try {
-                        // Look up the child path within the parent zipfile
-                        parentZipFile = parentJarRecycler.acquire();
-                        final ZipEntry childZipEntry = parentZipFile.getEntry(childPath);
-                        if (childZipEntry == null) {
-                            if (log != null) {
-                                log.log(nestedJarPath, "Child path component " + childPath
-                                        + " does not exist in jarfile " + parentPath);
+                        // Recursively get parent jarfile. This is guaranteed to terminate because parentPath
+                        // is one '!'-section shorter with each recursion.
+                        final File parentJarfile = nestedPathToJarfileMap.getOrCreateSingleton(parentPath);
+                        if (parentJarfile == null) {
+                            // Failed to get parent jarfile
+                            return null;
+                        }
+
+                        // Avoid decompressing the same nested jarfiles multiple times for different non-canonical
+                        // parent paths. This recursion is guaranteed to terminate after one extra recursion if
+                        // File.getCanonicalFile() is idempotent, which it should be by definition.
+                        if (!parentJarfile.getPath().equals(parentPath)) {
+                            return nestedPathToJarfileMap
+                                    .getOrCreateSingleton(parentJarfile.getPath() + "!" + childPath);
+                        }
+
+                        // Get the ZipFile recycler for the parent jar's canonical path
+                        final Recycler<ZipFile, IOException> parentJarRecycler = canonicalPathToZipFileRecyclerMap
+                                .getOrCreateSingleton(parentJarfile.getCanonicalPath());
+                        ZipFile parentZipFile = null;
+                        try {
+                            // Look up the child path within the parent zipfile
+                            parentZipFile = parentJarRecycler.acquire();
+                            final ZipEntry childZipEntry = parentZipFile.getEntry(childPath);
+                            if (childZipEntry == null) {
+                                if (log != null) {
+                                    log.log(nestedJarPath, "Child path component " + childPath
+                                            + " does not exist in jarfile " + parentPath);
+                                }
+                                return null;
                             }
-                            return null;
+
+                            // Unzip the child zipfile to a temporary file
+                            final File childTempFile = unzipToTempFile(parentZipFile, childZipEntry);
+
+                            // Stop the nested unzipping process if this thread was interrupted,
+                            // and notify other threads
+                            if (interruptionChecker.checkAndReturn()) {
+                                return null;
+                            }
+
+                            // Return the child temp zipfile
+                            return childTempFile;
+
+                        } finally {
+                            parentJarRecycler.release(parentZipFile);
                         }
-
-                        // Unzip the child zipfile to a temporary file
-                        final File childTempFile = unzipToTempFile(parentZipFile, childZipEntry);
-
-                        // Stop the nested unzipping process if this thread was interrupted,
-                        // and notify other threads
-                        if (interruptionChecker.checkAndReturn()) {
-                            return null;
-                        }
-
-                        // Return the child temp zipfile
-                        return childTempFile;
-
-                    } finally {
-                        parentJarRecycler.release(parentZipFile);
+                    } catch (InterruptedException e) {
+                        interruptionChecker.interrupt();
+                        throw e;
                     }
                 }
             }
@@ -187,71 +192,42 @@ public class NestedJarHandler implements AutoCloseable {
     }
 
     /**
+     * Get a ZipFile recycler given the (non-nested) canonical path of a jarfile.
+     * 
+     * @return The ZipFile recycler.
+     */
+    public Recycler<ZipFile, IOException> getZipFileRecycler(final String canonicalPath) throws Exception {
+        try {
+            return canonicalPathToZipFileRecyclerMap.getOrCreateSingleton(canonicalPath);
+        } catch (InterruptedException e) {
+            interruptionChecker.interrupt();
+            throw e;
+        }
+    }
+
+    /**
      * Get a File for a given (possibly nested) jarfile path, unzipping the first N-1 segments of an N-segment
-     * '!'-delimited path to temporary files, then returning the N-th temporary file. If the path does not contain
-     * '!', returns the file represented by the path.
+     * '!'-delimited path to temporary files, then returning the File reference for the N-th temporary file.
+     * 
+     * If the path does not contain '!', returns the File represented by the path.
      * 
      * All path segments should end in a jarfile extension, e.g. ".jar" or ".zip".
      * 
-     * @return the File for the innermost jar, or null if any path segment does not exist, or if an exception was
-     *         thrown during singleton creation, or the operation was interrupted.
+     * @return the File for the innermost jar.
      */
-    public File getNestedJarfile(final String nestedJarfilePath) {
-        try {
-            return nestedPathToJarfileMap.getOrCreateSingleton(nestedJarfilePath);
-        } catch (final InterruptedException e) {
-            // Stop other threads
-            interruptionChecker.interrupt();
-        } catch (final Exception e) {
-            if (log != null) {
-                log.log("Exception while creating singleton", e);
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Get a ZipFile recycler given the (non-nested) canonical path of a jarfile.
-     * 
-     * @return The ZipFile recycler, or null if an exception was thrown during singleton creation, or if the thread
-     *         was interrupted.
-     */
-    public Recycler<ZipFile, IOException> getZipFileRecycler(final String canonicalPath) {
-        try {
-            return canonicalPathToZipFileRecyclerMap.getOrCreateSingleton(canonicalPath);
-        } catch (final InterruptedException e) {
-            // Stop other threads
-            interruptionChecker.interrupt();
-        } catch (final Exception e) {
-            if (log != null) {
-                log.log("Exception while creating singleton", e);
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Given a nested jar path consisting of jar names separated by '!', decompress each nested jarfile to a
-     * temporary file, and return the File reference for the innermost jarfile.
-     * 
-     * @return null if any of the nested jars don't exist, or if an exception was thrown during singleton creation,
-     *         or if the thread was interrupted.
-     */
-    public File getInnermostNestedJar(final String nestedJarPath) {
+    public File getInnermostNestedJar(final String nestedJarPath) throws Exception {
         try {
             return nestedPathToJarfileMap.getOrCreateSingleton(nestedJarPath);
-        } catch (final InterruptedException e) {
-            // Stop other threads
+        } catch (InterruptedException e) {
             interruptionChecker.interrupt();
-        } catch (final Exception e) {
-            if (log != null) {
-                log.log("Exception while creating singleton", e);
-            }
+            throw e;
         }
-        return null;
     }
 
-    /** Unzip a ZipEntry to a temporary file, then return the temporary file. */
+    /**
+     * Unzip a ZipEntry to a temporary file, then return the temporary file. The temporary file will be removed when
+     * NestedJarHandler#close() is called.
+     */
     public File unzipToTempFile(final ZipFile zipFile, final ZipEntry zipEntry) throws IOException {
         final String zipEntryPath = zipEntry.getName();
         final String leafName = zipEntryPath.substring(zipEntryPath.lastIndexOf('/') + 1);

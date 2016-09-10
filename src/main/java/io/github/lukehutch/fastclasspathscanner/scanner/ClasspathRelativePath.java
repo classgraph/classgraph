@@ -210,10 +210,15 @@ class ClasspathRelativePath {
                 } else {
                     nestedJarPath = path;
                 }
-                // Recursively unzip the nested jarfiles to temporary files, then return the innermost jarfile
-                fileCached = nestedJarHandler.getInnermostNestedJar(nestedJarPath);
-                if (fileCached == null) {
-                    throw new IOException("Could not unzip nested jarfile: " + path);
+                // Recursively unzip the nested jarfiles to temporary files, then return the innermost jarfile.
+                // Throws IOException if anything goes wrong.
+                try {
+                    fileCached = nestedJarHandler.getInnermostNestedJar(nestedJarPath);
+                } catch (final Exception e) {
+                    throw new IOException("Exception while getting jarfile " + relativePath, e);
+                }
+                if (fileCached == null || !fileCached.exists()) {
+                    throw new IOException("Could not find jarfile " + relativePath);
                 }
 
             } else {
