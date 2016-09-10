@@ -43,4 +43,3 @@ public class Issue46Test {
                 .containsOnly("com.test.Test");
     }
 }
-
