@@ -313,6 +313,8 @@ public class FastClasspathScanner {
         return this;
     }
 
+    // -------------------------------------------------------------------------------------------------------------
+
     /**
      * Register an extra ClassLoaderHandler. Needed if FastClasspathScanner doesn't know how to extract classpath
      * entries from your runtime environment's ClassLoader. See:
@@ -330,9 +332,11 @@ public class FastClasspathScanner {
     }
 
     /**
-     * Override the automatically-detected classpath with a custom search path. You can specify multiple elements,
-     * separated by File.pathSeparatorChar. If this method is called, nothing but the provided classpath will be
-     * scanned, i.e. causes ClassLoaders to be ignored, as well as the java.class.path system property.
+     * Override the automatically-detected classpath with a custom path, with path elements separated by
+     * File.pathSeparatorChar. Causes system ClassLoaders and the java.class.path system property to be ignored.
+     * 
+     * If this method is called, nothing but the provided classpath will be scanned, i.e. this causes ClassLoaders
+     * to be ignored, as well as the java.class.path system property.
      * 
      * @param classpath
      *            The custom classpath to use for scanning, with path elements separated by File.pathSeparatorChar.
@@ -344,8 +348,69 @@ public class FastClasspathScanner {
     }
 
     /**
-     * Add a ClassLoader to the list of ClassLoaders to scan. (This only works if overrideClasspath() is not
-     * called.)
+     * Override the automatically-detected classpath with a custom path. Causes system ClassLoaders and the
+     * java.class.path system property to be ignored. Works for Iterables of any type whose toString() method
+     * resolves to a classpath element string, e.g. String, File or Path.
+     * 
+     * If this method is called, nothing but the provided classpath will be scanned, i.e. this causes ClassLoaders
+     * to be ignored, as well as the java.class.path system property.
+     * 
+     * @param classpath
+     *            The custom classpath to use for scanning, with path elements separated by File.pathSeparatorChar.
+     * @return this (for method chaining).
+     */
+    public FastClasspathScanner overrideClasspath(final Iterable<?> overrideClasspathElements) {
+        final StringBuilder buf = new StringBuilder();
+        for (final Object classpathElt : overrideClasspathElements) {
+            if (classpathElt != null) {
+                if (buf.length() > 0) {
+                    buf.append(File.pathSeparatorChar);
+                }
+                buf.append(classpathElt);
+            }
+        }
+        final String overrideClasspath = buf.toString();
+        if (overrideClasspath.isEmpty()) {
+            throw new IllegalArgumentException("Can't override classpath with an empty path");
+        }
+        overrideClasspath(overrideClasspath);
+        return this;
+    }
+
+    /**
+     * Override the automatically-detected classpath with a custom path. Causes system ClassLoaders and the
+     * java.class.path system property to be ignored. Works for arrays of any member type whose toString() method
+     * resolves to a classpath element string, e.g. String, File or Path.
+     * 
+     * @param classpath
+     *            The custom classpath to use for scanning, with path elements separated by File.pathSeparatorChar.
+     * @return this (for method chaining).
+     */
+    public FastClasspathScanner overrideClasspath(final Object... overrideClasspathElements) {
+        final StringBuilder buf = new StringBuilder();
+        for (final Object classpathElt : overrideClasspathElements) {
+            if (classpathElt != null) {
+                if (buf.length() > 0) {
+                    buf.append(File.pathSeparatorChar);
+                }
+                buf.append(classpathElt);
+            }
+        }
+        final String overrideClasspath = buf.toString();
+        if (overrideClasspath.isEmpty()) {
+            throw new IllegalArgumentException("Can't override classpath with an empty path");
+        }
+        overrideClasspath(overrideClasspath);
+        return this;
+    }
+
+    /**
+     * Add a ClassLoader to the list of ClassLoaders to scan.
+     * 
+     * This call is ignored if overrideClasspath() is also called, or if this method is called before
+     * overrideClassLoaders().
+     * 
+     * This call is ignored if overrideClasspath() is called.
      * 
      * @param classLoader
      *            The additional ClassLoader to scan.
@@ -357,8 +422,9 @@ public class FastClasspathScanner {
     }
 
     /**
-     * Completely override the list of ClassLoaders to scan. (This only works if overrideClasspath() is not called.)
-     * Causes the java.class.path system property to be ignored.
+     * Completely override (and ignore) system ClassLoaders and the java.class.path system property.
+     * 
+     * This call is ignored if overrideClasspath() is called.
      * 
      * @param overrideClassLoaders
      *            The ClassLoaders to scan instead of the automatically-detected ClassLoaders.
