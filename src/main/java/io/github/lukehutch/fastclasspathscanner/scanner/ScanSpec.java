@@ -467,8 +467,8 @@ public class ScanSpec {
      */
     public void addClassLoader(final ClassLoader classLoader) {
         // This is O(N^2) in the number of calls, but this method shouldn't be called many times, if at all
-        if (!classLoaders.contains(classLoader)) {
-            classLoaders.add(classLoader);
+        if (!this.classLoaders.contains(classLoader)) {
+            this.classLoaders.add(classLoader);
         }
     }
 
@@ -481,7 +481,8 @@ public class ScanSpec {
         for (final ClassLoader classLoader : overrideClassLoaders) {
             classLoadersSet.add(classLoader);
         }
-        classLoaders = classLoadersSet.getList();
+        this.classLoaders = classLoadersSet.getList();
+        this.overrideClassLoaders = true;
     }
 
     // -------------------------------------------------------------------------------------------------------------
