@@ -98,6 +98,8 @@ public class ScanSpec {
     /** Blacklisted jarfile names containing a glob('*') character, converted to a regexp. (Leaf filename only.) */
     private final ArrayList<Pattern> blacklistedJarPatterns = new ArrayList<>();
 
+    // -------------------------------------------------------------------------------------------------------------
+
     /** True if jarfiles on the classpath should be scanned. */
     final boolean scanJars;
 
@@ -110,9 +112,6 @@ public class ScanSpec {
     /** If true, index method annotations. */
     public boolean enableMethodAnnotationIndexing;
 
-    /** If non-null, specifies a classpath to override the default one. */
-    public String overrideClasspath;
-
     /**
      * If true, remove "external" classes from consideration (i.e. classes outside of whitelisted packages that are
      * referred to by classes within whitelisted packages, e.g. as a superclass). This affects both the ability to
@@ -121,8 +120,33 @@ public class ScanSpec {
      */
     public boolean strictWhitelist;
 
-    /** Manually-registered ClassLoaderHandlers. */
-    public final ArrayList<Class<? extends ClassLoaderHandler>> extraClassLoaderHandlers = new ArrayList<>();
+    /**
+     * True if JRE system jarfiles (rt.jar etc.) should not be scanned. By default, these are not scanned. This can
+     * be overridden by including "!!" in the scan spec. Disabling this blacklisting will increase the time or
+     * memory required to scan the classpath.
+     */
+    private boolean blacklistSystemJars = true;
+
+    /**
+     * By default, blacklist all java.* and sun.* packages. This means for example that you can't use
+     * java.lang.Comparable as a match criterion. This can be overridden by including "!!" in the scan spec.
+     * Disabling this blacklisting may increase the time or memory required to scan the classpath.
+     */
+    private boolean blacklistSystemPackages = true;
+
+    /**
+     * If true, ignore field visibility (affects finding classes with fields of a given type, and matching of static
+     * final fields with constant initializers). If false, fields must be public to be indexed/matched.
+     */
+    public boolean ignoreFieldVisibility = false;
+
+    /**
+     * If true, ignore method visibility (affects finding methods with annotations of a given type). If false,
+     * methods must be public to be indexed/matched.
+     */
+    public boolean ignoreMethodVisibility = false;
+
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * A map from (className + "." + staticFinalFieldName) to StaticFinalFieldMatchProcessor(s) that should be
@@ -151,34 +175,22 @@ public class ScanSpec {
     private final List<FilePathTesterAndMatchProcessorWrapper> filePathTestersAndMatchProcessorWrappers = //
             new ArrayList<>();
 
-    /**
-     * True if JRE system jarfiles (rt.jar etc.) should not be scanned. By default, these are not scanned. This can
-     * be overridden by including "!!" in the scan spec. Disabling this blacklisting will increase the time or
-     * memory required to scan the classpath.
-     */
-    private boolean blacklistSystemJars = true;
-
-    /**
-     * By default, blacklist all java.* and sun.* packages. This means for example that you can't use
-     * java.lang.Comparable as a match criterion. This can be overridden by including "!!" in the scan spec.
-     * Disabling this blacklisting may increase the time or memory required to scan the classpath.
-     */
-    private boolean blacklistSystemPackages = true;
-
-    /**
-     * If true, ignore field visibility (affects finding classes with fields of a given type, and matching of static
-     * final fields with constant initializers). If false, fields must be public to be indexed/matched.
-     */
-    public boolean ignoreFieldVisibility = false;
-
-    /**
-     * If true, ignore method visibility (affects finding methods with annotations of a given type). If false,
-     * methods must be public to be indexed/matched.
-     */
-    public boolean ignoreMethodVisibility = false;
+    // -------------------------------------------------------------------------------------------------------------
 
     /** All the visible classloaders that were able to be found. */
     List<ClassLoader> classLoaders;
+
+    /**
+     * If true, all ClassLoaders have been overriden. In particular, this causes FastClasspathScanner to ignore the
+     * java.class.path system property.
+     */
+    boolean overrideClassLoaders = false;
+
+    /** If non-null, specifies a classpath to override the default one. */
+    String overrideClasspath;
+
+    /** Manually-registered ClassLoaderHandlers. */
+    final ArrayList<Class<? extends ClassLoaderHandler>> extraClassLoaderHandlers = new ArrayList<>();
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -433,7 +445,26 @@ public class ScanSpec {
         return classLoaders;
     }
 
-    /** Add a ClassLoader to the list of ClassLoaders to scan. */
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** Register an extra ClassLoaderHandler. */
+    public void registerClassLoaderHandler(final Class<? extends ClassLoaderHandler> classLoaderHandler) {
+        this.extraClassLoaderHandlers.add(classLoaderHandler);
+    }
+
+    /**
+     * Override the automatically-detected classpath with a custom search path. You can specify multiple elements,
+     * separated by File.pathSeparatorChar. If this method is called, nothing but the provided classpath will be
+     * scanned, i.e. causes ClassLoaders to be ignored, as well as the java.class.path system property.
+     */
+    public void overrideClasspath(final String overrideClasspath) {
+        this.overrideClasspath = overrideClasspath;
+    }
+
+    /**
+     * Add a ClassLoader to the list of ClassLoaders to scan. (This only works if overrideClasspath() is not
+     * called.)
+     */
     public void addClassLoader(final ClassLoader classLoader) {
         // This is O(N^2) in the number of calls, but this method shouldn't be called many times, if at all
         if (!classLoaders.contains(classLoader)) {
@@ -441,7 +472,10 @@ public class ScanSpec {
         }
     }
 
-    /** Override the list of ClassLoaders to scan. */
+    /**
+     * Completely override the list of ClassLoaders to scan. (This only works if overrideClasspath() is not called.)
+     * Causes the java.class.path system property to be ignored.
+     */
     public void overrideClassLoaders(final ClassLoader... overrideClassLoaders) {
         final AdditionOrderedSet<ClassLoader> classLoadersSet = new AdditionOrderedSet<>();
         for (final ClassLoader classLoader : overrideClassLoaders) {

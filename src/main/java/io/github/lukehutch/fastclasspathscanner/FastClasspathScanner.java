@@ -314,8 +314,8 @@ public class FastClasspathScanner {
     }
 
     /**
-     * Add an extra ClassLoaderHandler. Needed if FastClasspathScanner doesn't know how to extract classpath entries
-     * from your runtime environment's ClassLoader. See:
+     * Register an extra ClassLoaderHandler. Needed if FastClasspathScanner doesn't know how to extract classpath
+     * entries from your runtime environment's ClassLoader. See:
      * 
      * https://github.com/lukehutch/fast-classpath-scanner/wiki/4.-Working-with-nonstandard-ClassLoaders
      * 
@@ -325,21 +325,21 @@ public class FastClasspathScanner {
      */
     public FastClasspathScanner registerClassLoaderHandler(
             final Class<? extends ClassLoaderHandler> classLoaderHandlerClass) {
-        getScanSpec().extraClassLoaderHandlers.add(classLoaderHandlerClass);
+        getScanSpec().registerClassLoaderHandler(classLoaderHandlerClass);
         return this;
     }
 
     /**
      * Override the automatically-detected classpath with a custom search path. You can specify multiple elements,
      * separated by File.pathSeparatorChar. If this method is called, nothing but the provided classpath will be
-     * scanned.
+     * scanned, i.e. causes ClassLoaders to be ignored, as well as the java.class.path system property.
      * 
      * @param classpath
      *            The custom classpath to use for scanning, with path elements separated by File.pathSeparatorChar.
      * @return this (for method chaining).
      */
-    public FastClasspathScanner overrideClasspath(final String classpath) {
-        getScanSpec().overrideClasspath = classpath;
+    public FastClasspathScanner overrideClasspath(final String overrideClasspath) {
+        getScanSpec().overrideClasspath(overrideClasspath);
         return this;
     }
 
@@ -349,19 +349,24 @@ public class FastClasspathScanner {
      * 
      * @param classLoader
      *            The additional ClassLoader to scan.
+     * @return this (for method chaining).
      */
-    public void addClassLoader(final ClassLoader classLoader) {
+    public FastClasspathScanner addClassLoader(final ClassLoader classLoader) {
         getScanSpec().addClassLoader(classLoader);
+        return this;
     }
 
     /**
      * Completely override the list of ClassLoaders to scan. (This only works if overrideClasspath() is not called.)
+     * Causes the java.class.path system property to be ignored.
      * 
      * @param overrideClassLoaders
      *            The ClassLoaders to scan instead of the automatically-detected ClassLoaders.
+     * @return this (for method chaining).
      */
-    public void overrideClassLoaders(final ClassLoader... overrideClassLoaders) {
+    public FastClasspathScanner overrideClassLoaders(final ClassLoader... overrideClassLoaders) {
         getScanSpec().overrideClassLoaders(overrideClassLoaders);
+        return this;
     }
 
     // -------------------------------------------------------------------------------------------------------------

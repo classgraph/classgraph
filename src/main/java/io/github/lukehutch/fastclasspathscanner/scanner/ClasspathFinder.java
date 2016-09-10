@@ -103,12 +103,12 @@ public class ClasspathFinder {
                     }
                 }
             }
-            for (final Class<? extends ClassLoaderHandler> classLoaderHandlerClass : scanSpec.extraClassLoaderHandlers) {
+            for (final Class<? extends ClassLoaderHandler> classLoaderHandler : scanSpec.extraClassLoaderHandlers) {
                 try {
-                    classLoaderHandlers.add(classLoaderHandlerClass.newInstance());
+                    classLoaderHandlers.add(classLoaderHandler.newInstance());
                 } catch (InstantiationException | IllegalAccessException e) {
                     if (log != null) {
-                        log.log("Could not instantiate " + classLoaderHandlerClass.getName(), e);
+                        log.log("Could not instantiate " + classLoaderHandler.getName(), e);
                     }
                 }
             }
@@ -144,11 +144,13 @@ public class ClasspathFinder {
                 }
             }
 
-            // Add entries found in java.class.path, in case those entries were missed above due to some
-            // non-standard classloader that uses this property
-            final LogNode sysPropLog = log == null ? null
-                    : log.log("Getting classpath entries from java.class.path");
-            addClasspathElements(System.getProperty("java.class.path"), sysPropLog);
+            if (!scanSpec.overrideClassLoaders) {
+                // Add entries found in java.class.path, in case those entries were missed above due to some
+                // non-standard classloader that uses this property
+                final LogNode sysPropLog = log == null ? null
+                        : log.log("Getting classpath entries from java.class.path");
+                addClasspathElements(System.getProperty("java.class.path"), sysPropLog);
+            }
         }
     }
 
