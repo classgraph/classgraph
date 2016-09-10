@@ -182,7 +182,7 @@ public class NestedJarHandler implements AutoCloseable {
                         } finally {
                             parentJarRecycler.release(parentZipFile);
                         }
-                    } catch (InterruptedException e) {
+                    } catch (final InterruptedException e) {
                         interruptionChecker.interrupt();
                         throw e;
                     }
@@ -199,7 +199,7 @@ public class NestedJarHandler implements AutoCloseable {
     public Recycler<ZipFile, IOException> getZipFileRecycler(final String canonicalPath) throws Exception {
         try {
             return canonicalPathToZipFileRecyclerMap.getOrCreateSingleton(canonicalPath);
-        } catch (InterruptedException e) {
+        } catch (final InterruptedException e) {
             interruptionChecker.interrupt();
             throw e;
         }
@@ -218,7 +218,7 @@ public class NestedJarHandler implements AutoCloseable {
     public File getInnermostNestedJar(final String nestedJarPath) throws Exception {
         try {
             return nestedPathToJarfileMap.getOrCreateSingleton(nestedJarPath);
-        } catch (InterruptedException e) {
+        } catch (final InterruptedException e) {
             interruptionChecker.interrupt();
             throw e;
         }
