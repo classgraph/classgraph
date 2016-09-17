@@ -86,13 +86,24 @@ public class JarUtils {
                     try {
                         File rtCanonical = rt.getCanonicalFile();
                         knownRtJarPaths.add(rt.getPath());
-                        String rtCanonicalParent = rtCanonical.getParent();
-                        if (rtCanonicalParent != null) {
-                            knownJREPaths.add(rtCanonicalParent);
-                        }
                         isJREJar = true;
+
+                        // Add canonical parent path to known JRE paths, in case the path provided to isJREJar
+                        // was non-canonical (this may help avoid some file operations in future).
+                        File rtCanonicalParent = rtCanonical.getParentFile();
+                        if (rtCanonicalParent != null) {
+                            knownJREPaths.add(rtCanonicalParent.getPath());
+                            if (rtCanonicalParent.getName().equals("lib")) {
+                                // rt.jar should be in "jre/lib". If it's in a directory named "lib",
+                                // Add canonical grandparent path to known JRE paths too.
+                                File rtCanonicalGrandParent = rtCanonicalParent.getParentFile();
+                                if (rtCanonicalGrandParent != null) {
+                                    knownJREPaths.add(rtCanonicalGrandParent.getPath());
+                                }
+                            }
+                        }
                     } catch (final IOException e) {
-                        // On canonicalization exception, leave isJREJar set to false
+                        // If canonicalization exception is thrown, leave isJREJar set to false
                     }
                 }
             }
