@@ -299,8 +299,12 @@ public class ScanSpec {
             scanNonJars = true;
         }
         if (uniqueWhitelistedPathPrefixes.isEmpty() || uniqueWhitelistedPathPrefixes.contains("/")) {
-            // Scan all packages
-            whitelistedPathPrefixes.add("");
+            // If a class is specifically whitelisted, but no other scan spec is provided, this actually
+            // inhibits the scanning of all packages (Issue #78).
+            if (specificallyWhitelistedClassRelativePaths.isEmpty()) {
+                // Scan all packages
+                whitelistedPathPrefixes.add("");
+            }
         } else {
             whitelistedPathPrefixes.addAll(uniqueWhitelistedPathPrefixes);
         }
