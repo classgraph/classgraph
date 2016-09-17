@@ -30,7 +30,7 @@ package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.Set;
 
 import io.github.lukehutch.fastclasspathscanner.utils.FastPathResolver;
 import io.github.lukehutch.fastclasspathscanner.utils.JarUtils;
@@ -284,7 +284,7 @@ class ClasspathRelativePath {
         return isClassfile(getResolvedPath());
     }
 
-    /** True if this relative path corresponds with a file or directory that exists. */
+    /** True if this relative path corresponds to a file or directory that exists. */
     private boolean exists() throws IOException {
         if (!existsIsCached) {
             existsCached = getFile().exists();
@@ -299,9 +299,8 @@ class ClasspathRelativePath {
      * True if this relative path is a valid classpath element: that its path can be canonicalized, that it exists,
      * that it is a jarfile or directory, that it is not a blacklisted jar, that it should be scanned, etc.
      */
-    public boolean isValidClasspathElement(final ScanSpec scanSpec,
-            final ConcurrentHashMap<String, String> knownJREPaths,
-            final ConcurrentHashMap<String, String> knownNonJREPaths, final LogNode log)
+    public boolean isValidClasspathElement(final ScanSpec scanSpec, final Set<String> knownJREPaths,
+            final Set<String> knownNonJREPaths, final Set<String> knownRtJarPaths, final LogNode log)
             throws InterruptedException {
         // Get absolute URI and File for classpathElt
         final String path = getResolvedPath();
@@ -343,8 +342,8 @@ class ClasspathRelativePath {
                     }
                     return false;
                 }
-                if (scanSpec.blacklistSystemJars() && JarUtils.isJREJar(getFile(), /* ancestralScanDepth = */2,
-                        knownJREPaths, knownNonJREPaths, log)) {
+                if (JarUtils.isJREJar(getFile(), /* ancestralScanDepth = */2, knownJREPaths, knownNonJREPaths,
+                        knownRtJarPaths, log) && scanSpec.blacklistSystemJars()) {
                     // Don't scan system jars if they are blacklisted
                     if (log != null) {
                         log.log("Ignoring JRE jar: " + path);

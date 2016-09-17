@@ -29,7 +29,8 @@
 package io.github.lukehutch.fastclasspathscanner.utils;
 
 import java.io.File;
-import java.util.concurrent.ConcurrentHashMap;
+import java.io.IOException;
+import java.util.Set;
 
 public class JarUtils {
     /** Returns true if the path ends with a jarfile extension, ignoring case. */
@@ -48,9 +49,8 @@ public class JarUtils {
      * determine if the given jarfile is part of the JRE. This would typically be called with an initial
      * ancestralScandepth of 2, since JRE jarfiles can be in the lib or lib/ext directories of the JRE.
      */
-    public static boolean isJREJar(final File file, final int ancestralScanDepth,
-            final ConcurrentHashMap<String, String> knownJREPaths,
-            final ConcurrentHashMap<String, String> knownNonJREPaths, final LogNode log) {
+    public static boolean isJREJar(final File file, final int ancestralScanDepth, final Set<String> knownJREPaths,
+            final Set<String> knownNonJREPaths, final Set<String> knownRtJarPaths, final LogNode log) {
         if (ancestralScanDepth == 0) {
             return false;
         } else {
@@ -59,10 +59,10 @@ public class JarUtils {
                 return false;
             }
             final String parentPathStr = parent.getPath();
-            if (knownJREPaths.containsKey(parentPathStr)) {
+            if (knownJREPaths.contains(parentPathStr)) {
                 return true;
             }
-            if (knownNonJREPaths.containsKey(parentPathStr)) {
+            if (knownNonJREPaths.contains(parentPathStr)) {
                 return false;
             }
             File rt = new File(parent, "jre/lib/rt.jar");
@@ -74,20 +74,26 @@ public class JarUtils {
             }
             boolean isJREJar = false;
             if (rt.exists()) {
-                // Found rt.jar; check its manifest file to make sure it's the JRE's rt.jar and not something else 
+                // Found rt.jar -- check its manifest file to make sure it's the JRE's rt.jar and not something else 
                 final FastManifestParser manifest = new FastManifestParser(rt, log);
                 if (manifest.isSystemJar) {
                     // Found the JRE's rt.jar
-                    isJREJar = true;
+                    try {
+                        knownRtJarPaths.add(rt.getCanonicalPath());
+                        isJREJar = true;
+                    } catch (final IOException e) {
+                        // Ignore
+                    }
                 }
             }
             if (!isJREJar) {
-                isJREJar = isJREJar(parent, ancestralScanDepth - 1, knownJREPaths, knownNonJREPaths, log);
+                isJREJar = isJREJar(parent, ancestralScanDepth - 1, knownJREPaths, knownNonJREPaths,
+                        knownRtJarPaths, log);
             }
             if (!isJREJar) {
-                knownNonJREPaths.put(parentPathStr, parentPathStr);
+                knownNonJREPaths.add(parentPathStr);
             } else {
-                knownJREPaths.put(parentPathStr, parentPathStr);
+                knownJREPaths.add(parentPathStr);
             }
             return isJREJar;
         }

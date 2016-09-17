@@ -141,7 +141,17 @@ class ClasspathElementZip extends ClasspathElement {
                 }
 
                 // Schedule child classpath elements for scanning
-                workQueue.addWorkUnits(childClasspathElts);
+                if (!childClasspathElts.isEmpty()) {
+                    if (workQueue != null) {
+                        workQueue.addWorkUnits(childClasspathElts);
+                    } else {
+                        // When adding rt.jar, workQueue will be null. But rt.jar should not include
+                        // Class-Path references (so this block should not be reached).
+                        if (log != null) {
+                            log.log("Ignoring Class-Path entries in rt.jar: " + childClasspathElts);
+                        }
+                    }
+                }
             }
         } finally {
             zipFileRecycler.release(zipFile);
