@@ -52,6 +52,7 @@ public class JarUtils {
     public static boolean isJREJar(final File file, final int ancestralScanDepth, final Set<String> knownJREPaths,
             final Set<String> knownNonJREPaths, final Set<String> knownRtJarPaths, final LogNode log) {
         if (ancestralScanDepth == 0) {
+            // Did not find JRE root
             return false;
         } else {
             final File parent = file.getParentFile();
@@ -65,28 +66,38 @@ public class JarUtils {
             if (knownNonJREPaths.contains(parentPathStr)) {
                 return false;
             }
-            File rt = new File(parent, "jre/lib/rt.jar");
-            if (!rt.exists()) {
-                rt = new File(parent, "lib/rt.jar");
-                if (!rt.exists()) {
+            File rt = new File(parent, File.separatorChar == '/' ? "jre/lib/rt.jar"
+                    : String.format("jre%clib%crt.jar", File.separatorChar, File.separatorChar));
+            boolean rtExists;
+            if (!(rtExists = rt.exists())) {
+                rt = new File(parent, File.separatorChar == '/' ? "lib/rt.jar"
+                        : String.format("lib%crt.jar", File.separatorChar));
+                if (!(rtExists = rt.exists())) {
                     rt = new File(parent, "rt.jar");
+                    rtExists = rt.exists();
                 }
             }
             boolean isJREJar = false;
-            if (rt.exists()) {
+            if (rtExists && rt.isFile()) {
                 // Found rt.jar -- check its manifest file to make sure it's the JRE's rt.jar and not something else 
                 final FastManifestParser manifest = new FastManifestParser(rt, log);
                 if (manifest.isSystemJar) {
                     // Found the JRE's rt.jar
                     try {
-                        knownRtJarPaths.add(rt.getCanonicalPath());
+                        File rtCanonical = rt.getCanonicalFile();
+                        knownRtJarPaths.add(rt.getPath());
+                        String rtCanonicalParent = rtCanonical.getParent();
+                        if (rtCanonicalParent != null) {
+                            knownJREPaths.add(rtCanonicalParent);
+                        }
                         isJREJar = true;
                     } catch (final IOException e) {
-                        // Ignore
+                        // On canonicalization exception, leave isJREJar set to false
                     }
                 }
             }
             if (!isJREJar) {
+                // Check if parent directory is JRE root
                 isJREJar = isJREJar(parent, ancestralScanDepth - 1, knownJREPaths, knownNonJREPaths,
                         knownRtJarPaths, log);
             }
