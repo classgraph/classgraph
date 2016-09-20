@@ -62,9 +62,11 @@ public class ClasspathFinder {
      * elements that it knows about.
      */
     public void addClasspathElement(final String pathElement, final LogNode log) {
-        rawClasspathElements.add(pathElement);
-        if (log != null) {
-            log.log("Adding classpath element: " + pathElement);
+        if (pathElement != null && !pathElement.isEmpty()) {
+            rawClasspathElements.add(pathElement);
+            if (log != null) {
+                log.log("Adding classpath element: " + pathElement);
+            }
         }
     }
 
