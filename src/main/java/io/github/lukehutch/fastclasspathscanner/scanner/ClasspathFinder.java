@@ -38,6 +38,7 @@ import io.github.lukehutch.fastclasspathscanner.classloaderhandler.EquinoxClassL
 import io.github.lukehutch.fastclasspathscanner.classloaderhandler.JBossClassLoaderHandler;
 import io.github.lukehutch.fastclasspathscanner.classloaderhandler.URLClassLoaderHandler;
 import io.github.lukehutch.fastclasspathscanner.classloaderhandler.WeblogicClassLoaderHandler;
+import io.github.lukehutch.fastclasspathscanner.utils.AdditionOrderedSet;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 
 /** A class to find the unique ordered classpath elements. */
@@ -159,5 +160,88 @@ public class ClasspathFinder {
     /** Get the raw classpath elements obtained from ClassLoaders. */
     public List<String> getRawClasspathElements() {
         return rawClasspathElements;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** Used for resolving the classes in the call stack. Requires RuntimePermission("createSecurityManager"). */
+    private static CallerResolver CALLER_RESOLVER;
+
+    static {
+        try {
+            // This can fail if the current SecurityManager does not allow
+            // RuntimePermission ("createSecurityManager"):
+            CALLER_RESOLVER = new CallerResolver();
+        } catch (final SecurityException e) {
+            // Ignore
+        }
+    }
+
+    // Using a SecurityManager gets around the fact that Oracle removed sun.reflect.Reflection.getCallerClass, see:
+    // https://www.infoq.com/news/2013/07/Oracle-Removes-getCallerClass
+    // http://www.javaworld.com/article/2077344/core-java/find-a-way-out-of-the-classloader-maze.html
+    private static final class CallerResolver extends SecurityManager {
+        @Override
+        protected Class<?>[] getClassContext() {
+            return super.getClassContext();
+        }
+    }
+
+    /** Add all parents of a ClassLoader in top-down order, the same as in the JRE. */
+    private static void addAllParentClassloaders(final ClassLoader classLoader,
+            final AdditionOrderedSet<ClassLoader> classLoadersSetOut) {
+        final ArrayList<ClassLoader> callerClassLoaders = new ArrayList<>();
+        for (ClassLoader cl = classLoader; cl != null; cl = cl.getParent()) {
+            callerClassLoaders.add(cl);
+        }
+        // OpenJDK calls classloaders in a top-down order
+        for (int i = callerClassLoaders.size() - 1; i >= 0; --i) {
+            classLoadersSetOut.add(callerClassLoaders.get(i));
+        }
+    }
+
+    /** Add all parent ClassLoaders of a class in top-down order, the same as in the JRE. */
+    private static void addAllParentClassloaders(final Class<?> klass,
+            final AdditionOrderedSet<ClassLoader> classLoadersSetOut) {
+        addAllParentClassloaders(klass.getClassLoader(), classLoadersSetOut);
+    }
+
+    /** Find all unique classloaders. */
+    static List<ClassLoader> findAllClassLoaders(final LogNode log) {
+        // Need both a set and a list so we can keep them unique, but in an order that (hopefully) reflects
+        // the order in which the JDK calls classloaders.
+        //
+        // See:
+        // https://docs.oracle.com/javase/8/docs/technotes/tools/findingclasses.html
+        //
+        // N.B. probably need to look more closely at the exact ordering followed here, see:
+        // www.javaworld.com/article/2077344/core-java/find-a-way-out-of-the-classloader-maze.html?page=2
+        //
+        final AdditionOrderedSet<ClassLoader> classLoadersSet = new AdditionOrderedSet<>();
+        addAllParentClassloaders(ClassLoader.getSystemClassLoader(), classLoadersSet);
+        // Look for classloaders on the call stack
+        if (CALLER_RESOLVER != null) {
+            final Class<?>[] callStack = CALLER_RESOLVER.getClassContext();
+            for (final Class<?> callStackClass : callStack) {
+                addAllParentClassloaders(callStackClass, classLoadersSet);
+            }
+        } else {
+            if (log != null) {
+                log.log(ClasspathFinder.class.getSimpleName() + " could not create "
+                        + CallerResolver.class.getSimpleName() + ", current SecurityManager does not grant "
+                        + "RuntimePermission(\"createSecurityManager\")");
+            }
+        }
+        addAllParentClassloaders(Thread.currentThread().getContextClassLoader(), classLoadersSet);
+        addAllParentClassloaders(ClasspathFinder.class, classLoadersSet);
+        final List<ClassLoader> classLoaders = classLoadersSet.getList();
+        classLoaders.remove(null);
+        if (log != null) {
+            for (final ClassLoader classLoader : classLoaders) {
+                log.log("Found ClassLoader " + classLoader.toString());
+            }
+            log.addElapsedTime();
+        }
+        return classLoaders;
     }
 }
