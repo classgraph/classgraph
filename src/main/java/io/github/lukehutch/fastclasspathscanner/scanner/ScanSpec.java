@@ -56,6 +56,7 @@ import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubclassMatchProc
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubinterfaceMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.utils.AdditionOrderedSet;
 import io.github.lukehutch.fastclasspathscanner.utils.InterruptionChecker;
+import io.github.lukehutch.fastclasspathscanner.utils.JarUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.MultiMapKeyToList;
 import io.github.lukehutch.fastclasspathscanner.utils.MultiMapKeyToSet;
@@ -582,11 +583,12 @@ public class ScanSpec {
     /** Test if a list of jar names contains the requested name, allowing for globs. */
     private static boolean containsJarName(final HashSet<String> jarNames, final ArrayList<Pattern> jarNamePatterns,
             final String jarName) {
-        if (jarNames.contains(jarName)) {
+        final String jarLeafName = JarUtils.leafName(jarName);
+        if (jarNames.contains(jarLeafName)) {
             return true;
         }
         for (final Pattern jarNamePattern : jarNamePatterns) {
-            if (jarNamePattern.matcher(jarName).matches()) {
+            if (jarNamePattern.matcher(jarLeafName).matches()) {
                 return true;
             }
         }
@@ -595,9 +597,10 @@ public class ScanSpec {
 
     /** Returns true if a jarfile is whitelisted and not blacklisted. */
     boolean jarIsWhitelisted(final String jarName) {
+        final String jarLeafName = JarUtils.leafName(jarName);
         return ((whitelistedJars.isEmpty() && whitelistedJarPatterns.isEmpty())
-                || containsJarName(whitelistedJars, whitelistedJarPatterns, jarName))
-                && !containsJarName(blacklistedJars, blacklistedJarPatterns, jarName);
+                || containsJarName(whitelistedJars, whitelistedJarPatterns, jarLeafName))
+                && !containsJarName(blacklistedJars, blacklistedJarPatterns, jarLeafName);
     }
 
     /**

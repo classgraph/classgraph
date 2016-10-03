@@ -44,6 +44,13 @@ public class JarUtils {
                         || path.regionMatches(true, extIdx, "car", 0, 3));
     }
 
+    /** Returns the leafname of a path. */
+    public static String leafName(final String path) {
+        final int lastSlashIdx = File.separatorChar == '/' ? path.lastIndexOf('/')
+                : Math.max(path.lastIndexOf('/'), path.lastIndexOf(File.separatorChar));
+        return lastSlashIdx < 0 ? path : path.substring(lastSlashIdx + 1);
+    }
+
     /**
      * Recursively search within ancestral directories of a jarfile to see if rt.jar is present, in order to
      * determine if the given jarfile is part of the JRE. This would typically be called with an initial
@@ -84,19 +91,19 @@ public class JarUtils {
                 if (manifest.isSystemJar) {
                     // Found the JRE's rt.jar
                     try {
-                        File rtCanonical = rt.getCanonicalFile();
+                        final File rtCanonical = rt.getCanonicalFile();
                         knownRtJarPaths.add(rt.getPath());
                         isJREJar = true;
 
                         // Add canonical parent path to known JRE paths, in case the path provided to isJREJar
                         // was non-canonical (this may help avoid some file operations in future).
-                        File rtCanonicalParent = rtCanonical.getParentFile();
+                        final File rtCanonicalParent = rtCanonical.getParentFile();
                         if (rtCanonicalParent != null) {
                             knownJREPaths.add(rtCanonicalParent.getPath());
                             if (rtCanonicalParent.getName().equals("lib")) {
                                 // rt.jar should be in "jre/lib". If it's in a directory named "lib",
                                 // Add canonical grandparent path to known JRE paths too.
-                                File rtCanonicalGrandParent = rtCanonicalParent.getParentFile();
+                                final File rtCanonicalGrandParent = rtCanonicalParent.getParentFile();
                                 if (rtCanonicalGrandParent != null) {
                                     knownJREPaths.add(rtCanonicalGrandParent.getPath());
                                 }
