@@ -65,6 +65,11 @@ public abstract class SingletonMap<K, V> {
     /**
      * Initialize a value object for this key and return true, if this is the first time this key has been seen,
      * otherwise return false.
+     * 
+     * @throws Exception
+     *             if newInstance(key) throws an exception.
+     * @throws IllegalArgumentException
+     *             if newInstance(key) returns null.
      */
     public boolean createSingleton(final K key) throws Exception {
         SingletonHolder<V> newSingletonHolder = singletonHolderRecycler.poll();
@@ -98,6 +103,11 @@ public abstract class SingletonMap<K, V> {
     /**
      * Check if the given key is in the map, and if so, return it. If not, create a singleton value for that key,
      * and return the created value.
+     * 
+     * @throws Exception
+     *             if newInstance(key) throws an exception.
+     * @throws IllegalArgumentException
+     *             if newInstance(key) returns null.
      */
     public V getOrCreateSingleton(final K key) throws Exception {
         final V existingSingleton = get(key);
@@ -115,7 +125,13 @@ public abstract class SingletonMap<K, V> {
     /** Construct a new singleton instance. */
     public abstract V newInstance(K key) throws Exception;
 
-    /** Get the singleton for a given key. */
+    /**
+     * Get the singleton for a given key.
+     * 
+     * @return the new singleton instance, initialized by calling newInstance, or null if createSingleton() or
+     *         getOrCreateSingleton() has not yet been called yet, or if newInstance() threw an exception or
+     *         returned null while calling either of these methods.
+     */
     public V get(final K key) throws InterruptedException {
         final SingletonHolder<V> singletonHolder = map.get(key);
         return singletonHolder == null ? null : singletonHolder.get();
