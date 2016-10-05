@@ -4,7 +4,7 @@
 	<groupId>io.github.lukehutch</groupId>
 	<artifactId>fast-classpath-scanner</artifactId>
 	<version>2.0.5-SNAPSHOT</version>
-	<name>Fast Classpath Scanner</name>
+	<name>FastClasspathScanner</name>
 
 	<description>
 	Uber-fast, ultra-lightweight Java classpath scanner. Scans the classpath by parsing the classfile  binary format directly rather than by using reflection.
