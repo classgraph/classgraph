@@ -28,6 +28,7 @@
  */
 package io.github.lukehutch.fastclasspathscanner.classloaderhandler;
 
+import java.io.File;import java.io.FileFilter;
 import java.lang.reflect.Array;
 
 import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
@@ -40,6 +41,13 @@ import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
  * https://github.com/jboss-modules/jboss-modules/blob/master/src/main/java/org/jboss/modules/ModuleClassLoader.java
  */
 public class JBossClassLoaderHandler implements ClassLoaderHandler {
+    private static final FileFilter FILE_FILTER = new FileFilter() {
+        @Override
+        public boolean accept(File pathname) {
+            return pathname.isFile() && pathname.exists();
+      }
+    };
+  
     @Override
     public boolean handle(final ClassLoader classloader, final ClasspathFinder classpathFinder, final LogNode log)
             throws Exception {
@@ -54,8 +62,19 @@ public class JBossClassLoaderHandler implements ClassLoaderHandler {
                         if (resourceLoader != null) {
                             // type VirtualFile
                             final Object root = ReflectionUtils.getFieldVal(resourceLoader, "root");
-                            final String pathElement = (String) ReflectionUtils.invokeMethod(root, "getPathName");
-                            classpathFinder.addClasspathElement(pathElement, log);
+                            // content directory, usable for war WEB-INF/classes
+                            final File file = (File) ReflectionUtils.invokeMethod(root, "getPhysicalFile");
+                            
+                            if (file != null) {
+                                // Find jar files for libraries.
+                                classpathFinder.addClasspathElement(file.getAbsolutePath(), log);
+                                
+                                if (file.getParentFile() != null) {
+                                    for (File f: file.getParentFile().listFiles(FILE_FILTER)) {
+                                        classpathFinder.addClasspathElement(f.getAbsolutePath(), log);
+                                    }
+                                }
+                            }
                         }
                     }
                 }
