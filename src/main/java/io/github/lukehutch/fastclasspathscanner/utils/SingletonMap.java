@@ -129,8 +129,8 @@ public abstract class SingletonMap<K, V> {
      * Get the singleton for a given key.
      * 
      * @return the new singleton instance, initialized by calling newInstance, or null if createSingleton() or
-     *         getOrCreateSingleton() has not yet been called yet, or if newInstance() threw an exception or
-     *         returned null while calling either of these methods.
+     *         getOrCreateSingleton() has not yet been called. Also returns null if newInstance() threw an exception
+     *         or returned null while calling either of these methods.
      */
     public V get(final K key) throws InterruptedException {
         final SingletonHolder<V> singletonHolder = map.get(key);
