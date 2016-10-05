@@ -249,10 +249,10 @@ public class Scanner implements Callable<ScanResult> {
                                     knownNonJREPaths, knownRtJarPaths, classpathFinderLog)) {
                                 try {
                                     classpathElementMap.createSingleton(rawClasspathElt);
-                                } catch (IllegalArgumentException e) {
-                                    // Could not create singleton due to path canonicalization problem
-                                    classpathFinderLog.log("Could not locate classpath element " + rawClasspathElt
-                                            + " -- skipping");
+                                } catch (Exception e) {
+                                    // Could not create singleton, probably due to path canonicalization problem
+                                    classpathFinderLog.log("Classpath element " + rawClasspathElt
+                                            + " is not valid (" + e + ") -- skipping");
                                 }
                             }
                         }
