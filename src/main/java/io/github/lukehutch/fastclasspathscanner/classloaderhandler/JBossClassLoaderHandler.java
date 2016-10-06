@@ -74,9 +74,7 @@ public class JBossClassLoaderHandler implements ClassLoaderHandler {
                                 path = (String) ReflectionUtils.invokeMethod(root, "getPathName");
                             }
                         }
-                        if (path != null) {
-                            classpathFinder.addClasspathElement(path, log);
-                        }
+                        classpathFinder.addClasspathElement(path, log);
                     }
                 }
                 return true;
