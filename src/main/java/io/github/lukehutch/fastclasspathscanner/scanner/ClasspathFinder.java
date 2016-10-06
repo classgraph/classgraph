@@ -30,14 +30,10 @@ package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 import io.github.lukehutch.fastclasspathscanner.classloaderhandler.ClassLoaderHandler;
-import io.github.lukehutch.fastclasspathscanner.classloaderhandler.EquinoxClassLoaderHandler;
-import io.github.lukehutch.fastclasspathscanner.classloaderhandler.JBossClassLoaderHandler;
-import io.github.lukehutch.fastclasspathscanner.classloaderhandler.URLClassLoaderHandler;
-import io.github.lukehutch.fastclasspathscanner.classloaderhandler.WeblogicClassLoaderHandler;
+import io.github.lukehutch.fastclasspathscanner.classloaderhandler.ClassLoaderHandlerRegistry;
 import io.github.lukehutch.fastclasspathscanner.utils.AdditionOrderedSet;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 
@@ -45,18 +41,6 @@ import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 public class ClasspathFinder {
     /** The list of raw classpath elements. */
     private final List<String> rawClasspathElements = new ArrayList<>();
-
-    /**
-     * Default ClassLoaderHandlers. If a ClassLoaderHandler is added to FastClasspathScanner, it should be added to
-     * this list.
-     */
-    private static final List<Class<? extends ClassLoaderHandler>> DEFAULT_CLASS_LOADER_HANDLERS = Arrays.asList(
-            // The main default ClassLoaderHandler -- URLClassLoader is the most common ClassLoader
-            URLClassLoaderHandler.class,
-            // ClassLoaderHandlers for other ClassLoaders that are handled by FastClasspathScanner
-            EquinoxClassLoaderHandler.class, JBossClassLoaderHandler.class, WeblogicClassLoaderHandler.class);
-
-    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Add a classpath element relative to a base file. May be called by a ClassLoaderHandler to add classpath
@@ -97,7 +81,8 @@ public class ClasspathFinder {
             // other ClassLoaderHandlers (this can happen if FastClasspathScanner's package is renamed using
             // Maven Shade).
             final List<ClassLoaderHandler> classLoaderHandlers = new ArrayList<>();
-            for (final Class<? extends ClassLoaderHandler> classLoaderHandlerClass : DEFAULT_CLASS_LOADER_HANDLERS) {
+            for (final Class<? extends ClassLoaderHandler> classLoaderHandlerClass : //
+            ClassLoaderHandlerRegistry.DEFAULT_CLASS_LOADER_HANDLERS) {
                 try {
                     classLoaderHandlers.add(classLoaderHandlerClass.newInstance());
                 } catch (InstantiationException | IllegalAccessException e) {
