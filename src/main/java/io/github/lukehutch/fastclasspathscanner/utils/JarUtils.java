@@ -41,7 +41,8 @@ public class JarUtils {
                 && (path.regionMatches(true, extIdx, "jar", 0, 3) //
                         || path.regionMatches(true, extIdx, "zip", 0, 3) //
                         || path.regionMatches(true, extIdx, "war", 0, 3) //
-                        || path.regionMatches(true, extIdx, "car", 0, 3));
+                        || path.regionMatches(true, extIdx, "car", 0, 3) //
+                        || path.regionMatches(true, extIdx - 2, "wsjar", 0, 5));
     }
 
     /** Returns the leafname of a path. */
