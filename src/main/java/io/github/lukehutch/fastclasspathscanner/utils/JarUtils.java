@@ -36,13 +36,11 @@ public class JarUtils {
     /** Returns true if the path ends with a jarfile extension, ignoring case. */
     public static boolean isJar(final String path) {
         final int len = path.length();
-        final int extIdx = len - 3;
-        return len > 4 && path.charAt(len - 4) == '.' // 
-                && (path.regionMatches(true, extIdx, "jar", 0, 3) //
-                        || path.regionMatches(true, extIdx, "zip", 0, 3) //
-                        || path.regionMatches(true, extIdx, "war", 0, 3) //
-                        || path.regionMatches(true, extIdx, "car", 0, 3) //
-                        || path.regionMatches(true, extIdx - 2, "wsjar", 0, 5));
+        return path.regionMatches(true, len - 4, ".jar", 0, 4) //
+                || path.regionMatches(true, len - 4, ".zip", 0, 4) //
+                || path.regionMatches(true, len - 4, ".war", 0, 4) //
+                || path.regionMatches(true, len - 4, ".car", 0, 4) //
+                || path.regionMatches(true, len - 6, ".wsjar", 0, 6);
     }
 
     /** Returns the leafname of a path. */
