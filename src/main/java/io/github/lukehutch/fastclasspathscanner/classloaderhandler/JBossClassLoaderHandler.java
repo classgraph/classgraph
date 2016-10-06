@@ -28,6 +28,7 @@
  */
 package io.github.lukehutch.fastclasspathscanner.classloaderhandler;
 
+import java.io.File;
 import java.lang.reflect.Array;
 
 import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
@@ -49,13 +50,32 @@ public class JBossClassLoaderHandler implements ClassLoaderHandler {
                 final Object vfsResourceLoaders = ReflectionUtils.invokeMethod(classloader, "getResourceLoaders");
                 if (vfsResourceLoaders != null) {
                     for (int i = 0, n = Array.getLength(vfsResourceLoaders); i < n; i++) {
+                        String path = null;
                         // type VFSResourceLoader
                         final Object resourceLoader = Array.get(vfsResourceLoaders, i);
                         if (resourceLoader != null) {
                             // type VirtualFile
                             final Object root = ReflectionUtils.getFieldVal(resourceLoader, "root");
-                            final String pathElement = (String) ReflectionUtils.invokeMethod(root, "getPathName");
-                            classpathFinder.addClasspathElement(pathElement, log);
+                            final File physicalFile = (File) ReflectionUtils.invokeMethod(root, "getPhysicalFile");
+                            if (physicalFile != null) {
+                                String name = (String) ReflectionUtils.invokeMethod(root, "getName");
+                                if (name != null) {
+                                    File file = new java.io.File(physicalFile.getParentFile(), name);
+                                    if (!file.exists() || !file.canRead()) {
+                                        path = physicalFile.getAbsolutePath();
+                                    } else {
+                                        path = file.getAbsolutePath();
+                                    }
+                                } else {
+                                    path = physicalFile.getAbsolutePath();
+                                }
+                            } else {
+                                // Fallback
+                                path = (String) ReflectionUtils.invokeMethod(root, "getPathName");
+                            }
+                        }
+                        if (path != null) {
+                            classpathFinder.addClasspathElement(path, log);
                         }
                     }
                 }
