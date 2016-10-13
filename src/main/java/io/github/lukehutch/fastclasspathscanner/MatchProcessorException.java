@@ -37,8 +37,8 @@ import java.util.Set;
 import io.github.lukehutch.fastclasspathscanner.utils.Join;
 
 /**
- * Thrown if one or more exceptions was thrown during classloading, or by a MatchProcessor once classes are loaded.
- * Call getExceptions() to get all the exceptions thrown during the scan.
+ * Thrown if one or more exceptions were thrown when attempting to call the classloader on a class, or if one or
+ * more exceptions were thrown by a MatchProcessor. Call getExceptions() to get the exceptions thrown.
  */
 public class MatchProcessorException extends RuntimeException {
     private static final long serialVersionUID = 1L;
@@ -56,14 +56,16 @@ public class MatchProcessorException extends RuntimeException {
 
     /** Get all the exceptions thrown by a MatchProcessor during the scan. */
     public List<Exception> getExceptions() {
-        return exceptions == null ? Collections.<Exception>emptyList() : exceptions;
+        return exceptions == null ? Collections.<Exception> emptyList() : exceptions;
     }
 
-    /** Throw a MatchProcessorException */
+    /** Create a MatchProcessorException */
     public static MatchProcessorException newInstance(final List<Exception> exceptions) {
         if (exceptions.size() == 1) {
+            // If only one exception was thrown, wrap that exception
             return new MatchProcessorException(exceptions, exceptions.get(0));
         } else {
+            // If multiple exceptions were thrown, list the unique exception messages
             final Set<String> exceptionNames = new HashSet<>();
             for (final Exception e : exceptions) {
                 exceptionNames.add(e.getMessage());
