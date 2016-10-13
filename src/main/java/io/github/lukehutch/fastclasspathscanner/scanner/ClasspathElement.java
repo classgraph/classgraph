@@ -262,7 +262,8 @@ abstract class ClasspathElement {
     // -------------------------------------------------------------------------------------------------------------
 
     /** Call FileMatchProcessors for any whitelisted matches found within this classpath element. */
-    void callFileMatchProcessors(final LogNode log) throws InterruptedException, ExecutionException {
+    void callFileMatchProcessors(final ScanResult scanResult, final LogNode log)
+            throws InterruptedException, ExecutionException {
         for (final Entry<FileMatchProcessorWrapper, List<ClasspathResource>> ent : fileMatches.entrySet()) {
             final FileMatchProcessorWrapper fileMatchProcessorWrapper = ent.getKey();
             for (final ClasspathResource fileMatch : ent.getValue()) {
@@ -278,6 +279,7 @@ abstract class ClasspathElement {
                         log.log("Exception while opening file " + fileMatch.classpathEltFile
                                 + (fileMatch.classpathEltFile.isFile() ? "!" : "/") + fileMatch.relativePath, e);
                     }
+                    scanResult.addMatchProcessorException(e);
                 }
                 interruptionChecker.check();
             }

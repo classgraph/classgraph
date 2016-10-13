@@ -56,6 +56,9 @@ public class ScanResult {
      */
     private final ClassGraphBuilder classGraphBuilder;
 
+    /** Exceptions thrown while loading classes or while calling MatchProcessors on loaded classes. */
+    private final List<Exception> matchProcessorExceptions = new ArrayList<>();
+
     // -------------------------------------------------------------------------------------------------------------
 
     /** The result of a scan. */
@@ -65,6 +68,18 @@ public class ScanResult {
         this.uniqueClasspathElements = uniqueClasspathElements;
         this.fileToLastModified = fileToLastModified;
         this.classGraphBuilder = classGraphBuilder;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** Called if classloading fails, or if a MatchProcessor throws an exception. */
+    void addMatchProcessorException(final Exception e) {
+        matchProcessorExceptions.add(e);
+    }
+
+    /** Return the exceptions thrown during classloading and/or while calling MatchProcessors on loaded classes. */
+    public List<Exception> getMatchProcessorExceptions() {
+        return matchProcessorExceptions;
     }
 
     // -------------------------------------------------------------------------------------------------------------

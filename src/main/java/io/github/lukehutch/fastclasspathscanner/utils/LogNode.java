@@ -244,6 +244,15 @@ public class LogNode {
     }
 
     /**
+     * Add a log entry.
+     * 
+     * @return a child log node, which can be used to add sub-entries.
+     */
+    public LogNode log(final Exception e) {
+        return log("Exception thrown", e);
+    }
+
+    /**
      * Flush out the log to stderr, and clear the log contents. Only call this on the toplevel log node, when
      * threads do not have access to references of internal log nodes so that they cannot add more log entries
      * inside the tree, otherwise log entries may be lost.

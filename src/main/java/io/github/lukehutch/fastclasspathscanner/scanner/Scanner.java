@@ -46,6 +46,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 
+import io.github.lukehutch.fastclasspathscanner.MatchProcessorException;
 import io.github.lukehutch.fastclasspathscanner.utils.FastPathResolver;
 import io.github.lukehutch.fastclasspathscanner.utils.InterruptionChecker;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
@@ -369,10 +370,22 @@ public class Scanner implements Callable<ScanResult> {
                 scanResult = new ScanResult(scanSpec, classpathElementFilesOrdered, /* classGraphBuilder = */ null,
                         /* fileToLastModified = */ null);
             }
-
             if (log != null) {
                 log.log("Completed scan", System.nanoTime() - scanStart);
             }
+
+            final List<Exception> matchProcessorExceptions = scanResult.getMatchProcessorExceptions();
+            if (matchProcessorExceptions.size() > 0) {
+                // If one or more non-IO exceptions were thrown outside of FastClasspathScanner,
+                // throw MatchProcessorException
+                if (log != null) {
+                    log.log("Number of exceptions raised during classloading and/or while calling MatchProcessors: "
+                            + matchProcessorExceptions.size());
+                }
+                throw MatchProcessorException.newInstance(matchProcessorExceptions);
+            }
+
+            // No exceptions were thrown -- return scan result
             return scanResult;
 
         } finally {

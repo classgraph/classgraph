@@ -980,7 +980,10 @@ public class FastClasspathScanner {
      *            classpath scanning. Ideally the ExecutorService will have at least this many threads available.
      * @return a Future<ScanResult> object, that when resolved using get() yields a new ScanResult object. This
      *         ScanResult object contains info about the class graph within whitelisted packages encountered during
-     *         the scan.
+     *         the scan. Calling get() on this Future object throws InterruptedException if the scanning is
+     *         interrupted before it completes, or throws ExecutionException if something goes wrong during
+     *         scanning. If ExecutionException is thrown, and the cause is a MatchProcessorException, then either
+     *         classloading failed for some class, or a MatchProcessor threw an exception.
      */
     public Future<ScanResult> scanAsync(final ExecutorService executorService, final int numParallelTasks) {
         return executorService.submit(new Scanner(getScanSpec(), executorService, numParallelTasks,
@@ -1001,12 +1004,16 @@ public class FastClasspathScanner {
      * @param numParallelTasks
      *            The number of parallel tasks to break the work into during the most CPU-intensive stage of
      *            classpath scanning. Ideally the ExecutorService will have at least this many threads available.
+     * @throws MatchProcessorException
+     *             if classloading fails for any of the classes matched by a MatchProcessor, or if a MatchProcessor
+     *             throws an exception.
      * @throws ScanInterruptedException
      *             if the scan was interrupted by the interrupt status being set on worker threads. If you care
      *             about thread interruption, you should catch this exception. If you don't plan to interrupt the
      *             scan, you probably don't need to catch this.
      * @throws RuntimeException
-     *             if any of the worker threads throws an uncaught exception.
+     *             if any of the worker threads throws an uncaught exception. (Should not happen, this would
+     *             indicate a bug in FastClasspathScanner.)
      * @return a new ScanResult object, containing info about the class graph within whitelisted packages
      *         encountered during the scan.
      */
@@ -1019,7 +1026,10 @@ public class FastClasspathScanner {
         } catch (final ExecutionException e) {
             if (e.getCause() instanceof InterruptedException) {
                 throw new ScanInterruptedException();
+            } else if (e.getCause() instanceof MatchProcessorException) {
+                throw (MatchProcessorException) e.getCause();
             } else {
+                // Unexpected exception
                 throw new RuntimeException(e.getCause());
             }
         }
@@ -1033,12 +1043,16 @@ public class FastClasspathScanner {
      * 
      * @param numThreads
      *            The number of worker threads to start up.
+     * @throws MatchProcessorException
+     *             if classloading fails for any of the classes matched by a MatchProcessor, or if a MatchProcessor
+     *             throws an exception.
      * @throws ScanInterruptedException
      *             if the scan was interrupted by the interrupt status being set on worker threads. If you care
      *             about thread interruption, you should catch this exception. If you don't plan to interrupt the
      *             scan, you probably don't need to catch this.
      * @throws RuntimeException
-     *             if any of the worker threads throws an uncaught exception.
+     *             if any of the worker threads throws an uncaught exception. (Should not happen, this would
+     *             indicate a bug in FastClasspathScanner.)
      * @return a new ScanResult object, containing info about the class graph within whitelisted packages
      *         encountered during the scan.
      */
@@ -1054,11 +1068,15 @@ public class FastClasspathScanner {
      * scan to complete before returning a ScanResult. This method should be called after all required
      * MatchProcessors have been added.
      * 
+     * @throws MatchProcessorException
+     *             if classloading fails for any of the classes matched by a MatchProcessor, or if a MatchProcessor
+     *             throws an exception.
      * @throws ScanInterruptedException
      *             if the scan was interrupted by the interrupt status being set on worker threads. If you care
      *             about thread interruption, you should catch this exception.
      * @throws RuntimeException
-     *             if any of the worker threads throws an uncaught exception.
+     *             if any of the worker threads throws an uncaught exception. (Should not happen, this would
+     *             indicate a bug in FastClasspathScanner.)
      * @return a new ScanResult object, containing info about the class graph within whitelisted packages
      *         encountered during the scan.
      */

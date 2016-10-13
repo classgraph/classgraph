@@ -420,9 +420,9 @@ public class ScanSpec {
         // Call any FileMatchProcessors
         for (final ClasspathElement classpathElement : classpathOrder) {
             if (classpathElement.fileMatches != null && !classpathElement.fileMatches.isEmpty()) {
-                classpathElement.callFileMatchProcessors( //
+                classpathElement.callFileMatchProcessors(scanResult, //
                         log == null ? null
-                                : log.log("Calling FileMatchProcessor for classpath element " + classpathElement));
+                                : log.log("Calling FileMatchProcessors for classpath element " + classpathElement));
             }
         }
 
@@ -617,14 +617,10 @@ public class ScanSpec {
     /**
      * Call the classloader using Class.forName(className). Re-throws classloading exceptions as RuntimeException.
      */
-    private <T> Class<? extends T> loadClass(final String className) {
-        try {
-            @SuppressWarnings("unchecked")
-            final Class<? extends T> cls = (Class<? extends T>) Class.forName(className);
-            return cls;
-        } catch (ClassNotFoundException | NoClassDefFoundError | ExceptionInInitializerError e) {
-            throw new RuntimeException("Exception while loading or initializing class " + className, e);
-        }
+    private <T> Class<? extends T> loadClass(final String className) throws Exception {
+        @SuppressWarnings("unchecked")
+        final Class<? extends T> cls = (Class<? extends T>) Class.forName(className);
+        return cls;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -739,10 +735,17 @@ public class ScanSpec {
                     if (log != null) {
                         log.log("Matched class: " + className);
                     }
-                    // Call classloader
-                    final Class<?> cls = loadClass(className);
-                    // Process match
-                    classMatchProcessor.processMatch(cls);
+                    try {
+                        // Call classloader
+                        final Class<?> cls = loadClass(className);
+                        // Process match
+                        classMatchProcessor.processMatch(cls);
+                    } catch (final Exception e) {
+                        if (log != null) {
+                            log.log(e);
+                        }
+                        scanResult.addMatchProcessorException(e);
+                    }
                 }
             }
         });
@@ -766,10 +769,17 @@ public class ScanSpec {
                     if (log != null) {
                         log.log("Matched standard class: " + className);
                     }
-                    // Call classloader
-                    final Class<?> cls = loadClass(className);
-                    // Process match
-                    classMatchProcessor.processMatch(cls);
+                    try {
+                        // Call classloader
+                        final Class<?> cls = loadClass(className);
+                        // Process match
+                        classMatchProcessor.processMatch(cls);
+                    } catch (final Exception e) {
+                        if (log != null) {
+                            log.log(e);
+                        }
+                        scanResult.addMatchProcessorException(e);
+                    }
                 }
             }
         });
@@ -793,10 +803,17 @@ public class ScanSpec {
                     if (log != null) {
                         log.log("Matched interface class: " + className);
                     }
-                    // Call classloader
-                    final Class<?> cls = loadClass(className);
-                    // Process match
-                    ClassMatchProcessor.processMatch(cls);
+                    try {
+                        // Call classloader
+                        final Class<?> cls = loadClass(className);
+                        // Process match
+                        ClassMatchProcessor.processMatch(cls);
+                    } catch (final Exception e) {
+                        if (log != null) {
+                            log.log(e);
+                        }
+                        scanResult.addMatchProcessorException(e);
+                    }
                 }
             }
         });
@@ -820,10 +837,17 @@ public class ScanSpec {
                     if (log != null) {
                         log.log("Matched annotation class: " + className);
                     }
-                    // Call classloader
-                    final Class<?> cls = loadClass(className);
-                    // Process match
-                    ClassMatchProcessor.processMatch(cls);
+                    try {
+                        // Call classloader
+                        final Class<?> cls = loadClass(className);
+                        // Process match
+                        ClassMatchProcessor.processMatch(cls);
+                    } catch (final Exception e) {
+                        if (log != null) {
+                            log.log(e);
+                        }
+                        scanResult.addMatchProcessorException(e);
+                    }
                 }
             }
         });
@@ -853,10 +877,17 @@ public class ScanSpec {
                     if (log != null) {
                         log.log("Matched subclass of " + superclassName + ": " + subclassName);
                     }
-                    // Call classloader
-                    final Class<? extends T> cls = loadClass(subclassName);
-                    // Process match
-                    subclassMatchProcessor.processMatch(cls);
+                    try {
+                        // Call classloader
+                        final Class<? extends T> cls = loadClass(subclassName);
+                        // Process match
+                        subclassMatchProcessor.processMatch(cls);
+                    } catch (final Exception e) {
+                        if (log != null) {
+                            log.log(e);
+                        }
+                        scanResult.addMatchProcessorException(e);
+                    }
                 }
             }
         });
@@ -886,10 +917,17 @@ public class ScanSpec {
                     if (log != null) {
                         log.log("Matched subinterface of " + superinterfaceName + ": " + subinterfaceName);
                     }
-                    // Call classloader
-                    final Class<? extends T> cls = loadClass(subinterfaceName);
-                    // Process match
-                    subinterfaceMatchProcessor.processMatch(cls);
+                    try {
+                        // Call classloader
+                        final Class<? extends T> cls = loadClass(subinterfaceName);
+                        // Process match
+                        subinterfaceMatchProcessor.processMatch(cls);
+                    } catch (final Exception e) {
+                        if (log != null) {
+                            log.log(e);
+                        }
+                        scanResult.addMatchProcessorException(e);
+                    }
                 }
             }
         });
@@ -920,10 +958,17 @@ public class ScanSpec {
                         log.log("Matched class implementing interface " + implementedInterfaceName + ": "
                                 + implClass);
                     }
-                    // Call classloader
-                    final Class<? extends T> cls = loadClass(implClass);
-                    // Process match
-                    interfaceMatchProcessor.processMatch(cls);
+                    try {
+                        // Call classloader
+                        final Class<? extends T> cls = loadClass(implClass);
+                        // Process match
+                        interfaceMatchProcessor.processMatch(cls);
+                    } catch (final Exception e) {
+                        if (log != null) {
+                            log.log(e);
+                        }
+                        scanResult.addMatchProcessorException(e);
+                    }
                 }
             }
         });
@@ -954,10 +999,17 @@ public class ScanSpec {
                     if (log != null) {
                         log.log("Matched class with field of type " + fieldTypeName + ": " + klass);
                     }
-                    // Call classloader
-                    final Class<? extends T> cls = loadClass(klass);
-                    // Process match
-                    classMatchProcessor.processMatch(cls);
+                    try {
+                        // Call classloader
+                        final Class<? extends T> cls = loadClass(klass);
+                        // Process match
+                        classMatchProcessor.processMatch(cls);
+                    } catch (final Exception e) {
+                        if (log != null) {
+                            log.log(e);
+                        }
+                        scanResult.addMatchProcessorException(e);
+                    }
                 }
             }
         });
@@ -988,10 +1040,17 @@ public class ScanSpec {
                     if (log != null) {
                         log.log("Matched class with annotation " + annotationName + ": " + classWithAnnotation);
                     }
-                    // Call classloader
-                    final Class<?> cls = loadClass(classWithAnnotation);
-                    // Process match
-                    classAnnotationMatchProcessor.processMatch(cls);
+                    try {
+                        // Call classloader
+                        final Class<?> cls = loadClass(classWithAnnotation);
+                        // Process match
+                        classAnnotationMatchProcessor.processMatch(cls);
+                    } catch (final Exception e) {
+                        if (log != null) {
+                            log.log(e);
+                        }
+                        scanResult.addMatchProcessorException(e);
+                    }
                 }
             }
         });
@@ -1019,8 +1078,17 @@ public class ScanSpec {
                 final String annotationName = getAnnotationName(annotation);
                 for (final String classWithAnnotation : scanResult
                         .getNamesOfClassesWithMethodAnnotation(annotationName)) {
-                    // Call classloader
-                    final Class<?> cls = loadClass(classWithAnnotation);
+                    Class<?> cls = null;
+                    try {
+                        // Call classloader
+                        cls = loadClass(classWithAnnotation);
+                    } catch (final Exception e) {
+                        if (log != null) {
+                            log.log(e);
+                        }
+                        scanResult.addMatchProcessorException(e);
+                        return;
+                    }
                     // Find methods with the specified annotation
                     for (final Method method : ignoreMethodVisibility ? cls.getDeclaredMethods()
                             : cls.getMethods()) {
@@ -1028,8 +1096,15 @@ public class ScanSpec {
                             if (log != null) {
                                 log.log("Matched method annotation " + annotationName + ": " + method);
                             }
-                            // Process match
-                            methodAnnotationMatchProcessor.processMatch(cls, method);
+                            try {
+                                // Process match
+                                methodAnnotationMatchProcessor.processMatch(cls, method);
+                            } catch (final Exception e) {
+                                if (log != null) {
+                                    log.log(e);
+                                }
+                                scanResult.addMatchProcessorException(e);
+                            }
                         }
                     }
                 }
