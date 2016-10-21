@@ -122,11 +122,16 @@ public class LogNode {
         cal.setTimeInMillis(timeStampMillis);
         final String timeStampStr = dateTimeFormatter.format(cal.getTime());
 
-        final String logMsg = indentLevel == 0 ? "FastClasspathScanner version " + FastClasspathScanner.getVersion()
-                : elapsedTimeNanos > 0L ? msg + " (took " + nanoFormatter.format(elapsedTimeNanos * 1e-9) + " sec)"
-                        : msg;
-        appendLine(timeStampStr, indentLevel, logMsg, buf);
-
+        if (msg != null && !msg.isEmpty()) {
+            appendLine(timeStampStr, indentLevel,
+                    elapsedTimeNanos > 0L
+                            ? msg + " (took " + nanoFormatter.format(elapsedTimeNanos * 1e-9) + " sec)" //
+                            : msg,
+                    buf);
+        } else if (indentLevel == 0) {
+            appendLine(timeStampStr, indentLevel,
+                    "FastClasspathScanner version " + FastClasspathScanner.getVersion(), buf);
+        }
         if (stackTrace != null && !stackTrace.isEmpty()) {
             final String[] parts = stackTrace.split("\n");
             for (int i = 0; i < parts.length; i++) {
@@ -171,13 +176,23 @@ public class LogNode {
         return newChild;
     }
 
+    /** Add a child log node for a message. */
+    private LogNode addChild(final String sortKey, final String msg, final long elapsedTimeNanos) {
+        return addChild(sortKey, msg, elapsedTimeNanos, null);
+    }
+
+    /** Add a child log node for an exception. */
+    private LogNode addChild(final Throwable exception) {
+        return addChild("", "", -1L, exception);
+    }
+
     /**
      * Add a log entry with sort key for deterministic ordering.
      * 
      * @return a child log node, which can be used to add sub-entries.
      */
     public LogNode log(final String sortKey, final String msg, final long elapsedTimeNanos, final Throwable e) {
-        return addChild(sortKey, msg, elapsedTimeNanos, e);
+        return addChild(sortKey, msg, elapsedTimeNanos).addChild(e);
     }
 
     /**
@@ -186,7 +201,7 @@ public class LogNode {
      * @return a child log node, which can be used to add sub-entries.
      */
     public LogNode log(final String sortKey, final String msg, final long elapsedTimeNanos) {
-        return addChild(sortKey, msg, elapsedTimeNanos, null);
+        return addChild(sortKey, msg, elapsedTimeNanos);
     }
 
     /**
@@ -195,7 +210,7 @@ public class LogNode {
      * @return a child log node, which can be used to add sub-entries.
      */
     public LogNode log(final String sortKey, final String msg, final Throwable e) {
-        return addChild(sortKey, msg, -1L, e);
+        return addChild(sortKey, msg, -1L).addChild(e);
     }
 
     /**
@@ -204,7 +219,7 @@ public class LogNode {
      * @return a child log node, which can be used to add sub-entries.
      */
     public LogNode log(final String sortKey, final String msg) {
-        return addChild(sortKey, msg, -1L, null);
+        return addChild(sortKey, msg, -1L);
     }
 
     /**
@@ -213,7 +228,7 @@ public class LogNode {
      * @return a child log node, which can be used to add sub-entries.
      */
     public LogNode log(final String msg, final long elapsedTimeNanos, final Throwable e) {
-        return addChild("", msg, elapsedTimeNanos, e);
+        return addChild("", msg, elapsedTimeNanos).addChild(e);
     }
 
     /**
@@ -222,7 +237,7 @@ public class LogNode {
      * @return a child log node, which can be used to add sub-entries.
      */
     public LogNode log(final String msg, final long elapsedTimeNanos) {
-        return addChild("", msg, elapsedTimeNanos, null);
+        return addChild("", msg, elapsedTimeNanos);
     }
 
     /**
@@ -231,7 +246,7 @@ public class LogNode {
      * @return a child log node, which can be used to add sub-entries.
      */
     public LogNode log(final String msg, final Throwable e) {
-        return addChild("", msg, -1L, e);
+        return addChild("", msg, -1L).addChild(e);
     }
 
     /**
@@ -240,7 +255,7 @@ public class LogNode {
      * @return a child log node, which can be used to add sub-entries.
      */
     public LogNode log(final String msg) {
-        return addChild("", msg, -1L, null);
+        return addChild("", msg, -1L);
     }
 
     /**
@@ -249,7 +264,7 @@ public class LogNode {
      * @return a child log node, which can be used to add sub-entries.
      */
     public LogNode log(final Exception e) {
-        return log("Exception thrown", e);
+        return log("Exception thrown").addChild(e);
     }
 
     /**
