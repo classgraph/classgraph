@@ -66,14 +66,14 @@ public class MatchProcessorException extends RuntimeException {
             return new MatchProcessorException(exceptions, exceptions.get(0));
         } else {
             // If multiple exceptions were thrown, list the unique exception messages
-            final Set<String> exceptionNames = new HashSet<>();
+            final Set<String> exceptionMsgs = new HashSet<>();
             for (final Exception e : exceptions) {
-                exceptionNames.add(e.getMessage());
+                exceptionMsgs.add(e.getMessage());
             }
-            final List<String> exceptionNamesSorted = new ArrayList<>(exceptionNames);
-            Collections.sort(exceptionNamesSorted);
-            return new MatchProcessorException(exceptions,
-                    "Multiple exceptions thrown: " + Join.join(", ", exceptionNamesSorted));
+            final List<String> exceptionMsgsSorted = new ArrayList<>(exceptionMsgs);
+            Collections.sort(exceptionMsgsSorted);
+            return new MatchProcessorException(exceptions, "Multiple exceptions thrown of type"
+                    + (exceptionMsgsSorted.size() > 1 ? ": " : " ") + Join.join(", ", exceptionMsgsSorted));
         }
     }
 }
