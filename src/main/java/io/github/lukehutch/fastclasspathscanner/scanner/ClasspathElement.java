@@ -279,6 +279,11 @@ abstract class ClasspathElement {
                         log.log("Exception while opening file " + fileMatch.classpathEltFile
                                 + (fileMatch.classpathEltFile.isFile() ? "!" : "/") + fileMatch.relativePath, e);
                     }
+                } catch (final Throwable e) {
+                    if (log != null) {
+                        log.log("Exception while calling FileMatchProcessor for file " + fileMatch.classpathEltFile
+                                + (fileMatch.classpathEltFile.isFile() ? "!" : "/") + fileMatch.relativePath, e);
+                    }
                     scanResult.addMatchProcessorException(e);
                 }
                 interruptionChecker.check();

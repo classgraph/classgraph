@@ -57,7 +57,7 @@ public class ScanResult {
     private final ClassGraphBuilder classGraphBuilder;
 
     /** Exceptions thrown while loading classes or while calling MatchProcessors on loaded classes. */
-    private final List<Exception> matchProcessorExceptions = new ArrayList<>();
+    private final List<Throwable> matchProcessorExceptions = new ArrayList<>();
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -72,13 +72,16 @@ public class ScanResult {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Called if classloading fails, or if a MatchProcessor throws an exception. */
-    void addMatchProcessorException(final Exception e) {
+    /** Called if classloading fails, or if a MatchProcessor throws an exception or error. */
+    void addMatchProcessorException(final Throwable e) {
         matchProcessorExceptions.add(e);
     }
 
-    /** Return the exceptions thrown during classloading and/or while calling MatchProcessors on loaded classes. */
-    public List<Exception> getMatchProcessorExceptions() {
+    /**
+     * Return the exceptions and errors thrown during classloading and/or while calling MatchProcessors on loaded
+     * classes.
+     */
+    public List<Throwable> getMatchProcessorExceptions() {
         return matchProcessorExceptions;
     }
 

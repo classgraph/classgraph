@@ -374,7 +374,7 @@ public class Scanner implements Callable<ScanResult> {
                 log.log("Completed scan", System.nanoTime() - scanStart);
             }
 
-            final List<Exception> matchProcessorExceptions = scanResult.getMatchProcessorExceptions();
+            final List<Throwable> matchProcessorExceptions = scanResult.getMatchProcessorExceptions();
             if (matchProcessorExceptions.size() > 0) {
                 // If one or more non-IO exceptions were thrown outside of FastClasspathScanner,
                 // throw MatchProcessorException

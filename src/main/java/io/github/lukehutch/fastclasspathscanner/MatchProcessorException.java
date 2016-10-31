@@ -42,33 +42,38 @@ import io.github.lukehutch.fastclasspathscanner.utils.Join;
  */
 public class MatchProcessorException extends RuntimeException {
     private static final long serialVersionUID = 1L;
-    private final List<Exception> exceptions;
+    private final List<Throwable> exceptions;
 
-    MatchProcessorException(final List<Exception> exceptions, final Exception e) {
+    MatchProcessorException(final List<Throwable> exceptions, final Exception e) {
         super(e);
         this.exceptions = exceptions;
     }
 
-    MatchProcessorException(final List<Exception> exceptions, final String msg) {
+    MatchProcessorException(final List<Throwable> exceptions, final String msg) {
         super(msg);
         this.exceptions = exceptions;
     }
 
     /** Get all the exceptions thrown by a MatchProcessor during the scan. */
-    public List<Exception> getExceptions() {
-        return exceptions == null ? Collections.<Exception> emptyList() : exceptions;
+    public List<Throwable> getExceptions() {
+        return exceptions == null ? Collections.<Throwable> emptyList() : exceptions;
     }
 
     /** Create a MatchProcessorException */
-    public static MatchProcessorException newInstance(final List<Exception> exceptions) {
+    public static MatchProcessorException newInstance(final List<Throwable> exceptions) {
         if (exceptions.size() == 1) {
+            final Throwable throwable = exceptions.get(0);
             // If only one exception was thrown, wrap that exception
-            return new MatchProcessorException(exceptions, exceptions.get(0));
+            if (throwable instanceof Exception) {
+                return new MatchProcessorException(exceptions, (Exception) throwable);
+            } else {
+                return new MatchProcessorException(exceptions, throwable.toString());
+            }
         } else {
             // If multiple exceptions were thrown, list the unique exception messages
             final Set<String> exceptionMsgs = new HashSet<>();
-            for (final Exception e : exceptions) {
-                exceptionMsgs.add(e.getMessage());
+            for (final Throwable e : exceptions) {
+                exceptionMsgs.add(e.toString());
             }
             final List<String> exceptionMsgsSorted = new ArrayList<>(exceptionMsgs);
             Collections.sort(exceptionMsgsSorted);
