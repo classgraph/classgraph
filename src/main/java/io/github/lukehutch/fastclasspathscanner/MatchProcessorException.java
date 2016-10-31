@@ -72,8 +72,10 @@ public class MatchProcessorException extends RuntimeException {
             }
             final List<String> exceptionMsgsSorted = new ArrayList<>(exceptionMsgs);
             Collections.sort(exceptionMsgsSorted);
-            return new MatchProcessorException(exceptions, "Multiple exceptions thrown of type"
-                    + (exceptionMsgsSorted.size() > 1 ? ": " : " ") + Join.join(", ", exceptionMsgsSorted));
+            return new MatchProcessorException(exceptions,
+                    "Multiple exceptions thrown of type: " + Join.join(", ", exceptionMsgsSorted)
+                            + ". To see individual exceptions, call MatchProcessorException#getExceptions(), "
+                            + "or call FastClasspathScanner#verbose() before FastClasspathScanner#scan().");
         }
     }
 }

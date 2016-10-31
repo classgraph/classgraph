@@ -21,7 +21,10 @@ public class Issue88 {
             }).scan();
             throw new RuntimeException("Would have expected to get an exception here");
         } catch (final Exception e) {
-            assertThat(e.getMessage()).isEqualTo("Multiple exceptions thrown: Wham!");
+            assertThat(e.getMessage())
+                    .isEqualTo("Multiple exceptions thrown of type: Wham!. To see individual exceptions, call "
+                            + "MatchProcessorException#getExceptions(), or call FastClasspathScanner#verbose() "
+                            + "before FastClasspathScanner#scan().");
             assertThat(callCounter.get()).isEqualTo(2);
         }
     }
