@@ -45,26 +45,34 @@ public class ClasspathFinder {
     /**
      * Add a classpath element relative to a base file. May be called by a ClassLoaderHandler to add classpath
      * elements that it knows about.
+     * 
+     * @return true (and add the classpath element) if pathElement is not null or empty, otherwise return false.
      */
-    public void addClasspathElement(final String pathElement, final LogNode log) {
+    public boolean addClasspathElement(final String pathElement, final LogNode log) {
         if (pathElement != null && !pathElement.isEmpty()) {
             rawClasspathElements.add(pathElement);
             if (log != null) {
                 log.log("Adding classpath element: " + pathElement);
             }
+            return true;
         }
+        return false;
     }
 
     /**
      * Add classpath elements, separated by the system path separator character. May be called by a
      * ClassLoaderHandler to add a path string that it knows about.
+     * 
+     * @return true (and add the classpath element) if pathElement is not null or empty, otherwise return false.
      */
-    public void addClasspathElements(final String pathStr, final LogNode log) {
+    public boolean addClasspathElements(final String pathStr, final LogNode log) {
         if (pathStr != null && !pathStr.isEmpty()) {
             for (final String pathElement : pathStr.split(File.pathSeparator)) {
                 addClasspathElement(pathElement, log);
             }
+            return true;
         }
+        return false;
     }
 
     // -------------------------------------------------------------------------------------------------------------

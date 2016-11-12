@@ -44,6 +44,7 @@ public class JBossClassLoaderHandler implements ClassLoaderHandler {
     @Override
     public boolean handle(final ClassLoader classloader, final ClasspathFinder classpathFinder, final LogNode log)
             throws Exception {
+        boolean handled = false;
         for (Class<?> c = classloader.getClass(); c != null; c = c.getSuperclass()) {
             if ("org.jboss.modules.ModuleClassLoader".equals(c.getName())) {
                 // type VFSResourceLoader[]
@@ -74,12 +75,11 @@ public class JBossClassLoaderHandler implements ClassLoaderHandler {
                                 path = (String) ReflectionUtils.invokeMethod(root, "getPathName");
                             }
                         }
-                        classpathFinder.addClasspathElement(path, log);
+                        handled |= classpathFinder.addClasspathElement(path, log);
                     }
                 }
-                return true;
             }
         }
-        return false;
+        return handled;
     }
 }

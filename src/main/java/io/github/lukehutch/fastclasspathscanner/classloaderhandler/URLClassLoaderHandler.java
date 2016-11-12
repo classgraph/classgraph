@@ -38,17 +38,17 @@ import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 public class URLClassLoaderHandler implements ClassLoaderHandler {
     @Override
     public boolean handle(final ClassLoader classloader, final ClasspathFinder classpathFinder, final LogNode log) {
+        boolean handled = false;
         if (classloader instanceof URLClassLoader) {
             final URL[] urls = ((URLClassLoader) classloader).getURLs();
             if (urls != null) {
                 for (final URL url : urls) {
                     if (url != null) {
-                        classpathFinder.addClasspathElement(url.toString(), log);
+                        handled = classpathFinder.addClasspathElement(url.toString(), log);
                     }
                 }
             }
-            return true;
         }
-        return false;
+        return handled;
     }
 }
