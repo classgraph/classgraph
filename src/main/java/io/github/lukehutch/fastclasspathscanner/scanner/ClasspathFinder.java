@@ -76,10 +76,7 @@ public class ClasspathFinder {
             final LogNode overrideLog = log == null ? null : log.log("Overriding classpath");
             addClasspathElements(scanSpec.overrideClasspath, overrideLog);
         } else {
-            // Always include a ClassLoaderHandler for URLClassLoader subclasses as a default, so that we can
-            // handle URLClassLoaders (the most common form of ClassLoader) even if ServiceLoader can't find
-            // other ClassLoaderHandlers (this can happen if FastClasspathScanner's package is renamed using
-            // Maven Shade).
+            // Get all default ClassLoaderHandlers
             final List<ClassLoaderHandler> classLoaderHandlers = new ArrayList<>();
             for (final Class<? extends ClassLoaderHandler> classLoaderHandlerClass : //
             ClassLoaderHandlerRegistry.DEFAULT_CLASS_LOADER_HANDLERS) {
@@ -91,6 +88,7 @@ public class ClasspathFinder {
                     }
                 }
             }
+            // Get all manually-added ClassLoaderHandlers
             for (final Class<? extends ClassLoaderHandler> classLoaderHandler : scanSpec.extraClassLoaderHandlers) {
                 try {
                     classLoaderHandlers.add(classLoaderHandler.newInstance());
