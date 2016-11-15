@@ -111,7 +111,7 @@ class ClassGraphBuilder {
     List<String> getNamesOfSubinterfacesOf(final String interfaceName) {
         final ClassInfo classInfo = classNameToClassInfo.get(interfaceName);
         if (classInfo == null) {
-            return null;
+            return Collections.emptyList();
         } else {
             return classInfo.getNamesOfSubinterfaces();
         }
