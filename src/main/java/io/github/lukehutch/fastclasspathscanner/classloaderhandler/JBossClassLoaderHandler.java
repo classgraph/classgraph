@@ -73,6 +73,15 @@ public class JBossClassLoaderHandler implements ClassLoaderHandler {
                             } else {
                                 // Fallback
                                 path = (String) ReflectionUtils.invokeMethod(root, "getPathName");
+                                if (path == null) {
+                                    // Try File:
+                                    Object file = root;
+                                    if (file == null) {
+                                        // Try JarFileResource:
+                                        file = ReflectionUtils.getFieldVal(resourceLoader, "fileOfJar");
+                                     }
+                                    path = (String) ReflectionUtils.invokeMethod(file, "getAbsolutePath");
+                                }
                             }
                         }
                         handled |= classpathFinder.addClasspathElement(path, log);
