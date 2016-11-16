@@ -79,7 +79,7 @@ public class JBossClassLoaderHandler implements ClassLoaderHandler {
                                     if (file == null) {
                                         // Try JarFileResource:
                                         file = ReflectionUtils.getFieldVal(resourceLoader, "fileOfJar");
-                                     }
+                                    }
                                     path = (String) ReflectionUtils.invokeMethod(file, "getAbsolutePath");
                                 }
                             }
