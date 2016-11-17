@@ -30,6 +30,7 @@ package io.github.lukehutch.fastclasspathscanner;
 
 import java.io.File;
 import java.lang.annotation.Annotation;
+import java.lang.annotation.RetentionPolicy;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Callable;
@@ -601,6 +602,25 @@ public class FastClasspathScanner {
             final MethodAnnotationMatchProcessor methodAnnotationMatchProcessor) {
         enableMethodAnnotationIndexing();
         getScanSpec().matchClassesWithMethodAnnotation(annotation, methodAnnotationMatchProcessor);
+        return this;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Set annotation visibility (to match the annotation retention policy).
+     * 
+     * @param annotationVisibility
+     *            The annotation visibility: RetentionPolicy.CLASS matches all annotations (both RuntimeVisible and
+     *            RuntimeInvisible); RetentionPolicy.RUNTIME matches only RuntimeVisible annotations. Setting this
+     *            parameter to RetentionPolicy.SOURCE will cause an IllegalArgumentException to be thrown, since
+     *            SOURCE-annotated annotations are not retained in classfiles.
+     */
+    public FastClasspathScanner setAnnotationVisibility(final RetentionPolicy annotationVisibility) {
+        if (annotationVisibility == RetentionPolicy.SOURCE) {
+            throw new IllegalArgumentException("RetentionPolicy.SOURCE annotations are not retained in classfiles");
+        }
+        getScanSpec().annotationVisibility = annotationVisibility;
         return this;
     }
 

@@ -32,6 +32,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.annotation.Annotation;
+import java.lang.annotation.RetentionPolicy;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -146,6 +147,12 @@ public class ScanSpec {
      * methods must be public to be indexed/matched.
      */
     public boolean ignoreMethodVisibility = false;
+
+    /**
+     * Annotation retention visibility: RetentionPolicy.CLASS matches all annotations (both RuntimeVisible and
+     * RuntimeInvisible); RetentionPolicy.RUNTIME matches only RuntimeVisible annotations.
+     */
+    public RetentionPolicy annotationVisibility = RetentionPolicy.CLASS;
 
     // -------------------------------------------------------------------------------------------------------------
 

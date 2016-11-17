@@ -30,6 +30,7 @@ package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.annotation.RetentionPolicy;
 import java.util.Arrays;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -768,7 +769,10 @@ class ClassfileBinaryParser implements AutoCloseable {
                     for (int j = 0; j < attributesCount; j++) {
                         final int attributeNameCpIdx = readUnsignedShort();
                         final int attributeLength = readInt();
-                        if (constantPoolStringEquals(attributeNameCpIdx, "RuntimeVisibleAnnotations")) {
+                        if (constantPoolStringEquals(attributeNameCpIdx, "RuntimeVisibleAnnotations")
+                                || (scanSpec.annotationVisibility == RetentionPolicy.CLASS
+                                        && constantPoolStringEquals(attributeNameCpIdx,
+                                                "RuntimeInvisibleAnnotations"))) {
                             final int annotationCount = readUnsignedShort();
                             for (int m = 0; m < annotationCount; m++) {
                                 final String annotationName = readAnnotation();
@@ -786,7 +790,9 @@ class ClassfileBinaryParser implements AutoCloseable {
             for (int i = 0; i < attributesCount; i++) {
                 final int attributeNameCpIdx = readUnsignedShort();
                 final int attributeLength = readInt();
-                if (constantPoolStringEquals(attributeNameCpIdx, "RuntimeVisibleAnnotations")) {
+                if (constantPoolStringEquals(attributeNameCpIdx, "RuntimeVisibleAnnotations")
+                        || (scanSpec.annotationVisibility == RetentionPolicy.CLASS
+                                && constantPoolStringEquals(attributeNameCpIdx, "RuntimeInvisibleAnnotations"))) {
                     final int annotationCount = readUnsignedShort();
                     for (int m = 0; m < annotationCount; m++) {
                         final String annotationName = readAnnotation();
