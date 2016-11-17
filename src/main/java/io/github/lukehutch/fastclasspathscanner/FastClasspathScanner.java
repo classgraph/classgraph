@@ -611,10 +611,10 @@ public class FastClasspathScanner {
      * Set annotation visibility (to match the annotation retention policy).
      * 
      * @param annotationVisibility
-     *            The annotation visibility: RetentionPolicy.CLASS matches all annotations (both RuntimeVisible and
-     *            RuntimeInvisible); RetentionPolicy.RUNTIME matches only RuntimeVisible annotations. Setting this
-     *            parameter to RetentionPolicy.SOURCE will cause an IllegalArgumentException to be thrown, since
-     *            SOURCE-annotated annotations are not retained in classfiles.
+     *            The annotation visibility: RetentionPolicy.RUNTIME matches only runtime-visible annotations. The
+     *            default value, RetentionPolicy.CLASS, matches all annotations (both runtime-visible and
+     *            runtime-invisible). RetentionPolicy.SOURCE will cause an IllegalArgumentException to be thrown,
+     *            since SOURCE-annotated annotations are not retained in classfiles.
      */
     public FastClasspathScanner setAnnotationVisibility(final RetentionPolicy annotationVisibility) {
         if (annotationVisibility == RetentionPolicy.SOURCE) {
