@@ -170,8 +170,11 @@ class ClasspathElementDir extends ClasspathElement {
                 }
             }
         }
-        if (matchStatus == ScanSpecPathMatch.WITHIN_WHITELISTED_PATH) {
-            // Need to timestamp whitelisted directories too, so that added files can be detected
+        if (matchStatus == ScanSpecPathMatch.WITHIN_WHITELISTED_PATH
+                || matchStatus == ScanSpecPathMatch.ANCESTOR_OF_WHITELISTED_PATH) {
+            // Need to timestamp whitelisted directories, so that changes to directory content can be detected.
+            // Also need to timestamp ancestors of whitelisted directories, in case a new directory is added
+            // that matches whitelist criteria.
             fileToLastModified.put(dir, dir.lastModified());
         }
         if (log != null) {
