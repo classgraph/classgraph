@@ -52,13 +52,16 @@ import java.util.zip.ZipFile;
  * faster than ZipInputStream. Therefore, decompressing the inner zipfile to disk is the only efficient option.
  */
 public class NestedJarHandler implements AutoCloseable {
+    private final boolean enableRecursiveScanning;
     private final ConcurrentLinkedDeque<File> tempFiles = new ConcurrentLinkedDeque<>();
     private final SingletonMap<String, File> nestedPathToJarfileMap;
     private final SingletonMap<String, Recycler<ZipFile, IOException>> canonicalPathToZipFileRecyclerMap;
     private final InterruptionChecker interruptionChecker;
     private final LogNode log;
 
-    public NestedJarHandler(final InterruptionChecker interruptionChecker, final LogNode log) {
+    public NestedJarHandler(final boolean enableRecursiveScanning, final InterruptionChecker interruptionChecker,
+            final LogNode log) {
+        this.enableRecursiveScanning = enableRecursiveScanning;
         this.interruptionChecker = interruptionChecker;
         this.log = log;
 
@@ -247,14 +250,19 @@ public class NestedJarHandler implements AutoCloseable {
     @SuppressWarnings("unused")
     @Override
     public void close() {
-        while (!tempFiles.isEmpty()) {
-            final File head = tempFiles.remove();
-            final String path = head.getPath();
-            final boolean success = head.delete();
-            //            if (log != null) {
-            //                log.log((success ? "Successfully removed" : "Unsuccessful in removing")
-            //                        + " temporary file " + path);
-            //            }
+        // If calling FastClasspathScanner#getUniqueClasspathElements(), enableRecursiveScanning is false, and we
+        // need to keep the temporary files around after the scan completes. Temporary files are deleted
+        // automatically when the JVM exits, via tempFile.deleteOnExit().
+        if (enableRecursiveScanning) {
+            while (!tempFiles.isEmpty()) {
+                final File head = tempFiles.remove();
+                final String path = head.getPath();
+                final boolean success = head.delete();
+                //            if (log != null) {
+                //                log.log((success ? "Successfully removed" : "Unsuccessful in removing")
+                //                        + " temporary file " + path);
+                //            }
+            }
         }
         try {
             for (final Recycler<ZipFile, IOException> recycler : canonicalPathToZipFileRecyclerMap.values()) {

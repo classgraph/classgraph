@@ -57,6 +57,7 @@ import io.github.lukehutch.fastclasspathscanner.utils.WorkQueue.WorkUnitProcesso
 
 /** The classpath scanner. */
 public class Scanner implements Callable<ScanResult> {
+    private final boolean enableRecursiveScanning;
     private final ScanSpec scanSpec;
     private final ExecutorService executorService;
     private final int numParallelTasks;
@@ -74,6 +75,7 @@ public class Scanner implements Callable<ScanResult> {
     /** The classpath scanner. */
     public Scanner(final ScanSpec scanSpec, final ExecutorService executorService, final int numParallelTasks,
             final boolean enableRecursiveScanning, final LogNode log) {
+        this.enableRecursiveScanning = enableRecursiveScanning;
         this.scanSpec = scanSpec;
         this.executorService = executorService;
         this.numParallelTasks = numParallelTasks;
@@ -199,7 +201,8 @@ public class Scanner implements Callable<ScanResult> {
     @Override
     public ScanResult call() throws InterruptedException, ExecutionException {
         final LogNode classpathFinderLog = log == null ? null : log.log("Finding classpath entries");
-        try (NestedJarHandler nestedJarHandler = new NestedJarHandler(interruptionChecker, classpathFinderLog)) {
+        try (NestedJarHandler nestedJarHandler = new NestedJarHandler(enableRecursiveScanning, interruptionChecker,
+                classpathFinderLog)) {
             final long scanStart = System.nanoTime();
 
             // Get current dir (without resolving symlinks), and normalize path by calling

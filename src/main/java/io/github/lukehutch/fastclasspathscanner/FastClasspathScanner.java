@@ -1115,6 +1115,13 @@ public class FastClasspathScanner {
      * 
      * https://github.com/lukehutch/fast-classpath-scanner/wiki/1.-Usage#multithreading-issues
      * 
+     * Note that if there are nested jarfiles on the classpath, e.g. file:///path/to/jar1.jar!/path/to/jar2.jar ,
+     * then both FastClasspathScanner#scanAsync() and FastClasspathScanner#getUniqueClasspathElementsAsync() will
+     * cause jar2.jar to be extracted to a temporary file, however
+     * FastClasspathScanner#getUniqueClasspathElementsAsync() will not remove this temporary file after the scan (so
+     * that the file is still accessible to the caller -- each of the File objects in the returned list of classpath
+     * elements should exist). These extracted temporary files are marked for deletion on JVM exit, however.
+     * 
      * @param executorService
      *            A custom ExecutorService to use for scheduling worker tasks.
      * @param numParallelTasks
@@ -1148,6 +1155,13 @@ public class FastClasspathScanner {
      * classloader resolution order. Classpath elements that do not exist are not included in the list. Blocks until
      * the result can be returned, when all classpath elements have been found and tested to see if they exist in
      * the filesystem.
+     * 
+     * Note that if there are nested jarfiles on the classpath, e.g. file:///path/to/jar1.jar!/path/to/jar2.jar ,
+     * then both FastClasspathScanner#scan() and FastClasspathScanner#getUniqueClasspathElements() will cause
+     * jar2.jar to be extracted to a temporary file, however FastClasspathScanner#getUniqueClasspathElements() will
+     * not remove this temporary file after the scan (so that the file is still accessible to the caller -- each of
+     * the File objects in the returned list of classpath elements should exist). These extracted temporary files
+     * are marked for deletion on JVM exit, however.
      * 
      * @param executorService
      *            A custom ExecutorService to use for scheduling worker tasks.
@@ -1185,6 +1199,13 @@ public class FastClasspathScanner {
      * classloader resolution order. Classpath elements that do not exist are not included in the list. Blocks until
      * the result can be returned, when all classpath elements have been found and tested to see if they exist in
      * the filesystem.
+     * 
+     * Note that if there are nested jarfiles on the classpath, e.g. file:///path/to/jar1.jar!/path/to/jar2.jar ,
+     * then both FastClasspathScanner#scan() and FastClasspathScanner#getUniqueClasspathElements() will cause
+     * jar2.jar to be extracted to a temporary file, however FastClasspathScanner#getUniqueClasspathElements() will
+     * not remove this temporary file after the scan (so that the file is still accessible to the caller -- each of
+     * the File objects in the returned list of classpath elements should exist). These extracted temporary files
+     * are marked for deletion on JVM exit, however.
      * 
      * @return a List<File> consisting of the unique directories and jarfiles on the classpath, in classpath
      *         resolution order.
