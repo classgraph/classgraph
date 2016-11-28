@@ -619,7 +619,7 @@ public class ScanSpec {
      * Call the classloader using Class.forName(className). Re-throws classloading exceptions as RuntimeException.
      */
     private <T> Class<? extends T> loadClass(final String className) throws Exception {
-        for (ClassLoader classLoader : classLoaders) {
+        for (final ClassLoader classLoader : classLoaders) {
             try {
                 @SuppressWarnings("unchecked")
                 final Class<? extends T> cls = (Class<? extends T>) classLoader.loadClass(className);
