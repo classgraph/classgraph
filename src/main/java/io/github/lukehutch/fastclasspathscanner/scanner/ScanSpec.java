@@ -619,9 +619,16 @@ public class ScanSpec {
      * Call the classloader using Class.forName(className). Re-throws classloading exceptions as RuntimeException.
      */
     private <T> Class<? extends T> loadClass(final String className) throws Exception {
-        @SuppressWarnings("unchecked")
-        final Class<? extends T> cls = (Class<? extends T>) Class.forName(className);
-        return cls;
+        for (ClassLoader classLoader : classLoaders) {
+            try {
+                @SuppressWarnings("unchecked")
+                final Class<? extends T> cls = (Class<? extends T>) classLoader.loadClass(className);
+                return cls;
+            } catch (ClassNotFoundException e) {
+                // Try next classloader
+            }
+        }
+        throw new RuntimeException(new ClassNotFoundException(className));
     }
 
     // -------------------------------------------------------------------------------------------------------------
