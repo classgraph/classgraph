@@ -200,6 +200,12 @@ public class ScanSpec {
     /** Manually-registered ClassLoaderHandlers. */
     final ArrayList<Class<? extends ClassLoaderHandler>> extraClassLoaderHandlers = new ArrayList<>();
 
+    /**
+     * If true, initialize classes that are loaded with Class.forName() before calling a MatchProcessor for the
+     * class. If false, loaded classes are initialized lazily (on first usage).
+     */
+    public boolean initializeLoadedClasses = true;
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
@@ -616,15 +622,16 @@ public class ScanSpec {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Call the classloader using Class.forName(className). Re-throws classloading exceptions as RuntimeException.
+     * Call the classloader using Class.forName(className). Re-throws ClassNotFoundException as RuntimeException.
      */
     private <T> Class<? extends T> loadClass(final String className) throws Exception {
         for (final ClassLoader classLoader : classLoaders) {
             try {
                 @SuppressWarnings("unchecked")
-                final Class<? extends T> cls = (Class<? extends T>) classLoader.loadClass(className);
+                final Class<? extends T> cls = (Class<? extends T>) Class.forName(className,
+                        initializeLoadedClasses, classLoader);
                 return cls;
-            } catch (ClassNotFoundException e) {
+            } catch (final ClassNotFoundException e) {
                 // Try next classloader
             }
         }

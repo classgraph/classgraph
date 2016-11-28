@@ -314,6 +314,19 @@ public class FastClasspathScanner {
         return this;
     }
 
+    /**
+     * If initializeLoadedClasses is true (the default), classes are loaded with Class.forName() before calling
+     * MatchProcessors. If false, loaded classes are initialized lazily (on first usage within a MatchProcessor).
+     * 
+     * @param initializeLoadedClasses
+     *            Whether or not to initialize classes before passing class references to MatchProcessors.
+     * @return this (for method chaining).
+     */
+    public FastClasspathScanner initializeLoadedClasses(final boolean initializeLoadedClasses) {
+        getScanSpec().initializeLoadedClasses = initializeLoadedClasses;
+        return this;
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
