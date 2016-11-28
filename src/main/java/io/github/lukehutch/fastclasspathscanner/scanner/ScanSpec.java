@@ -201,10 +201,11 @@ public class ScanSpec {
     final ArrayList<Class<? extends ClassLoaderHandler>> extraClassLoaderHandlers = new ArrayList<>();
 
     /**
-     * If true, initialize classes that are loaded with Class.forName() before calling a MatchProcessor for the
-     * class. If false, loaded classes are initialized lazily (on first usage).
+     * If true, classes loaded with Class.forName() are initialized before passing class references to
+     * MatchProcessors. If false (the default), matched classes are loaded but not initialized before passing class
+     * references to MatchProcessors (meaning classes are instead initialized lazily on first usage of the class).
      */
-    public boolean initializeLoadedClasses = true;
+    public boolean initializeLoadedClasses = false;
 
     // -------------------------------------------------------------------------------------------------------------
 
