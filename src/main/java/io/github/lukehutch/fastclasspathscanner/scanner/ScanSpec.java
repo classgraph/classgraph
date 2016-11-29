@@ -623,7 +623,11 @@ public class ScanSpec {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Call the classloader using Class.forName(className). Re-throws ClassNotFoundException as RuntimeException.
+     * Call the classloader using Class.forName(className, initializeLoadedClasses, classLoader), for all known
+     * ClassLoaders, until one is able to load the class, or until there are no more ClassLoaders to try.
+     * 
+     * @throw RuntimeException if no ClassLoader is able to load the class.
+     * @return a reference to the loaded class.
      */
     private <T> Class<? extends T> loadClass(final String className) throws Exception {
         for (final ClassLoader classLoader : classLoaders) {
