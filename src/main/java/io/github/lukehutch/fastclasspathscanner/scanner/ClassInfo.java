@@ -1026,17 +1026,29 @@ public class ClassInfo implements Comparable<ClassInfo> {
 
     // -------------
 
+    /** Deprecated -- use getClassesWithDirectAnnotation() instead. */ // TODO remove
+    @Deprecated
+    public Set<ClassInfo> getDirectlyAnnotatedClasses() {
+        return getClassesWithDirectAnnotation();
+    }
+
     /**
-     * Get the standard classes or non-annotation interfaces that are directly annotated with this annotation.
+     * Get the standard classes or non-annotation interfaces that are directly annotated with this annotation. 
      * 
      * @return the set of standard classes or non-annotation interfaces that are directly annotated with this
      *         annotation, or the empty set if none.
      */
-    public Set<ClassInfo> getDirectlyAnnotatedClasses() {
+    public Set<ClassInfo> getClassesWithDirectAnnotation() {
         return !isAnnotation() ? Collections.<ClassInfo> emptySet()
                 : filterClassInfo(getDirectlyRelatedClasses(RelType.ANNOTATED_CLASSES),
                         /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.STANDARD_CLASS,
                         ClassType.IMPLEMENTED_INTERFACE);
+    }
+
+    /** Deprecated. Use getNamesOfClassesWithDirectAnnotation() instead. */ // TODO remove
+    @Deprecated
+    public List<String> getNamesOfDirectlyAnnotatedClasses() {
+        return getNamesOfClassesWithDirectAnnotation();
     }
 
     /**
@@ -1046,8 +1058,8 @@ public class ClassInfo implements Comparable<ClassInfo> {
      * @return the sorted list of names of standard classes or non-annotation interfaces that are directly annotated
      *         with this annotation, or the empty list if none.
      */
-    public List<String> getNamesOfDirectlyAnnotatedClasses() {
-        return getClassNames(getDirectlyAnnotatedClasses());
+    public List<String> getNamesOfClassesWithDirectAnnotation() {
+        return getClassNames(getClassesWithDirectAnnotation());
     }
 
     /**
@@ -1056,7 +1068,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
      * @return true if this class annotates the named class.
      */
     public boolean directlyAnnotatesClass(final String directlyAnnotatedClassName) {
-        return getNamesOfDirectlyAnnotatedClasses().contains(directlyAnnotatedClassName);
+        return getNamesOfClassesWithDirectAnnotation().contains(directlyAnnotatedClassName);
     }
 
     // -------------
