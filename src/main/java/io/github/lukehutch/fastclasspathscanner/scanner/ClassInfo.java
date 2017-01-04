@@ -1033,7 +1033,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
     }
 
     /**
-     * Get the standard classes or non-annotation interfaces that are directly annotated with this annotation. 
+     * Get the standard classes or non-annotation interfaces that are directly annotated with this annotation.
      * 
      * @return the set of standard classes or non-annotation interfaces that are directly annotated with this
      *         annotation, or the empty set if none.
