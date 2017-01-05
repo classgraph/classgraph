@@ -60,7 +60,7 @@ public class URLPathEncoder {
 
     /** Encode a URL path using percent-encoding. '/' is not encoded. */
     public static String encodePath(final String path) {
-        final StringBuffer safePath = new StringBuffer(path.length());
+        final StringBuilder encodedPath = new StringBuilder(path.length() * 2);
         final ByteArrayOutputStream utf8bytes = new ByteArrayOutputStream(10);
         OutputStreamWriter writer;
         try {
@@ -71,7 +71,7 @@ public class URLPathEncoder {
         for (int i = 0; i < path.length(); i++) {
             final int c = path.charAt(i);
             if (safe[c]) {
-                safePath.append((char) c);
+                encodedPath.append((char) c);
             } else {
                 try {
                     writer.write(c);
@@ -85,13 +85,13 @@ public class URLPathEncoder {
                     final byte b = charBytes[j];
                     final int low = (b & 0x0f);
                     final int high = ((b & 0xf0) >> 4);
-                    safePath.append('%');
-                    safePath.append(hexadecimal[high]);
-                    safePath.append(hexadecimal[low]);
+                    encodedPath.append('%');
+                    encodedPath.append(hexadecimal[high]);
+                    encodedPath.append(hexadecimal[low]);
                 }
                 utf8bytes.reset();
             }
         }
-        return safePath.toString();
+        return encodedPath.toString();
     }
 }
