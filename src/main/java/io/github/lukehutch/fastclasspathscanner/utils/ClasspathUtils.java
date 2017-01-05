@@ -30,6 +30,7 @@ package io.github.lukehutch.fastclasspathscanner.utils;
 
 import java.io.File;
 import java.net.MalformedURLException;
+import java.net.URL;
 
 public class ClasspathUtils {
     /**
@@ -44,11 +45,15 @@ public class ClasspathUtils {
      * @return The URL, in the form "file:/classpath/elt/path/followed/by/relative/path" or
      *         "jar:file:/classpath/elt/path.jar!/followed/by/relative/path".
      */
-    public static String getClasspathResourceURL(final File classpathElt, final String relativePath) {
+    public static URL getClasspathResourceURL(final File classpathElt, final String relativePath) {
         final boolean classpathEltIsJar = classpathElt.isFile();
         String classpathEltURL;
         try {
             classpathEltURL = classpathElt.toURI().toURL().toString();
+            if (!classpathEltIsJar && !classpathEltURL.endsWith("/")) {
+                // Ensure trailing slash for directory classpath entries
+                classpathEltURL += "/";
+            }
         } catch (final MalformedURLException e) {
             // Should not happen
             throw new RuntimeException(e);
@@ -56,6 +61,11 @@ public class ClasspathUtils {
         final String relativePathEncoded = URLPathEncoder.encodePath(relativePath);
         final String url = classpathEltIsJar ? "jar:" + classpathEltURL + "!/" + relativePathEncoded
                 : classpathEltURL + relativePathEncoded;
-        return url;
+        try {
+            return new URL(url);
+        } catch (final MalformedURLException e) {
+            // Should not happen
+            throw new RuntimeException(e);
+        }
     }
 }
