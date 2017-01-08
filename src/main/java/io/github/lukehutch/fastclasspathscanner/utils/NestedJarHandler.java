@@ -52,16 +52,16 @@ import java.util.zip.ZipFile;
  * faster than ZipInputStream. Therefore, decompressing the inner zipfile to disk is the only efficient option.
  */
 public class NestedJarHandler implements AutoCloseable {
-    private final boolean enableRecursiveScanning;
+    private final boolean removeTemporaryFilesAfterScan;
     private final ConcurrentLinkedDeque<File> tempFiles = new ConcurrentLinkedDeque<>();
     private final SingletonMap<String, File> nestedPathToJarfileMap;
     private final SingletonMap<String, Recycler<ZipFile, IOException>> canonicalPathToZipFileRecyclerMap;
     private final InterruptionChecker interruptionChecker;
     private final LogNode log;
 
-    public NestedJarHandler(final boolean enableRecursiveScanning, final InterruptionChecker interruptionChecker,
-            final LogNode log) {
-        this.enableRecursiveScanning = enableRecursiveScanning;
+    public NestedJarHandler(final boolean removeTemporaryFilesAfterScan,
+            final InterruptionChecker interruptionChecker, final LogNode log) {
+        this.removeTemporaryFilesAfterScan = removeTemporaryFilesAfterScan;
         this.interruptionChecker = interruptionChecker;
         this.log = log;
 
@@ -250,10 +250,10 @@ public class NestedJarHandler implements AutoCloseable {
     @SuppressWarnings("unused")
     @Override
     public void close() {
-        // If calling FastClasspathScanner#getUniqueClasspathElements(), enableRecursiveScanning is false, and we
-        // need to keep the temporary files around after the scan completes. Temporary files are deleted
+        // If calling FastClasspathScanner#getUniqueClasspathElements(), removeTemporaryFilesAfterScan is false,
+        // and we need to keep the temporary files around after the scan completes. Temporary files are deleted
         // automatically when the JVM exits, via tempFile.deleteOnExit().
-        if (enableRecursiveScanning) {
+        if (removeTemporaryFilesAfterScan) {
             while (!tempFiles.isEmpty()) {
                 final File head = tempFiles.remove();
                 final String path = head.getPath();

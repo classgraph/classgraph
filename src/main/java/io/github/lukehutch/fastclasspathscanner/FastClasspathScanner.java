@@ -330,6 +330,25 @@ public class FastClasspathScanner {
         return this;
     }
 
+    /**
+     * If true, nested jarfiles (jarfiles within jarfiles, which have to be extracted during scanning in order to be
+     * read) are removed from their temporary directory after the scan has completed. If false, temporary files are
+     * only removed on JVM exit.
+     * 
+     * This method should be called if you need to access nested jarfiles (e.g. from a Spring classpath) after
+     * scanning has completed. In particular, if you use ClasspathUtils.getClasspathResourceURL() in a
+     * FileMatchProcessor and you need to use the returned URLs after scanning has completed, then you should call
+     * FastClasspathScanner#removeTemporaryFilesAfterScan(false) before calling scan().
+     * 
+     * @param removeTemporaryFilesAfterScan
+     *            Whether or not to remove temporary files after scanning. (The default value is true.)
+     * @return this (for method chaining).
+     */
+    public FastClasspathScanner removeTemporaryFilesAfterScan(final boolean removeTemporaryFilesAfterScan) {
+        getScanSpec().removeTemporaryFilesAfterScan = removeTemporaryFilesAfterScan;
+        return this;
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
@@ -1022,8 +1041,9 @@ public class FastClasspathScanner {
      *         classloading failed for some class, or a MatchProcessor threw an exception.
      */
     public Future<ScanResult> scanAsync(final ExecutorService executorService, final int numParallelTasks) {
-        return executorService.submit(new Scanner(getScanSpec(), executorService, numParallelTasks,
-                /* enableRecursiveScanning = */ true, log));
+        final ScanSpec scanSpec = getScanSpec();
+        return executorService.submit(new Scanner(scanSpec, executorService, numParallelTasks,
+                /* enableRecursiveScanning = */ true, scanSpec.removeTemporaryFilesAfterScan, log));
     }
 
     /**
@@ -1148,8 +1168,9 @@ public class FastClasspathScanner {
      */
     public Future<List<File>> getUniqueClasspathElementsAsync(final ExecutorService executorService,
             final int numParallelTasks) {
-        final Future<ScanResult> scanResult = executorService.submit(
-                new Scanner(getScanSpec(), executorService, numParallelTasks, /* enableRecursiveScanning = */ false,
+        final Future<ScanResult> scanResult = executorService
+                .submit(new Scanner(getScanSpec(), executorService, numParallelTasks,
+                        /* enableRecursiveScanning = */ false, /* removeTemporaryFilesAfterScan = */ false,
                         log == null ? null : log.log("Getting unique classpath elements")));
         final Future<List<File>> future = executorService.submit(new Callable<List<File>>() {
             @Override

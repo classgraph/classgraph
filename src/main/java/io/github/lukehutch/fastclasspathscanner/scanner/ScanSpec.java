@@ -207,6 +207,13 @@ public class ScanSpec {
      */
     public boolean initializeLoadedClasses = false;
 
+    /**
+     * If true, nested jarfiles (jarfiles within jarfiles) that are extracted during scanning are removed from their
+     * temporary directory (e.g. /tmp-FastClasspathScanner-8JX2u4w) after the scan has completed. If false,
+     * temporary files are removed on JVM exit.
+     */
+    public boolean removeTemporaryFilesAfterScan = true;
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**

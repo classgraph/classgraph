@@ -57,11 +57,11 @@ import io.github.lukehutch.fastclasspathscanner.utils.WorkQueue.WorkUnitProcesso
 
 /** The classpath scanner. */
 public class Scanner implements Callable<ScanResult> {
-    private final boolean enableRecursiveScanning;
+    private final boolean removeTemporaryFilesAfterScan;
     private final ScanSpec scanSpec;
     private final ExecutorService executorService;
     private final int numParallelTasks;
-    private final boolean scanFiles;
+    private final boolean enableRecursiveScanning;
     private final InterruptionChecker interruptionChecker = new InterruptionChecker();
     private final LogNode log;
 
@@ -74,12 +74,12 @@ public class Scanner implements Callable<ScanResult> {
 
     /** The classpath scanner. */
     public Scanner(final ScanSpec scanSpec, final ExecutorService executorService, final int numParallelTasks,
-            final boolean enableRecursiveScanning, final LogNode log) {
-        this.enableRecursiveScanning = enableRecursiveScanning;
+            final boolean enableRecursiveScanning, final boolean removeTemporaryFilesAfterScan, final LogNode log) {
+        this.removeTemporaryFilesAfterScan = removeTemporaryFilesAfterScan;
         this.scanSpec = scanSpec;
         this.executorService = executorService;
         this.numParallelTasks = numParallelTasks;
-        this.scanFiles = enableRecursiveScanning;
+        this.enableRecursiveScanning = enableRecursiveScanning;
         this.log = log;
     }
 
@@ -201,8 +201,8 @@ public class Scanner implements Callable<ScanResult> {
     @Override
     public ScanResult call() throws InterruptedException, ExecutionException {
         final LogNode classpathFinderLog = log == null ? null : log.log("Finding classpath entries");
-        try (NestedJarHandler nestedJarHandler = new NestedJarHandler(enableRecursiveScanning, interruptionChecker,
-                classpathFinderLog)) {
+        try (NestedJarHandler nestedJarHandler = new NestedJarHandler(removeTemporaryFilesAfterScan,
+                interruptionChecker, classpathFinderLog)) {
             final long scanStart = System.nanoTime();
 
             // Get current dir (without resolving symlinks), and normalize path by calling
@@ -233,7 +233,7 @@ public class Scanner implements Callable<ScanResult> {
             // In parallel, resolve raw classpath elements to canonical paths, creating a ClasspathElement
             // singleton for each unique canonical path.
             final ClasspathRelativePathToElementMap classpathElementMap = new ClasspathRelativePathToElementMap(
-                    scanFiles, scanSpec, nestedJarHandler, interruptionChecker, classpathFinderLog);
+                    enableRecursiveScanning, scanSpec, nestedJarHandler, interruptionChecker, classpathFinderLog);
             final Set<String> knownJREPaths = Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
             final Set<String> knownNonJREPaths = Collections
                     .newSetFromMap(new ConcurrentHashMap<String, Boolean>());
@@ -286,7 +286,7 @@ public class Scanner implements Callable<ScanResult> {
                     classpathOrder.add(0,
                             ClasspathElement.newInstance(
                                     new ClasspathRelativePath(currentDirPath, rtJarPath, nestedJarHandler),
-                                    scanFiles, scanSpec, nestedJarHandler, /* workQueue = */ null,
+                                    enableRecursiveScanning, scanSpec, nestedJarHandler, /* workQueue = */ null,
                                     interruptionChecker, classpathFinderLog));
                 }
             }
@@ -300,7 +300,7 @@ public class Scanner implements Callable<ScanResult> {
             }
 
             ScanResult scanResult;
-            if (scanFiles) {
+            if (enableRecursiveScanning) {
                 // Determine if any relative paths later in the classpath are masked by relative paths
                 // earlier in the classpath
                 for (final ClasspathElement classpathElement : classpathOrder) {
