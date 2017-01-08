@@ -5,8 +5,6 @@ FastClasspathScanner is an uber-fast, ultra-lightweight classpath scanner for Ja
 
 **What is classpath scanning?** Classpath scanning involves scanning directories and jar/zip files on the classpath to find files (especially classfiles) that meet certain criteria. In many ways, classpath scanning offers the *inverse of the Java reflection API:* the Java reflection API can tell you the superclass of a given class, but classpath scanning can find all classes that extend a given superclass. The Java reflection API can give you the list of annotations on a given class, but classpath scanning can find all classes that are annotated with a given annotation. (etc.)
 
-**Version 2.0 has been released**, with multithreaded scanning for extra speed. [(Release notes)](https://github.com/lukehutch/fast-classpath-scanner/releases/tag/fast-classpath-scanner-2.0.0)
-
 **FastClasspathScanner is able to:**
 
 * [Find classes that subclass/extend a given class](https://github.com/lukehutch/fast-classpath-scanner/wiki/3.1.-Finding-subclasses-or-superclasses).
@@ -14,9 +12,9 @@ FastClasspathScanner is an uber-fast, ultra-lightweight classpath scanner for Ja
 * [Find interfaces that extend a given interface](https://github.com/lukehutch/fast-classpath-scanner/wiki/3.3.-Finding-subinterfaces-or-superinterfaces) or one of its subinterfaces.
 * [Find classes that have a specific class annotation or meta-annotation](https://github.com/lukehutch/fast-classpath-scanner/wiki/3.4.-Finding-classes-with-specific-annotations-or-meta-annotations).
 * [Find classes that have methods with a given annotation](https://github.com/lukehutch/fast-classpath-scanner/wiki/3.5-Finding-classes-that-have-methods-with-a-given-annotation).
-* [Find all classes that contain a field of a given type](https://github.com/lukehutch/fast-classpath-scanner/wiki/3.6a.-Finding-classes-with-fields-of-a-given-type) (including identifying fields based on array element type and generic parameter type); 
-* Read the constant literal initializer value in a classfile's constant pool for a [specified static final field](https://github.com/lukehutch/fast-classpath-scanner/wiki/3.6b.-Reading-constant-initializer-values-of-static-final-fields); 
-* Find files (even non-classfiles) anywhere on the classpath that have a [path that matches a given string or regular expression](https://github.com/lukehutch/fast-classpath-scanner/wiki/3.7.-Finding-classpath-files-based-on-filename-pattern).
+* [Find all classes that contain a field of a given type](https://github.com/lukehutch/fast-classpath-scanner/wiki/3.6a.-Finding-classes-with-fields-of-a-given-type) (including identifying fields based on array element type and generic parameter type).
+* Read the constant literal initializer value in a classfile's constant pool for a [specified static final field](https://github.com/lukehutch/fast-classpath-scanner/wiki/3.6b.-Reading-constant-initializer-values-of-static-final-fields).
+* Find files (even non-classfiles) anywhere on the classpath that have a [path that matches a given string or regular expression, or with a specific file extension](https://github.com/lukehutch/fast-classpath-scanner/wiki/3.7.-Finding-classpath-files-based-on-filename-pattern).
 * Return a list of the [names of all classes, interfaces and/or annotations on the classpath](https://github.com/lukehutch/fast-classpath-scanner/wiki/3.8.-Enumerating-all-classes-on-the-classpath) (after whitelist and blacklist filtering).
 * Return a list of [all directories and files on the classpath](https://github.com/lukehutch/fast-classpath-scanner/wiki/1.-Usage#listing-classpath-elements) (i.e. all classpath elements) as a list of File objects, with the list deduplicated and filtered to include only classpath directories and files that actually exist, saving you from the complexities of working with the classpath and classloaders.
 * [Detect changes](https://github.com/lukehutch/fast-classpath-scanner/wiki/1.-Usage#detecting-changes-to-classpath-contents) to the files within the classpath since the first time the classpath was scanned.
