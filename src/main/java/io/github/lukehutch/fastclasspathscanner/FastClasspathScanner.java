@@ -331,9 +331,9 @@ public class FastClasspathScanner {
     }
 
     /**
-     * If true, nested jarfiles (jarfiles within jarfiles, which have to be extracted during scanning in order to be
-     * read) are removed from their temporary directory after the scan has completed. If false, temporary files are
-     * only removed on JVM exit.
+     * If true (the default), nested jarfiles (jarfiles within jarfiles, which have to be extracted during scanning
+     * in order to be read) are removed from their temporary directory after the scan has completed. If false,
+     * temporary files are only removed on JVM exit.
      * 
      * This method should be called if you need to access nested jarfiles (e.g. from a Spring classpath) after
      * scanning has completed. In particular, if you use ClasspathUtils.getClasspathResourceURL() in a
