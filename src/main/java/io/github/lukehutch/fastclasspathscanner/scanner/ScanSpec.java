@@ -271,6 +271,21 @@ public class ScanSpec {
                             }
                         }
                     }
+                } else if (spec.startsWith("dir:")) {
+                	spec = spec.substring(4);
+                	if (!spec.isEmpty()) {
+                		if (log != null) {
+                            log.log("Only \"dir:\" is supported, \"dir:" + spec + "\" is ignored");
+                        }
+                	} else if (blacklisted) {
+                        // Specifying "-dir:" blacklists all directories for scanning
+                        scanNonJars = false;
+                	} else {
+                		// Specifying "dir:" means nothing because directories are scanned by default
+                		if (log != null) {
+                            log.log("\"dir:\" is ignored, only \"-dir:\" is supported");
+                        }
+                	}
                 } else {
                     // Convert classname format to relative path
                     final String specPath = spec.replace('.', '/');
@@ -309,10 +324,6 @@ public class ScanSpec {
         }
         uniqueWhitelistedPathPrefixes.removeAll(uniqueBlacklistedPathPrefixes);
         whitelistedJars.removeAll(blacklistedJars);
-        if (!(whitelistedJars.isEmpty() && whitelistedJarPatterns.isEmpty())) {
-            // Specifying "jar:somejar.jar" causes only the specified jarfile to be scanned
-            scanNonJars = false;
-        }
         if (!scanJars && !scanNonJars) {
             // Can't disable scanning of everything, so if specified, arbitrarily pick one to re-enable.
             if (log != null) {
