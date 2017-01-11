@@ -73,6 +73,11 @@ class ClasspathRelativePath {
     /** True if the path of the canonical file has been read. */
     private boolean canonicalPathIsCached;
 
+    /** The leafname of the file. */
+    private String leafName;
+    /** True if the the leafname of the path has been read. */
+    private boolean leafNameIsCached;
+
     /** True if getFile().isFile(). */
     private boolean isFileCached;
     /** True if isFileCached has been cached. */
@@ -231,6 +236,29 @@ class ClasspathRelativePath {
     }
 
     /**
+     * Get the leafname corresponding to the path. (Also returns the correct leafname for jars-within-jars that were
+     * extracted to temporary files of a different name, so that jar names can be matched.)
+     * 
+     * @throws IOException
+     *             if the path cannot be canonicalized.
+     */
+    private String getLeafName() throws IOException {
+        if (leafNameIsCached) {
+            return leafName;
+        } else {
+            final String filename = getFile().getName();
+            // Separator used in NestedJarHandler#unzipToTempFile()
+            final int sepIdx = filename.indexOf("---");
+            if (sepIdx < 0) {
+                leafName = filename;
+            } else {
+                leafName = filename.substring(sepIdx + 3);
+            }
+            return leafName;
+        }
+    }
+
+    /**
      * If non-empty, this path represents a classpath root within a jarfile, e.g. if the path is
      * "spring-project.jar!/BOOT-INF/classes", the zipClasspathBaseDir is "BOOT-INF/classes".
      */
@@ -350,7 +378,7 @@ class ClasspathRelativePath {
                     }
                     return false;
                 }
-                if (!scanSpec.jarIsWhitelisted(canonicalPath)) {
+                if (!scanSpec.jarIsWhitelisted(getLeafName())) {
                     if (log != null) {
                         log.log("Ignoring jarfile that did not match whitelist/blacklist criteria: " + path);
                     }

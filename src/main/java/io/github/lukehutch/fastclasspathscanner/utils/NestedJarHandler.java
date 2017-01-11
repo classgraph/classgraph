@@ -234,7 +234,7 @@ public class NestedJarHandler implements AutoCloseable {
     public File unzipToTempFile(final ZipFile zipFile, final ZipEntry zipEntry) throws IOException {
         final String zipEntryPath = zipEntry.getName();
         final String leafName = zipEntryPath.substring(zipEntryPath.lastIndexOf('/') + 1);
-        final File tempFile = File.createTempFile("FastClasspathScanner-", "-" + leafName);
+        final File tempFile = File.createTempFile("FastClasspathScanner-", "---" + leafName);
         tempFile.deleteOnExit();
         tempFiles.add(tempFile);
         if (log != null) {
