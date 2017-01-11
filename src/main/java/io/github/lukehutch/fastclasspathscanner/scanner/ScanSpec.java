@@ -223,7 +223,7 @@ public class ScanSpec {
     public ScanSpec(final String[] scanSpec, final LogNode log) {
         final HashSet<String> uniqueWhitelistedPathPrefixes = new HashSet<>();
         final HashSet<String> uniqueBlacklistedPathPrefixes = new HashSet<>();
-        boolean scanJars = true, scanNonJars = true;
+        boolean scanJars = true, scanDirs = true;
         for (final String scanSpecEntry : scanSpec) {
             String spec = scanSpecEntry;
             if ("!".equals(scanSpecEntry)) {
@@ -248,12 +248,13 @@ public class ScanSpec {
                     } else {
                         if (spec.isEmpty()) {
                             if (blacklisted) {
-                                // Specifying "-jar:" blacklists all jars for scanning
+                                // "-jar:" disables jar scanning
                                 scanJars = false;
                             } else {
-                                // Specifying "jar:" causes only jarfiles to be scanned,
-                                // while whitelisting all jarfiles
-                                scanNonJars = false;
+                                // "jar:" with no jar name has no effect
+                                if (log != null) {
+                                    log.log("Ignoring scan spec entry with no effect: \"" + scanSpecEntry + "\"");
+                                }
                             }
                         } else {
                             if (blacklisted) {
@@ -269,6 +270,23 @@ public class ScanSpec {
                                     whitelistedJars.add(spec);
                                 }
                             }
+                        }
+                    }
+                } else if (spec.startsWith("dir:")) {
+                    // Strip off "dir:"
+                    spec = spec.substring(4);
+                    if (!spec.isEmpty()) {
+                        if (log != null) {
+                            log.log("Ignoring extra text after \"dir:\" in scan spec entry: " + scanSpecEntry);
+                        }
+                    }
+                    if (blacklisted) {
+                        // "-dir:" disables directory scanning
+                        scanDirs = false;
+                    } else {
+                        // "dir:" with no jar name has no effect
+                        if (log != null) {
+                            log.log("Ignoring scan spec entry with no effect: \"" + scanSpecEntry + "\"");
                         }
                     }
                 } else {
@@ -301,35 +319,6 @@ public class ScanSpec {
                 }
             }
         }
-        if (uniqueBlacklistedPathPrefixes.contains("/")) {
-            if (log != null) {
-                log.log("Ignoring blacklist of root package, it would prevent all scanning");
-            }
-            uniqueBlacklistedPathPrefixes.remove("/");
-        }
-        uniqueWhitelistedPathPrefixes.removeAll(uniqueBlacklistedPathPrefixes);
-        whitelistedJars.removeAll(blacklistedJars);
-        if (!(whitelistedJars.isEmpty() && whitelistedJarPatterns.isEmpty())) {
-            // Specifying "jar:somejar.jar" causes only the specified jarfile to be scanned
-            scanNonJars = false;
-        }
-        if (!scanJars && !scanNonJars) {
-            // Can't disable scanning of everything, so if specified, arbitrarily pick one to re-enable.
-            if (log != null) {
-                log.log("Scanning of jars and non-jars are both disabled -- re-enabling scanning of non-jars");
-            }
-            scanNonJars = true;
-        }
-        if (uniqueWhitelistedPathPrefixes.isEmpty() || uniqueWhitelistedPathPrefixes.contains("/")) {
-            // If a class is specifically whitelisted, but no other scan spec is provided, this actually
-            // inhibits the scanning of all packages (Issue #78).
-            if (specificallyWhitelistedClassRelativePaths.isEmpty()) {
-                // Scan all packages
-                whitelistedPathPrefixes.add("");
-            }
-        } else {
-            whitelistedPathPrefixes.addAll(uniqueWhitelistedPathPrefixes);
-        }
 
         if (blacklistSystemPackages) {
             // Blacklist Java types by default
@@ -338,6 +327,13 @@ public class ScanSpec {
             uniqueBlacklistedPathPrefixes.add("sun/");
         }
         blacklistedPathPrefixes.addAll(uniqueBlacklistedPathPrefixes);
+
+        if (uniqueBlacklistedPathPrefixes.contains("/")) {
+            if (log != null) {
+                log.log("Ignoring blacklist of root package, it would prevent all scanning");
+            }
+            uniqueBlacklistedPathPrefixes.remove("/");
+        }
 
         // Convert blacklisted path prefixes into package prefixes
         for (final String prefix : blacklistedPathPrefixes) {
@@ -350,8 +346,34 @@ public class ScanSpec {
             specificallyWhitelistedClassParentRelativePaths.add(whitelistedClass.substring(0, lastSlashIdx + 1));
         }
 
+        uniqueWhitelistedPathPrefixes.removeAll(uniqueBlacklistedPathPrefixes);
+        whitelistedPathPrefixes.addAll(uniqueWhitelistedPathPrefixes);
+        if (whitelistedPathPrefixes.contains("/")) {
+            whitelistedPathPrefixes.remove("/");
+            whitelistedPathPrefixes.add("");
+        }
+        if (whitelistedPathPrefixes.isEmpty() && specificallyWhitelistedClassRelativePaths.isEmpty()) {
+            // If no whitelisted package names or class names were given, scan all packages.
+            // Having a whitelisted class name but no whitelisted package name should not trigger the scanning
+            // of all packages (Issue #78.)
+            whitelistedPathPrefixes.add("");
+        }
+
+        whitelistedJars.removeAll(blacklistedJars);
+        if (!(whitelistedJars.isEmpty() && whitelistedJarPatterns.isEmpty())) {
+            // Specifying "jar:somejar.jar" causes only the specified jarfile to be scanned
+            scanDirs = false;
+        }
+        if (!scanJars && !scanDirs) {
+            // Can't disable scanning of everything, so if specified, arbitrarily pick one to re-enable.
+            if (log != null) {
+                log.log("Scanning of jars and dirs are both disabled -- re-enabling scanning of dirs");
+            }
+            scanDirs = true;
+        }
+
         this.scanJars = scanJars;
-        this.scanDirs = scanNonJars;
+        this.scanDirs = scanDirs;
 
         if (log != null) {
             log.log("Whitelisted relative path prefixes:  " + whitelistedPathPrefixes);
@@ -379,7 +401,7 @@ public class ScanSpec {
             if (!scanJars) {
                 log.log("Scanning of jarfiles is disabled");
             }
-            if (!scanNonJars) {
+            if (!scanDirs) {
                 log.log("Scanning of directories (i.e. non-jarfiles) is disabled");
             }
         }
