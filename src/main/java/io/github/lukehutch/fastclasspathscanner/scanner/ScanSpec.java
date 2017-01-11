@@ -103,10 +103,10 @@ public class ScanSpec {
     // -------------------------------------------------------------------------------------------------------------
 
     /** True if jarfiles on the classpath should be scanned. */
-    final boolean scanJars;
+    boolean scanJars = true;
 
     /** True if directories on the classpath should be scanned. */
-    boolean scanDirs;
+    boolean scanDirs = true;
 
     /** If true, index types of fields. */
     public boolean enableFieldTypeIndexing;
@@ -223,7 +223,6 @@ public class ScanSpec {
     public ScanSpec(final String[] scanSpec, final LogNode log) {
         final HashSet<String> uniqueWhitelistedPathPrefixes = new HashSet<>();
         final HashSet<String> uniqueBlacklistedPathPrefixes = new HashSet<>();
-        boolean scanJars = true, scanDirs = true;
         for (final String scanSpecEntry : scanSpec) {
             String spec = scanSpecEntry;
             if ("!".equals(scanSpecEntry)) {
@@ -284,7 +283,7 @@ public class ScanSpec {
                         // "-dir:" disables directory scanning
                         scanDirs = false;
                     } else {
-                        // "dir:" with no jar name has no effect
+                        // "dir:" with no dir name has no effect
                         if (log != null) {
                             log.log("Ignoring scan spec entry with no effect: \"" + scanSpecEntry + "\"");
                         }
@@ -360,10 +359,6 @@ public class ScanSpec {
         }
 
         whitelistedJars.removeAll(blacklistedJars);
-        if (!(whitelistedJars.isEmpty() && whitelistedJarPatterns.isEmpty())) {
-            // Specifying "jar:somejar.jar" causes only the specified jarfile to be scanned
-            scanDirs = false;
-        }
         if (!scanJars && !scanDirs) {
             // Can't disable scanning of everything, so if specified, arbitrarily pick one to re-enable.
             if (log != null) {
@@ -371,9 +366,6 @@ public class ScanSpec {
             }
             scanDirs = true;
         }
-
-        this.scanJars = scanJars;
-        this.scanDirs = scanDirs;
 
         if (log != null) {
             log.log("Whitelisted relative path prefixes:  " + whitelistedPathPrefixes);
