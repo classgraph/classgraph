@@ -349,6 +349,16 @@ public class FastClasspathScanner {
         return this;
     }
 
+    /**
+     * Disable recursive scanning. Causes only toplevel entries within each whitelisted package to be scanned, i.e.
+     * sub-packages of whitelisted packages will not be scanned. If no whitelisted packages were provided to the
+     * constructor, then only the toplevel directory within each classpath element will be scanned.
+     */
+    public FastClasspathScanner disableRecursiveScanning() {
+        getScanSpec().enableRecursiveScanning = false;
+        return this;
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**

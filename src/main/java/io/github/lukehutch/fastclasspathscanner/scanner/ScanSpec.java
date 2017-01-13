@@ -154,6 +154,14 @@ public class ScanSpec {
      */
     public RetentionPolicy annotationVisibility = RetentionPolicy.CLASS;
 
+    /**
+     * Whether to enable recursive scanning (true by default). If set to false, only toplevel entries within each
+     * whitelisted package will be scanned, i.e. sub-packages of whitelisted packages will not be scanned. If no
+     * whitelisted packages were provided to the FastClasspathScanner constructor, then only the toplevel directory
+     * within each classpath element will be scanned.
+     */
+    public boolean enableRecursiveScanning = true;
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
@@ -291,6 +299,10 @@ public class ScanSpec {
                 } else {
                     // Convert classname format to relative path
                     final String specPath = spec.replace('.', '/');
+                    // Strip off initial '/' if present
+                    if (spec.startsWith("/")) {
+                        spec = spec.substring(1);
+                    }
                     // See if a class name was specified, rather than a package name. Relies on the Java convention
                     // that package names should be lower case and class names should be upper case.
                     boolean isClassName = false;
@@ -347,14 +359,15 @@ public class ScanSpec {
 
         uniqueWhitelistedPathPrefixes.removeAll(uniqueBlacklistedPathPrefixes);
         whitelistedPathPrefixes.addAll(uniqueWhitelistedPathPrefixes);
-        if (whitelistedPathPrefixes.contains("/")) {
-            whitelistedPathPrefixes.remove("/");
-            whitelistedPathPrefixes.add("");
-        }
         if (whitelistedPathPrefixes.isEmpty() && specificallyWhitelistedClassRelativePaths.isEmpty()) {
             // If no whitelisted package names or class names were given, scan all packages.
             // Having a whitelisted class name but no whitelisted package name should not trigger the scanning
             // of all packages (Issue #78.)
+            whitelistedPathPrefixes.add("/");
+        }
+
+        // Allow the root path to be matched using either "" or "/"
+        if (whitelistedPathPrefixes.contains("/")) {
             whitelistedPathPrefixes.add("");
         }
 
@@ -546,8 +559,11 @@ public class ScanSpec {
             }
         }
         for (final String whitelistedPath : whitelistedPathPrefixes) {
-            if (relativePath.startsWith(whitelistedPath)) {
-                // The directory is a whitelisted path or its ancestor is a whitelisted path.
+            if (!enableRecursiveScanning && relativePath.equals(whitelistedPath)) {
+                // Recursive scanning is disabled, and the directory is a toplevel whitelisted path.
+                return ScanSpecPathMatch.WITHIN_WHITELISTED_PATH;
+            } else if (enableRecursiveScanning && relativePath.startsWith(whitelistedPath)) {
+                // Recursive scanning is enabled, and the directory is a whitelisted path or a subdirectory.
                 return ScanSpecPathMatch.WITHIN_WHITELISTED_PATH;
             } else if (whitelistedPath.startsWith(relativePath) || "/".equals(relativePath)) {
                 // The directory the ancestor is a whitelisted path (so need to keep scanning deeper into hierarchy)
