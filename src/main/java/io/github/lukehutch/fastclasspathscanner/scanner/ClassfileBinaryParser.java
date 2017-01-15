@@ -28,6 +28,7 @@
  */
 package io.github.lukehutch.fastclasspathscanner.scanner;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.annotation.RetentionPolicy;
@@ -478,8 +479,9 @@ class ClassfileBinaryParser implements AutoCloseable {
      * @throws InterruptedException
      *             if the operation was interrupted.
      */
-    ClassInfoUnlinked readClassInfoFromClassfileHeader(final String relativePath, final InputStream inputStream,
-            final ScanSpec scanSpec, final ConcurrentHashMap<String, String> stringInternMap, final LogNode log)
+    ClassInfoUnlinked readClassInfoFromClassfileHeader(final File classpathElementFile, final String relativePath,
+            final InputStream inputStream, final ScanSpec scanSpec,
+            final ConcurrentHashMap<String, String> stringInternMap, final LogNode log)
             throws InterruptedException {
         try {
             // This class instance can be reused across scans, to avoid re-allocating the buffer.
@@ -597,7 +599,7 @@ class ClassfileBinaryParser implements AutoCloseable {
             final String superclassName = getConstantPoolClassName(readUnsignedShort());
 
             final ClassInfoUnlinked classInfoUnlinked = new ClassInfoUnlinked(className, isInterface, isAnnotation,
-                    stringInternMap);
+                    stringInternMap, classpathElementFile);
 
             // Connect class to superclass
             classInfoUnlinked.addSuperclass(superclassName);

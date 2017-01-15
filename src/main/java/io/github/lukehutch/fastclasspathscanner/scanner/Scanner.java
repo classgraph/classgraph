@@ -215,8 +215,6 @@ public class Scanner implements Callable<ScanResult> {
                 throw new RuntimeException(e);
             }
 
-            final List<File> classpathElementFilesOrdered = new ArrayList<>();
-
             // Get raw classpath elements
             final List<String> rawClasspathElementPathStrs = new ClasspathFinder(scanSpec, classpathFinderLog)
                     .getRawClasspathElements();
@@ -272,10 +270,6 @@ public class Scanner implements Callable<ScanResult> {
             // entries in-place into the ordering, if they haven't been listed earlier in the classpath already.
             final List<ClasspathElement> classpathOrder = findClasspathOrder(rawClasspathElements,
                     classpathElementMap);
-            final HashSet<String> classpathRelativePathsFound = new HashSet<>();
-            for (final ClasspathElement singleton : classpathOrder) {
-                classpathElementFilesOrdered.add(singleton.classpathElementFile);
-            }
 
             // If system jars are not blacklisted, need to manually add rt.jar at the beginning of the classpath,
             // because it is included implicitly by the JVM.
@@ -303,6 +297,7 @@ public class Scanner implements Callable<ScanResult> {
             if (enableRecursiveScanning) {
                 // Determine if any relative paths later in the classpath are masked by relative paths
                 // earlier in the classpath
+                final HashSet<String> classpathRelativePathsFound = new HashSet<>();
                 for (final ClasspathElement classpathElement : classpathOrder) {
                     // Implement classpath masking -- if the same relative path occurs multiple times in the
                     // classpath, ignore (remove) the second and subsequent occurrences.
@@ -361,8 +356,7 @@ public class Scanner implements Callable<ScanResult> {
                 }
 
                 // Create ScanResult
-                scanResult = new ScanResult(scanSpec, classpathElementFilesOrdered, classGraphBuilder,
-                        fileToLastModified);
+                scanResult = new ScanResult(scanSpec, classpathOrder, classGraphBuilder, fileToLastModified);
 
                 // Call MatchProcessors 
                 scanSpec.callMatchProcessors(scanResult, classpathOrder, classNameToClassInfo, interruptionChecker,
@@ -370,7 +364,7 @@ public class Scanner implements Callable<ScanResult> {
             } else {
                 // This is the result of a call to FastClasspathScanner#getUniqueClasspathElementsAsync(), so
                 // just create placeholder ScanResult to contain classpathElementFilesOrdered.
-                scanResult = new ScanResult(scanSpec, classpathElementFilesOrdered, /* classGraphBuilder = */ null,
+                scanResult = new ScanResult(scanSpec, classpathOrder, /* classGraphBuilder = */ null,
                         /* fileToLastModified = */ null);
             }
             if (log != null) {

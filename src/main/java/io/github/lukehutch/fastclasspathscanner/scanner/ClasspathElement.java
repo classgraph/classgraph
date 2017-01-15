@@ -41,6 +41,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.zip.ZipEntry;
 
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec.FileMatchProcessorWrapper;
+import io.github.lukehutch.fastclasspathscanner.utils.ClasspathUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.InterruptionChecker;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.MultiMapKeyToList;
@@ -167,7 +168,7 @@ abstract class ClasspathElement {
 
             @Override
             public String toString() {
-                return classpathEltFile + "/" + relativePath;
+                return ClasspathUtils.getClasspathResourceURL(classpathEltFile, relativePath).toString();
             }
         }
 
@@ -184,7 +185,7 @@ abstract class ClasspathElement {
 
             @Override
             public String toString() {
-                return "jar:" + classpathEltFile + "!" + relativePath;
+                return ClasspathUtils.getClasspathResourceURL(classpathEltFile, relativePath).toString();
             }
         }
 
@@ -230,9 +231,8 @@ abstract class ClasspathElement {
                     filteredClassfileMatches.add(classfileMatch);
                 } else {
                     if (log != null) {
-                        log.log("Ignoring duplicate path " + classfileMatch.relativePath + " in classpath element "
-                                + classfileMatch.classpathEltFile
-                                + " -- it is masked by the same relative path occurring in an earlier classpath entry");
+                        log.log("Ignoring duplicate (masked) classfile path " + classfileMatch.relativePath
+                                + " in classpath element " + classfileMatch.classpathEltFile);
                     }
                 }
             }
@@ -246,10 +246,8 @@ abstract class ClasspathElement {
                         filteredFileMatches.put(ent.getKey(), fileMatch);
                     } else {
                         if (log != null) {
-                            log.log("Ignoring duplicate path " + fileMatch.relativePath + " in classpath element "
-                                    + fileMatch.classpathEltFile
-                                    + " -- it is masked by the same relative path occurring in an earlier classpath "
-                                    + "entry");
+                            log.log("Ignoring duplicate (masked) file path " + fileMatch.relativePath
+                                    + " in classpath element " + fileMatch.classpathEltFile);
                         }
                     }
                 }

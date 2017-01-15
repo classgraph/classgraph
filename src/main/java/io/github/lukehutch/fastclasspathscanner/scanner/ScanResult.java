@@ -29,7 +29,11 @@
 package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import java.io.File;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -41,7 +45,7 @@ public class ScanResult {
     private final ScanSpec scanSpec;
 
     /** The list of File objects for unique classpath elements (directories or jarfiles). */
-    private final List<File> uniqueClasspathElements;
+    private final List<ClasspathElement> classpathOrder;
 
     /**
      * The file, directory and jarfile resources timestamped during a scan, along with their timestamp at the time
@@ -59,13 +63,16 @@ public class ScanResult {
     /** Exceptions thrown while loading classes or while calling MatchProcessors on loaded classes. */
     private final List<Throwable> matchProcessorExceptions = new ArrayList<>();
 
+    /** Map from classpath element File to a URLClassLoader for handling that classpath element */
+    private final Map<File, URLClassLoader> classpathElementFileToClassLoader = new HashMap<>();
+
     // -------------------------------------------------------------------------------------------------------------
 
     /** The result of a scan. */
-    ScanResult(final ScanSpec scanSpec, final List<File> uniqueClasspathElements,
+    ScanResult(final ScanSpec scanSpec, final List<ClasspathElement> classpathOrder,
             final ClassGraphBuilder classGraphBuilder, final Map<File, Long> fileToLastModified) {
         this.scanSpec = scanSpec;
-        this.uniqueClasspathElements = uniqueClasspathElements;
+        this.classpathOrder = classpathOrder;
         this.fileToLastModified = fileToLastModified;
         this.classGraphBuilder = classGraphBuilder;
     }
@@ -94,7 +101,11 @@ public class ScanResult {
      * @return The unique classpath elements.
      */
     public List<File> getUniqueClasspathElements() {
-        return uniqueClasspathElements;
+        final List<File> classpathElementOrderFiles = new ArrayList<>();
+        for (final ClasspathElement classpathElement : classpathOrder) {
+            classpathElementOrderFiles.add(classpathElement.classpathElementFile);
+        }
+        return classpathElementOrderFiles;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -155,6 +166,41 @@ public class ScanResult {
      */
     public Map<String, ClassInfo> getClassNameToClassInfo() {
         return classGraphBuilder.getClassNameToClassInfo();
+    }
+
+    /**
+     * Get the ClassLoader(s) for the named class.
+     * 
+     * @throws RuntimeException
+     *             if classloader for the named class was not found (should not happen).
+     * @param className
+     *            The name of the class.
+     * @return The ClassLoader(s) corresponding to the class.
+     */
+    ArrayList<ClassLoader> getClassLoadersForClassName(final String className) {
+        final ClassInfo classInfo = getClassNameToClassInfo().get(className);
+        if (classInfo == null) {
+            // Should not happen
+            throw new RuntimeException("ClassInfo not found for class " + className);
+        }
+        final ArrayList<ClassLoader> classLoaders = new ArrayList<>();
+        for (final File classpathElementFile : classInfo.classpathElementFiles) {
+            URLClassLoader classLoader = classpathElementFileToClassLoader.get(classpathElementFile);
+            if (classLoader == null) {
+                URL url;
+                try {
+                    url = classpathElementFile.toURI().toURL();
+                } catch (final MalformedURLException e) {
+                    // Should not happen
+                    throw new RuntimeException(e);
+                }
+                classpathElementFileToClassLoader.put(classpathElementFile,
+                        classLoader = new URLClassLoader(new URL[] { url }));
+            }
+            classLoaders.add(classLoader);
+
+        }
+        return classLoaders;
     }
 
     // -------------------------------------------------------------------------------------------------------------

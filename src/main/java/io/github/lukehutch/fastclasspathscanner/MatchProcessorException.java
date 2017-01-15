@@ -29,6 +29,7 @@
 package io.github.lukehutch.fastclasspathscanner;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -81,6 +82,15 @@ public class MatchProcessorException extends RuntimeException {
                     "Multiple exceptions thrown of type: " + Join.join(", ", exceptionMsgsSorted)
                             + ". To see individual exceptions, call MatchProcessorException#getExceptions(), "
                             + "or call FastClasspathScanner#verbose() before FastClasspathScanner#scan().");
+        }
+    }
+
+    /** Create a MatchProcessorException */
+    public static MatchProcessorException newInstance(final Throwable throwable) {
+        if (throwable instanceof Exception) {
+            return new MatchProcessorException(Arrays.asList(throwable), (Exception) throwable);
+        } else {
+            return new MatchProcessorException(Arrays.asList(throwable), throwable.toString());
         }
     }
 }

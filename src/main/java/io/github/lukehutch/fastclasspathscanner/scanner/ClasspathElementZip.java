@@ -302,7 +302,7 @@ class ClasspathElementZip extends ClasspathElement {
                 try (InputStream inputStream = zipFile.getInputStream(zipEntry)) {
                     // Parse classpath binary format, creating a ClassInfoUnlinked object
                     final ClassInfoUnlinked thisClassInfoUnlinked = classfileBinaryParser
-                            .readClassInfoFromClassfileHeader(
+                            .readClassInfoFromClassfileHeader(classpathElementFile,
                                     classpathResourceInZipFile.pathRelativeToClasspathPrefix, inputStream, scanSpec,
                                     stringInternMap, log);
                     // If class was successfully read, output new ClassInfoUnlinked object
