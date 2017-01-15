@@ -175,7 +175,14 @@ public class ScanResult {
     }
 
     /**
-     * Get the ClassLoader(s) for the named class.
+     * Get the ClassLoader(s) for the named class that have the URL for the classpath element that contained the
+     * class at the head of the list, and all other URLs discovered from all ClassLoaders in the correct relative
+     * order after this first URL. This is used to load the named class from the URL for the classpath element where
+     * the class was originally loaded, as a priority, regardless of whether or not there were earlier classes of
+     * the same name on the classpath.
+     * 
+     * This is needed because although FastClasspathScanner can filter out jars using the "jar:" syntax in the scan
+     * spec, that syntax doesn't affect the classloaders themselves. (See #100.)
      * 
      * @throws RuntimeException
      *             if classloader for the named class was not found (should not happen).
