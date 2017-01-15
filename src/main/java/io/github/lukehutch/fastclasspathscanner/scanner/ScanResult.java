@@ -175,14 +175,77 @@ public class ScanResult {
     }
 
     /**
+     * Get the ClassLoader that resolves a class using the given classpath element URL as a first priority, followed
+     * by using all other URLs discovered from all ClassLoaders in the correct relative order. This is used to load
+     * a given class from the URL for the classpath element where the class was originally matches, regardless of
+     * whether or not there were earlier classes of the same name on the classpath.
+     * 
+     * This is needed because although FastClasspathScanner can filter out jars using the "jar:" syntax in the scan
+     * spec, that syntax doesn't affect the ClassLoaders themselves. Therefore custom ClassLoaders are needed to
+     * avoid a mismatch of behavior between FastClasspathScanner's match results and the classes resolved using
+     * Class.load(). (See bug #100.)
+     * 
+     * @throws RuntimeException
+     *             if classloader for the named class was not found (should not happen).
+     * @param className
+     *            The name of the class.
+     * @return The ClassLoader(s) corresponding to the class.
+     */
+    private URLClassLoader getPrioritizedURLClassLoaderForClasspathElementURL(final URL classpathElementURL) {
+        final URLClassLoader existingClassLoader = classpathElementURLToPrioritizedURLClassLoader
+                .get(classpathElementURL);
+        if (existingClassLoader == null) {
+            final ArrayList<URL> urls = new ArrayList<>();
+            // If not blacklisting system jars, the first classpath element is rt.jar, and it should still
+            // be in the first position in the reordered list (even though it's moot to have it in the list
+            // at all, because the parent classloader will still load classes from rt.jar before the new
+            // URLClassLoader has a chance to load them from another URL).
+            int currIdx;
+            if (!scanSpec.blacklistSystemJars()) {
+                // Item 0 will be rt.jar -- it was inserted at position 0 by the Scanner class 
+                final URL firstClasspathElementOrderURL = classpathElementOrderURLs.get(0);
+                // Add rt.jar in first position
+                urls.add(firstClasspathElementOrderURL);
+                // Don't add rt.jar twice
+                if (!classpathElementURL.equals(firstClasspathElementOrderURL)) {
+                    // Add classpathElementURL right after rt.jar
+                    urls.add(classpathElementURL);
+                }
+                // Skip rt.jar in copy loop below
+                currIdx = 1;
+            } else {
+                // Add classpathElementURL in first position
+                urls.add(classpathElementURL);
+                currIdx = 0;
+            }
+            // Copy rest of URLs in order to list of URLs after classpathElementURL
+            for (int i = currIdx; i < classpathElementOrderURLs.size(); i++) {
+                final URL orderURL = classpathElementOrderURLs.get(i);
+                // Don't add classpathElementURL twice
+                if (!classpathElementURL.equals(orderURL)) {
+                    urls.add(orderURL);
+                }
+            }
+            final URL[] urlsArray = new URL[urls.size()];
+            urls.toArray(urlsArray);
+            // Make new URLClassLoader with classpathElementURL at head of resolve list
+            final URLClassLoader newClassLoader = new URLClassLoader(urlsArray);
+            classpathElementURLToPrioritizedURLClassLoader.put(classpathElementURL, newClassLoader);
+            return newClassLoader;
+        } else {
+            return existingClassLoader;
+        }
+    }
+
+    /**
      * Get the ClassLoader(s) for the named class that have the URL for the classpath element that contained the
      * class at the head of the list, and all other URLs discovered from all ClassLoaders in the correct relative
      * order after this first URL. This is used to load the named class from the URL for the classpath element where
      * the class was originally loaded, as a priority, regardless of whether or not there were earlier classes of
      * the same name on the classpath.
      * 
-     * This is needed because although FastClasspathScanner can filter out jars using the "jar:" syntax in the scan
-     * spec, that syntax doesn't affect the classloaders themselves. (See #100.)
+     * Will contain more than one ClassLoader in the result only in the case of Scala classes, where a base class
+     * and a companion class are contained in different classpath elements (which is probably very rare).
      * 
      * @throws RuntimeException
      *             if classloader for the named class was not found (should not happen).
@@ -198,46 +261,7 @@ public class ScanResult {
         }
         final ArrayList<ClassLoader> classLoaders = new ArrayList<>();
         for (final URL classpathElementURL : classInfo.classpathElementURLs) {
-            URLClassLoader classLoader = classpathElementURLToPrioritizedURLClassLoader.get(classpathElementURL);
-            if (classLoader == null) {
-                final ArrayList<URL> urls = new ArrayList<>();
-                // If not blacklisting system jars, the first classpath element is rt.jar, and it should still
-                // be in the first position in the reordered list (even though it's moot to have it in the list
-                // at all, because the parent classloader will still load classes from rt.jar before the new
-                // URLClassLoader has a chance to load them from another URL).
-                int currIdx;
-                if (!scanSpec.blacklistSystemJars()) {
-                    // Item 0 will be rt.jar -- it was inserted at position 0 by the Scanner class 
-                    final URL firstClasspathElementOrderURL = classpathElementOrderURLs.get(0);
-                    // Add rt.jar in first position
-                    urls.add(firstClasspathElementOrderURL);
-                    // Don't add rt.jar twice
-                    if (!classpathElementURL.equals(firstClasspathElementOrderURL)) {
-                        // Add classpathElementURL right after rt.jar
-                        urls.add(classpathElementURL);
-                    }
-                    // Skip rt.jar in copy loop below
-                    currIdx = 1;
-                } else {
-                    // Add classpathElementURL in first position
-                    urls.add(classpathElementURL);
-                    currIdx = 0;
-                }
-                // Copy rest of URLs in order to list of URLs after classpathElementURL
-                for (int i = currIdx; i < classpathElementOrderURLs.size(); i++) {
-                    final URL orderURL = classpathElementOrderURLs.get(i);
-                    // Don't add classpathElementURL twice
-                    if (!classpathElementURL.equals(orderURL)) {
-                        urls.add(orderURL);
-                    }
-                }
-                final URL[] urlsArray = new URL[urls.size()];
-                urls.toArray(urlsArray);
-                // Make new URLClassLoader with classpathElementURL at head of resolve list
-                classLoader = new URLClassLoader(urlsArray);
-                classpathElementURLToPrioritizedURLClassLoader.put(classpathElementURL, classLoader);
-            }
-            classLoaders.add(classLoader);
+            classLoaders.add(getPrioritizedURLClassLoaderForClasspathElementURL(classpathElementURL));
         }
         return classLoaders;
     }
