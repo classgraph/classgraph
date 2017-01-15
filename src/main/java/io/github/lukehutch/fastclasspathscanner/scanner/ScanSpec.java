@@ -686,11 +686,11 @@ public class ScanSpec {
             } catch (final LinkageError e) {
                 // The ClassLoader corresponding to this class name only loads classes in a single classpath element
                 // (i.e. a single jar or directory). This means that LinkageError could result.
-                // This is complicated -- see https://github.com/lukehutch/fast-classpath-scanner/issues/100
                 if (log != null) {
                     log.log("LinkageError loading class " + className + " -- trying other ClassLoaders. "
                             + "May mean that the wrong class is loaded if there are multiple classes of the "
-                            + "same name on the classpath.", e);
+                            + "same name on the classpath. "
+                            + "See https://github.com/lukehutch/fast-classpath-scanner/issues/100", e);
                 }
                 // Try next ClassLoader
             }
