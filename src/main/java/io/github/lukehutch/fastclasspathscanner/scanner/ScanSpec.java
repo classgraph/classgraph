@@ -155,12 +155,12 @@ public class ScanSpec {
     public RetentionPolicy annotationVisibility = RetentionPolicy.CLASS;
 
     /**
-     * Whether to enable recursive scanning (true by default). If set to false, only toplevel entries within each
-     * whitelisted package will be scanned, i.e. sub-packages of whitelisted packages will not be scanned. If no
-     * whitelisted packages were provided to the FastClasspathScanner constructor, then only the toplevel directory
-     * within each classpath element will be scanned.
+     * Whether to disable recursive scanning (enabled by default). If set to false, only toplevel entries within
+     * each whitelisted package will be scanned, i.e. sub-packages of whitelisted packages will not be scanned. If
+     * no whitelisted packages were provided to the FastClasspathScanner constructor, then only the toplevel
+     * directory within each classpath element will be scanned.
      */
-    public boolean enableRecursiveScanning = true;
+    public boolean disableRecursiveScanning = false;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -559,11 +559,11 @@ public class ScanSpec {
             }
         }
         for (final String whitelistedPath : whitelistedPathPrefixes) {
-            if (!enableRecursiveScanning && relativePath.equals(whitelistedPath)) {
+            if (disableRecursiveScanning && relativePath.equals(whitelistedPath)) {
                 // Recursive scanning is disabled, and the directory is a toplevel whitelisted path.
                 return ScanSpecPathMatch.WITHIN_WHITELISTED_PATH;
-            } else if (enableRecursiveScanning && relativePath.startsWith(whitelistedPath)) {
-                // Recursive scanning is enabled, and the directory is a whitelisted path or a subdirectory.
+            } else if (!disableRecursiveScanning && relativePath.startsWith(whitelistedPath)) {
+                // Recursive scanning is enabled, and the directory is a whitelisted path or subdirectory.
                 return ScanSpecPathMatch.WITHIN_WHITELISTED_PATH;
             } else if (whitelistedPath.startsWith(relativePath) || "/".equals(relativePath)) {
                 // The directory the ancestor is a whitelisted path (so need to keep scanning deeper into hierarchy)
