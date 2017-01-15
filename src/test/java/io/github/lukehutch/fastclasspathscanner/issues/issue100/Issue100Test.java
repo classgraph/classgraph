@@ -43,8 +43,10 @@ public class Issue100Test {
     @Test
     public void issue100Test() {
         final ClassLoader classLoader = Issue100Test.class.getClassLoader();
-        final URL aJarURL = classLoader.getResource("issue100-has-field-a.jar");
-        final URL bJarURL = classLoader.getResource("issue100-has-field-b.jar");
+        final String aJarName = "issue100-has-field-a.zip";
+        final URL aJarURL = classLoader.getResource(aJarName);
+        final String bJarName = "issue100-has-field-b.zip";
+        final URL bJarURL = classLoader.getResource(bJarName);
         final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[] { aJarURL, bJarURL });
 
         // Class issue100.Test with field "a" should mask class of same name with field "b",
@@ -61,7 +63,7 @@ public class Issue100Test {
         // However, if "...b.jar" is specifically whitelisted, the classloader for "...a.jar" should not 
         // be used to load the class, it should be skipped
         final ArrayList<String> fieldNames2 = new ArrayList<>();
-        new FastClasspathScanner("jar:issue100-has-field-b.jar") //
+        new FastClasspathScanner("jar:" + bJarName) //
                 .overrideClassLoaders(overrideClassLoader).matchAllClasses(klass -> {
                     for (final Field f : klass.getFields()) {
                         fieldNames2.add(f.getName());
