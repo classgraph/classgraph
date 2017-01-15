@@ -28,7 +28,7 @@
  */
 package io.github.lukehutch.fastclasspathscanner.scanner;
 
-import java.io.File;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -57,7 +57,7 @@ class ClassInfoUnlinked {
     private Set<String> fieldTypes;
     private Map<String, Object> staticFinalFieldValues;
     private final ConcurrentHashMap<String, String> stringInternMap;
-    private final File classpathElementFile;
+    private final URL classpathElementURL;
 
     private String intern(final String string) {
         if (string == null) {
@@ -68,12 +68,12 @@ class ClassInfoUnlinked {
     }
 
     ClassInfoUnlinked(final String className, final boolean isInterface, final boolean isAnnotation,
-            final ConcurrentHashMap<String, String> stringInternMap, final File classpathElementFile) {
+            final ConcurrentHashMap<String, String> stringInternMap, final URL classpathElementURL) {
         this.stringInternMap = stringInternMap;
         this.className = intern(className);
         this.isInterface = isInterface;
         this.isAnnotation = isAnnotation;
-        this.classpathElementFile = classpathElementFile;
+        this.classpathElementURL = classpathElementURL;
     }
 
     void addSuperclass(final String superclassName) {
@@ -117,7 +117,7 @@ class ClassInfoUnlinked {
 
     void link(final ScanSpec scanSpec, final Map<String, ClassInfo> classNameToClassInfo, final LogNode log) {
         final ClassInfo classInfo = ClassInfo.addScannedClass(className, isInterface, isAnnotation, scanSpec,
-                classNameToClassInfo, classpathElementFile, log);
+                classNameToClassInfo, classpathElementURL, log);
         if (superclassName != null) {
             classInfo.addSuperclass(superclassName, classNameToClassInfo);
         }

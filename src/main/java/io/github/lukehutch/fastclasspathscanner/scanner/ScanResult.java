@@ -29,7 +29,6 @@
 package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import java.io.File;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
@@ -45,7 +44,10 @@ public class ScanResult {
     private final ScanSpec scanSpec;
 
     /** The list of File objects for unique classpath elements (directories or jarfiles). */
-    private final List<ClasspathElement> classpathOrder;
+    private final List<File> classpathElementOrderFiles;
+
+    /** The list of URL objects for unique classpath elements (directories or jarfiles). */
+    private final List<URL> classpathElementOrderURLs;
 
     /**
      * The file, directory and jarfile resources timestamped during a scan, along with their timestamp at the time
@@ -63,16 +65,24 @@ public class ScanResult {
     /** Exceptions thrown while loading classes or while calling MatchProcessors on loaded classes. */
     private final List<Throwable> matchProcessorExceptions = new ArrayList<>();
 
-    /** Map from classpath element File to a URLClassLoader for handling that classpath element */
-    private final Map<File, URLClassLoader> classpathElementFileToClassLoader = new HashMap<>();
+    /**
+     * Map from classpath element File to a URLClassLoader for handling all classpath element URLs in order, with
+     * the specific URL of the given File moved to the head of the list so that it is processed first.
+     */
+    private final Map<URL, URLClassLoader> classpathElementURLToPrioritizedURLClassLoader = new HashMap<>();
 
     // -------------------------------------------------------------------------------------------------------------
 
     /** The result of a scan. */
-    ScanResult(final ScanSpec scanSpec, final List<ClasspathElement> classpathOrder,
+    ScanResult(final ScanSpec scanSpec, final List<ClasspathElement> classpathElementOrder,
             final ClassGraphBuilder classGraphBuilder, final Map<File, Long> fileToLastModified) {
         this.scanSpec = scanSpec;
-        this.classpathOrder = classpathOrder;
+        this.classpathElementOrderFiles = new ArrayList<>();
+        this.classpathElementOrderURLs = new ArrayList<>();
+        for (final ClasspathElement classpathElement : classpathElementOrder) {
+            classpathElementOrderFiles.add(classpathElement.classpathElementFile);
+            classpathElementOrderURLs.add(classpathElement.classpathElementURL);
+        }
         this.fileToLastModified = fileToLastModified;
         this.classGraphBuilder = classGraphBuilder;
     }
@@ -101,10 +111,6 @@ public class ScanResult {
      * @return The unique classpath elements.
      */
     public List<File> getUniqueClasspathElements() {
-        final List<File> classpathElementOrderFiles = new ArrayList<>();
-        for (final ClasspathElement classpathElement : classpathOrder) {
-            classpathElementOrderFiles.add(classpathElement.classpathElementFile);
-        }
         return classpathElementOrderFiles;
     }
 
@@ -177,28 +183,50 @@ public class ScanResult {
      *            The name of the class.
      * @return The ClassLoader(s) corresponding to the class.
      */
-    ArrayList<ClassLoader> getClassLoadersForClassName(final String className) {
+    ArrayList<ClassLoader> getPrioritizedURLClassLoadersForClassName(final String className) {
         final ClassInfo classInfo = getClassNameToClassInfo().get(className);
         if (classInfo == null) {
             // Should not happen
             throw new RuntimeException("ClassInfo not found for class " + className);
         }
         final ArrayList<ClassLoader> classLoaders = new ArrayList<>();
-        for (final File classpathElementFile : classInfo.classpathElementFiles) {
-            URLClassLoader classLoader = classpathElementFileToClassLoader.get(classpathElementFile);
+        for (final URL classpathElementURL : classInfo.classpathElementURLs) {
+            URLClassLoader classLoader = classpathElementURLToPrioritizedURLClassLoader.get(classpathElementURL);
             if (classLoader == null) {
-                URL url;
-                try {
-                    url = classpathElementFile.toURI().toURL();
-                } catch (final MalformedURLException e) {
-                    // Should not happen
-                    throw new RuntimeException(e);
+                final ArrayList<URL> urls = new ArrayList<>();
+                // If not blacklisting system jars, the first classpath element is rt.jar, and it should still
+                // be in the first position
+                int currIdx;
+                if (!scanSpec.blacklistSystemJars()) {
+                    final URL firstClasspathElementOrderURL = classpathElementOrderURLs.get(0);
+                    // Add rt.jar in first position
+                    urls.add(firstClasspathElementOrderURL);
+                    // Don't add rt.jar twice
+                    if (!classpathElementURL.equals(firstClasspathElementOrderURL)) {
+                        // Add classpathElementURL right after rt.jar
+                        urls.add(classpathElementURL);
+                    }
+                    // Skip rt.jar for rest of copy
+                    currIdx = 1;
+                } else {
+                    // Add classpathElementURL in first position
+                    urls.add(classpathElementURL);
+                    currIdx = 0;
                 }
-                classpathElementFileToClassLoader.put(classpathElementFile,
-                        classLoader = new URLClassLoader(new URL[] { url }));
+                for (int i = currIdx; i < classpathElementOrderURLs.size(); i++) {
+                    final URL orderURL = classpathElementOrderURLs.get(i);
+                    // Don't add classpathElementURL twice
+                    if (!classpathElementURL.equals(orderURL)) {
+                        urls.add(orderURL);
+                    }
+                }
+                final URL[] urlsArray = new URL[urls.size()];
+                urls.toArray(urlsArray);
+                // Make new URLClassLoader with classpathElementURL at head of resolve list
+                classLoader = new URLClassLoader(urlsArray);
+                classpathElementURLToPrioritizedURLClassLoader.put(classpathElementURL, classLoader);
             }
             classLoaders.add(classLoader);
-
         }
         return classLoaders;
     }

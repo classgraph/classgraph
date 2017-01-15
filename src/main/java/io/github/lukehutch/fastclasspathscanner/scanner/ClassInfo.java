@@ -28,7 +28,7 @@
  */
 package io.github.lukehutch.fastclasspathscanner.scanner;
 
-import java.io.File;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -72,12 +72,12 @@ public class ClassInfo implements Comparable<ClassInfo> {
     private boolean traitMethodClassfileScanned;
 
     /**
-     * The classpath element file(s) (classpath root dir or jar) that this class was found within. Generally this
+     * The classpath element URL(s) (classpath root dir or jar) that this class was found within. Generally this
      * will consist of exactly one entry, however it's possible for Scala that a class and its companion class will
      * be provided in different jars, so we need to be able to support multiple classpath roots per class, so that
      * classloading can find the class wherever it is, in order to provide MatchProcessors with a class reference.
      */
-    HashSet<File> classpathElementFiles;
+    HashSet<URL> classpathElementURLs;
 
     /** The scan spec. */
     private final ScanSpec scanSpec;
@@ -406,7 +406,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
      */
     static ClassInfo addScannedClass(final String className, final boolean isInterface, final boolean isAnnotation,
             final ScanSpec scanSpec, final Map<String, ClassInfo> classNameToClassInfo,
-            final File classpathElementFile, final LogNode log) {
+            final URL classpathElementURL, final LogNode log) {
         // Handle Scala auxiliary classes (companion objects ending in "$" and trait methods classes
         // ending in "$class")
         final boolean isCompanionObjectClass = className.endsWith("$");
@@ -436,10 +436,10 @@ public class ClassInfo implements Comparable<ClassInfo> {
         }
 
         // Remember which classpath element(s) the class was found in, for classloading
-        if (classInfo.classpathElementFiles == null) {
-            classInfo.classpathElementFiles = new HashSet<>();
+        if (classInfo.classpathElementURLs == null) {
+            classInfo.classpathElementURLs = new HashSet<>();
         }
-        classInfo.classpathElementFiles.add(classpathElementFile);
+        classInfo.classpathElementURLs.add(classpathElementURL);
 
         // Mark the appropriate class type as scanned (aux classes all need to be merged into a single
         // ClassInfo object for Scala, but we only want to use the first instance of a given class on the

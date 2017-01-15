@@ -30,6 +30,8 @@ package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -55,6 +57,9 @@ abstract class ClasspathElement {
 
     /** The path for this classpath element, possibly including a '!' jar-internal path suffix. */
     private final String classpathElementFilePath;
+
+    /** The URL for the File of this classpath element. */
+    final URL classpathElementURL;
 
     /** True if there was an exception when trying to open this classpath element (e.g. a corrupt ZipFile). */
     boolean ioExceptionOnOpen;
@@ -98,6 +103,11 @@ abstract class ClasspathElement {
         try {
             this.classpathElementFile = classpathEltPath.getFile();
             this.classpathElementFilePath = classpathEltPath.toString();
+            try {
+                this.classpathElementURL = classpathElementFile.toURI().toURL();
+            } catch (final MalformedURLException e) {
+                throw new RuntimeException(e);
+            }
         } catch (final IOException e) {
             // Shouldn't happen, files have already been screened for this
             throw new RuntimeException(e);
