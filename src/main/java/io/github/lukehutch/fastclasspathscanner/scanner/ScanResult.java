@@ -216,13 +216,14 @@ public class ScanResult {
                         // Add classpathElementURL right after rt.jar
                         urls.add(classpathElementURL);
                     }
-                    // Skip rt.jar for rest of copy
+                    // Skip rt.jar in copy loop below
                     currIdx = 1;
                 } else {
                     // Add classpathElementURL in first position
                     urls.add(classpathElementURL);
                     currIdx = 0;
                 }
+                // Copy rest of URLs in order to list of URLs after classpathElementURL
                 for (int i = currIdx; i < classpathElementOrderURLs.size(); i++) {
                     final URL orderURL = classpathElementOrderURLs.get(i);
                     // Don't add classpathElementURL twice
