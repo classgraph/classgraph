@@ -202,9 +202,12 @@ public class ScanResult {
             if (classLoader == null) {
                 final ArrayList<URL> urls = new ArrayList<>();
                 // If not blacklisting system jars, the first classpath element is rt.jar, and it should still
-                // be in the first position
+                // be in the first position in the reordered list (even though it's moot to have it in the list
+                // at all, because the parent classloader will still load classes from rt.jar before the new
+                // URLClassLoader has a chance to load them from another URL).
                 int currIdx;
                 if (!scanSpec.blacklistSystemJars()) {
+                    // Item 0 will be rt.jar -- it was inserted at position 0 by the Scanner class 
                     final URL firstClasspathElementOrderURL = classpathElementOrderURLs.get(0);
                     // Add rt.jar in first position
                     urls.add(firstClasspathElementOrderURL);
