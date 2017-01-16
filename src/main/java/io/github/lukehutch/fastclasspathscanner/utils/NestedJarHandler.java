@@ -57,6 +57,7 @@ public class NestedJarHandler implements AutoCloseable {
     private final SingletonMap<String, File> nestedPathToJarfileMap;
     private final SingletonMap<String, Recycler<ZipFile, IOException>> canonicalPathToZipFileRecyclerMap;
     private final InterruptionChecker interruptionChecker;
+    static final String TEMP_FILENAME_SEPARATOR = "---";
     private final LogNode log;
 
     public NestedJarHandler(final boolean removeTemporaryFilesAfterScan,
@@ -234,7 +235,7 @@ public class NestedJarHandler implements AutoCloseable {
     public File unzipToTempFile(final ZipFile zipFile, final ZipEntry zipEntry) throws IOException {
         final String zipEntryPath = zipEntry.getName();
         final String leafName = zipEntryPath.substring(zipEntryPath.lastIndexOf('/') + 1);
-        final File tempFile = File.createTempFile("FastClasspathScanner-", "---" + leafName);
+        final File tempFile = File.createTempFile("FastClasspathScanner-", TEMP_FILENAME_SEPARATOR + leafName);
         tempFile.deleteOnExit();
         tempFiles.add(tempFile);
         if (log != null) {

@@ -47,7 +47,13 @@ public class JarUtils {
     public static String leafName(final String path) {
         final int lastSlashIdx = File.separatorChar == '/' ? path.lastIndexOf('/')
                 : Math.max(path.lastIndexOf('/'), path.lastIndexOf(File.separatorChar));
-        return lastSlashIdx < 0 ? path : path.substring(lastSlashIdx + 1);
+        // In case of temp files (for jars extracted from within jars), remove the temp filename prefix
+        int sepIdx = path.indexOf(NestedJarHandler.TEMP_FILENAME_SEPARATOR);
+        if (sepIdx >= 0) {
+            sepIdx += NestedJarHandler.TEMP_FILENAME_SEPARATOR.length() - 1;
+        }
+        final int maxIdx = Math.max(lastSlashIdx, sepIdx);
+        return maxIdx < 0 ? path : path.substring(maxIdx + 1);
     }
 
     /**

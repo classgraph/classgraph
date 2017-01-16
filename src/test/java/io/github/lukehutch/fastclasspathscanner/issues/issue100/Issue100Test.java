@@ -61,7 +61,9 @@ public class Issue100Test {
         assertThat(fieldNames1).containsOnly("a");
 
         // However, if "...b.jar" is specifically whitelisted, the classloader for "...a.jar" should not 
-        // be used to load the class, it should be skipped
+        // be used to load the class, it should be skipped. Both "...a.jar" and "...b.jar" contain a
+        // definition of the class issue100.Test, however the definition in "...b.jar" is masked by the
+        // definition of the class in "...a.jar", so there should be no result here.
         final ArrayList<String> fieldNames2 = new ArrayList<>();
         new FastClasspathScanner("jar:" + bJarName) //
                 .overrideClassLoaders(overrideClassLoader).matchAllClasses(klass -> {
@@ -69,6 +71,6 @@ public class Issue100Test {
                         fieldNames2.add(f.getName());
                     }
                 }).scan();
-        assertThat(fieldNames2).containsOnly("b");
+        assertThat(fieldNames2).isEmpty();
     }
 }

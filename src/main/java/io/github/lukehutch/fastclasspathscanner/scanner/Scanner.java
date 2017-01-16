@@ -268,8 +268,7 @@ public class Scanner implements Callable<ScanResult> {
 
             // Determine total ordering of classpath elements, inserting jars referenced in manifest Class-Path
             // entries in-place into the ordering, if they haven't been listed earlier in the classpath already.
-            final List<ClasspathElement> classpathOrder = findClasspathOrder(rawClasspathElements,
-                    classpathElementMap);
+            List<ClasspathElement> classpathOrder = findClasspathOrder(rawClasspathElements, classpathElementMap);
 
             // If system jars are not blacklisted, need to manually add rt.jar at the beginning of the classpath,
             // because it is included implicitly by the JVM.
@@ -285,6 +284,49 @@ public class Scanner implements Callable<ScanResult> {
                 }
             }
 
+            if (enableRecursiveScanning) {
+                final HashSet<String> classpathRelativePathsFound = new HashSet<>();
+                final ArrayList<ClasspathElement> classpathOrderFiltered = new ArrayList<>();
+                for (int classpathIdx = 0; classpathIdx < classpathOrder.size(); classpathIdx++) {
+                    final ClasspathElement classpathElement = classpathOrder.get(classpathIdx);
+                    // Implement classpath masking -- if the same relative path occurs multiple times in the
+                    // classpath, ignore (remove) the second and subsequent occurrences. Note that classpath
+                    // masking is performed whether or not a jar is whitelisted, and whether or not jar or
+                    // dir scanning is enabled, in order to ensure that class references passed into
+                    // MatchProcessors are the same as those that would be loaded by standard classloading.
+                    // (See bug #100.)
+                    classpathElement.maskFiles(classpathIdx, classpathRelativePathsFound, log);
+
+                    // Check whether a given classpath element should be scheduled for scanning or not.
+                    // A classpath element is not scanned if (1) it is a jar, and jar scanning is disabled,
+                    // or a jar whitelist was provided in the scan spec, and a given jar is not whitelisted;
+                    // (2) it is a directory, and directory scanning is disabled. 
+                    if (classpathElement.classpathElementFile.isFile() && !scanSpec.scanJars) {
+                        if (log != null) {
+                            log.log(String.format("%06d", classpathIdx),
+                                    "Ignoring jarfile, because jar scanning has been disabled: "
+                                            + classpathElement.classpathElementFile);
+                        }
+                    } else if (classpathElement.classpathElementFile.isFile()
+                            && !scanSpec.jarIsWhitelisted(classpathElement.classpathElementFile.getName())) {
+                        if (log != null) {
+                            log.log(String.format("%06d", classpathIdx),
+                                    "Ignoring jarfile, because it is not whitelisted: "
+                                            + classpathElement.classpathElementFile);
+                        }
+                    } else if (classpathElement.classpathElementFile.isDirectory() && !scanSpec.scanDirs) {
+                        if (log != null) {
+                            log.log(String.format("%06d", classpathIdx),
+                                    "Ignoring directory, because directory scanning has been disabled: "
+                                            + classpathElement.classpathElementFile);
+                        }
+                    } else {
+                        classpathOrderFiltered.add(classpathElement);
+                    }
+                }
+                classpathOrder = classpathOrderFiltered;
+            }
+
             if (log != null) {
                 final LogNode logNode = log.log("Classpath element order:");
                 for (int i = 0; i < classpathOrder.size(); i++) {
@@ -295,15 +337,6 @@ public class Scanner implements Callable<ScanResult> {
 
             ScanResult scanResult;
             if (enableRecursiveScanning) {
-                // Determine if any relative paths later in the classpath are masked by relative paths
-                // earlier in the classpath
-                final HashSet<String> classpathRelativePathsFound = new HashSet<>();
-                for (final ClasspathElement classpathElement : classpathOrder) {
-                    // Implement classpath masking -- if the same relative path occurs multiple times in the
-                    // classpath, ignore (remove) the second and subsequent occurrences.
-                    classpathElement.maskFiles(classpathRelativePathsFound, log);
-                }
-
                 // Merge the maps from file to timestamp across all classpath elements
                 final Map<File, Long> fileToLastModified = new HashMap<>();
                 for (final ClasspathElement classpathElement : classpathOrder) {

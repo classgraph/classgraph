@@ -664,43 +664,15 @@ public class ScanSpec {
      * Call the classloader using Class.forName(className, initializeLoadedClasses, classLoader), for all known
      * ClassLoaders, until one is able to load the class, or until there are no more ClassLoaders to try.
      * 
-     * @throw MatchProcessorException if ExceptionInInitializerError is thrown, or if no ClassLoader is able to load
-     *        the class.
+     * @throw MatchProcessorException if LinkageError (including ExceptionInInitializerError) is thrown, or if no
+     *        ClassLoader is able to load the class.
      * @return a reference to the loaded class.
      */
-    private <T> Class<? extends T> loadClass(final String className, final ScanResult scanResult, final LogNode log)
+    private Class<?> loadClass(final String className, final ScanResult scanResult, final LogNode log)
             throws Exception {
-        for (final ClassLoader classLoader : scanResult.getPrioritizedURLClassLoadersForClassName(className)) {
-            try {
-                @SuppressWarnings("unchecked")
-                final Class<? extends T> cls = (Class<? extends T>) Class.forName(className,
-                        initializeLoadedClasses, classLoader);
-                return cls;
-            } catch (final ClassNotFoundException e) {
-                // Try next ClassLoader
-            } catch (final ExceptionInInitializerError e) {
-                if (log != null) {
-                    log.log("Error while loading class " + className + ": " + e);
-                }
-                throw MatchProcessorException.newInstance(e);
-            } catch (final LinkageError e) {
-                // The ClassLoader corresponding to this class name only loads classes in a single classpath element
-                // (i.e. a single jar or directory). This means that LinkageError could result.
-                if (log != null) {
-                    log.log("LinkageError loading class " + className + " -- trying other ClassLoaders", e);
-                }
-                // Try next ClassLoader
-            }
-        }
-        // Fallback (should not be needed, unless a given ClassLoader is doing something very weird): if the
-        // ClassLoader for the given class' classpath element URL was not able to load the class, then try all
-        // the system ClassLoaders in order.
         for (final ClassLoader classLoader : classLoaders) {
             try {
-                @SuppressWarnings("unchecked")
-                final Class<? extends T> cls = (Class<? extends T>) Class.forName(className,
-                        initializeLoadedClasses, classLoader);
-                return cls;
+                return Class.forName(className, initializeLoadedClasses, classLoader);
             } catch (final ClassNotFoundException e) {
                 // Try next ClassLoader
             } catch (final LinkageError e) {
@@ -974,7 +946,9 @@ public class ScanSpec {
                     }
                     try {
                         // Call classloader
-                        final Class<? extends T> cls = loadClass(subclassName, scanResult, log);
+                        @SuppressWarnings("unchecked")
+                        final Class<? extends T> cls = (Class<? extends T>) loadClass(subclassName, scanResult,
+                                log);
                         // Process match
                         subclassMatchProcessor.processMatch(cls);
                     } catch (final Throwable e) {
@@ -1016,7 +990,9 @@ public class ScanSpec {
                     }
                     try {
                         // Call classloader
-                        final Class<? extends T> cls = loadClass(subinterfaceName, scanResult, log);
+                        @SuppressWarnings("unchecked")
+                        final Class<? extends T> cls = (Class<? extends T>) loadClass(subinterfaceName, scanResult,
+                                log);
                         // Process match
                         subinterfaceMatchProcessor.processMatch(cls);
                     } catch (final Throwable e) {
@@ -1059,7 +1035,9 @@ public class ScanSpec {
                     }
                     try {
                         // Call classloader
-                        final Class<? extends T> cls = loadClass(implementingClassName, scanResult, log);
+                        @SuppressWarnings("unchecked")
+                        final Class<? extends T> cls = (Class<? extends T>) loadClass(implementingClassName,
+                                scanResult, log);
                         // Process match
                         implementingClassMatchProcessor.processMatch(cls);
                     } catch (final Throwable e) {
@@ -1101,7 +1079,7 @@ public class ScanSpec {
                     }
                     try {
                         // Call classloader
-                        final Class<? extends T> cls = loadClass(className, scanResult, log);
+                        final Class<?> cls = loadClass(className, scanResult, log);
                         // Process match
                         classMatchProcessor.processMatch(cls);
                     } catch (final Throwable e) {

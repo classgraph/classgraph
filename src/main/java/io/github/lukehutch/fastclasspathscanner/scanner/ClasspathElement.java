@@ -210,7 +210,7 @@ abstract class ClasspathElement {
      * Apply relative path masking within this classpath resource -- remove relative paths that were found in an
      * earlier classpath element.
      */
-    void maskFiles(final HashSet<String> classpathRelativePathsFound, final LogNode log) {
+    void maskFiles(final int classpathIdx, final HashSet<String> classpathRelativePathsFound, final LogNode log) {
         if (!scanFiles) {
             // Should not happen
             throw new IllegalArgumentException("scanFiles is false");
@@ -241,8 +241,9 @@ abstract class ClasspathElement {
                     filteredClassfileMatches.add(classfileMatch);
                 } else {
                     if (log != null) {
-                        log.log("Ignoring duplicate (masked) classfile path " + classfileMatch.relativePath
-                                + " in classpath element " + classfileMatch.classpathEltFile);
+                        log.log(String.format("%06d", classpathIdx),
+                                "Ignoring duplicate (masked) class " + classfileMatch.relativePath.replace('/', '.')
+                                        + " in classpath element " + classfileMatch.classpathEltFile);
                     }
                 }
             }
@@ -256,8 +257,9 @@ abstract class ClasspathElement {
                         filteredFileMatches.put(ent.getKey(), fileMatch);
                     } else {
                         if (log != null) {
-                            log.log("Ignoring duplicate (masked) file path " + fileMatch.relativePath
-                                    + " in classpath element " + fileMatch.classpathEltFile);
+                            log.log(String.format("%06d", classpathIdx),
+                                    "Ignoring duplicate (masked) file path " + fileMatch.relativePath
+                                            + " in classpath element " + fileMatch.classpathEltFile);
                         }
                     }
                 }
