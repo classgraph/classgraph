@@ -1020,14 +1020,46 @@ public class ClassInfo implements Comparable<ClassInfo> {
     /**
      * Get the standard classes and non-annotation interfaces that are annotated by this annotation.
      * 
+     * @param direct
+     *            if true, return only directly-annotated classes.
+     * @return the set of standard classes and non-annotation interfaces that are annotated by the annotation
+     *         corresponding to this ClassInfo class, or the empty set if none.
+     */
+    private Set<ClassInfo> getClassesWithAnnotation(final boolean direct) {
+        if (!isAnnotation()) {
+            return Collections.<ClassInfo> emptySet();
+        }
+        final Set<ClassInfo> classesWithAnnotation = filterClassInfo(
+                direct ? getDirectlyRelatedClasses(RelType.ANNOTATED_CLASSES)
+                        : getReachableClasses(RelType.ANNOTATED_CLASSES),
+                /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, //
+                ClassType.STANDARD_CLASS, ClassType.IMPLEMENTED_INTERFACE);
+        boolean isInherited = false;
+        for (final ClassInfo metaAnnotation : getDirectlyRelatedClasses(RelType.ANNOTATIONS)) {
+            if (metaAnnotation.className.equals("java.lang.annotation.Inherited")) {
+                isInherited = true;
+                break;
+            }
+        }
+        if (isInherited) {
+            final Set<ClassInfo> classesWithAnnotationAndTheirSubclasses = new HashSet<>(classesWithAnnotation);
+            for (final ClassInfo classWithAnnotation : classesWithAnnotation) {
+                classesWithAnnotationAndTheirSubclasses.addAll(classWithAnnotation.getSubclasses());
+            }
+            return classesWithAnnotationAndTheirSubclasses;
+        } else {
+            return classesWithAnnotation;
+        }
+    }
+
+    /**
+     * Get the standard classes and non-annotation interfaces that are annotated by this annotation.
+     * 
      * @return the set of standard classes and non-annotation interfaces that are annotated by the annotation
      *         corresponding to this ClassInfo class, or the empty set if none.
      */
     public Set<ClassInfo> getClassesWithAnnotation() {
-        return !isAnnotation() ? Collections.<ClassInfo> emptySet()
-                : filterClassInfo(getReachableClasses(RelType.ANNOTATED_CLASSES),
-                        /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.STANDARD_CLASS,
-                        ClassType.IMPLEMENTED_INTERFACE);
+        return getClassesWithAnnotation(/* direct = */ false);
     }
 
     /**
@@ -1060,10 +1092,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
      *         annotation, or the empty set if none.
      */
     public Set<ClassInfo> getClassesWithDirectAnnotation() {
-        return !isAnnotation() ? Collections.<ClassInfo> emptySet()
-                : filterClassInfo(getDirectlyRelatedClasses(RelType.ANNOTATED_CLASSES),
-                        /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.STANDARD_CLASS,
-                        ClassType.IMPLEMENTED_INTERFACE);
+        return getClassesWithAnnotation(/* direct = */ true);
     }
 
     /** Deprecated. Use getNamesOfClassesWithDirectAnnotation() instead. */ // TODO remove
