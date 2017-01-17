@@ -241,7 +241,7 @@ abstract class ClasspathElement {
                     filteredClassfileMatches.add(classfileMatch);
                 } else {
                     if (log != null) {
-                        log.log(String.format("%06d", classpathIdx),
+                        log.log(String.format("%06d-1", classpathIdx),
                                 "Ignoring duplicate (masked) class " + classfileMatch.relativePath.replace('/', '.')
                                         + " in classpath element " + classfileMatch.classpathEltFile);
                     }
@@ -257,7 +257,7 @@ abstract class ClasspathElement {
                         filteredFileMatches.put(ent.getKey(), fileMatch);
                     } else {
                         if (log != null) {
-                            log.log(String.format("%06d", classpathIdx),
+                            log.log(String.format("%06d-1", classpathIdx),
                                     "Ignoring duplicate (masked) file path " + fileMatch.relativePath
                                             + " in classpath element " + fileMatch.classpathEltFile);
                         }

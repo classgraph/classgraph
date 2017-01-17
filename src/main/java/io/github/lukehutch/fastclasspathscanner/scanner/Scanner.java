@@ -306,20 +306,20 @@ public class Scanner implements Callable<ScanResult> {
                     // (2) it is a directory, and directory scanning is disabled. 
                     if (classpathElement.classpathElementFile.isFile() && !scanSpec.scanJars) {
                         if (log != null) {
-                            log.log(String.format("%06d", classpathIdx),
+                            log.log(String.format("%06d-2", classpathIdx),
                                     "Ignoring jarfile, because jar scanning has been disabled: "
                                             + classpathElement.classpathElementFile);
                         }
                     } else if (classpathElement.classpathElementFile.isFile()
                             && !scanSpec.jarIsWhitelisted(classpathElement.classpathElementFile.getName())) {
                         if (log != null) {
-                            log.log(String.format("%06d", classpathIdx),
+                            log.log(String.format("%06d-2", classpathIdx),
                                     "Ignoring jarfile, because it is not whitelisted: "
                                             + classpathElement.classpathElementFile);
                         }
                     } else if (classpathElement.classpathElementFile.isDirectory() && !scanSpec.scanDirs) {
                         if (log != null) {
-                            log.log(String.format("%06d", classpathIdx),
+                            log.log(String.format("%06d-2", classpathIdx),
                                     "Ignoring directory, because directory scanning has been disabled: "
                                             + classpathElement.classpathElementFile);
                         }
