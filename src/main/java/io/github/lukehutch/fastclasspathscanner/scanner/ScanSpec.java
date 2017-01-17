@@ -34,6 +34,7 @@ import java.io.InputStream;
 import java.lang.annotation.Annotation;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.reflect.Method;
+import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -222,6 +223,12 @@ public class ScanSpec {
      * temporary files are removed on JVM exit.
      */
     public boolean removeTemporaryFilesAfterScan = true;
+
+    /**
+     * A ClassLoader that attempts to load classes in exactly the same order as the scan order, which will increase
+     * the odds of loading the right class in cases such as when the classpath is overridden before scanning.
+     */
+    URLClassLoader orderedClassLoader = null;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -670,6 +677,15 @@ public class ScanSpec {
      */
     private Class<?> loadClass(final String className, final ScanResult scanResult, final LogNode log)
             throws Exception {
+        // First try loading classes in the order that classpath elements were scanned
+        if (orderedClassLoader != null) {
+            try {
+                return Class.forName(className, initializeLoadedClasses, orderedClassLoader);
+            } catch (final ClassNotFoundException | LinkageError e) {
+                // Fall through to below
+            }
+        }
+        // If that didn't work (e.g. if we get a LinkageError), try loading via each classloader in turn
         for (final ClassLoader classLoader : classLoaders) {
             try {
                 return Class.forName(className, initializeLoadedClasses, classLoader);

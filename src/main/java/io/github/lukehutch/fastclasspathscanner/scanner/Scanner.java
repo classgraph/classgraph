@@ -30,6 +30,8 @@ package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.nio.file.LinkOption;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -287,6 +289,7 @@ public class Scanner implements Callable<ScanResult> {
             if (enableRecursiveScanning) {
                 final HashSet<String> classpathRelativePathsFound = new HashSet<>();
                 final ArrayList<ClasspathElement> classpathOrderFiltered = new ArrayList<>();
+                final ArrayList<URL> classpathOrderURLsFiltered = new ArrayList<>();
                 for (int classpathIdx = 0; classpathIdx < classpathOrder.size(); classpathIdx++) {
                     final ClasspathElement classpathElement = classpathOrder.get(classpathIdx);
                     // Implement classpath masking -- if the same relative path occurs multiple times in the
@@ -322,9 +325,16 @@ public class Scanner implements Callable<ScanResult> {
                         }
                     } else {
                         classpathOrderFiltered.add(classpathElement);
+                        classpathOrderURLsFiltered.add(classpathElement.classpathElementURL);
                     }
                 }
                 classpathOrder = classpathOrderFiltered;
+
+                // Create a new ClassLoader that attempts to load classes in exactly the order that was specified,
+                // which will increase the odds of loading the right class in cases such as when the classpath is
+                // overridden before scanning.
+                scanSpec.orderedClassLoader = new URLClassLoader(
+                        classpathOrderURLsFiltered.toArray(new URL[classpathOrderFiltered.size()]));
             }
 
             if (log != null) {
