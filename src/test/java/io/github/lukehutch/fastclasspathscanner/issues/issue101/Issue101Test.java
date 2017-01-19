@@ -54,7 +54,7 @@ public class Issue101Test {
     @Test
     public void inheritedMetaAnnotation() {
         final ScanResult scanResult = new FastClasspathScanner(Issue101Test.class.getPackage().getName()).scan();
-        assertThat(scanResult.getNamesOfClassesWithAnnotation(InheritedMetaAnnotation.class)).containsOnly(
-                AnnotatedClass.class.getName(), NonAnnotatedSubclass.class.getName());
+        assertThat(scanResult.getNamesOfClassesWithAnnotation(InheritedMetaAnnotation.class))
+                .containsOnly(AnnotatedClass.class.getName(), NonAnnotatedSubclass.class.getName());
     }
 }
