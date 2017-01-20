@@ -81,6 +81,12 @@ public class ClasspathFinder {
     ClasspathFinder(final ScanSpec scanSpec, final LogNode log) {
         if (scanSpec.overrideClasspath != null) {
             // Manual classpath override
+            if (scanSpec.overrideClassLoaders) {
+                if (log != null) {
+                    log.log("It is not possible to override both the classpath and the ClassLoaders -- "
+                            + "ignoring the ClassLoader override");
+                }
+            }
             final LogNode overrideLog = log == null ? null : log.log("Overriding classpath");
             addClasspathElements(scanSpec.overrideClasspath, overrideLog);
         } else {
