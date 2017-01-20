@@ -31,5 +31,5 @@ package io.github.lukehutch.fastclasspathscanner.matchprocessor;
 /** The method to run when any class, interface or annotation is found in a whitelisted package on the classpath. */
 @FunctionalInterface
 public interface ClassMatchProcessor {
-    public void processMatch(Class<?> klass);
+    public void processMatch(Class<?> classRef);
 }
