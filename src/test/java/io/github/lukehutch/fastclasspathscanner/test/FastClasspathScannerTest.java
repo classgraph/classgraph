@@ -34,6 +34,7 @@ import static org.assertj.core.api.StrictAssertions.assertThat;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -99,6 +100,14 @@ public class FastClasspathScannerTest {
         assertThat(allClasses).doesNotContain(FastClasspathScanner.class.getName());
         assertThat(allClasses).doesNotContain(FastClasspathScannerTest.class.getName());
         assertThat(allClasses).doesNotContain(String.class.getName());
+        assertThat(allClasses).contains(BlacklistedSub.class.getName());
+    }
+
+    @Test
+    public void lambda() throws Exception {
+        final List<String> allClasses = new ArrayList<>();
+        new FastClasspathScanner(WHITELIST_PACKAGE).matchAllClasses(classRef -> allClasses.add(classRef.getName()))
+                .scan();
         assertThat(allClasses).contains(BlacklistedSub.class.getName());
     }
 
