@@ -32,6 +32,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Set;
 
+import io.github.lukehutch.fastclasspathscanner.utils.ClasspathUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.FastPathResolver;
 import io.github.lukehutch.fastclasspathscanner.utils.JarUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
@@ -217,7 +218,7 @@ class ClasspathRelativePath {
                 } catch (final Exception e) {
                     throw new IOException("Exception while getting jarfile " + relativePath, e);
                 }
-                if (fileCached == null || !fileCached.exists()) {
+                if (fileCached == null || !ClasspathUtils.canRead(fileCached)) {
                     throw new IOException("Could not find jarfile " + relativePath);
                 }
 
@@ -287,7 +288,7 @@ class ClasspathRelativePath {
     /** True if this relative path corresponds to a file or directory that exists. */
     private boolean exists() throws IOException {
         if (!existsIsCached) {
-            existsCached = getFile().exists();
+            existsCached = ClasspathUtils.canRead(getFile());
             existsIsCached = true;
         }
         return existsCached;

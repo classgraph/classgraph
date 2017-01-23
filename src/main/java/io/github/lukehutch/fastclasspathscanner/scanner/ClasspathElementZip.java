@@ -43,6 +43,7 @@ import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathElement.Classpa
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec.FileMatchProcessorWrapper;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec.FilePathTesterAndMatchProcessorWrapper;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec.ScanSpecPathMatch;
+import io.github.lukehutch.fastclasspathscanner.utils.ClasspathUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.FastManifestParser;
 import io.github.lukehutch.fastclasspathscanner.utils.FastPathResolver;
 import io.github.lukehutch.fastclasspathscanner.utils.InterruptionChecker;
@@ -74,7 +75,7 @@ class ClasspathElementZip extends ClasspathElement {
             ioExceptionOnOpen = true;
             return;
         }
-        if (classpathEltFile == null || !classpathEltFile.exists()) {
+        if (classpathEltFile == null || !ClasspathUtils.canRead(classpathEltFile)) {
             if (log != null) {
                 log.log("Skipping non-existent jarfile " + classpathEltPath.getResolvedPath());
             }

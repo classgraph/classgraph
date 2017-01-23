@@ -32,6 +32,7 @@ import java.io.File;
 import java.lang.reflect.Array;
 
 import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
+import io.github.lukehutch.fastclasspathscanner.utils.ClasspathUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
 
@@ -62,10 +63,10 @@ public class JBossClassLoaderHandler implements ClassLoaderHandler {
                                 final String name = (String) ReflectionUtils.invokeMethod(root, "getName");
                                 if (name != null) {
                                     final File file = new java.io.File(physicalFile.getParentFile(), name);
-                                    if (!file.exists() || !file.canRead()) {
-                                        path = physicalFile.getAbsolutePath();
-                                    } else {
+                                    if (ClasspathUtils.canRead(file)) {
                                         path = file.getAbsolutePath();
+                                    } else {
+                                        path = physicalFile.getAbsolutePath();
                                     }
                                 } else {
                                     path = physicalFile.getAbsolutePath();

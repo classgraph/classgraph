@@ -81,12 +81,12 @@ public class JarUtils {
             File rt = new File(parent, File.separatorChar == '/' ? "jre/lib/rt.jar"
                     : String.format("jre%clib%crt.jar", File.separatorChar, File.separatorChar));
             boolean rtExists;
-            if (!(rtExists = rt.exists())) {
+            if (!(rtExists = ClasspathUtils.canRead(rt))) {
                 rt = new File(parent, File.separatorChar == '/' ? "lib/rt.jar"
                         : String.format("lib%crt.jar", File.separatorChar));
-                if (!(rtExists = rt.exists())) {
+                if (!(rtExists = ClasspathUtils.canRead(rt))) {
                     rt = new File(parent, "rt.jar");
-                    rtExists = rt.exists();
+                    rtExists = ClasspathUtils.canRead(rt);
                 }
             }
             boolean isJREJar = false;

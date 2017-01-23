@@ -99,7 +99,7 @@ public class NestedJarHandler implements AutoCloseable {
                         }
                         return null;
                     }
-                    if (!canonicalFile.exists()) {
+                    if (!ClasspathUtils.canRead(canonicalFile)) {
                         if (log != null) {
                             log.log(nestedJarPath, "Path component does not exist: " + nestedJarPath);
                         }

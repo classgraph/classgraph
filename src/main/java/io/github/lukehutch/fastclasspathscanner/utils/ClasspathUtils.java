@@ -68,4 +68,15 @@ public class ClasspathUtils {
             throw new RuntimeException(e);
         }
     }
+
+    /**
+     * Return true if a file exists and can be read.
+     */
+    public static boolean canRead(final File file) {
+        try {
+            return file.canRead();
+        } catch (final SecurityException e) {
+            return false;
+        }
+    }
 }
