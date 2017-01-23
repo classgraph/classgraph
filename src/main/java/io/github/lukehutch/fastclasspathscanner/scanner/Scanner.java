@@ -35,13 +35,11 @@ import java.net.URLClassLoader;
 import java.nio.file.LinkOption;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -51,6 +49,7 @@ import java.util.concurrent.ExecutorService;
 import io.github.lukehutch.fastclasspathscanner.MatchProcessorException;
 import io.github.lukehutch.fastclasspathscanner.utils.FastPathResolver;
 import io.github.lukehutch.fastclasspathscanner.utils.InterruptionChecker;
+import io.github.lukehutch.fastclasspathscanner.utils.JarUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.NestedJarHandler;
 import io.github.lukehutch.fastclasspathscanner.utils.Recycler;
@@ -83,6 +82,7 @@ public class Scanner implements Callable<ScanResult> {
         this.numParallelTasks = numParallelTasks;
         this.enableRecursiveScanning = enableRecursiveScanning;
         this.log = log;
+        JarUtils.logJavaInfo(log);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -234,10 +234,6 @@ public class Scanner implements Callable<ScanResult> {
             // singleton for each unique canonical path.
             final ClasspathRelativePathToElementMap classpathElementMap = new ClasspathRelativePathToElementMap(
                     enableRecursiveScanning, scanSpec, nestedJarHandler, interruptionChecker, classpathFinderLog);
-            final Set<String> knownJREPaths = Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
-            final Set<String> knownNonJREPaths = Collections
-                    .newSetFromMap(new ConcurrentHashMap<String, Boolean>());
-            final Set<String> knownRtJarPaths = Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
             try (WorkQueue<ClasspathRelativePath> workQueue = new WorkQueue<>(rawClasspathElements,
                     new WorkUnitProcessor<ClasspathRelativePath>() {
                         @Override
@@ -249,8 +245,7 @@ public class Scanner implements Callable<ScanResult> {
                                     classpathFinderLog.log("Ignoring duplicate classpath element: "
                                             + rawClasspathElt.getResolvedPath());
                                 }
-                            } else if (rawClasspathElt.isValidClasspathElement(scanSpec, knownJREPaths,
-                                    knownNonJREPaths, knownRtJarPaths, classpathFinderLog)) {
+                            } else if (rawClasspathElt.isValidClasspathElement(scanSpec, classpathFinderLog)) {
                                 try {
                                     classpathElementMap.createSingleton(rawClasspathElt);
                                 } catch (Exception e) {
@@ -276,7 +271,8 @@ public class Scanner implements Callable<ScanResult> {
             // because it is included implicitly by the JVM.
             if (!scanSpec.blacklistSystemJars()) {
                 // There should only be zero or one of these.
-                for (final String rtJarPath : knownRtJarPaths) {
+                final String rtJarPath = JarUtils.getRtJarPath();
+                if (rtJarPath != null) {
                     // Insert rt.jar as the zeroth entry in the classpath.
                     classpathOrder.add(0,
                             ClasspathElement.newInstance(

@@ -92,7 +92,7 @@ public class NestedJarHandler implements AutoCloseable {
                     File canonicalFile;
                     try {
                         canonicalFile = pathFile.getCanonicalFile();
-                    } catch (final IOException e) {
+                    } catch (final IOException | SecurityException e) {
                         if (log != null) {
                             log.log(nestedJarPath, "Path component could not be canonicalized: " + nestedJarPath,
                                     e);

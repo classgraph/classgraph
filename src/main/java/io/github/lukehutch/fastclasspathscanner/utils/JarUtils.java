@@ -30,9 +30,90 @@ package io.github.lukehutch.fastclasspathscanner.utils;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 public class JarUtils {
+    private static final List<String> JRE_PATHS = new ArrayList<>();
+    private static String RT_JAR_PATH = null;
+
+    private static String getProperty(final String propName) {
+        try {
+            return System.getProperty(propName);
+        } catch (final SecurityException e) {
+            return null;
+        }
+    }
+
+    private static void addJREPath(final File dir, final Set<String> jrePathsSet) {
+        if (ClasspathUtils.canRead(dir) && dir.isDirectory()) {
+            String path = dir.getPath();
+            if (!path.endsWith(File.separator)) {
+                path += File.separator;
+            }
+            jrePathsSet.add(path);
+            try {
+                String canonicalPath = dir.getCanonicalPath();
+                if (!canonicalPath.endsWith(File.separator)) {
+                    canonicalPath += File.separator;
+                }
+                if (!canonicalPath.equals(path)) {
+                    jrePathsSet.add(canonicalPath);
+                }
+            } catch (IOException | SecurityException e) {
+            }
+        }
+    }
+
+    // Find JRE jar dirs
+    static {
+        final Set<String> jrePathsSet = new HashSet<>();
+        final String javaHome = getProperty("java.home");
+        if (javaHome != null && !javaHome.isEmpty()) {
+            final File javaHomeFile = new File(javaHome);
+            addJREPath(javaHomeFile, jrePathsSet);
+            final File libFile = new File(javaHomeFile, "lib");
+            addJREPath(libFile, jrePathsSet);
+            final File extFile = new File(libFile, "ext");
+            addJREPath(extFile, jrePathsSet);
+            final File rtJarFile = new File(libFile, "rt.jar");
+            if (ClasspathUtils.canRead(rtJarFile)) {
+                RT_JAR_PATH = rtJarFile.getPath();
+            }
+        }
+        final String javaExtDirs = getProperty("java.ext.dirs");
+        if (javaExtDirs != null) {
+            for (final String javaExtDir : javaExtDirs.split(File.pathSeparator)) {
+                if (!javaExtDir.isEmpty()) {
+                    final File javaExtDirFile = new File(javaExtDir);
+                    addJREPath(javaExtDirFile, jrePathsSet);
+                }
+            }
+        }
+        JRE_PATHS.addAll(jrePathsSet);
+    }
+
+    /** Get the path of rt.jar */
+    public static String getRtJarPath() {
+        return RT_JAR_PATH;
+    }
+
+    /** Log the Java version and the JRE paths that were found. */
+    public static void logJavaInfo(final LogNode log) {
+        if (log != null) {
+            final LogNode javaLog = log.log("Java info");
+            javaLog.log("java.version = " + getProperty("java.version"));
+            javaLog.log("java.vendor = " + getProperty("java.vendor"));
+            final LogNode jrePathsLog = javaLog.log("JRE paths" + (JRE_PATHS.isEmpty() ? ": none found" : ""));
+            for (final String jrePath : JRE_PATHS) {
+                jrePathsLog.log(jrePath);
+            }
+            javaLog.log("rt.jar path: " + (RT_JAR_PATH == null ? "unknown" : RT_JAR_PATH));
+        }
+    }
+
     /** Returns true if the path ends with a jarfile extension, ignoring case. */
     public static boolean isJar(final String path) {
         final int len = path.length();
@@ -61,75 +142,13 @@ public class JarUtils {
      * determine if the given jarfile is part of the JRE. This would typically be called with an initial
      * ancestralScandepth of 2, since JRE jarfiles can be in the lib or lib/ext directories of the JRE.
      */
-    public static boolean isJREJar(final File file, final int ancestralScanDepth, final Set<String> knownJREPaths,
-            final Set<String> knownNonJREPaths, final Set<String> knownRtJarPaths, final LogNode log) {
-        if (ancestralScanDepth == 0) {
-            // Did not find JRE root
-            return false;
-        } else {
-            final File parent = file.getParentFile();
-            if (parent == null) {
-                return false;
-            }
-            final String parentPathStr = parent.getPath();
-            if (knownJREPaths.contains(parentPathStr)) {
+    public static boolean isJREJar(final File file, final LogNode log) {
+        final String filePath = file.getPath();
+        for (final String jrePathPrefix : JRE_PATHS) {
+            if (filePath.startsWith(jrePathPrefix)) {
                 return true;
             }
-            if (knownNonJREPaths.contains(parentPathStr)) {
-                return false;
-            }
-            File rt = new File(parent, File.separatorChar == '/' ? "jre/lib/rt.jar"
-                    : String.format("jre%clib%crt.jar", File.separatorChar, File.separatorChar));
-            boolean rtExists;
-            if (!(rtExists = ClasspathUtils.canRead(rt))) {
-                rt = new File(parent, File.separatorChar == '/' ? "lib/rt.jar"
-                        : String.format("lib%crt.jar", File.separatorChar));
-                if (!(rtExists = ClasspathUtils.canRead(rt))) {
-                    rt = new File(parent, "rt.jar");
-                    rtExists = ClasspathUtils.canRead(rt);
-                }
-            }
-            boolean isJREJar = false;
-            if (rtExists && rt.isFile()) {
-                // Found rt.jar -- check its manifest file to make sure it's the JRE's rt.jar and not something else 
-                final FastManifestParser manifest = new FastManifestParser(rt, log);
-                if (manifest.isSystemJar) {
-                    // Found the JRE's rt.jar
-                    try {
-                        final File rtCanonical = rt.getCanonicalFile();
-                        knownRtJarPaths.add(rt.getPath());
-                        isJREJar = true;
-
-                        // Add canonical parent path to known JRE paths, in case the path provided to isJREJar
-                        // was non-canonical (this may help avoid some file operations in future).
-                        final File rtCanonicalParent = rtCanonical.getParentFile();
-                        if (rtCanonicalParent != null) {
-                            knownJREPaths.add(rtCanonicalParent.getPath());
-                            if (rtCanonicalParent.getName().equals("lib")) {
-                                // rt.jar should be in "jre/lib". If it's in a directory named "lib",
-                                // Add canonical grandparent path to known JRE paths too.
-                                final File rtCanonicalGrandParent = rtCanonicalParent.getParentFile();
-                                if (rtCanonicalGrandParent != null) {
-                                    knownJREPaths.add(rtCanonicalGrandParent.getPath());
-                                }
-                            }
-                        }
-                    } catch (final IOException e) {
-                        // If canonicalization exception is thrown, leave isJREJar set to false
-                    }
-                }
-            }
-            if (!isJREJar) {
-                // Check if parent directory is JRE root
-                isJREJar = isJREJar(parent, ancestralScanDepth - 1, knownJREPaths, knownNonJREPaths,
-                        knownRtJarPaths, log);
-            }
-            if (!isJREJar) {
-                knownNonJREPaths.add(parentPathStr);
-            } else {
-                knownJREPaths.add(parentPathStr);
-            }
-            return isJREJar;
         }
+        return false;
     }
 }
