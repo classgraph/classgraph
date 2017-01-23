@@ -31,6 +31,7 @@ package io.github.lukehutch.fastclasspathscanner.utils;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -93,6 +94,7 @@ public class JarUtils {
             }
         }
         JRE_PATHS.addAll(jrePathsSet);
+        Collections.sort(JRE_PATHS);
     }
 
     /** Get the path of rt.jar */
@@ -103,15 +105,28 @@ public class JarUtils {
     /** Log the Java version and the JRE paths that were found. */
     public static void logJavaInfo(final LogNode log) {
         if (log != null) {
-            final LogNode javaLog = log.log("Java info");
-            javaLog.log("java.version = " + getProperty("java.version"));
-            javaLog.log("java.vendor = " + getProperty("java.vendor"));
-            final LogNode jrePathsLog = javaLog.log("JRE paths" + (JRE_PATHS.isEmpty() ? ": none found" : ""));
+            log.log("Operating system: " + getProperty("os.name") + " " + getProperty("os.version") + " "
+                    + getProperty("os.arch"));
+            log.log("Java version: " + getProperty("java.version") + " (" + getProperty("java.vendor") + ")");
+            final LogNode javaLog = log.log("JRE paths:");
             for (final String jrePath : JRE_PATHS) {
-                jrePathsLog.log(jrePath);
+                javaLog.log(jrePath);
             }
-            javaLog.log("rt.jar path: " + (RT_JAR_PATH == null ? "unknown" : RT_JAR_PATH));
+            if (RT_JAR_PATH != null) {
+                javaLog.log(RT_JAR_PATH);
+            }
         }
+    }
+
+    /** Determine whether a given jarfile is in a JRE system directory (jre, jre/lib, jre/lib/ext, etc.). */
+    public static boolean isJREJar(final File jarfile, final LogNode log) {
+        final String filePath = jarfile.getPath();
+        for (final String jrePathPrefix : JRE_PATHS) {
+            if (filePath.startsWith(jrePathPrefix)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Returns true if the path ends with a jarfile extension, ignoring case. */
@@ -135,20 +150,5 @@ public class JarUtils {
         }
         final int maxIdx = Math.max(lastSlashIdx, sepIdx);
         return maxIdx < 0 ? path : path.substring(maxIdx + 1);
-    }
-
-    /**
-     * Recursively search within ancestral directories of a jarfile to see if rt.jar is present, in order to
-     * determine if the given jarfile is part of the JRE. This would typically be called with an initial
-     * ancestralScandepth of 2, since JRE jarfiles can be in the lib or lib/ext directories of the JRE.
-     */
-    public static boolean isJREJar(final File file, final LogNode log) {
-        final String filePath = file.getPath();
-        for (final String jrePathPrefix : JRE_PATHS) {
-            if (filePath.startsWith(jrePathPrefix)) {
-                return true;
-            }
-        }
-        return false;
     }
 }

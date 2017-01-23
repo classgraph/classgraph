@@ -95,7 +95,9 @@ public class LogNode {
 
     /** Create a toplevel log node. */
     public LogNode() {
-        this("", "", /* elapsedTimeNanos = */ -1L, /* exception = */ null);
+        this("", "FastClasspathScanner version " + FastClasspathScanner.getVersion(), /* elapsedTimeNanos = */ -1L,
+                /* exception = */ null);
+        JarUtils.logJavaInfo(this);
     }
 
     /** Append a line to the log output, indenting this log entry according to tree structure. */
@@ -128,9 +130,6 @@ public class LogNode {
                             ? msg + " (took " + nanoFormatter.format(elapsedTimeNanos * 1e-9) + " sec)" //
                             : msg,
                     buf);
-        } else if (indentLevel == 0) {
-            appendLine(timeStampStr, indentLevel,
-                    "FastClasspathScanner version " + FastClasspathScanner.getVersion(), buf);
         }
         if (stackTrace != null && !stackTrace.isEmpty()) {
             final String[] parts = stackTrace.split("\n");

@@ -82,7 +82,6 @@ public class Scanner implements Callable<ScanResult> {
         this.numParallelTasks = numParallelTasks;
         this.enableRecursiveScanning = enableRecursiveScanning;
         this.log = log;
-        JarUtils.logJavaInfo(log);
     }
 
     // -------------------------------------------------------------------------------------------------------------
