@@ -486,9 +486,7 @@ public class ScanSpec {
                 for (final ClassMatcher classMatcher : classMatchers) {
                     classMatcher.lookForMatches(scanResult, //
                             log == null ? null : log.log("Calling ClassMatchProcessors"));
-                    if (interruptionChecker != null) {
-                        interruptionChecker.check();
-                    }
+                    interruptionChecker.check();
                 }
             }
 
@@ -531,9 +529,7 @@ public class ScanSpec {
                                     }
                                     scanResult.addMatchProcessorException(e);
                                 }
-                                if (interruptionChecker != null) {
-                                    interruptionChecker.check();
-                                }
+                                interruptionChecker.check();
                             }
                         }
                     } else {
