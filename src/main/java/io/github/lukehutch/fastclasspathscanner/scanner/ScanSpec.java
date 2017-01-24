@@ -529,6 +529,7 @@ public class ScanSpec {
                                     if (log != null) {
                                         log.log("Exception while calling StaticFinalFieldMatchProcessor: " + e);
                                     }
+                                    scanResult.addMatchProcessorException(e);
                                 }
                                 if (interruptionChecker != null) {
                                     interruptionChecker.check();
@@ -543,21 +544,21 @@ public class ScanSpec {
                     }
                 }
             }
+            final List<Throwable> matchProcessorExceptions = scanResult.getMatchProcessorExceptions();
+            if (matchProcessorExceptions.size() > 0) {
+                // If one or more non-IO exceptions were thrown outside of FastClasspathScanner,
+                // throw MatchProcessorException
+                if (log != null) {
+                    log.log("Number of exceptions raised during classloading and/or while calling "
+                            + "MatchProcessors: " + matchProcessorExceptions.size());
+                }
+                throw MatchProcessorException.newInstance(matchProcessorExceptions);
+            }
         } catch (InterruptedException | ExecutionException e) {
             if (log != null) {
                 log.log("Exception while calling MatchProcessors", e);
             }
             throw MatchProcessorException.newInstance(e);
-        }
-        final List<Throwable> matchProcessorExceptions = scanResult.getMatchProcessorExceptions();
-        if (matchProcessorExceptions.size() > 0) {
-            // If one or more non-IO exceptions were thrown outside of FastClasspathScanner,
-            // throw MatchProcessorException
-            if (log != null) {
-                log.log("Number of exceptions raised during classloading and/or while calling "
-                        + "MatchProcessors: " + matchProcessorExceptions.size());
-            }
-            throw MatchProcessorException.newInstance(matchProcessorExceptions);
         }
     }
 

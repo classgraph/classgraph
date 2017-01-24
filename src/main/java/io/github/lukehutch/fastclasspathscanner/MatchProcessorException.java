@@ -85,7 +85,9 @@ public class MatchProcessorException extends RuntimeException {
         }
     }
 
-    /** Create a MatchProcessorException */
+    /**
+     * Create a MatchProcessorException.
+     */
     public static MatchProcessorException newInstance(final Throwable throwable) {
         if (throwable instanceof Exception) {
             return new MatchProcessorException(Arrays.asList(throwable), (Exception) throwable);

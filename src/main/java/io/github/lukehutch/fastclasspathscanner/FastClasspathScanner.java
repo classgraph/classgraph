@@ -400,7 +400,7 @@ public class FastClasspathScanner {
      * If this method is called, nothing but the provided classpath will be scanned, i.e. this causes ClassLoaders
      * to be ignored, as well as the java.class.path system property.
      * 
-     * @param classpath
+     * @param overrideClasspath
      *            The custom classpath to use for scanning, with path elements separated by File.pathSeparatorChar.
      * @return this (for method chaining).
      */
@@ -417,7 +417,7 @@ public class FastClasspathScanner {
      * If this method is called, nothing but the provided classpath will be scanned, i.e. this causes ClassLoaders
      * to be ignored, as well as the java.class.path system property.
      * 
-     * @param classpath
+     * @param overrideClasspathElements
      *            The custom classpath to use for scanning, with path elements separated by File.pathSeparatorChar.
      * @return this (for method chaining).
      */
@@ -444,7 +444,7 @@ public class FastClasspathScanner {
      * java.class.path system property to be ignored. Works for arrays of any member type whose toString() method
      * resolves to a classpath element string, e.g. String, File or Path.
      * 
-     * @param classpath
+     * @param overrideClasspathElements
      *            The custom classpath to use for scanning, with path elements separated by File.pathSeparatorChar.
      * @return this (for method chaining).
      */
@@ -516,7 +516,7 @@ public class FastClasspathScanner {
      * Calls the provided ClassMatchProcessor for all standard classes (i.e. non-interface, non-annotation classes)
      * found in whitelisted packages on the classpath.
      * 
-     * @param classMatchProcessor
+     * @param standardClassMatchProcessor
      *            the ClassMatchProcessor to call when a match is found.
      * @return this (for method chaining).
      */
@@ -529,7 +529,7 @@ public class FastClasspathScanner {
      * Calls the provided ClassMatchProcessor for all interface classes (interface definitions) found in whitelisted
      * packages on the classpath.
      * 
-     * @param ClassMatchProcessor
+     * @param interfaceClassMatchProcessor
      *            the ClassMatchProcessor to call when a match is found.
      * @return this (for method chaining).
      */
@@ -542,7 +542,7 @@ public class FastClasspathScanner {
      * Calls the provided ClassMatchProcessor for all annotation classes (annotation definitions) found in
      * whitelisted packages on the classpath.
      * 
-     * @param ClassMatchProcessor
+     * @param annotationClassMatchProcessor
      *            the ClassMatchProcessor to call when a match is found.
      * @return this (for method chaining).
      */
@@ -676,6 +676,7 @@ public class FastClasspathScanner {
      *            default value, RetentionPolicy.CLASS, matches all annotations (both runtime-visible and
      *            runtime-invisible). RetentionPolicy.SOURCE will cause an IllegalArgumentException to be thrown,
      *            since SOURCE-annotated annotations are not retained in classfiles.
+     * @return this (for method chaining).
      */
     public FastClasspathScanner setAnnotationVisibility(final RetentionPolicy annotationVisibility) {
         if (annotationVisibility == RetentionPolicy.SOURCE) {

@@ -93,6 +93,8 @@ public class ScanResult {
     /**
      * Return the exceptions and errors thrown during classloading and/or while calling MatchProcessors on loaded
      * classes.
+     * 
+     * @return A list of Throwables thrown while MatchProcessors were running.
      */
     public List<Throwable> getMatchProcessorExceptions() {
         return matchProcessorExceptions;
