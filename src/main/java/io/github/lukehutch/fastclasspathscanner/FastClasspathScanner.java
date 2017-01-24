@@ -54,6 +54,7 @@ import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
 import io.github.lukehutch.fastclasspathscanner.scanner.Scanner;
 import io.github.lukehutch.fastclasspathscanner.utils.AutoCloseableExecutorService;
+import io.github.lukehutch.fastclasspathscanner.utils.InterruptionChecker;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.VersionFinder;
 
@@ -1146,7 +1147,8 @@ public class FastClasspathScanner {
                     .get();
 
             // Call MatchProcessors in the same thread as the caller, to avoid deadlock (see bug #103)
-            getScanSpec().callMatchProcessors(scanResult, /* interruptionChecker = */ null, log);
+            InterruptionChecker interruptionChecker = new InterruptionChecker();
+            getScanSpec().callMatchProcessors(scanResult, interruptionChecker, log);
 
             // Return the scanResult after calling MatchProcessors
             return scanResult;
