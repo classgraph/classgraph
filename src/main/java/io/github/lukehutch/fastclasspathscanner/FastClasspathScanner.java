@@ -520,8 +520,8 @@ public class FastClasspathScanner {
      *            the ClassMatchProcessor to call when a match is found.
      * @return this (for method chaining).
      */
-    public FastClasspathScanner matchAllStandardClasses(final ClassMatchProcessor classMatchProcessor) {
-        getScanSpec().matchAllStandardClasses(classMatchProcessor);
+    public FastClasspathScanner matchAllStandardClasses(final ClassMatchProcessor standardClassMatchProcessor) {
+        getScanSpec().matchAllStandardClasses(standardClassMatchProcessor);
         return this;
     }
 
@@ -533,8 +533,8 @@ public class FastClasspathScanner {
      *            the ClassMatchProcessor to call when a match is found.
      * @return this (for method chaining).
      */
-    public FastClasspathScanner matchAllInterfaceClasses(final ClassMatchProcessor ClassMatchProcessor) {
-        getScanSpec().matchAllInterfaceClasses(ClassMatchProcessor);
+    public FastClasspathScanner matchAllInterfaceClasses(final ClassMatchProcessor interfaceClassMatchProcessor) {
+        getScanSpec().matchAllInterfaceClasses(interfaceClassMatchProcessor);
         return this;
     }
 
@@ -546,8 +546,8 @@ public class FastClasspathScanner {
      *            the ClassMatchProcessor to call when a match is found.
      * @return this (for method chaining).
      */
-    public FastClasspathScanner matchAllAnnotationClasses(final ClassMatchProcessor ClassMatchProcessor) {
-        getScanSpec().matchAllAnnotationClasses(ClassMatchProcessor);
+    public FastClasspathScanner matchAllAnnotationClasses(final ClassMatchProcessor annotationClassMatchProcessor) {
+        getScanSpec().matchAllAnnotationClasses(annotationClassMatchProcessor);
         return this;
     }
 
@@ -1042,6 +1042,28 @@ public class FastClasspathScanner {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Using lambda MatchProcessors when FastClasspathScanner is called from a class initializer block causes a JVM
+     * deadlock, because FastClasspathScanner is multithreaded -- see bug #103.
+     */
+    private static final void disallowRunningInClassInitializer() {
+        try {
+            throw new Exception();
+        } catch (final Exception e) {
+            final StackTraceElement[] elts = e.getStackTrace();
+            for (final StackTraceElement elt : elts) {
+                if ("<clinit>".equals(elt.getMethodName())) {
+                    throw new RuntimeException(
+                            "Cannot launch FastClasspathScanner during class initialization (for class "
+                                    + elt.getClassName() + ") -- this can lead to a deadlock. See: "
+                                    + "https://github.com/lukehutch/fast-classpath-scanner/issues/103");
+                }
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
      * Asynchronously scans the classpath for matching files, and calls any MatchProcessors if a match is
      * identified. Returns a Future object immediately after starting the scan. To block on scan completion, get the
      * result of the returned Future. Uses the provided ExecutorService, and divides the work according to the
@@ -1067,6 +1089,7 @@ public class FastClasspathScanner {
      *         classloading failed for some class, or a MatchProcessor threw an exception.
      */
     public Future<ScanResult> scanAsync(final ExecutorService executorService, final int numParallelTasks) {
+        disallowRunningInClassInitializer();
         final ScanSpec scanSpec = getScanSpec();
         return executorService.submit(new Scanner(scanSpec, executorService, numParallelTasks,
                 /* enableRecursiveScanning = */ true, scanSpec.removeTemporaryFilesAfterScan, log));
@@ -1194,6 +1217,7 @@ public class FastClasspathScanner {
      */
     public Future<List<File>> getUniqueClasspathElementsAsync(final ExecutorService executorService,
             final int numParallelTasks) {
+        disallowRunningInClassInitializer();
         final Future<ScanResult> scanResult = executorService
                 .submit(new Scanner(getScanSpec(), executorService, numParallelTasks,
                         /* enableRecursiveScanning = */ false, /* removeTemporaryFilesAfterScan = */ false,

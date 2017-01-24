@@ -795,6 +795,16 @@ public class ScanSpec {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /** Add a ClassMatcher. */
+    private void addClassMatcher(final ClassMatcher classMatcher) {
+        if (classMatchers == null) {
+            classMatchers = new ArrayList<>();
+        }
+        classMatchers.add(classMatcher);
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
     /**
      * Calls the provided ClassMatchProcessor for all standard classes, interfaces and annotations found in
      * whitelisted packages on the classpath.
@@ -803,10 +813,7 @@ public class ScanSpec {
      *            the ClassMatchProcessor to call when a match is found.
      */
     public void matchAllClasses(final ClassMatchProcessor classMatchProcessor) {
-        if (classMatchers == null) {
-            classMatchers = new ArrayList<>();
-        }
-        classMatchers.add(new ClassMatcher() {
+        addClassMatcher(new ClassMatcher() {
             @Override
             public void lookForMatches(final ScanResult scanResult, final LogNode log) {
                 for (final String className : scanResult.getNamesOfAllClasses()) {
@@ -838,10 +845,7 @@ public class ScanSpec {
      *            the ClassMatchProcessor to call when a match is found.
      */
     public void matchAllStandardClasses(final ClassMatchProcessor classMatchProcessor) {
-        if (classMatchers == null) {
-            classMatchers = new ArrayList<>();
-        }
-        classMatchers.add(new ClassMatcher() {
+        addClassMatcher(new ClassMatcher() {
             @Override
             public void lookForMatches(final ScanResult scanResult, final LogNode log) {
                 for (final String className : scanResult.getNamesOfAllStandardClasses()) {
@@ -872,11 +876,8 @@ public class ScanSpec {
      * @param ClassMatchProcessor
      *            the ClassMatchProcessor to call when a match is found.
      */
-    public void matchAllInterfaceClasses(final ClassMatchProcessor ClassMatchProcessor) {
-        if (classMatchers == null) {
-            classMatchers = new ArrayList<>();
-        }
-        classMatchers.add(new ClassMatcher() {
+    public void matchAllInterfaceClasses(final ClassMatchProcessor classMatchProcessor) {
+        addClassMatcher(new ClassMatcher() {
             @Override
             public void lookForMatches(final ScanResult scanResult, final LogNode log) {
                 for (final String className : scanResult.getNamesOfAllInterfaceClasses()) {
@@ -888,7 +889,7 @@ public class ScanSpec {
                         // Call classloader
                         final Class<?> cls = loadClass(className, scanResult, log);
                         // Process match
-                        ClassMatchProcessor.processMatch(cls);
+                        classMatchProcessor.processMatch(cls);
                     } catch (final Throwable e) {
                         if (subLog != null) {
                             subLog.log("Exception while processing match for class " + className, e);
@@ -907,11 +908,8 @@ public class ScanSpec {
      * @param ClassMatchProcessor
      *            the ClassMatchProcessor to call when a match is found.
      */
-    public void matchAllAnnotationClasses(final ClassMatchProcessor ClassMatchProcessor) {
-        if (classMatchers == null) {
-            classMatchers = new ArrayList<>();
-        }
-        classMatchers.add(new ClassMatcher() {
+    public void matchAllAnnotationClasses(final ClassMatchProcessor classMatchProcessor) {
+        addClassMatcher(new ClassMatcher() {
             @Override
             public void lookForMatches(final ScanResult scanResult, final LogNode log) {
                 for (final String className : scanResult.getNamesOfAllAnnotationClasses()) {
@@ -923,7 +921,7 @@ public class ScanSpec {
                         // Call classloader
                         final Class<?> cls = loadClass(className, scanResult, log);
                         // Process match
-                        ClassMatchProcessor.processMatch(cls);
+                        classMatchProcessor.processMatch(cls);
                     } catch (final Throwable e) {
                         if (subLog != null) {
                             subLog.log("Exception while processing match for class " + className, e);
@@ -948,10 +946,7 @@ public class ScanSpec {
      */
     public <T> void matchSubclassesOf(final Class<T> superclass,
             final SubclassMatchProcessor<T> subclassMatchProcessor) {
-        if (classMatchers == null) {
-            classMatchers = new ArrayList<>();
-        }
-        classMatchers.add(new ClassMatcher() {
+        addClassMatcher(new ClassMatcher() {
             @Override
             public void lookForMatches(final ScanResult scanResult, final LogNode log) {
                 final String superclassName = getStandardClassName(superclass);
@@ -992,10 +987,7 @@ public class ScanSpec {
      */
     public <T> void matchSubinterfacesOf(final Class<T> superinterface,
             final SubinterfaceMatchProcessor<T> subinterfaceMatchProcessor) {
-        if (classMatchers == null) {
-            classMatchers = new ArrayList<>();
-        }
-        classMatchers.add(new ClassMatcher() {
+        addClassMatcher(new ClassMatcher() {
             @Override
             public void lookForMatches(final ScanResult scanResult, final LogNode log) {
                 final String superinterfaceName = getInterfaceName(superinterface);
@@ -1035,10 +1027,7 @@ public class ScanSpec {
      */
     public <T> void matchClassesImplementing(final Class<T> implementedInterface,
             final ImplementingClassMatchProcessor<T> implementingClassMatchProcessor) {
-        if (classMatchers == null) {
-            classMatchers = new ArrayList<>();
-        }
-        classMatchers.add(new ClassMatcher() {
+        addClassMatcher(new ClassMatcher() {
             @Override
             public void lookForMatches(final ScanResult scanResult, final LogNode log) {
                 final String implementedInterfaceName = getInterfaceName(implementedInterface);
@@ -1081,10 +1070,7 @@ public class ScanSpec {
      */
     public <T> void matchClassesWithFieldOfType(final Class<T> fieldType,
             final ClassMatchProcessor classMatchProcessor) {
-        if (classMatchers == null) {
-            classMatchers = new ArrayList<>();
-        }
-        classMatchers.add(new ClassMatcher() {
+        addClassMatcher(new ClassMatcher() {
             @Override
             public void lookForMatches(final ScanResult scanResult, final LogNode log) {
                 final String fieldTypeName = getClassName(fieldType);
@@ -1122,10 +1108,7 @@ public class ScanSpec {
      */
     public void matchClassesWithAnnotation(final Class<?> annotation,
             final ClassAnnotationMatchProcessor classAnnotationMatchProcessor) {
-        if (classMatchers == null) {
-            classMatchers = new ArrayList<>();
-        }
-        classMatchers.add(new ClassMatcher() {
+        addClassMatcher(new ClassMatcher() {
             @Override
             public void lookForMatches(final ScanResult scanResult, final LogNode log) {
                 final String annotationName = getAnnotationName(annotation);
@@ -1165,10 +1148,7 @@ public class ScanSpec {
      */
     public void matchClassesWithMethodAnnotation(final Class<? extends Annotation> annotation,
             final MethodAnnotationMatchProcessor methodAnnotationMatchProcessor) {
-        if (classMatchers == null) {
-            classMatchers = new ArrayList<>();
-        }
-        classMatchers.add(new ClassMatcher() {
+        addClassMatcher(new ClassMatcher() {
             @Override
             public void lookForMatches(final ScanResult scanResult, final LogNode log) {
                 final String annotationName = getAnnotationName(annotation);
