@@ -33,28 +33,46 @@ import static org.assertj.core.api.StrictAssertions.assertThat;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import org.junit.Test;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 
 public class Issue103Test {
-    private static boolean exceptionCaught = false;
-    private static List<String> classesFound = new ArrayList<>();
+    private static boolean exceptionCaughtSync = false;
+    private static boolean exceptionCaughtAsync = false;
+    private static List<String> classesFoundSync = new ArrayList<>();
+    private static List<String> classesFoundAsync = new ArrayList<>();
 
     static {
-        // Test that scanning is disallowed from class initializer
+        // Test that synchronous scanning from class initializer is allowed (and does not deadlock)
         try {
             new FastClasspathScanner(Issue103Test.class.getPackage().getName())
-                    .matchAllClasses(c -> classesFound.add(c.getName())).scan();
+                    .matchAllClasses(c -> classesFoundSync.add(c.getName())).scan();
         } catch (final RuntimeException e) {
-            exceptionCaught = true;
+            exceptionCaughtSync = true;
+        }
+
+        // Test that async scanning is disallowed from class initializer, to prevent deadlock
+        final ExecutorService es = Executors.newSingleThreadExecutor();
+        try {
+            new FastClasspathScanner(Issue103Test.class.getPackage().getName())
+                    .matchAllClasses(c -> classesFoundAsync.add(c.getName())).scanAsync(es, 1);
+        } catch (final RuntimeException e) {
+            exceptionCaughtAsync = true;
+        } finally {
+            es.shutdown();
         }
     }
 
     @Test
     public void nonInheritedAnnotation() {
-        assertThat(exceptionCaught).isTrue();
-        assertThat(classesFound).isEmpty();
+        assertThat(exceptionCaughtSync).isFalse();
+        assertThat(classesFoundSync).containsOnly(Issue103Test.class.getName());
+
+        assertThat(exceptionCaughtAsync).isTrue();
+        assertThat(classesFoundAsync).isEmpty();
     }
 }

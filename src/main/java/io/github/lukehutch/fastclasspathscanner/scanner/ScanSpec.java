@@ -38,7 +38,6 @@ import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
@@ -469,73 +468,96 @@ public class ScanSpec {
     /**
      * Run the MatchProcessors after a scan has completed.
      */
-    void callMatchProcessors(final ScanResult scanResult, final List<ClasspathElement> classpathOrder,
-            final Map<String, ClassInfo> classNameToClassInfo, final InterruptionChecker interruptionChecker,
-            final LogNode log) throws InterruptedException, ExecutionException {
-
-        // Call any FileMatchProcessors
-        for (final ClasspathElement classpathElement : classpathOrder) {
-            if (classpathElement.fileMatches != null && !classpathElement.fileMatches.isEmpty()) {
-                classpathElement.callFileMatchProcessors(scanResult, //
-                        log == null ? null
-                                : log.log("Calling FileMatchProcessors for classpath element " + classpathElement));
+    public void callMatchProcessors(final ScanResult scanResult, final InterruptionChecker interruptionChecker,
+            final LogNode log) {
+        try {
+            // Call any FileMatchProcessors
+            for (final ClasspathElement classpathElement : scanResult.classpathOrder) {
+                if (classpathElement.fileMatches != null && !classpathElement.fileMatches.isEmpty()) {
+                    classpathElement.callFileMatchProcessors(scanResult, //
+                            log == null ? null
+                                    : log.log("Calling FileMatchProcessors for classpath element "
+                                            + classpathElement));
+                }
             }
-        }
 
-        // Call any class, interface or annotation MatchProcessors
-        if (classMatchers != null) {
-            for (final ClassMatcher classMatcher : classMatchers) {
-                classMatcher.lookForMatches(scanResult, //
-                        log == null ? null : log.log("Calling ClassMatchProcessors"));
-                interruptionChecker.check();
-            }
-        }
-
-        // Call any static final field match processors
-        if (fullyQualifiedFieldNameToStaticFinalFieldMatchProcessors != null) {
-            for (final Entry<String, List<StaticFinalFieldMatchProcessor>> ent : //
-            fullyQualifiedFieldNameToStaticFinalFieldMatchProcessors.getRawMap().entrySet()) {
-                final String fullyQualifiedFieldName = ent.getKey();
-                final int dotIdx = fullyQualifiedFieldName.lastIndexOf('.');
-                final String className = fullyQualifiedFieldName.substring(0, dotIdx);
-                final ClassInfo classInfo = classNameToClassInfo.get(className);
-                if (classInfo != null) {
-                    final String fieldName = fullyQualifiedFieldName.substring(dotIdx + 1);
-                    final Object constValue = classInfo.getStaticFinalFieldConstantInitializerValue(fieldName);
-                    if (constValue == null) {
-                        if (log != null) {
-                            log.log("No constant initializer value found for field " + className + "." + fieldName);
-                        }
-                    } else {
-                        final List<StaticFinalFieldMatchProcessor> staticFinalFieldMatchProcessors = ent.getValue();
-                        if (log != null) {
-                            log.log("Calling MatchProcessor"
-                                    + (staticFinalFieldMatchProcessors.size() == 1 ? "" : "s")
-                                    + " for static final field " + className + "." + fieldName + " = "
-                                    + ((constValue instanceof Character)
-                                            ? '\'' + constValue.toString().replace("'", "\\'") + '\''
-                                            : (constValue instanceof String)
-                                                    ? '"' + constValue.toString().replace("\"", "\\\"") + '"'
-                                                    : constValue.toString()));
-                        }
-                        for (final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor : ent.getValue()) {
-                            try {
-                                staticFinalFieldMatchProcessor.processMatch(className, fieldName, constValue);
-                            } catch (final Throwable e) {
-                                if (log != null) {
-                                    log.log("Exception while calling StaticFinalFieldMatchProcessor: " + e);
-                                }
-                            }
-                            interruptionChecker.check();
-                        }
-                    }
-                } else {
-                    if (log != null) {
-                        log.log("No matching class found in scan results for static final field "
-                                + fullyQualifiedFieldName);
+            // Call any class, interface or annotation MatchProcessors
+            if (classMatchers != null) {
+                for (final ClassMatcher classMatcher : classMatchers) {
+                    classMatcher.lookForMatches(scanResult, //
+                            log == null ? null : log.log("Calling ClassMatchProcessors"));
+                    if (interruptionChecker != null) {
+                        interruptionChecker.check();
                     }
                 }
             }
+
+            // Call any static final field match processors
+            if (fullyQualifiedFieldNameToStaticFinalFieldMatchProcessors != null) {
+                for (final Entry<String, List<StaticFinalFieldMatchProcessor>> ent : //
+                fullyQualifiedFieldNameToStaticFinalFieldMatchProcessors.getRawMap().entrySet()) {
+                    final String fullyQualifiedFieldName = ent.getKey();
+                    final int dotIdx = fullyQualifiedFieldName.lastIndexOf('.');
+                    final String className = fullyQualifiedFieldName.substring(0, dotIdx);
+                    final ClassInfo classInfo = scanResult.classGraphBuilder.classNameToClassInfo.get(className);
+                    if (classInfo != null) {
+                        final String fieldName = fullyQualifiedFieldName.substring(dotIdx + 1);
+                        final Object constValue = classInfo.getStaticFinalFieldConstantInitializerValue(fieldName);
+                        if (constValue == null) {
+                            if (log != null) {
+                                log.log("No constant initializer value found for field " + className + "."
+                                        + fieldName);
+                            }
+                        } else {
+                            final List<StaticFinalFieldMatchProcessor> staticFinalFieldMatchProcessors = ent
+                                    .getValue();
+                            if (log != null) {
+                                log.log("Calling MatchProcessor"
+                                        + (staticFinalFieldMatchProcessors.size() == 1 ? "" : "s")
+                                        + " for static final field " + className + "." + fieldName + " = "
+                                        + ((constValue instanceof Character)
+                                                ? '\'' + constValue.toString().replace("'", "\\'") + '\''
+                                                : (constValue instanceof String)
+                                                        ? '"' + constValue.toString().replace("\"", "\\\"") + '"'
+                                                        : constValue.toString()));
+                            }
+                            for (final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor : ent
+                                    .getValue()) {
+                                try {
+                                    staticFinalFieldMatchProcessor.processMatch(className, fieldName, constValue);
+                                } catch (final Throwable e) {
+                                    if (log != null) {
+                                        log.log("Exception while calling StaticFinalFieldMatchProcessor: " + e);
+                                    }
+                                }
+                                if (interruptionChecker != null) {
+                                    interruptionChecker.check();
+                                }
+                            }
+                        }
+                    } else {
+                        if (log != null) {
+                            log.log("No matching class found in scan results for static final field "
+                                    + fullyQualifiedFieldName);
+                        }
+                    }
+                }
+            }
+        } catch (InterruptedException | ExecutionException e) {
+            if (log != null) {
+                log.log("Exception while calling MatchProcessors", e);
+            }
+            throw MatchProcessorException.newInstance(e);
+        }
+        final List<Throwable> matchProcessorExceptions = scanResult.getMatchProcessorExceptions();
+        if (matchProcessorExceptions.size() > 0) {
+            // If one or more non-IO exceptions were thrown outside of FastClasspathScanner,
+            // throw MatchProcessorException
+            if (log != null) {
+                log.log("Number of exceptions raised during classloading and/or while calling "
+                        + "MatchProcessors: " + matchProcessorExceptions.size());
+            }
+            throw MatchProcessorException.newInstance(matchProcessorExceptions);
         }
     }
 

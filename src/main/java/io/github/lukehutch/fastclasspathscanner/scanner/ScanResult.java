@@ -41,6 +41,9 @@ public class ScanResult {
     /** The scan spec. */
     private final ScanSpec scanSpec;
 
+    /** The order of unique classpath elements. */
+    final List<ClasspathElement> classpathOrder;
+
     /** The list of File objects for unique classpath elements (directories or jarfiles). */
     private final List<File> classpathElementOrderFiles;
 
@@ -58,7 +61,7 @@ public class ScanResult {
      * The class graph builder. May be null, if this ScanResult object is the result of a call to
      * FastClasspathScanner#getUniqueClasspathElementsAsync().
      */
-    private final ClassGraphBuilder classGraphBuilder;
+    final ClassGraphBuilder classGraphBuilder;
 
     /** Exceptions thrown while loading classes or while calling MatchProcessors on loaded classes. */
     private final List<Throwable> matchProcessorExceptions = new ArrayList<>();
@@ -66,12 +69,13 @@ public class ScanResult {
     // -------------------------------------------------------------------------------------------------------------
 
     /** The result of a scan. */
-    ScanResult(final ScanSpec scanSpec, final List<ClasspathElement> classpathElementOrder,
+    ScanResult(final ScanSpec scanSpec, final List<ClasspathElement> classpathOrder,
             final ClassGraphBuilder classGraphBuilder, final Map<File, Long> fileToLastModified) {
         this.scanSpec = scanSpec;
+        this.classpathOrder = classpathOrder;
         this.classpathElementOrderFiles = new ArrayList<>();
         this.classpathElementOrderURLs = new ArrayList<>();
-        for (final ClasspathElement classpathElement : classpathElementOrder) {
+        for (final ClasspathElement classpathElement : classpathOrder) {
             classpathElementOrderFiles.add(classpathElement.classpathElementFile);
             classpathElementOrderURLs.add(classpathElement.classpathElementURL);
         }

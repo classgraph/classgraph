@@ -95,8 +95,8 @@ public class LogNode {
 
     /** Create a toplevel log node. */
     public LogNode() {
-        this("", "FastClasspathScanner version " + FastClasspathScanner.getVersion(), /* elapsedTimeNanos = */ -1L,
-                /* exception = */ null);
+        this("", "", /* elapsedTimeNanos = */ -1L, /* exception = */ null);
+        this.log("FastClasspathScanner version " + FastClasspathScanner.getVersion());
         JarUtils.logJavaInfo(this);
     }
 

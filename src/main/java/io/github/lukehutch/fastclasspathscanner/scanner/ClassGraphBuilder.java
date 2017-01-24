@@ -36,7 +36,7 @@ import java.util.Set;
 
 /** Builds the class graph, and provides methods for querying it. */
 class ClassGraphBuilder {
-    private final Map<String, ClassInfo> classNameToClassInfo;
+    final Map<String, ClassInfo> classNameToClassInfo;
     private final ScanSpec scanSpec;
     private final Set<ClassInfo> allClassInfo;
 

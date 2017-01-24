@@ -46,7 +46,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 
-import io.github.lukehutch.fastclasspathscanner.MatchProcessorException;
 import io.github.lukehutch.fastclasspathscanner.utils.FastPathResolver;
 import io.github.lukehutch.fastclasspathscanner.utils.InterruptionChecker;
 import io.github.lukehutch.fastclasspathscanner.utils.JarUtils;
@@ -64,6 +63,7 @@ public class Scanner implements Callable<ScanResult> {
     private final int numParallelTasks;
     private final boolean enableRecursiveScanning;
     private final InterruptionChecker interruptionChecker = new InterruptionChecker();
+    private final boolean callMatchProcessors;
     private final LogNode log;
 
     /**
@@ -75,12 +75,14 @@ public class Scanner implements Callable<ScanResult> {
 
     /** The classpath scanner. */
     public Scanner(final ScanSpec scanSpec, final ExecutorService executorService, final int numParallelTasks,
-            final boolean enableRecursiveScanning, final boolean removeTemporaryFilesAfterScan, final LogNode log) {
+            final boolean enableRecursiveScanning, final boolean removeTemporaryFilesAfterScan,
+            final boolean callMatchProcessors, final LogNode log) {
         this.removeTemporaryFilesAfterScan = removeTemporaryFilesAfterScan;
         this.scanSpec = scanSpec;
         this.executorService = executorService;
         this.numParallelTasks = numParallelTasks;
         this.enableRecursiveScanning = enableRecursiveScanning;
+        this.callMatchProcessors = callMatchProcessors;
         this.log = log;
     }
 
@@ -400,9 +402,11 @@ public class Scanner implements Callable<ScanResult> {
                 // Create ScanResult
                 scanResult = new ScanResult(scanSpec, classpathOrder, classGraphBuilder, fileToLastModified);
 
-                // Call MatchProcessors 
-                scanSpec.callMatchProcessors(scanResult, classpathOrder, classNameToClassInfo, interruptionChecker,
-                        log);
+                if (callMatchProcessors) {
+                    // Call MatchProcessors 
+                    scanSpec.callMatchProcessors(scanResult, interruptionChecker, log);
+                }
+
             } else {
                 // This is the result of a call to FastClasspathScanner#getUniqueClasspathElementsAsync(), so
                 // just create placeholder ScanResult to contain classpathElementFilesOrdered.
@@ -411,17 +415,6 @@ public class Scanner implements Callable<ScanResult> {
             }
             if (log != null) {
                 log.log("Completed scan", System.nanoTime() - scanStart);
-            }
-
-            final List<Throwable> matchProcessorExceptions = scanResult.getMatchProcessorExceptions();
-            if (matchProcessorExceptions.size() > 0) {
-                // If one or more non-IO exceptions were thrown outside of FastClasspathScanner,
-                // throw MatchProcessorException
-                if (log != null) {
-                    log.log("Number of exceptions raised during classloading and/or while calling MatchProcessors: "
-                            + matchProcessorExceptions.size());
-                }
-                throw MatchProcessorException.newInstance(matchProcessorExceptions);
             }
 
             // No exceptions were thrown -- return scan result
