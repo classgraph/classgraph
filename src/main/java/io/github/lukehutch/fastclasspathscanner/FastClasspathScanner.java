@@ -1260,23 +1260,27 @@ public class FastClasspathScanner {
      */
     public Future<List<File>> getUniqueClasspathElementsAsync(final ExecutorService executorService,
             final int numParallelTasks) {
-        final Future<ScanResult> scanResult = executorService.submit(
-                new Scanner(getScanSpec(), executorService, numParallelTasks, /* enableRecursiveScanning = */ false,
-                        /* removeTemporaryFilesAfterScan = */ false, /* callMatchProcessors = */ false,
-                        log == null ? null : log.log("Getting unique classpath elements")));
-        final Future<List<File>> future = executorService.submit(new Callable<List<File>>() {
-            @Override
-            public List<File> call() throws Exception {
-                if (log != null) {
-                    log.log("Getting classpath elements");
+        final Future<List<File>> classpathElementsFuture;
+        try {
+            final Future<ScanResult> scanResult = executorService.submit(new Scanner(getScanSpec(), executorService,
+                    numParallelTasks, /* enableRecursiveScanning = */ false,
+                    /* removeTemporaryFilesAfterScan = */ false, /* callMatchProcessors = */ false,
+                    log == null ? null : log.log("Getting unique classpath elements")));
+            classpathElementsFuture = executorService.submit(new Callable<List<File>>() {
+                @Override
+                public List<File> call() throws Exception {
+                    if (log != null) {
+                        log.log("Getting classpath elements");
+                    }
+                    return scanResult.get().getUniqueClasspathElements();
                 }
-                return scanResult.get().getUniqueClasspathElements();
+            });
+        } finally {
+            if (log != null) {
+                log.flush();
             }
-        });
-        if (log != null) {
-            log.flush();
         }
-        return future;
+        return classpathElementsFuture;
     }
 
     /**
@@ -1315,9 +1319,10 @@ public class FastClasspathScanner {
                     log.log("Exception while getting classpath elements", e);
                 }
                 throw new RuntimeException(e.getCause());
-            }
-            if (log != null) {
-                log.flush();
+            } finally {
+                if (log != null) {
+                    log.flush();
+                }
             }
         }
         return classpathElts;
