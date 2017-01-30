@@ -1054,7 +1054,8 @@ public class FastClasspathScanner {
      *            classpath scanning. Ideally the ExecutorService will have at least this many threads available.
      * @param callMatchProcessors
      *            If true, run MatchProcessors in one of the worker threads after obtaining the ScanResult.
-     * @return a Future<ScanResult> object, that when resolved using get() yields a new ScanResult object.
+     * @return a Future<ScanResult> object, that when resolved using get() yields a new ScanResult object. You can
+     *         call cancel(true) on this Future if you want to interrupt the scan.
      */
     private Future<ScanResult> scanAsync(final ExecutorService executorService, final int numParallelTasks,
             final boolean callMatchProcessors) {
@@ -1132,9 +1133,9 @@ public class FastClasspathScanner {
      *             if classloading fails for any of the classes matched by a MatchProcessor, or if a MatchProcessor
      *             throws an exception.
      * @throws ScanInterruptedException
-     *             if the scan was interrupted by the interrupt status being set on worker threads. If you care
-     *             about thread interruption, you should catch this exception. If you don't plan to interrupt the
-     *             scan, you probably don't need to catch this.
+     *             if any of the worker threads are interrupted during the scan. If you care about thread
+     *             interruption, you should catch this exception. If you don't plan to interrupt the scan, you
+     *             probably don't need to catch this.
      * @throws RuntimeException
      *             if any of the worker threads throws an uncaught exception. (Should not happen, this would
      *             indicate a bug in FastClasspathScanner.)
@@ -1195,9 +1196,8 @@ public class FastClasspathScanner {
      *             if classloading fails for any of the classes matched by a MatchProcessor, or if a MatchProcessor
      *             throws an exception.
      * @throws ScanInterruptedException
-     *             if the scan was interrupted by the interrupt status being set on worker threads. If you care
-     *             about thread interruption, you should catch this exception. If you don't plan to interrupt the
-     *             scan, you probably don't need to catch this.
+     *             if any of the worker threads are interrupted during the scan (shouldn't happen under normal
+     *             circumstances).
      * @throws RuntimeException
      *             if any of the worker threads throws an uncaught exception. (Should not happen, this would
      *             indicate a bug in FastClasspathScanner.)
@@ -1220,8 +1220,8 @@ public class FastClasspathScanner {
      *             if classloading fails for any of the classes matched by a MatchProcessor, or if a MatchProcessor
      *             throws an exception.
      * @throws ScanInterruptedException
-     *             if the scan was interrupted by the interrupt status being set on worker threads. If you care
-     *             about thread interruption, you should catch this exception.
+     *             if any of the worker threads are interrupted during the scan (shouldn't happen under normal
+     *             circumstances).
      * @throws RuntimeException
      *             if any of the worker threads throws an uncaught exception. (Should not happen, this would
      *             indicate a bug in FastClasspathScanner.)
@@ -1256,7 +1256,8 @@ public class FastClasspathScanner {
      *            The number of parallel tasks to break the work into during the most CPU-intensive stage of
      *            classpath scanning. Ideally the ExecutorService will have at least this many threads available.
      * @return a Future<List<File>>, that when resolved with get() returns a list of the unique directories and
-     *         jarfiles on the classpath, in classpath resolution order.
+     *         jarfiles on the classpath, in classpath resolution order. You can call cancel(true) on this Future if
+     *         you want to interrupt the process (although the result is typically returned quickly).
      */
     public Future<List<File>> getUniqueClasspathElementsAsync(final ExecutorService executorService,
             final int numParallelTasks) {
@@ -1301,6 +1302,10 @@ public class FastClasspathScanner {
      * @param numParallelTasks
      *            The number of parallel tasks to break the work into during the most CPU-intensive stage of
      *            classpath scanning. Ideally the ExecutorService will have at least this many threads available.
+     * @throws ScanInterruptedException
+     *             if any of the worker threads are interrupted during the scan. If you care about thread
+     *             interruption, you should catch this exception. If you don't plan to interrupt the scan, you
+     *             probably don't need to catch this.
      * @return a List<File> consisting of the unique directories and jarfiles on the classpath, in classpath
      *         resolution order.
      */
@@ -1341,6 +1346,9 @@ public class FastClasspathScanner {
      * the File objects in the returned list of classpath elements should exist). These extracted temporary files
      * are marked for deletion on JVM exit, however.
      * 
+     * @throws ScanInterruptedException
+     *             if any of the worker threads are interrupted during the scan (shouldn't happen under normal
+     *             circumstances).
      * @return a List<File> consisting of the unique directories and jarfiles on the classpath, in classpath
      *         resolution order.
      */
