@@ -44,6 +44,7 @@ public class ClassLoaderHandlerRegistry {
             // ClassLoaderHandlers for other ClassLoaders that are handled by FastClasspathScanner
             EquinoxClassLoaderHandler.class, //
             JBossClassLoaderHandler.class, //
-            WeblogicClassLoaderHandler.class //
+            WeblogicClassLoaderHandler.class, //
+            FelixClassLoaderHandler.class //
     );
 }
