@@ -33,37 +33,38 @@ public class FelixClassLoaderHandler implements ClassLoaderHandler {
                 // Type: BundleImpl
                 final Object m_wiring = ReflectionUtils.getFieldVal(classloader, "m_wiring");
                 // Type: Bundle
-                Object bundle = ReflectionUtils.invokeMethod(m_wiring, "getBundle");
+                final Object bundle = ReflectionUtils.invokeMethod(m_wiring, "getBundle");
 
                 @SuppressWarnings("unchecked")
-                Map<String, Map<?, ?>> bundleHeaders = (Map<String, Map<?, ?>>) ReflectionUtils.getFieldVal(bundle,
-                        "m_cachedHeaders");
+                final Map<String, Map<?, ?>> bundleHeaders = (Map<String, Map<?, ?>>) ReflectionUtils
+                        .getFieldVal(bundle, "m_cachedHeaders");
 
-                Object bundlefile = ReflectionUtils.getFieldVal(bundle, "m_archive");
+                final Object bundlefile = ReflectionUtils.getFieldVal(bundle, "m_archive");
 
                 // Should be a valid jar (should start with "file:/" and end with ".jar")
                 final Object bundlefileLocation = ReflectionUtils.getFieldVal(bundlefile, "m_originalLocation");
 
                 if (bundleHeaders != null && !bundleHeaders.isEmpty()) {
                     // Add bundleFile 
-                    String bundleFile = (String) bundlefileLocation;
+                    final String bundleFile = (String) bundlefileLocation;
                     classpathFinder.addClasspathElement(bundleFile, log);
 
                     // Should find one element only
-                    Iterator<Entry<String, Map<?, ?>>> it = bundleHeaders.entrySet().iterator();
+                    final Iterator<Entry<String, Map<?, ?>>> it = bundleHeaders.entrySet().iterator();
                     if (it.hasNext()) {
-                        Entry<String, Map<?, ?>> pair = (Entry<String, Map<?, ?>>) it.next();
-                        Map<?, ?> stringMap = pair.getValue();
+                        final Entry<String, Map<?, ?>> pair = it.next();
+                        final Map<?, ?> stringMap = pair.getValue();
                         // Type: String
-                        String classpath = (String) stringMap.get("Bundle-Classpath");
+                        final String classpath = (String) stringMap.get("Bundle-Classpath");
                         // If we have multiple jars in classpath, add them all
                         if (classpath != null) {
-                            String[] splitJars = classpath.split(BY_COMMA);
+                            final String[] splitJars = classpath.split(BY_COMMA);
                             for (int i = 0; i < splitJars.length; i++) {
                                 // Should be something like this:
                                 // jar:file:/path/myBundleFile.jar!/v4-sdk-schema-1.4.0-develop.v12.jar
                                 if (!splitJars[i].isEmpty()) {
-                                    String jarPath = JAR_FILE_PREFIX + bundleFile + JAR_FILE_DELIM + splitJars[i];
+                                    final String jarPath = JAR_FILE_PREFIX + bundleFile + JAR_FILE_DELIM
+                                            + splitJars[i];
                                     classpathFinder.addClasspathElement(jarPath, log);
                                 }
                             }
