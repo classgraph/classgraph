@@ -465,6 +465,18 @@ public class ScanSpec {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Return true if any MatchProcessors have been added.
+     */
+    public boolean hasMatchProcessors() {
+        return (filePathTestersAndMatchProcessorWrappers != null
+                && filePathTestersAndMatchProcessorWrappers.size() > 0)
+                || (classMatchers != null && classMatchers.size() > 0)
+                || (fullyQualifiedFieldNameToStaticFinalFieldMatchProcessors != null
+                        && !fullyQualifiedFieldNameToStaticFinalFieldMatchProcessors.isEmpty());
+
+    }
+
+    /**
      * Run the MatchProcessors after a scan has completed.
      */
     public void callMatchProcessors(final ScanResult scanResult) {

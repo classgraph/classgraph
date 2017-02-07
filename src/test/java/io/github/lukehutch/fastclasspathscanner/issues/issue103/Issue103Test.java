@@ -47,6 +47,7 @@ import io.github.lukehutch.fastclasspathscanner.scanner.ScanResultProcessor;
 public class Issue103Test {
     private static boolean exceptionCaughtSync = false;
     private static boolean exceptionCaughtAsync = false;
+    private static boolean exceptionCaughtAsyncWithoutMatchProcessors = false;
     private static List<String> classesFoundSync = new ArrayList<>();
     private static List<String> classesFoundAsync = new ArrayList<>();
 
@@ -59,13 +60,24 @@ public class Issue103Test {
             exceptionCaughtSync = true;
         }
 
-        // Test that async scanning is disallowed from class initializer, to prevent deadlock
         final ExecutorService es = Executors.newSingleThreadExecutor();
         try {
-            new FastClasspathScanner(Issue103Test.class.getPackage().getName())
-                    .matchAllClasses(c -> classesFoundAsync.add(c.getName())).strictWhitelist().scanAsync(es, 1);
-        } catch (final RuntimeException e) {
-            exceptionCaughtAsync = true;
+            // Test that async scanning is disallowed from class initializer, to prevent deadlock
+            try {
+                new FastClasspathScanner(Issue103Test.class.getPackage().getName())
+                        .matchAllClasses(c -> classesFoundAsync.add(c.getName())).strictWhitelist().scanAsync(es, 1)
+                        .get();
+            } catch (final Exception e) {
+                exceptionCaughtAsync = true;
+            }
+
+            // Test that async scanning with no MatchProcessors allowed from class initializer.
+            try {
+                new FastClasspathScanner(Issue103Test.class.getPackage().getName()).strictWhitelist() //
+                        .scanAsync(es, 1).get();
+            } catch (final Exception e) {
+                exceptionCaughtAsyncWithoutMatchProcessors = true;
+            }
         } finally {
             es.shutdown();
         }
@@ -78,6 +90,8 @@ public class Issue103Test {
 
         assertThat(exceptionCaughtAsync).isTrue();
         assertThat(classesFoundAsync).isEmpty();
+
+        assertThat(exceptionCaughtAsyncWithoutMatchProcessors).isFalse();
     }
 
     @Test
