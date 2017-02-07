@@ -32,6 +32,7 @@ package io.github.lukehutch.fastclasspathscanner.scanner;
  * A callback that can be used to processes the result of a scan after scanning has completed and any
  * MatchProcessors have been run.
  */
+@FunctionalInterface
 public interface ScanResultProcessor {
     /** Process the result of a scan after scanning has completed and any MatchProcessors have been run. */
     public void processScanResult(ScanResult scanResult);
