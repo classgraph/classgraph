@@ -63,7 +63,7 @@ public class Scanner implements Callable<ScanResult> {
     private final int numParallelTasks;
     private final boolean enableRecursiveScanning;
     private final InterruptionChecker interruptionChecker = new InterruptionChecker();
-    private final boolean callMatchProcessors;
+    private final ScanResultProcessor scanResultProcessor;
     private final LogNode log;
 
     /**
@@ -76,13 +76,13 @@ public class Scanner implements Callable<ScanResult> {
     /** The classpath scanner. */
     public Scanner(final ScanSpec scanSpec, final ExecutorService executorService, final int numParallelTasks,
             final boolean enableRecursiveScanning, final boolean removeTemporaryFilesAfterScan,
-            final boolean callMatchProcessors, final LogNode log) {
+            final ScanResultProcessor scannResultProcessor, final LogNode log) {
         this.removeTemporaryFilesAfterScan = removeTemporaryFilesAfterScan;
         this.scanSpec = scanSpec;
         this.executorService = executorService;
         this.numParallelTasks = numParallelTasks;
         this.enableRecursiveScanning = enableRecursiveScanning;
-        this.callMatchProcessors = callMatchProcessors;
+        this.scanResultProcessor = scannResultProcessor;
         this.log = log;
     }
 
@@ -400,18 +400,19 @@ public class Scanner implements Callable<ScanResult> {
                 }
 
                 // Create ScanResult
-                scanResult = new ScanResult(scanSpec, classpathOrder, classGraphBuilder, fileToLastModified, log);
+                scanResult = new ScanResult(scanSpec, classpathOrder, classGraphBuilder, fileToLastModified,
+                        interruptionChecker, log);
 
-                if (callMatchProcessors) {
-                    // Call MatchProcessors 
-                    scanSpec.callMatchProcessors(scanResult, interruptionChecker, log);
+                // Run scanResultProcessor in the current thread
+                if (scanResultProcessor != null) {
+                    scanResultProcessor.processScanResult(scanResult);
                 }
 
             } else {
                 // This is the result of a call to FastClasspathScanner#getUniqueClasspathElementsAsync(), so
                 // just create placeholder ScanResult to contain classpathElementFilesOrdered.
                 scanResult = new ScanResult(scanSpec, classpathOrder, /* classGraphBuilder = */ null,
-                        /* fileToLastModified = */ null, log);
+                        /* fileToLastModified = */ null, interruptionChecker, log);
             }
             if (log != null) {
                 log.log("Completed scan", System.nanoTime() - scanStart);

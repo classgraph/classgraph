@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import io.github.lukehutch.fastclasspathscanner.utils.InterruptionChecker;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 
 /** The result of a scan. */
@@ -69,15 +70,18 @@ public class ScanResult {
     /** Exceptions thrown while loading classes or while calling MatchProcessors on loaded classes. */
     private final List<Throwable> matchProcessorExceptions = new ArrayList<>();
 
+    /** The interruption checker. */
+    final InterruptionChecker interruptionChecker;
+
     /** The log. */
-    private final LogNode log;
+    final LogNode log;
 
     // -------------------------------------------------------------------------------------------------------------
 
     /** The result of a scan. */
     ScanResult(final ScanSpec scanSpec, final List<ClasspathElement> classpathOrder,
             final ClassGraphBuilder classGraphBuilder, final Map<File, Long> fileToLastModified,
-            final LogNode log) {
+            final InterruptionChecker interruptionChecker, final LogNode log) {
         this.scanSpec = scanSpec;
         this.classpathOrder = classpathOrder;
         this.classpathElementOrderFiles = new ArrayList<>();
@@ -88,6 +92,7 @@ public class ScanResult {
         }
         this.fileToLastModified = fileToLastModified;
         this.classGraphBuilder = classGraphBuilder;
+        this.interruptionChecker = interruptionChecker;
         this.log = log;
     }
 

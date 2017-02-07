@@ -33,12 +33,16 @@ import static org.assertj.core.api.StrictAssertions.assertThat;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.Test;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
+import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
+import io.github.lukehutch.fastclasspathscanner.scanner.ScanResultProcessor;
 
 public class Issue103Test {
     private static boolean exceptionCaughtSync = false;
@@ -50,7 +54,7 @@ public class Issue103Test {
         // Test that synchronous scanning from class initializer is allowed (and does not deadlock)
         try {
             new FastClasspathScanner(Issue103Test.class.getPackage().getName())
-                    .matchAllClasses(c -> classesFoundSync.add(c.getName())).scan();
+                    .matchAllClasses(c -> classesFoundSync.add(c.getName())).strictWhitelist().scan();
         } catch (final RuntimeException e) {
             exceptionCaughtSync = true;
         }
@@ -59,7 +63,7 @@ public class Issue103Test {
         final ExecutorService es = Executors.newSingleThreadExecutor();
         try {
             new FastClasspathScanner(Issue103Test.class.getPackage().getName())
-                    .matchAllClasses(c -> classesFoundAsync.add(c.getName())).scanAsync(es, 1);
+                    .matchAllClasses(c -> classesFoundAsync.add(c.getName())).strictWhitelist().scanAsync(es, 1);
         } catch (final RuntimeException e) {
             exceptionCaughtAsync = true;
         } finally {
@@ -70,9 +74,35 @@ public class Issue103Test {
     @Test
     public void nonInheritedAnnotation() {
         assertThat(exceptionCaughtSync).isFalse();
-        assertThat(classesFoundSync).containsOnly(Issue103Test.class.getName());
+        assertThat(classesFoundSync).isNotEmpty();
 
         assertThat(exceptionCaughtAsync).isTrue();
         assertThat(classesFoundAsync).isEmpty();
+    }
+
+    @Test
+    public void scanResultProcessor() {
+        final ExecutorService executorService = Executors.newFixedThreadPool(4);
+        final CountDownLatch latch = new CountDownLatch(1);
+        try {
+            new FastClasspathScanner(Issue103Test.class.getPackage().getName()).scanAsync(executorService, 4,
+                    new ScanResultProcessor() {
+                        @Override
+                        public void processScanResult(final ScanResult scanResult) {
+                            latch.countDown();
+                        }
+                    });
+            boolean scanResultProcessorRun = false;
+            try {
+                scanResultProcessorRun |= latch.await(5, TimeUnit.SECONDS);
+            } catch (final InterruptedException e) {
+                // Fall through
+            }
+            if (!scanResultProcessorRun) {
+                throw new RuntimeException("ScanResultProcessor was not run or timed out");
+            }
+        } finally {
+            executorService.shutdown();
+        }
     }
 }

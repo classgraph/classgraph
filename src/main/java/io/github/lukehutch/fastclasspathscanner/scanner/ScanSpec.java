@@ -57,7 +57,6 @@ import io.github.lukehutch.fastclasspathscanner.matchprocessor.StaticFinalFieldM
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubclassMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubinterfaceMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.utils.AdditionOrderedSet;
-import io.github.lukehutch.fastclasspathscanner.utils.InterruptionChecker;
 import io.github.lukehutch.fastclasspathscanner.utils.JarUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.MultiMapKeyToList;
@@ -468,8 +467,8 @@ public class ScanSpec {
     /**
      * Run the MatchProcessors after a scan has completed.
      */
-    public void callMatchProcessors(final ScanResult scanResult, final InterruptionChecker interruptionChecker,
-            final LogNode log) {
+    public void callMatchProcessors(final ScanResult scanResult) {
+        final LogNode log = scanResult.log;
         try {
             // Call any FileMatchProcessors
             for (final ClasspathElement classpathElement : scanResult.classpathOrder) {
@@ -486,7 +485,7 @@ public class ScanSpec {
                 for (final ClassMatcher classMatcher : classMatchers) {
                     classMatcher.lookForMatches(scanResult, //
                             log == null ? null : log.log("Calling ClassMatchProcessors"));
-                    interruptionChecker.check();
+                    scanResult.interruptionChecker.check();
                 }
             }
 
@@ -529,7 +528,7 @@ public class ScanSpec {
                                     }
                                     scanResult.addMatchProcessorException(e);
                                 }
-                                interruptionChecker.check();
+                                scanResult.interruptionChecker.check();
                             }
                         }
                     } else {

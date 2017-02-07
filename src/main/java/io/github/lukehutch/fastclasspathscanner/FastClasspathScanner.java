@@ -51,10 +51,10 @@ import io.github.lukehutch.fastclasspathscanner.matchprocessor.StaticFinalFieldM
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubclassMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubinterfaceMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
+import io.github.lukehutch.fastclasspathscanner.scanner.ScanResultProcessor;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
 import io.github.lukehutch.fastclasspathscanner.scanner.Scanner;
 import io.github.lukehutch.fastclasspathscanner.utils.AutoCloseableExecutorService;
-import io.github.lukehutch.fastclasspathscanner.utils.InterruptionChecker;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.VersionFinder;
 
@@ -1044,6 +1044,58 @@ public class FastClasspathScanner {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Using MatchProcessors that refer to their containing class when FastClasspathScanner is called from a class
+     * initializer block of the containing class can cause a JVM deadlock, because FastClasspathScanner is
+     * multithreaded -- see bug #103.
+     */
+    private void disallowCallingFromClassInitializer() {
+        try {
+            throw new Exception();
+        } catch (final Exception e) {
+            final StackTraceElement[] elts = e.getStackTrace();
+            for (final StackTraceElement elt : elts) {
+                if ("<clinit>".equals(elt.getMethodName())) {
+                    throw new RuntimeException(
+                            "Cannot launch FastClasspathScanner asynchronously during class initialization "
+                                    + "(for class " + elt.getClassName() + ") -- this can lead to a deadlock. See: "
+                                    + "https://github.com/lukehutch/fast-classpath-scanner/issues/103");
+                }
+            }
+        }
+    }
+
+    /**
+     * Asynchronously scans the classpath for matching files, and if scanResultProcessor is non-null, also calls any
+     * MatchProcessors if a match is identified.
+     * 
+     * @param executorService
+     *            A custom ExecutorService to use for scheduling worker tasks.
+     * @param numParallelTasks
+     *            The number of parallel tasks to break the work into during the most CPU-intensive stage of
+     *            classpath scanning. Ideally the ExecutorService will have at least this many threads available.
+     * @param isAsyncScan
+     *            If true, this is an async scan -- don't allow running from class initializers, in order to prevent
+     *            a class initializer deadlock.
+     * @param scanResultProcessor
+     *            If non-null, specifies a callback to run on the ScanResult after scanning has completed and
+     *            MatchProcessors have been run.
+     * 
+     * @return a Future<ScanResult> object, that when resolved using get() yields a new ScanResult object. You can
+     *         call cancel(true) on this Future if you want to interrupt the scan.
+     */
+    private Future<ScanResult> scanAsync(final ExecutorService executorService, final int numParallelTasks,
+            final boolean isAsyncScan, final ScanResultProcessor scanResultProcessor) {
+        if (isAsyncScan) {
+            disallowCallingFromClassInitializer();
+        }
+        final ScanSpec scanSpec = getScanSpec();
+        return executorService.submit(
+                // Call MatchProcessors before returning if in async scanning mode
+                new Scanner(scanSpec, executorService, numParallelTasks, /* enableRecursiveScanning = */ true,
+                        scanSpec.removeTemporaryFilesAfterScan, scanResultProcessor, log));
+    }
+
+    /**
      * Asynchronously scans the classpath for matching files, and if runAsynchronously is true, also calls any
      * MatchProcessors if a match is identified.
      * 
@@ -1052,38 +1104,53 @@ public class FastClasspathScanner {
      * @param numParallelTasks
      *            The number of parallel tasks to break the work into during the most CPU-intensive stage of
      *            classpath scanning. Ideally the ExecutorService will have at least this many threads available.
-     * @param callMatchProcessors
+     * @param scanResultProcessor
+     *            Specifies a callback to run on the ScanResult after scanning has completed and MatchProcessors
+     *            have been run. If null, throws IllegalArgumentException.
+     */
+    public void scanAsync(final ExecutorService executorService, final int numParallelTasks,
+            final ScanResultProcessor scanResultProcessor) {
+        if (scanResultProcessor == null) {
+            // If scanResultProcessor is null, the scan won't do anything after completion,
+            // and the ScanResult will simply be lost.
+            throw new IllegalArgumentException("scanResultProcessor cannot be null");
+        }
+        // Drop the returned Future<ScanResult>, a ScanResultProcessor is used instead
+        scanAsync(executorService, numParallelTasks, /* isAsyncScan = */ true, new ScanResultProcessor() {
+            @Override
+            public void processScanResult(final ScanResult scanResult) {
+                // Call any MatchProcessors after scan has completed
+                getScanSpec().callMatchProcessors(scanResult);
+                // Then call the provided ScanResultProcessor
+                scanResultProcessor.processScanResult(scanResult);
+            }
+        });
+    }
+
+    /**
+     * Asynchronously scans the classpath for matching files, and if runAsynchronously is true, also calls any
+     * MatchProcessors if a match is identified.
+     * 
+     * @param executorService
+     *            A custom ExecutorService to use for scheduling worker tasks.
+     * @param numParallelTasks
+     *            The number of parallel tasks to break the work into during the most CPU-intensive stage of
+     *            classpath scanning. Ideally the ExecutorService will have at least this many threads available.
+     * @param runMatchProcessorsOnWorkerThread
      *            If true, run MatchProcessors in one of the worker threads after obtaining the ScanResult.
      * @return a Future<ScanResult> object, that when resolved using get() yields a new ScanResult object. You can
      *         call cancel(true) on this Future if you want to interrupt the scan.
      */
     private Future<ScanResult> scanAsync(final ExecutorService executorService, final int numParallelTasks,
-            final boolean callMatchProcessors) {
-        if (callMatchProcessors) {
-            // Using MatchProcessors that refer to their containing class when FastClasspathScanner is called
-            // from a class initializer block of the containing class can cause a JVM deadlock, because
-            // FastClasspathScanner is multithreaded -- see bug #103.
-            try {
-                throw new Exception();
-            } catch (final Exception e) {
-                final StackTraceElement[] elts = e.getStackTrace();
-                for (final StackTraceElement elt : elts) {
-                    if ("<clinit>".equals(elt.getMethodName())) {
-                        throw new RuntimeException(
-                                "Cannot launch FastClasspathScanner asynchronously during class initialization "
-                                        + "(for class " + elt.getClassName()
-                                        + ") -- this can lead to a deadlock. See: "
-                                        + "https://github.com/lukehutch/fast-classpath-scanner/issues/103");
+            final boolean isAsyncScan, final boolean runMatchProcessorsOnWorkerThread) {
+        return scanAsync(executorService, numParallelTasks, isAsyncScan,
+                runMatchProcessorsOnWorkerThread ? new ScanResultProcessor() {
+                    @Override
+                    public void processScanResult(final ScanResult scanResult) {
+                        // Call MatchProcessors after scan has completed
+                        getScanSpec().callMatchProcessors(scanResult);
                     }
-                }
-            }
-        }
-        final ScanSpec scanSpec = getScanSpec();
-        return executorService.submit(
-                // Call MatchProcessors before returning if in async scanning mode
-                new Scanner(scanSpec, executorService, numParallelTasks, /* enableRecursiveScanning = */ true,
-                        scanSpec.removeTemporaryFilesAfterScan, /* callMatchProcessors = */ callMatchProcessors,
-                        log));
+                } : null);
     }
 
     /**
@@ -1112,7 +1179,8 @@ public class FastClasspathScanner {
      *         classloading failed for some class, or a MatchProcessor threw an exception.
      */
     public Future<ScanResult> scanAsync(final ExecutorService executorService, final int numParallelTasks) {
-        return scanAsync(executorService, numParallelTasks, /* callMatchProcessors = */ true);
+        return scanAsync(executorService, numParallelTasks, /* isAsyncScan = */ true,
+                /* runMatchProcessorsOnWorkerThread = */ true);
     }
 
     /**
@@ -1145,12 +1213,11 @@ public class FastClasspathScanner {
     public ScanResult scan(final ExecutorService executorService, final int numParallelTasks) {
         try {
             // Start the scan, and then wait for scan completion
-            final ScanResult scanResult = scanAsync(executorService, numParallelTasks,
-                    /* callMatchProcessors = */ false).get();
+            final ScanResult scanResult = scanAsync(executorService, numParallelTasks, /* isAsyncScan = */ false,
+                    /* runMatchProcessorsOnWorkerThread = */ false).get();
 
             // Call MatchProcessors in the same thread as the caller, to avoid deadlock (see bug #103)
-            final InterruptionChecker interruptionChecker = new InterruptionChecker();
-            getScanSpec().callMatchProcessors(scanResult, interruptionChecker, log);
+            getScanSpec().callMatchProcessors(scanResult);
 
             // Return the scanResult after calling MatchProcessors
             return scanResult;
@@ -1261,12 +1328,15 @@ public class FastClasspathScanner {
      */
     public Future<List<File>> getUniqueClasspathElementsAsync(final ExecutorService executorService,
             final int numParallelTasks) {
+        // No need to call disallowCallingFromClassInitializer() here, because no MatchProcessors are run,
+        // so class initializer deadlock cannot occur.
         final Future<List<File>> classpathElementsFuture;
         try {
-            final Future<ScanResult> scanResult = executorService.submit(new Scanner(getScanSpec(), executorService,
-                    numParallelTasks, /* enableRecursiveScanning = */ false,
-                    /* removeTemporaryFilesAfterScan = */ false, /* callMatchProcessors = */ false,
-                    log == null ? null : log.log("Getting unique classpath elements")));
+            final Future<ScanResult> scanResult = executorService.submit( //
+                    new Scanner(getScanSpec(), executorService, numParallelTasks,
+                            /* enableRecursiveScanning = */ false, /* removeTemporaryFilesAfterScan = */ false,
+                            /* scanResultProcessor = */ null,
+                            log == null ? null : log.log("Getting unique classpath elements")));
             classpathElementsFuture = executorService.submit(new Callable<List<File>>() {
                 @Override
                 public List<File> call() throws Exception {
