@@ -1149,7 +1149,7 @@ public class FastClasspathScanner {
                     /* callMatchProcessors = */ false).get();
 
             // Call MatchProcessors in the same thread as the caller, to avoid deadlock (see bug #103)
-            InterruptionChecker interruptionChecker = new InterruptionChecker();
+            final InterruptionChecker interruptionChecker = new InterruptionChecker();
             getScanSpec().callMatchProcessors(scanResult, interruptionChecker, log);
 
             // Return the scanResult after calling MatchProcessors

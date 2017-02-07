@@ -400,7 +400,7 @@ public class Scanner implements Callable<ScanResult> {
                 }
 
                 // Create ScanResult
-                scanResult = new ScanResult(scanSpec, classpathOrder, classGraphBuilder, fileToLastModified);
+                scanResult = new ScanResult(scanSpec, classpathOrder, classGraphBuilder, fileToLastModified, log);
 
                 if (callMatchProcessors) {
                     // Call MatchProcessors 
@@ -411,7 +411,7 @@ public class Scanner implements Callable<ScanResult> {
                 // This is the result of a call to FastClasspathScanner#getUniqueClasspathElementsAsync(), so
                 // just create placeholder ScanResult to contain classpathElementFilesOrdered.
                 scanResult = new ScanResult(scanSpec, classpathOrder, /* classGraphBuilder = */ null,
-                        /* fileToLastModified = */ null);
+                        /* fileToLastModified = */ null, log);
             }
             if (log != null) {
                 log.log("Completed scan", System.nanoTime() - scanStart);

@@ -31,10 +31,13 @@ package io.github.lukehutch.fastclasspathscanner.scanner;
 import java.io.File;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+
+import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 
 /** The result of a scan. */
 public class ScanResult {
@@ -66,11 +69,15 @@ public class ScanResult {
     /** Exceptions thrown while loading classes or while calling MatchProcessors on loaded classes. */
     private final List<Throwable> matchProcessorExceptions = new ArrayList<>();
 
+    /** The log. */
+    private final LogNode log;
+
     // -------------------------------------------------------------------------------------------------------------
 
     /** The result of a scan. */
     ScanResult(final ScanSpec scanSpec, final List<ClasspathElement> classpathOrder,
-            final ClassGraphBuilder classGraphBuilder, final Map<File, Long> fileToLastModified) {
+            final ClassGraphBuilder classGraphBuilder, final Map<File, Long> fileToLastModified,
+            final LogNode log) {
         this.scanSpec = scanSpec;
         this.classpathOrder = classpathOrder;
         this.classpathElementOrderFiles = new ArrayList<>();
@@ -81,6 +88,7 @@ public class ScanResult {
         }
         this.fileToLastModified = fileToLastModified;
         this.classGraphBuilder = classGraphBuilder;
+        this.log = log;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -587,5 +595,41 @@ public class ScanResult {
      */
     public String generateClassGraphDotFile(final float sizeX, final float sizeY) {
         return classGraphBuilder.generateClassGraphDotFile(sizeX, sizeY);
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Produce a list of Class references given a list of class names. If any classes cannot be loaded, due to
+     * classloading error, or an exception being thrown in the class initialization block, the class will be
+     * skipped. (Enable verbose scanning to see details of any exceptions thrown during classloading.)
+     * 
+     * @param classNames
+     *            The list of names of classes to load.
+     * @return a list of references to the loaded classes.
+     */
+    public List<Class<?>> classNamesToClassRefs(final List<String> classNames) {
+        try {
+            if (classNames.isEmpty()) {
+                return Collections.<Class<?>> emptyList();
+            } else {
+                final List<Class<?>> classRefs = new ArrayList<>();
+                for (final String className : classNames) {
+                    try {
+                        // Try loading each class
+                        classRefs.add(scanSpec.loadClass(className, this, log));
+                    } catch (final IllegalArgumentException e) {
+                        // Ignore exceptions
+                    }
+                }
+                // Allow the list to be freed if it was empty
+                return classRefs.isEmpty() ? Collections.<Class<?>> emptyList() : classRefs;
+            }
+        } finally {
+            // Manually flush log, since this method is called after scanning is complete
+            if (log != null) {
+                log.flush();
+            }
+        }
     }
 }

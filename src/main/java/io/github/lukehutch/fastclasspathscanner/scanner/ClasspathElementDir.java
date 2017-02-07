@@ -78,7 +78,7 @@ class ClasspathElementDir extends ClasspathElement {
 
     /** Recursively scan a directory for file path patterns matching the scan spec. */
     private void scanDir(final File classpathElt, final File dir, final int ignorePrefixLen,
-            boolean prevInWhitelistedPath, final HashSet<String> scannedCanonicalPaths, final int[] entryIdx,
+            final boolean prevInWhitelistedPath, final HashSet<String> scannedCanonicalPaths, final int[] entryIdx,
             final LogNode log) {
         boolean inWhitelistedPath = prevInWhitelistedPath;
         // See if this canonical path has been scanned before, so that recursive scanning doesn't get stuck in

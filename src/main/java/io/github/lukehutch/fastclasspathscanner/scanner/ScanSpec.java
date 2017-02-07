@@ -690,12 +690,12 @@ public class ScanSpec {
      * Call the classloader using Class.forName(className, initializeLoadedClasses, classLoader), for all known
      * ClassLoaders, until one is able to load the class, or until there are no more ClassLoaders to try.
      * 
-     * @throw MatchProcessorException if LinkageError (including ExceptionInInitializerError) is thrown, or if no
+     * @throw IllegalArgumentException if LinkageError (including ExceptionInInitializerError) is thrown, or if no
      *        ClassLoader is able to load the class.
      * @return a reference to the loaded class.
      */
-    private Class<?> loadClass(final String className, final ScanResult scanResult, final LogNode log)
-            throws Exception {
+    Class<?> loadClass(final String className, final ScanResult scanResult, final LogNode log)
+            throws IllegalArgumentException {
         // First try loading classes in the order that classpath elements were scanned
         if (orderedClassLoader != null) {
             try {
@@ -714,10 +714,30 @@ public class ScanSpec {
                 if (log != null) {
                     log.log("Error while loading class " + className + ": " + e);
                 }
-                throw MatchProcessorException.newInstance(e);
+                throw new IllegalArgumentException("Exception while loading class " + className, e);
             }
         }
-        throw MatchProcessorException.newInstance(new ClassNotFoundException(className));
+        if (log != null) {
+            log.log("No classloader was able to load class " + className);
+        }
+        throw new IllegalArgumentException("No classloader was able to find class " + className);
+    }
+
+    /**
+     * Call the classloader using Class.forName(className, initializeLoadedClasses, classLoader), for all known
+     * ClassLoaders, until one is able to load the class, or until there are no more ClassLoaders to try.
+     * 
+     * @throw MatchProcessorException if LinkageError (including ExceptionInInitializerError) is thrown, or if no
+     *        ClassLoader is able to load the class.
+     * @return a reference to the loaded class.
+     */
+    private Class<?> loadClassForMatchProcessor(final String className, final ScanResult scanResult,
+            final LogNode log) throws MatchProcessorException {
+        try {
+            return loadClass(className, scanResult, log);
+        } catch (final IllegalArgumentException e) {
+            throw MatchProcessorException.newInstance(e.getCause());
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -842,7 +862,7 @@ public class ScanSpec {
                     }
                     try {
                         // Call classloader
-                        final Class<?> cls = loadClass(className, scanResult, log);
+                        final Class<?> cls = loadClassForMatchProcessor(className, scanResult, log);
                         // Process match
                         classMatchProcessor.processMatch(cls);
                     } catch (final Throwable e) {
@@ -874,7 +894,7 @@ public class ScanSpec {
                     }
                     try {
                         // Call classloader
-                        final Class<?> cls = loadClass(className, scanResult, log);
+                        final Class<?> cls = loadClassForMatchProcessor(className, scanResult, log);
                         // Process match
                         classMatchProcessor.processMatch(cls);
                     } catch (final Throwable e) {
@@ -906,7 +926,7 @@ public class ScanSpec {
                     }
                     try {
                         // Call classloader
-                        final Class<?> cls = loadClass(className, scanResult, log);
+                        final Class<?> cls = loadClassForMatchProcessor(className, scanResult, log);
                         // Process match
                         classMatchProcessor.processMatch(cls);
                     } catch (final Throwable e) {
@@ -938,7 +958,7 @@ public class ScanSpec {
                     }
                     try {
                         // Call classloader
-                        final Class<?> cls = loadClass(className, scanResult, log);
+                        final Class<?> cls = loadClassForMatchProcessor(className, scanResult, log);
                         // Process match
                         classMatchProcessor.processMatch(cls);
                     } catch (final Throwable e) {
@@ -977,8 +997,8 @@ public class ScanSpec {
                     try {
                         // Call classloader
                         @SuppressWarnings("unchecked")
-                        final Class<? extends T> cls = (Class<? extends T>) loadClass(subclassName, scanResult,
-                                log);
+                        final Class<? extends T> cls = (Class<? extends T>) loadClassForMatchProcessor(subclassName,
+                                scanResult, log);
                         // Process match
                         subclassMatchProcessor.processMatch(cls);
                     } catch (final Throwable e) {
@@ -1018,8 +1038,8 @@ public class ScanSpec {
                     try {
                         // Call classloader
                         @SuppressWarnings("unchecked")
-                        final Class<? extends T> cls = (Class<? extends T>) loadClass(subinterfaceName, scanResult,
-                                log);
+                        final Class<? extends T> cls = (Class<? extends T>) loadClassForMatchProcessor(
+                                subinterfaceName, scanResult, log);
                         // Process match
                         subinterfaceMatchProcessor.processMatch(cls);
                     } catch (final Throwable e) {
@@ -1060,8 +1080,8 @@ public class ScanSpec {
                     try {
                         // Call classloader
                         @SuppressWarnings("unchecked")
-                        final Class<? extends T> cls = (Class<? extends T>) loadClass(implementingClassName,
-                                scanResult, log);
+                        final Class<? extends T> cls = (Class<? extends T>) loadClassForMatchProcessor(
+                                implementingClassName, scanResult, log);
                         // Process match
                         implementingClassMatchProcessor.processMatch(cls);
                     } catch (final Throwable e) {
@@ -1100,7 +1120,7 @@ public class ScanSpec {
                     }
                     try {
                         // Call classloader
-                        final Class<?> cls = loadClass(className, scanResult, log);
+                        final Class<?> cls = loadClassForMatchProcessor(className, scanResult, log);
                         // Process match
                         classMatchProcessor.processMatch(cls);
                     } catch (final Throwable e) {
@@ -1140,7 +1160,7 @@ public class ScanSpec {
                     }
                     try {
                         // Call classloader
-                        final Class<?> cls = loadClass(classWithAnnotation, scanResult, log);
+                        final Class<?> cls = loadClassForMatchProcessor(classWithAnnotation, scanResult, log);
                         // Process match
                         classAnnotationMatchProcessor.processMatch(cls);
                     } catch (final Throwable e) {
@@ -1176,7 +1196,7 @@ public class ScanSpec {
                     Class<?> cls = null;
                     try {
                         // Call classloader
-                        cls = loadClass(classWithAnnotation, scanResult, log);
+                        cls = loadClassForMatchProcessor(classWithAnnotation, scanResult, log);
                     } catch (final Throwable e) {
                         if (log != null) {
                             log.log("Exception while loading class " + classWithAnnotation, e);
