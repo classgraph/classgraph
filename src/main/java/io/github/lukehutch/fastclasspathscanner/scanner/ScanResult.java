@@ -605,29 +605,43 @@ public class ScanResult {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Produce a list of Class references given a list of class names. If any classes cannot be loaded, due to
-     * classloading error, or an exception being thrown in the class initialization block, the class will be
-     * skipped. (Enable verbose scanning to see details of any exceptions thrown during classloading.)
+     * Produce a list of Class references given a list of class names. If ignoreExceptions is true, and any classes
+     * cannot be loaded (due to classloading error, or due to an exception being thrown in the class initialization
+     * block), an IllegalArgumentException is thrown; otherwise, the class will simply be skipped if an exception is
+     * thrown.
+     * 
+     * Enable verbose scanning to see details of any exceptions thrown during classloading, even if ignoreExceptions
+     * is false.
      * 
      * @param classNames
      *            The list of names of classes to load.
+     * @param ignoreExceptions
+     *            If true, exceptions are ignored during classloading
+     * @throws IllegalArgumentException
+     *             if ignoreExceptions is true and an exception is thrown during classloading or class
+     *             initialization. (Note that class initialization on load is not enabled by default, you can enable
+     *             it with FastClasspathScanner#initializeLoadedClasses(true).)
      * @return a list of references to the loaded classes.
      */
-    public List<Class<?>> classNamesToClassRefs(final List<String> classNames) {
+    public List<Class<?>> classNamesToClassRefs(final List<String> classNames, final boolean ignoreExceptions)
+            throws IllegalArgumentException {
         try {
             if (classNames.isEmpty()) {
                 return Collections.<Class<?>> emptyList();
             } else {
                 final List<Class<?>> classRefs = new ArrayList<>();
                 for (final String className : classNames) {
-                    try {
-                        // Try loading each class
+                    // Try loading each class
+                    if (ignoreExceptions) {
+                        try {
+                            classRefs.add(scanSpec.loadClass(className, this, log));
+                        } catch (final IllegalArgumentException e) {
+                            // Ignore exceptions
+                        }
+                    } else {
                         classRefs.add(scanSpec.loadClass(className, this, log));
-                    } catch (final IllegalArgumentException e) {
-                        // Ignore exceptions
                     }
                 }
-                // Allow the list to be freed if it was empty
                 return classRefs.isEmpty() ? Collections.<Class<?>> emptyList() : classRefs;
             }
         } finally {
@@ -636,5 +650,22 @@ public class ScanResult {
                 log.flush();
             }
         }
+    }
+
+    /**
+     * Produce a list of Class references given a list of class names. If any classes cannot be loaded (due to
+     * classloading error, or due to an exception being thrown in the class initialization block),
+     * IllegalArgumentException will be thrown.
+     * 
+     * @param classNames
+     *            The list of names of classes to load.
+     * @throws IllegalArgumentException
+     *             if ignoreExceptions is true and an exception is thrown during classloading or class
+     *             initialization. (Note that class initialization on load is not enabled by default, you can enable
+     *             it with FastClasspathScanner#initializeLoadedClasses(true).)
+     * @return a list of references to the loaded classes.
+     */
+    public List<Class<?>> classNamesToClassRefs(final List<String> classNames) throws IllegalArgumentException {
+        return classNamesToClassRefs(classNames, /* ignoreExceptions = */ false);
     }
 }
