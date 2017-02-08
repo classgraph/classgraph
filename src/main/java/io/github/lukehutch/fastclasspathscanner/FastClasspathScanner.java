@@ -1334,9 +1334,6 @@ public class FastClasspathScanner {
             classpathElementsFuture = executorService.submit(new Callable<List<File>>() {
                 @Override
                 public List<File> call() throws Exception {
-                    if (log != null) {
-                        log.log("Getting classpath elements");
-                    }
                     return scanResult.get().getUniqueClasspathElements();
                 }
             });
