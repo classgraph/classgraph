@@ -262,7 +262,7 @@ public class LogNode {
      * 
      * @return a child log node, which can be used to add sub-entries.
      */
-    public LogNode log(final Exception e) {
+    public LogNode log(final Throwable e) {
         return log("Exception thrown").addChild(e);
     }
 

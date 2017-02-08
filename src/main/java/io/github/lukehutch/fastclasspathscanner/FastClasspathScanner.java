@@ -50,6 +50,7 @@ import io.github.lukehutch.fastclasspathscanner.matchprocessor.MethodAnnotationM
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.StaticFinalFieldMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubclassMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubinterfaceMatchProcessor;
+import io.github.lukehutch.fastclasspathscanner.scanner.FailureHandler;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanResultProcessor;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
@@ -1056,37 +1057,63 @@ public class FastClasspathScanner {
      *            If true, this is an async scan -- don't allow running from class initializers, in order to prevent
      *            a class initializer deadlock.
      * @param scanResultProcessor
-     *            If non-null, specifies a callback to run on the ScanResult after scanning has completed and
-     *            MatchProcessors have been run.
+     *            If non-null, specifies a callback to run on the ScanResult after asynchronous scanning has
+     *            completed and MatchProcessors have been run.
+     * @param failureHandler
+     *            If non-null, specifies a callback to run if an exception is thrown during an asynchronous scan. If
+     *            a FailureHandler is provided and an exception is thrown, the resulting Future's get() method will
+     *            return null rather than throwing an ExecutionException.
      * 
      * @return a Future<ScanResult> object, that when resolved using get() yields a new ScanResult object. You can
      *         call cancel(true) on this Future if you want to interrupt the scan.
      */
     private Future<ScanResult> launchAsyncScan(final ExecutorService executorService, final int numParallelTasks,
-            final boolean isAsyncScan, final ScanResultProcessor scanResultProcessor) {
+            final boolean isAsyncScan, final ScanResultProcessor scanResultProcessor,
+            final FailureHandler failureHandler) {
         final ScanSpec scanSpec = getScanSpec();
         if (isAsyncScan && scanSpec.hasMatchProcessors()) {
             // Disallow MatchProcessors when launched asynchronously from a class initializer, to prevent class
             // initializer deadlock if any of the MatchProcessors try to refer to the incompletely-initialized
             // class -- see bug #103.
             try {
-                throw new Exception();
-            } catch (final Exception e) {
-                final StackTraceElement[] elts = e.getStackTrace();
-                for (final StackTraceElement elt : elts) {
-                    if ("<clinit>".equals(elt.getMethodName())) {
-                        throw new RuntimeException("Cannot use MatchProcessors while launching a scan "
-                                + "from a class initialization block (for class " + elt.getClassName()
-                                + "), as this can lead to a class initializer deadlock. See: "
-                                + "https://github.com/lukehutch/fast-classpath-scanner/issues/103");
+                try {
+                    // Generate stacktrace, so that we can get caller info
+                    throw new Exception();
+                } catch (final Exception e) {
+                    final StackTraceElement[] elts = e.getStackTrace();
+                    for (final StackTraceElement elt : elts) {
+                        if ("<clinit>".equals(elt.getMethodName())) {
+                            throw new RuntimeException("Cannot use MatchProcessors while launching a scan "
+                                    + "from a class initialization block (for class " + elt.getClassName()
+                                    + "), as this can lead to a class initializer deadlock. See: "
+                                    + "https://github.com/lukehutch/fast-classpath-scanner/issues/103");
+                        }
                     }
+                }
+            } catch (final RuntimeException e) {
+                // Re-catch the RuntimeException so we have the stacktrace for the above failure
+                if (failureHandler == null) {
+                    throw e;
+                } else {
+                    if (log != null) {
+                        log.log(e);
+                        log.flush();
+                    }
+                    failureHandler.onFailure(e);
+                    return executorService.submit(new Callable<ScanResult>() {
+                        @Override
+                        public ScanResult call() throws Exception {
+                            // Return null from the Future if a FailureHandler was added and there was an exception
+                            return null;
+                        }
+                    });
                 }
             }
         }
         return executorService.submit(
                 // Call MatchProcessors before returning if in async scanning mode
                 new Scanner(scanSpec, executorService, numParallelTasks, /* enableRecursiveScanning = */ true,
-                        scanSpec.removeTemporaryFilesAfterScan, scanResultProcessor, log));
+                        scanSpec.removeTemporaryFilesAfterScan, scanResultProcessor, failureHandler, log));
     }
 
     /**
@@ -1099,15 +1126,23 @@ public class FastClasspathScanner {
      *            The number of parallel tasks to break the work into during the most CPU-intensive stage of
      *            classpath scanning. Ideally the ExecutorService will have at least this many threads available.
      * @param scanResultProcessor
-     *            Specifies a callback to run on the ScanResult after scanning has completed and MatchProcessors
+     *            A callback to run on the ScanResult after asynchronous scanning has completed and MatchProcessors
      *            have been run. If null, throws IllegalArgumentException.
+     * @param failureHandler
+     *            A callback to run if any exception or error is thrown during the scan. If null, throws
+     *            IllegalArgumentException.
      */
     public void scanAsync(final ExecutorService executorService, final int numParallelTasks,
-            final ScanResultProcessor scanResultProcessor) {
+            final ScanResultProcessor scanResultProcessor, final FailureHandler failureHandler) {
         if (scanResultProcessor == null) {
             // If scanResultProcessor is null, the scan won't do anything after completion,
             // and the ScanResult will simply be lost.
             throw new IllegalArgumentException("scanResultProcessor cannot be null");
+        }
+        if (failureHandler == null) {
+            // The result of the Future<ScanObject> object returned by launchAsyncScan is discarded below,
+            // so we force the addition of a FailureHandler so that exceptions are not silently swallowed.
+            throw new IllegalArgumentException("failureHandler cannot be null");
         }
         // Drop the returned Future<ScanResult>, a ScanResultProcessor is used instead
         launchAsyncScan(executorService, numParallelTasks, /* isAsyncScan = */ true, new ScanResultProcessor() {
@@ -1118,7 +1153,7 @@ public class FastClasspathScanner {
                 // Then call the provided ScanResultProcessor
                 scanResultProcessor.processScanResult(scanResult);
             }
-        });
+        }, failureHandler);
     }
 
     /**
@@ -1144,7 +1179,7 @@ public class FastClasspathScanner {
                         // Call MatchProcessors after scan has completed
                         getScanSpec().callMatchProcessors(scanResult);
                     }
-                } : null);
+                } : null, /* failureHandler = */ null);
     }
 
     /**
@@ -1329,7 +1364,7 @@ public class FastClasspathScanner {
             final Future<ScanResult> scanResult = executorService.submit( //
                     new Scanner(getScanSpec(), executorService, numParallelTasks,
                             /* enableRecursiveScanning = */ false, /* removeTemporaryFilesAfterScan = */ false,
-                            /* scanResultProcessor = */ null,
+                            /* scanResultProcessor = */ null, /* failureHandler = */ null,
                             log == null ? null : log.log("Getting unique classpath elements")));
             classpathElementsFuture = executorService.submit(new Callable<List<File>>() {
                 @Override

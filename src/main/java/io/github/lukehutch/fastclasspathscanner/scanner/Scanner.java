@@ -64,6 +64,7 @@ public class Scanner implements Callable<ScanResult> {
     private final boolean enableRecursiveScanning;
     private final InterruptionChecker interruptionChecker = new InterruptionChecker();
     private final ScanResultProcessor scanResultProcessor;
+    private final FailureHandler failureHandler;
     private final LogNode log;
 
     /**
@@ -76,13 +77,15 @@ public class Scanner implements Callable<ScanResult> {
     /** The classpath scanner. */
     public Scanner(final ScanSpec scanSpec, final ExecutorService executorService, final int numParallelTasks,
             final boolean enableRecursiveScanning, final boolean removeTemporaryFilesAfterScan,
-            final ScanResultProcessor scannResultProcessor, final LogNode log) {
+            final ScanResultProcessor scannResultProcessor, final FailureHandler failureHandler,
+            final LogNode log) {
         this.removeTemporaryFilesAfterScan = removeTemporaryFilesAfterScan;
         this.scanSpec = scanSpec;
         this.executorService = executorService;
         this.numParallelTasks = numParallelTasks;
         this.enableRecursiveScanning = enableRecursiveScanning;
         this.scanResultProcessor = scannResultProcessor;
+        this.failureHandler = failureHandler;
         this.log = log;
     }
 
@@ -420,6 +423,18 @@ public class Scanner implements Callable<ScanResult> {
 
             // No exceptions were thrown -- return scan result
             return scanResult;
+
+        } catch (final Throwable e) {
+            if (failureHandler == null) {
+                throw e;
+            } else {
+                if (log != null) {
+                    log.log(e);
+                }
+                failureHandler.onFailure(e);
+                // Return null from the Future if a FailureHandler was added and there was an exception
+                return null;
+            }
 
         } finally {
             if (log != null) {

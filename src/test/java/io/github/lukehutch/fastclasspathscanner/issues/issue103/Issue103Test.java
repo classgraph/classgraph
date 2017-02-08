@@ -41,6 +41,7 @@ import java.util.concurrent.TimeUnit;
 import org.junit.Test;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
+import io.github.lukehutch.fastclasspathscanner.scanner.FailureHandler;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanResultProcessor;
 
@@ -94,26 +95,68 @@ public class Issue103Test {
         assertThat(exceptionCaughtAsyncWithoutMatchProcessors).isFalse();
     }
 
+    // Test that ScanResultProcessor is run after scan
     @Test
     public void scanResultProcessor() {
         final ExecutorService executorService = Executors.newFixedThreadPool(4);
-        final CountDownLatch latch = new CountDownLatch(1);
+        final CountDownLatch scanProcessorRunLatch = new CountDownLatch(1);
+        final CountDownLatch failureHandlerLatch = new CountDownLatch(1);
         try {
             new FastClasspathScanner(Issue103Test.class.getPackage().getName()).scanAsync(executorService, 4,
                     new ScanResultProcessor() {
                         @Override
                         public void processScanResult(final ScanResult scanResult) {
-                            latch.countDown();
+                            scanProcessorRunLatch.countDown();
+                        }
+                    }, new FailureHandler() {
+                        @Override
+                        public void onFailure(final Throwable throwable) {
+                            failureHandlerLatch.countDown();
                         }
                     });
             boolean scanResultProcessorRun = false;
             try {
-                scanResultProcessorRun |= latch.await(5, TimeUnit.SECONDS);
+                scanResultProcessorRun |= scanProcessorRunLatch.await(5, TimeUnit.SECONDS);
             } catch (final InterruptedException e) {
                 // Fall through
             }
             if (!scanResultProcessorRun) {
                 throw new RuntimeException("ScanResultProcessor was not run or timed out");
+            }
+            if (failureHandlerLatch.getCount() == 0) {
+                throw new RuntimeException("FailureHandler was run");
+            }
+        } finally {
+            executorService.shutdown();
+        }
+    }
+
+    // Test that FailureHandler is run if there is an exception
+    @Test
+    public void failureHandler() {
+        final ExecutorService executorService = Executors.newFixedThreadPool(4);
+        final CountDownLatch failureHandlerLatch = new CountDownLatch(1);
+        try {
+            new FastClasspathScanner(Issue103Test.class.getPackage().getName()).scanAsync(executorService, 4,
+                    new ScanResultProcessor() {
+                        @Override
+                        public void processScanResult(final ScanResult scanResult) {
+                            throw new RuntimeException("Intentional Exception during ScanResultProcessor");
+                        }
+                    }, new FailureHandler() {
+                        @Override
+                        public void onFailure(final Throwable throwable) {
+                            failureHandlerLatch.countDown();
+                        }
+                    });
+            boolean failureHandlerRun = false;
+            try {
+                failureHandlerRun |= failureHandlerLatch.await(5, TimeUnit.SECONDS);
+            } catch (final InterruptedException e) {
+                // Fall through
+            }
+            if (!failureHandlerRun) {
+                throw new RuntimeException("FailureHandler was not run or timed out");
             }
         } finally {
             executorService.shutdown();
