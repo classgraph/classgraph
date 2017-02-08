@@ -1075,11 +1075,10 @@ public class FastClasspathScanner {
                 final StackTraceElement[] elts = e.getStackTrace();
                 for (final StackTraceElement elt : elts) {
                     if ("<clinit>".equals(elt.getMethodName())) {
-                        final String callerCurrentlyInitializingClass = elt.getClassName();
+                        final String classBeingInitialized = elt.getClassName();
                         if (scanSpec.hasMatchProcessors()) {
                             throw new RuntimeException("Cannot use MatchProcessors while launching a scan "
-                                    + "from a class initialization block (for class "
-                                    + callerCurrentlyInitializingClass
+                                    + "from a class initialization block (for class " + classBeingInitialized
                                     + "), as this can lead to a class initializer deadlock. See: "
                                     + "https://github.com/lukehutch/fast-classpath-scanner/issues/103");
                         }
