@@ -425,12 +425,12 @@ public class Scanner implements Callable<ScanResult> {
             return scanResult;
 
         } catch (final Throwable e) {
+            if (log != null) {
+                log.log(e);
+            }
             if (failureHandler == null) {
                 throw e;
             } else {
-                if (log != null) {
-                    log.log(e);
-                }
                 failureHandler.onFailure(e);
                 // Return null from the Future if a FailureHandler was added and there was an exception
                 return null;
