@@ -131,7 +131,7 @@ public class Issue103Test {
         }
     }
 
-    // Test that FailureHandler is run if there is an exception
+    // Test that FailureHandler is run on exception
     @Test
     public void failureHandler() {
         final ExecutorService executorService = Executors.newFixedThreadPool(4);
