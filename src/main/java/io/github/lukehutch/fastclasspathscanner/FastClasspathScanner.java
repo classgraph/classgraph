@@ -1126,11 +1126,11 @@ public class FastClasspathScanner {
      *            The number of parallel tasks to break the work into during the most CPU-intensive stage of
      *            classpath scanning. Ideally the ExecutorService will have at least this many threads available.
      * @param scanResultProcessor
-     *            A callback to run on the ScanResult after asynchronous scanning has completed and MatchProcessors
-     *            have been run. If null, throws IllegalArgumentException.
+     *            A callback to run on successful scan. Passed the ScanResult after asynchronous scanning has
+     *            completed and MatchProcessors have been run. (If null, throws IllegalArgumentException.)
      * @param failureHandler
-     *            A callback to run if any exception or error is thrown during the scan. If null, throws
-     *            IllegalArgumentException.
+     *            A callback to run on failed scan. Passed any Throwable thrown during the scan. (If null, throws
+     *            IllegalArgumentException.)
      */
     public void scanAsync(final ExecutorService executorService, final int numParallelTasks,
             final ScanResultProcessor scanResultProcessor, final FailureHandler failureHandler) {
