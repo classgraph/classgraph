@@ -41,9 +41,6 @@ import java.util.concurrent.TimeUnit;
 import org.junit.Test;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-import io.github.lukehutch.fastclasspathscanner.scanner.FailureHandler;
-import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
-import io.github.lukehutch.fastclasspathscanner.scanner.ScanResultProcessor;
 
 public class Issue103Test {
     private static boolean exceptionCaughtSync = false;
@@ -103,17 +100,7 @@ public class Issue103Test {
         final CountDownLatch failureHandlerLatch = new CountDownLatch(1);
         try {
             new FastClasspathScanner(Issue103Test.class.getPackage().getName()).scanAsync(executorService, 4,
-                    new ScanResultProcessor() {
-                        @Override
-                        public void processScanResult(final ScanResult scanResult) {
-                            scanProcessorRunLatch.countDown();
-                        }
-                    }, new FailureHandler() {
-                        @Override
-                        public void onFailure(final Throwable throwable) {
-                            failureHandlerLatch.countDown();
-                        }
-                    });
+                    scanResult -> scanProcessorRunLatch.countDown(), throwable -> failureHandlerLatch.countDown());
             boolean scanResultProcessorRun = false;
             try {
                 scanResultProcessorRun |= scanProcessorRunLatch.await(5, TimeUnit.SECONDS);
@@ -138,17 +125,9 @@ public class Issue103Test {
         final CountDownLatch failureHandlerLatch = new CountDownLatch(1);
         try {
             new FastClasspathScanner(Issue103Test.class.getPackage().getName()).scanAsync(executorService, 4,
-                    new ScanResultProcessor() {
-                        @Override
-                        public void processScanResult(final ScanResult scanResult) {
-                            throw new RuntimeException("Intentional Exception during ScanResultProcessor");
-                        }
-                    }, new FailureHandler() {
-                        @Override
-                        public void onFailure(final Throwable throwable) {
-                            failureHandlerLatch.countDown();
-                        }
-                    });
+                    scanResult -> {
+                        throw new RuntimeException("Intentional Exception during ScanResultProcessor");
+                    }, throwable -> failureHandlerLatch.countDown());
             boolean failureHandlerRun = false;
             try {
                 failureHandlerRun |= failureHandlerLatch.await(5, TimeUnit.SECONDS);
