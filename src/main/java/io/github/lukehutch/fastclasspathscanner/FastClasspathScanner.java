@@ -1065,7 +1065,7 @@ public class FastClasspathScanner {
     private Future<ScanResult> launchAsyncScan(final ExecutorService executorService, final int numParallelTasks,
             final boolean isAsyncScan, final ScanResultProcessor scanResultProcessor) {
         final ScanSpec scanSpec = getScanSpec();
-        if (isAsyncScan) {
+        if (isAsyncScan && scanSpec.hasMatchProcessors()) {
             // Disallow MatchProcessors when launched asynchronously from a class initializer, to prevent class
             // initializer deadlock if any of the MatchProcessors try to refer to the incompletely-initialized
             // class -- see bug #103.
@@ -1075,14 +1075,10 @@ public class FastClasspathScanner {
                 final StackTraceElement[] elts = e.getStackTrace();
                 for (final StackTraceElement elt : elts) {
                     if ("<clinit>".equals(elt.getMethodName())) {
-                        final String classBeingInitialized = elt.getClassName();
-                        if (scanSpec.hasMatchProcessors()) {
-                            throw new RuntimeException("Cannot use MatchProcessors while launching a scan "
-                                    + "from a class initialization block (for class " + classBeingInitialized
-                                    + "), as this can lead to a class initializer deadlock. See: "
-                                    + "https://github.com/lukehutch/fast-classpath-scanner/issues/103");
-                        }
-                        break;
+                        throw new RuntimeException("Cannot use MatchProcessors while launching a scan "
+                                + "from a class initialization block (for class " + elt.getClassName()
+                                + "), as this can lead to a class initializer deadlock. See: "
+                                + "https://github.com/lukehutch/fast-classpath-scanner/issues/103");
                     }
                 }
             }
