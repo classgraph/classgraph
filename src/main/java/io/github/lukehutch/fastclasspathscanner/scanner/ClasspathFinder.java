@@ -137,7 +137,8 @@ public class ClasspathFinder {
 
             // Try finding a handler for each of the classloaders discovered above
             for (final ClassLoader classLoader : classLoaderOrder) {
-                // Skip system classloaders for efficiency if system jars are not going to be scanned
+                // Skip system classloaders for efficiency if system jars are not going to be scanned.
+                // TODO: Update to include JDK9 system classloader names.
                 if (!scanSpec.blacklistSystemJars()
                         || !classLoader.getClass().getName().startsWith("sun.misc.Launcher$ExtClassLoader")) {
                     final LogNode classLoaderLog = log == null ? null

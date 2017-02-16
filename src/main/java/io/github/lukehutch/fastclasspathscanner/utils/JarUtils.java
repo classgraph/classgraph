@@ -72,7 +72,8 @@ public class JarUtils {
         }
     }
 
-    // Find JRE jar dirs
+    // Find JRE jar dirs.
+    // TODO: Update for JDK9.
     static {
         final Set<String> jrePathsSet = new HashSet<>();
         final String javaHome = getProperty("java.home");
