@@ -31,7 +31,6 @@ package io.github.lukehutch.fastclasspathscanner.scanner;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
-import java.net.URLClassLoader;
 import java.nio.file.LinkOption;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -329,16 +328,6 @@ public class Scanner implements Callable<ScanResult> {
                     }
                 }
                 classpathOrder = classpathOrderFiltered;
-
-                // Create a new ClassLoader that attempts to load classes in exactly the order in which classpath
-                // elements will be scanned, which will increase the odds of loading the right class in cases when
-                // a class is defined multiple times, or when the classpath is overridden before scanning.
-                // (However, this doesn't fix the problem of MatchProcessors being passed a reference to the
-                // class definition if a class was already loaded by the system classloader and cached, and
-                // then the user tries to override the classpath with a classpath element containing a different
-                // definition of the same class -- see bug #100.)
-                scanSpec.orderedClassLoader = new URLClassLoader(
-                        classpathOrderURLsFiltered.toArray(new URL[classpathOrderFiltered.size()]));
             }
 
             if (log != null) {

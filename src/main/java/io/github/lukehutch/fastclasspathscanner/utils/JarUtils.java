@@ -54,14 +54,14 @@ public class JarUtils {
             if (!path.endsWith(File.separator)) {
                 path += File.separator;
             }
-            jrePathsSet.add(path);
+            jrePathsSet.add(FastPathResolver.resolve("/", path));
             try {
                 String canonicalPath = dir.getCanonicalPath();
                 if (!canonicalPath.endsWith(File.separator)) {
                     canonicalPath += File.separator;
                 }
                 if (!canonicalPath.equals(path)) {
-                    jrePathsSet.add(canonicalPath);
+                    jrePathsSet.add(FastPathResolver.resolve("", canonicalPath));
                 }
             } catch (IOException | SecurityException e) {
             }
@@ -82,6 +82,13 @@ public class JarUtils {
             final File rtJarFile = new File(libFile, "rt.jar");
             if (ClasspathUtils.canRead(rtJarFile)) {
                 RT_JAR_PATH = rtJarFile.getPath();
+            }
+            if (javaHomeFile.getName().equals("jre")) {
+                final File parent = javaHomeFile.getParentFile();
+                if (parent != null) {
+                    final File parentLibFile = new File(parent, "lib");
+                    addJREPath(parentLibFile, jrePathsSet);
+                }
             }
         }
         final String javaExtDirs = getProperty("java.ext.dirs");
@@ -119,8 +126,7 @@ public class JarUtils {
     }
 
     /** Determine whether a given jarfile is in a JRE system directory (jre, jre/lib, jre/lib/ext, etc.). */
-    public static boolean isJREJar(final File jarfile, final LogNode log) {
-        final String filePath = jarfile.getPath();
+    public static boolean isJREJar(final String filePath, final LogNode log) {
         for (final String jrePathPrefix : JRE_PATHS) {
             if (filePath.startsWith(jrePathPrefix)) {
                 return true;

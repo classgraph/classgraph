@@ -32,6 +32,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
+import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.classloaderhandler.ClassLoaderHandler;
 import io.github.lukehutch.fastclasspathscanner.classloaderhandler.ClassLoaderHandlerRegistry;
 import io.github.lukehutch.fastclasspathscanner.utils.AdditionOrderedSet;
@@ -119,27 +120,46 @@ public class ClasspathFinder {
                 }
             }
 
-            // Try finding a handler for each of the classloaders discovered above
+            // Get all classloaders, including parent classloaders up to the bootstrap classloader,
+            // in classpath resolution order
+            final AdditionOrderedSet<ClassLoader> allClassLoaders = new AdditionOrderedSet<>();
             for (final ClassLoader classLoader : scanSpec.classLoaders) {
-                final LogNode classLoaderLog = log == null ? null
-                        : log.log("Finding classpath elements in ClassLoader " + classLoader);
-                // Iterate through registered ClassLoaderHandlers
-                boolean classloaderFound = false;
-                for (final ClassLoaderHandler handler : classLoaderHandlers) {
-                    try {
-                        if (handler.handle(classLoader, this, classLoaderLog)) {
-                            classloaderFound = true;
-                            break;
-                        }
-                    } catch (final Exception e) {
-                        if (classLoaderLog != null) {
-                            classLoaderLog.log("Exception in ClassLoaderHandler", e);
+                final ArrayList<ClassLoader> parentClassLoaders = new ArrayList<>();
+                for (ClassLoader cl = classLoader; cl != null; cl = cl.getParent()) {
+                    parentClassLoaders.add(cl);
+                }
+                // OpenJDK calls classloaders in a top-down order
+                for (int i = parentClassLoaders.size() - 1; i >= 0; --i) {
+                    allClassLoaders.add(parentClassLoaders.get(i));
+                }
+            }
+            final List<ClassLoader> classLoaderOrder = allClassLoaders.getList();
+
+            // Try finding a handler for each of the classloaders discovered above
+            for (final ClassLoader classLoader : classLoaderOrder) {
+                // Skip system classloaders for efficiency if system jars are not going to be scanned
+                if (!scanSpec.blacklistSystemJars()
+                        || !classLoader.getClass().getName().startsWith("sun.misc.Launcher$ExtClassLoader")) {
+                    final LogNode classLoaderLog = log == null ? null
+                            : log.log("Finding classpath elements in ClassLoader " + classLoader);
+                    // Iterate through registered ClassLoaderHandlers
+                    boolean classloaderFound = false;
+                    for (final ClassLoaderHandler handler : classLoaderHandlers) {
+                        try {
+                            if (handler.handle(classLoader, this, classLoaderLog)) {
+                                classloaderFound = true;
+                                break;
+                            }
+                        } catch (final Exception e) {
+                            if (classLoaderLog != null) {
+                                classLoaderLog.log("Exception in ClassLoaderHandler", e);
+                            }
                         }
                     }
-                }
-                if (!classloaderFound) {
-                    if (classLoaderLog != null) {
-                        classLoaderLog.log("Unknown ClassLoader type, cannot scan classes");
+                    if (!classloaderFound) {
+                        if (classLoaderLog != null) {
+                            classLoaderLog.log("Unknown ClassLoader type, cannot scan classes");
+                        }
                     }
                 }
             }
@@ -170,7 +190,7 @@ public class ClasspathFinder {
             // RuntimePermission ("createSecurityManager"):
             CALLER_RESOLVER = new CallerResolver();
         } catch (final SecurityException e) {
-            // Ignore
+            // Handled in findAllClassLoaders()
         }
     }
 
@@ -184,23 +204,14 @@ public class ClasspathFinder {
         }
     }
 
-    /** Add all parents of a ClassLoader in top-down order, the same as in the JRE. */
-    private static void addAllParentClassloaders(final ClassLoader classLoader,
-            final AdditionOrderedSet<ClassLoader> classLoadersSetOut) {
-        final ArrayList<ClassLoader> callerClassLoaders = new ArrayList<>();
-        for (ClassLoader cl = classLoader; cl != null; cl = cl.getParent()) {
-            callerClassLoaders.add(cl);
+    /** Return true if cl0 is a descendant of cl1. */
+    private static boolean isDescendantOf(final ClassLoader cl0, final ClassLoader cl1) {
+        for (ClassLoader cl = cl0; cl != null; cl = cl.getParent()) {
+            if (cl == cl1) {
+                return true;
+            }
         }
-        // OpenJDK calls classloaders in a top-down order
-        for (int i = callerClassLoaders.size() - 1; i >= 0; --i) {
-            classLoadersSetOut.add(callerClassLoaders.get(i));
-        }
-    }
-
-    /** Add all parent ClassLoaders of a class in top-down order, the same as in the JRE. */
-    private static void addAllParentClassloaders(final Class<?> klass,
-            final AdditionOrderedSet<ClassLoader> classLoadersSetOut) {
-        addAllParentClassloaders(klass.getClassLoader(), classLoadersSetOut);
+        return false;
     }
 
     /** Find all unique classloaders. */
@@ -210,17 +221,71 @@ public class ClasspathFinder {
         //
         // See:
         // https://docs.oracle.com/javase/8/docs/technotes/tools/findingclasses.html
-        //
-        // N.B. probably need to look more closely at the exact ordering followed here, see:
-        // www.javaworld.com/article/2077344/core-java/find-a-way-out-of-the-classloader-maze.html?page=2
+        // http://www.javaworld.com/article/2077344/core-java/find-a-way-out-of-the-classloader-maze.html?page=2
         //
         final AdditionOrderedSet<ClassLoader> classLoadersSet = new AdditionOrderedSet<>();
-        addAllParentClassloaders(ClassLoader.getSystemClassLoader(), classLoadersSet);
         // Look for classloaders on the call stack
         if (CALLER_RESOLVER != null) {
+            // Find the first caller in the call stack to call a method in the FastClasspathScanner package
+            final String fcsPkgPrefix = FastClasspathScanner.class.getPackage().getName() + ".";
             final Class<?>[] callStack = CALLER_RESOLVER.getClassContext();
-            for (final Class<?> callStackClass : callStack) {
-                addAllParentClassloaders(callStackClass, classLoadersSet);
+            int fcsIdx;
+            for (fcsIdx = callStack.length - 1; fcsIdx >= 0; --fcsIdx) {
+                if (callStack[fcsIdx].getName().startsWith(fcsPkgPrefix)) {
+                    break;
+                }
+            }
+            if (fcsIdx < 0 || fcsIdx == callStack.length - 1) {
+                // Should not happen
+                throw new RuntimeException("Could not find caller of " + fcsPkgPrefix + "* in call stack");
+            }
+
+            // Get the caller's current classloader
+            final ClassLoader callerLoader = callStack[fcsIdx + 1].getClassLoader();
+            boolean useCallerLoader = callerLoader != null;
+
+            // Get the context classloader
+            final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
+            boolean useContextLoader = contextLoader != null;
+
+            // Get the system classloader
+            final ClassLoader systemLoader = ClassLoader.getSystemClassLoader();
+            boolean useSystemLoader = systemLoader != null;
+
+            // Establish descendancy relationships
+            if (useCallerLoader && useContextLoader && isDescendantOf(callerLoader, contextLoader)) {
+                useContextLoader = false;
+            }
+            if (useCallerLoader && useContextLoader && isDescendantOf(contextLoader, callerLoader)) {
+                useCallerLoader = false;
+            }
+            if (useSystemLoader && useContextLoader && isDescendantOf(systemLoader, contextLoader)) {
+                useContextLoader = false;
+            }
+            if (useSystemLoader && useContextLoader && isDescendantOf(contextLoader, systemLoader)) {
+                useSystemLoader = false;
+            }
+            if (useSystemLoader && useCallerLoader && isDescendantOf(systemLoader, callerLoader)) {
+                useCallerLoader = false;
+            }
+            if (useSystemLoader && useCallerLoader && isDescendantOf(callerLoader, systemLoader)) {
+                useSystemLoader = false;
+            }
+            if (!useCallerLoader && !useContextLoader && !useSystemLoader) {
+                // Should not happen
+                throw new RuntimeException("Could not find a usable ClassLoader");
+            }
+            // There will generally only be one class left after this. In rare cases, you may have a separate
+            // callerLoader and contextLoader, but those cases are ill-defined -- see:
+            // http://www.javaworld.com/article/2077344/core-java/find-a-way-out-of-the-classloader-maze.html?page=2
+            if (useSystemLoader) {
+                classLoadersSet.add(systemLoader);
+            }
+            if (useCallerLoader) {
+                classLoadersSet.add(callerLoader);
+            }
+            if (useContextLoader) {
+                classLoadersSet.add(contextLoader);
             }
         } else {
             if (log != null) {
@@ -229,10 +294,7 @@ public class ClasspathFinder {
                         + "RuntimePermission(\"createSecurityManager\")");
             }
         }
-        addAllParentClassloaders(Thread.currentThread().getContextClassLoader(), classLoadersSet);
-        addAllParentClassloaders(ClasspathFinder.class, classLoadersSet);
         final List<ClassLoader> classLoaders = classLoadersSet.getList();
-        classLoaders.remove(null);
         if (log != null) {
             for (final ClassLoader classLoader : classLoaders) {
                 log.log("Found ClassLoader " + classLoader.toString());

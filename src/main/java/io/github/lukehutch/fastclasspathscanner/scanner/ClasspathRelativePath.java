@@ -338,7 +338,7 @@ class ClasspathRelativePath {
                     }
                     return false;
                 }
-                if (scanSpec.blacklistSystemJars() && JarUtils.isJREJar(getFile(), log)) {
+                if (scanSpec.blacklistSystemJars() && JarUtils.isJREJar(path, log)) {
                     // Don't scan system jars if they are blacklisted
                     if (log != null) {
                         log.log("Ignoring JRE jar: " + path);

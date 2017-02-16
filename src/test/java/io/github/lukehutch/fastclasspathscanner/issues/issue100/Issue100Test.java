@@ -52,7 +52,7 @@ public class Issue100Test {
         // Class issue100.Test with field "a" should mask class of same name with field "b",
         // because "...a.jar" is earlier in classpath than "...b.jar"
         final ArrayList<String> fieldNames1 = new ArrayList<>();
-        new FastClasspathScanner() //
+        new FastClasspathScanner("issue100") //
                 .overrideClassLoaders(overrideClassLoader).matchAllClasses(klass -> {
                     for (final Field f : klass.getFields()) {
                         fieldNames1.add(f.getName());
@@ -65,7 +65,7 @@ public class Issue100Test {
         // definition of the class issue100.Test, however the definition in "...b.jar" is masked by the
         // definition of the class in "...a.jar", so there should be no result here.
         final ArrayList<String> fieldNames2 = new ArrayList<>();
-        new FastClasspathScanner("jar:" + bJarName) //
+        new FastClasspathScanner("issue100", "jar:" + bJarName) //
                 .overrideClassLoaders(overrideClassLoader).matchAllClasses(klass -> {
                     for (final Field f : klass.getFields()) {
                         fieldNames2.add(f.getName());
