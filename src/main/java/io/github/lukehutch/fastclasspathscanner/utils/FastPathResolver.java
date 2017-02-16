@@ -132,7 +132,7 @@ public class FastPathResolver {
         // http://stackoverflow.com/a/17870390/3950982
         // https://weblogs.java.net/blog/kohsuke/archive/2007/04/how_to_convert.html
 
-        if (relativePathStr.isEmpty()) {
+        if (relativePathStr == null || relativePathStr.isEmpty()) {
             return resolveBasePath;
         }
         // We don't fetch remote classpath entries, although they are theoretically valid if using a URLClassLoader
