@@ -252,7 +252,7 @@ public class ClasspathFinder {
             final ClassLoader systemLoader = ClassLoader.getSystemClassLoader();
             boolean useSystemLoader = systemLoader != null;
 
-            // Establish descendancy relationships
+            // Establish descendancy relationships, and ignore any classloader that is an ancestor of another.
             if (useCallerLoader && useContextLoader && isDescendantOf(callerLoader, contextLoader)) {
                 useContextLoader = false;
             }
@@ -278,6 +278,9 @@ public class ClasspathFinder {
             // There will generally only be one class left after this. In rare cases, you may have a separate
             // callerLoader and contextLoader, but those cases are ill-defined -- see:
             // http://www.javaworld.com/article/2077344/core-java/find-a-way-out-of-the-classloader-maze.html?page=2
+            // We specifically add the classloaders in the following order however, so that in the case that there
+            // are two of them left, they are resolved in this order. The relative ordering of callerLoader and
+            // contextLoader is due to the recommendation at the above URL.
             if (useSystemLoader) {
                 classLoadersSet.add(systemLoader);
             }
