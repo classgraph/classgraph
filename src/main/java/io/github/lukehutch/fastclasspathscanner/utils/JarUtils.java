@@ -54,7 +54,7 @@ public class JarUtils {
             if (!path.endsWith(File.separator)) {
                 path += File.separator;
             }
-            String jrePath = FastPathResolver.resolve("", path);
+            final String jrePath = FastPathResolver.resolve("", path);
             if (!jrePath.isEmpty()) {
                 jrePathsSet.add(jrePath);
             }
@@ -63,7 +63,7 @@ public class JarUtils {
                 if (!canonicalPath.endsWith(File.separator)) {
                     canonicalPath += File.separator;
                 }
-                String jreCanonicalPath = FastPathResolver.resolve("", canonicalPath);
+                final String jreCanonicalPath = FastPathResolver.resolve("", canonicalPath);
                 if (!jreCanonicalPath.equals(jrePath) && !jreCanonicalPath.isEmpty()) {
                     jrePathsSet.add(jreCanonicalPath);
                 }
