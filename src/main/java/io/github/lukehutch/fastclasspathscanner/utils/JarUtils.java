@@ -54,14 +54,18 @@ public class JarUtils {
             if (!path.endsWith(File.separator)) {
                 path += File.separator;
             }
-            jrePathsSet.add(FastPathResolver.resolve("/", path));
+            String jrePath = FastPathResolver.resolve("", path);
+            if (!jrePath.isEmpty()) {
+                jrePathsSet.add(jrePath);
+            }
             try {
                 String canonicalPath = dir.getCanonicalPath();
                 if (!canonicalPath.endsWith(File.separator)) {
                     canonicalPath += File.separator;
                 }
-                if (!canonicalPath.equals(path)) {
-                    jrePathsSet.add(FastPathResolver.resolve("", canonicalPath));
+                String jreCanonicalPath = FastPathResolver.resolve("", canonicalPath);
+                if (!jreCanonicalPath.equals(jrePath) && !jreCanonicalPath.isEmpty()) {
+                    jrePathsSet.add(jreCanonicalPath);
                 }
             } catch (IOException | SecurityException e) {
             }
@@ -84,6 +88,7 @@ public class JarUtils {
                 RT_JAR_PATH = rtJarFile.getPath();
             }
             if (javaHomeFile.getName().equals("jre")) {
+                // Handle jre/../lib/tools.jar
                 final File parent = javaHomeFile.getParentFile();
                 if (parent != null) {
                     final File parentLibFile = new File(parent, "lib");
