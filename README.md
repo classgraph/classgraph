@@ -1,7 +1,6 @@
 # FastClasspathScanner
 
-FastClasspathScanner is an uber-fast, ultra-lightweight classpath scanner for Java, Scala and other JVM languages.  
-([How fast is FastClasspathScanner?](https://github.com/lukehutch/fast-classpath-scanner/wiki#how-fast-is-fastclasspathscanner))  FastClasspathScanner has been carefully optimized, and the project is stable and actively maintained.
+FastClasspathScanner is an uber-fast, ultra-lightweight classpath scanner for Java, Scala and other JVM languages. FastClasspathScanner has been [carefully optimized](https://github.com/lukehutch/fast-classpath-scanner/wiki#how-fast-is-fastclasspathscanner). The project is stable and actively maintained.
 
 **What is classpath scanning?** Classpath scanning involves scanning directories and jar/zip files on the classpath to find files (especially classfiles) that meet certain criteria. In many ways, classpath scanning offers the *inverse of the Java reflection API:* the Java reflection API can tell you the superclass of a given class, but classpath scanning can find all classes that extend a given superclass. The Java reflection API can give you the list of annotations on a given class, but classpath scanning can find all classes that are annotated with a given annotation. (etc.)
 
