@@ -32,6 +32,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.nio.file.LinkOption;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -212,12 +213,18 @@ public class Scanner implements Callable<ScanResult> {
 
             // Get current dir (without resolving symlinks), and normalize path by calling
             // FastPathResolver.resolve()
-            String currentDirPath;
+            String currDirPathStr = "";
             try {
-                currentDirPath = FastPathResolver.resolve(Paths.get("").toAbsolutePath().normalize()
-                        .toRealPath(LinkOption.NOFOLLOW_LINKS).toString());
+                // Done in steps, so we can provide fine-grained debug info if the current dir doesn't exist (#109)
+                Path currDirPath = Paths.get("").toAbsolutePath();
+                currDirPathStr = currDirPath.toString();
+                currDirPath = currDirPath.normalize();
+                currDirPathStr = currDirPath.toString();
+                currDirPath = currDirPath.toRealPath(LinkOption.NOFOLLOW_LINKS);
+                currDirPathStr = currDirPath.toString();
+                currDirPathStr = FastPathResolver.resolve(currDirPathStr);
             } catch (final IOException e) {
-                throw new RuntimeException(e);
+                throw new RuntimeException("Could not resolve current directory: " + currDirPathStr, e);
             }
 
             // Get raw classpath elements
@@ -228,7 +235,7 @@ public class Scanner implements Callable<ScanResult> {
             final List<ClasspathRelativePath> rawClasspathElements = new ArrayList<>();
             for (final String rawClasspathElementPathStr : rawClasspathElementPathStrs) {
                 // Resolve classpath elements relative to current dir, so that paths like "." are handled.
-                final ClasspathRelativePath classpathElt = new ClasspathRelativePath(currentDirPath,
+                final ClasspathRelativePath classpathElt = new ClasspathRelativePath(currDirPathStr,
                         rawClasspathElementPathStr, nestedJarHandler);
                 rawClasspathElements.add(classpathElt);
             }
@@ -279,7 +286,7 @@ public class Scanner implements Callable<ScanResult> {
                     // Insert rt.jar as the zeroth entry in the classpath.
                     classpathOrder.add(0,
                             ClasspathElement.newInstance(
-                                    new ClasspathRelativePath(currentDirPath, rtJarPath, nestedJarHandler),
+                                    new ClasspathRelativePath(currDirPathStr, rtJarPath, nestedJarHandler),
                                     enableRecursiveScanning, scanSpec, nestedJarHandler, /* workQueue = */ null,
                                     interruptionChecker, classpathFinderLog));
                 }
