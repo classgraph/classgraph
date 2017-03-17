@@ -1480,7 +1480,7 @@ public class FastClasspathScanner {
     public String getUniqueClasspathElementsAsPathStr() {
         final StringBuilder buf = new StringBuilder();
         for (File f : getUniqueClasspathElements()) {
-            if (buf.length() == 0) {
+            if (buf.length() > 0) {
                 buf.append(File.pathSeparatorChar);
             }
             buf.append(f.toString());
