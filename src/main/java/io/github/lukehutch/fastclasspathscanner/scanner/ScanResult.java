@@ -125,6 +125,24 @@ public class ScanResult {
         return classpathElementOrderFiles;
     }
 
+    /**
+     * Returns all unique directories or zip/jarfiles on the classpath, in classloader resolution order, as a
+     * classpath string, delineated with the standard path separator character.
+     * 
+     * @return a the unique directories and jarfiles on the classpath, in classpath resolution order, as a path
+     *         string.
+     */
+    public String getUniqueClasspathElementsAsPathStr() {
+        final StringBuilder buf = new StringBuilder();
+        for (File f : getUniqueClasspathElements()) {
+            if (buf.length() > 0) {
+                buf.append(File.pathSeparatorChar);
+            }
+            buf.append(f.toString());
+        }
+        return buf.toString();
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**

@@ -1459,10 +1459,10 @@ public class FastClasspathScanner {
     }
 
     /**
-     * Returns the list of all unique File objects representing directories or zip/jarfiles on the classpath, in
-     * classloader resolution order, as a classpath string, delineated with the standard path separator character.
-     * Classpath elements that do not exist are not included in the path. Blocks until the result can be returned,
-     * when all classpath elements have been found and tested to see if they exist in the filesystem.
+     * Returns all unique directories or zip/jarfiles on the classpath, in classloader resolution order, as a
+     * classpath string, delineated with the standard path separator character. Classpath elements that do not exist
+     * are not included in the path. Blocks until the result can be returned, when all classpath elements have been
+     * found and tested to see if they exist in the filesystem.
      * 
      * Note that if there are nested jarfiles on the classpath, e.g. file:///path/to/jar1.jar!/path/to/jar2.jar ,
      * then both FastClasspathScanner#scan() and FastClasspathScanner#getUniqueClasspathElements() will cause
@@ -1474,8 +1474,8 @@ public class FastClasspathScanner {
      * @throws ScanInterruptedException
      *             if any of the worker threads are interrupted during the scan (shouldn't happen under normal
      *             circumstances).
-     * @return a List<File> consisting of the unique directories and jarfiles on the classpath, in classpath
-     *         resolution order.
+     * @return a the unique directories and jarfiles on the classpath, in classpath resolution order, as a path
+     *         string.
      */
     public String getUniqueClasspathElementsAsPathStr() {
         final StringBuilder buf = new StringBuilder();
