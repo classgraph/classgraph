@@ -23,6 +23,10 @@ FastClasspathScanner is an uber-fast, ultra-lightweight classpath scanner for Ja
   <img src="https://github.com/lukehutch/fast-classpath-scanner/blob/master/src/test/java/com/xyz/classgraph-fig.png" alt="Class graph visualization"/>
 </p>
 
+## Status
+
+FastClasspathScanner is stable, feature complete, optimized, and (at time of writing) has no known bugs, although there are some feature requests, e.g. adding Java 9 support. Every effort is made to fix bugs quickly when they are reported.
+
 ## Documentation
 
 [See the wiki for full documentation.](https://github.com/lukehutch/fast-classpath-scanner/wiki)
