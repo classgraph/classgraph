@@ -50,6 +50,7 @@ import io.github.lukehutch.fastclasspathscanner.matchprocessor.MethodAnnotationM
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.StaticFinalFieldMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubclassMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubinterfaceMatchProcessor;
+import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
 import io.github.lukehutch.fastclasspathscanner.scanner.FailureHandler;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanResultProcessor;
@@ -499,6 +500,26 @@ public class FastClasspathScanner {
         return this;
     }
 
+
+    /**
+     * Find the classloader or classloaders most likely to represent the order that classloaders are used to resolve
+     * classes in the current context. Uses the technique described by <a href=
+     * "http://www.javaworld.com/article/2077344/core-java/find-a-way-out-of-the-classloader-maze.html">Vladimir
+     * Roubtsov</a>.
+     * 
+     * <p>Generally this will return exactly one ClassLoader, but if it returns more than one, the
+     * classloaders are listed in the order they should be called in until one of them is able to load the named
+     * class.
+     * 
+     * <p>If you can call only one ClassLoader, use the first element of the list.
+     * 
+     * @return A list of one or more ClassLoaders, out of the system ClassLoader, the current classloader, or the
+     *         context classloader.
+     */
+    public List<ClassLoader> findBestClassLoader() {
+        return ClasspathFinder.findAllClassLoaders(null);
+    }
+    
     // -------------------------------------------------------------------------------------------------------------
 
     /**
