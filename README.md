@@ -30,17 +30,42 @@ FastClasspathScanner is stable, feature complete, optimized, and (at time of wri
 
 ## Documentation
 
+### Wiki
+
 [See the wiki for full documentation.](https://github.com/lukehutch/fast-classpath-scanner/wiki)
+
+### JavaDoc
 
 JavaDoc for the core classes:
 
-* [FastClasspathScanner](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/FastClasspathScanner.html)
-* [ScanResult](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/scanner/ScanResult.html)
-* [ClassInfo](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/scanner/ClassInfo.html)
-* [MethodInfo](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/scanner/MethodInfo.html)
-* [FieldInfo](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/scanner/FieldInfo.html)
-* [MatchProcessorException](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/MatchProcessorException.html)
-* [ScanInterruptedException](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/ScanInterruptedException.html)
+* API entry point:
+  * [FastClasspathScanner](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/FastClasspathScanner.html)
+* MatchProcessors:
+  * Classes:
+    * [ClassMatchProcessor](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/matchprocessor/ClassMatchProcessor.html)
+    * [SubclassMatchProcessor](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/matchprocessor/SubclassMatchProcessor.html)
+  * Annotations:
+    * [ClassAnnotationMatchProcessor](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/matchprocessor/ClassAnnotationMatchProcessor.html)
+    * [FieldAnnotationMatchProcessor](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/matchprocessor/FieldAnnotationMatchProcessor.html)
+    * [MethodAnnotationMatchProcessor](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/matchprocessor/MethodAnnotationMatchProcessor.html)
+  * Interfaces:
+    * [SubinterfaceMatchProcessor](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/matchprocessor/SubinterfaceMatchProcessor.html)
+    * [ImplementingClassMatchProcessor](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/matchprocessor/ImplementingClassMatchProcessor.html)
+  * Fields:
+    * [StaticFinalFieldMatchProcessor](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/matchprocessor/StaticFinalFieldMatchProcessor.html)
+  * Files:
+    * [FileMatchProcessor](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/matchprocessor/FileMatchProcessor.html)
+    * [FileMatchContentsProcessor](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/matchprocessor/FileMatchContentsProcessor.html)
+    * [FileMatchProcessorWithContext](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/matchprocessor/FileMatchProcessorWithContext.html)
+    * [FileMatchContentsProcessorWithContext](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/matchprocessor/FileMatchContentsProcessorWithContext.html)
+* Scan results:
+  * [ScanResult](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/scanner/ScanResult.html)
+  * [ClassInfo](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/scanner/ClassInfo.html)
+  * [MethodInfo](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/scanner/MethodInfo.html)
+  * [FieldInfo](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/scanner/FieldInfo.html)
+* Exceptions:
+  * [MatchProcessorException](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/MatchProcessorException.html)
+  * [ScanInterruptedException](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/ScanInterruptedException.html)
 
 ## Mailing List
 
