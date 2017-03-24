@@ -32,6 +32,16 @@ FastClasspathScanner is stable, feature complete, optimized, and (at time of wri
 
 [See the wiki for full documentation.](https://github.com/lukehutch/fast-classpath-scanner/wiki)
 
+JavaDoc for the core classes:
+
+* [FastClasspathScanner](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/FastClasspathScanner.html)
+* [ScanResult](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/scanner/ScanResult.html)
+* [ClassInfo](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/scanner/ClassInfo.html)
+* [MethodInfo](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/scanner/MethodInfo.html)
+* [FieldInfo](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/scanner/FieldInfo.html)
+* [MatchProcessorException](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/MatchProcessorException.html)
+* [ScanInterruptedException](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/ScanInterruptedException.html)
+
 ## Mailing List
 
 Feel free to subscribe to the [FastClasspathScanner-Users](https://groups.google.com/d/forum/fastclasspathscanner-users) email list for updates, or to ask questions.
