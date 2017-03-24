@@ -311,16 +311,16 @@ public class FastClasspathScanner {
     }
 
     /**
-     * If saveFieldInfo is true, enables the saving of field info during the scan. This information can be obtained
-     * using ClassInfo#getFieldInfo(). By default, field info is not saved, because enabling this option will cause
-     * the scan to take somewhat longer and potentially consume a lot more memory.
+     * If enableFieldInfo is true, enables the saving of field info during the scan. This information can be
+     * obtained using ClassInfo#getFieldInfo(). By default, field info is not saved, because enabling this option
+     * will cause the scan to take somewhat longer and potentially consume a lot more memory.
      * 
-     * @param saveFieldInfo
+     * @param enableFieldInfo
      *            If true, save field info while scanning. (Default false.)
      * @return this (for method chaining).
      */
-    public FastClasspathScanner enableSaveFieldInfo(final boolean saveFieldInfo) {
-        getScanSpec().saveFieldInfo = saveFieldInfo;
+    public FastClasspathScanner enableFieldInfo(final boolean enableFieldInfo) {
+        getScanSpec().saveFieldInfo = enableFieldInfo;
         return this;
     }
 
@@ -331,21 +331,21 @@ public class FastClasspathScanner {
      * 
      * @return this (for method chaining).
      */
-    public FastClasspathScanner enableSaveFieldInfo() {
-        return enableSaveFieldInfo(true);
+    public FastClasspathScanner enableFieldInfo() {
+        return enableFieldInfo(true);
     }
 
     /**
-     * If saveMethodInfo is true, enables the saving of method info during the scan. This information can be
+     * If enableMethodInfo is true, enables the saving of method info during the scan. This information can be
      * obtained using ClassInfo#getMethodInfo(). By default, method info is not saved, because enabling this option
      * will cause the scan to take somewhat longer and potentially consume a lot more memory.
      * 
-     * @param saveMethodInfo
+     * @param enableMethodInfo
      *            If true, save method info while scanning. (Default false.)
      * @return this (for method chaining).
      */
-    public FastClasspathScanner enableSaveMethodInfo(final boolean saveMethodInfo) {
-        getScanSpec().saveMethodInfo = saveMethodInfo;
+    public FastClasspathScanner enableMethodInfo(final boolean enableMethodInfo) {
+        getScanSpec().saveMethodInfo = enableMethodInfo;
         return this;
     }
 
@@ -356,8 +356,8 @@ public class FastClasspathScanner {
      * 
      * @return this (for method chaining).
      */
-    public FastClasspathScanner enableSaveMethodInfo() {
-        return enableSaveMethodInfo(true);
+    public FastClasspathScanner enableMethodInfo() {
+        return enableMethodInfo(true);
     }
 
     /**

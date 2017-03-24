@@ -666,8 +666,10 @@ class ClassfileBinaryParser implements AutoCloseable {
 
                 Object fieldConstValue = null;
                 boolean foundFieldConstValue = false;
-                final List<String> fieldAnnotationNames = (!scanSpec.saveFieldInfo || !fieldIsVisible) ? null
-                        : new ArrayList<String>(1);
+                List<String> fieldAnnotationNames = null;
+                if (scanSpec.saveFieldInfo && fieldIsVisible) {
+                    fieldAnnotationNames = new ArrayList<>(1);
+                }
                 final int attributesCount = readUnsignedShort();
                 for (int j = 0; j < attributesCount; j++) {
                     final int attributeNameCpIdx = readUnsignedShort();
@@ -802,8 +804,10 @@ class ClassfileBinaryParser implements AutoCloseable {
             final int attributesCount = readUnsignedShort();
             final boolean isPublicMethod = ((methodModifierFlags & 0x0001) == 0x0001);
             final boolean methodIsVisible = isPublicMethod || scanSpec.ignoreMethodVisibility;
-            final List<String> methodAnnotationNames = (!scanSpec.saveMethodInfo || !methodIsVisible) ? null
-                    : new ArrayList<String>(1);
+            List<String> methodAnnotationNames = null;
+            if (scanSpec.saveMethodInfo && methodIsVisible) {
+                methodAnnotationNames = new ArrayList<>(1);
+            }
             if (!methodIsVisible || (!scanSpec.saveMethodInfo && !scanSpec.enableMethodAnnotationIndexing)) {
                 // Skip method attributes
                 for (int j = 0; j < attributesCount; j++) {

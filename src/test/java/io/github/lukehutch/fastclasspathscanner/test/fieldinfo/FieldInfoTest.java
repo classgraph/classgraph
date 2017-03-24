@@ -65,7 +65,7 @@ public class FieldInfoTest {
     @Test
     public void getFieldInfo() throws Exception {
         final Map<String, ClassInfo> classNameToClassInfo = new FastClasspathScanner(
-                FieldInfoTest.class.getPackage().getName()).enableSaveFieldInfo().scan().getClassNameToClassInfo();
+                FieldInfoTest.class.getPackage().getName()).enableFieldInfo().scan().getClassNameToClassInfo();
         final List<String> fieldInfoStrs = new ArrayList<>();
         for (final FieldInfo fieldInfo : classNameToClassInfo.get(FieldInfoTest.class.getName()).getFieldInfo()) {
             fieldInfoStrs.add(fieldInfo.toString());
@@ -78,7 +78,7 @@ public class FieldInfoTest {
     @Test
     public void getFieldInfoIgnoringVisibility() throws Exception {
         final Map<String, ClassInfo> classNameToClassInfo = new FastClasspathScanner(
-                FieldInfoTest.class.getPackage().getName()).enableSaveFieldInfo().ignoreFieldVisibility().scan()
+                FieldInfoTest.class.getPackage().getName()).enableFieldInfo().ignoreFieldVisibility().scan()
                         .getClassNameToClassInfo();
         final List<String> fieldInfoStrs = new ArrayList<>();
         for (final FieldInfo fieldInfo : classNameToClassInfo.get(FieldInfoTest.class.getName()).getFieldInfo()) {

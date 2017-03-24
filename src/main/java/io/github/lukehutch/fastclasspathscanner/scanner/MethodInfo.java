@@ -58,7 +58,7 @@ public class MethodInfo {
         this.parameterTypeStrs = typeNames.subList(0, typeNames.size() - 1);
         this.returnTypeStr = typeNames.get(typeNames.size() - 1);
 
-        this.annotationNames = annotationNames.isEmpty() ? Collections.<String>emptyList() : annotationNames;
+        this.annotationNames = annotationNames.isEmpty() ? Collections.<String> emptyList() : annotationNames;
         this.isConstructor = isConstructor;
     }
 

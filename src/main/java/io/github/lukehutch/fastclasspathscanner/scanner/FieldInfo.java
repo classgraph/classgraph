@@ -57,7 +57,7 @@ public class FieldInfo {
         this.typeStr = typeNames.get(0);
 
         this.constValue = constValue;
-        this.annotationNames = annotationNames.isEmpty() ? Collections.<String>emptyList() : annotationNames;
+        this.annotationNames = annotationNames.isEmpty() ? Collections.<String> emptyList() : annotationNames;
     }
 
     /** Get the field modifiers as a string, e.g. "public static final". */

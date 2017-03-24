@@ -68,8 +68,7 @@ public class MethodInfoTest {
     @Test
     public void getMethodInfo() throws Exception {
         final Map<String, ClassInfo> classNameToClassInfo = new FastClasspathScanner(
-                MethodInfoTest.class.getPackage().getName()).enableSaveMethodInfo().scan()
-                        .getClassNameToClassInfo();
+                MethodInfoTest.class.getPackage().getName()).enableMethodInfo().scan().getClassNameToClassInfo();
         final List<String> methodInfoStrs = new ArrayList<>();
         for (final MethodInfo methodInfo : classNameToClassInfo.get(MethodInfoTest.class.getName())
                 .getMethodInfo()) {
@@ -88,7 +87,7 @@ public class MethodInfoTest {
     @Test
     public void getMethodInfoIgnoringVisibility() throws Exception {
         final Map<String, ClassInfo> classNameToClassInfo = new FastClasspathScanner(
-                MethodInfoTest.class.getPackage().getName()).enableSaveMethodInfo().ignoreMethodVisibility().scan()
+                MethodInfoTest.class.getPackage().getName()).enableMethodInfo().ignoreMethodVisibility().scan()
                         .getClassNameToClassInfo();
         final List<String> methodInfoStrs = new ArrayList<>();
         for (final MethodInfo methodInfo : classNameToClassInfo.get(MethodInfoTest.class.getName())
