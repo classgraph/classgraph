@@ -134,7 +134,7 @@ public class ScanResult {
      */
     public String getUniqueClasspathElementsAsPathStr() {
         final StringBuilder buf = new StringBuilder();
-        for (File f : getUniqueClasspathElements()) {
+        for (final File f : getUniqueClasspathElements()) {
             if (buf.length() > 0) {
                 buf.append(File.pathSeparatorChar);
             }
@@ -285,7 +285,7 @@ public class ScanResult {
         if (!scanSpec.enableFieldTypeIndexing) {
             throw new IllegalArgumentException(
                     "Please call FastClasspathScanner#enableFieldTypeIndexing() before calling scan() -- "
-                            + "field type indexing is disabled by default for speed and memory efficiency");
+                            + "field type indexing is disabled by default for efficiency");
         }
         return classGraphBuilder.getNamesOfClassesWithFieldOfType(fieldTypeName);
     }
@@ -308,14 +308,15 @@ public class ScanResult {
      * 
      * @param annotationName
      *            the name of the method annotation.
-     * @return The sorted list of the names of classes with a field of the named type, or the empty list if none.
+     * @return The sorted list of the names of classes with a method that has an annotation of the named type, or
+     *         the empty list if none.
      */
     public List<String> getNamesOfClassesWithMethodAnnotation(final String annotationName) {
         scanSpec.checkClassIsNotBlacklisted(annotationName);
         if (!scanSpec.enableMethodAnnotationIndexing) {
             throw new IllegalArgumentException(
                     "Please call FastClasspathScanner#enableMethodAnnotationIndexing() before calling scan() -- "
-                            + "method annotation indexing is disabled by default for speed and memory efficiency");
+                            + "method annotation indexing is disabled by default for efficiency");
         }
         return classGraphBuilder.getNamesOfClassesWithMethodAnnotation(annotationName);
     }
@@ -325,10 +326,41 @@ public class ScanResult {
      * 
      * @param annotation
      *            the method annotation.
-     * @return The sorted list of the names of classes with a field of the given type, or the empty list if none.
+     * @return The sorted list of the names of classes with a method that has an annotation of the given type, or
+     *         the empty list if none.
      */
     public List<String> getNamesOfClassesWithMethodAnnotation(final Class<?> annotation) {
         return getNamesOfClassesWithMethodAnnotation(scanSpec.getAnnotationName(annotation));
+    }
+
+    /**
+     * Get the names of classes that have a field with an annotation of the named type.
+     * 
+     * @param annotationName
+     *            the name of the field annotation.
+     * @return The sorted list of the names of classes that have a field with an annotation of the named type, or
+     *         the empty list if none.
+     */
+    public List<String> getNamesOfClassesWithFieldAnnotation(final String annotationName) {
+        scanSpec.checkClassIsNotBlacklisted(annotationName);
+        if (!scanSpec.enableFieldAnnotationIndexing) {
+            throw new IllegalArgumentException(
+                    "Please call FastClasspathScanner#enableFieldAnnotationIndexing() before calling scan() -- "
+                            + "field annotation indexing is disabled by default for efficiency");
+        }
+        return classGraphBuilder.getNamesOfClassesWithFieldAnnotation(annotationName);
+    }
+
+    /**
+     * Get the names of classes that have a field with an annotation of the given type.
+     * 
+     * @param annotation
+     *            the field annotation.
+     * @return The sorted list of the names of classes that have a field with an annotaton of the given type, or the
+     *         empty list if none.
+     */
+    public List<String> getNamesOfClassesWithFieldAnnotation(final Class<?> annotation) {
+        return getNamesOfClassesWithFieldAnnotation(scanSpec.getAnnotationName(annotation));
     }
 
     // -------------------------------------------------------------------------------------------------------------

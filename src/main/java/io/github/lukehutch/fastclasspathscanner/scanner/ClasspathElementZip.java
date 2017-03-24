@@ -218,7 +218,8 @@ class ClasspathElementZip extends ClasspathElement {
             final boolean parentRelativePathChanged = !parentRelativePath.equals(prevParentRelativePath);
             final ScanSpecPathMatch parentMatchStatus = // 
                     prevParentRelativePath == null || parentRelativePathChanged
-                            ? scanSpec.pathWhitelistMatchStatus(parentRelativePath) : prevParentMatchStatus;
+                            ? scanSpec.pathWhitelistMatchStatus(parentRelativePath)
+                            : prevParentMatchStatus;
             prevParentRelativePath = parentRelativePath;
             prevParentMatchStatus = parentMatchStatus;
 
@@ -292,7 +293,7 @@ class ClasspathElementZip extends ClasspathElement {
             final ClassfileBinaryParser classfileBinaryParser, final ScanSpec scanSpec,
             final ConcurrentHashMap<String, String> stringInternMap,
             final ConcurrentLinkedQueue<ClassInfoUnlinked> classInfoUnlinked, final LogNode log)
-            throws InterruptedException, IOException {
+            throws IOException, InterruptedException {
         if (!ioExceptionOnOpen) {
             ZipFile zipFile = null;
             try {

@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.annotation.Annotation;
 import java.lang.annotation.RetentionPolicy;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -46,6 +47,7 @@ import io.github.lukehutch.fastclasspathscanner.MatchProcessorException;
 import io.github.lukehutch.fastclasspathscanner.classloaderhandler.ClassLoaderHandler;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.ClassAnnotationMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.ClassMatchProcessor;
+import io.github.lukehutch.fastclasspathscanner.matchprocessor.FieldAnnotationMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchContentsProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchContentsProcessorWithContext;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchProcessor;
@@ -112,6 +114,21 @@ public class ScanSpec {
 
     /** If true, index method annotations. */
     public boolean enableMethodAnnotationIndexing;
+
+    /** If true, index field annotations. */
+    public boolean enableFieldAnnotationIndexing;
+
+    /**
+     * If true, enables the saving of field info during the scan. This information can be obtained using
+     * ClassInfo#getFieldInfo(). By default, field info is not saved for efficiency.
+     */
+    public boolean saveFieldInfo;
+
+    /**
+     * If true, enables the saving of method info during the scan. This information can be obtained using
+     * ClassInfo#getMethodInfo(). By default, method info is not saved for efficiency.
+     */
+    public boolean saveMethodInfo;
 
     /**
      * If true, remove "external" classes from consideration (i.e. classes outside of whitelisted packages that are
@@ -1187,15 +1204,15 @@ public class ScanSpec {
             @Override
             public void lookForMatches(final ScanResult scanResult, final LogNode log) {
                 final String annotationName = getAnnotationName(annotation);
-                for (final String classWithAnnotation : scanResult
+                for (final String classWithMethodAnnotation : scanResult
                         .getNamesOfClassesWithMethodAnnotation(annotationName)) {
                     Class<?> cls = null;
                     try {
                         // Call classloader
-                        cls = loadClassForMatchProcessor(classWithAnnotation, scanResult, log);
+                        cls = loadClassForMatchProcessor(classWithMethodAnnotation, scanResult, log);
                     } catch (final Throwable e) {
                         if (log != null) {
-                            log.log("Exception while loading class " + classWithAnnotation, e);
+                            log.log("Exception while loading class " + classWithMethodAnnotation, e);
                         }
                         scanResult.addMatchProcessorException(e);
                         return;
@@ -1213,8 +1230,62 @@ public class ScanSpec {
                                 methodAnnotationMatchProcessor.processMatch(cls, method);
                             } catch (final Throwable e) {
                                 if (subLog != null) {
-                                    subLog.log("Exception while processing match for class " + classWithAnnotation,
-                                            e);
+                                    subLog.log("Exception while processing match for class "
+                                            + classWithMethodAnnotation, e);
+                                }
+                                scanResult.addMatchProcessorException(e);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Calls the provided FieldAnnotationMatchProcessor if classes are found on the classpath that have one or more
+     * fields with the specified annotation.
+     * 
+     * @param annotation
+     *            The method annotation to match.
+     * @param fieldAnnotationMatchProcessor
+     *            the FieldAnnotationMatchProcessor to call when a match is found.
+     */
+    public void matchClassesWithFieldAnnotation(final Class<? extends Annotation> annotation,
+            final FieldAnnotationMatchProcessor fieldAnnotationMatchProcessor) {
+        addClassMatcher(new ClassMatcher() {
+            @Override
+            public void lookForMatches(final ScanResult scanResult, final LogNode log) {
+                final String annotationName = getAnnotationName(annotation);
+                for (final String classWithFieldAnnotation : scanResult
+                        .getNamesOfClassesWithFieldAnnotation(annotationName)) {
+                    Class<?> cls = null;
+                    try {
+                        // Call classloader
+                        cls = loadClassForMatchProcessor(classWithFieldAnnotation, scanResult, log);
+                    } catch (final Throwable e) {
+                        if (log != null) {
+                            log.log("Exception while loading class " + classWithFieldAnnotation, e);
+                        }
+                        scanResult.addMatchProcessorException(e);
+                        return;
+                    }
+                    // Find fields with the specified annotation
+                    for (final Field field : ignoreMethodVisibility ? cls.getDeclaredFields() : cls.getFields()) {
+                        if (field.isAnnotationPresent(annotation)) {
+                            LogNode subLog = null;
+                            if (log != null) {
+                                subLog = log.log("Matched field annotation " + annotationName + ": " + field);
+                            }
+                            try {
+                                // Process match
+                                fieldAnnotationMatchProcessor.processMatch(cls, field);
+                            } catch (final Throwable e) {
+                                if (subLog != null) {
+                                    subLog.log("Exception while processing match for class "
+                                            + classWithFieldAnnotation, e);
                                 }
                                 scanResult.addMatchProcessorException(e);
                             }

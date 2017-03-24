@@ -99,6 +99,13 @@ class ClassGraphBuilder {
         return ClassInfo.getNamesOfClassesWithMethodAnnotation(annotationName, allClassInfo);
     }
 
+    /**
+     * Return a sorted list of classes that have a field with the named annotation.
+     */
+    List<String> getNamesOfClassesWithFieldAnnotation(final String annotationName) {
+        return ClassInfo.getNamesOfClassesWithFieldAnnotation(annotationName, allClassInfo);
+    }
+
     // -------------------------------------------------------------------------------------------------------------
     // Interfaces
 

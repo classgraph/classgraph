@@ -41,6 +41,7 @@ import java.util.concurrent.Future;
 import io.github.lukehutch.fastclasspathscanner.classloaderhandler.ClassLoaderHandler;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.ClassAnnotationMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.ClassMatchProcessor;
+import io.github.lukehutch.fastclasspathscanner.matchprocessor.FieldAnnotationMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchContentsProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchContentsProcessorWithContext;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchProcessor;
@@ -174,8 +175,8 @@ public class FastClasspathScanner {
     /**
      * If ignoreFieldVisibility is true, causes FastClasspathScanner to ignore field visibility, enabling it to see
      * private, package-private and protected fields. This affects finding classes with fields of a given type, as
-     * well as matching static final fields with constant initializers. If false, fields must be public to be
-     * indexed/matched.
+     * well as matching static final fields with constant initializers, and saving FieldInfo for the class. If
+     * false, fields must be public to be indexed/matched.
      * 
      * @param ignoreFieldVisibility
      *            Whether or not to ignore the field visibility modifier.
@@ -189,8 +190,8 @@ public class FastClasspathScanner {
     /**
      * This method causes FastClasspathScanner to ignore field visibility, enabling it to see private,
      * package-private and protected fields. This affects finding classes with fields of a given type, as well as
-     * matching static final fields with constant initializers. If false, fields must be public to be
-     * indexed/matched.
+     * matching static final fields with constant initializers, and saving FieldInfo for the class. If false, fields
+     * must be public to be indexed/matched.
      * 
      * @return this (for method chaining).
      */
@@ -202,7 +203,8 @@ public class FastClasspathScanner {
     /**
      * If ignoreMethodVisibility is true, causes FastClasspathScanner to ignore method visibility, enabling it to
      * see private, package-private and protected methods. This affects finding classes that have methods with a
-     * given annotation. If false, methods must be public for the containing classes to be indexed/matched.
+     * given annotation, and also the saving of MethodInfo for the class. If false, methods must be public for the
+     * containing classes to be indexed/matched.
      * 
      * @param ignoreMethodVisibility
      *            Whether or not to ignore the method visibility modifier.
@@ -216,7 +218,8 @@ public class FastClasspathScanner {
     /**
      * This method causes FastClasspathScanner to ignore method visibility, enabling it to see private,
      * package-private and protected methods. This affects finding classes that have methods with a given
-     * annotation. If false, methods must be public for the containing classes to be indexed/matched.
+     * annotation, and also the saving of MethodInfo for the class. If false, methods must be public for the
+     * containing classes to be indexed/matched.
      * 
      * @return this (for method chaining).
      */
@@ -255,9 +258,9 @@ public class FastClasspathScanner {
 
     /**
      * If enableMethodAnnotationIndexing is true, enables method annotation indexing, which allows you to call
-     * ScanResult#getClassesWithMethodAnnotations(annotationType). (If you add a method annotation match processor,
-     * this method is called for you.) Method annotation indexing is disabled by default, because it is expensive in
-     * terms of time, and it is not needed for most uses of FastClasspathScanner.
+     * ScanResult#getNamesOfClassesWithMethodAnnotation(annotation). (If you add a method annotation match
+     * processor, this method is called for you.) Method annotation indexing is disabled by default, because it is
+     * expensive in terms of time, and it is not needed for most uses of FastClasspathScanner.
      * 
      * @param enableMethodAnnotationIndexing
      *            Whether or not to enable method annotation indexing.
@@ -270,15 +273,91 @@ public class FastClasspathScanner {
 
     /**
      * Enables method annotation indexing, which allows you to call
-     * ScanResult#getClassesWithMethodAnnotations(annotationType). (If you add a method annotation match processor,
-     * this method is called for you.) Method annotation indexing is disabled by default, because it is expensive in
-     * terms of time, and it is not needed for most uses of FastClasspathScanner.
+     * ScanResult#getNamesOfClassesWithMethodAnnotation(annotation). (If you add a method annotation match
+     * processor, this method is called for you.) Method annotation indexing is disabled by default, because it is
+     * expensive in terms of time, and it is not needed for most uses of FastClasspathScanner.
      * 
      * @return this (for method chaining).
      */
     public FastClasspathScanner enableMethodAnnotationIndexing() {
         enableMethodAnnotationIndexing(true);
         return this;
+    }
+
+    /**
+     * If enableFieldAnnotationIndexing is true, enables field annotation indexing, which allows you to call
+     * ScanResult#getNamesOfClassesWithFieldAnnotation(annotation). (If you add a method annotation match processor,
+     * this method is called for you.) Method annotation indexing is disabled by default, because it is expensive in
+     * terms of time, and it is not needed for most uses of FastClasspathScanner.
+     * 
+     * @return this (for method chaining).
+     */
+    public FastClasspathScanner enableFieldAnnotationIndexing(final boolean enableFieldAnnotationIndexing) {
+        getScanSpec().enableFieldAnnotationIndexing = enableFieldAnnotationIndexing;
+        return this;
+    }
+
+    /**
+     * Enables field annotation indexing, which allows you to call
+     * ScanResult#getNamesOfClassesWithFieldAnnotation(annotation). (If you add a method annotation match processor,
+     * this method is called for you.) Method annotation indexing is disabled by default, because it is expensive in
+     * terms of time, and it is not needed for most uses of FastClasspathScanner.
+     * 
+     * @return this (for method chaining).
+     */
+    public FastClasspathScanner enableFieldAnnotationIndexing() {
+        enableFieldAnnotationIndexing(true);
+        return this;
+    }
+
+    /**
+     * If saveFieldInfo is true, enables the saving of field info during the scan. This information can be obtained
+     * using ClassInfo#getFieldInfo(). By default, field info is not saved, because enabling this option will cause
+     * the scan to take somewhat longer and potentially consume a lot more memory.
+     * 
+     * @param saveFieldInfo
+     *            If true, save field info while scanning. (Default false.)
+     * @return this (for method chaining).
+     */
+    public FastClasspathScanner enableSaveFieldInfo(final boolean saveFieldInfo) {
+        getScanSpec().saveFieldInfo = saveFieldInfo;
+        return this;
+    }
+
+    /**
+     * Enables the saving of field info during the scan. This information can be obtained using
+     * ClassInfo#getFieldInfo(). By default, field info is not saved, because enabling this option will cause the
+     * scan to take somewhat longer and potentially consume a lot more memory.
+     * 
+     * @return this (for method chaining).
+     */
+    public FastClasspathScanner enableSaveFieldInfo() {
+        return enableSaveFieldInfo(true);
+    }
+
+    /**
+     * If saveMethodInfo is true, enables the saving of method info during the scan. This information can be
+     * obtained using ClassInfo#getMethodInfo(). By default, method info is not saved, because enabling this option
+     * will cause the scan to take somewhat longer and potentially consume a lot more memory.
+     * 
+     * @param saveMethodInfo
+     *            If true, save method info while scanning. (Default false.)
+     * @return this (for method chaining).
+     */
+    public FastClasspathScanner enableSaveMethodInfo(final boolean saveMethodInfo) {
+        getScanSpec().saveMethodInfo = saveMethodInfo;
+        return this;
+    }
+
+    /**
+     * Enables the saving of method info during the scan. This information can be obtained using
+     * ClassInfo#getMethodInfo(). By default, method info is not saved, because enabling this option will cause the
+     * scan to take somewhat longer and potentially consume a lot more memory.
+     * 
+     * @return this (for method chaining).
+     */
+    public FastClasspathScanner enableSaveMethodInfo() {
+        return enableSaveMethodInfo(true);
     }
 
     /**
@@ -500,18 +579,18 @@ public class FastClasspathScanner {
         return this;
     }
 
-
     /**
      * Find the classloader or classloaders most likely to represent the order that classloaders are used to resolve
      * classes in the current context. Uses the technique described by <a href=
      * "http://www.javaworld.com/article/2077344/core-java/find-a-way-out-of-the-classloader-maze.html">Vladimir
      * Roubtsov</a>.
      * 
-     * <p>Generally this will return exactly one ClassLoader, but if it returns more than one, the
-     * classloaders are listed in the order they should be called in until one of them is able to load the named
-     * class.
+     * <p>
+     * Generally this will return exactly one ClassLoader, but if it returns more than one, the classloaders are
+     * listed in the order they should be called in until one of them is able to load the named class.
      * 
-     * <p>If you can call only one ClassLoader, use the first element of the list.
+     * <p>
+     * If you can call only one ClassLoader, use the first element of the list.
      * 
      * @return A list of one or more ClassLoaders, out of the system ClassLoader, the current classloader, or the
      *         context classloader.
@@ -519,7 +598,7 @@ public class FastClasspathScanner {
     public List<ClassLoader> findBestClassLoader() {
         return ClasspathFinder.findAllClassLoaders(null);
     }
-    
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
@@ -686,6 +765,27 @@ public class FastClasspathScanner {
             final MethodAnnotationMatchProcessor methodAnnotationMatchProcessor) {
         enableMethodAnnotationIndexing();
         getScanSpec().matchClassesWithMethodAnnotation(annotation, methodAnnotationMatchProcessor);
+        return this;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Calls the provided FieldAnnotationMatchProcessor if classes are found on the classpath that have one or more
+     * fields with the specified annotation.
+     * 
+     * Calls enableFieldAnnotationIndexing() for you.
+     * 
+     * @param annotation
+     *            The field annotation to match.
+     * @param fieldAnnotationMatchProcessor
+     *            the FieldAnnotationMatchProcessor to call when a match is found.
+     * @return this (for method chaining).
+     */
+    public FastClasspathScanner matchClassesWithFieldAnnotation(final Class<? extends Annotation> annotation,
+            final FieldAnnotationMatchProcessor fieldAnnotationMatchProcessor) {
+        enableFieldAnnotationIndexing();
+        getScanSpec().matchClassesWithFieldAnnotation(annotation, fieldAnnotationMatchProcessor);
         return this;
     }
 
@@ -1500,7 +1600,7 @@ public class FastClasspathScanner {
      */
     public String getUniqueClasspathElementsAsPathStr() {
         final StringBuilder buf = new StringBuilder();
-        for (File f : getUniqueClasspathElements()) {
+        for (final File f : getUniqueClasspathElements()) {
             if (buf.length() > 0) {
                 buf.append(File.pathSeparatorChar);
             }

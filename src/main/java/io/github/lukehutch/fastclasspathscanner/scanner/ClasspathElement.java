@@ -313,8 +313,7 @@ abstract class ClasspathElement {
     /** Parse any classfiles for any whitelisted classes found within this classpath element. */
     void parseClassfiles(final ClassfileBinaryParser classfileBinaryParser, final int classfileStartIdx,
             final int classfileEndIdx, final ConcurrentHashMap<String, String> stringInternMap,
-            final ConcurrentLinkedQueue<ClassInfoUnlinked> classInfoUnlinked, final LogNode log)
-            throws InterruptedException, ExecutionException {
+            final ConcurrentLinkedQueue<ClassInfoUnlinked> classInfoUnlinked, final LogNode log) throws Exception {
         for (int i = classfileStartIdx; i < classfileEndIdx; i++) {
             final ClasspathResource classfileResource = classfileMatches.get(i);
             try {
@@ -326,8 +325,15 @@ abstract class ClasspathElement {
                 }
             } catch (final IOException e) {
                 if (log != null) {
+                    log.log("IOException while attempting to read classfile " + classfileResource + " -- skipping",
+                            e);
+                }
+            } catch (final Exception e) {
+                if (log != null) {
                     log.log("Exception while parsing classfile " + classfileResource, e);
                 }
+                // Re-throw
+                throw e;
             }
             interruptionChecker.check();
         }
@@ -341,7 +347,7 @@ abstract class ClasspathElement {
             final ClassfileBinaryParser classfileBinaryParser, final ScanSpec scanSpec,
             final ConcurrentHashMap<String, String> stringInternMap,
             final ConcurrentLinkedQueue<ClassInfoUnlinked> classInfoUnlinked, final LogNode log)
-            throws InterruptedException, IOException;
+            throws IOException, InterruptedException;
 
     // -------------------------------------------------------------------------------------------------------------
 

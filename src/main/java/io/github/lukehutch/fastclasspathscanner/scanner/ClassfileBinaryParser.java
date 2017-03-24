@@ -32,7 +32,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.annotation.RetentionPolicy;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -482,339 +484,380 @@ class ClassfileBinaryParser implements AutoCloseable {
     ClassInfoUnlinked readClassInfoFromClassfileHeader(final URL classpathElementURL, final String relativePath,
             final InputStream inputStream, final ScanSpec scanSpec,
             final ConcurrentHashMap<String, String> stringInternMap, final LogNode log)
-            throws InterruptedException {
-        try {
-            // This class instance can be reused across scans, to avoid re-allocating the buffer.
-            // Initialize/clear fields for each new run. 
-            this.inputStream = inputStream;
-            className = null;
-            curr = 0;
+            throws IOException, InterruptedException {
 
-            // Read first bufferful
-            used = inputStream.read(buf, 0, INITIAL_BUFFER_CHUNK_SIZE);
-            if (used < 0) {
-                throw new IOException("Classfile " + relativePath + " is empty");
+        // This class instance can be reused across scans, to avoid re-allocating the buffer.
+        // Initialize/clear fields for each new run. 
+        this.inputStream = inputStream;
+        className = null;
+        curr = 0;
+
+        // Read first bufferful
+        used = inputStream.read(buf, 0, INITIAL_BUFFER_CHUNK_SIZE);
+        if (used < 0) {
+            throw new IOException("Classfile " + relativePath + " is empty");
+        }
+
+        // Check magic number
+        if (readInt() != 0xCAFEBABE) {
+            throw new IOException("Classfile " + relativePath + " does not have correct classfile magic number");
+        }
+
+        // Minor version
+        readUnsignedShort();
+        // Major version
+        readUnsignedShort();
+
+        // Read size of constant pool
+        final int cpCount = readUnsignedShort();
+
+        // Allocate storage for constant pool, or reuse storage if there's enough left from the previous scan
+        if (offset == null || offset.length < cpCount) {
+            offset = new int[cpCount];
+            tag = new int[cpCount];
+            indirectStringRefs = new int[cpCount];
+        }
+        Arrays.fill(indirectStringRefs, 0, cpCount, -1);
+
+        // Read constant pool entries
+        for (int i = 1; i < cpCount; ++i) {
+            tag[i] = readUnsignedByte();
+            offset[i] = curr;
+            switch (tag[i]) {
+            case 1: // Modified UTF8
+                final int strLen = readUnsignedShort();
+                skip(strLen);
+                break;
+            case 3: // int, short, char, byte, boolean are all represented by Constant_INTEGER
+            case 4: // float
+                skip(4);
+                break;
+            case 5: // long
+            case 6: // double
+                skip(8);
+                i++; // double slot
+                break;
+            case 7: // Class
+            case 8: // String
+                // Forward or backward indirect reference to a modified UTF8 entry
+                indirectStringRefs[i] = readUnsignedShort();
+                // (no need to copy bytes over, we use indirectStringRef instead for these fields)
+                break;
+            case 9: // field ref
+            case 10: // method ref
+            case 11: // interface ref
+            case 12: // name and type
+                skip(4);
+                break;
+            case 15: // method handle
+                skip(3);
+                break;
+            case 16: // method type
+                skip(2);
+                break;
+            case 18: // invoke dynamic
+                skip(4);
+                break;
+            default:
+                throw new RuntimeException("Unknown constant pool tag " + tag + " in classfile " + relativePath
+                        + " (element size unknown, cannot continue reading class. Please report this on "
+                        + "the FastClasspathScanner GitHub page.");
             }
+        }
 
-            // Check magic number
-            if (readInt() != 0xCAFEBABE) {
-                throw new IOException(
-                        "Classfile " + relativePath + " does not have correct classfile magic number");
-            }
+        // Modifier flags
+        final int classModifierFlags = readUnsignedShort();
+        final boolean isInterface = (classModifierFlags & 0x0200) != 0;
+        final boolean isAnnotation = (classModifierFlags & 0x2000) != 0;
 
-            // Minor version
-            readUnsignedShort();
-            // Major version
-            readUnsignedShort();
+        // The fully-qualified class name of this class, with slashes replaced with dots
+        final String classNamePath = getConstantPoolString(readUnsignedShort());
+        final String className = classNamePath.replace('/', '.');
+        if ("java.lang.Object".equals(className)) {
+            // Don't process java.lang.Object (it has a null superclass), though you can still search for
+            // classes that are subclasses of java.lang.Object if you add "!" to the scan spec.
+            return null;
+        }
 
-            // Read size of constant pool
-            final int cpCount = readUnsignedShort();
-
-            // Allocate storage for constant pool, or reuse storage if there's enough left from the previous scan
-            if (offset == null || offset.length < cpCount) {
-                offset = new int[cpCount];
-                tag = new int[cpCount];
-                indirectStringRefs = new int[cpCount];
-            }
-            Arrays.fill(indirectStringRefs, 0, cpCount, -1);
-
-            // Read constant pool entries
-            for (int i = 1; i < cpCount; ++i) {
-                tag[i] = readUnsignedByte();
-                offset[i] = curr;
-                switch (tag[i]) {
-                case 1: // Modified UTF8
-                    final int strLen = readUnsignedShort();
-                    skip(strLen);
-                    break;
-                case 3: // int, short, char, byte, boolean are all represented by Constant_INTEGER
-                case 4: // float
-                    skip(4);
-                    break;
-                case 5: // long
-                case 6: // double
-                    skip(8);
-                    i++; // double slot
-                    break;
-                case 7: // Class
-                case 8: // String
-                    // Forward or backward indirect reference to a modified UTF8 entry
-                    indirectStringRefs[i] = readUnsignedShort();
-                    // (no need to copy bytes over, we use indirectStringRef instead for these fields)
-                    break;
-                case 9: // field ref
-                case 10: // method ref
-                case 11: // interface ref
-                case 12: // name and type
-                    skip(4);
-                    break;
-                case 15: // method handle
-                    skip(3);
-                    break;
-                case 16: // method type
-                    skip(2);
-                    break;
-                case 18: // invoke dynamic
-                    skip(4);
-                    break;
-                default:
-                    throw new RuntimeException("Unknown constant pool tag " + tag + " in classfile " + relativePath
-                            + " (element size unknown, cannot continue reading class. Please report this on "
-                            + "the FastClasspathScanner GitHub page.");
-                }
-            }
-
-            // Access flags
-            final int flags = readUnsignedShort();
-            final boolean isInterface = (flags & 0x0200) != 0;
-            final boolean isAnnotation = (flags & 0x2000) != 0;
-
-            // The fully-qualified class name of this class, with slashes replaced with dots
-            final String classNamePath = getConstantPoolString(readUnsignedShort());
-            final String className = classNamePath.replace('/', '.');
-            if ("java.lang.Object".equals(className)) {
-                // Don't process java.lang.Object (it has a null superclass), though you can still search for
-                // classes that are subclasses of java.lang.Object if you add "!" to the scan spec.
-                return null;
-            }
-
-            // Make sure classname matches relative path
-            if (!relativePath.endsWith(".class")) {
-                // Should not happen
-                if (log != null) {
-                    log.log("File " + relativePath + " does not end in \".class\"");
-                }
-                return null;
-            }
-            final int len = classNamePath.length();
-            if (relativePath.length() != len + 6 || !classNamePath.regionMatches(0, relativePath, 0, len)) {
-                if (log != null) {
-                    log.log("Class " + className + " is at incorrect relative path " + relativePath
-                            + " -- ignoring");
-                }
-                return null;
-            }
-
-            // Superclass name, with slashes replaced with dots
-            final String superclassName = getConstantPoolClassName(readUnsignedShort());
-
-            final ClassInfoUnlinked classInfoUnlinked = new ClassInfoUnlinked(className, isInterface, isAnnotation,
-                    stringInternMap, classpathElementURL);
-
-            // Connect class to superclass
-            classInfoUnlinked.addSuperclass(superclassName);
-
-            // Interfaces
-            final int interfaceCount = readUnsignedShort();
-            for (int i = 0; i < interfaceCount; i++) {
-                final String interfaceName = getConstantPoolClassName(readUnsignedShort());
-                classInfoUnlinked.addImplementedInterface(interfaceName);
-            }
-
-            // Fields
-            final MultiMapKeyToSet<String, String> classNameToStaticFinalFieldsToMatch = scanSpec
-                    .getClassNameToStaticFinalFieldsToMatch();
-            final Set<String> staticFinalFieldsToMatch = classNameToStaticFinalFieldsToMatch == null ? null
-                    : classNameToStaticFinalFieldsToMatch.get(className);
-            final boolean matchStaticFinalFields = staticFinalFieldsToMatch != null;
-            final int fieldCount = readUnsignedShort();
-            for (int i = 0; i < fieldCount; i++) {
-                // Info on accessFlags: http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.5
-                final int accessFlags = readUnsignedShort();
-                final boolean isPublicField = ((accessFlags & 0x0001) == 0x0001);
-                final boolean isStaticFinalField = ((accessFlags & 0x0018) == 0x0018);
-                final boolean fieldIsVisible = isPublicField || scanSpec.ignoreFieldVisibility;
-                final boolean matchThisStaticFinalField = matchStaticFinalFields && isStaticFinalField
-                        && fieldIsVisible;
-                if (!fieldIsVisible || (!scanSpec.enableFieldTypeIndexing && !matchThisStaticFinalField)) {
-                    // Skip field
-                    readUnsignedShort(); // fieldNameCpIdx
-                    readUnsignedShort(); // fieldTypeDescriptorCpIdx
-                    final int attributesCount = readUnsignedShort();
-                    for (int j = 0; j < attributesCount; j++) {
-                        readUnsignedShort(); // attributeNameCpIdx
-                        final int attributeLength = readInt(); // == 2
-                        skip(attributeLength);
-                    }
-                } else {
-                    final int fieldNameCpIdx = readUnsignedShort();
-                    String fieldName = null;
-                    boolean isMatchedFieldName = false;
-                    if (matchThisStaticFinalField) {
-                        // Only decode fieldName if it can be matched
-                        fieldName = getConstantPoolString(fieldNameCpIdx);
-                        if (staticFinalFieldsToMatch.contains(fieldName)) {
-                            isMatchedFieldName = true;
-                        }
-                    }
-                    final int fieldTypeDescriptorCpIdx = readUnsignedShort();
-                    final char fieldTypeDescriptorFirstChar = (char) getConstantPoolStringFirstByte(
-                            fieldTypeDescriptorCpIdx);
-
-                    // Check if the type of this field falls within a non-blacklisted package,
-                    // and if so, record the field and its type
-                    if (scanSpec.enableFieldTypeIndexing) {
-                        addFieldTypeDescriptorParts(classInfoUnlinked,
-                                getConstantPoolString(fieldTypeDescriptorCpIdx));
-                    }
-
-                    boolean foundConstantValue = false;
-                    final int attributesCount = readUnsignedShort();
-                    for (int j = 0; j < attributesCount; j++) {
-                        final int attributeNameCpIdx = readUnsignedShort();
-                        final int attributeLength = readInt(); // == 2
-                        // See if field name matches one of the requested names for this class, and if it does,
-                        // check if it is initialized with a constant value
-                        if (isMatchedFieldName && constantPoolStringEquals(attributeNameCpIdx, "ConstantValue")) {
-                            // http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.7.2
-                            Object constValue = getConstantPoolValue(readUnsignedShort());
-                            // byte, char, short and boolean constants are all stored as 4-byte int
-                            // values -- coerce and wrap in the proper wrapper class with autoboxing
-                            switch (fieldTypeDescriptorFirstChar) {
-                            case 'B':
-                                // byte, char, short and boolean constants are all stored as 4-byte int values.
-                                // Convert and wrap in Byte object.
-                                constValue = new Byte(((Integer) constValue).byteValue());
-                                break;
-                            case 'C':
-                                // byte, char, short and boolean constants are all stored as 4-byte int values.
-                                // Convert and wrap in Character object.
-                                constValue = new Character((char) ((Integer) constValue).intValue());
-                                break;
-                            case 'S':
-                                // byte, char, short and boolean constants are all stored as 4-byte int values.
-                                // Convert and wrap in Short object.
-                                constValue = new Short(((Integer) constValue).shortValue());
-                                break;
-                            case 'Z':
-                                // byte, char, short and boolean constants are all stored as 4-byte int values.
-                                // Convert and wrap in Boolean object.
-                                constValue = new Boolean(((Integer) constValue).intValue() != 0);
-                                break;
-                            case 'I':
-                            case 'J':
-                            case 'F':
-                            case 'D':
-                                // int, long, float or double are already in correct wrapper type (Integer, Long,
-                                // Float, Double or String) -- nothing to do
-                                break;
-                            default:
-                                if (constantPoolStringEquals(fieldTypeDescriptorCpIdx, "Ljava/lang/String;")) {
-                                    // String constants are already in correct form, nothing to do
-                                } else {
-                                    // Should never happen, constant values can only be stored as an int, long,
-                                    // float, double or String
-                                    throw new RuntimeException("Unknown constant initializer type "
-                                            + getConstantPoolString(fieldTypeDescriptorCpIdx) + " for class "
-                                            + className + " -- please report this at "
-                                            + "https://github.com/lukehutch/fast-classpath-scanner/issues");
-                                }
-                                break;
-                            }
-                            // Store static final field match in ClassInfo object
-                            classInfoUnlinked.addFieldConstantValue(fieldName, constValue);
-                            foundConstantValue = true;
-                        } else if (scanSpec.enableFieldTypeIndexing
-                                && constantPoolStringEquals(attributeNameCpIdx, "Signature")) {
-                            // Check if the type signature of this field falls within a non-blacklisted
-                            // package, and if so, record the field type. The type signature contains
-                            // type parameters, whereas the type descriptor does not.
-                            final String fieldTypeSignature = getConstantPoolString(readUnsignedShort());
-                            addFieldTypeDescriptorParts(classInfoUnlinked, fieldTypeSignature);
-                        } else {
-                            // No match, just skip attribute
-                            skip(attributeLength);
-                        }
-                        if (isMatchedFieldName && !foundConstantValue && log != null) {
-                            boolean reasonFound = false;
-                            if (!isStaticFinalField) {
-                                log.log("Requested static final field match " //
-                                        + classInfoUnlinked.className + "." + getConstantPoolString(fieldNameCpIdx)
-                                        + " is not declared as static final");
-                                reasonFound = true;
-                            }
-                            if (!isPublicField && !scanSpec.ignoreFieldVisibility) {
-                                log.log("Requested static final field match " //
-                                        + classInfoUnlinked.className + "." + getConstantPoolString(fieldNameCpIdx)
-                                        + " is not declared as public, and ignoreFieldVisibility was not set to"
-                                        + " true before scan");
-                                reasonFound = true;
-                            }
-                            if (!reasonFound) {
-                                log.log("Requested static final field match " //
-                                        + classInfoUnlinked.className + "." + getConstantPoolString(fieldNameCpIdx)
-                                        + " does not have a constant literal initializer value");
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Methods
-            final int methodCount = readUnsignedShort();
-            for (int i = 0; i < methodCount; i++) {
-                // Info on accessFlags: http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.6
-                final int accessFlags = readUnsignedShort();
-                skip(4); // name_index, descriptor_index
-                final int attributesCount = readUnsignedShort();
-                final boolean isPublicMethod = ((accessFlags & 0x0001) == 0x0001);
-                final boolean methodIsVisible = isPublicMethod || scanSpec.ignoreMethodVisibility;
-                if (!methodIsVisible || !scanSpec.enableMethodAnnotationIndexing) {
-                    // Skip method attributes
-                    for (int j = 0; j < attributesCount; j++) {
-                        skip(2); // attribute_name_index
-                        final int attributeLength = readInt();
-                        skip(attributeLength);
-                    }
-                } else {
-                    // Look for method annotations
-                    for (int j = 0; j < attributesCount; j++) {
-                        final int attributeNameCpIdx = readUnsignedShort();
-                        final int attributeLength = readInt();
-                        if (constantPoolStringEquals(attributeNameCpIdx, "RuntimeVisibleAnnotations")
-                                || (scanSpec.annotationVisibility == RetentionPolicy.CLASS
-                                        && constantPoolStringEquals(attributeNameCpIdx,
-                                                "RuntimeInvisibleAnnotations"))) {
-                            final int annotationCount = readUnsignedShort();
-                            for (int m = 0; m < annotationCount; m++) {
-                                final String annotationName = readAnnotation();
-                                classInfoUnlinked.addMethodAnnotation(annotationName);
-                            }
-                        } else {
-                            skip(attributeLength);
-                        }
-                    }
-                }
-            }
-
-            // Attributes (including class annotations)
-            final int attributesCount = readUnsignedShort();
-            for (int i = 0; i < attributesCount; i++) {
-                final int attributeNameCpIdx = readUnsignedShort();
-                final int attributeLength = readInt();
-                if (constantPoolStringEquals(attributeNameCpIdx, "RuntimeVisibleAnnotations")
-                        || (scanSpec.annotationVisibility == RetentionPolicy.CLASS
-                                && constantPoolStringEquals(attributeNameCpIdx, "RuntimeInvisibleAnnotations"))) {
-                    final int annotationCount = readUnsignedShort();
-                    for (int m = 0; m < annotationCount; m++) {
-                        final String annotationName = readAnnotation();
-                        classInfoUnlinked.addAnnotation(annotationName);
-                    }
-                } else {
-                    skip(attributeLength);
-                }
-            }
-            return classInfoUnlinked;
-
-        } catch (
-
-        final InterruptedException e) {
-            throw e;
-        } catch (final Exception e) {
+        // Make sure classname matches relative path
+        if (!relativePath.endsWith(".class")) {
+            // Should not happen
             if (log != null) {
-                log.log("Exception while attempting to load classfile " + relativePath, e);
+                log.log("File " + relativePath + " does not end in \".class\"");
             }
             return null;
         }
+        final int len = classNamePath.length();
+        if (relativePath.length() != len + 6 || !classNamePath.regionMatches(0, relativePath, 0, len)) {
+            if (log != null) {
+                log.log("Class " + className + " is at incorrect relative path " + relativePath + " -- ignoring");
+            }
+            return null;
+        }
+
+        // Superclass name, with slashes replaced with dots
+        final String superclassName = getConstantPoolClassName(readUnsignedShort());
+
+        final ClassInfoUnlinked classInfoUnlinked = new ClassInfoUnlinked(className, isInterface, isAnnotation,
+                stringInternMap, classpathElementURL);
+
+        // Connect class to superclass
+        classInfoUnlinked.addSuperclass(superclassName);
+
+        // Interfaces
+        final int interfaceCount = readUnsignedShort();
+        for (int i = 0; i < interfaceCount; i++) {
+            final String interfaceName = getConstantPoolClassName(readUnsignedShort());
+            classInfoUnlinked.addImplementedInterface(interfaceName);
+        }
+
+        // Fields
+        final MultiMapKeyToSet<String, String> classNameToStaticFinalFieldsToMatch = scanSpec
+                .getClassNameToStaticFinalFieldsToMatch();
+        final Set<String> staticFinalFieldsToMatch = classNameToStaticFinalFieldsToMatch == null ? null
+                : classNameToStaticFinalFieldsToMatch.get(className);
+        final boolean matchStaticFinalFields = staticFinalFieldsToMatch != null;
+        final int fieldCount = readUnsignedShort();
+        for (int i = 0; i < fieldCount; i++) {
+            // Info on modifier flags: http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.5
+            final int fieldModifierFlags = readUnsignedShort();
+            final boolean isPublicField = ((fieldModifierFlags & 0x0001) == 0x0001);
+            final boolean isStaticFinalField = ((fieldModifierFlags & 0x0018) == 0x0018);
+            final boolean fieldIsVisible = isPublicField || scanSpec.ignoreFieldVisibility;
+            final boolean matchThisStaticFinalField = matchStaticFinalFields && isStaticFinalField
+                    && fieldIsVisible;
+            if (!fieldIsVisible || //
+                    (!scanSpec.saveFieldInfo && (!scanSpec.enableFieldTypeIndexing && !matchThisStaticFinalField)
+                            && !scanSpec.enableFieldAnnotationIndexing)) {
+                // Skip field
+                readUnsignedShort(); // fieldNameCpIdx
+                readUnsignedShort(); // fieldTypeDescriptorCpIdx
+                final int attributesCount = readUnsignedShort();
+                for (int j = 0; j < attributesCount; j++) {
+                    readUnsignedShort(); // attributeNameCpIdx
+                    final int attributeLength = readInt(); // == 2
+                    skip(attributeLength);
+                }
+            } else {
+                final int fieldNameCpIdx = readUnsignedShort();
+                String fieldName = null;
+                boolean isMatchedFieldName = false;
+                if (matchThisStaticFinalField || scanSpec.saveFieldInfo) {
+                    // Only decode fieldName if needed
+                    fieldName = getConstantPoolString(fieldNameCpIdx);
+                    if (matchThisStaticFinalField && staticFinalFieldsToMatch.contains(fieldName)) {
+                        isMatchedFieldName = true;
+                    }
+                }
+                final int fieldTypeDescriptorCpIdx = readUnsignedShort();
+                final char fieldTypeDescriptorFirstChar = (char) getConstantPoolStringFirstByte(
+                        fieldTypeDescriptorCpIdx);
+                String fieldTypeDescriptor = null;
+                if (scanSpec.saveFieldInfo) {
+                    // Only decode full type descriptor if it is needed
+                    fieldTypeDescriptor = getConstantPoolString(fieldTypeDescriptorCpIdx);
+                }
+
+                // Check if the type of this field falls within a non-blacklisted package,
+                // and if so, record the field and its type
+                if (scanSpec.enableFieldTypeIndexing && fieldIsVisible) {
+                    addFieldTypeDescriptorParts(classInfoUnlinked, getConstantPoolString(fieldTypeDescriptorCpIdx));
+                }
+
+                Object fieldConstValue = null;
+                boolean foundFieldConstValue = false;
+                final List<String> fieldAnnotationNames = (!scanSpec.saveFieldInfo || !fieldIsVisible) ? null
+                        : new ArrayList<String>(1);
+                final int attributesCount = readUnsignedShort();
+                for (int j = 0; j < attributesCount; j++) {
+                    final int attributeNameCpIdx = readUnsignedShort();
+                    final int attributeLength = readInt(); // == 2
+                    // See if field name matches one of the requested names for this class, and if it does,
+                    // check if it is initialized with a constant value
+                    if ((isMatchedFieldName || scanSpec.saveFieldInfo)
+                            && constantPoolStringEquals(attributeNameCpIdx, "ConstantValue")) {
+                        // http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.7.2
+                        fieldConstValue = getConstantPoolValue(readUnsignedShort());
+                        // byte, char, short and boolean constants are all stored as 4-byte int
+                        // values -- coerce and wrap in the proper wrapper class with autoboxing
+                        switch (fieldTypeDescriptorFirstChar) {
+                        case 'B':
+                            // byte, char, short and boolean constants are all stored as 4-byte int values.
+                            // Convert and wrap in Byte object.
+                            fieldConstValue = new Byte(((Integer) fieldConstValue).byteValue());
+                            break;
+                        case 'C':
+                            // byte, char, short and boolean constants are all stored as 4-byte int values.
+                            // Convert and wrap in Character object.
+                            fieldConstValue = new Character((char) ((Integer) fieldConstValue).intValue());
+                            break;
+                        case 'S':
+                            // byte, char, short and boolean constants are all stored as 4-byte int values.
+                            // Convert and wrap in Short object.
+                            fieldConstValue = new Short(((Integer) fieldConstValue).shortValue());
+                            break;
+                        case 'Z':
+                            // byte, char, short and boolean constants are all stored as 4-byte int values.
+                            // Convert and wrap in Boolean object.
+                            fieldConstValue = new Boolean(((Integer) fieldConstValue).intValue() != 0);
+                            break;
+                        case 'I':
+                        case 'J':
+                        case 'F':
+                        case 'D':
+                            // int, long, float or double are already in correct wrapper type (Integer, Long,
+                            // Float, Double or String) -- nothing to do
+                            break;
+                        default:
+                            if (constantPoolStringEquals(fieldTypeDescriptorCpIdx, "Ljava/lang/String;")) {
+                                // String constants are already in correct form, nothing to do
+                            } else {
+                                // Should never happen, constant values can only be stored as an int, long,
+                                // float, double or String
+                                throw new RuntimeException("Unknown constant initializer type "
+                                        + getConstantPoolString(fieldTypeDescriptorCpIdx) + " for class "
+                                        + className + " -- please report this at "
+                                        + "https://github.com/lukehutch/fast-classpath-scanner/issues");
+                            }
+                            break;
+                        }
+                        // Store static final field match in ClassInfo object
+                        if (isMatchedFieldName) {
+                            classInfoUnlinked.addFieldConstantValue(fieldName, fieldConstValue);
+                        }
+                        foundFieldConstValue = true;
+                    } else if (scanSpec.enableFieldTypeIndexing && fieldIsVisible
+                            && constantPoolStringEquals(attributeNameCpIdx, "Signature")) {
+                        // Check if the type signature of this field falls within a non-blacklisted
+                        // package, and if so, record the field type. The type signature contains
+                        // type parameters, whereas the type descriptor does not.
+                        final String fieldTypeSignature = getConstantPoolString(readUnsignedShort());
+                        addFieldTypeDescriptorParts(classInfoUnlinked, fieldTypeSignature);
+                    } else if ((scanSpec.saveFieldInfo || scanSpec.enableFieldAnnotationIndexing)
+                            && (constantPoolStringEquals(attributeNameCpIdx, "RuntimeVisibleAnnotations")
+                                    || (scanSpec.annotationVisibility == RetentionPolicy.CLASS
+                                            && constantPoolStringEquals(attributeNameCpIdx,
+                                                    "RuntimeInvisibleAnnotations")))) {
+                        // Read annotation names
+                        final int annotationCount = readUnsignedShort();
+                        for (int k = 0; k < annotationCount; k++) {
+                            final String annotationName = readAnnotation();
+                            if (scanSpec.enableFieldAnnotationIndexing) {
+                                classInfoUnlinked.addFieldAnnotation(annotationName);
+                            }
+                            if (fieldAnnotationNames != null) {
+                                fieldAnnotationNames.add(annotationName);
+                            }
+                        }
+                    } else {
+                        // No match, just skip attribute
+                        skip(attributeLength);
+                    }
+                    if (isMatchedFieldName && !foundFieldConstValue && log != null) {
+                        boolean reasonFound = false;
+                        if (!isStaticFinalField) {
+                            log.log("Requested static final field match " //
+                                    + classInfoUnlinked.className + "." + getConstantPoolString(fieldNameCpIdx)
+                                    + " is not declared as static final");
+                            reasonFound = true;
+                        }
+                        if (!isPublicField && !scanSpec.ignoreFieldVisibility) {
+                            log.log("Requested static final field match " //
+                                    + classInfoUnlinked.className + "." + getConstantPoolString(fieldNameCpIdx)
+                                    + " is not declared as public, and ignoreFieldVisibility was not set to"
+                                    + " true before scan");
+                            reasonFound = true;
+                        }
+                        if (!reasonFound) {
+                            log.log("Requested static final field match " //
+                                    + classInfoUnlinked.className + "." + getConstantPoolString(fieldNameCpIdx)
+                                    + " does not have a constant literal initializer value");
+                        }
+                    }
+                }
+                if (scanSpec.saveFieldInfo && fieldIsVisible) {
+                    classInfoUnlinked.addFieldInfo(new FieldInfo(fieldName, fieldModifierFlags, fieldTypeDescriptor,
+                            fieldConstValue, fieldAnnotationNames));
+                }
+            }
+        }
+
+        // Methods
+        final int methodCount = readUnsignedShort();
+        for (int i = 0; i < methodCount; i++) {
+            // Info on modifier flags: http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.6
+            final int methodModifierFlags = readUnsignedShort();
+
+            String methodName = null;
+            String methodTypeDescriptor = null;
+            if (scanSpec.saveMethodInfo) {
+                final int methodNameCpIdx = readUnsignedShort();
+                methodName = getConstantPoolString(methodNameCpIdx);
+                final int methodTypeDescriptorCpIdx = readUnsignedShort();
+                methodTypeDescriptor = getConstantPoolString(methodTypeDescriptorCpIdx);
+            } else {
+                skip(4); // name_index, descriptor_index
+            }
+
+            final int attributesCount = readUnsignedShort();
+            final boolean isPublicMethod = ((methodModifierFlags & 0x0001) == 0x0001);
+            final boolean methodIsVisible = isPublicMethod || scanSpec.ignoreMethodVisibility;
+            final List<String> methodAnnotationNames = (!scanSpec.saveMethodInfo || !methodIsVisible) ? null
+                    : new ArrayList<String>(1);
+            if (!methodIsVisible || (!scanSpec.saveMethodInfo && !scanSpec.enableMethodAnnotationIndexing)) {
+                // Skip method attributes
+                for (int j = 0; j < attributesCount; j++) {
+                    skip(2); // attribute_name_index
+                    final int attributeLength = readInt();
+                    skip(attributeLength);
+                }
+            } else {
+                // Look for method annotations
+                for (int j = 0; j < attributesCount; j++) {
+                    final int attributeNameCpIdx = readUnsignedShort();
+                    final int attributeLength = readInt();
+                    if (constantPoolStringEquals(attributeNameCpIdx, "RuntimeVisibleAnnotations")
+                            || (scanSpec.annotationVisibility == RetentionPolicy.CLASS && constantPoolStringEquals(
+                                    attributeNameCpIdx, "RuntimeInvisibleAnnotations"))) {
+                        final int annotationCount = readUnsignedShort();
+                        for (int k = 0; k < annotationCount; k++) {
+                            final String annotationName = readAnnotation();
+                            if (scanSpec.enableMethodAnnotationIndexing) {
+                                classInfoUnlinked.addMethodAnnotation(annotationName);
+                            }
+                            if (methodAnnotationNames != null) {
+                                methodAnnotationNames.add(annotationName);
+                            }
+                        }
+                    } else {
+                        skip(attributeLength);
+                    }
+                }
+            }
+            if (scanSpec.saveMethodInfo && methodIsVisible) {
+                final boolean isConstructor = "<init>".equals(methodName);
+                classInfoUnlinked.addMethodInfo(new MethodInfo(isConstructor ? className : methodName,
+                        methodModifierFlags, methodTypeDescriptor, methodAnnotationNames, isConstructor));
+            }
+        }
+
+        // Attributes (including class annotations)
+        final int attributesCount = readUnsignedShort();
+        for (int i = 0; i < attributesCount; i++) {
+            final int attributeNameCpIdx = readUnsignedShort();
+            final int attributeLength = readInt();
+            if (constantPoolStringEquals(attributeNameCpIdx, "RuntimeVisibleAnnotations")
+                    || (scanSpec.annotationVisibility == RetentionPolicy.CLASS
+                            && constantPoolStringEquals(attributeNameCpIdx, "RuntimeInvisibleAnnotations"))) {
+                final int annotationCount = readUnsignedShort();
+                for (int m = 0; m < annotationCount; m++) {
+                    final String annotationName = readAnnotation();
+                    classInfoUnlinked.addAnnotation(annotationName);
+                }
+            } else {
+                skip(attributeLength);
+            }
+        }
+        return classInfoUnlinked;
     }
 }

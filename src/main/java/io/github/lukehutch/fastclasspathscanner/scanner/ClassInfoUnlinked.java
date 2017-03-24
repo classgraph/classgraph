@@ -54,10 +54,13 @@ class ClassInfoUnlinked {
     private List<String> implementedInterfaces;
     private List<String> annotations;
     private Set<String> methodAnnotations;
+    private Set<String> fieldAnnotations;
     private Set<String> fieldTypes;
     private Map<String, Object> staticFinalFieldValues;
     private final ConcurrentHashMap<String, String> stringInternMap;
     private final URL classpathElementURL;
+    List<FieldInfo> fieldInfoList;
+    List<MethodInfo> methodInfoList;
 
     private String intern(final String string) {
         if (string == null) {
@@ -101,6 +104,13 @@ class ClassInfoUnlinked {
         methodAnnotations.add(intern(annotationName));
     }
 
+    public void addFieldAnnotation(final String annotationName) {
+        if (fieldAnnotations == null) {
+            fieldAnnotations = new HashSet<>();
+        }
+        fieldAnnotations.add(intern(annotationName));
+    }
+
     void addFieldType(final String fieldTypeName) {
         if (fieldTypes == null) {
             fieldTypes = new HashSet<>();
@@ -115,6 +125,21 @@ class ClassInfoUnlinked {
         staticFinalFieldValues.put(intern(fieldName), staticFinalFieldValue);
     }
 
+    void addFieldInfo(final FieldInfo fieldInfo) {
+        if (fieldInfoList == null) {
+            fieldInfoList = new ArrayList<>();
+        }
+        fieldInfoList.add(fieldInfo);
+    }
+
+    void addMethodInfo(final MethodInfo methodInfo) {
+        if (methodInfoList == null) {
+            methodInfoList = new ArrayList<>();
+        }
+        methodInfoList.add(methodInfo);
+    }
+
+    /** Link classes. Not threadsafe, should be run in a single-threaded context. */
     void link(final ScanSpec scanSpec, final Map<String, ClassInfo> classNameToClassInfo, final LogNode log) {
         final ClassInfo classInfo = ClassInfo.addScannedClass(className, isInterface, isAnnotation, scanSpec,
                 classNameToClassInfo, classpathElementURL, log);
@@ -136,6 +161,11 @@ class ClassInfoUnlinked {
                 classInfo.addMethodAnnotation(annotationName, classNameToClassInfo);
             }
         }
+        if (fieldAnnotations != null) {
+            for (final String annotationName : fieldAnnotations) {
+                classInfo.addFieldAnnotation(annotationName, classNameToClassInfo);
+            }
+        }
         if (fieldTypes != null) {
             for (final String fieldTypeName : fieldTypes) {
                 classInfo.addFieldType(fieldTypeName, classNameToClassInfo);
@@ -145,6 +175,12 @@ class ClassInfoUnlinked {
             for (final Entry<String, Object> ent : staticFinalFieldValues.entrySet()) {
                 classInfo.addStaticFinalFieldConstantInitializerValue(ent.getKey(), ent.getValue());
             }
+        }
+        if (fieldInfoList != null) {
+            classInfo.addFieldInfo(fieldInfoList);
+        }
+        if (methodInfoList != null) {
+            classInfo.addMethodInfo(methodInfoList);
         }
     }
 

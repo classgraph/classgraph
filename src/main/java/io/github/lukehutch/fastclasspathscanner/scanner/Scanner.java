@@ -368,8 +368,7 @@ public class Scanner implements Callable<ScanResult> {
                                 getClassfileParserChunks(classpathOrder), //
                                 new WorkUnitProcessor<ClassfileParserChunk>() {
                                     @Override
-                                    public void processWorkUnit(ClassfileParserChunk chunk)
-                                            throws InterruptedException, ExecutionException {
+                                    public void processWorkUnit(ClassfileParserChunk chunk) throws Exception {
                                         ClassfileBinaryParser classfileBinaryParser = null;
                                         try {
                                             classfileBinaryParser = classfileBinaryParserRecycler.acquire();

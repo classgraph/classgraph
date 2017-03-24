@@ -26,20 +26,12 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.lukehutch.fastclasspathscanner.issues.issue107;
+package io.github.lukehutch.fastclasspathscanner.matchprocessor;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import java.lang.reflect.Field;
 
-import org.junit.Test;
-
-import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-
-public class Issue107Test {
-    @Test
-    public void issue100Test() {
-        // Package annotations should have "package-info" as their class name 
-        final String pkg = Issue107Test.class.getPackage().getName();
-        assertThat(new FastClasspathScanner(pkg).scan().getNamesOfClassesWithAnnotation(PackageAnnotation.class))
-                .containsOnly(pkg + ".package-info");
-    }
+/** The method to run when a class that has a field with a specified annotation is found on the classpath. */
+@FunctionalInterface
+public interface FieldAnnotationMatchProcessor {
+    public void processMatch(Class<?> matchingClass, Field matchingField);
 }

@@ -185,7 +185,7 @@ public class WorkQueue<T> implements AutoCloseable {
                 // Ignore
             } catch (final ExecutionException e) {
                 if (log != null) {
-                    log.log("Closed work queue because worker thread threw exception", e);
+                    log.log("Closed work queue because worker threw exception", e);
                 }
                 interruptionChecker.executionException(e);
             }
