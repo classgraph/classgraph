@@ -85,8 +85,14 @@ public class ClassInfo implements Comparable<ClassInfo> {
     /** Info on fields. */
     private List<FieldInfo> fieldInfo;
 
+    /** Reverse mapping from field name to FieldInfo. */
+    private Map<String, FieldInfo> fieldNameToFieldInfo;
+
     /** Info on fields. */
     private List<MethodInfo> methodInfo;
+
+    /** Reverse mapping from method name to MethodInfo. */
+    private Map<String, MethodInfo> methodNameToMethodInfo;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -1571,33 +1577,95 @@ public class ClassInfo implements Comparable<ClassInfo> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Returns information on the fields of the class. Requires that FastClasspathScanner#enableSaveFieldInfo() be
-     * called before scanning, otherwise throws IllegalArgumentException.
+     * Returns information on all visible fields of the class. Requires that FastClasspathScanner#enableFieldInfo()
+     * be called before scanning, otherwise throws IllegalArgumentException. By default only returns information for
+     * public methods, unless FastClasspathScanner#ignoreFieldVisibility() was called before the scan.
      * 
+     * @return the list of FieldInfo objects for visible fields of this class, or the empty list if no fields were
+     *         found or visible.
      * @throws IllegalArgumentException
-     *             if FastClasspathScanner#saveClassReflectionInfo() was not called prior to initiating the scan.
+     *             if FastClasspathScanner#enableFieldInfo() was not called prior to initiating the scan.
      */
     public List<FieldInfo> getFieldInfo() {
         if (fieldInfo == null) {
-            throw new IllegalArgumentException("Cannot get class reflection info without calling "
-                    + "FastClasspathScanner#enableSaveFieldInfo() before starting the scan");
+            throw new IllegalArgumentException("Cannot get field info without calling "
+                    + "FastClasspathScanner#enableFieldInfo() before starting the scan");
         }
         return fieldInfo;
     }
 
     /**
-     * Returns information on the methods of the class. Requires that FastClasspathScanner#enableSaveMethodInfo() be
-     * called before scanning, otherwise throws IllegalArgumentException.
+     * Returns information on a given visible field of the class. Requires that
+     * FastClasspathScanner#enableFieldInfo() be called before scanning, otherwise throws IllegalArgumentException.
+     * By default only returns information for public fields, unless FastClasspathScanner#ignoreFieldVisibility()
+     * was called before the scan.
      * 
+     * @param fieldName
+     *            The field name to query.
+     * @return the FieldInfo object for the named field, or null if the field was not found in this class (or is not
+     *         visible).
      * @throws IllegalArgumentException
-     *             if FastClasspathScanner#saveClassReflectionInfo() was not called prior to initiating the scan.
+     *             if FastClasspathScanner#enableFieldInfo() was not called prior to initiating the scan.
+     */
+    public FieldInfo getFieldInfo(final String fieldName) {
+        if (fieldInfo == null) {
+            throw new IllegalArgumentException("Cannot get field info without calling "
+                    + "FastClasspathScanner#enableFieldInfo() before starting the scan");
+        }
+        if (fieldNameToFieldInfo == null) {
+            // Lazily build reverse mapping cache
+            fieldNameToFieldInfo = new HashMap<>();
+            for (final FieldInfo f : fieldInfo) {
+                fieldNameToFieldInfo.put(f.getFieldName(), f);
+            }
+        }
+        return fieldNameToFieldInfo.get(fieldName);
+    }
+
+    /**
+     * Returns information on visible methods of the class. Requires that FastClasspathScanner#enableMethodInfo() be
+     * called before scanning, otherwise throws IllegalArgumentException. By default only returns information for
+     * public methods, unless FastClasspathScanner#enableMethodInfo() was called before the scan.
+     * 
+     * @return the list of MethodInfo objects for visible methods of this class, or the empty list if no methods
+     *         were found or visible.
+     * @throws IllegalArgumentException
+     *             if FastClasspathScanner#enableMethodInfo() was not called prior to initiating the scan.
      */
     public List<MethodInfo> getMethodInfo() {
         if (methodInfo == null) {
-            throw new IllegalArgumentException("Cannot get class reflection info without calling "
-                    + "FastClasspathScanner#enableSaveMethodInfo() before starting the scan");
+            throw new IllegalArgumentException("Cannot get method info without calling "
+                    + "FastClasspathScanner#enableMethodInfo() before starting the scan");
         }
         return methodInfo;
+    }
+
+    /**
+     * Returns information on a given visible method of the class. Requires that
+     * FastClasspathScanner#enableMethodInfo() be called before scanning, otherwise throws IllegalArgumentException.
+     * By default only returns information for public methods, unless FastClasspathScanner#ignoreMethodVisibility()
+     * was called before the scan.
+     * 
+     * @param methodName
+     *            The method name to query.
+     * @return the MethodInfo object for the named method, or null if the method was not found in this class (or is
+     *         not visible).
+     * @throws IllegalArgumentException
+     *             if FastClasspathScanner#enableMethodInfo() was not called prior to initiating the scan.
+     */
+    public MethodInfo getMethodInfo(final String methodName) {
+        if (fieldInfo == null) {
+            throw new IllegalArgumentException("Cannot get method info without calling "
+                    + "FastClasspathScanner#enableMethodInfo() before starting the scan");
+        }
+        if (methodNameToMethodInfo == null) {
+            // Lazily build reverse mapping cache
+            methodNameToMethodInfo = new HashMap<>();
+            for (final MethodInfo f : methodInfo) {
+                methodNameToMethodInfo.put(f.getMethodName(), f);
+            }
+        }
+        return methodNameToMethodInfo.get(methodName);
     }
 
     // -------------------------------------------------------------------------------------------------------------
