@@ -1468,7 +1468,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
      * 
      * @return the set of classes that have a method with this direct annotation, or the empty set if none.
      */
-    public Set<ClassInfo> getClassesWithMethodDirectAnnotation() {
+    public Set<ClassInfo> getClassesWithDirectMethodAnnotation() {
         return filterClassInfo(getDirectlyRelatedClasses(RelType.CLASSES_WITH_METHOD_ANNOTATION),
                 /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.ALL);
     }
@@ -1490,8 +1490,8 @@ public class ClassInfo implements Comparable<ClassInfo> {
      * @return the sorted list of names of classes that have a method with this direct annotation, or the empty list
      *         if none.
      */
-    public List<String> getNamesOfClassesWithMethodDirectAnnotation() {
-        return getClassNames(getClassesWithMethodDirectAnnotation());
+    public List<String> getNamesOfClassesWithDirectMethodAnnotation() {
+        return getClassNames(getClassesWithDirectMethodAnnotation());
     }
 
     /**
@@ -1519,7 +1519,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
      * @return the sorted list of names of classes that have a method with the named direct annotation, or the empty
      *         list if none.
      */
-    static List<String> getNamesOfClassesWithMethodDirectAnnotation(final String annotationName,
+    static List<String> getNamesOfClassesWithDirectMethodAnnotation(final String annotationName,
             final Set<ClassInfo> allClassInfo) {
         // This method will not likely be used for a large number of different annotation types, so perform a linear
         // search on each invocation, rather than building an index on classpath scan (so we don't slow down more
@@ -1626,32 +1626,6 @@ public class ClassInfo implements Comparable<ClassInfo> {
     }
 
     /**
-     * Return a sorted list of classes that have a field with the named annotation.
-     * 
-     * @return the sorted list of names of classes that have a field with the named annotation, or the empty list if
-     *         none.
-     */
-    static List<String> getNamesOfClassesWithFieldAnnotation(final String annotationName,
-            final Set<ClassInfo> allClassInfo) {
-        // This method will not likely be used for a large number of different annotation types, so perform a linear
-        // search on each invocation, rather than building an index on classpath scan (so we don't slow down more
-        // common methods).
-        final ArrayList<String> namesOfClassesWithNamedFieldAnnotation = new ArrayList<>();
-        for (final ClassInfo classInfo : allClassInfo) {
-            for (final ClassInfo annotationType : classInfo.getDirectlyRelatedClasses(RelType.FIELD_ANNOTATIONS)) {
-                if (annotationType.className.equals(annotationName)) {
-                    namesOfClassesWithNamedFieldAnnotation.add(classInfo.className);
-                    break;
-                }
-            }
-        }
-        if (!namesOfClassesWithNamedFieldAnnotation.isEmpty()) {
-            Collections.sort(namesOfClassesWithNamedFieldAnnotation);
-        }
-        return namesOfClassesWithNamedFieldAnnotation;
-    }
-
-    /**
      * Returns information on all visible fields of the class. Requires that FastClasspathScanner#enableFieldInfo()
      * be called before scanning, otherwise throws IllegalArgumentException. By default only returns information for
      * public methods, unless FastClasspathScanner#ignoreFieldVisibility() was called before the scan.
@@ -1731,23 +1705,44 @@ public class ClassInfo implements Comparable<ClassInfo> {
     // -------------
 
     /**
-     * Get the classes that have a field with this annotation.
+     * Get the classes that have a field with this annotation or meta-annotation.
      * 
-     * @return the set of classes that have a field with this annotation, or the empty set if none.
+     * @return the set of classes that have a field with this annotation or meta-annotation, or the empty set if
+     *         none.
      */
     public Set<ClassInfo> getClassesWithFieldAnnotation() {
+        return filterClassInfo(getReachableClasses(RelType.CLASSES_WITH_FIELD_ANNOTATION),
+                /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.ALL);
+    }
+
+    /**
+     * Get the names of classes that have a field with this annotation or meta-annotation.
+     * 
+     * @return the sorted list of names of classes that have a field with this annotation or meta-annotation, or the
+     *         empty list if none.
+     */
+    public List<String> getNamesOfClassesWithFieldAnnotation() {
+        return getClassNames(getClassesWithFieldAnnotation());
+    }
+
+    /**
+     * Get the classes that have a field with this direct annotation.
+     * 
+     * @return the set of classes that have a field with this direct annotation, or the empty set if none.
+     */
+    public Set<ClassInfo> getClassesWithDirectFieldAnnotation() {
         return filterClassInfo(getDirectlyRelatedClasses(RelType.CLASSES_WITH_FIELD_ANNOTATION),
                 /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.ALL);
     }
 
     /**
-     * Get the names of classes that have a field with this annotation.
+     * Get the names of classes that have a field with this direct annotation.
      * 
-     * @return the sorted list of names of classes that have a field with this annotation, or the empty list if
-     *         none.
+     * @return the sorted list of names of classes that have a field with thisdirect annotation, or the empty list
+     *         if none.
      */
-    public List<String> getNamesOfClassesWithFieldAnnotation() {
-        return getClassNames(getClassesWithFieldAnnotation());
+    public List<String> getNamesOfClassesWithDirectFieldAnnotation() {
+        return getClassNames(getClassesWithDirectFieldAnnotation());
     }
 
     /**
@@ -1757,6 +1752,58 @@ public class ClassInfo implements Comparable<ClassInfo> {
      */
     public boolean annotatesFieldOfClass(final String className) {
         return getNamesOfClassesWithFieldAnnotation().contains(className);
+    }
+
+    /**
+     * Return a sorted list of classes that have a field with the named annotation or meta-annotation.
+     * 
+     * @return the sorted list of names of classes that have a field with the named annotation or meta-annotation,
+     *         or the empty list if none.
+     */
+    static List<String> getNamesOfClassesWithFieldAnnotation(final String annotationName,
+            final Set<ClassInfo> allClassInfo) {
+        // This method will not likely be used for a large number of different annotation types, so perform a linear
+        // search on each invocation, rather than building an index on classpath scan (so we don't slow down more
+        // common methods).
+        final ArrayList<String> namesOfClassesWithNamedFieldAnnotation = new ArrayList<>();
+        for (final ClassInfo classInfo : allClassInfo) {
+            for (final ClassInfo annotationType : classInfo.getReachableClasses(RelType.FIELD_ANNOTATIONS)) {
+                if (annotationType.className.equals(annotationName)) {
+                    namesOfClassesWithNamedFieldAnnotation.add(classInfo.className);
+                    break;
+                }
+            }
+        }
+        if (!namesOfClassesWithNamedFieldAnnotation.isEmpty()) {
+            Collections.sort(namesOfClassesWithNamedFieldAnnotation);
+        }
+        return namesOfClassesWithNamedFieldAnnotation;
+    }
+
+    /**
+     * Return a sorted list of classes that have a field with the named annotation or direct annotation.
+     * 
+     * @return the sorted list of names of classes that have a field with the named direct annotation, or the empty
+     *         list if none.
+     */
+    static List<String> getNamesOfClassesWithDirectFieldAnnotation(final String annotationName,
+            final Set<ClassInfo> allClassInfo) {
+        // This method will not likely be used for a large number of different annotation types, so perform a linear
+        // search on each invocation, rather than building an index on classpath scan (so we don't slow down more
+        // common methods).
+        final ArrayList<String> namesOfClassesWithNamedFieldAnnotation = new ArrayList<>();
+        for (final ClassInfo classInfo : allClassInfo) {
+            for (final ClassInfo annotationType : classInfo.getDirectlyRelatedClasses(RelType.FIELD_ANNOTATIONS)) {
+                if (annotationType.className.equals(annotationName)) {
+                    namesOfClassesWithNamedFieldAnnotation.add(classInfo.className);
+                    break;
+                }
+            }
+        }
+        if (!namesOfClassesWithNamedFieldAnnotation.isEmpty()) {
+            Collections.sort(namesOfClassesWithNamedFieldAnnotation);
+        }
+        return namesOfClassesWithNamedFieldAnnotation;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -1853,7 +1900,8 @@ public class ClassInfo implements Comparable<ClassInfo> {
                 buf.append("  \"" + label(annotatedClassNode) + "\" -> \"" + label(annotationNode)
                         + "\" [arrowhead=dot]\n");
             }
-            for (final ClassInfo classWithMethodAnnotationNode : annotationNode.getClassesWithMethodAnnotation()) {
+            for (final ClassInfo classWithMethodAnnotationNode : annotationNode
+                    .getClassesWithDirectMethodAnnotation()) {
                 // class with method annotation --o method annotation
                 buf.append("  \"" + label(classWithMethodAnnotationNode) + "\" -> \"" + label(annotationNode)
                         + "\" [arrowhead=odot]\n");
