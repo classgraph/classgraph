@@ -925,7 +925,7 @@ public class ScanSpec {
      * Calls the provided ClassMatchProcessor for all interface classes (interface definitions) found in whitelisted
      * packages on the classpath.
      * 
-     * @param ClassMatchProcessor
+     * @param classMatchProcessor
      *            the ClassMatchProcessor to call when a match is found.
      */
     public void matchAllInterfaceClasses(final ClassMatchProcessor classMatchProcessor) {
@@ -957,7 +957,7 @@ public class ScanSpec {
      * Calls the provided ClassMatchProcessor for all annotation classes (annotation definitions) found in
      * whitelisted packages on the classpath.
      * 
-     * @param ClassMatchProcessor
+     * @param classMatchProcessor
      *            the ClassMatchProcessor to call when a match is found.
      */
     public void matchAllAnnotationClasses(final ClassMatchProcessor classMatchProcessor) {
@@ -1074,7 +1074,7 @@ public class ScanSpec {
      * 
      * @param implementedInterface
      *            The interface that classes need to implement.
-     * @param interfaceMatchProcessor
+     * @param implementingClassMatchProcessor
      *            the ClassMatchProcessor to call when a match is found.
      */
     public <T> void matchClassesImplementing(final Class<T> implementedInterface,
