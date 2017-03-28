@@ -89,7 +89,7 @@ You can get pre-built JARs (usable in JRE 1.7 or later) from [Sonatype](https://
 
 ### Building from source
 
-To build the most recent version of FastClasspathScanner from git master:
+The following commands will build the most recent version of FastClasspathScanner from git master. The compiled package will then be in the "fast-classpath-scanner/target" directory.
 
 ```
 git clone https://github.com/lukehutch/fast-classpath-scanner.git
@@ -97,8 +97,6 @@ cd fast-classpath-scanner
 export JAVA_HOME=/usr/java/default   # Or similar -- Maven needs JAVA_HOME
 mvn -Dmaven.test.skip=true package
 ```
-
-Then the compiled package will be in the "target" directory.
 
 ## License
 
