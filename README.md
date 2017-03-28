@@ -71,9 +71,7 @@ JavaDoc for the core classes:
 
 Feel free to subscribe to the [FastClasspathScanner-Users](https://groups.google.com/d/forum/fastclasspathscanner-users) email list for updates, or to ask questions.
 
-## Downloading
-
-You can get a pre-built JAR (usable in JRE 1.7 or later) from [Sonatype](https://oss.sonatype.org/#nexus-search;quick~fast-classpath-scanner), or add the following Maven Central dependency:
+## Maven dependency
 
 ```xml
 <dependency>
@@ -82,6 +80,10 @@ You can get a pre-built JAR (usable in JRE 1.7 or later) from [Sonatype](https:/
     <version>LATEST</version>
 </dependency>
 ```
+
+## Pre-built JARs
+
+You can get pre-built JARs (usable in JRE 1.7 or later) from [Sonatype](https://oss.sonatype.org/#nexus-search;quick~fast-classpath-scanner).
 
 ## Building from source
 
