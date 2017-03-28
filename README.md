@@ -73,7 +73,7 @@ Feel free to subscribe to the [FastClasspathScanner-Users](https://groups.google
 
 ## Downloading
 
-Use the "Clone or download" button at the top right of this page to get the source. You can get a pre-built JAR (usable in JRE 1.7 or later) from [Sonatype](https://oss.sonatype.org/#nexus-search;quick~fast-classpath-scanner), or add the following Maven Central dependency:
+You can get a pre-built JAR (usable in JRE 1.7 or later) from [Sonatype](https://oss.sonatype.org/#nexus-search;quick~fast-classpath-scanner), or add the following Maven Central dependency:
 
 ```xml
 <dependency>
@@ -82,6 +82,19 @@ Use the "Clone or download" button at the top right of this page to get the sour
     <version>LATEST</version>
 </dependency>
 ```
+
+## Building from source
+
+To build the most recent version of FastClasspathScanner from git master:
+
+```
+git clone https://github.com/lukehutch/fast-classpath-scanner.git
+cd fast-classpath-scanner
+export JAVA_HOME=/usr/java/default   # Or similar -- Maven needs JAVA_HOME
+mvn -Dmaven.test.skip=true package
+```
+
+Then the compiled package will be in the "target" directory.
 
 ## License
 
