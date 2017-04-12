@@ -418,6 +418,8 @@ public class Scanner implements Callable<ScanResult> {
             return scanResult;
 
         } catch (final Throwable e) {
+            // Remove temporary files if an exception was thrown
+            cleanupTempFiles();
             if (log != null) {
                 log.log(e);
             }
