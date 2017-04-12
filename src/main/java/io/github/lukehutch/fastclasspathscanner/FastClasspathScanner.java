@@ -1273,8 +1273,10 @@ public class FastClasspathScanner {
                 getScanSpec().callMatchProcessors(scanResult);
                 // Call the provided ScanResultProcessor
                 scanResultProcessor.processScanResult(scanResult);
-                // Free temporary files
-                scanResult.freeTempFiles();
+                if (scanSpec.removeTemporaryFilesAfterScan) {
+                    // Free temporary files
+                    scanResult.freeTempFiles();
+                }
             }
         }, failureHandler);
     }
@@ -1301,8 +1303,10 @@ public class FastClasspathScanner {
                     public void processScanResult(final ScanResult scanResult) {
                         // Call MatchProcessors after scan has completed
                         getScanSpec().callMatchProcessors(scanResult);
-                        // Free temporary files
-                        scanResult.freeTempFiles();
+                        if (scanSpec.removeTemporaryFilesAfterScan) {
+                            // Free temporary files
+                            scanResult.freeTempFiles();
+                        }
                     }
                 } : null, /* failureHandler = */ null);
     }
@@ -1374,7 +1378,9 @@ public class FastClasspathScanner {
             getScanSpec().callMatchProcessors(scanResult);
 
             // Free temporary files
-            scanResult.freeTempFiles();
+            if (scanSpec.removeTemporaryFilesAfterScan) {
+                scanResult.freeTempFiles();
+            }
 
             // Return the scanResult after calling MatchProcessors
             return scanResult;
