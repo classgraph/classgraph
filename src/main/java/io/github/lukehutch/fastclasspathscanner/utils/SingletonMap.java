@@ -145,4 +145,9 @@ public abstract class SingletonMap<K, V> {
         }
         return entries;
     }
+
+    /** Clear the map. */
+    public void clear() {
+        map.clear();
+    }
 }

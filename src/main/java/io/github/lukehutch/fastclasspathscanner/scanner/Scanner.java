@@ -57,7 +57,6 @@ import io.github.lukehutch.fastclasspathscanner.utils.WorkQueue.WorkUnitProcesso
 
 /** The classpath scanner. */
 public class Scanner implements Callable<ScanResult> {
-    private final boolean removeTemporaryFilesAfterScan;
     private final ScanSpec scanSpec;
     private final ExecutorService executorService;
     private final int numParallelTasks;
@@ -66,6 +65,7 @@ public class Scanner implements Callable<ScanResult> {
     private final ScanResultProcessor scanResultProcessor;
     private final FailureHandler failureHandler;
     private final LogNode log;
+    private NestedJarHandler nestedJarHandler;
 
     /**
      * The number of files within a given classpath element (directory or zipfile) to send in a chunk to the workers
@@ -76,10 +76,8 @@ public class Scanner implements Callable<ScanResult> {
 
     /** The classpath scanner. */
     public Scanner(final ScanSpec scanSpec, final ExecutorService executorService, final int numParallelTasks,
-            final boolean enableRecursiveScanning, final boolean removeTemporaryFilesAfterScan,
-            final ScanResultProcessor scannResultProcessor, final FailureHandler failureHandler,
-            final LogNode log) {
-        this.removeTemporaryFilesAfterScan = removeTemporaryFilesAfterScan;
+            final boolean enableRecursiveScanning, final ScanResultProcessor scannResultProcessor,
+            final FailureHandler failureHandler, final LogNode log) {
         this.scanSpec = scanSpec;
         this.executorService = executorService;
         this.numParallelTasks = numParallelTasks;
@@ -207,8 +205,8 @@ public class Scanner implements Callable<ScanResult> {
     @Override
     public ScanResult call() throws InterruptedException, ExecutionException {
         final LogNode classpathFinderLog = log == null ? null : log.log("Finding classpath entries");
-        try (NestedJarHandler nestedJarHandler = new NestedJarHandler(removeTemporaryFilesAfterScan,
-                interruptionChecker, classpathFinderLog)) {
+        this.nestedJarHandler = new NestedJarHandler(interruptionChecker, log);
+        try {
             final long scanStart = System.nanoTime();
 
             // Get current dir (without resolving symlinks), and normalize path by calling
@@ -399,7 +397,7 @@ public class Scanner implements Callable<ScanResult> {
 
                 // Create ScanResult
                 scanResult = new ScanResult(scanSpec, classpathOrder, classGraphBuilder, fileToLastModified,
-                        interruptionChecker, log);
+                        nestedJarHandler, interruptionChecker, log);
 
                 // Run scanResultProcessor in the current thread
                 if (scanResultProcessor != null) {
@@ -410,7 +408,7 @@ public class Scanner implements Callable<ScanResult> {
                 // This is the result of a call to FastClasspathScanner#getUniqueClasspathElementsAsync(), so
                 // just create placeholder ScanResult to contain classpathElementFilesOrdered.
                 scanResult = new ScanResult(scanSpec, classpathOrder, /* classGraphBuilder = */ null,
-                        /* fileToLastModified = */ null, interruptionChecker, log);
+                        /* fileToLastModified = */ null, nestedJarHandler, interruptionChecker, log);
             }
             if (log != null) {
                 log.log("Completed scan", System.nanoTime() - scanStart);
@@ -435,6 +433,13 @@ public class Scanner implements Callable<ScanResult> {
             if (log != null) {
                 log.flush();
             }
+        }
+    }
+
+    /** Remove any temporary files produced by removing zipfiles from within zipfiles. */
+    public void cleanupTempFiles() {
+        if (this.nestedJarHandler != null) {
+            this.nestedJarHandler.close();
         }
     }
 }

@@ -51,18 +51,16 @@ import java.util.zip.ZipFile;
  * whitelisted (non-blacklisted) entries. Therefore, in the general case, the ZipFile API is always going to be
  * faster than ZipInputStream. Therefore, decompressing the inner zipfile to disk is the only efficient option.
  */
-public class NestedJarHandler implements AutoCloseable {
-    private final boolean removeTemporaryFilesAfterScan;
+public class NestedJarHandler {
     private final ConcurrentLinkedDeque<File> tempFiles = new ConcurrentLinkedDeque<>();
     private final SingletonMap<String, File> nestedPathToJarfileMap;
     private final SingletonMap<String, Recycler<ZipFile, IOException>> canonicalPathToZipFileRecyclerMap;
     private final InterruptionChecker interruptionChecker;
-    static final String TEMP_FILENAME_SEPARATOR = "---";
     private final LogNode log;
 
-    public NestedJarHandler(final boolean removeTemporaryFilesAfterScan,
-            final InterruptionChecker interruptionChecker, final LogNode log) {
-        this.removeTemporaryFilesAfterScan = removeTemporaryFilesAfterScan;
+    public static final String TEMP_FILENAME_LEAF_SEPARATOR = "---";
+
+    public NestedJarHandler(final InterruptionChecker interruptionChecker, final LogNode log) {
         this.interruptionChecker = interruptionChecker;
         this.log = log;
 
@@ -233,13 +231,18 @@ public class NestedJarHandler implements AutoCloseable {
      * NestedJarHandler#close() is called.
      */
     public File unzipToTempFile(final ZipFile zipFile, final ZipEntry zipEntry) throws IOException {
-        final String zipEntryPath = zipEntry.getName();
-        final String leafName = zipEntryPath.substring(zipEntryPath.lastIndexOf('/') + 1);
-        final File tempFile = File.createTempFile("FastClasspathScanner-", TEMP_FILENAME_SEPARATOR + leafName);
+        String zipEntryPath = zipEntry.getName();
+        if (zipEntryPath.startsWith("/")) {
+            zipEntryPath = zipEntryPath.substring(1);
+        }
+        final String zipEntryLeaf = zipEntryPath.substring(zipEntryPath.lastIndexOf('/') + 1);
+        // The following filename format is also expected by JarUtils.leafName()
+        final File tempFile = File.createTempFile("FastClasspathScanner-",
+                TEMP_FILENAME_LEAF_SEPARATOR + zipEntryLeaf);
         tempFile.deleteOnExit();
         tempFiles.add(tempFile);
         if (log != null) {
-            final String qualifiedPath = zipFile.getName() + "!" + zipEntryPath;
+            final String qualifiedPath = zipFile.getName() + "!/" + zipEntryPath;
             final LogNode subLog = log.log(qualifiedPath, "Unzipping zip entry " + qualifiedPath);
             subLog.log("Writing temporary file " + tempFile.getPath());
         }
@@ -248,27 +251,21 @@ public class NestedJarHandler implements AutoCloseable {
     }
 
     /** Delete temporary files and release other resources. */
-    @SuppressWarnings("unused")
-    @Override
     public void close() {
-        // If calling FastClasspathScanner#getUniqueClasspathElements(), removeTemporaryFilesAfterScan is false,
-        // and we need to keep the temporary files around after the scan completes. Temporary files are deleted
-        // automatically when the JVM exits, via tempFile.deleteOnExit().
-        if (removeTemporaryFilesAfterScan) {
-            while (!tempFiles.isEmpty()) {
-                final File head = tempFiles.remove();
-                final String path = head.getPath();
-                final boolean success = head.delete();
-                //            if (log != null) {
-                //                log.log((success ? "Successfully removed" : "Unsuccessful in removing")
-                //                        + " temporary file " + path);
-                //            }
+        while (!tempFiles.isEmpty()) {
+            final File head = tempFiles.remove();
+            final String path = head.getPath();
+            final boolean success = head.delete();
+            if (log != null) {
+                log.log((success ? "Successfully removed" : "Unsuccessful in removing") + " temporary file "
+                        + path);
             }
         }
         try {
             for (final Recycler<ZipFile, IOException> recycler : canonicalPathToZipFileRecyclerMap.values()) {
                 recycler.close();
             }
+            canonicalPathToZipFileRecyclerMap.clear();
         } catch (final InterruptedException e) {
             // Stop other threads
             interruptionChecker.interrupt();

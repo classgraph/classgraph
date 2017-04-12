@@ -138,8 +138,7 @@ class ClasspathElementDir extends ClasspathElement {
                 }
             } else if (fileInDir.isFile()) {
                 final String fileInDirRelativePath = dirRelativePath.isEmpty() || "/".equals(dirRelativePath)
-                        ? fileInDir.getName()
-                        : dirRelativePath + fileInDir.getName();
+                        ? fileInDir.getName() : dirRelativePath + fileInDir.getName();
 
                 // Class can only be scanned if it's within a whitelisted path subtree, or if it is a classfile
                 // that has been specifically-whitelisted

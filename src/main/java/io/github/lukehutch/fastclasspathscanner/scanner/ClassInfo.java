@@ -320,14 +320,14 @@ public class ClassInfo implements Comparable<ClassInfo> {
         final Set<ClassInfo> reachableClasses = new HashSet<>(directlyRelatedClasses);
         if (relType == RelType.METHOD_ANNOTATIONS || relType == RelType.FIELD_ANNOTATIONS) {
             // For method and field annotations, need to change the RelType when finding meta-annotations
-            for (ClassInfo annotation : directlyRelatedClasses) {
+            for (final ClassInfo annotation : directlyRelatedClasses) {
                 reachableClasses.addAll(annotation.getReachableClasses(RelType.ANNOTATIONS));
             }
         } else if (relType == RelType.CLASSES_WITH_METHOD_ANNOTATION
                 || relType == RelType.CLASSES_WITH_FIELD_ANNOTATION) {
             // If looking for meta-annotated methods or fields, need to find all meta-annotated annotations,
             // then look for the methods or fields that they annotate
-            for (ClassInfo subAnnotation : filterClassInfo(getReachableClasses(RelType.ANNOTATED_CLASSES),
+            for (final ClassInfo subAnnotation : filterClassInfo(getReachableClasses(RelType.ANNOTATED_CLASSES),
                     /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.ANNOTATION)) {
                 reachableClasses.addAll(subAnnotation.getDirectlyRelatedClasses(relType));
             }

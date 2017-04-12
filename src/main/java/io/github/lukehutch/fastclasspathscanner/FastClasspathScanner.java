@@ -1234,7 +1234,7 @@ public class FastClasspathScanner {
         return executorService.submit(
                 // Call MatchProcessors before returning if in async scanning mode
                 new Scanner(scanSpec, executorService, numParallelTasks, /* enableRecursiveScanning = */ true,
-                        scanSpec.removeTemporaryFilesAfterScan, scanResultProcessor, failureHandler, log));
+                        scanResultProcessor, failureHandler, log));
     }
 
     /**
@@ -1271,8 +1271,10 @@ public class FastClasspathScanner {
             public void processScanResult(final ScanResult scanResult) {
                 // Call any MatchProcessors after scan has completed
                 getScanSpec().callMatchProcessors(scanResult);
-                // Then call the provided ScanResultProcessor
+                // Call the provided ScanResultProcessor
                 scanResultProcessor.processScanResult(scanResult);
+                // Free temporary files
+                scanResult.freeTempFiles();
             }
         }, failureHandler);
     }
@@ -1299,6 +1301,8 @@ public class FastClasspathScanner {
                     public void processScanResult(final ScanResult scanResult) {
                         // Call MatchProcessors after scan has completed
                         getScanSpec().callMatchProcessors(scanResult);
+                        // Free temporary files
+                        scanResult.freeTempFiles();
                     }
                 } : null, /* failureHandler = */ null);
     }
@@ -1368,6 +1372,9 @@ public class FastClasspathScanner {
 
             // Call MatchProcessors in the same thread as the caller, to avoid deadlock (see bug #103)
             getScanSpec().callMatchProcessors(scanResult);
+
+            // Free temporary files
+            scanResult.freeTempFiles();
 
             // Return the scanResult after calling MatchProcessors
             return scanResult;
@@ -1482,15 +1489,20 @@ public class FastClasspathScanner {
         // so class initializer deadlock cannot occur.
         final Future<List<File>> classpathElementsFuture;
         try {
-            final Future<ScanResult> scanResult = executorService.submit( //
+            final Future<ScanResult> scanResultFuture = executorService.submit( //
                     new Scanner(getScanSpec(), executorService, numParallelTasks,
-                            /* enableRecursiveScanning = */ false, /* removeTemporaryFilesAfterScan = */ false,
-                            /* scanResultProcessor = */ null, /* failureHandler = */ null,
+                            /* enableRecursiveScanning = */ false, /* scanResultProcessor = */ null,
+                            /* failureHandler = */ null,
                             log == null ? null : log.log("Getting unique classpath elements")));
             classpathElementsFuture = executorService.submit(new Callable<List<File>>() {
                 @Override
                 public List<File> call() throws Exception {
-                    return scanResult.get().getUniqueClasspathElements();
+                    final ScanResult scanResult = scanResultFuture.get();
+                    final List<File> uniqueClasspathElements = scanResult.getUniqueClasspathElements();
+                    // N.B. scanResult.freeTempFiles() is *not* called for this method, so that the classpath
+                    // elements resulting from jars within jars are left in place. However, they are cleaned
+                    // up on normal JVM exit.
+                    return uniqueClasspathElements;
                 }
             });
         } finally {

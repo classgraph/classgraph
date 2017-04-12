@@ -39,6 +39,7 @@ import java.util.Map.Entry;
 
 import io.github.lukehutch.fastclasspathscanner.utils.InterruptionChecker;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
+import io.github.lukehutch.fastclasspathscanner.utils.NestedJarHandler;
 
 /** The result of a scan. */
 public class ScanResult {
@@ -53,6 +54,9 @@ public class ScanResult {
 
     /** The list of URL objects for unique classpath elements (directories or jarfiles). */
     private final List<URL> classpathElementOrderURLs;
+
+    /** The nested jar handler instance. */
+    private final NestedJarHandler nestedJarHandler;
 
     /**
      * The file, directory and jarfile resources timestamped during a scan, along with their timestamp at the time
@@ -81,7 +85,8 @@ public class ScanResult {
     /** The result of a scan. */
     ScanResult(final ScanSpec scanSpec, final List<ClasspathElement> classpathOrder,
             final ClassGraphBuilder classGraphBuilder, final Map<File, Long> fileToLastModified,
-            final InterruptionChecker interruptionChecker, final LogNode log) {
+            final NestedJarHandler nestedJarHandler, final InterruptionChecker interruptionChecker,
+            final LogNode log) {
         this.scanSpec = scanSpec;
         this.classpathOrder = classpathOrder;
         this.classpathElementOrderFiles = new ArrayList<>();
@@ -92,6 +97,7 @@ public class ScanResult {
         }
         this.fileToLastModified = fileToLastModified;
         this.classGraphBuilder = classGraphBuilder;
+        this.nestedJarHandler = nestedJarHandler;
         this.interruptionChecker = interruptionChecker;
         this.log = log;
     }
@@ -717,5 +723,13 @@ public class ScanResult {
      */
     public List<Class<?>> classNamesToClassRefs(final List<String> classNames) throws IllegalArgumentException {
         return classNamesToClassRefs(classNames, /* ignoreExceptions = */ false);
+    }
+
+    /**
+     * Free any temporary files created by extracting jars from within jars. By default, temporary files are removed
+     * at the end of a scan, after MatchProcessors have completed, so this typically does not need to be called.
+     */
+    public void freeTempFiles() {
+        nestedJarHandler.close();
     }
 }
