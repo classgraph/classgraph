@@ -225,79 +225,89 @@ public class ClasspathFinder {
         // http://www.javaworld.com/article/2077344/core-java/find-a-way-out-of-the-classloader-maze.html?page=2
         //
         final AdditionOrderedSet<ClassLoader> classLoadersSet = new AdditionOrderedSet<>();
+
         // Look for classloaders on the call stack
-        if (CALLER_RESOLVER != null) {
-            // Find the first caller in the call stack to call a method in the FastClasspathScanner package
-            final String fcsPkgPrefix = FastClasspathScanner.class.getPackage().getName() + ".";
-            final Class<?>[] callStack = CALLER_RESOLVER.getClassContext();
-            int fcsIdx;
-            for (fcsIdx = callStack.length - 1; fcsIdx >= 0; --fcsIdx) {
-                if (callStack[fcsIdx].getName().startsWith(fcsPkgPrefix)) {
-                    break;
-                }
-            }
-            if (fcsIdx < 0 || fcsIdx == callStack.length - 1) {
-                // Should not happen
-                throw new RuntimeException("Could not find caller of " + fcsPkgPrefix + "* in call stack");
-            }
-
-            // Get the caller's current classloader
-            final ClassLoader callerLoader = callStack[fcsIdx + 1].getClassLoader();
-            boolean useCallerLoader = callerLoader != null;
-
-            // Get the context classloader
-            final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
-            boolean useContextLoader = contextLoader != null;
-
-            // Get the system classloader
-            final ClassLoader systemLoader = ClassLoader.getSystemClassLoader();
-            boolean useSystemLoader = systemLoader != null;
-
-            // Establish descendancy relationships, and ignore any classloader that is an ancestor of another.
-            if (useCallerLoader && useContextLoader && isDescendantOf(callerLoader, contextLoader)) {
-                useContextLoader = false;
-            }
-            if (useCallerLoader && useContextLoader && isDescendantOf(contextLoader, callerLoader)) {
-                useCallerLoader = false;
-            }
-            if (useSystemLoader && useContextLoader && isDescendantOf(systemLoader, contextLoader)) {
-                useContextLoader = false;
-            }
-            if (useSystemLoader && useContextLoader && isDescendantOf(contextLoader, systemLoader)) {
-                useSystemLoader = false;
-            }
-            if (useSystemLoader && useCallerLoader && isDescendantOf(systemLoader, callerLoader)) {
-                useCallerLoader = false;
-            }
-            if (useSystemLoader && useCallerLoader && isDescendantOf(callerLoader, systemLoader)) {
-                useSystemLoader = false;
-            }
-            if (!useCallerLoader && !useContextLoader && !useSystemLoader) {
-                // Should not happen
-                throw new RuntimeException("Could not find a usable ClassLoader");
-            }
-            // There will generally only be one class left after this. In rare cases, you may have a separate
-            // callerLoader and contextLoader, but those cases are ill-defined -- see:
-            // http://www.javaworld.com/article/2077344/core-java/find-a-way-out-of-the-classloader-maze.html?page=2
-            // We specifically add the classloaders in the following order however, so that in the case that there
-            // are two of them left, they are resolved in this order. The relative ordering of callerLoader and
-            // contextLoader is due to the recommendation at the above URL.
-            if (useSystemLoader) {
-                classLoadersSet.add(systemLoader);
-            }
-            if (useCallerLoader) {
-                classLoadersSet.add(callerLoader);
-            }
-            if (useContextLoader) {
-                classLoadersSet.add(contextLoader);
-            }
-        } else {
+        // Find the first caller in the call stack to call a method in the FastClasspathScanner package
+        final String fcsPkgPrefix = FastClasspathScanner.class.getPackage().getName() + ".";
+        ClassLoader callerLoader = null;
+        if (CALLER_RESOLVER == null) {
             if (log != null) {
                 log.log(ClasspathFinder.class.getSimpleName() + " could not create "
                         + CallerResolver.class.getSimpleName() + ", current SecurityManager does not grant "
                         + "RuntimePermission(\"createSecurityManager\")");
             }
+        } else {
+            final Class<?>[] callStack = CALLER_RESOLVER.getClassContext();
+            if (callStack == null) {
+                if (log != null) {
+                    log.log(ClasspathFinder.class.getSimpleName() + ": " + CallerResolver.class.getSimpleName()
+                            + "#getClassContext() returned null");
+                }
+            } else {
+                int fcsIdx;
+                for (fcsIdx = callStack.length - 1; fcsIdx >= 0; --fcsIdx) {
+                    if (callStack[fcsIdx].getName().startsWith(fcsPkgPrefix)) {
+                        break;
+                    }
+                }
+                if (fcsIdx < 0 || fcsIdx == callStack.length - 1) {
+                    // Should not happen
+                    throw new RuntimeException("Could not find caller of " + fcsPkgPrefix + "* in call stack");
+                }
+
+                // Get the caller's current classloader
+                callerLoader = callStack[fcsIdx + 1].getClassLoader();
+            }
         }
+        boolean useCallerLoader = callerLoader != null;
+
+        // Get the context classloader
+        final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
+        boolean useContextLoader = contextLoader != null;
+
+        // Get the system classloader
+        final ClassLoader systemLoader = ClassLoader.getSystemClassLoader();
+        boolean useSystemLoader = systemLoader != null;
+
+        // Establish descendancy relationships, and ignore any classloader that is an ancestor of another.
+        if (useCallerLoader && useContextLoader && isDescendantOf(callerLoader, contextLoader)) {
+            useContextLoader = false;
+        }
+        if (useContextLoader && useCallerLoader && isDescendantOf(contextLoader, callerLoader)) {
+            useCallerLoader = false;
+        }
+        if (useSystemLoader && useContextLoader && isDescendantOf(systemLoader, contextLoader)) {
+            useContextLoader = false;
+        }
+        if (useContextLoader && useSystemLoader && isDescendantOf(contextLoader, systemLoader)) {
+            useSystemLoader = false;
+        }
+        if (useSystemLoader && useCallerLoader && isDescendantOf(systemLoader, callerLoader)) {
+            useCallerLoader = false;
+        }
+        if (useCallerLoader && useSystemLoader && isDescendantOf(callerLoader, systemLoader)) {
+            useSystemLoader = false;
+        }
+        if (!useCallerLoader && !useContextLoader && !useSystemLoader) {
+            // Should not happen
+            throw new RuntimeException("Could not find a usable ClassLoader");
+        }
+        // There will generally only be one class left after this. In rare cases, you may have a separate
+        // callerLoader and contextLoader, but those cases are ill-defined -- see:
+        // http://www.javaworld.com/article/2077344/core-java/find-a-way-out-of-the-classloader-maze.html?page=2
+        // We specifically add the classloaders in the following order however, so that in the case that there
+        // are two of them left, they are resolved in this order. The relative ordering of callerLoader and
+        // contextLoader is due to the recommendation at the above URL.
+        if (useSystemLoader) {
+            classLoadersSet.add(systemLoader);
+        }
+        if (useCallerLoader) {
+            classLoadersSet.add(callerLoader);
+        }
+        if (useContextLoader) {
+            classLoadersSet.add(contextLoader);
+        }
+
         final List<ClassLoader> classLoaders = classLoadersSet.getList();
         if (log != null) {
             for (final ClassLoader classLoader : classLoaders) {
