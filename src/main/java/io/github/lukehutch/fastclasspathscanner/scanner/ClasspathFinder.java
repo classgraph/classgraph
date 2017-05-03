@@ -228,7 +228,6 @@ public class ClasspathFinder {
 
         // Look for classloaders on the call stack
         // Find the first caller in the call stack to call a method in the FastClasspathScanner package
-        final String fcsPkgPrefix = FastClasspathScanner.class.getPackage().getName() + ".";
         ClassLoader callerLoader = null;
         if (CALLER_RESOLVER == null) {
             if (log != null) {
@@ -244,6 +243,7 @@ public class ClasspathFinder {
                             + "#getClassContext() returned null");
                 }
             } else {
+                final String fcsPkgPrefix = FastClasspathScanner.class.getPackage().getName() + ".";
                 int fcsIdx;
                 for (fcsIdx = callStack.length - 1; fcsIdx >= 0; --fcsIdx) {
                     if (callStack[fcsIdx].getName().startsWith(fcsPkgPrefix)) {
