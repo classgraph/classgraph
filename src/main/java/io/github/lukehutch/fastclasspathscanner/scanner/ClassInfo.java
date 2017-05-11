@@ -94,12 +94,38 @@ public class ClassInfo implements Comparable<ClassInfo> {
     }
 
     /**
-     * The classpath element URL(s) (classpath root dir or jar) that this class was found within. Generally this
-     * will consist of exactly one entry, however it's possible for Scala that a class and its companion class will
-     * be provided in different jars.
+     * The classpath element URL(s) (classpath root dir or jar) that this class was found within. For Java, this
+     * will consist of exactly one entry, so you should generally call the getClasspathElementURL() convenience
+     * method instead.
+     * 
+     * For Scala, it is possible (though not likely) that a class and its companion class will be provided in
+     * different jars or different directories, so to be safe, for Scala, you should probably call this method
+     * instead.
      */
     public Set<URL> getClasspathElementURLs() {
         return classpathElementURLs;
+    }
+
+    /**
+     * The classpath element URL (classpath root dir or jar) that this class was found within. This will consist of
+     * exactly one entry for Java.
+     * 
+     * (If calling this from Scala, in the rare but possible case that a class and its companion class is split
+     * between two jarfiles or directories, this will throw IllegalArgumentException.)
+     */
+    public URL getClasspathElementURL() {
+        Iterator<URL> iter = classpathElementURLs.iterator();
+        if (!iter.hasNext()) {
+            // Should not happen
+            throw new IllegalArgumentException("classpathElementURLs set is empty");
+        }
+        URL classpathElementURL = iter.next();
+        if (iter.hasNext()) {
+            throw new IllegalArgumentException("Class " + className
+                    + " has multiple classpath URLs (need to call getClasspathElementURLs() instead): "
+                    + classpathElementURLs);
+        }
+        return classpathElementURL;
     }
 
     /** Compare based on class name. */
