@@ -28,18 +28,10 @@
  */
 package io.github.lukehutch.fastclasspathscanner.scanner;
 
-import java.net.URL;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
+
+import java.net.URL;
+import java.util.*;
 
 /** Holds metadata about a class encountered during a scan. */
 public class ClassInfo implements Comparable<ClassInfo> {
@@ -77,7 +69,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
      * be provided in different jars, so we need to be able to support multiple classpath roots per class, so that
      * classloading can find the class wherever it is, in order to provide MatchProcessors with a class reference.
      */
-    HashSet<URL> classpathElementURLs;
+    private HashSet<URL> classpathElementURLs;
 
     /** The scan spec. */
     private final ScanSpec scanSpec;
@@ -99,6 +91,15 @@ public class ClassInfo implements Comparable<ClassInfo> {
     /** Get the name of this class. */
     public String getClassName() {
         return className;
+    }
+
+    /**
+     * The classpath element URL(s) (classpath root dir or jar) that this class was found within. Generally this
+     * will consist of exactly one entry, however it's possible for Scala that a class and its companion class will
+     * be provided in different jars.
+     */
+    public Set<URL> getClasspathElementURLs() {
+        return classpathElementURLs;
     }
 
     /** Compare based on class name. */
