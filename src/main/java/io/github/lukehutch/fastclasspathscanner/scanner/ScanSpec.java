@@ -122,13 +122,13 @@ public class ScanSpec {
      * If true, enables the saving of field info during the scan. This information can be obtained using
      * ClassInfo#getFieldInfo(). By default, field info is not saved for efficiency.
      */
-    public boolean saveFieldInfo;
+    public boolean enableFieldInfo;
 
     /**
      * If true, enables the saving of method info during the scan. This information can be obtained using
      * ClassInfo#getMethodInfo(). By default, method info is not saved for efficiency.
      */
-    public boolean saveMethodInfo;
+    public boolean enableMethodInfo;
 
     /**
      * If true, remove "external" classes from consideration (i.e. classes outside of whitelisted packages that are

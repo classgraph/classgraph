@@ -320,7 +320,7 @@ public class FastClasspathScanner {
      * @return this (for method chaining).
      */
     public FastClasspathScanner enableFieldInfo(final boolean enableFieldInfo) {
-        getScanSpec().saveFieldInfo = enableFieldInfo;
+        getScanSpec().enableFieldInfo = enableFieldInfo;
         return this;
     }
 
@@ -345,7 +345,7 @@ public class FastClasspathScanner {
      * @return this (for method chaining).
      */
     public FastClasspathScanner enableMethodInfo(final boolean enableMethodInfo) {
-        getScanSpec().saveMethodInfo = enableMethodInfo;
+        getScanSpec().enableMethodInfo = enableMethodInfo;
         return this;
     }
 

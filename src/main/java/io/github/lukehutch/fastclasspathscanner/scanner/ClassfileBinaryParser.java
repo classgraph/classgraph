@@ -627,7 +627,7 @@ class ClassfileBinaryParser implements AutoCloseable {
             final boolean matchThisStaticFinalField = matchStaticFinalFields && isStaticFinalField
                     && fieldIsVisible;
             if (!fieldIsVisible || //
-                    (!scanSpec.saveFieldInfo && (!scanSpec.enableFieldTypeIndexing && !matchThisStaticFinalField)
+                    (!scanSpec.enableFieldInfo && (!scanSpec.enableFieldTypeIndexing && !matchThisStaticFinalField)
                             && !scanSpec.enableFieldAnnotationIndexing)) {
                 // Skip field
                 readUnsignedShort(); // fieldNameCpIdx
@@ -642,7 +642,7 @@ class ClassfileBinaryParser implements AutoCloseable {
                 final int fieldNameCpIdx = readUnsignedShort();
                 String fieldName = null;
                 boolean isMatchedFieldName = false;
-                if (matchThisStaticFinalField || scanSpec.saveFieldInfo) {
+                if (matchThisStaticFinalField || scanSpec.enableFieldInfo) {
                     // Only decode fieldName if needed
                     fieldName = getConstantPoolString(fieldNameCpIdx);
                     if (matchThisStaticFinalField && staticFinalFieldsToMatch.contains(fieldName)) {
@@ -653,7 +653,7 @@ class ClassfileBinaryParser implements AutoCloseable {
                 final char fieldTypeDescriptorFirstChar = (char) getConstantPoolStringFirstByte(
                         fieldTypeDescriptorCpIdx);
                 String fieldTypeDescriptor = null;
-                if (scanSpec.saveFieldInfo) {
+                if (scanSpec.enableFieldInfo) {
                     // Only decode full type descriptor if it is needed
                     fieldTypeDescriptor = getConstantPoolString(fieldTypeDescriptorCpIdx);
                 }
@@ -667,7 +667,7 @@ class ClassfileBinaryParser implements AutoCloseable {
                 Object fieldConstValue = null;
                 boolean foundFieldConstValue = false;
                 List<String> fieldAnnotationNames = null;
-                if (scanSpec.saveFieldInfo && fieldIsVisible) {
+                if (scanSpec.enableFieldInfo && fieldIsVisible) {
                     fieldAnnotationNames = new ArrayList<>(1);
                 }
                 final int attributesCount = readUnsignedShort();
@@ -676,7 +676,7 @@ class ClassfileBinaryParser implements AutoCloseable {
                     final int attributeLength = readInt(); // == 2
                     // See if field name matches one of the requested names for this class, and if it does,
                     // check if it is initialized with a constant value
-                    if ((isMatchedFieldName || scanSpec.saveFieldInfo)
+                    if ((isMatchedFieldName || scanSpec.enableFieldInfo)
                             && constantPoolStringEquals(attributeNameCpIdx, "ConstantValue")) {
                         // http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.7.2
                         fieldConstValue = getConstantPoolValue(readUnsignedShort());
@@ -735,7 +735,7 @@ class ClassfileBinaryParser implements AutoCloseable {
                         // type parameters, whereas the type descriptor does not.
                         final String fieldTypeSignature = getConstantPoolString(readUnsignedShort());
                         addFieldTypeDescriptorParts(classInfoUnlinked, fieldTypeSignature);
-                    } else if ((scanSpec.saveFieldInfo || scanSpec.enableFieldAnnotationIndexing)
+                    } else if ((scanSpec.enableFieldInfo || scanSpec.enableFieldAnnotationIndexing)
                             && (constantPoolStringEquals(attributeNameCpIdx, "RuntimeVisibleAnnotations")
                                     || (scanSpec.annotationVisibility == RetentionPolicy.CLASS
                                             && constantPoolStringEquals(attributeNameCpIdx,
@@ -777,7 +777,7 @@ class ClassfileBinaryParser implements AutoCloseable {
                         }
                     }
                 }
-                if (scanSpec.saveFieldInfo && fieldIsVisible) {
+                if (scanSpec.enableFieldInfo && fieldIsVisible) {
                     classInfoUnlinked.addFieldInfo(new FieldInfo(fieldName, fieldModifierFlags, fieldTypeDescriptor,
                             fieldConstValue, fieldAnnotationNames));
                 }
@@ -792,7 +792,7 @@ class ClassfileBinaryParser implements AutoCloseable {
 
             String methodName = null;
             String methodTypeDescriptor = null;
-            if (scanSpec.saveMethodInfo) {
+            if (scanSpec.enableMethodInfo) {
                 final int methodNameCpIdx = readUnsignedShort();
                 methodName = getConstantPoolString(methodNameCpIdx);
                 final int methodTypeDescriptorCpIdx = readUnsignedShort();
@@ -805,10 +805,10 @@ class ClassfileBinaryParser implements AutoCloseable {
             final boolean isPublicMethod = ((methodModifierFlags & 0x0001) == 0x0001);
             final boolean methodIsVisible = isPublicMethod || scanSpec.ignoreMethodVisibility;
             List<String> methodAnnotationNames = null;
-            if (scanSpec.saveMethodInfo && methodIsVisible) {
+            if (scanSpec.enableMethodInfo && methodIsVisible) {
                 methodAnnotationNames = new ArrayList<>(1);
             }
-            if (!methodIsVisible || (!scanSpec.saveMethodInfo && !scanSpec.enableMethodAnnotationIndexing)) {
+            if (!methodIsVisible || (!scanSpec.enableMethodInfo && !scanSpec.enableMethodAnnotationIndexing)) {
                 // Skip method attributes
                 for (int j = 0; j < attributesCount; j++) {
                     skip(2); // attribute_name_index
@@ -838,7 +838,7 @@ class ClassfileBinaryParser implements AutoCloseable {
                     }
                 }
             }
-            if (scanSpec.saveMethodInfo && methodIsVisible) {
+            if (scanSpec.enableMethodInfo && methodIsVisible) {
                 final boolean isConstructor = "<init>".equals(methodName);
                 classInfoUnlinked.addMethodInfo(new MethodInfo(isConstructor ? className : methodName,
                         methodModifierFlags, methodTypeDescriptor, methodAnnotationNames, isConstructor));

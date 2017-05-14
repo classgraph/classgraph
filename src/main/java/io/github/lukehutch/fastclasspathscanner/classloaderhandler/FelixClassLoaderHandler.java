@@ -97,7 +97,8 @@ public class FelixClassLoaderHandler implements ClassLoaderHandler {
                                 }
                             }
                         } else {
-                            classpathFinder.addClasspathElement(bundleFile.replace("reference:", JAR_FILE_PREFIX), log);
+                            classpathFinder.addClasspathElement(bundleFile.replace("reference:", JAR_FILE_PREFIX),
+                                    log);
                         }
                     }
                     return true;

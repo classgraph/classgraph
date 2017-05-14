@@ -28,10 +28,19 @@
  */
 package io.github.lukehutch.fastclasspathscanner.scanner;
 
-import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
-
 import java.net.URL;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 
 /** Holds metadata about a class encountered during a scan. */
 public class ClassInfo implements Comparable<ClassInfo> {
@@ -114,12 +123,12 @@ public class ClassInfo implements Comparable<ClassInfo> {
      * between two jarfiles or directories, this will throw IllegalArgumentException.)
      */
     public URL getClasspathElementURL() {
-        Iterator<URL> iter = classpathElementURLs.iterator();
+        final Iterator<URL> iter = classpathElementURLs.iterator();
         if (!iter.hasNext()) {
             // Should not happen
             throw new IllegalArgumentException("classpathElementURLs set is empty");
         }
-        URL classpathElementURL = iter.next();
+        final URL classpathElementURL = iter.next();
         if (iter.hasNext()) {
             throw new IllegalArgumentException("Class " + className
                     + " has multiple classpath URLs (need to call getClasspathElementURLs() instead): "
@@ -1393,11 +1402,11 @@ public class ClassInfo implements Comparable<ClassInfo> {
      *             if FastClasspathScanner#enableMethodInfo() was not called prior to initiating the scan.
      */
     public List<MethodInfo> getMethodInfo() {
-        if (methodInfo == null) {
+        if (!scanSpec.enableMethodInfo) {
             throw new IllegalArgumentException("Cannot get method info without calling "
                     + "FastClasspathScanner#enableMethodInfo() before starting the scan");
         }
-        return methodInfo;
+        return methodInfo == null ? Collections.<MethodInfo> emptyList() : methodInfo;
     }
 
     /**
@@ -1414,9 +1423,12 @@ public class ClassInfo implements Comparable<ClassInfo> {
      *             if FastClasspathScanner#enableMethodInfo() was not called prior to initiating the scan.
      */
     public MethodInfo getMethodInfo(final String methodName) {
-        if (fieldInfo == null) {
+        if (!scanSpec.enableMethodInfo) {
             throw new IllegalArgumentException("Cannot get method info without calling "
                     + "FastClasspathScanner#enableMethodInfo() before starting the scan");
+        }
+        if (methodInfo == null) {
+            return null;
         }
         if (methodNameToMethodInfo == null) {
             // Lazily build reverse mapping cache
@@ -1663,11 +1675,11 @@ public class ClassInfo implements Comparable<ClassInfo> {
      *             if FastClasspathScanner#enableFieldInfo() was not called prior to initiating the scan.
      */
     public List<FieldInfo> getFieldInfo() {
-        if (fieldInfo == null) {
+        if (!scanSpec.enableFieldInfo) {
             throw new IllegalArgumentException("Cannot get field info without calling "
                     + "FastClasspathScanner#enableFieldInfo() before starting the scan");
         }
-        return fieldInfo;
+        return fieldInfo == null ? Collections.<FieldInfo> emptyList() : fieldInfo;
     }
 
     /**
@@ -1684,9 +1696,12 @@ public class ClassInfo implements Comparable<ClassInfo> {
      *             if FastClasspathScanner#enableFieldInfo() was not called prior to initiating the scan.
      */
     public FieldInfo getFieldInfo(final String fieldName) {
-        if (fieldInfo == null) {
+        if (!scanSpec.enableFieldInfo) {
             throw new IllegalArgumentException("Cannot get field info without calling "
                     + "FastClasspathScanner#enableFieldInfo() before starting the scan");
+        }
+        if (fieldInfo == null) {
+            return null;
         }
         if (fieldNameToFieldInfo == null) {
             // Lazily build reverse mapping cache
