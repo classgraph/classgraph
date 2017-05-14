@@ -214,7 +214,7 @@ public class ReflectionUtils {
                     c = typeDescriptor.charAt(i);
                     if (c == '[') {
                         numDims++;
-                    } else if (i == typeDescriptor.length() - 1) {
+                    } else if (i == typeDescriptor.length()) {
                         // No type after '['
                         throw new RuntimeException("Invalid type descriptor: " + typeDescriptor);
                     } else {
