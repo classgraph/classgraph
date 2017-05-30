@@ -106,6 +106,11 @@ public class JarUtils {
                 }
             }
         }
+        
+        // Add special-case path for Mac OS X, this is not always picked up
+        // from java.home or java.ext.dirs
+        addJREPath(new File("/System/Library/Java"), jrePathsSet);
+
         JRE_PATHS.addAll(jrePathsSet);
         Collections.sort(JRE_PATHS);
     }
