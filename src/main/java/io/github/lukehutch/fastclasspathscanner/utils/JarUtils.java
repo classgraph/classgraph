@@ -106,7 +106,7 @@ public class JarUtils {
                 }
             }
         }
-        
+
         // Add special-case path for Mac OS X, this is not always picked up
         // from java.home or java.ext.dirs
         addJREPath(new File("/System/Library/Java"), jrePathsSet);
@@ -158,15 +158,18 @@ public class JarUtils {
 
     /** Returns the leafname of a path. */
     public static String leafName(final String path) {
-        final int lastSlashIdx = File.separatorChar == '/' ? path.lastIndexOf('/')
-                : Math.max(path.lastIndexOf('/'), path.lastIndexOf(File.separatorChar));
+        final int bangIdx = path.indexOf("!");
+        final int endIdx = bangIdx >= 0 ? bangIdx : path.length();
+        int leafStartIdx = 1 + (File.separatorChar == '/' ? path.lastIndexOf('/', endIdx)
+                : Math.max(path.lastIndexOf('/', endIdx), path.lastIndexOf(File.separatorChar, endIdx)));
         // In case of temp files (for jars extracted from within jars), remove the temp filename prefix
         // -- see NestedJarHandler.unzipToTempFile()
         int sepIdx = path.indexOf(NestedJarHandler.TEMP_FILENAME_LEAF_SEPARATOR);
         if (sepIdx >= 0) {
-            sepIdx += NestedJarHandler.TEMP_FILENAME_LEAF_SEPARATOR.length() - 1;
+            sepIdx += NestedJarHandler.TEMP_FILENAME_LEAF_SEPARATOR.length();
         }
-        final int maxIdx = Math.max(lastSlashIdx, sepIdx);
-        return maxIdx < 0 ? path : path.substring(maxIdx + 1);
+        leafStartIdx = Math.max(leafStartIdx, sepIdx);
+        leafStartIdx = Math.min(leafStartIdx, endIdx);
+        return path.substring(leafStartIdx, endIdx);
     }
 }

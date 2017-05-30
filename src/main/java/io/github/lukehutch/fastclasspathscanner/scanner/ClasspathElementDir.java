@@ -121,7 +121,7 @@ class ClasspathElementDir extends ClasspathElement {
             return;
         }
         final LogNode dirLog = log == null ? null
-                : log.log(canonicalPath, "Scanning directory: " + dir
+                : log.log(canonicalPath, "Scanning subdirectory path: " + dirRelativePath
                         + (dir.getPath().equals(canonicalPath) ? "" : " ; canonical path: " + canonicalPath));
         for (final File fileInDir : filesInDir) {
             if ((entryIdx[0]++ & 0xff) == 0) {
@@ -149,8 +149,8 @@ class ClasspathElementDir extends ClasspathElement {
                     continue;
                 }
 
-                if (log != null) {
-                    log.log("Found whitelisted file: " + fileInDirRelativePath);
+                if (dirLog != null) {
+                    dirLog.log("Found whitelisted file: " + fileInDirRelativePath);
                 }
                 fileToLastModified.put(fileInDir, fileInDir.lastModified());
 
@@ -163,7 +163,7 @@ class ClasspathElementDir extends ClasspathElement {
                 // Match file paths against path patterns
                 for (final FilePathTesterAndMatchProcessorWrapper fileMatcher : //
                 scanSpec.getFilePathTestersAndMatchProcessorWrappers()) {
-                    if (fileMatcher.filePathMatches(classpathElt, fileInDirRelativePath, log)) {
+                    if (fileMatcher.filePathMatches(classpathElt, fileInDirRelativePath, dirLog)) {
                         // File's relative path matches.
                         fileMatches.put(fileMatcher.fileMatchProcessorWrapper,
                                 new ClasspathResourceInDir(classpathElt, fileInDirRelativePath, fileInDir));

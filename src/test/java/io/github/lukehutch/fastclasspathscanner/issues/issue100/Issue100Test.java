@@ -60,10 +60,13 @@ public class Issue100Test {
                 }).scan();
         assertThat(fieldNames1).containsOnly("a");
 
-        // However, if "...b.jar" is specifically whitelisted, the classloader for "...a.jar" should not 
-        // be used to load the class, it should be skipped. Both "...a.jar" and "...b.jar" contain a
-        // definition of the class issue100.Test, however the definition in "...b.jar" is masked by the
-        // definition of the class in "...a.jar", so there should be no result here.
+        // However, if "...b.jar" is specifically whitelisted, "...a.jar" should not be visible.
+        // Originally, the version of the class in "...a.jar" was supposed to mask the same class
+        // in "...b.jar" (#100). However, this resulted in a slowdown in scan time (#117).
+        // Also, even if "...b.jar" is whitelisted, scanning with a MatchProcessor (which
+        // calls the current classloader) will actually end up loading "...a.jar".
+        // Therefore, the official stance is that using jar whitelisting/blacklisting 
+        // in cases where a class is defined multiple times will result in undefined behavior.
         final ArrayList<String> fieldNames2 = new ArrayList<>();
         new FastClasspathScanner("issue100", "jar:" + bJarName) //
                 .overrideClassLoaders(overrideClassLoader).matchAllClasses(klass -> {
@@ -71,6 +74,6 @@ public class Issue100Test {
                         fieldNames2.add(f.getName());
                     }
                 }).scan();
-        assertThat(fieldNames2).isEmpty();
+        assertThat(fieldNames2).containsOnly("a");
     }
 }

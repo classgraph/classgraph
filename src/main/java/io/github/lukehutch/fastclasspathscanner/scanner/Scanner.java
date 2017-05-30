@@ -29,11 +29,6 @@
 package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import java.io.File;
-import java.io.IOException;
-import java.net.URL;
-import java.nio.file.LinkOption;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -46,9 +41,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 
-import io.github.lukehutch.fastclasspathscanner.utils.FastPathResolver;
 import io.github.lukehutch.fastclasspathscanner.utils.InterruptionChecker;
-import io.github.lukehutch.fastclasspathscanner.utils.JarUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.NestedJarHandler;
 import io.github.lukehutch.fastclasspathscanner.utils.Recycler;
@@ -205,95 +198,101 @@ public class Scanner implements Callable<ScanResult> {
     @Override
     public ScanResult call() throws InterruptedException, ExecutionException {
         final LogNode classpathFinderLog = log == null ? null : log.log("Finding classpath entries");
-        this.nestedJarHandler = new NestedJarHandler(interruptionChecker, log);
+        this.nestedJarHandler = new NestedJarHandler(interruptionChecker, classpathFinderLog);
         try {
             final long scanStart = System.nanoTime();
 
-            // Get current dir (without resolving symlinks), and normalize path by calling
-            // FastPathResolver.resolve()
-            String currDirPathStr = "";
-            try {
-                // Done in steps, so we can provide fine-grained debug info if the current dir doesn't exist (#109)
-                Path currDirPath = Paths.get("").toAbsolutePath();
-                currDirPathStr = currDirPath.toString();
-                currDirPath = currDirPath.normalize();
-                currDirPathStr = currDirPath.toString();
-                currDirPath = currDirPath.toRealPath(LinkOption.NOFOLLOW_LINKS);
-                currDirPathStr = currDirPath.toString();
-                currDirPathStr = FastPathResolver.resolve(currDirPathStr);
-            } catch (final IOException e) {
-                throw new RuntimeException("Could not resolve current directory: " + currDirPathStr, e);
-            }
-
             // Get raw classpath elements
-            final List<String> rawClasspathElementPathStrs = new ClasspathFinder(scanSpec, classpathFinderLog)
-                    .getRawClasspathElements();
-
-            // Create ClasspathElement objects for each raw classpath element path
-            final List<ClasspathRelativePath> rawClasspathElements = new ArrayList<>();
-            for (final String rawClasspathElementPathStr : rawClasspathElementPathStrs) {
-                // Resolve classpath elements relative to current dir, so that paths like "." are handled.
-                final ClasspathRelativePath classpathElt = new ClasspathRelativePath(currDirPathStr,
-                        rawClasspathElementPathStr, nestedJarHandler);
-                rawClasspathElements.add(classpathElt);
-            }
+            final LogNode getRawElementsLog = classpathFinderLog == null ? null
+                    : classpathFinderLog.log("Getting raw classpath elements");
+            final List<ClasspathRelativePath> rawClasspathEltPathsDedupd = new ClasspathFinder(scanSpec,
+                    nestedJarHandler, getRawElementsLog).getRawClasspathElements();
 
             // In parallel, resolve raw classpath elements to canonical paths, creating a ClasspathElement
-            // singleton for each unique canonical path.
+            // singleton for each unique canonical path. Also check jars against jar whitelist/blacklist.a
+            final LogNode recursiveScanLog = classpathFinderLog == null ? null
+                    : classpathFinderLog.log("Scanning file names within each classpath element, "
+                            + "while also searching for \"Class-Path:\" entries within manifest files");
             final ClasspathRelativePathToElementMap classpathElementMap = new ClasspathRelativePathToElementMap(
-                    enableRecursiveScanning, scanSpec, nestedJarHandler, interruptionChecker, classpathFinderLog);
-            try (WorkQueue<ClasspathRelativePath> workQueue = new WorkQueue<>(rawClasspathElements,
+                    enableRecursiveScanning, scanSpec, nestedJarHandler, interruptionChecker, recursiveScanLog);
+            try (WorkQueue<ClasspathRelativePath> workQueue = new WorkQueue<>(rawClasspathEltPathsDedupd,
                     new WorkUnitProcessor<ClasspathRelativePath>() {
                         @Override
-                        public void processWorkUnit(ClasspathRelativePath rawClasspathElt) throws Exception {
+                        public void processWorkUnit(ClasspathRelativePath rawClasspathEltPath) throws Exception {
                             // Check if classpath element is already in the singleton map -- saves needlessly
                             // repeating work in isValidClasspathElement() and createSingleton()
-                            if (classpathElementMap.get(rawClasspathElt) != null) {
-                                if (classpathFinderLog != null) {
-                                    classpathFinderLog.log("Ignoring duplicate classpath element: "
-                                            + rawClasspathElt.getResolvedPath());
+                            // (need to check for duplicates again, even though we checked above, since
+                            // additonal classpath entries can come from Class-Path entries in manifests)
+                            if (classpathElementMap.get(rawClasspathEltPath) != null) {
+                                if (recursiveScanLog != null) {
+                                    recursiveScanLog
+                                            .log("Ignoring duplicate classpath element: " + rawClasspathEltPath);
                                 }
-                            } else if (rawClasspathElt.isValidClasspathElement(scanSpec, classpathFinderLog)) {
+                            } else if (rawClasspathEltPath.isValidClasspathElement(scanSpec, recursiveScanLog)) {
                                 try {
-                                    classpathElementMap.createSingleton(rawClasspathElt);
+                                    boolean isFile = rawClasspathEltPath.isFile();
+                                    boolean isDir = rawClasspathEltPath.isDirectory();
+                                    if (isFile && !scanSpec.scanJars) {
+                                        if (recursiveScanLog != null) {
+                                            recursiveScanLog.log("Ignoring because jar scanning has been disabled: "
+                                                    + rawClasspathEltPath);
+                                        }
+                                    } else if (isFile
+                                            && !scanSpec.jarIsWhitelisted(rawClasspathEltPath.toString())) {
+                                        if (recursiveScanLog != null) {
+                                            recursiveScanLog
+                                                    .log("Ignoring jarfile that is blacklisted or not whitelisted: "
+                                                            + rawClasspathEltPath);
+                                        }
+                                    } else if (isDir && !scanSpec.scanDirs) {
+                                        if (recursiveScanLog != null) {
+                                            recursiveScanLog
+                                                    .log("Ignoring because directory scanning has been disabled: "
+                                                            + rawClasspathEltPath);
+                                        }
+                                    } else {
+                                        // Classpath element is valid, add as a singleton.
+                                        // This will trigger calling the ClasspathElementZip constructor in the
+                                        // case of jarfiles, which will check the manifest file for Class-Path
+                                        // entries, and if any are found, additional work units will be added
+                                        // to the work queue to scan those jarfiles too. If Class-Path entries
+                                        // are found, they are added as child elements of the current classpath
+                                        // element, so that they can be inserted at the correct location in the
+                                        // classpath order.
+                                        classpathElementMap.createSingleton(rawClasspathEltPath);
+                                    }
                                 } catch (Exception e) {
                                     // Could not create singleton, probably due to path canonicalization problem
-                                    classpathFinderLog.log("Classpath element " + rawClasspathElt
+                                    recursiveScanLog.log("Classpath element " + rawClasspathEltPath
                                             + " is not valid (" + e + ") -- skipping");
                                 }
                             }
                         }
-                    }, interruptionChecker, classpathFinderLog)) {
+                    }, interruptionChecker, recursiveScanLog)) {
                 classpathElementMap.setWorkQueue(workQueue);
                 // Start workers, then use this thread to do work too, in case there is only one thread
                 // available in the ExecutorService
-                workQueue.startWorkers(executorService, numParallelTasks - 1, classpathFinderLog);
+                workQueue.startWorkers(executorService, numParallelTasks - 1, recursiveScanLog);
                 workQueue.runWorkLoop();
             }
 
             // Determine total ordering of classpath elements, inserting jars referenced in manifest Class-Path
             // entries in-place into the ordering, if they haven't been listed earlier in the classpath already.
-            List<ClasspathElement> classpathOrder = findClasspathOrder(rawClasspathElements, classpathElementMap);
+            final List<ClasspathElement> classpathOrder = findClasspathOrder(rawClasspathEltPathsDedupd,
+                    classpathElementMap);
 
-            // If system jars are not blacklisted, need to manually add rt.jar at the beginning of the classpath,
-            // because it is included implicitly by the JVM.
-            if (!scanSpec.blacklistSystemJars()) {
-                // There should only be zero or one of these.
-                final String rtJarPath = JarUtils.getRtJarPath();
-                if (rtJarPath != null) {
-                    // Insert rt.jar as the zeroth entry in the classpath.
-                    classpathOrder.add(0,
-                            ClasspathElement.newInstance(
-                                    new ClasspathRelativePath(currDirPathStr, rtJarPath, nestedJarHandler),
-                                    enableRecursiveScanning, scanSpec, nestedJarHandler, /* workQueue = */ null,
-                                    interruptionChecker, classpathFinderLog));
+            // Print final classpath element order, after inserting Class-Path entries from manifest files 
+            if (classpathFinderLog != null) {
+                final LogNode logNode = classpathFinderLog.log("Final classpath element order:");
+                for (int i = 0; i < classpathOrder.size(); i++) {
+                    final ClasspathElement classpathElt = classpathOrder.get(i);
+                    logNode.log(i + ": " + classpathElt);
                 }
             }
 
             if (enableRecursiveScanning) {
+                final LogNode maskLog = log == null ? null : log.log("Masking classpath files");
                 final HashSet<String> classpathRelativePathsFound = new HashSet<>();
-                final ArrayList<ClasspathElement> classpathOrderFiltered = new ArrayList<>();
-                final ArrayList<URL> classpathOrderURLsFiltered = new ArrayList<>();
                 for (int classpathIdx = 0; classpathIdx < classpathOrder.size(); classpathIdx++) {
                     final ClasspathElement classpathElement = classpathOrder.get(classpathIdx);
                     // Implement classpath masking -- if the same relative path occurs multiple times in the
@@ -302,50 +301,14 @@ public class Scanner implements Callable<ScanResult> {
                     // dir scanning is enabled, in order to ensure that class references passed into
                     // MatchProcessors are the same as those that would be loaded by standard classloading.
                     // (See bug #100.)
-                    classpathElement.maskFiles(classpathIdx, classpathRelativePathsFound, log);
-
-                    // Check whether a given classpath element should be scheduled for scanning or not.
-                    // A classpath element is not scanned if (1) it is a jar, and jar scanning is disabled,
-                    // or a jar whitelist was provided in the scan spec, and a given jar is not whitelisted;
-                    // (2) it is a directory, and directory scanning is disabled. 
-                    if (classpathElement.classpathElementFile.isFile() && !scanSpec.scanJars) {
-                        if (log != null) {
-                            log.log(String.format("%06d-2", classpathIdx),
-                                    "Ignoring jarfile, because jar scanning has been disabled: "
-                                            + classpathElement.classpathElementFile);
-                        }
-                    } else if (classpathElement.classpathElementFile.isFile()
-                            && !scanSpec.jarIsWhitelisted(classpathElement.classpathElementFile.getName())) {
-                        if (log != null) {
-                            log.log(String.format("%06d-2", classpathIdx),
-                                    "Ignoring jarfile, because it is not whitelisted: "
-                                            + classpathElement.classpathElementFile);
-                        }
-                    } else if (classpathElement.classpathElementFile.isDirectory() && !scanSpec.scanDirs) {
-                        if (log != null) {
-                            log.log(String.format("%06d-2", classpathIdx),
-                                    "Ignoring directory, because directory scanning has been disabled: "
-                                            + classpathElement.classpathElementFile);
-                        }
-                    } else {
-                        classpathOrderFiltered.add(classpathElement);
-                        classpathOrderURLsFiltered.add(classpathElement.classpathElementURL);
-                    }
-                }
-                classpathOrder = classpathOrderFiltered;
-            }
-
-            if (log != null) {
-                final LogNode logNode = log.log("Classpath element order:");
-                for (int i = 0; i < classpathOrder.size(); i++) {
-                    final ClasspathElement classpathElt = classpathOrder.get(i);
-                    logNode.log(i + ": " + classpathElt);
+                    classpathElement.maskFiles(classpathIdx, classpathRelativePathsFound, maskLog);
                 }
             }
 
             ScanResult scanResult;
             if (enableRecursiveScanning) {
                 // Merge the maps from file to timestamp across all classpath elements
+                // (there will be no overlap in keyspace, since file masking was already performed)
                 final Map<File, Long> fileToLastModified = new HashMap<>();
                 for (final ClasspathElement classpathElement : classpathOrder) {
                     fileToLastModified.putAll(classpathElement.fileToLastModified);
@@ -355,6 +318,7 @@ public class Scanner implements Callable<ScanResult> {
                 final ConcurrentLinkedQueue<ClassInfoUnlinked> classInfoUnlinked = //
                         new ConcurrentLinkedQueue<>();
                 final ConcurrentHashMap<String, String> stringInternMap = new ConcurrentHashMap<>();
+                final LogNode classfileScanLog = log == null ? null : log.log("Scanning classfile binary headers");
                 try (final Recycler<ClassfileBinaryParser, RuntimeException> classfileBinaryParserRecycler = //
                         new Recycler<ClassfileBinaryParser, RuntimeException>() {
                             @Override
@@ -372,14 +336,14 @@ public class Scanner implements Callable<ScanResult> {
                                             classfileBinaryParser = classfileBinaryParserRecycler.acquire();
                                             chunk.classpathElement.parseClassfiles(classfileBinaryParser,
                                                     chunk.classfileStartIdx, chunk.classfileEndIdx, stringInternMap,
-                                                    classInfoUnlinked, log);
+                                                    classInfoUnlinked, classfileScanLog);
                                         } finally {
                                             classfileBinaryParserRecycler.release(classfileBinaryParser);
                                             classfileBinaryParser = null;
                                         }
                                     }
-                                }, interruptionChecker, log)) {
-                    workQueue.startWorkers(executorService, numParallelTasks - 1, log);
+                                }, interruptionChecker, classfileScanLog)) {
+                    workQueue.startWorkers(executorService, numParallelTasks - 1, classfileScanLog);
                     workQueue.runWorkLoop();
                 }
 

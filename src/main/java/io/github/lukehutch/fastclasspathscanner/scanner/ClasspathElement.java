@@ -143,7 +143,8 @@ abstract class ClasspathElement {
             return null;
         }
         final LogNode logNode = log == null ? null
-                : log.log(canonicalPath, "Scanning " + (isDir ? "directory " : "jarfile ") + classpathRelativePath
+                : log.log(canonicalPath, "Scanning " + (isDir ? "directory " : "jarfile ") + "classpath entry "
+                        + classpathRelativePath
                         + (file.getPath().equals(canonicalPath) ? "" : " ; canonical path: " + canonicalPath));
         final ClasspathElement newInstance = isDir
                 ? new ClasspathElementDir(classpathRelativePath, scanSpec, scanFiles, interruptionChecker, logNode)

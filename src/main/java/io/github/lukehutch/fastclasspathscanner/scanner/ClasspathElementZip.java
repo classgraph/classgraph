@@ -236,7 +236,7 @@ class ClasspathElementZip extends ClasspathElement {
             }
 
             if (log != null) {
-                log.log("Found whitelisted file in jarfile: " + relativePath);
+                log.log("Found whitelisted file: " + relativePath);
             }
 
             // Store relative paths of any classfiles encountered

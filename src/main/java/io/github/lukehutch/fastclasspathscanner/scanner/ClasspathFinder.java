@@ -30,18 +30,27 @@ package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.classloaderhandler.ClassLoaderHandler;
 import io.github.lukehutch.fastclasspathscanner.classloaderhandler.ClassLoaderHandlerRegistry;
 import io.github.lukehutch.fastclasspathscanner.utils.AdditionOrderedSet;
+import io.github.lukehutch.fastclasspathscanner.utils.FileUtils;
+import io.github.lukehutch.fastclasspathscanner.utils.JarUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
+import io.github.lukehutch.fastclasspathscanner.utils.NestedJarHandler;
 
 /** A class to find the unique ordered classpath elements. */
 public class ClasspathFinder {
+    private final NestedJarHandler nestedJarHandler;
+    private static String currDirPathStr = FileUtils.getCurrDirPathStr();
+
     /** The list of raw classpath elements. */
-    private final List<String> rawClasspathElements = new ArrayList<>();
+    private final List<ClasspathRelativePath> rawClasspathElements = new ArrayList<>();
+    private final Set<ClasspathRelativePath> rawClasspathElementsSet = new HashSet<>();
 
     /**
      * Add a classpath element relative to a base file. May be called by a ClassLoaderHandler to add classpath
@@ -51,9 +60,17 @@ public class ClasspathFinder {
      */
     public boolean addClasspathElement(final String pathElement, final LogNode log) {
         if (pathElement != null && !pathElement.isEmpty()) {
-            rawClasspathElements.add(pathElement);
-            if (log != null) {
-                log.log("Adding classpath element: " + pathElement);
+            final ClasspathRelativePath classpathEltPath = new ClasspathRelativePath(currDirPathStr, pathElement,
+                    nestedJarHandler);
+            if (rawClasspathElementsSet.add(classpathEltPath)) {
+                rawClasspathElements.add(classpathEltPath);
+                if (log != null) {
+                    log.log("Found classpath element: " + classpathEltPath);
+                }
+            } else {
+                if (log != null) {
+                    log.log("Ignoring duplicate classpath element: " + classpathEltPath);
+                }
             }
             return true;
         }
@@ -79,7 +96,8 @@ public class ClasspathFinder {
     // -------------------------------------------------------------------------------------------------------------
 
     /** A class to find the unique ordered classpath elements. */
-    ClasspathFinder(final ScanSpec scanSpec, final LogNode log) {
+    ClasspathFinder(final ScanSpec scanSpec, final NestedJarHandler nestedJarHandler, final LogNode log) {
+        this.nestedJarHandler = nestedJarHandler;
         if (scanSpec.overrideClasspath != null) {
             // Manual classpath override
             if (scanSpec.overrideClassLoaders) {
@@ -91,6 +109,16 @@ public class ClasspathFinder {
             final LogNode overrideLog = log == null ? null : log.log("Overriding classpath");
             addClasspathElements(scanSpec.overrideClasspath, overrideLog);
         } else {
+            // If system jars are not blacklisted, need to manually add rt.jar at the beginning of the classpath,
+            // because it is included implicitly by the JVM.
+            if (!scanSpec.blacklistSystemJars()) {
+                // There should only be zero or one of these.
+                final String rtJarPath = JarUtils.getRtJarPath();
+                if (rtJarPath != null) {
+                    // Insert rt.jar as the first entry in the classpath.
+                    addClasspathElement(rtJarPath, log);
+                }
+            }
             // Get all default ClassLoaderHandlers
             final List<ClassLoaderHandler> classLoaderHandlers = new ArrayList<>();
             for (final Class<? extends ClassLoaderHandler> classLoaderHandlerClass : //
@@ -176,7 +204,7 @@ public class ClasspathFinder {
     }
 
     /** Get the raw classpath elements obtained from ClassLoaders. */
-    public List<String> getRawClasspathElements() {
+    public List<ClasspathRelativePath> getRawClasspathElements() {
         return rawClasspathElements;
     }
 
