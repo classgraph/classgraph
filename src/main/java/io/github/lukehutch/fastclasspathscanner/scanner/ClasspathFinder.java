@@ -119,8 +119,18 @@ public class ClasspathFinder {
                     addClasspathElement(rtJarPath, log);
                 }
             }
-            // Get all default ClassLoaderHandlers
+            // Get all manually-added ClassLoaderHandlers
             final List<ClassLoaderHandler> classLoaderHandlers = new ArrayList<>();
+            for (final Class<? extends ClassLoaderHandler> classLoaderHandler : scanSpec.extraClassLoaderHandlers) {
+                try {
+                    classLoaderHandlers.add(classLoaderHandler.newInstance());
+                } catch (InstantiationException | IllegalAccessException e) {
+                    if (log != null) {
+                        log.log("Could not instantiate " + classLoaderHandler.getName(), e);
+                    }
+                }
+            }
+            // Add all default ClassLoaderHandlers after manually-added ClassLoaderHandlers
             for (final Class<? extends ClassLoaderHandler> classLoaderHandlerClass : //
             ClassLoaderHandlerRegistry.DEFAULT_CLASS_LOADER_HANDLERS) {
                 try {
@@ -128,16 +138,6 @@ public class ClasspathFinder {
                 } catch (InstantiationException | IllegalAccessException e) {
                     if (log != null) {
                         log.log("Could not instantiate " + classLoaderHandlerClass.getName(), e);
-                    }
-                }
-            }
-            // Get all manually-added ClassLoaderHandlers
-            for (final Class<? extends ClassLoaderHandler> classLoaderHandler : scanSpec.extraClassLoaderHandlers) {
-                try {
-                    classLoaderHandlers.add(classLoaderHandler.newInstance());
-                } catch (InstantiationException | IllegalAccessException e) {
-                    if (log != null) {
-                        log.log("Could not instantiate " + classLoaderHandler.getName(), e);
                     }
                 }
             }
