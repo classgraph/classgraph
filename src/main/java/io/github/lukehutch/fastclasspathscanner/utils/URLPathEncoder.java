@@ -70,7 +70,7 @@ public class URLPathEncoder {
         }
         for (int i = 0; i < path.length(); i++) {
             final int c = path.charAt(i);
-            if (safe[c]) {
+            if (c < 256 && safe[c]) {
                 encodedPath.append((char) c);
             } else {
                 try {
