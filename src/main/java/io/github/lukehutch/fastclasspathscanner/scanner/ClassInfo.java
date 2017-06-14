@@ -80,6 +80,11 @@ public class ClassInfo implements Comparable<ClassInfo> {
      */
     private HashSet<URL> classpathElementURLs;
 
+    /**
+     * The classloaders to try to load this class with before calling a MatchProcessor.
+     */
+    private List<ClassLoader> classLoaders;
+
     /** The scan spec. */
     private final ScanSpec scanSpec;
 
@@ -135,6 +140,11 @@ public class ClassInfo implements Comparable<ClassInfo> {
                     + classpathElementURLs);
         }
         return classpathElementURL;
+    }
+
+    /** Get the ClassLoader(s) to use when trying to load the class. */
+    public List<ClassLoader> getClassLoaders() {
+        return classLoaders;
     }
 
     /** Compare based on class name. */
@@ -504,7 +514,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
      */
     static ClassInfo addScannedClass(final String className, final boolean isInterface, final boolean isAnnotation,
             final ScanSpec scanSpec, final Map<String, ClassInfo> classNameToClassInfo,
-            final URL classpathElementURL, final LogNode log) {
+            final ClasspathElement classpathElement, final LogNode log) {
         // Handle Scala auxiliary classes (companion objects ending in "$" and trait methods classes
         // ending in "$class")
         final boolean isCompanionObjectClass = className.endsWith("$");
@@ -537,7 +547,16 @@ public class ClassInfo implements Comparable<ClassInfo> {
         if (classInfo.classpathElementURLs == null) {
             classInfo.classpathElementURLs = new HashSet<>();
         }
-        classInfo.classpathElementURLs.add(classpathElementURL);
+        classInfo.classpathElementURLs.add(classpathElement.getClasspathElementURL());
+
+        // Remember which classpath element(s) the class was found in, for classloading
+        final List<ClassLoader> classLoaderList = classpathElement.getClassLoaders();
+        if (classLoaderList != null) {
+            if (classInfo.classLoaders == null) {
+                classInfo.classLoaders = new ArrayList<>();
+            }
+            classInfo.classLoaders.addAll(classLoaderList);
+        }
 
         // Mark the appropriate class type as scanned (aux classes all need to be merged into a single
         // ClassInfo object for Scala, but we only want to use the first instance of a given class on the

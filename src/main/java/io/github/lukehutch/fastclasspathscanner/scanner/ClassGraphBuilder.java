@@ -29,6 +29,7 @@
 package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -39,17 +40,29 @@ class ClassGraphBuilder {
     final Map<String, ClassInfo> classNameToClassInfo;
     private final ScanSpec scanSpec;
     private final Set<ClassInfo> allClassInfo;
+    private final Map<String, List<ClassLoader>> classNameToClassLoaders = new HashMap<>();
 
     /** Builds the class graph, and provides methods for querying it. */
     ClassGraphBuilder(final ScanSpec scanSpec, final Map<String, ClassInfo> classNameToClassInfo) {
         this.scanSpec = scanSpec;
         this.classNameToClassInfo = classNameToClassInfo;
         this.allClassInfo = new HashSet<>(classNameToClassInfo.values());
+        for (final ClassInfo classInfo : this.allClassInfo) {
+            final List<ClassLoader> classLoaders = classInfo.getClassLoaders();
+            if (classLoaders != null) {
+                classNameToClassLoaders.put(classInfo.getClassName(), classLoaders);
+            }
+        }
     }
 
     /** Get a map from class name to ClassInfo for the class. */
     Map<String, ClassInfo> getClassNameToClassInfo() {
         return classNameToClassInfo;
+    }
+
+    /** Get a map from class name to ClassLoader(s) for the class. */
+    public Map<String, List<ClassLoader>> getClassNameToClassLoaders() {
+        return classNameToClassLoaders;
     }
 
     // -------------------------------------------------------------------------------------------------------------

@@ -30,6 +30,7 @@ package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -55,48 +56,134 @@ public class ClasspathFinder {
     /**
      * Add a classpath element relative to a base file. May be called by a ClassLoaderHandler to add classpath
      * elements that it knows about.
+     */
+    private void addClasspathElement(final ClasspathRelativePath classpathEltPath, final LogNode log) {
+        if (rawClasspathElementsSet.add(classpathEltPath)) {
+            rawClasspathElements.add(classpathEltPath);
+            if (log != null) {
+                log.log("Found classpath element: " + classpathEltPath);
+            }
+        } else {
+            if (log != null) {
+                log.log("Ignoring duplicate classpath element: " + classpathEltPath);
+            }
+        }
+    }
+
+    /**
+     * Add a classpath element relative to a base file. May be called by a ClassLoaderHandler to add classpath
+     * elements that it knows about.
+     * 
+     * @param pathElement
+     *            the URL or path of the classpath element.
+     * @param classLoader
+     *            the ClassLoader that this classpath element was obtained from.
+     * @param log
+     *            the LogNode instance to use if logging in verbose mode.
      * 
      * @return true (and add the classpath element) if pathElement is not null or empty, otherwise return false.
      */
-    public boolean addClasspathElement(final String pathElement, final LogNode log) {
-        if (pathElement != null && !pathElement.isEmpty()) {
-            final ClasspathRelativePath classpathEltPath = new ClasspathRelativePath(currDirPathStr, pathElement,
-                    nestedJarHandler);
-            if (rawClasspathElementsSet.add(classpathEltPath)) {
-                rawClasspathElements.add(classpathEltPath);
-                if (log != null) {
-                    log.log("Found classpath element: " + classpathEltPath);
-                }
-            } else {
-                if (log != null) {
-                    log.log("Ignoring duplicate classpath element: " + classpathEltPath);
-                }
-            }
+    public boolean addClasspathElement(final String pathElement, final ClassLoader classLoader, final LogNode log) {
+        if (pathElement == null || pathElement.isEmpty()) {
+            return false;
+        } else {
+            addClasspathElement(new ClasspathRelativePath(currDirPathStr, pathElement, Arrays.asList(classLoader),
+                    nestedJarHandler), log);
             return true;
         }
-        return false;
+    }
+
+    /**
+     * Add a classpath element relative to a base file. May be called by a ClassLoaderHandler to add classpath
+     * elements that it knows about.
+     * 
+     * @param pathElement
+     *            the URL or path of the classpath element.
+     * @param classLoaders
+     *            the ClassLoader(s) that this classpath element was obtained from.
+     * @param log
+     *            the LogNode instance to use if logging in verbose mode.
+     * 
+     * @return true (and add the classpath element) if pathElement is not null or empty, otherwise return false.
+     */
+    public boolean addClasspathElement(final String pathElement, final List<ClassLoader> classLoaders,
+            final LogNode log) {
+        if (pathElement == null || pathElement.isEmpty()) {
+            return false;
+        } else {
+            addClasspathElement(
+                    new ClasspathRelativePath(currDirPathStr, pathElement, classLoaders, nestedJarHandler), log);
+            return true;
+        }
     }
 
     /**
      * Add classpath elements, separated by the system path separator character. May be called by a
      * ClassLoaderHandler to add a path string that it knows about.
      * 
+     * @param pathStr
+     *            the delimited string of URLs or paths of the classpath.
+     * @param classLoader
+     *            the ClassLoader that this classpath was obtained from.
+     * @param log
+     *            the LogNode instance to use if logging in verbose mode.
+     * 
      * @return true (and add the classpath element) if pathElement is not null or empty, otherwise return false.
      */
-    public boolean addClasspathElements(final String pathStr, final LogNode log) {
-        if (pathStr != null && !pathStr.isEmpty()) {
+    public boolean addClasspathElements(final String pathStr, final ClassLoader classLoader, final LogNode log) {
+        if (pathStr == null || pathStr.isEmpty()) {
+            return false;
+        } else {
             for (final String pathElement : pathStr.split(File.pathSeparator)) {
-                addClasspathElement(pathElement, log);
+                addClasspathElement(pathElement, classLoader, log);
             }
             return true;
         }
-        return false;
+    }
+
+    /**
+     * Add classpath elements, separated by the system path separator character. May be called by a
+     * ClassLoaderHandler to add a path string that it knows about.
+     * 
+     * @param pathStr
+     *            the delimited string of URLs or paths of the classpath.
+     * @param classLoaders
+     *            the ClassLoader(s) that this classpath was obtained from.
+     * @param log
+     *            the LogNode instance to use if logging in verbose mode.
+     * 
+     * @return true (and add the classpath element) if pathElement is not null or empty, otherwise return false.
+     */
+    public boolean addClasspathElements(final String pathStr, final List<ClassLoader> classLoaders,
+            final LogNode log) {
+        if (pathStr == null || pathStr.isEmpty()) {
+            return false;
+        } else {
+            for (final String pathElement : pathStr.split(File.pathSeparator)) {
+                addClasspathElement(pathElement, classLoaders, log);
+            }
+            return true;
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
 
     /** A class to find the unique ordered classpath elements. */
     ClasspathFinder(final ScanSpec scanSpec, final NestedJarHandler nestedJarHandler, final LogNode log) {
+        // Get all classloaders, in classpath resolution order
+        final AdditionOrderedSet<ClassLoader> allClassLoaders = new AdditionOrderedSet<>();
+        for (final ClassLoader classLoader : scanSpec.classLoaders) {
+            final ArrayList<ClassLoader> parentClassLoaders = new ArrayList<>();
+            for (ClassLoader cl = classLoader; cl != null; cl = cl.getParent()) {
+                parentClassLoaders.add(cl);
+            }
+            // OpenJDK calls classloaders in a top-down order
+            for (int i = parentClassLoaders.size() - 1; i >= 0; --i) {
+                allClassLoaders.add(parentClassLoaders.get(i));
+            }
+        }
+        final List<ClassLoader> classLoaderOrder = allClassLoaders.getList();
+
         this.nestedJarHandler = nestedJarHandler;
         if (scanSpec.overrideClasspath != null) {
             // Manual classpath override
@@ -107,7 +194,12 @@ public class ClasspathFinder {
                 }
             }
             final LogNode overrideLog = log == null ? null : log.log("Overriding classpath");
-            addClasspathElements(scanSpec.overrideClasspath, overrideLog);
+            addClasspathElements(scanSpec.overrideClasspath, classLoaderOrder, overrideLog);
+            if (overrideLog != null) {
+                log.log("WARNING: when the classpath is overridden, there is no guarantee that the classes "
+                        + "found by classpath scanning will be the same as the classes loaded by the context "
+                        + "classloader");
+            }
         } else {
             // If system jars are not blacklisted, need to manually add rt.jar at the beginning of the classpath,
             // because it is included implicitly by the JVM.
@@ -116,7 +208,7 @@ public class ClasspathFinder {
                 final String rtJarPath = JarUtils.getRtJarPath();
                 if (rtJarPath != null) {
                     // Insert rt.jar as the first entry in the classpath.
-                    addClasspathElement(rtJarPath, log);
+                    addClasspathElement(rtJarPath, classLoaderOrder, log);
                 }
             }
             // Get all manually-added ClassLoaderHandlers
@@ -147,21 +239,6 @@ public class ClasspathFinder {
                     classLoaderHandlerLog.log(classLoaderHandler.getClass().getName());
                 }
             }
-
-            // Get all classloaders, including parent classloaders up to the bootstrap classloader,
-            // in classpath resolution order
-            final AdditionOrderedSet<ClassLoader> allClassLoaders = new AdditionOrderedSet<>();
-            for (final ClassLoader classLoader : scanSpec.classLoaders) {
-                final ArrayList<ClassLoader> parentClassLoaders = new ArrayList<>();
-                for (ClassLoader cl = classLoader; cl != null; cl = cl.getParent()) {
-                    parentClassLoaders.add(cl);
-                }
-                // OpenJDK calls classloaders in a top-down order
-                for (int i = parentClassLoaders.size() - 1; i >= 0; --i) {
-                    allClassLoaders.add(parentClassLoaders.get(i));
-                }
-            }
-            final List<ClassLoader> classLoaderOrder = allClassLoaders.getList();
 
             // Try finding a handler for each of the classloaders discovered above
             for (final ClassLoader classLoader : classLoaderOrder) {
@@ -198,7 +275,7 @@ public class ClasspathFinder {
                 // non-standard classloader that uses this property
                 final LogNode sysPropLog = log == null ? null
                         : log.log("Getting classpath entries from java.class.path");
-                addClasspathElements(System.getProperty("java.class.path"), sysPropLog);
+                addClasspathElements(System.getProperty("java.class.path"), classLoaderOrder, sysPropLog);
             }
         }
     }

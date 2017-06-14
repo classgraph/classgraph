@@ -29,7 +29,9 @@
 package io.github.lukehutch.fastclasspathscanner.classloaderhandler;
 
 import java.lang.reflect.Array;
+import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 
 import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
@@ -40,7 +42,8 @@ public class EquinoxClassLoaderHandler implements ClassLoaderHandler {
     private boolean readSystemBundles = false;
 
     private boolean addBundleFile(final Object bundlefile, final HashSet<Object> path,
-            final ClasspathFinder classpathFinder, final LogNode log) throws Exception {
+            final List<ClassLoader> classLoaders, final ClasspathFinder classpathFinder, final LogNode log)
+            throws Exception {
         boolean handled = false;
         if (bundlefile != null) {
             // Don't get stuck in infinite loop
@@ -54,29 +57,30 @@ public class EquinoxClassLoaderHandler implements ClassLoaderHandler {
                         // We found the base file and a classpath
                         // element, e.g. "bin/"
                         handled |= classpathFinder.addClasspathElement(basefile.toString() + "/" + cp.toString(),
-                                log);
+                                classLoaders, log);
                     } else {
                         // No classpath element found, just use basefile
-                        handled |= classpathFinder.addClasspathElement(basefile.toString(), log);
+                        handled |= classpathFinder.addClasspathElement(basefile.toString(), classLoaders, log);
                     }
                 }
-                handled |= addBundleFile(ReflectionUtils.getFieldVal(bundlefile, "wrapped"), path, classpathFinder,
-                        log);
-                handled |= addBundleFile(ReflectionUtils.getFieldVal(bundlefile, "next"), path, classpathFinder,
-                        log);
+                handled |= addBundleFile(ReflectionUtils.getFieldVal(bundlefile, "wrapped"), path, classLoaders,
+                        classpathFinder, log);
+                handled |= addBundleFile(ReflectionUtils.getFieldVal(bundlefile, "next"), path, classLoaders,
+                        classpathFinder, log);
             }
         }
         return handled;
     }
 
     @Override
-    public boolean handle(final ClassLoader classloader, final ClasspathFinder classpathFinder, final LogNode log)
+    public boolean handle(final ClassLoader classLoader, final ClasspathFinder classpathFinder, final LogNode log)
             throws Exception {
         boolean handled = false;
-        for (Class<?> c = classloader.getClass(); c != null; c = c.getSuperclass()) {
+        final List<ClassLoader> classLoaders = Arrays.asList(classLoader);
+        for (Class<?> c = classLoader.getClass(); c != null; c = c.getSuperclass()) {
             if ("org.eclipse.osgi.internal.loader.EquinoxClassLoader".equals(c.getName())) {
                 // type ClasspathManager
-                final Object manager = ReflectionUtils.getFieldVal(classloader, "manager");
+                final Object manager = ReflectionUtils.getFieldVal(classLoader, "manager");
                 // type ClasspathEntry[]
                 final Object entries = ReflectionUtils.getFieldVal(manager, "entries");
                 if (entries != null) {
@@ -85,7 +89,7 @@ public class EquinoxClassLoaderHandler implements ClassLoaderHandler {
                         final Object entry = Array.get(entries, i);
                         // type BundleFile
                         final Object bundlefile = ReflectionUtils.getFieldVal(entry, "bundlefile");
-                        handled |= addBundleFile(bundlefile, new HashSet<>(), classpathFinder, log);
+                        handled |= addBundleFile(bundlefile, new HashSet<>(), classLoaders, classpathFinder, log);
                     }
                 }
                 // Only read system bundles once (all bundles should give the
@@ -94,7 +98,7 @@ public class EquinoxClassLoaderHandler implements ClassLoaderHandler {
                 // classpath.
                 if (!readSystemBundles) {
                     // type BundleLoader
-                    final Object delegate = ReflectionUtils.getFieldVal(classloader, "delegate");
+                    final Object delegate = ReflectionUtils.getFieldVal(classLoaders, "delegate");
                     // type EquinoxContainer
                     final Object container = ReflectionUtils.getFieldVal(delegate, "container");
                     // type Storage
@@ -126,7 +130,7 @@ public class EquinoxClassLoaderHandler implements ClassLoaderHandler {
                                 final int fileIdx = location.indexOf("file:");
                                 if (fileIdx >= 0) {
                                     location = location.substring(fileIdx);
-                                    handled |= classpathFinder.addClasspathElement(location, log);
+                                    handled |= classpathFinder.addClasspathElement(location, classLoaders, log);
                                 }
                             }
                         }

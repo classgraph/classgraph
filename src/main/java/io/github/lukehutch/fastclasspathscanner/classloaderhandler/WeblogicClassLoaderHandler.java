@@ -37,12 +37,12 @@ import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
  */
 public class WeblogicClassLoaderHandler implements ClassLoaderHandler {
     @Override
-    public boolean handle(final ClassLoader classloader, final ClasspathFinder classpathFinder, final LogNode log)
+    public boolean handle(final ClassLoader classLoader, final ClasspathFinder classpathFinder, final LogNode log)
             throws Exception {
-        for (Class<?> c = classloader.getClass(); c != null; c = c.getSuperclass()) {
+        for (Class<?> c = classLoader.getClass(); c != null; c = c.getSuperclass()) {
             if ("weblogic.utils.classloaders.ChangeAwareClassLoader".equals(c.getName())) {
-                final String classpath = (String) ReflectionUtils.invokeMethod(classloader, "getClassPath");
-                return classpathFinder.addClasspathElements(classpath, log);
+                final String classpath = (String) ReflectionUtils.invokeMethod(classLoader, "getClassPath");
+                return classpathFinder.addClasspathElements(classpath, classLoader, log);
             }
         }
         return false;

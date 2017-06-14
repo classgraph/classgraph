@@ -47,7 +47,7 @@ public interface ClassLoaderHandler {
      * ClasspathFinder using classpathFinder.addClasspathElement(pathElement) or
      * classpathFinder.addClasspathElements(path).
      * 
-     * @param classloader
+     * @param classLoader
      *            The ClassLoader class to attempt to handle. If you can't directly use instanceof (because you are
      *            using introspection so that your ClassLoaderHandler implementation can be added to the upstream
      *            FastClasspathScanner project), you should iterate through the ClassLoader's superclass lineage to
@@ -59,6 +59,6 @@ public interface ClassLoaderHandler {
      *            to view it.
      * @return true if the passed ClassLoader was handled by this ClassLoaderHandler, else false.
      */
-    public abstract boolean handle(final ClassLoader classloader, final ClasspathFinder classpathFinder,
+    public abstract boolean handle(final ClassLoader classLoader, final ClasspathFinder classpathFinder,
             LogNode log) throws Exception;
 }

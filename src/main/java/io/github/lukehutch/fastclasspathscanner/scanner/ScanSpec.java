@@ -718,7 +718,7 @@ public class ScanSpec {
     Class<?> loadClass(final String className, final ScanResult scanResult, final LogNode log)
             throws IllegalArgumentException {
         // Try loading class via each classloader in turn
-        for (final ClassLoader classLoader : classLoaders) {
+        for (final ClassLoader classLoader : scanResult.getClassLoadersForClass(className)) {
             try {
                 return Class.forName(className, initializeLoadedClasses, classLoader);
             } catch (final ClassNotFoundException e) {

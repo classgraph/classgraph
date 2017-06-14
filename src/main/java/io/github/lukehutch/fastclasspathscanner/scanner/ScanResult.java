@@ -92,14 +92,28 @@ public class ScanResult {
         this.classpathElementOrderFiles = new ArrayList<>();
         this.classpathElementOrderURLs = new ArrayList<>();
         for (final ClasspathElement classpathElement : classpathOrder) {
-            classpathElementOrderFiles.add(classpathElement.classpathElementFile);
-            classpathElementOrderURLs.add(classpathElement.classpathElementURL);
+            classpathElementOrderFiles.add(classpathElement.getClasspathElementFile());
+            classpathElementOrderURLs.add(classpathElement.getClasspathElementURL());
         }
         this.fileToLastModified = fileToLastModified;
         this.classGraphBuilder = classGraphBuilder;
         this.nestedJarHandler = nestedJarHandler;
         this.interruptionChecker = interruptionChecker;
         this.log = log;
+    }
+
+    /**
+     * Find the classloader(s) for the named class. Typically there will only be one ClassLoader returned. However,
+     * if more than one is returned, they should be called in turn until one is able to load the class.
+     */
+    public List<ClassLoader> getClassLoadersForClass(final String className) {
+        final List<ClassLoader> classLoaders = classGraphBuilder.getClassNameToClassLoaders().get(className);
+        if (classLoaders != null) {
+            return classLoaders;
+        } else {
+            // Default to context classloader(s) if classpath element didn't have specified classloader(s)
+            return scanSpec.classLoaders;
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -686,8 +700,8 @@ public class ScanResult {
                 return Collections.<Class<?>> emptyList();
             } else {
                 final List<Class<?>> classRefs = new ArrayList<>();
+                // Try loading each class
                 for (final String className : classNames) {
-                    // Try loading each class
                     if (ignoreExceptions) {
                         try {
                             classRefs.add(scanSpec.loadClass(className, this, log));

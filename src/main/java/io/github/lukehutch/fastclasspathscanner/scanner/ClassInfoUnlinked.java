@@ -28,7 +28,6 @@
  */
 package io.github.lukehutch.fastclasspathscanner.scanner;
 
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -58,7 +57,7 @@ class ClassInfoUnlinked {
     private Set<String> fieldTypes;
     private Map<String, Object> staticFinalFieldValues;
     private final ConcurrentHashMap<String, String> stringInternMap;
-    private final URL classpathElementURL;
+    private final ClasspathElement classpathElement;
     List<FieldInfo> fieldInfoList;
     List<MethodInfo> methodInfoList;
 
@@ -71,12 +70,12 @@ class ClassInfoUnlinked {
     }
 
     ClassInfoUnlinked(final String className, final boolean isInterface, final boolean isAnnotation,
-            final ConcurrentHashMap<String, String> stringInternMap, final URL classpathElementURL) {
+            final ConcurrentHashMap<String, String> stringInternMap, final ClasspathElement classpathElement) {
         this.stringInternMap = stringInternMap;
         this.className = intern(className);
         this.isInterface = isInterface;
         this.isAnnotation = isAnnotation;
-        this.classpathElementURL = classpathElementURL;
+        this.classpathElement = classpathElement;
     }
 
     void addSuperclass(final String superclassName) {
@@ -142,7 +141,7 @@ class ClassInfoUnlinked {
     /** Link classes. Not threadsafe, should be run in a single-threaded context. */
     void link(final ScanSpec scanSpec, final Map<String, ClassInfo> classNameToClassInfo, final LogNode log) {
         final ClassInfo classInfo = ClassInfo.addScannedClass(className, isInterface, isAnnotation, scanSpec,
-                classNameToClassInfo, classpathElementURL, log);
+                classNameToClassInfo, classpathElement, log);
         if (superclassName != null) {
             classInfo.addSuperclass(superclassName, classNameToClassInfo);
         }

@@ -30,6 +30,8 @@ package io.github.lukehutch.fastclasspathscanner.classloaderhandler;
 
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.util.Arrays;
+import java.util.List;
 
 import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
@@ -37,14 +39,15 @@ import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 /** ClassLoaderHandler that is able to extract the URLs from a URLClassLoader. */
 public class URLClassLoaderHandler implements ClassLoaderHandler {
     @Override
-    public boolean handle(final ClassLoader classloader, final ClasspathFinder classpathFinder, final LogNode log) {
+    public boolean handle(final ClassLoader classLoader, final ClasspathFinder classpathFinder, final LogNode log) {
         boolean handled = false;
-        if (classloader instanceof URLClassLoader) {
-            final URL[] urls = ((URLClassLoader) classloader).getURLs();
+        final List<ClassLoader> classLoaders = Arrays.asList(classLoader);
+        if (classLoader instanceof URLClassLoader) {
+            final URL[] urls = ((URLClassLoader) classLoader).getURLs();
             if (urls != null) {
                 for (final URL url : urls) {
                     if (url != null) {
-                        handled = classpathFinder.addClasspathElement(url.toString(), log);
+                        handled = classpathFinder.addClasspathElement(url.toString(), classLoaders, log);
                     }
                 }
             }

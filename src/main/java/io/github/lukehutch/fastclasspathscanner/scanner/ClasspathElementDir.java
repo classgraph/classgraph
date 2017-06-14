@@ -213,8 +213,8 @@ class ClasspathElementDir extends ClasspathElement {
             try (InputStream inputStream = new FileInputStream(relativePathFile)) {
                 // Parse classpath binary format, creating a ClassInfoUnlinked object
                 final ClassInfoUnlinked thisClassInfoUnlinked = classfileBinaryParser
-                        .readClassInfoFromClassfileHeader(classpathElementURL, classfileResource.relativePath,
-                                inputStream, scanSpec, stringInternMap, log);
+                        .readClassInfoFromClassfileHeader(this, classfileResource.relativePath, inputStream,
+                                scanSpec, stringInternMap, log);
                 // If class was successfully read, output new ClassInfoUnlinked object
                 if (thisClassInfoUnlinked != null) {
                     classInfoUnlinked.add(thisClassInfoUnlinked);

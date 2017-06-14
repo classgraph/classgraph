@@ -52,14 +52,8 @@ import io.github.lukehutch.fastclasspathscanner.utils.WorkQueue;
 
 /** A classpath element (a directory or jarfile on the classpath). */
 abstract class ClasspathElement {
-    /** The File for this classpath element. */
-    final File classpathElementFile;
-
-    /** The path for this classpath element, possibly including a '!' jar-internal path suffix. */
-    private final String classpathElementFilePath;
-
-    /** The URL for the File of this classpath element. */
-    final URL classpathElementURL;
+    /** The classpath element path. */
+    final ClasspathRelativePath classpathEltPath;
 
     /** True if there was an exception when trying to open this classpath element (e.g. a corrupt ZipFile). */
     boolean ioExceptionOnOpen;
@@ -97,27 +91,46 @@ abstract class ClasspathElement {
     /** A classpath element (a directory or jarfile on the classpath). */
     ClasspathElement(final ClasspathRelativePath classpathEltPath, final ScanSpec scanSpec, final boolean scanFiles,
             final InterruptionChecker interruptionChecker, final LogNode log) {
+        this.classpathEltPath = classpathEltPath;
         this.scanSpec = scanSpec;
         this.scanFiles = scanFiles;
         this.interruptionChecker = interruptionChecker;
-        try {
-            this.classpathElementFile = classpathEltPath.getFile();
-            this.classpathElementFilePath = classpathEltPath.toString();
-            try {
-                this.classpathElementURL = classpathElementFile.toURI().toURL();
-            } catch (final MalformedURLException e) {
-                throw new RuntimeException(e);
-            }
-        } catch (final IOException e) {
-            // Shouldn't happen, files have already been screened for this
-            throw new RuntimeException(e);
-        }
     }
 
     /** Return the classpath element's path. */
     @Override
     public String toString() {
-        return classpathElementFilePath;
+        return getClasspathElementFilePath();
+    }
+
+    /** Return the classpath element's URL */
+    public URL getClasspathElementURL() {
+        try {
+            return getClasspathElementFile().toURI().toURL();
+        } catch (final MalformedURLException e) {
+            // Shouldn't happen; File objects should always be able to be turned into URIs and then URLs
+            throw new RuntimeException(e);
+        }
+    }
+
+    /** Return the classpath element's file (directory or jarfile) */
+    public File getClasspathElementFile() {
+        try {
+            return classpathEltPath.getFile();
+        } catch (final IOException e) {
+            // Shouldn't happen; files have already been screened for IOException during canonicalization
+            throw new RuntimeException(e);
+        }
+    }
+
+    /** The path for this classpath element, possibly including a '!' jar-internal path suffix. */
+    public String getClasspathElementFilePath() {
+        return classpathEltPath.toString();
+    }
+
+    /** Get the ClassLoader(s) to use when trying to load the class. */
+    public List<ClassLoader> getClassLoaders() {
+        return classpathEltPath.getClassLoaders();
     }
 
     /**

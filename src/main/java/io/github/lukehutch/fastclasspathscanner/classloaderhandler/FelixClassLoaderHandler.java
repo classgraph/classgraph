@@ -28,7 +28,9 @@
  */
 package io.github.lukehutch.fastclasspathscanner.classloaderhandler;
 
+import java.util.Arrays;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -53,13 +55,13 @@ public class FelixClassLoaderHandler implements ClassLoaderHandler {
     private static final String BY_COMMA = ",";
 
     @Override
-    public boolean handle(final ClassLoader classloader, final ClasspathFinder classpathFinder, final LogNode log)
+    public boolean handle(final ClassLoader classLoader, final ClasspathFinder classpathFinder, final LogNode log)
             throws Exception {
-
-        for (Class<?> c = classloader.getClass(); c != null; c = c.getSuperclass()) {
+        final List<ClassLoader> classLoaders = Arrays.asList(classLoader);
+        for (Class<?> c = classLoader.getClass(); c != null; c = c.getSuperclass()) {
             if ("org.apache.felix.framework.BundleWiringImpl$BundleClassLoaderJava5".equals(c.getName())) {
                 // Type: BundleImpl
-                final Object m_wiring = ReflectionUtils.getFieldVal(classloader, "m_wiring");
+                final Object m_wiring = ReflectionUtils.getFieldVal(classLoader, "m_wiring");
                 // Type: Bundle
                 final Object bundle = ReflectionUtils.invokeMethod(m_wiring, "getBundle");
 
@@ -75,7 +77,7 @@ public class FelixClassLoaderHandler implements ClassLoaderHandler {
                 if (bundleHeaders != null && !bundleHeaders.isEmpty()) {
                     // Add bundleFile
                     final String bundleFile = (String) bundlefileLocation;
-                    classpathFinder.addClasspathElement(bundleFile, log);
+                    classpathFinder.addClasspathElement(bundleFile, classLoaders, log);
 
                     // Should find one element only
                     final Iterator<Entry<String, Map<?, ?>>> it = bundleHeaders.entrySet().iterator();
@@ -93,12 +95,12 @@ public class FelixClassLoaderHandler implements ClassLoaderHandler {
                                 if (!splitJars[i].isEmpty()) {
                                     final String jarPath = JAR_FILE_PREFIX + bundleFile + JAR_FILE_DELIM
                                             + splitJars[i];
-                                    classpathFinder.addClasspathElement(jarPath, log);
+                                    classpathFinder.addClasspathElement(jarPath, classLoaders, log);
                                 }
                             }
                         } else {
                             classpathFinder.addClasspathElement(bundleFile.replace("reference:", JAR_FILE_PREFIX),
-                                    log);
+                                    classLoaders, log);
                         }
                     }
                     return true;

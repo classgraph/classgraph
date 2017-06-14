@@ -131,12 +131,12 @@ class ClasspathElementZip extends ClasspathElement {
 
                 // Create child classpath elements from Class-Path entry
                 for (int i = 0; i < fastManifestParser.classPath.size(); i++) {
-                    final String manifestClassPathElt = fastManifestParser.classPath.get(i);
+                    final String manifestClassPathEltPath = fastManifestParser.classPath.get(i);
                     final ClasspathRelativePath childRelativePath = new ClasspathRelativePath(pathOfContainingDir,
-                            manifestClassPathElt, nestedJarHandler);
+                            manifestClassPathEltPath, classpathEltPath.getClassLoaders(), nestedJarHandler);
                     childClasspathElts.add(childRelativePath);
                     if (manifestLog != null) {
-                        manifestLog.log("Found Class-Path entry in manifest: " + manifestClassPathElt + " -> "
+                        manifestLog.log("Found Class-Path entry in manifest: " + manifestClassPathEltPath + " -> "
                                 + childRelativePath);
                     }
                 }
@@ -303,7 +303,7 @@ class ClasspathElementZip extends ClasspathElement {
                 try (InputStream inputStream = zipFile.getInputStream(zipEntry)) {
                     // Parse classpath binary format, creating a ClassInfoUnlinked object
                     final ClassInfoUnlinked thisClassInfoUnlinked = classfileBinaryParser
-                            .readClassInfoFromClassfileHeader(classpathElementURL,
+                            .readClassInfoFromClassfileHeader(this,
                                     classpathResourceInZipFile.pathRelativeToClasspathPrefix, inputStream, scanSpec,
                                     stringInternMap, log);
                     // If class was successfully read, output new ClassInfoUnlinked object
