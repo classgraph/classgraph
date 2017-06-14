@@ -730,9 +730,9 @@ public class ScanResult {
      * @param classNames
      *            The list of names of classes to load.
      * @throws IllegalArgumentException
-     *             if ignoreExceptions is true and an exception is thrown during classloading or class
-     *             initialization. (Note that class initialization on load is not enabled by default, you can enable
-     *             it with FastClasspathScanner#initializeLoadedClasses(true).)
+     *             an exception is thrown during classloading or class initialization. (Note that class
+     *             initialization on load is not enabled by default, you can enable it with
+     *             FastClasspathScanner#initializeLoadedClasses(true).)
      * @return a list of references to the loaded classes.
      */
     public List<Class<?>> classNamesToClassRefs(final List<String> classNames) throws IllegalArgumentException {
