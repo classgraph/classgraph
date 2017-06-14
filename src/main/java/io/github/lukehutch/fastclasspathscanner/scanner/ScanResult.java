@@ -686,9 +686,10 @@ public class ScanResult {
      * @param classNames
      *            The list of names of classes to load.
      * @param ignoreExceptions
-     *            If true, exceptions are ignored during classloading
+     *            If true, exceptions are ignored during classloading, otherwise IllegalArgumentException is thrown
+     *            if a class could not be loaded.
      * @throws IllegalArgumentException
-     *             if ignoreExceptions is true and an exception is thrown during classloading or class
+     *             if ignoreExceptions is false and an exception is thrown during classloading or class
      *             initialization. (Note that class initialization on load is not enabled by default, you can enable
      *             it with FastClasspathScanner#initializeLoadedClasses(true).)
      * @return a list of references to the loaded classes.
@@ -702,14 +703,9 @@ public class ScanResult {
                 final List<Class<?>> classRefs = new ArrayList<>();
                 // Try loading each class
                 for (final String className : classNames) {
-                    if (ignoreExceptions) {
-                        try {
-                            classRefs.add(scanSpec.loadClass(className, this, log));
-                        } catch (final IllegalArgumentException e) {
-                            // Ignore exceptions
-                        }
-                    } else {
-                        classRefs.add(scanSpec.loadClass(className, this, log));
+                    final Class<?> classRef = classNameToClassRef(className);
+                    if (classRef != null) {
+                        classRefs.add(classRef);
                     }
                 }
                 return classRefs.isEmpty() ? Collections.<Class<?>> emptyList() : classRefs;
@@ -738,6 +734,77 @@ public class ScanResult {
     public List<Class<?>> classNamesToClassRefs(final List<String> classNames) throws IllegalArgumentException {
         return classNamesToClassRefs(classNames, /* ignoreExceptions = */ false);
     }
+
+    /**
+     * Produce Class reference given a class name. If ignoreExceptions is false, and the class cannot be loaded (due
+     * to classloading error, or due to an exception being thrown in the class initialization block), an
+     * IllegalArgumentException is thrown; otherwise, the class will simply be skipped if an exception is thrown.
+     * 
+     * Enable verbose scanning to see details of any exceptions thrown during classloading, even if ignoreExceptions
+     * is false.
+     * 
+     * @param classNames
+     *            The list of names of classes to load.
+     * @param ignoreExceptions
+     *            If true, null is returned if there was an exception during classloading, otherwise
+     *            IllegalArgumentException is thrown if a class could not be loaded.
+     * @throws IllegalArgumentException
+     *             if ignoreExceptions is false and an exception is thrown during classloading or class
+     *             initialization. (Note that class initialization on load is not enabled by default, you can enable
+     *             it with FastClasspathScanner#initializeLoadedClasses(true).)
+     * @return a reference to the loaded class, or null if the class could not be loaded and ignoreExceptions is
+     *         true.
+     */
+    public Class<?> classNameToClassRef(final String className, final boolean ignoreExceptions)
+            throws IllegalArgumentException {
+        try {
+            if (className == null || className.isEmpty()) {
+                if (!ignoreExceptions) {
+                    throw new IllegalArgumentException("Class names cannot be null or empty");
+                } else {
+                    return null;
+                }
+            } else {
+                if (ignoreExceptions) {
+                    try {
+                        return scanSpec.loadClass(className, this, log);
+                    } catch (final IllegalArgumentException e) {
+                        // Ignore exceptions
+                        return null;
+                    }
+                } else {
+                    return scanSpec.loadClass(className, this, log);
+                }
+            }
+        } finally {
+            // Manually flush log, since this method is called after scanning is complete
+            if (log != null) {
+                log.flush();
+            }
+        }
+    }
+
+    /**
+     * Produce Class reference given a class name. If the class cannot be loaded (due to classloading error, or due
+     * to an exception being thrown in the class initialization block), an IllegalArgumentException is thrown.
+     * 
+     * Enable verbose scanning to see details of any exceptions thrown during classloading, even if ignoreExceptions
+     * is false.
+     * 
+     * @param classNames
+     *            The list of names of classes to load.
+     * @throws IllegalArgumentException
+     *             if an exception is thrown during classloading or class initialization. (Note that class
+     *             initialization on load is not enabled by default, you can enable it with
+     *             FastClasspathScanner#initializeLoadedClasses(true).)
+     * @return a reference to the loaded class, or null if the class could not be loaded and ignoreExceptions is
+     *         true.
+     */
+    public Class<?> classNameToClassRef(final String className) throws IllegalArgumentException {
+        return classNameToClassRef(className, /* ignoreExceptions = */ false);
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Free any temporary files created by extracting jars from within jars. By default, temporary files are removed
