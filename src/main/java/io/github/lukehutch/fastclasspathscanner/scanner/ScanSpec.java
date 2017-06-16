@@ -762,7 +762,7 @@ public class ScanSpec {
         if (log != null) {
             log.log("No classloader was able to load class " + className);
         }
-        throw new IllegalArgumentException("No classloader was able to find class " + className);
+        throw new IllegalArgumentException("No classloader was able to load class " + className);
     }
 
     /**
