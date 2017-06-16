@@ -749,10 +749,13 @@ public class ScanSpec {
         }
         // As a fallback, try context classloaders, if the classloader(s) tried were different
         if (contextClassLoaders != classLoadersForClassName) {
+            final Set<ClassLoader> alreadyTried = new HashSet<>(classLoadersForClassName);
             for (final ClassLoader classLoader : contextClassLoaders) {
-                final Class<?> classRef = loadClass(className, classLoader, log);
-                if (classRef != null) {
-                    return classRef;
+                if (alreadyTried.add(classLoader)) {
+                    final Class<?> classRef = loadClass(className, classLoader, log);
+                    if (classRef != null) {
+                        return classRef;
+                    }
                 }
             }
         }
