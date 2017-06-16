@@ -172,7 +172,7 @@ public class ClasspathFinder {
     ClasspathFinder(final ScanSpec scanSpec, final NestedJarHandler nestedJarHandler, final LogNode log) {
         // Get all classloaders, in classpath resolution order
         final AdditionOrderedSet<ClassLoader> allClassLoaders = new AdditionOrderedSet<>();
-        for (final ClassLoader classLoader : scanSpec.classLoaders) {
+        for (final ClassLoader classLoader : scanSpec.contextClassLoaders) {
             final ArrayList<ClassLoader> parentClassLoaders = new ArrayList<>();
             for (ClassLoader cl = classLoader; cl != null; cl = cl.getParent()) {
                 parentClassLoaders.add(cl);

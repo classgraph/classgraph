@@ -210,7 +210,7 @@ public class ScanSpec {
     // -------------------------------------------------------------------------------------------------------------
 
     /** All the visible classloaders that were able to be found. */
-    List<ClassLoader> classLoaders;
+    List<ClassLoader> contextClassLoaders;
 
     /**
      * If true, all ClassLoaders have been overriden. In particular, this causes FastClasspathScanner to ignore the
@@ -428,7 +428,7 @@ public class ScanSpec {
         }
 
         // Find classloaders
-        this.classLoaders = ClasspathFinder
+        this.contextClassLoaders = ClasspathFinder
                 .findAllClassLoaders(log == null ? null : log.log("Finding ClassLoaders"));
     }
 
@@ -454,8 +454,8 @@ public class ScanSpec {
      */
     public void addClassLoader(final ClassLoader classLoader) {
         // This is O(N^2) in the number of calls, but this method shouldn't be called many times, if at all
-        if (!this.classLoaders.contains(classLoader)) {
-            this.classLoaders.add(classLoader);
+        if (!this.contextClassLoaders.contains(classLoader)) {
+            this.contextClassLoaders.add(classLoader);
         }
     }
 
@@ -468,7 +468,7 @@ public class ScanSpec {
         for (final ClassLoader classLoader : overrideClassLoaders) {
             classLoadersSet.add(classLoader);
         }
-        this.classLoaders = classLoadersSet.getList();
+        this.contextClassLoaders = classLoadersSet.getList();
         this.overrideClassLoaders = true;
     }
 
@@ -713,21 +713,47 @@ public class ScanSpec {
      * 
      * @throw IllegalArgumentException if LinkageError (including ExceptionInInitializerError) is thrown, or if no
      *        ClassLoader is able to load the class.
+     * @return a reference to the loaded class, or null if the class could not be found.
+     */
+    private Class<?> loadClass(final String className, final ClassLoader classLoader, final LogNode log)
+            throws IllegalArgumentException {
+        try {
+            return Class.forName(className, initializeLoadedClasses, classLoader);
+        } catch (final ClassNotFoundException e) {
+            return null;
+        } catch (final Throwable e) {
+            if (log != null) {
+                log.log("Error while loading class " + className, e);
+            }
+            throw new IllegalArgumentException("Exception while loading class " + className, e);
+        }
+    }
+
+    /**
+     * Call the classloader using Class.forName(className, initializeLoadedClasses, classLoader), for all known
+     * ClassLoaders, until one is able to load the class, or until there are no more ClassLoaders to try.
+     * 
+     * @throw IllegalArgumentException if LinkageError (including ExceptionInInitializerError) is thrown, or if no
+     *        ClassLoader is able to load the class.
      * @return a reference to the loaded class.
      */
     Class<?> loadClass(final String className, final ScanResult scanResult, final LogNode log)
             throws IllegalArgumentException {
         // Try loading class via each classloader in turn
-        for (final ClassLoader classLoader : scanResult.getClassLoadersForClass(className)) {
-            try {
-                return Class.forName(className, initializeLoadedClasses, classLoader);
-            } catch (final ClassNotFoundException e) {
-                // Try next ClassLoader
-            } catch (final LinkageError e) {
-                if (log != null) {
-                    log.log("Error while loading class " + className + ": " + e);
+        final List<ClassLoader> classLoadersForClassName = scanResult.getClassLoadersForClass(className);
+        for (final ClassLoader classLoader : classLoadersForClassName) {
+            final Class<?> classRef = loadClass(className, classLoader, log);
+            if (classRef != null) {
+                return classRef;
+            }
+        }
+        // As a fallback, try context classloaders, if the classloader(s) tried were different
+        if (contextClassLoaders != classLoadersForClassName) {
+            for (final ClassLoader classLoader : contextClassLoaders) {
+                final Class<?> classRef = loadClass(className, classLoader, log);
+                if (classRef != null) {
+                    return classRef;
                 }
-                throw new IllegalArgumentException("Exception while loading class " + className, e);
             }
         }
         if (log != null) {
