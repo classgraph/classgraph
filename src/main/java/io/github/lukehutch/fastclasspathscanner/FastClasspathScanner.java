@@ -482,10 +482,18 @@ public class FastClasspathScanner {
      * If this method is called, nothing but the provided classpath will be scanned, i.e. this causes ClassLoaders
      * to be ignored, as well as the java.class.path system property.
      * 
+     * This is deprecated, because the classpath may differ from the classpath of the classloaders, which can lead
+     * to unpredictability (classes being loaded twice into different classloaders, classes not being able to be
+     * cast to their superclasses, classes not being found, etc.). Scanning should always be driven by classloaders
+     * (which can provide classpath elements), not by the classpath itself (which we can only rely on the context
+     * classloader to handle, and that only works reliably if the specified classpath is exactly the same as the
+     * context classloader's classpath, which defeats the purpose of being able to specify an override classpath).
+     * 
      * @param overrideClasspath
      *            The custom classpath to use for scanning, with path elements separated by File.pathSeparatorChar.
      * @return this (for method chaining).
      */
+    @Deprecated
     public FastClasspathScanner overrideClasspath(final String overrideClasspath) {
         getScanSpec().overrideClasspath(overrideClasspath);
         return this;
@@ -499,10 +507,18 @@ public class FastClasspathScanner {
      * If this method is called, nothing but the provided classpath will be scanned, i.e. this causes ClassLoaders
      * to be ignored, as well as the java.class.path system property.
      * 
+     * This is deprecated, because the classpath may differ from the classpath of the classloaders, which can lead
+     * to unpredictability (classes being loaded twice into different classloaders, classes not being able to be
+     * cast to their superclasses, classes not being found, etc.). Scanning should always be driven by classloaders
+     * (which can provide classpath elements), not by the classpath itself (which we can only rely on the context
+     * classloader to handle, and that only works reliably if the specified classpath is exactly the same as the
+     * context classloader's classpath, which defeats the purpose of being able to specify an override classpath).
+     * 
      * @param overrideClasspathElements
      *            The custom classpath to use for scanning, with path elements separated by File.pathSeparatorChar.
      * @return this (for method chaining).
      */
+    @Deprecated
     public FastClasspathScanner overrideClasspath(final Iterable<?> overrideClasspathElements) {
         final StringBuilder buf = new StringBuilder();
         for (final Object classpathElt : overrideClasspathElements) {
@@ -526,10 +542,18 @@ public class FastClasspathScanner {
      * java.class.path system property to be ignored. Works for arrays of any member type whose toString() method
      * resolves to a classpath element string, e.g. String, File or Path.
      * 
+     * This is deprecated, because the classpath may differ from the classpath of the classloaders, which can lead
+     * to unpredictability (classes being loaded twice into different classloaders, classes not being able to be
+     * cast to their superclasses, classes not being found, etc.). Scanning should always be driven by classloaders
+     * (which can provide classpath elements), not by the classpath itself (which we can only rely on the context
+     * classloader to handle, and that only works reliably if the specified classpath is exactly the same as the
+     * context classloader's classpath, which defeats the purpose of being able to specify an override classpath).
+     * 
      * @param overrideClasspathElements
      *            The custom classpath to use for scanning, with path elements separated by File.pathSeparatorChar.
      * @return this (for method chaining).
      */
+    @Deprecated
     public FastClasspathScanner overrideClasspath(final Object... overrideClasspathElements) {
         final StringBuilder buf = new StringBuilder();
         for (final Object classpathElt : overrideClasspathElements) {
