@@ -44,7 +44,7 @@ import io.github.lukehutch.fastclasspathscanner.utils.NestedJarHandler;
 /** The result of a scan. */
 public class ScanResult {
     /** The scan spec. */
-    private final ScanSpec scanSpec;
+    final ScanSpec scanSpec;
 
     /** The order of unique classpath elements. */
     final List<ClasspathElement> classpathOrder;

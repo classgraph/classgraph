@@ -736,6 +736,16 @@ public class ScanSpec {
      */
     Class<?> loadClass(final String className, final ScanResult scanResult, final LogNode log)
             throws IllegalArgumentException {
+        if (scanResult.scanSpec.overrideClasspath != null) {
+            throw new IllegalArgumentException(
+                    "Cannot load classes from custom classpath, defined using .overrideClasspath(), "
+                    + "since system classloaders may search a different classpath, and/or may have "
+                    + "already loaded and cached a class (which can lead to a class being loaded "
+                    + "twice, if a new classloader is defined using the custom classpath). "
+                    + "If you want to load classes from a custom classpath at runtime, you need "
+                    + "to define your own ClassLoader (e.g. using new URLClassLoader()), and then "
+                    + "use .overrideClassLoaders() instead");
+        }
         // Try loading class via each classloader in turn
         final List<ClassLoader> classLoadersForClassName = scanResult.getClassLoadersForClass(className);
         for (final ClassLoader classLoader : classLoadersForClassName) {
