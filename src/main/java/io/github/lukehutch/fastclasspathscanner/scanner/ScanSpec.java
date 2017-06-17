@@ -744,18 +744,6 @@ public class ScanSpec {
                 return classRef;
             }
         }
-        // As a fallback, try context classloaders, if the classloader(s) tried were different
-        if (addedClassLoaders != classLoadersForClassName) {
-            final Set<ClassLoader> alreadyTried = new HashSet<>(classLoadersForClassName);
-            for (final ClassLoader classLoader : addedClassLoaders) {
-                if (alreadyTried.add(classLoader)) {
-                    final Class<?> classRef = loadClass(className, classLoader, log);
-                    if (classRef != null) {
-                        return classRef;
-                    }
-                }
-            }
-        }
         if (log != null) {
             log.log("No classloader was able to load class " + className);
         }
