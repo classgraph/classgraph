@@ -112,7 +112,7 @@ public class ScanResult {
             return classLoaders;
         } else {
             // Default to context classloader(s) if classpath element didn't have specified classloader(s)
-            return scanSpec.contextClassLoaders;
+            return scanSpec.classLoaderOrder;
         }
     }
 

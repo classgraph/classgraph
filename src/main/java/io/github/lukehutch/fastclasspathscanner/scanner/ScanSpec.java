@@ -210,7 +210,7 @@ public class ScanSpec {
     // -------------------------------------------------------------------------------------------------------------
 
     /** All the visible classloaders that were able to be found. */
-    List<ClassLoader> contextClassLoaders;
+    List<ClassLoader> classLoaderOrder;
 
     /**
      * If true, all ClassLoaders have been overriden. In particular, this causes FastClasspathScanner to ignore the
@@ -428,7 +428,7 @@ public class ScanSpec {
         }
 
         // Find classloaders
-        this.contextClassLoaders = ClasspathFinder
+        this.classLoaderOrder = ClasspathFinder
                 .findAllClassLoaders(log == null ? null : log.log("Finding ClassLoaders"));
     }
 
@@ -454,8 +454,8 @@ public class ScanSpec {
      */
     public void addClassLoader(final ClassLoader classLoader) {
         // This is O(N^2) in the number of calls, but this method shouldn't be called many times, if at all
-        if (!this.contextClassLoaders.contains(classLoader)) {
-            this.contextClassLoaders.add(classLoader);
+        if (!this.classLoaderOrder.contains(classLoader)) {
+            this.classLoaderOrder.add(classLoader);
         }
     }
 
@@ -468,7 +468,7 @@ public class ScanSpec {
         for (final ClassLoader classLoader : overrideClassLoaders) {
             classLoadersSet.add(classLoader);
         }
-        this.contextClassLoaders = classLoadersSet.getList();
+        this.classLoaderOrder = classLoadersSet.getList();
         this.overrideClassLoaders = true;
     }
 
@@ -748,9 +748,9 @@ public class ScanSpec {
             }
         }
         // As a fallback, try context classloaders, if the classloader(s) tried were different
-        if (contextClassLoaders != classLoadersForClassName) {
+        if (classLoaderOrder != classLoadersForClassName) {
             final Set<ClassLoader> alreadyTried = new HashSet<>(classLoadersForClassName);
-            for (final ClassLoader classLoader : contextClassLoaders) {
+            for (final ClassLoader classLoader : classLoaderOrder) {
                 if (alreadyTried.add(classLoader)) {
                     final Class<?> classRef = loadClass(className, classLoader, log);
                     if (classRef != null) {
