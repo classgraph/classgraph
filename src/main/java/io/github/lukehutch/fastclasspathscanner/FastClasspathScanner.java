@@ -51,7 +51,7 @@ import io.github.lukehutch.fastclasspathscanner.matchprocessor.MethodAnnotationM
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.StaticFinalFieldMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubclassMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubinterfaceMatchProcessor;
-import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
+import io.github.lukehutch.fastclasspathscanner.scanner.ClassLoaderFinder;
 import io.github.lukehutch.fastclasspathscanner.scanner.FailureHandler;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanResultProcessor;
@@ -611,16 +611,17 @@ public class FastClasspathScanner {
      * 
      * <p>
      * Generally this will return exactly one ClassLoader, but if it returns more than one, the classloaders are
-     * listed in the order they should be called in until one of them is able to load the named class.
+     * listed in the order they should be called in until one of them is able to load the named class. If you can
+     * call only one ClassLoader, use the first element of the list.
      * 
      * <p>
-     * If you can call only one ClassLoader, use the first element of the list.
+     * If you have overridden the ClassLoader(s), then the override ClassLoader(s) will be returned instead.
      * 
      * @return A list of one or more ClassLoaders, out of the system ClassLoader, the current classloader, or the
-     *         context classloader.
+     *         context classloader (or the override ClassLoaders, if ClassLoaders have been overridden).
      */
     public List<ClassLoader> findBestClassLoader() {
-        return ClasspathFinder.findAllClassLoaders(null);
+        return ClassLoaderFinder.findClassLoaders(getScanSpec(), log);
     }
 
     // -------------------------------------------------------------------------------------------------------------

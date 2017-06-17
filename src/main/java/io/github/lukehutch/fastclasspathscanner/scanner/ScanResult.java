@@ -49,6 +49,9 @@ public class ScanResult {
     /** The order of unique classpath elements. */
     final List<ClasspathElement> classpathOrder;
 
+    /** The order in which ClassLoaders are called to load classes. */
+    private final List<ClassLoader> classLoaderOrder;
+
     /** The list of File objects for unique classpath elements (directories or jarfiles). */
     private final List<File> classpathElementOrderFiles;
 
@@ -84,11 +87,12 @@ public class ScanResult {
 
     /** The result of a scan. */
     ScanResult(final ScanSpec scanSpec, final List<ClasspathElement> classpathOrder,
-            final ClassGraphBuilder classGraphBuilder, final Map<File, Long> fileToLastModified,
-            final NestedJarHandler nestedJarHandler, final InterruptionChecker interruptionChecker,
-            final LogNode log) {
+            final List<ClassLoader> classLoaderOrder, final ClassGraphBuilder classGraphBuilder,
+            final Map<File, Long> fileToLastModified, final NestedJarHandler nestedJarHandler,
+            final InterruptionChecker interruptionChecker, final LogNode log) {
         this.scanSpec = scanSpec;
         this.classpathOrder = classpathOrder;
+        this.classLoaderOrder = classLoaderOrder;
         this.classpathElementOrderFiles = new ArrayList<>();
         this.classpathElementOrderURLs = new ArrayList<>();
         for (final ClasspathElement classpathElement : classpathOrder) {
@@ -111,8 +115,8 @@ public class ScanResult {
         if (classLoaders != null) {
             return classLoaders;
         } else {
-            // Default to context classloader(s) if classpath element didn't have specified classloader(s)
-            return scanSpec.classLoaderOrder;
+            // Default to default classloader order if classpath element didn't have specified classloader(s)
+            return classLoaderOrder;
         }
     }
 

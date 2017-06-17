@@ -205,8 +205,11 @@ public class Scanner implements Callable<ScanResult> {
             // Get raw classpath elements
             final LogNode getRawElementsLog = classpathFinderLog == null ? null
                     : classpathFinderLog.log("Getting raw classpath elements");
-            final List<ClasspathRelativePath> rawClasspathEltPathsDedupd = new ClasspathFinder(scanSpec,
-                    nestedJarHandler, getRawElementsLog).getRawClasspathElements();
+            final ClasspathFinder classpathFinder = new ClasspathFinder(scanSpec, nestedJarHandler,
+                    getRawElementsLog);
+            final List<ClasspathRelativePath> rawClasspathEltPathsDedupd = classpathFinder
+                    .getRawClasspathElements();
+            final List<ClassLoader> classLoaderOrder = classpathFinder.getClassLoaderOrder();
 
             // In parallel, resolve raw classpath elements to canonical paths, creating a ClasspathElement
             // singleton for each unique canonical path. Also check jars against jar whitelist/blacklist.a
@@ -360,8 +363,8 @@ public class Scanner implements Callable<ScanResult> {
                 }
 
                 // Create ScanResult
-                scanResult = new ScanResult(scanSpec, classpathOrder, classGraphBuilder, fileToLastModified,
-                        nestedJarHandler, interruptionChecker, log);
+                scanResult = new ScanResult(scanSpec, classpathOrder, classLoaderOrder, classGraphBuilder,
+                        fileToLastModified, nestedJarHandler, interruptionChecker, log);
 
                 // Run scanResultProcessor in the current thread
                 if (scanResultProcessor != null) {
@@ -371,8 +374,9 @@ public class Scanner implements Callable<ScanResult> {
             } else {
                 // This is the result of a call to FastClasspathScanner#getUniqueClasspathElementsAsync(), so
                 // just create placeholder ScanResult to contain classpathElementFilesOrdered.
-                scanResult = new ScanResult(scanSpec, classpathOrder, /* classGraphBuilder = */ null,
-                        /* fileToLastModified = */ null, nestedJarHandler, interruptionChecker, log);
+                scanResult = new ScanResult(scanSpec, classpathOrder, classLoaderOrder,
+                        /* classGraphBuilder = */ null, /* fileToLastModified = */ null, nestedJarHandler,
+                        interruptionChecker, log);
             }
             if (log != null) {
                 log.log("Completed scan", System.nanoTime() - scanStart);

@@ -36,6 +36,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map.Entry;
@@ -57,7 +58,6 @@ import io.github.lukehutch.fastclasspathscanner.matchprocessor.MethodAnnotationM
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.StaticFinalFieldMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubclassMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubinterfaceMatchProcessor;
-import io.github.lukehutch.fastclasspathscanner.utils.AdditionOrderedSet;
 import io.github.lukehutch.fastclasspathscanner.utils.JarUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.MultiMapKeyToList;
@@ -209,14 +209,19 @@ public class ScanSpec {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** All the visible classloaders that were able to be found. */
-    List<ClassLoader> classLoaderOrder;
+    /**
+     * If non-null, specified manually-added classloaders that should be searched after the context classloader(s).
+     */
+    List<ClassLoader> addedClassLoaders;
 
     /**
-     * If true, all ClassLoaders have been overriden. In particular, this causes FastClasspathScanner to ignore the
-     * java.class.path system property.
+     * If non-null, all ClassLoaders have been overriden. In particular, this causes FastClasspathScanner to ignore
+     * the java.class.path system property.
      */
-    boolean overrideClassLoaders = false;
+    List<ClassLoader> overrideClassLoaders;
+
+    /** The ClassLoader finder. */
+    ClassLoaderFinder classLoaderFinder;
 
     /** If non-null, specifies a classpath to override the default one. */
     String overrideClasspath;
@@ -426,10 +431,6 @@ public class ScanSpec {
                 log.log("Scanning of directories (i.e. non-jarfiles) is disabled");
             }
         }
-
-        // Find classloaders
-        this.classLoaderOrder = ClasspathFinder
-                .findAllClassLoaders(log == null ? null : log.log("Finding ClassLoaders"));
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -453,10 +454,10 @@ public class ScanSpec {
      * called.)
      */
     public void addClassLoader(final ClassLoader classLoader) {
-        // This is O(N^2) in the number of calls, but this method shouldn't be called many times, if at all
-        if (!this.classLoaderOrder.contains(classLoader)) {
-            this.classLoaderOrder.add(classLoader);
+        if (this.addedClassLoaders == null) {
+            this.addedClassLoaders = new ArrayList<>();
         }
+        this.addedClassLoaders.add(classLoader);
     }
 
     /**
@@ -464,12 +465,8 @@ public class ScanSpec {
      * Causes the java.class.path system property to be ignored.
      */
     public void overrideClassLoaders(final ClassLoader... overrideClassLoaders) {
-        final AdditionOrderedSet<ClassLoader> classLoadersSet = new AdditionOrderedSet<>();
-        for (final ClassLoader classLoader : overrideClassLoaders) {
-            classLoadersSet.add(classLoader);
-        }
-        this.classLoaderOrder = classLoadersSet.getList();
-        this.overrideClassLoaders = true;
+        this.addedClassLoaders = null;
+        this.overrideClassLoaders = Arrays.asList(overrideClassLoaders);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -748,9 +745,9 @@ public class ScanSpec {
             }
         }
         // As a fallback, try context classloaders, if the classloader(s) tried were different
-        if (classLoaderOrder != classLoadersForClassName) {
+        if (addedClassLoaders != classLoadersForClassName) {
             final Set<ClassLoader> alreadyTried = new HashSet<>(classLoadersForClassName);
-            for (final ClassLoader classLoader : classLoaderOrder) {
+            for (final ClassLoader classLoader : addedClassLoaders) {
                 if (alreadyTried.add(classLoader)) {
                     final Class<?> classRef = loadClass(className, classLoader, log);
                     if (classRef != null) {

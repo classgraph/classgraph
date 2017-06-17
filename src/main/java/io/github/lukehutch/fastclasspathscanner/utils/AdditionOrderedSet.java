@@ -53,4 +53,23 @@ public class AdditionOrderedSet<T> {
     public List<T> getList() {
         return list;
     }
+
+    public AdditionOrderedSet() {
+    }
+
+    public AdditionOrderedSet(final List<T> elts) {
+        for (final T elt : elts) {
+            add(elt);
+        }
+    }
+
+    public AdditionOrderedSet(final T[] elts) {
+        for (final T elt : elts) {
+            add(elt);
+        }
+    }
+
+    public static <T> List<T> dedup(final List<T> list) {
+        return new AdditionOrderedSet<>(list).getList();
+    }
 }
