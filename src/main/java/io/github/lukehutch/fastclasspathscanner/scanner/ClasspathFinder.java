@@ -170,6 +170,24 @@ public class ClasspathFinder {
 
     /** A class to find the unique ordered classpath elements. */
     ClasspathFinder(final ScanSpec scanSpec, final NestedJarHandler nestedJarHandler, final LogNode log) {
+        // Get all classloaders, in classpath resolution order
+        final AdditionOrderedSet<ClassLoader> allClassLoaders = new AdditionOrderedSet<>();
+        for (final ClassLoader classLoader : scanSpec.classLoaderOrder) {
+            final ArrayList<ClassLoader> parentClassLoaders = new ArrayList<>();
+            for (ClassLoader cl = classLoader; cl != null; cl = cl.getParent()) {
+                parentClassLoaders.add(cl);
+            }
+            // OpenJDK calls classloaders in a top-down order
+            for (int i = parentClassLoaders.size() - 1; i >= 0; --i) {
+                final ClassLoader cl = parentClassLoaders.get(i);
+                if (log != null && i > 0) {
+                    log.log("Found parent ClassLoader: " + cl);
+                }
+                allClassLoaders.add(cl);
+            }
+        }
+        final List<ClassLoader> classLoaderOrder = allClassLoaders.getList();
+
         this.nestedJarHandler = nestedJarHandler;
         if (scanSpec.overrideClasspath != null) {
             // Manual classpath override
@@ -180,7 +198,7 @@ public class ClasspathFinder {
                 }
             }
             final LogNode overrideLog = log == null ? null : log.log("Overriding classpath");
-            addClasspathElements(scanSpec.overrideClasspath, scanSpec.classLoaderOrder, overrideLog);
+            addClasspathElements(scanSpec.overrideClasspath, classLoaderOrder, overrideLog);
             if (overrideLog != null) {
                 log.log("WARNING: when the classpath is overridden, there is no guarantee that the classes "
                         + "found by classpath scanning will be the same as the classes loaded by the context "
@@ -194,7 +212,7 @@ public class ClasspathFinder {
                 final String rtJarPath = JarUtils.getRtJarPath();
                 if (rtJarPath != null) {
                     // Insert rt.jar as the first entry in the classpath.
-                    addClasspathElement(rtJarPath, scanSpec.classLoaderOrder, log);
+                    addClasspathElement(rtJarPath, classLoaderOrder, log);
                 }
             }
             // Get all manually-added ClassLoaderHandlers
@@ -227,7 +245,7 @@ public class ClasspathFinder {
             }
 
             // Try finding a handler for each of the classloaders discovered above
-            for (final ClassLoader classLoader : scanSpec.classLoaderOrder) {
+            for (final ClassLoader classLoader : classLoaderOrder) {
                 // Skip system classloaders for efficiency if system jars are not going to be scanned.
                 // TODO: Update to include JDK9 system classloader names.
                 if (!scanSpec.blacklistSystemJars()
@@ -261,7 +279,7 @@ public class ClasspathFinder {
                 // non-standard classloader that uses this property
                 final LogNode sysPropLog = log == null ? null
                         : log.log("Getting classpath entries from java.class.path");
-                addClasspathElements(System.getProperty("java.class.path"), scanSpec.classLoaderOrder, sysPropLog);
+                addClasspathElements(System.getProperty("java.class.path"), classLoaderOrder, sysPropLog);
             }
         }
     }
