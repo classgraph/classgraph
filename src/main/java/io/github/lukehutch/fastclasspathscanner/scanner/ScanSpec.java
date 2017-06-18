@@ -737,6 +737,12 @@ public class ScanSpec {
     Class<?> loadClass(final String className, final ScanResult scanResult, final LogNode log)
             throws IllegalArgumentException {
         if (scanResult.scanSpec.overrideClasspath != null) {
+            // This is for your own good :-)  Too many surprises can result otherwise (e.g. the wrong class
+            // definition being loaded, if a class is defined more than once in the classpath, or a class
+            // not being able to be cast to its superclass, if the class and its superclass are loaded into
+            // different classloaders, possibly due to accidental loading and caching in the non-custom
+            // classloader). Basically if you're overriding the classpath and/or defining custom
+            // classloaders, bad things will probably happen at some point!
             throw new IllegalArgumentException(
                     "Cannot load classes from custom classpath, defined using .overrideClasspath(), "
                     + "since system classloaders may search a different classpath, and/or may have "
