@@ -36,7 +36,7 @@ import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 
 public class Issue99Test {
     @Test
-    public void issue46Test() {
+    public void issue99Test() {
         final String jarPath = Issue99Test.class.getClassLoader().getResource("nested-jars-level1.zip").getPath()
                 + "!level2.jar!level3.jar!classpath1/classpath2";
         assertThat(new FastClasspathScanner().overrideClasspath(jarPath).scan().getNamesOfAllClasses())
