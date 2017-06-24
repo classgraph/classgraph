@@ -45,6 +45,7 @@ public class ClassLoaderHandlerRegistry {
             EquinoxClassLoaderHandler.class, //
             JBossClassLoaderHandler.class, //
             WeblogicClassLoaderHandler.class, //
-            FelixClassLoaderHandler.class //
+            FelixClassLoaderHandler.class, //
+            WebsphereLibertyClassLoaderHandler.class //
     );
 }
