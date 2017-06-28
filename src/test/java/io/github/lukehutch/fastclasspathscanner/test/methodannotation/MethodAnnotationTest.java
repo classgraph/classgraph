@@ -30,7 +30,7 @@ package io.github.lukehutch.fastclasspathscanner.test.methodannotation;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.lang.reflect.Method;
+import java.lang.reflect.Executable;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -57,7 +57,7 @@ public class MethodAnnotationTest {
         new FastClasspathScanner(MethodAnnotationTest.class.getPackage().getName())
                 .matchClassesWithMethodAnnotation(ExternalAnnotation.class, new MethodAnnotationMatchProcessor() {
                     @Override
-                    public void processMatch(final Class<?> matchingClass, final Method matchingMethod) {
+                    public void processMatch(final Class<?> matchingClass, final Executable matchingMethod) {
                         matchingMethodNames.add(matchingMethod.getName());
                     }
                 }).scan();
@@ -72,7 +72,7 @@ public class MethodAnnotationTest {
         new FastClasspathScanner(MethodAnnotationTest.class.getPackage().getName())
                 .matchClassesWithMethodAnnotation(ExternalAnnotation.class, new MethodAnnotationMatchProcessor() {
                     @Override
-                    public void processMatch(final Class<?> matchingClass, final Method matchingMethod) {
+                    public void processMatch(final Class<?> matchingClass, final Executable matchingMethod) {
                         matchingMethodNames.add(matchingMethod.getName());
                     }
                 }).ignoreMethodVisibility().scan();

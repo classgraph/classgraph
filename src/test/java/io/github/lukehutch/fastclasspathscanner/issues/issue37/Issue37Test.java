@@ -26,21 +26,38 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.lukehutch.fastclasspathscanner.matchprocessor;
+package io.github.lukehutch.fastclasspathscanner.issues.issue37;
 
-import java.lang.reflect.Executable;
+import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * The method to run when a class that has a method or constructor with a specified annotation is found on the
- * classpath.
- *
- * @param matchingClass
- *            the matching class.
- * @param matchingMethodOrConstructor
- *            the Method or Constructor that has the annotation. (Executable is the superclass of both Method and
- *            Constructor.)
- */
-@FunctionalInterface
-public interface MethodAnnotationMatchProcessor {
-    public void processMatch(Class<?> matchingClass, Executable matchingMethodOrConstructor);
+import java.util.ArrayList;
+import java.util.List;
+
+import org.junit.Test;
+
+import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
+
+public class Issue37Test {
+
+    @Issue37Annotation
+    public Issue37Test() {
+    }
+
+    @Issue37Annotation
+    @Test
+    public void issue37Test() {
+        final List<String> methodNames = new ArrayList<>();
+        final String pkg = Issue37Test.class.getPackage().getName();
+        new FastClasspathScanner(pkg) //
+                .enableMethodAnnotationIndexing() //
+                .matchClassesWithMethodAnnotation(Issue37Annotation.class, (matchingClass, matchingMethod) -> {
+                    methodNames.add(matchingMethod.getName());
+                }) //
+                .scan();
+        // For some reason in the JRE, constructor names are fully-qualified, method names are not :~)
+        assertThat(methodNames).containsExactly(Issue37Test.class.getName(), "issue37Test");
+    }
+
+    public void unannotatedMethod() {
+    }
 }

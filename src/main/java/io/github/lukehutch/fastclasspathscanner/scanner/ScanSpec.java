@@ -33,8 +33,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.annotation.Annotation;
 import java.lang.annotation.RetentionPolicy;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -745,12 +747,12 @@ public class ScanSpec {
             // classloaders, bad things will probably happen at some point!
             throw new IllegalArgumentException(
                     "Cannot load classes from custom classpath, defined using .overrideClasspath(), "
-                    + "since system classloaders may search a different classpath, and/or may have "
-                    + "already loaded and cached a class (which can lead to a class being loaded "
-                    + "twice, if a new classloader is defined using the custom classpath). "
-                    + "If you want to load classes from a custom classpath at runtime, you need "
-                    + "to define your own ClassLoader (e.g. using new URLClassLoader()), and then "
-                    + "use .overrideClassLoaders() instead");
+                            + "since system classloaders may search a different classpath, and/or may have "
+                            + "already loaded and cached a class (which can lead to a class being loaded "
+                            + "twice, if a new classloader is defined using the custom classpath). "
+                            + "If you want to load classes from a custom classpath at runtime, you need "
+                            + "to define your own ClassLoader (e.g. using new URLClassLoader()), and then "
+                            + "use .overrideClassLoaders() instead");
         }
         // Try loading class via each classloader in turn
         final List<ClassLoader> classLoadersForClassName = scanResult.getClassLoadersForClass(className);
@@ -1248,9 +1250,29 @@ public class ScanSpec {
                         return;
                     }
                     // Find methods with the specified annotation
-                    for (final Method method : ignoreMethodVisibility ? cls.getDeclaredMethods()
-                            : cls.getMethods()) {
-                        if (method.isAnnotationPresent(annotation)) {
+                    for (final Constructor<?> ctor : cls.getDeclaredConstructors()) {
+                        if ((ignoreMethodVisibility || (ctor.getModifiers() & Modifier.PUBLIC) != 0)
+                                && ctor.isAnnotationPresent(annotation)) {
+                            LogNode subLog = null;
+                            if (log != null) {
+                                subLog = log.log(
+                                        "Constructor matched method annotation " + annotationName + ": " + ctor);
+                            }
+                            try {
+                                // Process match
+                                methodAnnotationMatchProcessor.processMatch(cls, ctor);
+                            } catch (final Throwable e) {
+                                if (subLog != null) {
+                                    subLog.log("Exception while processing match for class "
+                                            + classWithMethodAnnotation, e);
+                                }
+                                scanResult.addMatchProcessorException(e);
+                            }
+                        }
+                    }
+                    for (final Method method : cls.getDeclaredMethods()) {
+                        if ((ignoreMethodVisibility || (method.getModifiers() & Modifier.PUBLIC) != 0)
+                                && method.isAnnotationPresent(annotation)) {
                             LogNode subLog = null;
                             if (log != null) {
                                 subLog = log.log("Matched method annotation " + annotationName + ": " + method);
