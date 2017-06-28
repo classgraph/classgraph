@@ -28,12 +28,12 @@
  */
 package io.github.lukehutch.fastclasspathscanner.classloaderhandler;
 
-import java.io.File;
-import java.util.List;
-
 import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
+
+import java.io.File;
+import java.util.List;
 
 /**
  * WebsphereLibertyClassLoaderHandler.
@@ -43,24 +43,44 @@ import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
  * @author R. Kempees
  */
 public class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
+
+    private static final String IBM_APP_CLASS_LOADER = "com.ibm.ws.classloading.internal.AppClassLoader";
+    private static final String IBM_THREAD_CONTEXT_CLASS_LOADER = "com.ibm.ws.classloading.internal.ThreadContextClassLoader";
+
     @Override
     public boolean handle(final ClassLoader classLoader, final ClasspathFinder classpathFinder, final LogNode log)
             throws Exception {
 
         for (Class<?> c = classLoader.getClass(); c != null; c = c.getSuperclass()) {
 
-            if ("com.ibm.ws.classloading.internal.AppClassLoader".equals(c.getName())) {
+            if (IBM_APP_CLASS_LOADER.equals(c.getName())
+                    || IBM_THREAD_CONTEXT_CLASS_LOADER.equals(c.getName())) {
+                Object smartClassPath = null;
 
-                final Object smartClassPath = ReflectionUtils.getFieldVal(classLoader, "smartClassPath");
+                if (IBM_THREAD_CONTEXT_CLASS_LOADER.equals(c.getName())) {
+                    final Object appLoader = ReflectionUtils.getFieldVal(classLoader, "appLoader");
+
+                    if (appLoader == null) {
+                        return false;
+                    }
+                    smartClassPath = ReflectionUtils.getFieldVal(appLoader, "smartClassPath");
+
+
+                } else if (IBM_APP_CLASS_LOADER.equals(c.getName())) {
+                    smartClassPath = ReflectionUtils.getFieldVal(classLoader, "smartClassPath");
+                }
+
+
                 if (smartClassPath == null) {
                     return false;
                 }
 
-                final List<?> classPathElements = (List<?>) ReflectionUtils.getFieldVal(smartClassPath,
-                        "classPath");
+                final List classPathElements = (List) ReflectionUtils.getFieldVal(smartClassPath, "classPath");
+
                 if (classPathElements != null) {
-                    for (final Object classpath : classPathElements) {
-                        final String path = getPath(classpath);
+                    for (Object classpath : classPathElements) {
+                        String path = getPath(classpath);
+
                         if (path != null && path.length() > 0) {
                             classpathFinder.addClasspathElement(path, classLoader, log);
                         }
@@ -69,6 +89,7 @@ public class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
                 }
                 return false;
             }
+
         }
         return false;
     }
