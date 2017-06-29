@@ -28,12 +28,12 @@
  */
 package io.github.lukehutch.fastclasspathscanner.classloaderhandler;
 
+import java.io.File;
+import java.util.List;
+
 import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
-
-import java.io.File;
-import java.util.List;
 
 /**
  * WebsphereLibertyClassLoaderHandler.
@@ -44,8 +44,9 @@ import java.util.List;
  */
 public class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
 
-    private static final String IBM_APP_CLASS_LOADER = "com.ibm.ws.classloading.internal.AppClassLoader";
-    private static final String IBM_THREAD_CONTEXT_CLASS_LOADER = "com.ibm.ws.classloading.internal.ThreadContextClassLoader";
+    private static final String PKG_PREFIX = "com.ibm.ws.classloading.internal.";
+    private static final String IBM_APP_CLASS_LOADER = PKG_PREFIX + "AppClassLoader";
+    private static final String IBM_THREAD_CONTEXT_CLASS_LOADER = PKG_PREFIX + "ThreadContextClassLoader";
 
     @Override
     public boolean handle(final ClassLoader classLoader, final ClasspathFinder classpathFinder, final LogNode log)
@@ -53,8 +54,7 @@ public class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
 
         for (Class<?> c = classLoader.getClass(); c != null; c = c.getSuperclass()) {
 
-            if (IBM_APP_CLASS_LOADER.equals(c.getName())
-                    || IBM_THREAD_CONTEXT_CLASS_LOADER.equals(c.getName())) {
+            if (IBM_APP_CLASS_LOADER.equals(c.getName()) || IBM_THREAD_CONTEXT_CLASS_LOADER.equals(c.getName())) {
                 Object smartClassPath = null;
 
                 if (IBM_THREAD_CONTEXT_CLASS_LOADER.equals(c.getName())) {
@@ -65,21 +65,20 @@ public class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
                     }
                     smartClassPath = ReflectionUtils.getFieldVal(appLoader, "smartClassPath");
 
-
                 } else if (IBM_APP_CLASS_LOADER.equals(c.getName())) {
                     smartClassPath = ReflectionUtils.getFieldVal(classLoader, "smartClassPath");
                 }
-
 
                 if (smartClassPath == null) {
                     return false;
                 }
 
-                final List classPathElements = (List) ReflectionUtils.getFieldVal(smartClassPath, "classPath");
+                final List<?> classPathElements = (List<?>) ReflectionUtils.getFieldVal(smartClassPath,
+                        "classPath");
 
                 if (classPathElements != null) {
-                    for (Object classpath : classPathElements) {
-                        String path = getPath(classpath);
+                    for (final Object classpath : classPathElements) {
+                        final String path = getPath(classpath);
 
                         if (path != null && path.length() > 0) {
                             classpathFinder.addClasspathElement(path, classLoader, log);
