@@ -251,14 +251,14 @@ public class NestedJarHandler {
     }
 
     /** Delete temporary files and release other resources. */
-    public void close() {
+    public void close(final LogNode log) {
+        final LogNode rmLog = tempFiles.isEmpty() || log == null ? null : log.log("Removing temporary files");
         while (!tempFiles.isEmpty()) {
             final File head = tempFiles.remove();
             final String path = head.getPath();
             final boolean success = head.delete();
             if (log != null) {
-                log.log((success ? "Successfully removed" : "Unsuccessful in removing") + " temporary file "
-                        + path);
+                rmLog.log((success ? "Removed" : "Unable to remove") + " " + path);
             }
         }
         try {
