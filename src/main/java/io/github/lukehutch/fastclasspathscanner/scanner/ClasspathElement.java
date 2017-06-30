@@ -37,6 +37,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
@@ -54,6 +55,16 @@ import io.github.lukehutch.fastclasspathscanner.utils.WorkQueue;
 abstract class ClasspathElement {
     /** The classpath element path. */
     final ClasspathRelativePath classpathEltPath;
+
+    /**
+     * If non-null, contains a list of resolved paths for any classpath element roots nested inside this classpath
+     * element. (Scanning should stop at a nested classpath element root, otherwise that subtree will be scanned
+     * more than once.) N.B. contains only the nested part of the resolved path (the common prefix is removed). Also
+     * includes a trailing '/', since only nested directory classpath elements need to be caught (nested jars do not
+     * need to be caught, because we don't scan jars-within-jars unless the inner jar is explicitly listed on the
+     * classpath).
+     */
+    Set<String> nestedClasspathRoots;
 
     /** True if there was an exception when trying to open this classpath element (e.g. a corrupt ZipFile). */
     boolean ioExceptionOnOpen;
@@ -88,6 +99,8 @@ abstract class ClasspathElement {
     /** The map from File to last modified timestamp, if scanFiles is true. */
     protected Map<File, Long> fileToLastModified;
 
+    final LogNode log;
+
     /** A classpath element (a directory or jarfile on the classpath). */
     ClasspathElement(final ClasspathRelativePath classpathEltPath, final ScanSpec scanSpec, final boolean scanFiles,
             final InterruptionChecker interruptionChecker, final LogNode log) {
@@ -95,6 +108,7 @@ abstract class ClasspathElement {
         this.scanSpec = scanSpec;
         this.scanFiles = scanFiles;
         this.interruptionChecker = interruptionChecker;
+        this.log = log;
     }
 
     /** Return the classpath element's path. */
@@ -174,42 +188,45 @@ abstract class ClasspathElement {
      */
     static class ClasspathResource {
         final File classpathEltFile;
-        final String relativePath;
+        final String pathRelativeToClasspathElt;
+        final String pathRelativeToClasspathPrefix;
 
-        private ClasspathResource(final File classpathEltFile, final String relativePath) {
+        private ClasspathResource(final File classpathEltFile, final String pathRelativeToClasspathElt,
+                final String pathRelativeToClasspathPrefix) {
             this.classpathEltFile = classpathEltFile;
-            this.relativePath = relativePath;
+            this.pathRelativeToClasspathElt = pathRelativeToClasspathElt;
+            this.pathRelativeToClasspathPrefix = pathRelativeToClasspathPrefix;
         }
 
         static class ClasspathResourceInDir extends ClasspathResource {
             final File relativePathFile;
 
-            ClasspathResourceInDir(final File classpathEltFile, final String relativePath,
+            ClasspathResourceInDir(final File classpathEltFile, final String pathRelativeToClasspathElt,
                     final File relativePathFile) {
-                super(classpathEltFile, relativePath);
+                super(classpathEltFile, pathRelativeToClasspathElt, pathRelativeToClasspathElt);
                 this.relativePathFile = relativePathFile;
             }
 
             @Override
             public String toString() {
-                return ClasspathUtils.getClasspathResourceURL(classpathEltFile, relativePath).toString();
+                return ClasspathUtils.getClasspathResourceURL(classpathEltFile, pathRelativeToClasspathElt)
+                        .toString();
             }
         }
 
         static class ClasspathResourceInZipFile extends ClasspathResource {
             final ZipEntry zipEntry;
-            final String pathRelativeToClasspathPrefix;
 
-            ClasspathResourceInZipFile(final File classpathEltFile, final String classpathPrefix,
-                    final String relativePath, final ZipEntry zipEntry) {
-                super(classpathEltFile, classpathPrefix + relativePath);
+            ClasspathResourceInZipFile(final File classpathEltFile, final String pathRelativeToClasspathElt,
+                    final String pathRelativeToClasspathPrefix, final ZipEntry zipEntry) {
+                super(classpathEltFile, pathRelativeToClasspathElt, pathRelativeToClasspathPrefix);
                 this.zipEntry = zipEntry;
-                this.pathRelativeToClasspathPrefix = relativePath;
             }
 
             @Override
             public String toString() {
-                return ClasspathUtils.getClasspathResourceURL(classpathEltFile, relativePath).toString();
+                return ClasspathUtils.getClasspathResourceURL(classpathEltFile, pathRelativeToClasspathElt)
+                        .toString();
             }
         }
 
@@ -233,11 +250,12 @@ abstract class ClasspathElement {
         // if a user adds a custom file path matcher that matches paths ending in ".class"
         final HashSet<String> allMatchingRelativePathsForThisClasspathElement = new HashSet<>();
         for (final ClasspathResource res : classfileMatches) {
-            allMatchingRelativePathsForThisClasspathElement.add(res.relativePath);
+            allMatchingRelativePathsForThisClasspathElement.add(res.pathRelativeToClasspathPrefix);
         }
         for (final Entry<FileMatchProcessorWrapper, List<ClasspathResource>> ent : fileMatches.entrySet()) {
             for (final ClasspathResource classpathResource : ent.getValue()) {
-                allMatchingRelativePathsForThisClasspathElement.add(classpathResource.relativePath);
+                allMatchingRelativePathsForThisClasspathElement
+                        .add(classpathResource.pathRelativeToClasspathPrefix);
             }
         }
         // See which of these paths are masked, if any
@@ -251,13 +269,14 @@ abstract class ClasspathElement {
             // Replace the lists of matching resources with filtered versions with masked paths removed
             final List<ClasspathResource> filteredClassfileMatches = new ArrayList<>();
             for (final ClasspathResource classfileMatch : classfileMatches) {
-                if (!maskedRelativePaths.contains(classfileMatch.relativePath)) {
+                if (!maskedRelativePaths.contains(classfileMatch.pathRelativeToClasspathPrefix)) {
                     filteredClassfileMatches.add(classfileMatch);
                 } else {
                     if (log != null) {
                         log.log(String.format("%06d-1", classpathIdx),
-                                "Ignoring duplicate (masked) class " + classfileMatch.relativePath.replace('/', '.')
-                                        + " in classpath element " + classfileMatch.classpathEltFile);
+                                "Ignoring duplicate (masked) class "
+                                        + classfileMatch.pathRelativeToClasspathPrefix.replace('/', '.')
+                                        + " for classpath element " + classfileMatch);
                     }
                 }
             }
@@ -267,13 +286,14 @@ abstract class ClasspathElement {
                     new MultiMapKeyToList<>();
             for (final Entry<FileMatchProcessorWrapper, List<ClasspathResource>> ent : fileMatches.entrySet()) {
                 for (final ClasspathResource fileMatch : ent.getValue()) {
-                    if (!maskedRelativePaths.contains(fileMatch.relativePath)) {
+                    if (!maskedRelativePaths.contains(fileMatch.pathRelativeToClasspathPrefix)) {
                         filteredFileMatches.put(ent.getKey(), fileMatch);
                     } else {
                         if (log != null) {
                             log.log(String.format("%06d-1", classpathIdx),
-                                    "Ignoring duplicate (masked) file path " + fileMatch.relativePath
-                                            + " in classpath element " + fileMatch.classpathEltFile);
+                                    "Ignoring duplicate (masked) file path "
+                                            + fileMatch.pathRelativeToClasspathPrefix + " in classpath element "
+                                            + fileMatch);
                         }
                     }
                 }
@@ -300,13 +320,11 @@ abstract class ClasspathElement {
                     }
                 } catch (final IOException e) {
                     if (log != null) {
-                        log.log("Exception while opening file " + fileMatch.classpathEltFile
-                                + (fileMatch.classpathEltFile.isFile() ? "!" : "/") + fileMatch.relativePath, e);
+                        log.log("Exception while opening file " + fileMatch, e);
                     }
                 } catch (final Throwable e) {
                     if (log != null) {
-                        log.log("Exception while calling FileMatchProcessor for file " + fileMatch.classpathEltFile
-                                + (fileMatch.classpathEltFile.isFile() ? "!" : "/") + fileMatch.relativePath, e);
+                        log.log("Exception while calling FileMatchProcessor for file " + fileMatch, e);
                     }
                     scanResult.addMatchProcessorException(e);
                 }
@@ -364,6 +382,9 @@ abstract class ClasspathElement {
             throws IOException, InterruptedException;
 
     // -------------------------------------------------------------------------------------------------------------
+
+    /** Scan the classpath element */
+    public abstract void scanPaths();
 
     /** Close the classpath element's resources. (Used by zipfile-specific subclass.) */
     public abstract void close();
