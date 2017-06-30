@@ -48,12 +48,13 @@ import io.github.lukehutch.fastclasspathscanner.utils.MultiMapKeyToList;
 
 /** A directory classpath element. */
 class ClasspathElementDir extends ClasspathElement {
+    private File dir;
+
     /** A directory classpath element. */
     ClasspathElementDir(final ClasspathRelativePath classpathEltPath, final ScanSpec scanSpec,
             final boolean scanFiles, final InterruptionChecker interruptionChecker, final LogNode log) {
         super(classpathEltPath, scanSpec, scanFiles, interruptionChecker, log);
         if (scanFiles) {
-            File dir;
             try {
                 dir = classpathEltPath.getFile();
             } catch (final IOException e) {
@@ -64,16 +65,19 @@ class ClasspathElementDir extends ClasspathElement {
                 ioExceptionOnOpen = true;
                 return;
             }
-
-            // Hierarchically scan directory structure for classfiles and matching files
             fileMatches = new MultiMapKeyToList<>();
             classfileMatches = new ArrayList<>();
             fileToLastModified = new HashMap<>();
-            final HashSet<String> scannedCanonicalPaths = new HashSet<>();
-            final int[] entryIdx = new int[1];
-            scanDir(dir, dir, /* ignorePrefixLen = */ dir.getPath().length() + 1, /* inWhitelistedPath = */ false,
-                    scannedCanonicalPaths, entryIdx, log);
         }
+    }
+
+    /** Hierarchically scan directory structure for classfiles and matching files. */
+    @Override
+    public void scanPaths() {
+        final HashSet<String> scannedCanonicalPaths = new HashSet<>();
+        final int[] entryIdx = new int[1];
+        scanDir(dir, dir, /* ignorePrefixLen = */ dir.getPath().length() + 1, /* inWhitelistedPath = */ false,
+                scannedCanonicalPaths, entryIdx, log);
     }
 
     /** Recursively scan a directory for file path patterns matching the scan spec. */
@@ -113,6 +117,16 @@ class ClasspathElementDir extends ClasspathElement {
             // Reached a whitelisted path -- can start scanning directories and files from this point
             inWhitelistedPath = true;
         }
+        if (nestedClasspathRoots != null) {
+            if (nestedClasspathRoots.contains(dirRelativePath)) {
+                if (log != null) {
+                    log.log("Reached nested classpath root, stopping recursion to avoid duplicate scanning: "
+                            + dirRelativePath);
+                }
+                return;
+            }
+        }
+
         final File[] filesInDir = dir.listFiles();
         if (filesInDir == null) {
             if (log != null) {
@@ -196,7 +210,7 @@ class ClasspathElementDir extends ClasspathElement {
             try (InputStream inputStream = new FileInputStream(relativePathFile)) {
                 // Run FileMatcher
                 fileMatchProcessorWrapper.processMatch(fileMatchResource.classpathEltFile,
-                        fileMatchResource.relativePath, inputStream, relativePathFile.length());
+                        fileMatchResource.pathRelativeToClasspathElt, inputStream, relativePathFile.length());
             }
         }
     }
@@ -213,8 +227,8 @@ class ClasspathElementDir extends ClasspathElement {
             try (InputStream inputStream = new FileInputStream(relativePathFile)) {
                 // Parse classpath binary format, creating a ClassInfoUnlinked object
                 final ClassInfoUnlinked thisClassInfoUnlinked = classfileBinaryParser
-                        .readClassInfoFromClassfileHeader(this, classfileResource.relativePath, inputStream,
-                                scanSpec, stringInternMap, log);
+                        .readClassInfoFromClassfileHeader(this, classfileResource.pathRelativeToClasspathElt,
+                                inputStream, scanSpec, stringInternMap, log);
                 // If class was successfully read, output new ClassInfoUnlinked object
                 if (thisClassInfoUnlinked != null) {
                     classInfoUnlinked.add(thisClassInfoUnlinked);

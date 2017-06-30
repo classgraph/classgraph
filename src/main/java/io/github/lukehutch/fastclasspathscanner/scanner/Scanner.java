@@ -29,7 +29,10 @@
 package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import java.io.File;
+import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -42,6 +45,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 
 import io.github.lukehutch.fastclasspathscanner.utils.InterruptionChecker;
+import io.github.lukehutch.fastclasspathscanner.utils.JarUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.NestedJarHandler;
 import io.github.lukehutch.fastclasspathscanner.utils.Recycler;
@@ -214,8 +218,7 @@ public class Scanner implements Callable<ScanResult> {
             // In parallel, resolve raw classpath elements to canonical paths, creating a ClasspathElement
             // singleton for each unique canonical path. Also check jars against jar whitelist/blacklist.a
             final LogNode recursiveScanLog = classpathFinderLog == null ? null
-                    : classpathFinderLog.log("Scanning file names within each classpath element, "
-                            + "while also searching for \"Class-Path:\" entries within manifest files");
+                    : classpathFinderLog.log("Searching for \"Class-Path:\" entries within manifest files");
             final ClasspathRelativePathToElementMap classpathElementMap = new ClasspathRelativePathToElementMap(
                     enableRecursiveScanning, scanSpec, nestedJarHandler, interruptionChecker, recursiveScanLog);
             try (WorkQueue<ClasspathRelativePath> workQueue = new WorkQueue<>(rawClasspathEltPathsDedupd,
@@ -293,23 +296,106 @@ public class Scanner implements Callable<ScanResult> {
                 }
             }
 
+            ScanResult scanResult;
             if (enableRecursiveScanning) {
+
+                // Find classpath elements that are path prefixes of other classpath elements
+                final List<SimpleEntry<String, ClasspathElement>> classpathEltResolvedPathToElement = new ArrayList<>();
+                for (int i = 0; i < classpathOrder.size(); i++) {
+                    final ClasspathElement classpathElement = classpathOrder.get(i);
+                    classpathEltResolvedPathToElement.add(new SimpleEntry<>(
+                            classpathElement.classpathEltPath.getResolvedPath(), classpathElement));
+                }
+                Collections.sort(classpathEltResolvedPathToElement,
+                        new Comparator<SimpleEntry<String, ClasspathElement>>() {
+                            // Sort classpath elements into lexicographic order
+                            @Override
+                            public int compare(final SimpleEntry<String, ClasspathElement> o1,
+                                    final SimpleEntry<String, ClasspathElement> o2) {
+                                // Path strings will all be unique
+                                return o1.getKey().compareTo(o2.getKey());
+                            }
+                        });
+                LogNode nestedClasspathRootNode = null;
+                for (int i = 0; i < classpathEltResolvedPathToElement.size(); i++) {
+                    // See if each classpath element is a prefix of any others (if so, they will immediately follow
+                    // in lexicographic order)
+                    final SimpleEntry<String, ClasspathElement> ei = classpathEltResolvedPathToElement.get(i);
+                    final String basePath = ei.getKey();
+                    final int basePathLen = basePath.length();
+                    for (int j = i + 1; j < classpathEltResolvedPathToElement.size(); j++) {
+                        final SimpleEntry<String, ClasspathElement> ej = classpathEltResolvedPathToElement.get(j);
+                        final String comparePath = ej.getKey();
+                        final int comparePathLen = comparePath.length();
+                        boolean foundNestedClasspathRoot = false;
+                        if (comparePath.startsWith(basePath) && comparePathLen > basePathLen) {
+                            // Require a separator after the prefix
+                            final char nextChar = comparePath.charAt(basePathLen);
+                            if (nextChar == '/' || nextChar == '!') {
+                                // basePath is a path prefix of comparePath.
+                                // Ensure that the nested classpath does not contain another '!' zip-separator
+                                // (since classpath scanning does not recurse to jars-within-jars unless they
+                                // are explicitly listed on the classpath)
+                                final String nestedClasspathRelativePath = comparePath.substring(basePathLen + 1);
+                                if (nestedClasspathRelativePath.indexOf('!') < 0) {
+                                    // Ensure that the nested classpath is not a jar, since we only care
+                                    // about cases where the nested classpath root is a dir, whether or
+                                    // not the outer classpath element is a dir or jar
+                                    if (!JarUtils.isJar(nestedClasspathRelativePath)) {
+                                        // Found a nested classpath root
+                                        foundNestedClasspathRoot = true;
+                                        // Store link from prefix element to nested elements
+                                        final ClasspathElement baseElement = ei.getValue();
+                                        if (baseElement.nestedClasspathRoots == null) {
+                                            baseElement.nestedClasspathRoots = new HashSet<>();
+                                        }
+                                        baseElement.nestedClasspathRoots.add(nestedClasspathRelativePath + "/");
+                                        if (classpathFinderLog != null) {
+                                            if (nestedClasspathRootNode == null) {
+                                                nestedClasspathRootNode = classpathFinderLog
+                                                        .log("Found nested classpath elements");
+                                            }
+                                            nestedClasspathRootNode.log(
+                                                    basePath + " is a prefix of the nested element " + comparePath);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        if (!foundNestedClasspathRoot) {
+                            // After the first non-match, there can be no more prefix matches in the sorted order
+                            break;
+                        }
+                    }
+                }
+
+                // Scan for matching classfiles / files, looking only at filenames / file paths, and not contents
+                try (WorkQueue<ClasspathElement> workQueue = new WorkQueue<>(classpathOrder,
+                        new WorkUnitProcessor<ClasspathElement>() {
+                            @Override
+                            public void processWorkUnit(ClasspathElement classpathElement) throws Exception {
+                                classpathElement.scanPaths();
+                            }
+                        }, interruptionChecker, recursiveScanLog)) {
+                    // Start workers, then use this thread to do work too, in case there is only one thread
+                    // available in the ExecutorService
+                    workQueue.startWorkers(executorService, numParallelTasks - 1, recursiveScanLog);
+                    workQueue.runWorkLoop();
+                }
+
+                // Implement classpath masking -- if the same relative path occurs multiple times in the
+                // classpath, ignore (remove) the second and subsequent occurrences. Note that classpath
+                // masking is performed whether or not a jar is whitelisted, and whether or not jar or
+                // dir scanning is enabled, in order to ensure that class references passed into
+                // MatchProcessors are the same as those that would be loaded by standard classloading.
+                // (See bug #100.)
                 final LogNode maskLog = log == null ? null : log.log("Masking classpath files");
                 final HashSet<String> classpathRelativePathsFound = new HashSet<>();
                 for (int classpathIdx = 0; classpathIdx < classpathOrder.size(); classpathIdx++) {
                     final ClasspathElement classpathElement = classpathOrder.get(classpathIdx);
-                    // Implement classpath masking -- if the same relative path occurs multiple times in the
-                    // classpath, ignore (remove) the second and subsequent occurrences. Note that classpath
-                    // masking is performed whether or not a jar is whitelisted, and whether or not jar or
-                    // dir scanning is enabled, in order to ensure that class references passed into
-                    // MatchProcessors are the same as those that would be loaded by standard classloading.
-                    // (See bug #100.)
                     classpathElement.maskFiles(classpathIdx, classpathRelativePathsFound, maskLog);
                 }
-            }
 
-            ScanResult scanResult;
-            if (enableRecursiveScanning) {
                 // Merge the maps from file to timestamp across all classpath elements
                 // (there will be no overlap in keyspace, since file masking was already performed)
                 final Map<File, Long> fileToLastModified = new HashMap<>();

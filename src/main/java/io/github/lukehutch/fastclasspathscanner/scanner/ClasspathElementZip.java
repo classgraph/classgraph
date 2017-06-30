@@ -34,6 +34,8 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.zip.ZipEntry;
@@ -55,6 +57,7 @@ import io.github.lukehutch.fastclasspathscanner.utils.WorkQueue;
 
 /** A zip/jarfile classpath element. */
 class ClasspathElementZip extends ClasspathElement {
+    private File classpathEltZipFile;
     /** Result of parsing the manifest file for this jarfile. */
     private FastManifestParser fastManifestParser;
     private Recycler<ZipFile, IOException> zipFileRecycler;
@@ -65,9 +68,8 @@ class ClasspathElementZip extends ClasspathElement {
             final WorkQueue<ClasspathRelativePath> workQueue, final InterruptionChecker interruptionChecker,
             final LogNode log) {
         super(classpathEltPath, scanSpec, scanFiles, interruptionChecker, log);
-        final File classpathEltFile;
         try {
-            classpathEltFile = classpathEltPath.getFile();
+            classpathEltZipFile = classpathEltPath.getFile();
         } catch (final IOException e) {
             if (log != null) {
                 log.log("Exception while trying to canonicalize path " + classpathEltPath.getResolvedPath(), e);
@@ -75,7 +77,7 @@ class ClasspathElementZip extends ClasspathElement {
             ioExceptionOnOpen = true;
             return;
         }
-        if (classpathEltFile == null || !ClasspathUtils.canRead(classpathEltFile)) {
+        if (classpathEltZipFile == null || !ClasspathUtils.canRead(classpathEltZipFile)) {
             if (log != null) {
                 log.log("Skipping non-existent jarfile " + classpathEltPath.getResolvedPath());
             }
@@ -83,7 +85,7 @@ class ClasspathElementZip extends ClasspathElement {
             return;
         }
         try {
-            zipFileRecycler = nestedJarHandler.getZipFileRecycler(classpathEltFile.getPath());
+            zipFileRecycler = nestedJarHandler.getZipFileRecycler(classpathEltZipFile.getPath());
         } catch (final Exception e) {
             // Stop other threads
             interruptionChecker.interrupt();
@@ -100,23 +102,13 @@ class ClasspathElementZip extends ClasspathElement {
                 zipFile = zipFileRecycler.acquire();
             } catch (final IOException e) {
                 if (log != null) {
-                    log.log("Exception opening zipfile " + classpathEltFile, e);
+                    log.log("Exception opening zipfile " + classpathEltZipFile, e);
                 }
                 ioExceptionOnOpen = true;
                 return;
             }
-            if (!scanFiles) {
-                // If not performing a scan, just get the manifest entry manually
-                fastManifestParser = new FastManifestParser(zipFile, log);
-            } else {
-                // Scan for path matches within jarfile, and record ZipEntry objects of matching files.
-                // Sets fastManifestParser if it finds a manifest file.
-                final int numEntries = zipFile.size();
-                fileMatches = new MultiMapKeyToList<>();
-                classfileMatches = new ArrayList<>(numEntries);
-                fileToLastModified = new HashMap<>();
-                scanZipFile(classpathEltFile, zipFile, classpathEltPath.getZipClasspathBaseDir(), log);
-            }
+            // If not performing a scan, get the manifest entry if present
+            fastManifestParser = new FastManifestParser(zipFile, log);
             if (fastManifestParser != null && fastManifestParser.classPath != null) {
                 final LogNode manifestLog = log == null ? null
                         : log.log("Manifest file " + FastManifestParser.MANIFEST_PATH + " has Class-Path entries");
@@ -127,7 +119,7 @@ class ClasspathElementZip extends ClasspathElement {
 
                 // Class-Path entries in the manifest file are resolved relative to
                 // the dir the manifest's jarfile is contaiin. Get the parent path.
-                final String pathOfContainingDir = FastPathResolver.resolve(classpathEltFile.getParent());
+                final String pathOfContainingDir = FastPathResolver.resolve(classpathEltZipFile.getParent());
 
                 // Create child classpath elements from Class-Path entry
                 for (int i = 0; i < fastManifestParser.classPath.size(); i++) {
@@ -154,6 +146,31 @@ class ClasspathElementZip extends ClasspathElement {
                     }
                 }
             }
+            if (scanFiles) {
+                fileMatches = new MultiMapKeyToList<>();
+                classfileMatches = new ArrayList<>();
+                fileToLastModified = new HashMap<>();
+            }
+        } finally {
+            zipFileRecycler.release(zipFile);
+        }
+    }
+
+    /** Scan for path matches within jarfile, and record ZipEntry objects of matching files. */
+    @Override
+    public void scanPaths() {
+        ZipFile zipFile = null;
+        try {
+            try {
+                zipFile = zipFileRecycler.acquire();
+            } catch (final IOException e) {
+                if (log != null) {
+                    log.log("Exception opening zipfile " + classpathEltZipFile, e);
+                }
+                ioExceptionOnOpen = true;
+                return;
+            }
+            scanZipFile(classpathEltZipFile, zipFile, classpathEltPath.getZipClasspathBaseDir(), log);
         } finally {
             zipFileRecycler.release(zipFile);
         }
@@ -175,6 +192,7 @@ class ClasspathElementZip extends ClasspathElement {
         }
         final int requiredPrefixLen = requiredPrefix.length();
 
+        Set<String> loggedNestedClasspathRoots = null;
         String prevParentRelativePath = null;
         ScanSpecPathMatch prevParentMatchStatus = null;
         int entryIdx = 0;
@@ -211,7 +229,7 @@ class ClasspathElementZip extends ClasspathElement {
                 relativePath = relativePath.substring(requiredPrefixLen);
             }
 
-            // Get match status of the parent directory if this zipentry file's relative path
+            // Get match status of the parent directory of this zipentry file's relative path
             // (or reuse the last match status for speed, if the directory name hasn't changed). 
             final int lastSlashIdx = relativePath.lastIndexOf("/");
             final String parentRelativePath = lastSlashIdx < 0 ? "/" : relativePath.substring(0, lastSlashIdx + 1);
@@ -222,11 +240,6 @@ class ClasspathElementZip extends ClasspathElement {
             prevParentRelativePath = parentRelativePath;
             prevParentMatchStatus = parentMatchStatus;
 
-            // Store entry for manifest file, if present, so that the entry doesn't have to be looked up by name
-            if (relativePath.equalsIgnoreCase(FastManifestParser.MANIFEST_PATH)) {
-                fastManifestParser = new FastManifestParser(zipFile, zipEntry, log);
-            }
-
             // Class can only be scanned if it's within a whitelisted path subtree, or if it is a classfile
             // that has been specifically-whitelisted
             if (parentMatchStatus != ScanSpecPathMatch.WITHIN_WHITELISTED_PATH
@@ -235,14 +248,34 @@ class ClasspathElementZip extends ClasspathElement {
                 continue;
             }
 
+            // Check if the relative path is within a nested classpath root
+            if (nestedClasspathRoots != null) {
+                // This is O(mn), which is inefficient, but the number of nested classpath roots should be small
+                for (final String nestedClasspathRoot : nestedClasspathRoots) {
+                    if (relativePath.startsWith(nestedClasspathRoot)) {
+                        // relativePath has a prefix of nestedClasspathRoot
+                        if (log != null) {
+                            if (loggedNestedClasspathRoots == null) {
+                                loggedNestedClasspathRoots = new HashSet<>();
+                            }
+                            if (loggedNestedClasspathRoots.add(nestedClasspathRoot)) {
+                                log.log("Reached nested classpath root, stopping recursion to avoid duplicate "
+                                        + "scanning: " + nestedClasspathRoot);
+                            }
+                        }
+                        continue;
+                    }
+                }
+            }
+
             if (log != null) {
                 log.log("Found whitelisted file: " + relativePath);
             }
 
             // Store relative paths of any classfiles encountered
             if (ClasspathRelativePath.isClassfile(relativePath)) {
-                classfileMatches
-                        .add(new ClasspathResourceInZipFile(zipFileFile, requiredPrefix, relativePath, zipEntry));
+                classfileMatches.add(new ClasspathResourceInZipFile(zipFileFile, requiredPrefix + relativePath,
+                        relativePath, zipEntry));
             }
 
             // Match file paths against path patterns
@@ -252,8 +285,8 @@ class ClasspathElementZip extends ClasspathElement {
                     // File's relative path matches.
                     // Don't use the last modified time from the individual zipEntry objects,
                     // we use the last modified time for the zipfile itself instead.
-                    fileMatches.put(fileMatcher.fileMatchProcessorWrapper,
-                            new ClasspathResourceInZipFile(zipFileFile, requiredPrefix, relativePath, zipEntry));
+                    fileMatches.put(fileMatcher.fileMatchProcessorWrapper, new ClasspathResourceInZipFile(
+                            zipFileFile, requiredPrefix + relativePath, relativePath, zipEntry));
                 }
             }
         }
