@@ -99,16 +99,13 @@ abstract class ClasspathElement {
     /** The map from File to last modified timestamp, if scanFiles is true. */
     protected Map<File, Long> fileToLastModified;
 
-    final LogNode log;
-
     /** A classpath element (a directory or jarfile on the classpath). */
     ClasspathElement(final ClasspathRelativePath classpathEltPath, final ScanSpec scanSpec, final boolean scanFiles,
-            final InterruptionChecker interruptionChecker, final LogNode log) {
+            final InterruptionChecker interruptionChecker) {
         this.classpathEltPath = classpathEltPath;
         this.scanSpec = scanSpec;
         this.scanFiles = scanFiles;
         this.interruptionChecker = interruptionChecker;
-        this.log = log;
     }
 
     /** Return the classpath element's path. */
@@ -384,7 +381,7 @@ abstract class ClasspathElement {
     // -------------------------------------------------------------------------------------------------------------
 
     /** Scan the classpath element */
-    public abstract void scanPaths();
+    public abstract void scanPaths(LogNode log);
 
     /** Close the classpath element's resources. (Used by zipfile-specific subclass.) */
     public abstract void close();

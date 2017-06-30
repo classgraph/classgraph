@@ -814,7 +814,7 @@ public class ScanResult {
      * Free any temporary files created by extracting jars from within jars. By default, temporary files are removed
      * at the end of a scan, after MatchProcessors have completed, so this typically does not need to be called.
      */
-    public void freeTempFiles() {
-        nestedJarHandler.close();
+    public void freeTempFiles(final LogNode log) {
+        nestedJarHandler.close(log);
     }
 }

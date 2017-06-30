@@ -53,7 +53,7 @@ class ClasspathElementDir extends ClasspathElement {
     /** A directory classpath element. */
     ClasspathElementDir(final ClasspathRelativePath classpathEltPath, final ScanSpec scanSpec,
             final boolean scanFiles, final InterruptionChecker interruptionChecker, final LogNode log) {
-        super(classpathEltPath, scanSpec, scanFiles, interruptionChecker, log);
+        super(classpathEltPath, scanSpec, scanFiles, interruptionChecker);
         if (scanFiles) {
             try {
                 dir = classpathEltPath.getFile();
@@ -73,7 +73,7 @@ class ClasspathElementDir extends ClasspathElement {
 
     /** Hierarchically scan directory structure for classfiles and matching files. */
     @Override
-    public void scanPaths() {
+    public void scanPaths(final LogNode log) {
         final HashSet<String> scannedCanonicalPaths = new HashSet<>();
         final int[] entryIdx = new int[1];
         scanDir(dir, dir, /* ignorePrefixLen = */ dir.getPath().length() + 1, /* inWhitelistedPath = */ false,

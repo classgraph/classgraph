@@ -67,7 +67,7 @@ class ClasspathElementZip extends ClasspathElement {
             final boolean scanFiles, final NestedJarHandler nestedJarHandler,
             final WorkQueue<ClasspathRelativePath> workQueue, final InterruptionChecker interruptionChecker,
             final LogNode log) {
-        super(classpathEltPath, scanSpec, scanFiles, interruptionChecker, log);
+        super(classpathEltPath, scanSpec, scanFiles, interruptionChecker);
         try {
             classpathEltZipFile = classpathEltPath.getFile();
         } catch (final IOException e) {
@@ -158,7 +158,7 @@ class ClasspathElementZip extends ClasspathElement {
 
     /** Scan for path matches within jarfile, and record ZipEntry objects of matching files. */
     @Override
-    public void scanPaths() {
+    public void scanPaths(final LogNode log) {
         ZipFile zipFile = null;
         try {
             try {

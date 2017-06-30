@@ -217,10 +217,10 @@ public class Scanner implements Callable<ScanResult> {
 
             // In parallel, resolve raw classpath elements to canonical paths, creating a ClasspathElement
             // singleton for each unique canonical path. Also check jars against jar whitelist/blacklist.a
-            final LogNode recursiveScanLog = classpathFinderLog == null ? null
+            final LogNode preScanLog = classpathFinderLog == null ? null
                     : classpathFinderLog.log("Searching for \"Class-Path:\" entries within manifest files");
             final ClasspathRelativePathToElementMap classpathElementMap = new ClasspathRelativePathToElementMap(
-                    enableRecursiveScanning, scanSpec, nestedJarHandler, interruptionChecker, recursiveScanLog);
+                    enableRecursiveScanning, scanSpec, nestedJarHandler, interruptionChecker, preScanLog);
             try (WorkQueue<ClasspathRelativePath> workQueue = new WorkQueue<>(rawClasspathEltPathsDedupd,
                     new WorkUnitProcessor<ClasspathRelativePath>() {
                         @Override
@@ -230,31 +230,29 @@ public class Scanner implements Callable<ScanResult> {
                             // (need to check for duplicates again, even though we checked above, since
                             // additonal classpath entries can come from Class-Path entries in manifests)
                             if (classpathElementMap.get(rawClasspathEltPath) != null) {
-                                if (recursiveScanLog != null) {
-                                    recursiveScanLog
-                                            .log("Ignoring duplicate classpath element: " + rawClasspathEltPath);
+                                if (preScanLog != null) {
+                                    preScanLog.log("Ignoring duplicate classpath element: " + rawClasspathEltPath);
                                 }
-                            } else if (rawClasspathEltPath.isValidClasspathElement(scanSpec, recursiveScanLog)) {
+                            } else if (rawClasspathEltPath.isValidClasspathElement(scanSpec, preScanLog)) {
                                 try {
                                     boolean isFile = rawClasspathEltPath.isFile();
                                     boolean isDir = rawClasspathEltPath.isDirectory();
                                     if (isFile && !scanSpec.scanJars) {
-                                        if (recursiveScanLog != null) {
-                                            recursiveScanLog.log("Ignoring because jar scanning has been disabled: "
+                                        if (preScanLog != null) {
+                                            preScanLog.log("Ignoring because jar scanning has been disabled: "
                                                     + rawClasspathEltPath);
                                         }
                                     } else if (isFile
                                             && !scanSpec.jarIsWhitelisted(rawClasspathEltPath.toString())) {
-                                        if (recursiveScanLog != null) {
-                                            recursiveScanLog
+                                        if (preScanLog != null) {
+                                            preScanLog
                                                     .log("Ignoring jarfile that is blacklisted or not whitelisted: "
                                                             + rawClasspathEltPath);
                                         }
                                     } else if (isDir && !scanSpec.scanDirs) {
-                                        if (recursiveScanLog != null) {
-                                            recursiveScanLog
-                                                    .log("Ignoring because directory scanning has been disabled: "
-                                                            + rawClasspathEltPath);
+                                        if (preScanLog != null) {
+                                            preScanLog.log("Ignoring because directory scanning has been disabled: "
+                                                    + rawClasspathEltPath);
                                         }
                                     } else {
                                         // Classpath element is valid, add as a singleton.
@@ -269,16 +267,16 @@ public class Scanner implements Callable<ScanResult> {
                                     }
                                 } catch (Exception e) {
                                     // Could not create singleton, probably due to path canonicalization problem
-                                    recursiveScanLog.log("Classpath element " + rawClasspathEltPath
-                                            + " is not valid (" + e + ") -- skipping");
+                                    preScanLog.log("Classpath element " + rawClasspathEltPath + " is not valid ("
+                                            + e + ") -- skipping");
                                 }
                             }
                         }
-                    }, interruptionChecker, recursiveScanLog)) {
+                    }, interruptionChecker, preScanLog)) {
                 classpathElementMap.setWorkQueue(workQueue);
                 // Start workers, then use this thread to do work too, in case there is only one thread
                 // available in the ExecutorService
-                workQueue.startWorkers(executorService, numParallelTasks - 1, recursiveScanLog);
+                workQueue.startWorkers(executorService, numParallelTasks - 1, preScanLog);
                 workQueue.runWorkLoop();
             }
 
@@ -370,16 +368,19 @@ public class Scanner implements Callable<ScanResult> {
                 }
 
                 // Scan for matching classfiles / files, looking only at filenames / file paths, and not contents
+                final LogNode pathScanLog = classpathFinderLog == null ? null
+                        : classpathFinderLog.log("Scanning filenames within classpath elements");
                 try (WorkQueue<ClasspathElement> workQueue = new WorkQueue<>(classpathOrder,
                         new WorkUnitProcessor<ClasspathElement>() {
                             @Override
                             public void processWorkUnit(ClasspathElement classpathElement) throws Exception {
-                                classpathElement.scanPaths();
+                                // Scan the paths within a directory or jar
+                                classpathElement.scanPaths(pathScanLog);
                             }
-                        }, interruptionChecker, recursiveScanLog)) {
+                        }, interruptionChecker, pathScanLog)) {
                     // Start workers, then use this thread to do work too, in case there is only one thread
                     // available in the ExecutorService
-                    workQueue.startWorkers(executorService, numParallelTasks - 1, recursiveScanLog);
+                    workQueue.startWorkers(executorService, numParallelTasks - 1, pathScanLog);
                     workQueue.runWorkLoop();
                 }
 
@@ -473,7 +474,9 @@ public class Scanner implements Callable<ScanResult> {
 
         } catch (final Throwable e) {
             // Remove temporary files if an exception was thrown
-            cleanupTempFiles();
+            if (this.nestedJarHandler != null) {
+                this.nestedJarHandler.close(log);
+            }
             if (log != null) {
                 log.log(e);
             }
@@ -489,13 +492,6 @@ public class Scanner implements Callable<ScanResult> {
             if (log != null) {
                 log.flush();
             }
-        }
-    }
-
-    /** Remove any temporary files produced by removing zipfiles from within zipfiles. */
-    public void cleanupTempFiles() {
-        if (this.nestedJarHandler != null) {
-            this.nestedJarHandler.close();
         }
     }
 }

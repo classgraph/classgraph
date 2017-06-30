@@ -1276,7 +1276,7 @@ public class FastClasspathScanner {
                 scanResultProcessor.processScanResult(scanResult);
                 // Free temporary files if necessary
                 if (scanSpec.removeTemporaryFilesAfterScan) {
-                    scanResult.freeTempFiles();
+                    scanResult.freeTempFiles(log);
                 }
             }
         }, failureHandler);
@@ -1306,7 +1306,7 @@ public class FastClasspathScanner {
                         getScanSpec().callMatchProcessors(scanResult);
                         // Free temporary files if necessary
                         if (scanSpec.removeTemporaryFilesAfterScan) {
-                            scanResult.freeTempFiles();
+                            scanResult.freeTempFiles(log);
                         }
                     }
                 } : null, /* failureHandler = */ null);
@@ -1380,7 +1380,7 @@ public class FastClasspathScanner {
 
             // Free temporary files
             if (scanSpec.removeTemporaryFilesAfterScan) {
-                scanResult.freeTempFiles();
+                scanResult.freeTempFiles(log);
             }
 
             // Return the scanResult after calling MatchProcessors
