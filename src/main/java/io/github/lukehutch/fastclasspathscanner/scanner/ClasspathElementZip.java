@@ -35,6 +35,7 @@ import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -192,6 +193,12 @@ class ClasspathElementZip extends ClasspathElement {
         }
         final int requiredPrefixLen = requiredPrefix.length();
 
+        // Convert set to list for faster iteration
+        List<String> nestedClasspathRootsList = null;
+        if (nestedClasspathRoots != null) {
+            nestedClasspathRootsList = new ArrayList<>(nestedClasspathRoots);
+        }
+
         Set<String> loggedNestedClasspathRoots = null;
         String prevParentRelativePath = null;
         ScanSpecPathMatch prevParentMatchStatus = null;
@@ -249,9 +256,9 @@ class ClasspathElementZip extends ClasspathElement {
             }
 
             // Check if the relative path is within a nested classpath root
-            if (nestedClasspathRoots != null) {
+            if (nestedClasspathRootsList != null) {
                 // This is O(mn), which is inefficient, but the number of nested classpath roots should be small
-                for (final String nestedClasspathRoot : nestedClasspathRoots) {
+                for (final String nestedClasspathRoot : nestedClasspathRootsList) {
                     if (relativePath.startsWith(nestedClasspathRoot)) {
                         // relativePath has a prefix of nestedClasspathRoot
                         if (log != null) {
