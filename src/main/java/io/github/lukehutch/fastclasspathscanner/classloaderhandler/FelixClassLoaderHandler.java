@@ -28,11 +28,14 @@
  */
 package io.github.lukehutch.fastclasspathscanner.classloaderhandler;
 
+import java.io.File;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Map;
+import java.util.Set;
 
 import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
@@ -48,65 +51,72 @@ import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
  */
 public class FelixClassLoaderHandler implements ClassLoaderHandler {
 
-    private final String JAR_FILE_PREFIX = "jar:";
-
-    private final String JAR_FILE_DELIM = "!/";
-
-    private static final String BY_COMMA = ",";
+    final Set<Object> bundles = new HashSet<>();
 
     @Override
     public boolean handle(final ClassLoader classLoader, final ClasspathFinder classpathFinder, final LogNode log)
             throws Exception {
         final List<ClassLoader> classLoaders = Arrays.asList(classLoader);
         for (Class<?> c = classLoader.getClass(); c != null; c = c.getSuperclass()) {
-            if ("org.apache.felix.framework.BundleWiringImpl$BundleClassLoaderJava5".equals(c.getName())) {
-                // Type: BundleImpl
-                final Object m_wiring = ReflectionUtils.getFieldVal(classLoader, "m_wiring");
-                // Type: Bundle
-                final Object bundle = ReflectionUtils.invokeMethod(m_wiring, "getBundle");
+            if ("org.apache.felix.framework.BundleWiringImpl$BundleClassLoaderJava5".equals(c.getName()) ||
+                "org.apache.felix.framework.BundleWiringImpl$BundleClassLoader".equals(c.getName())) {
 
-                @SuppressWarnings("unchecked")
-                final Map<String, Map<?, ?>> bundleHeaders = (Map<String, Map<?, ?>>) ReflectionUtils
-                        .getFieldVal(bundle, "m_cachedHeaders");
+                // Get the wiring for the ClassLoader's bundle
+                final Object bundleWiring = ReflectionUtils.getFieldVal(classLoader, "m_wiring");
+                addBundle(bundleWiring, classLoaders, classpathFinder, log);
 
-                final Object bundlefile = ReflectionUtils.getFieldVal(bundle, "m_archive");
-
-                // Should be a valid jar (should start with "file:/" and end with ".jar")
-                final Object bundlefileLocation = ReflectionUtils.getFieldVal(bundlefile, "m_originalLocation");
-
-                if (bundleHeaders != null && !bundleHeaders.isEmpty()) {
-                    // Add bundleFile
-                    final String bundleFile = (String) bundlefileLocation;
-                    classpathFinder.addClasspathElement(bundleFile, classLoaders, log);
-
-                    // Should find one element only
-                    final Iterator<Entry<String, Map<?, ?>>> it = bundleHeaders.entrySet().iterator();
-                    if (it.hasNext()) {
-                        final Entry<String, Map<?, ?>> pair = it.next();
-                        final Map<?, ?> stringMap = pair.getValue();
-                        // Type: String
-                        final String classpath = (String) stringMap.get("Bundle-Classpath");
-                        // If we have multiple jars in classpath, add them all
-                        if (classpath != null) {
-                            final String[] splitJars = classpath.split(BY_COMMA);
-                            for (int i = 0; i < splitJars.length; i++) {
-                                // Should be something like this:
-                                // jar:file:/path/myBundleFile.jar!/v4-sdk-schema-1.4.0-develop.v12.jar
-                                if (!splitJars[i].isEmpty()) {
-                                    final String jarPath = JAR_FILE_PREFIX + bundleFile + JAR_FILE_DELIM
-                                            + splitJars[i];
-                                    classpathFinder.addClasspathElement(jarPath, classLoaders, log);
-                                }
-                            }
-                        } else {
-                            classpathFinder.addClasspathElement(bundleFile.replace("reference:", JAR_FILE_PREFIX),
-                                    classLoaders, log);
+                /*
+                 * Finally, deal with any other bundles we might be wired to.
+                 * Ideally we'd use the ScanSpec to narrow down the list of wires that we follow,
+                 * but it doesn't seem to be available to us :-(
+                 */
+                
+                final List requiredWires = (List)ReflectionUtils.invokeMethod(bundleWiring, "getRequiredWires", String.class, null);
+                if (requiredWires != null) {
+                    for (Object wire : requiredWires) {
+                        final Object provider = ReflectionUtils.invokeMethod(wire,"getProviderWiring");
+                        if (!bundles.contains(provider)) {
+                            addBundle(provider, classLoaders, classpathFinder, log);
                         }
                     }
-                    return true;
                 }
+
+                return true;
             }
         }
         return false;
+    }
+
+    private void addBundle(final Object bundleWiring, final List<ClassLoader> classLoaders, final ClasspathFinder classpathFinder, final LogNode log) throws Exception {
+        // Track the bundles we've processed to prevent loops
+        bundles.add(bundleWiring);
+
+        // Get the revision for this wiring
+        final Object revision = ReflectionUtils.invokeMethod(bundleWiring,"getRevision");
+        // Get the contents
+        final Object content = ReflectionUtils.invokeMethod(revision,"getContent");
+        final String location = content != null ? getContentLocation(content) : null;
+        if (location != null) {
+            // Add the bundle object
+            classpathFinder.addClasspathElement(location, classLoaders, log);
+
+            // And any embedded content
+            final List embeddedContent = (List)ReflectionUtils.invokeMethod(revision,"getContentPath");
+            if (embeddedContent != null) {
+                for (Object embedded : embeddedContent) {
+                    if (embedded != content) {
+                        final String embeddedLocation = embedded != null ? getContentLocation(embedded) : null;
+                        if (embeddedLocation != null) {
+                            classpathFinder.addClasspathElement(embeddedLocation, classLoaders, log);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private String getContentLocation(final Object content) throws Exception {
+        final File file = (File)ReflectionUtils.invokeMethod(content,"getFile");
+        return file != null ? file.toURI().toString() : null;
     }
 }
