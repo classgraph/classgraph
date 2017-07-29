@@ -1325,7 +1325,7 @@ public class ScanSpec {
                         return;
                     }
                     // Find fields with the specified annotation
-                    for (final Field field : ignoreMethodVisibility ? cls.getDeclaredFields() : cls.getFields()) {
+                    for (final Field field : ignoreFieldVisibility ? cls.getDeclaredFields() : cls.getFields()) {
                         if (field.isAnnotationPresent(annotation)) {
                             LogNode subLog = null;
                             if (log != null) {
