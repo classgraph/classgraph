@@ -59,7 +59,7 @@ public class FieldAnnotationTest {
 
     @Test
     @ExternalAnnotation
-    public void methodAnnotationMatchProcessor() throws Exception {
+    public void fieldAnnotationMatchProcessor() throws Exception {
         final List<String> matchingFieldNames = new ArrayList<>();
         new FastClasspathScanner(FieldAnnotationTest.class.getPackage().getName())
                 .matchClassesWithFieldAnnotation(ExternalAnnotation.class, new FieldAnnotationMatchProcessor() {
@@ -73,7 +73,7 @@ public class FieldAnnotationTest {
 
     @Test
     @ExternalAnnotation
-    public void methodAnnotationMatchProcessorIgnoringVisibility() throws Exception {
+    public void fieldAnnotationMatchProcessorIgnoringVisibility() throws Exception {
         final List<String> matchingFieldNames = new ArrayList<>();
         new FastClasspathScanner(FieldAnnotationTest.class.getPackage().getName())
                 .matchClassesWithFieldAnnotation(ExternalAnnotation.class, new FieldAnnotationMatchProcessor() {
@@ -81,7 +81,7 @@ public class FieldAnnotationTest {
                     public void processMatch(final Class<?> matchingClass, final Field matchingMethod) {
                         matchingFieldNames.add(matchingMethod.getName());
                     }
-                }).ignoreMethodVisibility().scan();
+                }).ignoreFieldVisibility().scan();
         assertThat(matchingFieldNames).containsOnly("publicFieldWithAnnotation", "privateFieldWithAnnotation");
     }
 }
