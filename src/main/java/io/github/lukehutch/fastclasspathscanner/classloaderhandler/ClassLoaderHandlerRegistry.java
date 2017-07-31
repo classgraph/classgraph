@@ -46,6 +46,7 @@ public class ClassLoaderHandlerRegistry {
             JBossClassLoaderHandler.class, //
             WeblogicClassLoaderHandler.class, //
             FelixClassLoaderHandler.class, //
-            WebsphereLibertyClassLoaderHandler.class //
+            WebsphereLibertyClassLoaderHandler.class, //
+            WebsphereTraditionalClassLoaderHandler.class //
     );
 }
