@@ -38,15 +38,16 @@ public class ClassLoaderHandlerRegistry {
      * this list.
      */
     public static final List<Class<? extends ClassLoaderHandler>> DEFAULT_CLASS_LOADER_HANDLERS = Arrays.asList(
-            // The main default ClassLoaderHandler -- URLClassLoader is the most common ClassLoader
-            URLClassLoaderHandler.class,
-
             // ClassLoaderHandlers for other ClassLoaders that are handled by FastClasspathScanner
             EquinoxClassLoaderHandler.class, //
             JBossClassLoaderHandler.class, //
             WeblogicClassLoaderHandler.class, //
             FelixClassLoaderHandler.class, //
             WebsphereLibertyClassLoaderHandler.class, //
-            WebsphereTraditionalClassLoaderHandler.class //
+            WebsphereTraditionalClassLoaderHandler.class, //
+
+            // The main default ClassLoaderHandler -- URLClassLoader is the most common ClassLoader.
+            // Call this last, so that specific handlers for subclasses can override this. 
+            URLClassLoaderHandler.class
     );
 }
