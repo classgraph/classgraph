@@ -31,10 +31,7 @@ package io.github.lukehutch.fastclasspathscanner.classloaderhandler;
 import java.io.File;
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Map.Entry;
-import java.util.Map;
 import java.util.Set;
 
 import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
@@ -58,8 +55,8 @@ public class FelixClassLoaderHandler implements ClassLoaderHandler {
             throws Exception {
         final List<ClassLoader> classLoaders = Arrays.asList(classLoader);
         for (Class<?> c = classLoader.getClass(); c != null; c = c.getSuperclass()) {
-            if ("org.apache.felix.framework.BundleWiringImpl$BundleClassLoaderJava5".equals(c.getName()) ||
-                "org.apache.felix.framework.BundleWiringImpl$BundleClassLoader".equals(c.getName())) {
+            if ("org.apache.felix.framework.BundleWiringImpl$BundleClassLoaderJava5".equals(c.getName())
+                    || "org.apache.felix.framework.BundleWiringImpl$BundleClassLoader".equals(c.getName())) {
 
                 // Get the wiring for the ClassLoader's bundle
                 final Object bundleWiring = ReflectionUtils.getFieldVal(classLoader, "m_wiring");
@@ -70,11 +67,12 @@ public class FelixClassLoaderHandler implements ClassLoaderHandler {
                  * Ideally we'd use the ScanSpec to narrow down the list of wires that we follow,
                  * but it doesn't seem to be available to us :-(
                  */
-                
-                final List requiredWires = (List)ReflectionUtils.invokeMethod(bundleWiring, "getRequiredWires", String.class, null);
+
+                final List<?> requiredWires = (List<?>) ReflectionUtils.invokeMethod(bundleWiring,
+                        "getRequiredWires", String.class, null);
                 if (requiredWires != null) {
-                    for (Object wire : requiredWires) {
-                        final Object provider = ReflectionUtils.invokeMethod(wire,"getProviderWiring");
+                    for (final Object wire : requiredWires) {
+                        final Object provider = ReflectionUtils.invokeMethod(wire, "getProviderWiring");
                         if (!bundles.contains(provider)) {
                             addBundle(provider, classLoaders, classpathFinder, log);
                         }
@@ -87,23 +85,24 @@ public class FelixClassLoaderHandler implements ClassLoaderHandler {
         return false;
     }
 
-    private void addBundle(final Object bundleWiring, final List<ClassLoader> classLoaders, final ClasspathFinder classpathFinder, final LogNode log) throws Exception {
+    private void addBundle(final Object bundleWiring, final List<ClassLoader> classLoaders,
+            final ClasspathFinder classpathFinder, final LogNode log) throws Exception {
         // Track the bundles we've processed to prevent loops
         bundles.add(bundleWiring);
 
         // Get the revision for this wiring
-        final Object revision = ReflectionUtils.invokeMethod(bundleWiring,"getRevision");
+        final Object revision = ReflectionUtils.invokeMethod(bundleWiring, "getRevision");
         // Get the contents
-        final Object content = ReflectionUtils.invokeMethod(revision,"getContent");
+        final Object content = ReflectionUtils.invokeMethod(revision, "getContent");
         final String location = content != null ? getContentLocation(content) : null;
         if (location != null) {
             // Add the bundle object
             classpathFinder.addClasspathElement(location, classLoaders, log);
 
             // And any embedded content
-            final List embeddedContent = (List)ReflectionUtils.invokeMethod(revision,"getContentPath");
+            final List<?> embeddedContent = (List<?>) ReflectionUtils.invokeMethod(revision, "getContentPath");
             if (embeddedContent != null) {
-                for (Object embedded : embeddedContent) {
+                for (final Object embedded : embeddedContent) {
                     if (embedded != content) {
                         final String embeddedLocation = embedded != null ? getContentLocation(embedded) : null;
                         if (embeddedLocation != null) {
@@ -116,7 +115,7 @@ public class FelixClassLoaderHandler implements ClassLoaderHandler {
     }
 
     private String getContentLocation(final Object content) throws Exception {
-        final File file = (File)ReflectionUtils.invokeMethod(content,"getFile");
+        final File file = (File) ReflectionUtils.invokeMethod(content, "getFile");
         return file != null ? file.toURI().toString() : null;
     }
 }
