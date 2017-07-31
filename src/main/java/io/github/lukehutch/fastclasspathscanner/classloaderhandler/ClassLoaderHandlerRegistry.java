@@ -40,9 +40,9 @@ public class ClassLoaderHandlerRegistry {
     public static final List<Class<? extends ClassLoaderHandler>> DEFAULT_CLASS_LOADER_HANDLERS = Arrays.asList(
             // ClassLoaderHandlers for other ClassLoaders that are handled by FastClasspathScanner
             EquinoxClassLoaderHandler.class, //
+            FelixClassLoaderHandler.class, //
             JBossClassLoaderHandler.class, //
             WeblogicClassLoaderHandler.class, //
-            FelixClassLoaderHandler.class, //
             WebsphereLibertyClassLoaderHandler.class, //
             WebsphereTraditionalClassLoaderHandler.class, //
 
