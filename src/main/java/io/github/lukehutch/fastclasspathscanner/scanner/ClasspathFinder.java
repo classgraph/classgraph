@@ -86,18 +86,12 @@ public class ClasspathFinder {
      * @return true (and add the classpath element) if pathElement is not null or empty, otherwise return false.
      */
     public boolean addClasspathElement(final String pathElement, final ClassLoader classLoader, final LogNode log) {
-        if (pathElement == null || pathElement.isEmpty()) {
-            return false;
-        } else {
-            addClasspathElement(new ClasspathRelativePath(currDirPathStr, pathElement, Arrays.asList(classLoader),
-                    nestedJarHandler), log);
-            return true;
-        }
+        return addClasspathElement(pathElement, Arrays.asList(classLoader), log);
     }
 
     /**
      * Add a classpath element relative to a base file. May be called by a ClassLoaderHandler to add classpath
-     * elements that it knows about.
+     * elements that it knows about. ClassLoaders will be called in order.
      * 
      * @param pathElement
      *            the URL or path of the classpath element.
