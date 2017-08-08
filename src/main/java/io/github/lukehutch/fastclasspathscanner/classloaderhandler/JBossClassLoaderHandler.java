@@ -45,13 +45,13 @@ import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
  */
 public class JBossClassLoaderHandler implements ClassLoaderHandler {
     @Override
-    public boolean handle(final ClassLoader classloader, final ClasspathFinder classpathFinder, final LogNode log)
+    public boolean handle(final ClassLoader classLoader, final ClasspathFinder classpathFinder, final LogNode log)
             throws Exception {
         boolean handled = false;
-        for (Class<?> c = classloader.getClass(); c != null; c = c.getSuperclass()) {
+        for (Class<?> c = classLoader.getClass(); c != null; c = c.getSuperclass()) {
             if ("org.jboss.modules.ModuleClassLoader".equals(c.getName())) {
 
-                final Object module = ReflectionUtils.invokeMethod(classloader, "getModule");
+                final Object module = ReflectionUtils.invokeMethod(classLoader, "getModule");
                 final Object serviceLoader = ReflectionUtils.invokeMethod(module, "getCallerModuleLoader");
                 @SuppressWarnings("unchecked")
                 final Map<Object, Object> moduleMap = (Map<Object, Object>) ReflectionUtils
