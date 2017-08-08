@@ -9,5 +9,5 @@ Note that URLClassLoader subclasses do not need a custom ClassLoaderHandler, the
 handled automatically by FastClasspathScanner.
 
 If a new default ClassLoaderHandler is added to FastClasspathScanner, then it should be
-added to the list in ClasspathFinder.DEFAULT_CLASS_LOADER_HANDLERS.
+added to the list in ClassLoaderHandlerRegistry.
  
