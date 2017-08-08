@@ -33,7 +33,6 @@ import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
 
 public class WebsphereTraditionalClassLoaderHandler implements ClassLoaderHandler {
-
     @Override
     public boolean handle(final ClassLoader classloader, final ClasspathFinder classpathFinder, final LogNode log)
             throws Exception {
@@ -46,5 +45,4 @@ public class WebsphereTraditionalClassLoaderHandler implements ClassLoaderHandle
         }
         return false;
     }
-
 }
