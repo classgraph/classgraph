@@ -40,6 +40,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import io.github.lukehutch.fastclasspathscanner.utils.AdditionOrderedSet;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 
 /** Holds metadata about a class encountered during a scan. */
@@ -551,11 +552,12 @@ public class ClassInfo implements Comparable<ClassInfo> {
 
         // Remember which classpath element(s) the class was found in, for classloading
         final List<ClassLoader> classLoaderList = classpathElement.getClassLoaders();
-        if (classLoaderList != null) {
-            if (classInfo.classLoaders == null) {
-                classInfo.classLoaders = new ArrayList<>();
-            }
-            classInfo.classLoaders.addAll(classLoaderList);
+        if (classInfo.classLoaders == null) {
+            classInfo.classLoaders = classLoaderList;
+        } else if (classLoaderList != null && !classInfo.classLoaders.equals(classLoaderList)) {
+            AdditionOrderedSet<ClassLoader> allClassLoaders = new AdditionOrderedSet<>(classInfo.classLoaders);
+            allClassLoaders.addAll(classLoaderList);
+            classInfo.classLoaders = allClassLoaders.getList();
         }
 
         // Mark the appropriate class type as scanned (aux classes all need to be merged into a single
