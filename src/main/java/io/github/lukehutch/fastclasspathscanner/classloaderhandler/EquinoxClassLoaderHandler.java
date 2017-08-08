@@ -98,7 +98,7 @@ public class EquinoxClassLoaderHandler implements ClassLoaderHandler {
                 // classpath.
                 if (!readSystemBundles) {
                     // type BundleLoader
-                    final Object delegate = ReflectionUtils.getFieldVal(classLoaders, "delegate");
+                    final Object delegate = ReflectionUtils.getFieldVal(classLoader, "delegate");
                     // type EquinoxContainer
                     final Object container = ReflectionUtils.getFieldVal(delegate, "container");
                     // type Storage
