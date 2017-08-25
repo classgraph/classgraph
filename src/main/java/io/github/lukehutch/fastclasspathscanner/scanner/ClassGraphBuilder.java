@@ -70,31 +70,53 @@ class ClassGraphBuilder {
 
     /** Get the sorted unique names of all classes, interfaces and annotations found during the scan. */
     List<String> getNamesOfAllClasses() {
-        return ClassInfo.getNamesOfAllClasses(scanSpec, allClassInfo);
+        return getNamesOfAllClasses(null);
+    }
+
+    /** Get the sorted unique names of all classes, interfaces and annotations found during the scan, matching the
+     * specified classloader. */
+    List<String> getNamesOfAllClasses(ClassLoader classLoader) {
+        return ClassInfo.getNamesOfAllClasses(scanSpec, allClassInfo, classLoader);
     }
 
     /** Get the sorted unique names of all standard (non-interface/annotation) classes found during the scan. */
     List<String> getNamesOfAllStandardClasses() {
-        return ClassInfo.getNamesOfAllStandardClasses(scanSpec, allClassInfo);
+        return getNamesOfAllStandardClasses(null);
+    }
+
+    /** Get the sorted unique names of all standard (non-interface/annotation) classes found during the scan, matching
+     * the specified classloader. */
+    List<String> getNamesOfAllStandardClasses(ClassLoader classLoader) {
+        return ClassInfo.getNamesOfAllStandardClasses(scanSpec, allClassInfo, classLoader);
     }
 
     /** Return the sorted list of names of all subclasses of the named class. */
     List<String> getNamesOfSubclassesOf(final String className) {
+        return getNamesOfSubclassesOf(className, null);
+    }
+
+    /** Return the sorted list of names of all subclasses of the named class, matching the specified classloader. */
+    List<String> getNamesOfSubclassesOf(final String className, ClassLoader classLoader) {
         final ClassInfo classInfo = classNameToClassInfo.get(className);
         if (classInfo == null) {
             return Collections.emptyList();
         } else {
-            return classInfo.getNamesOfSubclasses();
+            return classInfo.getNamesOfSubclasses(classLoader);
         }
     }
 
     /** Return the sorted list of names of all superclasses of the named class. */
     List<String> getNamesOfSuperclassesOf(final String className) {
+        return getNamesOfSuperclassesOf(className, null);
+    }
+
+    /** Return the sorted list of names of all superclasses of the named class, matching the specified classloader. */
+    List<String> getNamesOfSuperclassesOf(final String className, ClassLoader classLoader) {
         final ClassInfo classInfo = classNameToClassInfo.get(className);
         if (classInfo == null) {
             return Collections.emptyList();
         } else {
-            return classInfo.getNamesOfSuperclasses();
+            return classInfo.getNamesOfSuperclasses(classLoader);
         }
     }
 
@@ -102,21 +124,42 @@ class ClassGraphBuilder {
      * Return a sorted list of classes that have a field of the named type.
      */
     List<String> getNamesOfClassesWithFieldOfType(final String fieldTypeName) {
-        return ClassInfo.getNamesOfClassesWithFieldOfType(fieldTypeName, allClassInfo);
+        return getNamesOfClassesWithFieldOfType(fieldTypeName, null);
+    }
+
+    /**
+     * Return a sorted list of classes that have a field of the named type, matching the specified classloader.
+     */
+    List<String> getNamesOfClassesWithFieldOfType(final String fieldTypeName, ClassLoader classLoader) {
+        return ClassInfo.getNamesOfClassesWithFieldOfType(fieldTypeName, allClassInfo, classLoader);
     }
 
     /**
      * Return a sorted list of classes that have a method with the named annotation.
      */
     List<String> getNamesOfClassesWithMethodAnnotation(final String annotationName) {
-        return ClassInfo.getNamesOfClassesWithMethodAnnotation(annotationName, allClassInfo);
+        return getNamesOfClassesWithMethodAnnotation(annotationName, null);
+    }
+
+    /**
+     * Return a sorted list of classes that have a method with the named annotation, matching the specified classloader.
+     */
+    List<String> getNamesOfClassesWithMethodAnnotation(final String annotationName, ClassLoader classLoader) {
+        return ClassInfo.getNamesOfClassesWithMethodAnnotation(annotationName, allClassInfo, classLoader);
     }
 
     /**
      * Return a sorted list of classes that have a field with the named annotation.
      */
     List<String> getNamesOfClassesWithFieldAnnotation(final String annotationName) {
-        return ClassInfo.getNamesOfClassesWithFieldAnnotation(annotationName, allClassInfo);
+        return getNamesOfClassesWithFieldAnnotation(annotationName, null);
+    }
+
+    /**
+     * Return a sorted list of classes that have a field with the named annotation, matching the specified classloader.
+     */
+    List<String> getNamesOfClassesWithFieldAnnotation(final String annotationName, ClassLoader classLoader) {
+        return ClassInfo.getNamesOfClassesWithFieldAnnotation(annotationName, allClassInfo, classLoader);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -124,36 +167,59 @@ class ClassGraphBuilder {
 
     /** Return the sorted unique names of all interface classes found during the scan. */
     List<String> getNamesOfAllInterfaceClasses() {
-        return ClassInfo.getNamesOfAllInterfaceClasses(scanSpec, allClassInfo);
+        return getNamesOfAllInterfaceClasses(null);
+    }
+
+    /** Return the sorted unique names of all interface classes found during the scan, matching the specified
+     * classloader. */
+    List<String> getNamesOfAllInterfaceClasses(ClassLoader classLoader) {
+        return ClassInfo.getNamesOfAllInterfaceClasses(scanSpec, allClassInfo, classLoader);
     }
 
     /** Return the sorted list of names of all subinterfaces of the named interface. */
     List<String> getNamesOfSubinterfacesOf(final String interfaceName) {
+        return getNamesOfSubinterfacesOf(interfaceName, null);
+    }
+
+    /** Return the sorted list of names of all subinterfaces of the named interface, matching the specified
+     * classloader. */
+    List<String> getNamesOfSubinterfacesOf(final String interfaceName, ClassLoader classLoader) {
         final ClassInfo classInfo = classNameToClassInfo.get(interfaceName);
         if (classInfo == null) {
             return Collections.emptyList();
         } else {
-            return classInfo.getNamesOfSubinterfaces();
+            return classInfo.getNamesOfSubinterfaces(classLoader);
         }
     }
 
     /** Return the names of all superinterfaces of the named interface. */
     List<String> getNamesOfSuperinterfacesOf(final String interfaceName) {
+        return getNamesOfSuperinterfacesOf(interfaceName, null);
+    }
+
+    /** Return the names of all superinterfaces of the named interface, matching the specified classloader. */
+    List<String> getNamesOfSuperinterfacesOf(final String interfaceName, ClassLoader classLoader) {
         final ClassInfo classInfo = classNameToClassInfo.get(interfaceName);
         if (classInfo == null) {
             return Collections.emptyList();
         } else {
-            return classInfo.getNamesOfSuperinterfaces();
+            return classInfo.getNamesOfSuperinterfaces(classLoader);
         }
     }
 
     /** Return the sorted list of names of all classes implementing the named interface, and their subclasses. */
     List<String> getNamesOfClassesImplementing(final String interfaceName) {
+        return getNamesOfClassesImplementing(interfaceName, null);
+    }
+
+    /** Return the sorted list of names of all classes implementing the named interface, and their subclasses,
+     * matching the specified classloader. */
+    List<String> getNamesOfClassesImplementing(final String interfaceName, ClassLoader classLoader) {
         final ClassInfo classInfo = classNameToClassInfo.get(interfaceName);
         if (classInfo == null) {
             return Collections.emptyList();
         } else {
-            return classInfo.getNamesOfClassesImplementing();
+            return classInfo.getNamesOfClassesImplementing(classLoader);
         }
     }
 
@@ -170,11 +236,19 @@ class ClassGraphBuilder {
      * annotation or meta-annotation.
      */
     List<String> getNamesOfClassesWithAnnotation(final String annotationName) {
+        return getNamesOfClassesWithAnnotation(annotationName, null);
+    }
+
+    /**
+     * Return the sorted list of names of all standard classes or non-annotation interfaces with the named class
+     * annotation or meta-annotation, matching the specified classloader.
+     */
+    List<String> getNamesOfClassesWithAnnotation(final String annotationName, ClassLoader classLoader) {
         final ClassInfo classInfo = classNameToClassInfo.get(annotationName);
         if (classInfo == null) {
             return Collections.emptyList();
         } else {
-            return classInfo.getNamesOfClassesWithAnnotation();
+            return classInfo.getNamesOfClassesWithAnnotation(classLoader);
         }
     }
 

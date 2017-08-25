@@ -276,7 +276,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
     /** Get the classes related to this one in the specified way. */
     private static Set<ClassInfo> filterClassInfo(final Set<ClassInfo> classInfoSet,
             final boolean removeExternalClassesIfStrictWhitelist, final ScanSpec scanSpec,
-            final ClassType... classTypes) {
+            final ClassLoader classLoader, final ClassType... classTypes) {
         if (classInfoSet == null) {
             return Collections.emptySet();
         }
@@ -320,10 +320,11 @@ public class ClassInfo implements Comparable<ClassInfo> {
                 final boolean isExternal = !classInfo.classfileScanned;
                 final boolean isBlacklisted = scanSpec.classIsBlacklisted(classInfo.className);
                 final boolean isWhitelisted = !isExternal && !isBlacklisted;
+                final boolean isMatchedClassLoader = classLoader == null || (classInfo.classLoaders != null && classInfo.classLoaders.contains(classLoader));
                 final boolean removeExternalClasses = removeExternalClassesIfStrictWhitelist
                         && scanSpec.strictWhitelist;
                 final boolean isVisibleExternal = isExternal && !removeExternalClasses && !isBlacklisted;
-                if (isWhitelisted || isVisibleExternal) {
+                if ((isWhitelisted || isVisibleExternal) && isMatchedClassLoader) {
                     // Class passed filter criteria
                     classInfoSetFiltered.add(classInfo);
                 }
@@ -331,6 +332,13 @@ public class ClassInfo implements Comparable<ClassInfo> {
         }
         return classInfoSetFiltered;
     }
+
+    private static Set<ClassInfo> filterClassInfo(final Set<ClassInfo> classInfoSet,
+                                                  final boolean removeExternalClassesIfStrictWhitelist, final ScanSpec scanSpec,
+                                                  final ClassType... classTypes) {
+        return filterClassInfo(classInfoSet, removeExternalClassesIfStrictWhitelist, scanSpec, null, classTypes);
+    }
+
 
     /**
      * Get the sorted list of the names of classes given a collection of ClassInfo objects. (Class names are not
@@ -585,8 +593,20 @@ public class ClassInfo implements Comparable<ClassInfo> {
      *         the empty list if none.
      */
     static List<String> getNamesOfAllClasses(final ScanSpec scanSpec, final Set<ClassInfo> allClassInfo) {
+        return getNamesOfAllClasses(scanSpec, allClassInfo, null);
+    }
+
+    /**
+     * Get the names of all classes, interfaces and annotations found during the scan, matching the specified
+     * classloader, or the empty list if none.
+     *
+     * @return the sorted unique list of names of all classes, interfaces and annotations found during the scan, or
+     *         the empty list if none.
+     */
+    static List<String> getNamesOfAllClasses(final ScanSpec scanSpec, final Set<ClassInfo> allClassInfo,
+                                             ClassLoader classLoader) {
         return getClassNames(filterClassInfo(allClassInfo, /* removeExternalClassesIfStrictWhitelist = */ true,
-                scanSpec, ClassType.ALL));
+                scanSpec, classLoader, ClassType.ALL));
     }
 
     /**
@@ -597,8 +617,20 @@ public class ClassInfo implements Comparable<ClassInfo> {
      *         the empty list if none.
      */
     static List<String> getNamesOfAllStandardClasses(final ScanSpec scanSpec, final Set<ClassInfo> allClassInfo) {
+        return getNamesOfAllStandardClasses(scanSpec, allClassInfo, null);
+    }
+
+    /**
+     * Get the names of all standard (non-interface/annotation) classes found during the scan, matching the specified
+     * classloader, or the empty list if none.
+     *
+     * @return the sorted unique names of all standard (non-interface/annotation) classes found during the scan, or
+     *         the empty list if none.
+     */
+    static List<String> getNamesOfAllStandardClasses(final ScanSpec scanSpec, final Set<ClassInfo> allClassInfo,
+                                                     ClassLoader classLoader) {
         return getClassNames(filterClassInfo(allClassInfo, /* removeExternalClassesIfStrictWhitelist = */ true,
-                scanSpec, ClassType.STANDARD_CLASS));
+                scanSpec, classLoader, ClassType.STANDARD_CLASS));
     }
 
     /**
@@ -618,8 +650,13 @@ public class ClassInfo implements Comparable<ClassInfo> {
      * @return the set of subclasses of this class, or the empty set if none.
      */
     public Set<ClassInfo> getSubclasses() {
+        return getSubclasses(null);
+    }
+
+    public Set<ClassInfo> getSubclasses(ClassLoader classLoader) {
         return filterClassInfo(getReachableClasses(RelType.SUBCLASSES),
-                /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.ALL);
+                /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec,
+                classLoader, ClassType.ALL);
     }
 
     /**
@@ -628,7 +665,18 @@ public class ClassInfo implements Comparable<ClassInfo> {
      * @return the sorted list of names of the subclasses of this class, or the empty list if none.
      */
     public List<String> getNamesOfSubclasses() {
-        return getClassNames(getSubclasses());
+        return getNamesOfSubclasses(null);
+    }
+
+    /**
+     * Get the names of subclasses of this class, matching the specified classloader.
+     *
+     * @param classLoader only classes from this classloader will be returned, null for skipping the matching.
+     *
+     * @return the sorted list of names of the subclasses of this class, or the empty list if none.
+     */
+    public List<String> getNamesOfSubclasses(ClassLoader classLoader) {
+        return getClassNames(getSubclasses(classLoader));
     }
 
     /**
@@ -681,8 +729,23 @@ public class ClassInfo implements Comparable<ClassInfo> {
      * @return the set of all superclasses of this class, or the empty set if none.
      */
     public Set<ClassInfo> getSuperclasses() {
+        return getSuperclasses(null);
+    }
+
+    /**
+     * Get all direct and indirect superclasses of this class (i.e. the direct superclass(es) of this class, and
+     * their superclass(es), all the way up to the top of the class hierarchy), matching the specified classloader.
+     *
+     * (Includes the union of all mixin superclass hierarchies in the case of Scala mixins.)
+     *
+     * @param classLoader only classes from this classloader will be returned, null for skipping the matching.
+     *
+     * @return the set of all superclasses of this class, or the empty set if none.
+     */
+    public Set<ClassInfo> getSuperclasses(ClassLoader classLoader) {
         return filterClassInfo(getReachableClasses(RelType.SUPERCLASSES),
-                /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.ALL);
+                /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec,
+                classLoader, ClassType.ALL);
     }
 
     /**
@@ -694,7 +757,22 @@ public class ClassInfo implements Comparable<ClassInfo> {
      * @return the sorted list of names of all superclasses of this class, or the empty list if none.
      */
     public List<String> getNamesOfSuperclasses() {
-        return getClassNames(getSuperclasses());
+        return getNamesOfSuperclasses(null);
+    }
+
+    /**
+     * Get the names of all direct and indirect superclasses of this class (i.e. the direct superclass(es) of this
+     * class, and their superclass(es), all the way up to the top of the class hierarchy), matching the specified
+     * classloader.
+     *
+     * (Includes the union of all mixin superclass hierarchies in the case of Scala mixins.)
+     *
+     * @param classLoader only classes from this classloader will be returned, null for skipping the matching.
+     *
+     * @return the sorted list of names of all superclasses of this class, or the empty list if none.
+     */
+    public List<String> getNamesOfSuperclasses(ClassLoader classLoader) {
+        return getClassNames(getSuperclasses(classLoader));
     }
 
     /**
@@ -813,8 +891,18 @@ public class ClassInfo implements Comparable<ClassInfo> {
      * @return the sorted list of names of interface classes found during the scan, or the empty list if none.
      */
     static List<String> getNamesOfAllInterfaceClasses(final ScanSpec scanSpec, final Set<ClassInfo> allClassInfo) {
+        return getNamesOfAllInterfaceClasses(scanSpec, allClassInfo, null);
+    }
+
+    /**
+     * Get the names of interface classes found during the scan, matching the specified classloader.
+     *
+     * @return the sorted list of names of interface classes found during the scan, or the empty list if none.
+     */
+    static List<String> getNamesOfAllInterfaceClasses(final ScanSpec scanSpec, final Set<ClassInfo> allClassInfo,
+                                                      ClassLoader classLoader) {
         return getClassNames(filterClassInfo(allClassInfo, /* removeExternalClassesIfStrictWhitelist = */ true,
-                scanSpec, ClassType.IMPLEMENTED_INTERFACE));
+                scanSpec, classLoader, ClassType.IMPLEMENTED_INTERFACE));
     }
 
     /**
@@ -841,10 +929,21 @@ public class ClassInfo implements Comparable<ClassInfo> {
      * @return the set of subinterfaces of this interface, or the empty set if none.
      */
     public Set<ClassInfo> getSubinterfaces() {
+        return getSubinterfaces(null);
+    }
+
+    /**
+     * Get the subinterfaces of this interface, matching the classloader.
+     *
+     * @param classLoader only interfaces from this classloader will be returned, null for skipping the matching.
+     *
+     * @return the set of subinterfaces of this interface, or the empty set if none.
+     */
+    public Set<ClassInfo> getSubinterfaces(ClassLoader classLoader) {
         return !isImplementedInterface() ? Collections.<ClassInfo> emptySet()
                 : filterClassInfo(getReachableClasses(RelType.CLASSES_IMPLEMENTING),
                         /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec,
-                        ClassType.IMPLEMENTED_INTERFACE);
+                        classLoader, ClassType.IMPLEMENTED_INTERFACE);
     }
 
     /**
@@ -853,7 +952,18 @@ public class ClassInfo implements Comparable<ClassInfo> {
      * @return the sorted list of names of subinterfaces of this interface, or the empty list if none.
      */
     public List<String> getNamesOfSubinterfaces() {
-        return getClassNames(getSubinterfaces());
+        return getNamesOfSubinterfaces(null);
+    }
+
+    /**
+     * Get the names of subinterfaces of this interface, matching the classloader.
+     *
+     * @param classLoader only interfaces from this classloader will be returned, null for skipping the matching.
+     *
+     * @return the sorted list of names of subinterfaces of this interface, or the empty list if none.
+     */
+    public List<String> getNamesOfSubinterfaces(ClassLoader classLoader) {
+        return getClassNames(getSubinterfaces(classLoader));
     }
 
     /**
@@ -906,10 +1016,21 @@ public class ClassInfo implements Comparable<ClassInfo> {
      * @return the set of superinterfaces of this interface, or the empty set if none.
      */
     public Set<ClassInfo> getSuperinterfaces() {
+        return getSuperinterfaces(null);
+    }
+
+    /**
+     * Get the superinterfaces of this interface, matching the specified classloader.
+     *
+     * @param classLoader only interfaces from this classloader will be returned, null for skipping the matching.
+     *
+     * @return the set of superinterfaces of this interface, or the empty set if none.
+     */
+    public Set<ClassInfo> getSuperinterfaces(ClassLoader classLoader) {
         return !isImplementedInterface() ? Collections.<ClassInfo> emptySet()
                 : filterClassInfo(getReachableClasses(RelType.IMPLEMENTED_INTERFACES),
                         /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec,
-                        ClassType.IMPLEMENTED_INTERFACE);
+                classLoader, ClassType.IMPLEMENTED_INTERFACE);
     }
 
     /**
@@ -918,7 +1039,18 @@ public class ClassInfo implements Comparable<ClassInfo> {
      * @return the sorted list of names of superinterfaces of this interface, or the empty list if none.
      */
     public List<String> getNamesOfSuperinterfaces() {
-        return getClassNames(getSuperinterfaces());
+        return getNamesOfSuperinterfaces(null);
+    }
+
+    /**
+     * Get the names of superinterfaces of this interface, matching the specified classloader.
+     *
+     * @param classLoader only interfaces from this classloader will be returned, null for skipping the matching.
+     *
+     * @return the sorted list of names of superinterfaces of this interface, or the empty list if none.
+     */
+    public List<String> getNamesOfSuperinterfaces(ClassLoader classLoader) {
+        return getClassNames(getSuperinterfaces(classLoader));
     }
 
     /**
@@ -1047,12 +1179,24 @@ public class ClassInfo implements Comparable<ClassInfo> {
      * @return the set of classes implementing this interface, or the empty set if none.
      */
     public Set<ClassInfo> getClassesImplementing() {
+        return getClassesImplementing(null);
+    }
+
+    /**
+     * Get the classes that implement this interface, and their subclasses, matching the specified classloader.
+     *
+     * @param classLoader only classes from this classloader will be returned, null for skipping the matching.
+     *
+     * @return the set of classes implementing this interface, or the empty set if none.
+     */
+    public Set<ClassInfo> getClassesImplementing(ClassLoader classLoader) {
         if (!isImplementedInterface()) {
             return Collections.<ClassInfo> emptySet();
         } else {
             final Set<ClassInfo> implementingClasses = filterClassInfo(
                     getReachableClasses(RelType.CLASSES_IMPLEMENTING),
-                    /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.STANDARD_CLASS);
+                    /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec,
+                    classLoader, ClassType.STANDARD_CLASS);
             // Subclasses of implementing classes also implement the interface
             final Set<ClassInfo> allImplementingClasses = new HashSet<>();
             for (final ClassInfo implementingClass : implementingClasses) {
@@ -1069,7 +1213,19 @@ public class ClassInfo implements Comparable<ClassInfo> {
      * @return the sorted list of names of classes implementing this interface, or the empty list if none.
      */
     public List<String> getNamesOfClassesImplementing() {
-        return getClassNames(getClassesImplementing());
+        return getNamesOfClassesImplementing(null);
+    }
+
+    /**
+     * Get the names of classes that implement this interface, and the names of their subclasses, matching the
+     * specified classloader.
+     *
+     * @param classLoader only classes from this classloader will be returned, null for skipping the matching.
+     *
+     * @return the sorted list of names of classes implementing this interface, or the empty list if none.
+     */
+    public List<String> getNamesOfClassesImplementing(ClassLoader classLoader) {
+        return getClassNames(getClassesImplementing(classLoader));
     }
 
     /**
@@ -1141,10 +1297,13 @@ public class ClassInfo implements Comparable<ClassInfo> {
      * 
      * @param direct
      *            if true, return only directly-annotated classes.
+     * @param classLoader
+     *            only classes from this classloader will be returned, null for skipping the matching.
+     *
      * @return the set of standard classes and non-annotation interfaces that are annotated by the annotation
      *         corresponding to this ClassInfo class, or the empty set if none.
      */
-    private Set<ClassInfo> getClassesWithAnnotation(final boolean direct) {
+    private Set<ClassInfo> getClassesWithAnnotation(final boolean direct, ClassLoader classLoader) {
         if (!isAnnotation()) {
             return Collections.<ClassInfo> emptySet();
         }
@@ -1152,7 +1311,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
                 direct ? getDirectlyRelatedClasses(RelType.ANNOTATED_CLASSES)
                         : getReachableClasses(RelType.ANNOTATED_CLASSES),
                 /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, //
-                ClassType.STANDARD_CLASS, ClassType.IMPLEMENTED_INTERFACE);
+                classLoader, ClassType.STANDARD_CLASS, ClassType.IMPLEMENTED_INTERFACE);
         boolean isInherited = false;
         for (final ClassInfo metaAnnotation : getDirectlyRelatedClasses(RelType.ANNOTATIONS)) {
             if (metaAnnotation.className.equals("java.lang.annotation.Inherited")) {
@@ -1178,7 +1337,20 @@ public class ClassInfo implements Comparable<ClassInfo> {
      *         corresponding to this ClassInfo class, or the empty set if none.
      */
     public Set<ClassInfo> getClassesWithAnnotation() {
-        return getClassesWithAnnotation(/* direct = */ false);
+        return getClassesWithAnnotation(/* direct = */ false, null);
+    }
+
+    /**
+     * Get the standard classes and non-annotation interfaces that are annotated by this annotation, matching the
+     * specified classloader.
+     *
+     * @param classLoader only classes from this classloader will be returned, null for skipping the matching.
+     *
+     * @return the set of standard classes and non-annotation interfaces that are annotated by the annotation
+     *         corresponding to this ClassInfo class, or the empty set if none.
+     */
+    public Set<ClassInfo> getClassesWithAnnotation(ClassLoader classLoader) {
+        return getClassesWithAnnotation(/* direct = */ false, classLoader);
     }
 
     /**
@@ -1188,7 +1360,20 @@ public class ClassInfo implements Comparable<ClassInfo> {
      *         are annotated by the annotation corresponding to this ClassInfo class, or the empty list if none.
      */
     public List<String> getNamesOfClassesWithAnnotation() {
-        return getClassNames(getClassesWithAnnotation());
+        return getNamesOfClassesWithAnnotation(null);
+    }
+
+    /**
+     * Get the names of standard classes and non-annotation interfaces that are annotated by this annotation, matching
+     * the specified classloader.
+     *
+     * @param classLoader only classes from this classloader will be returned, null for skipping the matching.
+     *
+     * @return the sorted list of names of ClassInfo objects for standard classes and non-annotation interfaces that
+     *         are annotated by the annotation corresponding to this ClassInfo class, or the empty list if none.
+     */
+    public List<String> getNamesOfClassesWithAnnotation(ClassLoader classLoader) {
+        return getClassNames(getClassesWithAnnotation(classLoader));
     }
 
     /** Test whether this class annotates the named class. */
@@ -1211,7 +1396,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
      *         annotation, or the empty set if none.
      */
     public Set<ClassInfo> getClassesWithDirectAnnotation() {
-        return getClassesWithAnnotation(/* direct = */ true);
+        return getClassesWithAnnotation(/* direct = */ true, null);
     }
 
     /** Deprecated. Use getNamesOfClassesWithDirectAnnotation() instead. */ // TODO remove
@@ -1607,11 +1792,28 @@ public class ClassInfo implements Comparable<ClassInfo> {
      */
     static List<String> getNamesOfClassesWithMethodAnnotation(final String annotationName,
             final Set<ClassInfo> allClassInfo) {
+        return getNamesOfClassesWithMethodAnnotation(annotationName, allClassInfo, null);
+    }
+
+    /**
+     * Return a sorted list of classes that have a method with the named annotation or meta-annotation, matching the
+     * specified classloader.
+     *
+     * @return the sorted list of names of classes that have a method with the named annotation or meta-annotation,
+     *         or the empty list if none.
+     */
+    static List<String> getNamesOfClassesWithMethodAnnotation(final String annotationName,
+                                                              final Set<ClassInfo> allClassInfo,
+                                                              ClassLoader classLoader) {
         // This method will not likely be used for a large number of different annotation types, so perform a linear
         // search on each invocation, rather than building an index on classpath scan (so we don't slow down more
         // common methods).
         final ArrayList<String> namesOfClassesWithNamedMethodAnnotation = new ArrayList<>();
         for (final ClassInfo classInfo : allClassInfo) {
+            if ((classLoader != null) && (!classInfo.classLoaders.contains(classLoader))) {
+                continue;
+            }
+
             for (final ClassInfo annotationType : classInfo.getReachableClasses(RelType.METHOD_ANNOTATIONS)) {
                 if (annotationType.className.equals(annotationName)) {
                     namesOfClassesWithNamedMethodAnnotation.add(classInfo.className);
@@ -1657,11 +1859,26 @@ public class ClassInfo implements Comparable<ClassInfo> {
      */
     static List<String> getNamesOfClassesWithFieldOfType(final String fieldTypeName,
             final Set<ClassInfo> allClassInfo) {
+        return getNamesOfClassesWithFieldOfType(fieldTypeName, allClassInfo, null);
+    }
+
+    /**
+     * Get the list of classes that have a field of the named type, matching the specified classloader.
+     *
+     * @return the sorted list of names of classes that have a field of the named type.
+     */
+    static List<String> getNamesOfClassesWithFieldOfType(final String fieldTypeName,
+                                                         final Set<ClassInfo> allClassInfo,
+                                                         ClassLoader classLoader) {
         // This method will not likely be used for a large number of different field types, so perform a linear
         // search on each invocation, rather than building an index on classpath scan (so we don't slow down more
         // common methods).
         final ArrayList<String> namesOfClassesWithFieldOfType = new ArrayList<>();
         for (final ClassInfo classInfo : allClassInfo) {
+            if ((classLoader != null) && (!classInfo.classLoaders.contains(classLoader))) {
+                continue;
+            }
+
             for (final ClassInfo fieldType : classInfo.getDirectlyRelatedClasses(RelType.FIELD_TYPES)) {
                 if (fieldType.className.equals(fieldTypeName)) {
                     namesOfClassesWithFieldOfType.add(classInfo.className);
@@ -1825,11 +2042,28 @@ public class ClassInfo implements Comparable<ClassInfo> {
      */
     static List<String> getNamesOfClassesWithFieldAnnotation(final String annotationName,
             final Set<ClassInfo> allClassInfo) {
+        return getNamesOfClassesWithFieldAnnotation(annotationName, allClassInfo, null);
+    }
+
+    /**
+     * Return a sorted list of classes that have a field with the named annotation or meta-annotation, matching the
+     * specified classloader.
+     *
+     * @return the sorted list of names of classes that have a field with the named annotation or meta-annotation,
+     *         or the empty list if none.
+     */
+    static List<String> getNamesOfClassesWithFieldAnnotation(final String annotationName,
+                                                             final Set<ClassInfo> allClassInfo,
+                                                             ClassLoader classLoader) {
         // This method will not likely be used for a large number of different annotation types, so perform a linear
         // search on each invocation, rather than building an index on classpath scan (so we don't slow down more
         // common methods).
         final ArrayList<String> namesOfClassesWithNamedFieldAnnotation = new ArrayList<>();
         for (final ClassInfo classInfo : allClassInfo) {
+            if ((classLoader != null) && (!classInfo.classLoaders.contains(classLoader))) {
+                continue;
+            }
+
             for (final ClassInfo annotationType : classInfo.getReachableClasses(RelType.FIELD_ANNOTATIONS)) {
                 if (annotationType.className.equals(annotationName)) {
                     namesOfClassesWithNamedFieldAnnotation.add(classInfo.className);
