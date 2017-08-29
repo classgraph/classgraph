@@ -579,6 +579,38 @@ public class FastClasspathScanner {
         return this;
     }
 
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Ignore parent classloaders (i.e. only obtain paths to scan from classloader(s), do not also fetch paths from
+     * parent classloader(s)).
+     * 
+     * This call is ignored if overrideClasspath() is called.
+     * 
+     * @param ignoreParentClassLoaders
+     *            If true, do not fetch paths from parent classloaders.
+     * @return this (for method chaining).
+     */
+    public FastClasspathScanner ignoreParentClassLoaders(final boolean ignoreParentClassLoaders) {
+        getScanSpec().ignoreParentClassLoaders(ignoreParentClassLoaders);
+        return this;
+    }
+
+    /**
+     * Ignore parent classloaders (i.e. only obtain paths to scan from classloader(s), do not also fetch paths from
+     * parent classloader(s)).
+     * 
+     * This call is ignored if overrideClasspath() is called.
+     * 
+     * @return this (for method chaining).
+     */
+    public FastClasspathScanner ignoreParentClassLoaders() {
+        getScanSpec().ignoreParentClassLoaders(true);
+        return this;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
     /**
      * Find the classloader or classloaders most likely to represent the order that classloaders are used to resolve
      * classes in the current context. Uses the technique described by <a href=

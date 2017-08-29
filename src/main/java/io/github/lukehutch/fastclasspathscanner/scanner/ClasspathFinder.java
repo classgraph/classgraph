@@ -173,7 +173,7 @@ public class ClasspathFinder {
         // Get parent classloaders, in classpath resolution order, deduplicating
         final List<ClassLoader> allClassLoadersOrdered;
         // TODO: disable classloading altogether if classpath is overridden
-        if (scanSpec.overrideClasspath != null || !scanSpec.ignoreParentClassloaders) {
+        if (scanSpec.overrideClasspath != null || !scanSpec.ignoreParentClassLoaders) {
             final LogNode parentClassLoaderLog = log == null ? null : log.log("Finding parent ClassLoaders");
             final AdditionOrderedSet<ClassLoader> allClassLoaders = new AdditionOrderedSet<>();
             for (final ClassLoader classLoader : classLoaderOrder) {
