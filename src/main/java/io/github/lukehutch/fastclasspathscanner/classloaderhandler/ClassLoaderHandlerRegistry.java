@@ -48,6 +48,5 @@ public class ClassLoaderHandlerRegistry {
 
             // The main default ClassLoaderHandler -- URLClassLoader is the most common ClassLoader.
             // Call this last, so that specific handlers for subclasses can override this. 
-            URLClassLoaderHandler.class
-    );
+            URLClassLoaderHandler.class);
 }

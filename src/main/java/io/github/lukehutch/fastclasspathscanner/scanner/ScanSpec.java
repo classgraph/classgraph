@@ -245,6 +245,9 @@ public class ScanSpec {
      */
     public boolean removeTemporaryFilesAfterScan = true;
 
+    /** If true, do not fetch paths from parent classloaders. */
+    boolean ignoreParentClassLoaders = false;
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
@@ -469,6 +472,10 @@ public class ScanSpec {
     public void overrideClassLoaders(final ClassLoader... overrideClassLoaders) {
         this.addedClassLoaders = null;
         this.overrideClassLoaders = Arrays.asList(overrideClassLoaders);
+    }
+
+    public void ignoreParentClassLoaders(final boolean ignoreParentClassloaders) {
+        this.ignoreParentClassLoaders = ignoreParentClassloaders;
     }
 
     // -------------------------------------------------------------------------------------------------------------

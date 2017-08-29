@@ -50,9 +50,9 @@ public class AdditionOrderedSet<T> {
     }
 
     /** Add all items of a list to the set. Returns true if the list changed as a result of the add. */
-    public boolean addAll(List<T> items) {
+    public boolean addAll(final List<T> items) {
         boolean changed = false;
-        for (T item : items) {
+        for (final T item : items) {
             changed |= add(item);
         }
         return changed;

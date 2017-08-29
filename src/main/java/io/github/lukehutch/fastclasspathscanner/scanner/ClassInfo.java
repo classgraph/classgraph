@@ -555,7 +555,8 @@ public class ClassInfo implements Comparable<ClassInfo> {
         if (classInfo.classLoaders == null) {
             classInfo.classLoaders = classLoaderList;
         } else if (classLoaderList != null && !classInfo.classLoaders.equals(classLoaderList)) {
-            AdditionOrderedSet<ClassLoader> allClassLoaders = new AdditionOrderedSet<>(classInfo.classLoaders);
+            final AdditionOrderedSet<ClassLoader> allClassLoaders = new AdditionOrderedSet<>(
+                    classInfo.classLoaders);
             allClassLoaders.addAll(classLoaderList);
             classInfo.classLoaders = allClassLoaders.getList();
         }
