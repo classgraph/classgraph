@@ -167,28 +167,35 @@ public class ClasspathFinder {
     /** A class to find the unique ordered classpath elements. */
     ClasspathFinder(final ScanSpec scanSpec, final NestedJarHandler nestedJarHandler, final LogNode log) {
         // Get ClassLoaders
-        this.classLoaderOrder = ClassLoaderFinder.findClassLoaders(scanSpec,
+        classLoaderOrder = ClassLoaderFinder.findClassLoaders(scanSpec,
                 log == null ? null : log.log("Finding ClassLoaders"));
 
         // Get parent classloaders, in classpath resolution order, deduplicating
-        final LogNode parentClassLoaderLog = log == null ? null : log.log("Finding parent ClassLoaders");
-        final AdditionOrderedSet<ClassLoader> allClassLoaders = new AdditionOrderedSet<>();
-        for (final ClassLoader classLoader : classLoaderOrder) {
-            final ArrayList<ClassLoader> parentClassLoaders = new ArrayList<>();
-            for (ClassLoader cl = classLoader; cl != null; cl = cl.getParent()) {
-                parentClassLoaders.add(cl);
-            }
-            // OpenJDK calls classloaders in a top-down order
-            for (int i = parentClassLoaders.size() - 1; i >= 0; --i) {
-                final ClassLoader cl = parentClassLoaders.get(i);
-                if (parentClassLoaderLog != null && i > 0) {
-                    parentClassLoaderLog
-                            .log("ClassLoader " + cl + " is parent of ClassLoader" + parentClassLoaders.get(i - 1));
+        final List<ClassLoader> allClassLoadersOrdered;
+        // TODO: disable classloading altogether if classpath is overridden
+        if (scanSpec.overrideClasspath != null || !scanSpec.ignoreParentClassloaders) {
+            final LogNode parentClassLoaderLog = log == null ? null : log.log("Finding parent ClassLoaders");
+            final AdditionOrderedSet<ClassLoader> allClassLoaders = new AdditionOrderedSet<>();
+            for (final ClassLoader classLoader : classLoaderOrder) {
+                final ArrayList<ClassLoader> parentClassLoaders = new ArrayList<>();
+                for (ClassLoader cl = classLoader; cl != null; cl = cl.getParent()) {
+                    parentClassLoaders.add(cl);
                 }
-                allClassLoaders.add(cl);
+                // OpenJDK calls classloaders in a top-down order
+                for (int i = parentClassLoaders.size() - 1; i >= 0; --i) {
+                    final ClassLoader cl = parentClassLoaders.get(i);
+                    if (parentClassLoaderLog != null && i > 0) {
+                        parentClassLoaderLog.log(
+                                "ClassLoader " + cl + " is parent of ClassLoader" + parentClassLoaders.get(i - 1));
+                    }
+                    allClassLoaders.add(cl);
+                }
             }
+            allClassLoadersOrdered = allClassLoaders.getList();
+        } else {
+            // Don't get paths from parent classloaders
+            allClassLoadersOrdered = classLoaderOrder;
         }
-        final List<ClassLoader> allClassLoadersOrdered = allClassLoaders.getList();
 
         this.nestedJarHandler = nestedJarHandler;
         if (scanSpec.overrideClasspath != null) {
