@@ -37,7 +37,10 @@ public class WebsphereTraditionalClassLoaderHandler implements ClassLoaderHandle
     public boolean handle(final ClassLoader classloader, final ClasspathFinder classpathFinder, final LogNode log)
             throws Exception {
         for (Class<?> c = classloader.getClass(); c != null; c = c.getSuperclass()) {
-            if (!"com.ibm.ws.classloader.CompoundClassLoader".equals(c.getName())) {
+            // All three class loaders implement the getClassPath method call.
+            if (!"com.ibm.ws.classloader.CompoundClassLoader".equals(c.getName())
+                    || !"com.ibm.ws.classloader.ProtectionClassLoader".equals(c.getName())
+                    || !"com.ibm.ws.bootstrap.ExtClassLoader".equals(c.getName())) {
                 continue;
             }
             final String classpath = (String) ReflectionUtils.invokeMethod(classloader, "getClassPath");
