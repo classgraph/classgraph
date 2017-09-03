@@ -3,7 +3,7 @@
 
 	<groupId>io.github.lukehutch</groupId>
 	<artifactId>fast-classpath-scanner</artifactId>
-	<version>2.4.7</version>
+	<version>2.4.8-SNAPSHOT</version>
 	<name>FastClasspathScanner</name>
 
 	<description>
@@ -203,7 +203,7 @@
 		<connection>scm:git:git@github.com:lukehutch/fast-classpath-scanner.git</connection>
 		<developerConnection>scm:git:git@github.com:lukehutch/fast-classpath-scanner.git</developerConnection>
 		<url>https://github.com/lukehutch/fast-classpath-scanner</url>
-		<tag>fast-classpath-scanner-2.4.7</tag>
+		<tag>HEAD</tag>
 	</scm>
 	<url>https://github.com/lukehutch/fast-classpath-scanner</url>
 
