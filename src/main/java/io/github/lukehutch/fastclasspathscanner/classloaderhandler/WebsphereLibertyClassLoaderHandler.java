@@ -53,6 +53,7 @@ public class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
 
     @Override
     public DelegationOrder getDelegationOrder(final ClassLoader classLoaderInstance) {
+        // TODO: Read correct delegation order from ClassLoader
         return DelegationOrder.PARENT_FIRST;
     }
 
