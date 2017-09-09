@@ -213,7 +213,7 @@ public class Scanner implements Callable<ScanResult> {
                     getRawElementsLog);
             final List<ClasspathRelativePath> rawClasspathEltPathsDedupd = classpathFinder
                     .getRawClasspathElements();
-            final List<ClassLoader> classLoaderOrder = classpathFinder.getClassLoaderOrder();
+            final ClassLoader[] classLoaderOrder = classpathFinder.getClassLoaderOrder();
 
             // In parallel, resolve raw classpath elements to canonical paths, creating a ClasspathElement
             // singleton for each unique canonical path. Also check jars against jar whitelist/blacklist.a

@@ -40,7 +40,7 @@ class ClassGraphBuilder {
     final Map<String, ClassInfo> classNameToClassInfo;
     private final ScanSpec scanSpec;
     private final Set<ClassInfo> allClassInfo;
-    private final Map<String, List<ClassLoader>> classNameToClassLoaders = new HashMap<>();
+    private final Map<String, ClassLoader[]> classNameToClassLoaders = new HashMap<>();
 
     /** Builds the class graph, and provides methods for querying it. */
     ClassGraphBuilder(final ScanSpec scanSpec, final Map<String, ClassInfo> classNameToClassInfo) {
@@ -48,7 +48,7 @@ class ClassGraphBuilder {
         this.classNameToClassInfo = classNameToClassInfo;
         this.allClassInfo = new HashSet<>(classNameToClassInfo.values());
         for (final ClassInfo classInfo : this.allClassInfo) {
-            final List<ClassLoader> classLoaders = classInfo.getClassLoaders();
+            final ClassLoader[] classLoaders = classInfo.getClassLoaders();
             if (classLoaders != null) {
                 classNameToClassLoaders.put(classInfo.getClassName(), classLoaders);
             }
@@ -61,7 +61,7 @@ class ClassGraphBuilder {
     }
 
     /** Get a map from class name to ClassLoader(s) for the class. */
-    public Map<String, List<ClassLoader>> getClassNameToClassLoaders() {
+    public Map<String, ClassLoader[]> getClassNameToClassLoaders() {
         return classNameToClassLoaders;
     }
 

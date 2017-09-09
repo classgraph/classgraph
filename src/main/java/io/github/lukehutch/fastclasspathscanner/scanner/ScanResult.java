@@ -49,8 +49,12 @@ public class ScanResult {
     /** The order of unique classpath elements. */
     final List<ClasspathElement> classpathOrder;
 
-    /** The order in which ClassLoaders are called to load classes. */
-    private final List<ClassLoader> classLoaderOrder;
+    /**
+     * The default order in which ClassLoaders are called to load classes. Used when a specific class does not have
+     * a record of which ClassLoader provided the URL used to locate the class (e.g. if the class is found using
+     * java.class.path).
+     */
+    private final ClassLoader[] envClassLoaderOrder;
 
     /** The list of File objects for unique classpath elements (directories or jarfiles). */
     private final List<File> classpathElementOrderFiles;
@@ -87,12 +91,12 @@ public class ScanResult {
 
     /** The result of a scan. */
     ScanResult(final ScanSpec scanSpec, final List<ClasspathElement> classpathOrder,
-            final List<ClassLoader> classLoaderOrder, final ClassGraphBuilder classGraphBuilder,
+            final ClassLoader[] envClassLoaderOrder, final ClassGraphBuilder classGraphBuilder,
             final Map<File, Long> fileToLastModified, final NestedJarHandler nestedJarHandler,
             final InterruptionChecker interruptionChecker, final LogNode log) {
         this.scanSpec = scanSpec;
         this.classpathOrder = classpathOrder;
-        this.classLoaderOrder = classLoaderOrder;
+        this.envClassLoaderOrder = envClassLoaderOrder;
         this.classpathElementOrderFiles = new ArrayList<>();
         this.classpathElementOrderURLs = new ArrayList<>();
         for (final ClasspathElement classpathElement : classpathOrder) {
@@ -110,13 +114,13 @@ public class ScanResult {
      * Find the classloader(s) for the named class. Typically there will only be one ClassLoader returned. However,
      * if more than one is returned, they should be called in turn until one is able to load the class.
      */
-    public List<ClassLoader> getClassLoadersForClass(final String className) {
-        final List<ClassLoader> classLoaders = classGraphBuilder.getClassNameToClassLoaders().get(className);
+    public ClassLoader[] getClassLoadersForClass(final String className) {
+        final ClassLoader[] classLoaders = classGraphBuilder.getClassNameToClassLoaders().get(className);
         if (classLoaders != null) {
             return classLoaders;
         } else {
             // Default to default classloader order if classpath element didn't have specified classloader(s)
-            return classLoaderOrder;
+            return envClassLoaderOrder;
         }
     }
 

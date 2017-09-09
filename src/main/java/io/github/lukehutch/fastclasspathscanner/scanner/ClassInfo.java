@@ -84,7 +84,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
     /**
      * The classloaders to try to load this class with before calling a MatchProcessor.
      */
-    private List<ClassLoader> classLoaders;
+    private ClassLoader[] classLoaders;
 
     /** The scan spec. */
     private final ScanSpec scanSpec;
@@ -144,7 +144,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
     }
 
     /** Get the ClassLoader(s) to use when trying to load the class. */
-    public List<ClassLoader> getClassLoaders() {
+    public ClassLoader[] getClassLoaders() {
         return classLoaders;
     }
 
@@ -551,14 +551,18 @@ public class ClassInfo implements Comparable<ClassInfo> {
         classInfo.classpathElementURLs.add(classpathElement.getClasspathElementURL());
 
         // Remember which classpath element(s) the class was found in, for classloading
-        final List<ClassLoader> classLoaderList = classpathElement.getClassLoaders();
+        final ClassLoader[] classLoaders = classpathElement.getClassLoaders();
         if (classInfo.classLoaders == null) {
-            classInfo.classLoaders = classLoaderList;
-        } else if (classLoaderList != null && !classInfo.classLoaders.equals(classLoaderList)) {
+            classInfo.classLoaders = classLoaders;
+        } else if (classLoaders != null && !classInfo.classLoaders.equals(classLoaders)) {
+            // Merge together ClassLoader list (concatenate and dedup)
             final AdditionOrderedSet<ClassLoader> allClassLoaders = new AdditionOrderedSet<>(
                     classInfo.classLoaders);
-            allClassLoaders.addAll(classLoaderList);
-            classInfo.classLoaders = allClassLoaders.getList();
+            for (final ClassLoader classLoader : classLoaders) {
+                allClassLoaders.add(classLoader);
+            }
+            final List<ClassLoader> classLoaderOrder = allClassLoaders.toList();
+            classInfo.classLoaders = classLoaderOrder.toArray(new ClassLoader[classLoaderOrder.size()]);
         }
 
         // Mark the appropriate class type as scanned (aux classes all need to be merged into a single

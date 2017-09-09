@@ -29,6 +29,7 @@
 package io.github.lukehutch.fastclasspathscanner.classloaderhandler;
 
 import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
+import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 
 /**
@@ -41,6 +42,24 @@ import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
  * incorporation into FastClasspathScanner.
  */
 public interface ClassLoaderHandler {
+    // By convention, include a static final String[] field named HANDLED_CLASSLOADERS 
+    // at the top of your ClassLoaderHandler
+
+    /**
+     * The delegation order configuration for a given ClassLoader instance (this is usually PARENT_FIRST for most
+     * ClassLoaders, but this can be overridden by some ClassLoaders, e.g. WebSphere).
+     */
+    public enum DelegationOrder {
+        PARENT_FIRST, PARENT_LAST;
+    }
+
+    /**
+     * The delegation order configuration for a given ClassLoader instance (this is usually PARENT_FIRST for most
+     * ClassLoaders, since you don't generally want to be able to override system classes with user classes, but
+     * this can be overridden by some ClassLoaders, e.g. WebSphere).
+     */
+    public abstract DelegationOrder getDelegationOrder(ClassLoader classLoaderInstance);
+
     /**
      * Determine if a given ClassLoader can be handled (meaning that its classpath elements can be extracted from
      * it), and if it can, extract the classpath elements from the ClassLoader and register them with the
@@ -54,11 +73,14 @@ public interface ClassLoaderHandler {
      *            ensure subclasses of the target ClassLoader are correctly detected.
      * @param classpathFinder
      *            The ClasspathFinder to register any discovered classpath elements with.
+     * @param scanSpec
+     *            the scanning specification, in case it is needed, e.g. this could be used to reduce the number of
+     *            classpath elements returned in cases where it is very costly for a given classloader to return the
+     *            entire classpath. (The ScanSpec can be safely ignored, however, and the returned paths will be
+     *            filtered by FastClasspathScanner.)
      * @param log
-     *            A logger instance -- write debug information using log.log("message"), then switch on verbose mode
-     *            to view it.
-     * @return true if the passed ClassLoader was handled by this ClassLoaderHandler, else false.
+     *            A logger instance -- if this is non-null, write debug information using log.log("message").
      */
-    public abstract boolean handle(final ClassLoader classLoader, final ClasspathFinder classpathFinder,
-            LogNode log) throws Exception;
+    public abstract void handle(final ClassLoader classLoader, final ClasspathFinder classpathFinder,
+            ScanSpec scanSpec, LogNode log) throws Exception;
 }

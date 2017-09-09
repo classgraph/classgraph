@@ -30,14 +30,15 @@ package io.github.lukehutch.fastclasspathscanner.utils;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 
 /**
  * A simplified set that has O(1) add time, but also preserves a list of elements in the order they were added.
  */
-public class AdditionOrderedSet<T> {
-    private final HashSet<T> set = new HashSet<>();
-    private final ArrayList<T> list = new ArrayList<>();
+public class AdditionOrderedSet<T> implements Iterable<T> {
+    private final HashSet<T> set;
+    private final ArrayList<T> list;
 
     /** Add an element to the set. Returns true if the element was added; false if it was already in the set. */
     public boolean add(final T elt) {
@@ -58,27 +59,48 @@ public class AdditionOrderedSet<T> {
         return changed;
     }
 
+    public boolean contains(final T elt) {
+        return set.contains(elt);
+    }
+
     /** Get the elements in addition order (i.e. in the order they were added) */
-    public List<T> getList() {
+    public List<T> toList() {
         return list;
     }
 
     public AdditionOrderedSet() {
+        this(16);
+    }
+
+    public AdditionOrderedSet(final int initialSize) {
+        set = new HashSet<>(initialSize);
+        list = new ArrayList<>(initialSize);
     }
 
     public AdditionOrderedSet(final List<T> elts) {
+        this(elts.size());
         for (final T elt : elts) {
             add(elt);
         }
     }
 
     public AdditionOrderedSet(final T[] elts) {
+        this(elts.length);
         for (final T elt : elts) {
             add(elt);
         }
     }
 
     public static <T> List<T> dedup(final List<T> list) {
-        return new AdditionOrderedSet<>(list).getList();
+        return new AdditionOrderedSet<>(list).toList();
+    }
+
+    public int size() {
+        return list.size();
+    }
+
+    @Override
+    public Iterator<T> iterator() {
+        return list.iterator();
     }
 }

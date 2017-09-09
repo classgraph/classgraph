@@ -33,6 +33,7 @@ import java.lang.reflect.Array;
 import java.util.Map;
 
 import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
+import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
 import io.github.lukehutch.fastclasspathscanner.utils.ClasspathUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
@@ -44,68 +45,66 @@ import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
  * 
  */
 public class JBossClassLoaderHandler implements ClassLoaderHandler {
+    public static final String[] HANDLED_CLASSLOADERS = { "org.jboss.modules.ModuleClassLoader" };
+
     @Override
-    public boolean handle(final ClassLoader classLoader, final ClasspathFinder classpathFinder, final LogNode log)
-            throws Exception {
-        boolean handled = false;
-        for (Class<?> c = classLoader.getClass(); c != null; c = c.getSuperclass()) {
-            if ("org.jboss.modules.ModuleClassLoader".equals(c.getName())) {
+    public DelegationOrder getDelegationOrder(final ClassLoader classLoaderInstance) {
+        return DelegationOrder.PARENT_FIRST;
+    }
 
-                final Object module = ReflectionUtils.invokeMethod(classLoader, "getModule");
-                final Object serviceLoader = ReflectionUtils.invokeMethod(module, "getCallerModuleLoader");
-                @SuppressWarnings("unchecked")
-                final Map<Object, Object> moduleMap = (Map<Object, Object>) ReflectionUtils
-                        .getFieldVal(serviceLoader, "moduleMap");
-                for (final Object key : moduleMap.keySet()) {
-                    final Object futureModule = moduleMap.get(key);
-                    final Object realModule = ReflectionUtils.invokeMethod(futureModule, "getModule");
-                    final Object moduleLoader = ReflectionUtils.invokeMethod(realModule, "getClassLoader");
+    @Override
+    public void handle(final ClassLoader classLoader, final ClasspathFinder classpathFinder,
+            final ScanSpec scanSpec, final LogNode log) throws Exception {
+        final Object module = ReflectionUtils.invokeMethod(classLoader, "getModule");
+        final Object serviceLoader = ReflectionUtils.invokeMethod(module, "getCallerModuleLoader");
+        @SuppressWarnings("unchecked")
+        final Map<Object, Object> moduleMap = (Map<Object, Object>) ReflectionUtils.getFieldVal(serviceLoader,
+                "moduleMap");
+        for (final Object key : moduleMap.keySet()) {
+            final Object futureModule = moduleMap.get(key);
+            final Object realModule = ReflectionUtils.invokeMethod(futureModule, "getModule");
+            final Object moduleLoader = ReflectionUtils.invokeMethod(realModule, "getClassLoader");
 
-                    // type VFSResourceLoader[]
-                    final Object vfsResourceLoaders = ReflectionUtils.invokeMethod(moduleLoader,
-                            "getResourceLoaders");
-                    if (vfsResourceLoaders != null) {
-                        for (int i = 0, n = Array.getLength(vfsResourceLoaders); i < n; i++) {
-                            String path = null;
-                            // type VFSResourceLoader
-                            final Object resourceLoader = Array.get(vfsResourceLoaders, i);
-                            if (resourceLoader != null) {
-                                // type VirtualFile
-                                final Object root = ReflectionUtils.getFieldVal(resourceLoader, "root");
-                                final File physicalFile = (File) ReflectionUtils.invokeMethod(root,
-                                        "getPhysicalFile");
-                                if (physicalFile != null) {
-                                    final String name = (String) ReflectionUtils.invokeMethod(root, "getName");
-                                    if (name != null) {
-                                        final File file = new java.io.File(physicalFile.getParentFile(), name);
-                                        if (ClasspathUtils.canRead(file)) {
-                                            path = file.getAbsolutePath();
-                                        } else {
-                                            path = physicalFile.getAbsolutePath();
-                                        }
-                                    } else {
-                                        path = physicalFile.getAbsolutePath();
-                                    }
+            // type VFSResourceLoader[]
+            final Object vfsResourceLoaders = ReflectionUtils.invokeMethod(moduleLoader, "getResourceLoaders");
+            if (vfsResourceLoaders != null) {
+                for (int i = 0, n = Array.getLength(vfsResourceLoaders); i < n; i++) {
+                    String path = null;
+                    // type VFSResourceLoader
+                    final Object resourceLoader = Array.get(vfsResourceLoaders, i);
+                    if (resourceLoader != null) {
+                        // type VirtualFile
+                        final Object root = ReflectionUtils.getFieldVal(resourceLoader, "root");
+                        final File physicalFile = (File) ReflectionUtils.invokeMethod(root, "getPhysicalFile");
+                        if (physicalFile != null) {
+                            final String name = (String) ReflectionUtils.invokeMethod(root, "getName");
+                            if (name != null) {
+                                final File file = new java.io.File(physicalFile.getParentFile(), name);
+                                if (ClasspathUtils.canRead(file)) {
+                                    path = file.getAbsolutePath();
                                 } else {
-                                    // Fallback
-                                    path = (String) ReflectionUtils.invokeMethod(root, "getPathName");
-                                    if (path == null) {
-                                        // Try File:
-                                        Object file = root;
-                                        if (file == null) {
-                                            // Try JarFileResource:
-                                            file = ReflectionUtils.getFieldVal(resourceLoader, "fileOfJar");
-                                        }
-                                        path = (String) ReflectionUtils.invokeMethod(file, "getAbsolutePath");
-                                    }
+                                    path = physicalFile.getAbsolutePath();
                                 }
+                            } else {
+                                path = physicalFile.getAbsolutePath();
                             }
-                            handled |= classpathFinder.addClasspathElement(path, (ClassLoader) moduleLoader, log);
+                        } else {
+                            // Fallback
+                            path = (String) ReflectionUtils.invokeMethod(root, "getPathName");
+                            if (path == null) {
+                                // Try File:
+                                Object file = root;
+                                if (file == null) {
+                                    // Try JarFileResource:
+                                    file = ReflectionUtils.getFieldVal(resourceLoader, "fileOfJar");
+                                }
+                                path = (String) ReflectionUtils.invokeMethod(file, "getAbsolutePath");
+                            }
                         }
                     }
+                    classpathFinder.addClasspathElement(path, (ClassLoader) moduleLoader, log);
                 }
             }
         }
-        return handled;
     }
 }

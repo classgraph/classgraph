@@ -37,17 +37,39 @@ public class ClassLoaderHandlerRegistry {
      * Default ClassLoaderHandlers. If a ClassLoaderHandler is added to FastClasspathScanner, it should be added to
      * this list.
      */
-    public static final List<Class<? extends ClassLoaderHandler>> DEFAULT_CLASS_LOADER_HANDLERS = Arrays.asList(
+    public static final List<ClassLoaderHandlerRegistryEntry> DEFAULT_CLASS_LOADER_HANDLERS = Arrays.asList(
             // ClassLoaderHandlers for other ClassLoaders that are handled by FastClasspathScanner
-            EquinoxClassLoaderHandler.class, //
-            FelixClassLoaderHandler.class, //
-            JBossClassLoaderHandler.class, //
-            WeblogicClassLoaderHandler.class, //
-            WebsphereLibertyClassLoaderHandler.class, //
-            WebsphereTraditionalClassLoaderHandler.class, //
-            OSGiDefaultClassLoaderHandler.class, //
+            new ClassLoaderHandlerRegistryEntry(EquinoxClassLoaderHandler.HANDLED_CLASSLOADERS,
+                    EquinoxClassLoaderHandler.class),
+            new ClassLoaderHandlerRegistryEntry(FelixClassLoaderHandler.HANDLED_CLASSLOADERS,
+                    FelixClassLoaderHandler.class),
+            new ClassLoaderHandlerRegistryEntry(JBossClassLoaderHandler.HANDLED_CLASSLOADERS,
+                    JBossClassLoaderHandler.class),
+            new ClassLoaderHandlerRegistryEntry(WeblogicClassLoaderHandler.HANDLED_CLASSLOADERS,
+                    WeblogicClassLoaderHandler.class),
+            new ClassLoaderHandlerRegistryEntry(WebsphereLibertyClassLoaderHandler.HANDLED_CLASSLOADERS,
+                    WebsphereLibertyClassLoaderHandler.class),
+            new ClassLoaderHandlerRegistryEntry(WebsphereTraditionalClassLoaderHandler.HANDLED_CLASSLOADERS,
+                    WebsphereTraditionalClassLoaderHandler.class),
+            new ClassLoaderHandlerRegistryEntry(OSGiDefaultClassLoaderHandler.HANDLED_CLASSLOADERS,
+                    OSGiDefaultClassLoaderHandler.class),
 
             // The main default ClassLoaderHandler -- URLClassLoader is the most common ClassLoader.
-            // Call this last, so that specific handlers for subclasses can override this. 
-            URLClassLoaderHandler.class);
+            // Call this last, so that specific handlers for subclasses can override this if necessary.
+            new ClassLoaderHandlerRegistryEntry(URLClassLoaderHandler.HANDLED_CLASSLOADERS,
+                    URLClassLoaderHandler.class));
+
+    /**
+     * A list of fully-qualified ClassLoader class names paired with the ClassLoaderHandler that can handle them.
+     */
+    public static class ClassLoaderHandlerRegistryEntry {
+        public final String[] handledClassLoaderNames;
+        public final Class<? extends ClassLoaderHandler> classLoaderHandlerClass;
+
+        public ClassLoaderHandlerRegistryEntry(final String[] handledClassLoaders,
+                final Class<? extends ClassLoaderHandler> classLoaderHandlerClass) {
+            this.handledClassLoaderNames = handledClassLoaders;
+            this.classLoaderHandlerClass = classLoaderHandlerClass;
+        }
+    }
 }

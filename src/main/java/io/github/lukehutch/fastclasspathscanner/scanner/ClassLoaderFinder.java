@@ -65,10 +65,10 @@ public class ClassLoaderFinder {
     // -------------------------------------------------------------------------------------------------------------
 
     /** A class to find the unique ordered classpath elements. */
-    public static List<ClassLoader> findClassLoaders(final ScanSpec scanSpec, final LogNode log) {
-        List<ClassLoader> classLoadersRaw = scanSpec.overrideClassLoaders;
+    public static ClassLoader[] findEnvClassLoaders(final ScanSpec scanSpec, final LogNode log) {
+        AdditionOrderedSet<ClassLoader> classLoadersUnique;
         LogNode classLoadersFoundLog = null;
-        if (classLoadersRaw == null) {
+        if (scanSpec.overrideClassLoaders == null) {
             // ClassLoaders were not overridden
 
             // Add the ClassLoaders in the order system, caller, context; then remove any of them that are
@@ -78,8 +78,11 @@ public class ClassLoaderFinder {
             // http://www.javaworld.com/article/2077344/core-java/find-a-way-out-of-the-classloader-maze.html?page=2
 
             // Get system classloader
-            classLoadersRaw = new ArrayList<>();
-            classLoadersRaw.add(ClassLoader.getSystemClassLoader());
+            classLoadersUnique = new AdditionOrderedSet<>();
+            final ClassLoader systemClassLoader = ClassLoader.getSystemClassLoader();
+            if (systemClassLoader != null) {
+                classLoadersUnique.add(systemClassLoader);
+            }
 
             // Get caller classloader
             if (CALLER_RESOLVER == null) {
@@ -109,56 +112,52 @@ public class ClassLoaderFinder {
                     }
 
                     // Get the caller's current classloader
-                    classLoadersRaw.add(callStack[fcsIdx + 1].getClassLoader());
+                    final ClassLoader callStackClassLoader = callStack[fcsIdx + 1].getClassLoader();
+                    if (callStackClassLoader != null) {
+                        classLoadersUnique.add(callStackClassLoader);
+                    }
                 }
             }
 
             // Get context classloader
-            classLoadersRaw.add(Thread.currentThread().getContextClassLoader());
+            final ClassLoader threadClassLoader = Thread.currentThread().getContextClassLoader();
+            if (threadClassLoader != null) {
+                classLoadersUnique.add(threadClassLoader);
+            }
 
             // Add any custom-added classloaders after system/context classloaders
             if (scanSpec.addedClassLoaders != null) {
-                classLoadersRaw.addAll(scanSpec.addedClassLoaders);
+                classLoadersUnique.addAll(scanSpec.addedClassLoaders);
             }
             classLoadersFoundLog = log == null ? null : log.log("Found ClassLoaders:");
 
         } else {
             // ClassLoaders were overridden
+            classLoadersUnique = new AdditionOrderedSet<>(scanSpec.overrideClassLoaders);
             classLoadersFoundLog = log == null ? null : log.log("Override ClassLoaders:");
         }
 
-        // Remove null ClassLoaders
-        List<ClassLoader> classLoadersWorking = new ArrayList<>(classLoadersRaw.size());
-        for (final ClassLoader classLoader : classLoadersRaw) {
-            if (classLoader != null) {
-                classLoadersWorking.add(classLoader);
-            }
-        }
-
-        // Dedup ClassLoaders
-        classLoadersWorking = AdditionOrderedSet.dedup(classLoadersWorking);
-
         // Remove all ancestral classloaders (they are called automatically during class load)
-        final Set<ClassLoader> ancestralClassLoaders = new HashSet<>(classLoadersWorking.size());
-        for (final ClassLoader classLoader : classLoadersWorking) {
+        final Set<ClassLoader> ancestralClassLoaders = new HashSet<>(classLoadersUnique.size());
+        for (final ClassLoader classLoader : classLoadersUnique) {
             for (ClassLoader cl = classLoader.getParent(); cl != null; cl = cl.getParent()) {
                 ancestralClassLoaders.add(cl);
             }
         }
-        final List<ClassLoader> classLoaderOrder = new ArrayList<>(classLoadersWorking.size());
-        for (final ClassLoader classLoader : classLoadersWorking) {
+        final List<ClassLoader> classLoaderFinalOrder = new ArrayList<>(classLoadersUnique.size());
+        for (final ClassLoader classLoader : classLoadersUnique) {
+            // Build final ClassLoader order, with ancestral classloaders removed
             if (!ancestralClassLoaders.contains(classLoader)) {
-                // Build final ClassLoader order
-                classLoaderOrder.add(classLoader);
+                classLoaderFinalOrder.add(classLoader);
             }
         }
 
         // Log all identified ClassLoaders
         if (classLoadersFoundLog != null) {
-            for (final ClassLoader cl : classLoaderOrder) {
+            for (final ClassLoader cl : classLoaderFinalOrder) {
                 classLoadersFoundLog.log("" + cl);
             }
         }
-        return classLoaderOrder;
+        return classLoaderFinalOrder.toArray(new ClassLoader[classLoaderFinalOrder.size()]);
     }
 }

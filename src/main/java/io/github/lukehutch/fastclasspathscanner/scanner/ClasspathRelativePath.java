@@ -30,7 +30,6 @@ package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.List;
 
 import io.github.lukehutch.fastclasspathscanner.utils.ClasspathUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.FastPathResolver;
@@ -44,7 +43,7 @@ import io.github.lukehutch.fastclasspathscanner.utils.NestedJarHandler;
  */
 class ClasspathRelativePath {
     /** The ClassLoader(s) used to load classes for this classpath element */
-    private final List<ClassLoader> classLoaders;
+    private final ClassLoader[] classLoaders;
 
     /** Base path for path resolution. */
     private final String pathToResolveAgainst;
@@ -99,7 +98,7 @@ class ClasspathRelativePath {
      * for relative paths within classpath elements (e.g. the files within a ZipFile).
      */
     public ClasspathRelativePath(final String pathToResolveAgainst, final String relativePath,
-            final List<ClassLoader> classLoaders, final NestedJarHandler nestedJarHandler) {
+            final ClassLoader[] classLoaders, final NestedJarHandler nestedJarHandler) {
         this.classLoaders = classLoaders;
         this.pathToResolveAgainst = pathToResolveAgainst;
         this.nestedJarHandler = nestedJarHandler;
@@ -170,7 +169,7 @@ class ClasspathRelativePath {
     // -------------------------------------------------------------------------------------------------------------
 
     /** Get the ClassLoader(s) that should be used to load classes for this classpath element */
-    public List<ClassLoader> getClassLoaders() {
+    public ClassLoader[] getClassLoaders() {
         return classLoaders;
     }
 

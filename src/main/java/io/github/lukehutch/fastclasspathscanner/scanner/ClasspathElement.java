@@ -140,7 +140,7 @@ abstract class ClasspathElement {
     }
 
     /** Get the ClassLoader(s) to use when trying to load the class. */
-    public List<ClassLoader> getClassLoaders() {
+    public ClassLoader[] getClassLoaders() {
         return classpathEltPath.getClassLoaders();
     }
 

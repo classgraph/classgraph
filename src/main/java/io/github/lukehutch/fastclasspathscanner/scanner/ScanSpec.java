@@ -38,7 +38,6 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map.Entry;
@@ -48,6 +47,7 @@ import java.util.regex.Pattern;
 
 import io.github.lukehutch.fastclasspathscanner.MatchProcessorException;
 import io.github.lukehutch.fastclasspathscanner.classloaderhandler.ClassLoaderHandler;
+import io.github.lukehutch.fastclasspathscanner.classloaderhandler.ClassLoaderHandlerRegistry.ClassLoaderHandlerRegistryEntry;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.ClassAnnotationMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.ClassMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.FieldAnnotationMatchProcessor;
@@ -229,7 +229,7 @@ public class ScanSpec {
     String overrideClasspath;
 
     /** Manually-registered ClassLoaderHandlers. */
-    final ArrayList<Class<? extends ClassLoaderHandler>> extraClassLoaderHandlers = new ArrayList<>();
+    final ArrayList<ClassLoaderHandlerRegistryEntry> extraClassLoaderHandlers = new ArrayList<>();
 
     /**
      * If true, classes loaded with Class.forName() are initialized before passing class references to
@@ -440,9 +440,18 @@ public class ScanSpec {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Register an extra ClassLoaderHandler. */
-    public void registerClassLoaderHandler(final Class<? extends ClassLoaderHandler> classLoaderHandler) {
-        this.extraClassLoaderHandlers.add(classLoaderHandler);
+    /**
+     * Register an extra ClassLoaderHandler.
+     * 
+     * @param classLoaderClassesHandled
+     *            The fully-qualified names of the ClassLoader class(es) handled by this ClassLoaderHandler.
+     * @param classLoaderHandler
+     *            The class of the ClassLoaderHandler that can handle those ClassLoaders.
+     */
+    public void registerClassLoaderHandler(final String[] classLoaderClassesHandled,
+            final Class<? extends ClassLoaderHandler> classLoaderHandler) {
+        this.extraClassLoaderHandlers
+                .add(new ClassLoaderHandlerRegistryEntry(classLoaderClassesHandled, classLoaderHandler));
     }
 
     /**
@@ -462,7 +471,9 @@ public class ScanSpec {
         if (this.addedClassLoaders == null) {
             this.addedClassLoaders = new ArrayList<>();
         }
-        this.addedClassLoaders.add(classLoader);
+        if (classLoader != null) {
+            this.addedClassLoaders.add(classLoader);
+        }
     }
 
     /**
@@ -471,7 +482,19 @@ public class ScanSpec {
      */
     public void overrideClassLoaders(final ClassLoader... overrideClassLoaders) {
         this.addedClassLoaders = null;
-        this.overrideClassLoaders = Arrays.asList(overrideClassLoaders);
+        this.overrideClassLoaders = new ArrayList<>();
+        for (final ClassLoader classLoader : overrideClassLoaders) {
+            if (classLoader != null) {
+                this.overrideClassLoaders.add(classLoader);
+            }
+        }
+        if (this.overrideClassLoaders.isEmpty()) {
+            // Reset back to null if the list of classloaders is empty
+            this.overrideClassLoaders = null;
+        } else {
+            // overrideClassLoaders() overrides addClassloader()
+            this.addedClassLoaders = null;
+        }
     }
 
     public void ignoreParentClassLoaders(final boolean ignoreParentClassloaders) {
@@ -762,8 +785,7 @@ public class ScanSpec {
                             + "use .overrideClassLoaders() instead");
         }
         // Try loading class via each classloader in turn
-        final List<ClassLoader> classLoadersForClassName = scanResult.getClassLoadersForClass(className);
-        for (final ClassLoader classLoader : classLoadersForClassName) {
+        for (final ClassLoader classLoader : scanResult.getClassLoadersForClass(className)) {
             final Class<?> classRef = loadClass(className, classLoader, log);
             if (classRef != null) {
                 return classRef;

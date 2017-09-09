@@ -31,30 +31,32 @@ package io.github.lukehutch.fastclasspathscanner.classloaderhandler;
 import java.io.File;
 
 import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
+import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
 
 public class OSGiDefaultClassLoaderHandler implements ClassLoaderHandler {
+    public static final String[] HANDLED_CLASSLOADERS = {
+            "org.eclipse.osgi.internal.baseadaptor.DefaultClassLoader" };
+
     @Override
-    public boolean handle(final ClassLoader classloader, final ClasspathFinder classpathFinder, final LogNode log)
-            throws Exception {
-        for (Class<?> c = classloader.getClass(); c != null; c = c.getSuperclass()) {
-            if (!"org.eclipse.osgi.internal.baseadaptor.DefaultClassLoader".equals(c.getName())) {
-                continue;
-            }
-            final Object classpathManager = ReflectionUtils.invokeMethod(classloader, "getClasspathManager");
-            final Object[] entries = (Object[]) ReflectionUtils.getFieldVal(classpathManager, "entries");
-            if (entries != null) {
-                for (int i = 0; i < entries.length; i++) {
-                    final Object bundleFile = ReflectionUtils.invokeMethod(entries[i], "getBundleFile");
-                    final File baseFile = (File) ReflectionUtils.invokeMethod(bundleFile, "getBaseFile");
-                    if (baseFile != null) {
-                        classpathFinder.addClasspathElement(baseFile.getPath(), classloader, log);
-                    }
+    public DelegationOrder getDelegationOrder(final ClassLoader classLoaderInstance) {
+        return DelegationOrder.PARENT_FIRST;
+    }
+
+    @Override
+    public void handle(final ClassLoader classloader, final ClasspathFinder classpathFinder,
+            final ScanSpec scanSpec, final LogNode log) throws Exception {
+        final Object classpathManager = ReflectionUtils.invokeMethod(classloader, "getClasspathManager");
+        final Object[] entries = (Object[]) ReflectionUtils.getFieldVal(classpathManager, "entries");
+        if (entries != null) {
+            for (int i = 0; i < entries.length; i++) {
+                final Object bundleFile = ReflectionUtils.invokeMethod(entries[i], "getBundleFile");
+                final File baseFile = (File) ReflectionUtils.invokeMethod(bundleFile, "getBaseFile");
+                if (baseFile != null) {
+                    classpathFinder.addClasspathElement(baseFile.getPath(), classloader, log);
                 }
             }
-            return true;
         }
-        return false;
     }
 }

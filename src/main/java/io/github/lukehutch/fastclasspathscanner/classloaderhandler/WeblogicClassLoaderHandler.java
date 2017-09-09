@@ -29,6 +29,7 @@
 package io.github.lukehutch.fastclasspathscanner.classloaderhandler;
 
 import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
+import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
 
@@ -36,15 +37,17 @@ import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
  * Extract classpath entries from the Weblogic ClassLoader. See:
  */
 public class WeblogicClassLoaderHandler implements ClassLoaderHandler {
+    public static final String[] HANDLED_CLASSLOADERS = { "weblogic.utils.classloaders.ChangeAwareClassLoader" };
+
     @Override
-    public boolean handle(final ClassLoader classLoader, final ClasspathFinder classpathFinder, final LogNode log)
-            throws Exception {
-        for (Class<?> c = classLoader.getClass(); c != null; c = c.getSuperclass()) {
-            if ("weblogic.utils.classloaders.ChangeAwareClassLoader".equals(c.getName())) {
-                final String classpath = (String) ReflectionUtils.invokeMethod(classLoader, "getClassPath");
-                return classpathFinder.addClasspathElements(classpath, classLoader, log);
-            }
-        }
-        return false;
+    public DelegationOrder getDelegationOrder(final ClassLoader classLoaderInstance) {
+        return DelegationOrder.PARENT_FIRST;
+    }
+
+    @Override
+    public void handle(final ClassLoader classLoader, final ClasspathFinder classpathFinder,
+            final ScanSpec scanSpec, final LogNode log) throws Exception {
+        final String classpath = (String) ReflectionUtils.invokeMethod(classLoader, "getClassPath");
+        classpathFinder.addClasspathElements(classpath, classLoader, log);
     }
 }

@@ -465,13 +465,15 @@ public class FastClasspathScanner {
      * 
      * https://github.com/lukehutch/fast-classpath-scanner/wiki/4.-Working-with-nonstandard-ClassLoaders
      * 
+     * @param handledClassLoaderNames
+     *            The fully-qualified class name(s) of classes handled by this ClassLoaderHandler.
      * @param classLoaderHandlerClass
      *            The ClassLoaderHandler class to register.
      * @return this (for method chaining).
      */
-    public FastClasspathScanner registerClassLoaderHandler(
+    public FastClasspathScanner registerClassLoaderHandler(final String[] handledClassLoaderNames,
             final Class<? extends ClassLoaderHandler> classLoaderHandlerClass) {
-        getScanSpec().registerClassLoaderHandler(classLoaderHandlerClass);
+        getScanSpec().registerClassLoaderHandler(handledClassLoaderNames, classLoaderHandlerClass);
         return this;
     }
 
@@ -628,8 +630,8 @@ public class FastClasspathScanner {
      * @return A list of one or more ClassLoaders, out of the system ClassLoader, the current classloader, or the
      *         context classloader (or the override ClassLoaders, if ClassLoaders have been overridden).
      */
-    public List<ClassLoader> findBestClassLoader() {
-        return ClassLoaderFinder.findClassLoaders(getScanSpec(), log);
+    public ClassLoader[] findBestClassLoader() {
+        return ClassLoaderFinder.findEnvClassLoaders(getScanSpec(), log);
     }
 
     // -------------------------------------------------------------------------------------------------------------

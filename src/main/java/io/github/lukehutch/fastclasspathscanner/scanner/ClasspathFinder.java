@@ -29,14 +29,16 @@
 package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import java.io.File;
+import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
 import io.github.lukehutch.fastclasspathscanner.classloaderhandler.ClassLoaderHandler;
+import io.github.lukehutch.fastclasspathscanner.classloaderhandler.ClassLoaderHandler.DelegationOrder;
 import io.github.lukehutch.fastclasspathscanner.classloaderhandler.ClassLoaderHandlerRegistry;
+import io.github.lukehutch.fastclasspathscanner.classloaderhandler.ClassLoaderHandlerRegistry.ClassLoaderHandlerRegistryEntry;
 import io.github.lukehutch.fastclasspathscanner.utils.AdditionOrderedSet;
 import io.github.lukehutch.fastclasspathscanner.utils.FileUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.JarUtils;
@@ -48,8 +50,8 @@ public class ClasspathFinder {
     private final NestedJarHandler nestedJarHandler;
     private static String currDirPathStr = FileUtils.getCurrDirPathStr();
 
-    /** The ClassLoader order. */
-    private final List<ClassLoader> classLoaderOrder;
+    /** The ClassLoader order of the calling environment. */
+    private final ClassLoader[] envClassLoaderOrder;
 
     /** The list of raw classpath elements. */
     private final List<ClasspathRelativePath> rawClasspathElements = new ArrayList<>();
@@ -86,7 +88,7 @@ public class ClasspathFinder {
      * @return true (and add the classpath element) if pathElement is not null or empty, otherwise return false.
      */
     public boolean addClasspathElement(final String pathElement, final ClassLoader classLoader, final LogNode log) {
-        return addClasspathElement(pathElement, Arrays.asList(classLoader), log);
+        return addClasspathElement(pathElement, new ClassLoader[] { classLoader }, log);
     }
 
     /**
@@ -102,7 +104,7 @@ public class ClasspathFinder {
      * 
      * @return true (and add the classpath element) if pathElement is not null or empty, otherwise return false.
      */
-    public boolean addClasspathElement(final String pathElement, final List<ClassLoader> classLoaders,
+    private boolean addClasspathElement(final String pathElement, final ClassLoader[] classLoaders,
             final LogNode log) {
         if (pathElement == null || pathElement.isEmpty()) {
             return false;
@@ -150,7 +152,7 @@ public class ClasspathFinder {
      * 
      * @return true (and add the classpath element) if pathElement is not null or empty, otherwise return false.
      */
-    public boolean addClasspathElements(final String pathStr, final List<ClassLoader> classLoaders,
+    private boolean addClasspathElements(final String pathStr, final ClassLoader[] classLoaders,
             final LogNode log) {
         if (pathStr == null || pathStr.isEmpty()) {
             return false;
@@ -164,38 +166,99 @@ public class ClasspathFinder {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** A class to find the unique ordered classpath elements. */
-    ClasspathFinder(final ScanSpec scanSpec, final NestedJarHandler nestedJarHandler, final LogNode log) {
-        // Get ClassLoaders
-        classLoaderOrder = ClassLoaderFinder.findClassLoaders(scanSpec,
-                log == null ? null : log.log("Finding ClassLoaders"));
-
-        // Get parent classloaders, in classpath resolution order, deduplicating
-        final List<ClassLoader> allClassLoadersOrdered;
-        // TODO: disable classloading altogether if classpath is overridden
-        if (scanSpec.overrideClasspath != null || !scanSpec.ignoreParentClassLoaders) {
-            final LogNode parentClassLoaderLog = log == null ? null : log.log("Finding parent ClassLoaders");
-            final AdditionOrderedSet<ClassLoader> allClassLoaders = new AdditionOrderedSet<>();
-            for (final ClassLoader classLoader : classLoaderOrder) {
-                final ArrayList<ClassLoader> parentClassLoaders = new ArrayList<>();
-                for (ClassLoader cl = classLoader; cl != null; cl = cl.getParent()) {
-                    parentClassLoaders.add(cl);
-                }
-                // OpenJDK calls classloaders in a top-down order
-                for (int i = parentClassLoaders.size() - 1; i >= 0; --i) {
-                    final ClassLoader cl = parentClassLoaders.get(i);
-                    if (parentClassLoaderLog != null && i > 0) {
-                        parentClassLoaderLog.log(
-                                "ClassLoader " + cl + " is parent of ClassLoader" + parentClassLoaders.get(i - 1));
+    /**
+     * Recursively find the ClassLoaderHandler that can handle each ClassLoader and its parent(s), correctly
+     * observing parent delegation order (PARENT_FIRST or PARENT_LAST).
+     */
+    private void findClassLoaderHandlerForClassLoaderAndParents(final ClassLoader classLoader,
+            final List<ClassLoaderHandlerRegistryEntry> allClassLoaderHandlerEntries,
+            final AdditionOrderedSet<ClassLoader> foundClassLoaders,
+            final List<SimpleEntry<ClassLoader, ClassLoaderHandler>> classLoaderAndHandlerOrderOut,
+            final ScanSpec scanSpec, final LogNode log) {
+        // Don't add ClassLoaders twice (some environment ClassLoaders may share a parent)
+        if (foundClassLoaders.add(classLoader)) {
+            boolean foundMatch = false;
+            // Iterate through each ClassLoader superclass name
+            for (Class<?> c = classLoader.getClass(); c != null; c = c.getSuperclass()) {
+                // Compare against the class names handled by each ClassLoaderHandler
+                for (final ClassLoaderHandlerRegistryEntry classLoaderHandlerRegistryEntry : allClassLoaderHandlerEntries) {
+                    for (final String handledClassLoaderName : classLoaderHandlerRegistryEntry.handledClassLoaderNames) {
+                        if (handledClassLoaderName.equals(c.getName())) {
+                            // This ClassLoaderHandler can handle this class
+                            // Instantiate the ClassLoaderHandler for this ClassLoader
+                            ClassLoaderHandler classLoaderHandler = null;
+                            try {
+                                classLoaderHandler = classLoaderHandlerRegistryEntry.classLoaderHandlerClass
+                                        .newInstance();
+                            } catch (InstantiationException | IllegalAccessException e) {
+                                if (log != null) {
+                                    log.log("Could not instantiate "
+                                            + classLoaderHandlerRegistryEntry.classLoaderHandlerClass.getName(), e);
+                                }
+                            }
+                            if (classLoaderHandler != null) {
+                                final DelegationOrder delegationOrder = classLoaderHandler
+                                        .getDelegationOrder(classLoader);
+                                final ClassLoader parent = classLoader.getParent();
+                                if (log != null && parent != null) {
+                                    log.log(classLoader + " delegates to parent " + parent + " with order "
+                                            + delegationOrder);
+                                }
+                                switch (delegationOrder) {
+                                case PARENT_FIRST:
+                                    // Recurse to parent first, then add this ClassLoader to order
+                                    if (parent != null && !scanSpec.ignoreParentClassLoaders) {
+                                        findClassLoaderHandlerForClassLoaderAndParents(parent,
+                                                allClassLoaderHandlerEntries, foundClassLoaders,
+                                                classLoaderAndHandlerOrderOut, scanSpec, log);
+                                    }
+                                    classLoaderAndHandlerOrderOut
+                                            .add(new SimpleEntry<>(classLoader, classLoaderHandler));
+                                    break;
+                                case PARENT_LAST:
+                                    // Add this ClassLoader to order, then recurse to parent
+                                    classLoaderAndHandlerOrderOut
+                                            .add(new SimpleEntry<>(classLoader, classLoaderHandler));
+                                    if (parent != null && !scanSpec.ignoreParentClassLoaders) {
+                                        findClassLoaderHandlerForClassLoaderAndParents(parent,
+                                                allClassLoaderHandlerEntries, foundClassLoaders,
+                                                classLoaderAndHandlerOrderOut, scanSpec, log);
+                                    }
+                                    break;
+                                default:
+                                    throw new RuntimeException("Unknown delegation order");
+                                }
+                                if (log != null) {
+                                    log.log("ClassLoader " + classLoader + " will be handled by "
+                                            + classLoaderHandler);
+                                }
+                            }
+                            foundMatch = true;
+                            break;
+                        }
                     }
-                    allClassLoaders.add(cl);
+                    if (foundMatch) {
+                        break;
+                    }
+                }
+                if (foundMatch) {
+                    break;
                 }
             }
-            allClassLoadersOrdered = allClassLoaders.getList();
-        } else {
-            // Don't get paths from parent classloaders
-            allClassLoadersOrdered = classLoaderOrder;
+            if (!foundMatch && log != null) {
+                log.log("Could not find a ClassLoaderHandler that can handle " + classLoader
+                        + " -- please report this at https://github.com/lukehutch/fast-classpath-scanner/issues");
+            }
         }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** A class to find the unique ordered classpath elements. */
+    ClasspathFinder(final ScanSpec scanSpec, final NestedJarHandler nestedJarHandler, final LogNode log) {
+        // Get environment ClassLoader order
+        envClassLoaderOrder = ClassLoaderFinder.findEnvClassLoaders(scanSpec,
+                log == null ? null : log.log("Finding ClassLoaders"));
 
         this.nestedJarHandler = nestedJarHandler;
         if (scanSpec.overrideClasspath != null) {
@@ -207,7 +270,7 @@ public class ClasspathFinder {
                 }
             }
             final LogNode overrideLog = log == null ? null : log.log("Overriding classpath");
-            addClasspathElements(scanSpec.overrideClasspath, allClassLoadersOrdered, overrideLog);
+            addClasspathElements(scanSpec.overrideClasspath, envClassLoaderOrder, overrideLog);
             if (overrideLog != null) {
                 log.log("WARNING: when the classpath is overridden, there is no guarantee that the classes "
                         + "found by classpath scanning will be the same as the classes loaded by the context "
@@ -216,69 +279,60 @@ public class ClasspathFinder {
         } else {
             // If system jars are not blacklisted, need to manually add rt.jar at the beginning of the classpath,
             // because it is included implicitly by the JVM.
+            // TODO: this is handled differently in Java 9.
             if (!scanSpec.blacklistSystemJars()) {
                 // There should only be zero or one of these.
                 final String rtJarPath = JarUtils.getRtJarPath();
                 if (rtJarPath != null) {
                     // Insert rt.jar as the first entry in the classpath.
-                    addClasspathElement(rtJarPath, allClassLoadersOrdered, log);
-                }
-            }
-            // Get all manually-added ClassLoaderHandlers
-            final List<ClassLoaderHandler> classLoaderHandlers = new ArrayList<>();
-            for (final Class<? extends ClassLoaderHandler> classLoaderHandler : scanSpec.extraClassLoaderHandlers) {
-                try {
-                    classLoaderHandlers.add(classLoaderHandler.newInstance());
-                } catch (InstantiationException | IllegalAccessException e) {
-                    if (log != null) {
-                        log.log("Could not instantiate " + classLoaderHandler.getName(), e);
-                    }
-                }
-            }
-            // Add all default ClassLoaderHandlers after manually-added ClassLoaderHandlers
-            for (final Class<? extends ClassLoaderHandler> classLoaderHandlerClass : //
-            ClassLoaderHandlerRegistry.DEFAULT_CLASS_LOADER_HANDLERS) {
-                try {
-                    classLoaderHandlers.add(classLoaderHandlerClass.newInstance());
-                } catch (InstantiationException | IllegalAccessException e) {
-                    if (log != null) {
-                        log.log("Could not instantiate " + classLoaderHandlerClass.getName(), e);
-                    }
-                }
-            }
-            if (log != null) {
-                final LogNode classLoaderHandlerLog = log.log("ClassLoaderHandlers loaded:");
-                for (final ClassLoaderHandler classLoaderHandler : classLoaderHandlers) {
-                    classLoaderHandlerLog.log(classLoaderHandler.getClass().getName());
+                    addClasspathElement(rtJarPath, envClassLoaderOrder, log);
                 }
             }
 
-            // Try finding a handler for each of the classloaders discovered above
-            for (final ClassLoader classLoader : allClassLoadersOrdered) {
-                // Skip system classloaders for efficiency if system jars are not going to be scanned.
-                // TODO: Update to include JDK9 system classloader names.
+            // Get all manually-added ClassLoaderHandlers
+            // (these are added before the default ClassLoaderHandlers, so that the behavior of the defaults
+            // can be overridden)
+            List<ClassLoaderHandlerRegistryEntry> allClassLoaderHandlerEntries;
+            if (scanSpec.extraClassLoaderHandlers.isEmpty()) {
+                allClassLoaderHandlerEntries = ClassLoaderHandlerRegistry.DEFAULT_CLASS_LOADER_HANDLERS;
+            } else {
+                allClassLoaderHandlerEntries = new ArrayList<>(scanSpec.extraClassLoaderHandlers);
+                allClassLoaderHandlerEntries.addAll(ClassLoaderHandlerRegistry.DEFAULT_CLASS_LOADER_HANDLERS);
+            }
+            if (log != null) {
+                final LogNode classLoaderHandlerLog = log.log("ClassLoaderHandlers:");
+                for (final ClassLoaderHandlerRegistryEntry classLoaderHandlerEntry : allClassLoaderHandlerEntries) {
+                    classLoaderHandlerLog.log(classLoaderHandlerEntry.classLoaderHandlerClass.getName());
+                }
+            }
+
+            // Find all unique parent ClassLoaders, and put all ClassLoaders into a single order,
+            // according to the delegation order (PARENT_FIRST or PARENT_LAST)
+            final List<SimpleEntry<ClassLoader, ClassLoaderHandler>> classLoaderAndHandlerOrder = new ArrayList<>();
+            for (final ClassLoader envClassLoader : envClassLoaderOrder) {
                 if (!scanSpec.blacklistSystemJars()
-                        || !classLoader.getClass().getName().startsWith("sun.misc.Launcher$ExtClassLoader")) {
-                    final LogNode classLoaderClasspathLog = log == null ? null
-                            : log.log("Finding classpath elements in ClassLoader " + classLoader);
-                    // Iterate through registered ClassLoaderHandlers
-                    boolean classloaderFound = false;
-                    for (final ClassLoaderHandler handler : classLoaderHandlers) {
-                        try {
-                            if (handler.handle(classLoader, this, classLoaderClasspathLog)) {
-                                classloaderFound = true;
-                                break;
-                            }
-                        } catch (final Exception e) {
-                            if (classLoaderClasspathLog != null) {
-                                classLoaderClasspathLog.log("Exception in ClassLoaderHandler", e);
-                            }
-                        }
-                    }
-                    if (!classloaderFound) {
-                        if (classLoaderClasspathLog != null) {
-                            classLoaderClasspathLog.log("Unknown ClassLoader type, cannot scan classes");
-                        }
+                        || !envClassLoader.getClass().getName().startsWith("sun.misc.Launcher$ExtClassLoader")) {
+                    findClassLoaderHandlerForClassLoaderAndParents(envClassLoader, allClassLoaderHandlerEntries,
+                            /* foundClassLoaders = */ new AdditionOrderedSet<>(), classLoaderAndHandlerOrder,
+                            scanSpec, log);
+                } else if (log != null) {
+                    log.log("Skipping system classloader " + envClassLoader.getClass().getName());
+                }
+            }
+
+            // Call each ClassLoaderHandler on its corresponding ClassLoader to get the classpath URLs or paths
+            for (final SimpleEntry<ClassLoader, ClassLoaderHandler> classLoaderAndHandler : classLoaderAndHandlerOrder) {
+                final ClassLoader classLoader = classLoaderAndHandler.getKey();
+
+                final ClassLoaderHandler classLoaderHandler = classLoaderAndHandler.getValue();
+                final LogNode classLoaderClasspathLog = log == null ? null
+                        : log.log("Finding classpath elements in ClassLoader " + classLoader);
+                try {
+                    classLoaderHandler.handle(classLoader, /* classpathFinder = */ this, scanSpec,
+                            classLoaderClasspathLog);
+                } catch (final Throwable e) {
+                    if (classLoaderClasspathLog != null) {
+                        classLoaderClasspathLog.log("Exception in ClassLoaderHandler", e);
                     }
                 }
             }
@@ -288,7 +342,7 @@ public class ClasspathFinder {
                 // non-standard classloader that uses this property
                 final LogNode sysPropLog = log == null ? null
                         : log.log("Getting classpath entries from java.class.path");
-                addClasspathElements(System.getProperty("java.class.path"), allClassLoadersOrdered, sysPropLog);
+                addClasspathElements(System.getProperty("java.class.path"), envClassLoaderOrder, sysPropLog);
             }
         }
     }
@@ -299,7 +353,7 @@ public class ClasspathFinder {
     }
 
     /** Get the order in which ClassLoaders are called to load classes. (Usually consists of one element only.) */
-    public List<ClassLoader> getClassLoaderOrder() {
-        return classLoaderOrder;
+    public ClassLoader[] getClassLoaderOrder() {
+        return envClassLoaderOrder;
     }
 }

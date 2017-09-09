@@ -32,6 +32,7 @@ import java.io.File;
 import java.util.List;
 
 import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
+import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
 
@@ -48,49 +49,34 @@ public class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
     private static final String IBM_APP_CLASS_LOADER = PKG_PREFIX + "AppClassLoader";
     private static final String IBM_THREAD_CONTEXT_CLASS_LOADER = PKG_PREFIX + "ThreadContextClassLoader";
 
+    public static final String[] HANDLED_CLASSLOADERS = { IBM_APP_CLASS_LOADER, IBM_THREAD_CONTEXT_CLASS_LOADER };
+
     @Override
-    public boolean handle(final ClassLoader classLoader, final ClasspathFinder classpathFinder, final LogNode log)
-            throws Exception {
+    public DelegationOrder getDelegationOrder(final ClassLoader classLoaderInstance) {
+        return DelegationOrder.PARENT_FIRST;
+    }
 
-        for (Class<?> c = classLoader.getClass(); c != null; c = c.getSuperclass()) {
-
-            if (IBM_APP_CLASS_LOADER.equals(c.getName()) || IBM_THREAD_CONTEXT_CLASS_LOADER.equals(c.getName())) {
-                Object smartClassPath = null;
-
-                if (IBM_THREAD_CONTEXT_CLASS_LOADER.equals(c.getName())) {
-                    final Object appLoader = ReflectionUtils.getFieldVal(classLoader, "appLoader");
-
-                    if (appLoader == null) {
-                        return false;
-                    }
-                    smartClassPath = ReflectionUtils.getFieldVal(appLoader, "smartClassPath");
-
-                } else if (IBM_APP_CLASS_LOADER.equals(c.getName())) {
-                    smartClassPath = ReflectionUtils.getFieldVal(classLoader, "smartClassPath");
-                }
-
-                if (smartClassPath == null) {
-                    return false;
-                }
-
-                final List<?> classPathElements = (List<?>) ReflectionUtils.getFieldVal(smartClassPath,
-                        "classPath");
-
-                if (classPathElements != null) {
-                    for (final Object classpath : classPathElements) {
-                        final String path = getPath(classpath);
-
-                        if (path != null && path.length() > 0) {
-                            classpathFinder.addClasspathElement(path, classLoader, log);
-                        }
-                    }
-                    return true;
-                }
-                return false;
-            }
-
+    @Override
+    public void handle(final ClassLoader classLoader, final ClasspathFinder classpathFinder,
+            final ScanSpec scanSpec, final LogNode log) throws Exception {
+        Object smartClassPath = null;
+        final Object appLoader = ReflectionUtils.getFieldVal(classLoader, "appLoader");
+        if (appLoader != null) {
+            smartClassPath = ReflectionUtils.getFieldVal(appLoader, "smartClassPath");
+        } else {
+            smartClassPath = ReflectionUtils.getFieldVal(classLoader, "smartClassPath");
         }
-        return false;
+        if (smartClassPath != null) {
+            final List<?> classPathElements = (List<?>) ReflectionUtils.getFieldVal(smartClassPath, "classPath");
+            if (classPathElements != null) {
+                for (final Object classpath : classPathElements) {
+                    final String path = getPath(classpath);
+                    if (path != null && path.length() > 0) {
+                        classpathFinder.addClasspathElement(path, classLoader, log);
+                    }
+                }
+            }
+        }
     }
 
     private String getPath(final Object classpath) throws Exception {
