@@ -71,45 +71,45 @@ import io.github.lukehutch.fastclasspathscanner.utils.MultiMapKeyToSet;
  */
 public class ScanSpec {
     /** Whitelisted package paths with "/" appended, or the empty list if all packages are whitelisted. */
-    private final ArrayList<String> whitelistedPathPrefixes = new ArrayList<>();
+    public final ArrayList<String> whitelistedPathPrefixes = new ArrayList<>();
 
     /** Blacklisted package paths with "/" appended. */
-    private final ArrayList<String> blacklistedPathPrefixes = new ArrayList<>();
+    public final ArrayList<String> blacklistedPathPrefixes = new ArrayList<>();
 
     /** Blacklisted package names with "." appended. */
-    private final ArrayList<String> blacklistedPackagePrefixes = new ArrayList<>();
+    public final ArrayList<String> blacklistedPackagePrefixes = new ArrayList<>();
 
     /** Whitelisted class names, or the empty list if none. */
-    private final HashSet<String> specificallyWhitelistedClassRelativePaths = new HashSet<>();
+    public final HashSet<String> specificallyWhitelistedClassRelativePaths = new HashSet<>();
 
     /** Path prefixes of whitelisted classes, or the empty list if none. */
-    private final HashSet<String> specificallyWhitelistedClassParentRelativePaths = new HashSet<>();
+    public final HashSet<String> specificallyWhitelistedClassParentRelativePaths = new HashSet<>();
 
     /** Blacklisted class relative paths. */
-    private final HashSet<String> specificallyBlacklistedClassRelativePaths = new HashSet<>();
+    public final HashSet<String> specificallyBlacklistedClassRelativePaths = new HashSet<>();
 
     /** Blacklisted class names. */
-    private final HashSet<String> specificallyBlacklistedClassNames = new HashSet<>();
+    public final HashSet<String> specificallyBlacklistedClassNames = new HashSet<>();
 
     /** Whitelisted jarfile names. (Leaf filename only.) */
-    private final HashSet<String> whitelistedJars = new HashSet<>();
+    public final HashSet<String> whitelistedJars = new HashSet<>();
 
     /** Blacklisted jarfile names. (Leaf filename only.) */
-    private final HashSet<String> blacklistedJars = new HashSet<>();
+    public final HashSet<String> blacklistedJars = new HashSet<>();
 
     /** Whitelisted jarfile names containing a glob('*') character, converted to a regexp. (Leaf filename only.) */
-    private final ArrayList<Pattern> whitelistedJarPatterns = new ArrayList<>();
+    public final ArrayList<Pattern> whitelistedJarPatterns = new ArrayList<>();
 
     /** Blacklisted jarfile names containing a glob('*') character, converted to a regexp. (Leaf filename only.) */
-    private final ArrayList<Pattern> blacklistedJarPatterns = new ArrayList<>();
+    public final ArrayList<Pattern> blacklistedJarPatterns = new ArrayList<>();
 
     // -------------------------------------------------------------------------------------------------------------
 
     /** True if jarfiles on the classpath should be scanned. */
-    boolean scanJars = true;
+    public boolean scanJars = true;
 
     /** True if directories on the classpath should be scanned. */
-    boolean scanDirs = true;
+    public boolean scanDirs = true;
 
     /** If true, index types of fields. */
     public boolean enableFieldTypeIndexing;
@@ -145,14 +145,14 @@ public class ScanSpec {
      * be overridden by including "!!" in the scan spec. Disabling this blacklisting will increase the time or
      * memory required to scan the classpath.
      */
-    private boolean blacklistSystemJars = true;
+    public boolean blacklistSystemJars = true;
 
     /**
      * By default, blacklist all java.* and sun.* packages. This means for example that you can't use
      * java.lang.Comparable as a match criterion. This can be overridden by including "!!" in the scan spec.
      * Disabling this blacklisting may increase the time or memory required to scan the classpath.
      */
-    private boolean blacklistSystemPackages = true;
+    public boolean blacklistSystemPackages = true;
 
     /**
      * If true, ignore field visibility (affects finding classes with fields of a given type, and matching of static
@@ -214,22 +214,22 @@ public class ScanSpec {
     /**
      * If non-null, specified manually-added classloaders that should be searched after the context classloader(s).
      */
-    List<ClassLoader> addedClassLoaders;
+    public List<ClassLoader> addedClassLoaders;
 
     /**
      * If non-null, all ClassLoaders have been overriden. In particular, this causes FastClasspathScanner to ignore
      * the java.class.path system property.
      */
-    List<ClassLoader> overrideClassLoaders;
+    public List<ClassLoader> overrideClassLoaders;
 
     /** The ClassLoader finder. */
-    ClassLoaderFinder classLoaderFinder;
+    public ClassLoaderFinder classLoaderFinder;
 
     /** If non-null, specifies a classpath to override the default one. */
-    String overrideClasspath;
+    public String overrideClasspath;
 
     /** Manually-registered ClassLoaderHandlers. */
-    final ArrayList<ClassLoaderHandlerRegistryEntry> extraClassLoaderHandlers = new ArrayList<>();
+    public final ArrayList<ClassLoaderHandlerRegistryEntry> extraClassLoaderHandlers = new ArrayList<>();
 
     /**
      * If true, classes loaded with Class.forName() are initialized before passing class references to
@@ -246,7 +246,7 @@ public class ScanSpec {
     public boolean removeTemporaryFilesAfterScan = true;
 
     /** If true, do not fetch paths from parent classloaders. */
-    boolean ignoreParentClassLoaders = false;
+    public boolean ignoreParentClassLoaders = false;
 
     // -------------------------------------------------------------------------------------------------------------
 
