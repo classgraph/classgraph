@@ -45,6 +45,7 @@ public class ClassLoaderHandlerRegistry {
             WeblogicClassLoaderHandler.class, //
             WebsphereLibertyClassLoaderHandler.class, //
             WebsphereTraditionalClassLoaderHandler.class, //
+            OSGiDefaultClassLoaderHandler.class, //
 
             // The main default ClassLoaderHandler -- URLClassLoader is the most common ClassLoader.
             // Call this last, so that specific handlers for subclasses can override this. 
