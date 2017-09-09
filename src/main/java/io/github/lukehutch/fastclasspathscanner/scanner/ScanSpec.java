@@ -443,15 +443,11 @@ public class ScanSpec {
     /**
      * Register an extra ClassLoaderHandler.
      * 
-     * @param classLoaderClassesHandled
-     *            The fully-qualified names of the ClassLoader class(es) handled by this ClassLoaderHandler.
      * @param classLoaderHandler
      *            The class of the ClassLoaderHandler that can handle those ClassLoaders.
      */
-    public void registerClassLoaderHandler(final String[] classLoaderClassesHandled,
-            final Class<? extends ClassLoaderHandler> classLoaderHandler) {
-        this.extraClassLoaderHandlers
-                .add(new ClassLoaderHandlerRegistryEntry(classLoaderClassesHandled, classLoaderHandler));
+    public void registerClassLoaderHandler(final Class<? extends ClassLoaderHandler> classLoaderHandler) {
+        this.extraClassLoaderHandlers.add(new ClassLoaderHandlerRegistryEntry(classLoaderHandler));
     }
 
     /**

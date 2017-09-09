@@ -31,6 +31,8 @@ package io.github.lukehutch.fastclasspathscanner.classloaderhandler;
 import java.util.Arrays;
 import java.util.List;
 
+import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
+
 /** The registry for ClassLoaderHandler classes. */
 public class ClassLoaderHandlerRegistry {
     /**
@@ -39,25 +41,17 @@ public class ClassLoaderHandlerRegistry {
      */
     public static final List<ClassLoaderHandlerRegistryEntry> DEFAULT_CLASS_LOADER_HANDLERS = Arrays.asList(
             // ClassLoaderHandlers for other ClassLoaders that are handled by FastClasspathScanner
-            new ClassLoaderHandlerRegistryEntry(EquinoxClassLoaderHandler.HANDLED_CLASSLOADERS,
-                    EquinoxClassLoaderHandler.class),
-            new ClassLoaderHandlerRegistryEntry(FelixClassLoaderHandler.HANDLED_CLASSLOADERS,
-                    FelixClassLoaderHandler.class),
-            new ClassLoaderHandlerRegistryEntry(JBossClassLoaderHandler.HANDLED_CLASSLOADERS,
-                    JBossClassLoaderHandler.class),
-            new ClassLoaderHandlerRegistryEntry(WeblogicClassLoaderHandler.HANDLED_CLASSLOADERS,
-                    WeblogicClassLoaderHandler.class),
-            new ClassLoaderHandlerRegistryEntry(WebsphereLibertyClassLoaderHandler.HANDLED_CLASSLOADERS,
-                    WebsphereLibertyClassLoaderHandler.class),
-            new ClassLoaderHandlerRegistryEntry(WebsphereTraditionalClassLoaderHandler.HANDLED_CLASSLOADERS,
-                    WebsphereTraditionalClassLoaderHandler.class),
-            new ClassLoaderHandlerRegistryEntry(OSGiDefaultClassLoaderHandler.HANDLED_CLASSLOADERS,
-                    OSGiDefaultClassLoaderHandler.class),
+            new ClassLoaderHandlerRegistryEntry(EquinoxClassLoaderHandler.class),
+            new ClassLoaderHandlerRegistryEntry(FelixClassLoaderHandler.class),
+            new ClassLoaderHandlerRegistryEntry(JBossClassLoaderHandler.class),
+            new ClassLoaderHandlerRegistryEntry(WeblogicClassLoaderHandler.class),
+            new ClassLoaderHandlerRegistryEntry(WebsphereLibertyClassLoaderHandler.class),
+            new ClassLoaderHandlerRegistryEntry(WebsphereTraditionalClassLoaderHandler.class),
+            new ClassLoaderHandlerRegistryEntry(OSGiDefaultClassLoaderHandler.class),
 
             // The main default ClassLoaderHandler -- URLClassLoader is the most common ClassLoader.
             // Call this last, so that specific handlers for subclasses can override this if necessary.
-            new ClassLoaderHandlerRegistryEntry(URLClassLoaderHandler.HANDLED_CLASSLOADERS,
-                    URLClassLoaderHandler.class));
+            new ClassLoaderHandlerRegistryEntry(URLClassLoaderHandler.class));
 
     /**
      * A list of fully-qualified ClassLoader class names paired with the ClassLoaderHandler that can handle them.
@@ -66,9 +60,25 @@ public class ClassLoaderHandlerRegistry {
         public final String[] handledClassLoaderNames;
         public final Class<? extends ClassLoaderHandler> classLoaderHandlerClass;
 
-        public ClassLoaderHandlerRegistryEntry(final String[] handledClassLoaders,
-                final Class<? extends ClassLoaderHandler> classLoaderHandlerClass) {
-            this.handledClassLoaderNames = handledClassLoaders;
+        public ClassLoaderHandlerRegistryEntry(final Class<? extends ClassLoaderHandler> classLoaderHandlerClass) {
+            final String fieldName = "HANDLED_CLASSLOADERS";
+            Object handledClassLoaders;
+            try {
+                handledClassLoaders = ReflectionUtils.getStaticFieldVal(classLoaderHandlerClass, fieldName);
+            } catch (IllegalArgumentException | IllegalAccessException | NoSuchFieldException
+                    | SecurityException e) {
+                throw new RuntimeException("Could not read field " + classLoaderHandlerClass + "." + fieldName, e);
+            }
+            if (handledClassLoaders == null) {
+                throw new RuntimeException("Class " + classLoaderHandlerClass
+                        + " needs a non-null static String[] field " + fieldName);
+            }
+            if (!handledClassLoaders.getClass().isArray()
+                    || handledClassLoaders.getClass().getComponentType() != String.class) {
+                throw new RuntimeException("Field " + classLoaderHandlerClass + "." + fieldName
+                        + " has incorrect type, should be String[]");
+            }
+            this.handledClassLoaderNames = (String[]) handledClassLoaders;
             this.classLoaderHandlerClass = classLoaderHandlerClass;
         }
     }

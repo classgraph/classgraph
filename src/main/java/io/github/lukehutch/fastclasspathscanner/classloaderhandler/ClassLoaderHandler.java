@@ -42,8 +42,8 @@ import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
  * incorporation into FastClasspathScanner.
  */
 public interface ClassLoaderHandler {
-    // By convention, include a static final String[] field named HANDLED_CLASSLOADERS 
-    // at the top of your ClassLoaderHandler
+    // ** The following field is required in all implementing classes: **
+    // static final String[] HANDLED_CLASSLOADERS = { /* fully qualified classnames of handled ClassLoaders */ }; 
 
     /**
      * The delegation order configuration for a given ClassLoader instance (this is usually PARENT_FIRST for most

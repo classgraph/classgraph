@@ -37,7 +37,7 @@ import java.util.List;
 
 /** Reflection utility methods that can be used by ClassLoaderHandlers. */
 public class ReflectionUtils {
-    /** Get the named field in the given object or any of its superclasses. */
+    /** Get the value of the named field in the class of the given object or any of its superclasses. */
     public static Object getFieldVal(final Object obj, final String fieldName)
             throws IllegalArgumentException, IllegalAccessException, NoSuchFieldException, SecurityException {
         if (obj != null) {
@@ -52,6 +52,24 @@ public class ReflectionUtils {
                 } catch (final NoSuchFieldException e) {
                     // Try parent
                 }
+            }
+        }
+        return null;
+    }
+
+    /** Get the value of the named static field in the given class or any of its superclasses. */
+    public static Object getStaticFieldVal(final Class<?> cls, final String fieldName)
+            throws IllegalArgumentException, IllegalAccessException, NoSuchFieldException, SecurityException {
+        for (Class<?> classOrSuperclass = cls; classOrSuperclass != null; //
+                classOrSuperclass = classOrSuperclass.getSuperclass()) {
+            try {
+                final Field field = classOrSuperclass.getDeclaredField(fieldName);
+                if (!field.isAccessible()) {
+                    field.setAccessible(true);
+                }
+                return field.get(null);
+            } catch (final NoSuchFieldException e) {
+                // Try parent
             }
         }
         return null;
