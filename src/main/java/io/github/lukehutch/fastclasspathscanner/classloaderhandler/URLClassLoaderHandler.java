@@ -44,7 +44,7 @@ public class URLClassLoaderHandler implements ClassLoaderHandler {
             if (urls != null) {
                 for (final URL url : urls) {
                     if (url != null) {
-                        handled = classpathFinder.addClasspathElement(url.toString(), classLoader, log);
+                        handled |= classpathFinder.addClasspathElement(url.toString(), classLoader, log);
                     }
                 }
             }
