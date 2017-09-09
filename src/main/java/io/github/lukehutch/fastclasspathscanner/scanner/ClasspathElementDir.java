@@ -98,7 +98,7 @@ class ClasspathElementDir extends ClasspathElement {
             }
         } catch (final IOException | SecurityException e) {
             if (log != null) {
-                log.log("Could not canonicalize path: " + dir);
+                log.log("Could not canonicalize path: " + dir, e);
             }
             return;
         }

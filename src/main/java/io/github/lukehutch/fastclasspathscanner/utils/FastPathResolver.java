@@ -66,7 +66,7 @@ public class FastPathResolver {
         }
     }
 
-    /** Unescape runs of percent encoding, e.g. "%20%20" -> " ". */
+    /** Unescape runs of percent encoding, e.g. "%20%43%20" -> " + ". */
     private static void unescapePercentEncoding(final String path, final int startIdx, final int endIdx,
             final StringBuilder buf) {
         if (endIdx - startIdx == 3 && path.charAt(startIdx + 1) == '2' && path.charAt(startIdx + 2) == '0') {
@@ -93,15 +93,15 @@ public class FastPathResolver {
      * Parse percent encoding, e.g. "%20" -> " "; convert '/' or '\\' to SEP; remove trailing separator char if
      * present.
      */
-    private static String normalizePath(final String path) {
+    private static String normalizePath(final String path, final boolean isHttpURL) {
         final boolean hasPercent = path.indexOf('%') >= 0;
         if (!hasPercent && path.indexOf('\\') < 0 && !path.endsWith("/")) {
             return path;
         } else {
             final int len = path.length();
             final StringBuilder buf = new StringBuilder();
-            if (!hasPercent) {
-                // Fast path -- no '%', don't do regexp matching
+            if (!hasPercent || isHttpURL) {
+                // Fast path -- no '%' or is http(s) URL, don't do regexp matching
                 translateSeparator(path, 0, len, /* stripFinalSeparator = */ true, buf);
                 return buf.toString();
             } else {
@@ -124,8 +124,7 @@ public class FastPathResolver {
 
     /**
      * Strip away any "jar:" prefix from a filename URI, and convert it to a file path, handling possibly-broken
-     * mixes of filesystem and URI conventions; resolve relative paths relative to resolveBasePath. Returns null if
-     * relativePathStr is an "http(s):" path.
+     * mixes of filesystem and URI conventions; resolve relative paths relative to resolveBasePath.
      */
     public static String resolve(final String resolveBasePath, final String relativePathStr) {
         // See:
@@ -135,19 +134,34 @@ public class FastPathResolver {
         if (relativePathStr == null || relativePathStr.isEmpty()) {
             return resolveBasePath;
         }
-        // We don't fetch remote classpath entries, although they are theoretically valid if using a URLClassLoader
-        if (relativePathStr.startsWith("http:") || relativePathStr.startsWith("https:")) {
-            return null;
-        }
-        int startIdx = 0;
+
+        String prefix = "";
+        boolean isAbsolutePath = false;
+        boolean isHttpURL = false;
+
         // Ignore "jar:", we look for ".jar" on the end of filenames instead
-        if (relativePathStr.startsWith("jar:", startIdx)) {
+        int startIdx = 0;
+        if (relativePathStr.regionMatches(true, startIdx, "jar:", 0, 4)) {
             startIdx += 4;
         }
-        // Strip off any "file:" prefix from relative path
-        boolean isAbsolutePath = false;
-        String prefix = "";
-        if (relativePathStr.startsWith("file:", startIdx)) {
+        if (relativePathStr.regionMatches(true, startIdx, "http://", 0, 7)) {
+            // Detect http://
+            startIdx += 7;
+            // Force protocol name to lowercase
+            prefix = "http://";
+            // Treat the part after the protocol as an absolute path, so the domain is not treated as a
+            // directory relative to the current directory.
+            isAbsolutePath = true;
+            // Don't un-escape percent encoding etc.
+            isHttpURL = true;
+        } else if (relativePathStr.regionMatches(true, startIdx, "https://", 0, 8)) {
+            // Detect https://
+            startIdx += 8;
+            prefix = "https://";
+            isAbsolutePath = true;
+            isHttpURL = true;
+        } else if (relativePathStr.regionMatches(true, startIdx, "file:", 0, 5)) {
+            // Strip off any "file:" prefix from relative path
             startIdx += 5;
             if (WINDOWS) {
                 if (relativePathStr.startsWith("\\\\\\\\", startIdx)
@@ -191,7 +205,8 @@ public class FastPathResolver {
         }
 
         // Normalize the path, then add any UNC prefix
-        String pathStr = normalizePath(startIdx == 0 ? relativePathStr : relativePathStr.substring(startIdx));
+        String pathStr = normalizePath(startIdx == 0 ? relativePathStr : relativePathStr.substring(startIdx),
+                isHttpURL);
         if (!prefix.isEmpty()) {
             pathStr = prefix + pathStr;
         }

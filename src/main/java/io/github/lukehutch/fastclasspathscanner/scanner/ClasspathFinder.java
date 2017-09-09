@@ -28,7 +28,6 @@
  */
 package io.github.lukehutch.fastclasspathscanner.scanner;
 
-import java.io.File;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -129,14 +128,7 @@ public class ClasspathFinder {
      * @return true (and add the classpath element) if pathElement is not null or empty, otherwise return false.
      */
     public boolean addClasspathElements(final String pathStr, final ClassLoader classLoader, final LogNode log) {
-        if (pathStr == null || pathStr.isEmpty()) {
-            return false;
-        } else {
-            for (final String pathElement : pathStr.split(File.pathSeparator)) {
-                addClasspathElement(pathElement, classLoader, log);
-            }
-            return true;
-        }
+        return addClasspathElement(pathStr, new ClassLoader[] { classLoader }, log);
     }
 
     /**
@@ -157,10 +149,15 @@ public class ClasspathFinder {
         if (pathStr == null || pathStr.isEmpty()) {
             return false;
         } else {
-            for (final String pathElement : pathStr.split(File.pathSeparator)) {
-                addClasspathElement(pathElement, classLoaders, log);
+            final String[] parts = JarUtils.smartPathSplit(pathStr);
+            if (parts.length == 0) {
+                return false;
+            } else {
+                for (final String pathElement : parts) {
+                    addClasspathElement(pathElement, classLoaders, log);
+                }
+                return true;
             }
-            return true;
         }
     }
 
@@ -257,24 +254,27 @@ public class ClasspathFinder {
     /** A class to find the unique ordered classpath elements. */
     ClasspathFinder(final ScanSpec scanSpec, final NestedJarHandler nestedJarHandler, final LogNode log) {
         // Get environment ClassLoader order
-        envClassLoaderOrder = ClassLoaderFinder.findEnvClassLoaders(scanSpec,
-                log == null ? null : log.log("Finding ClassLoaders"));
+        final LogNode classpathFinderLog = log == null ? null : log.log("Finding ClassLoaders");
+        envClassLoaderOrder = ClassLoaderFinder.findEnvClassLoaders(scanSpec, classpathFinderLog);
 
         this.nestedJarHandler = nestedJarHandler;
         if (scanSpec.overrideClasspath != null) {
             // Manual classpath override
             if (scanSpec.overrideClassLoaders != null) {
-                if (log != null) {
-                    log.log("It is not possible to override both the classpath and the ClassLoaders -- "
-                            + "ignoring the ClassLoader override");
+                if (classpathFinderLog != null) {
+                    classpathFinderLog
+                            .log("It is not possible to override both the classpath and the ClassLoaders -- "
+                                    + "ignoring the ClassLoader override");
                 }
             }
-            final LogNode overrideLog = log == null ? null : log.log("Overriding classpath");
+            final LogNode overrideLog = classpathFinderLog == null ? null
+                    : classpathFinderLog.log("Overriding classpath");
             addClasspathElements(scanSpec.overrideClasspath, envClassLoaderOrder, overrideLog);
             if (overrideLog != null) {
-                log.log("WARNING: when the classpath is overridden, there is no guarantee that the classes "
-                        + "found by classpath scanning will be the same as the classes loaded by the context "
-                        + "classloader");
+                classpathFinderLog
+                        .log("WARNING: when the classpath is overridden, there is no guarantee that the classes "
+                                + "found by classpath scanning will be the same as the classes loaded by the context "
+                                + "classloader");
             }
         } else {
             // If system jars are not blacklisted, need to manually add rt.jar at the beginning of the classpath,
@@ -285,7 +285,7 @@ public class ClasspathFinder {
                 final String rtJarPath = JarUtils.getRtJarPath();
                 if (rtJarPath != null) {
                     // Insert rt.jar as the first entry in the classpath.
-                    addClasspathElement(rtJarPath, envClassLoaderOrder, log);
+                    addClasspathElement(rtJarPath, envClassLoaderOrder, classpathFinderLog);
                 }
             }
 
@@ -299,8 +299,8 @@ public class ClasspathFinder {
                 allClassLoaderHandlerEntries = new ArrayList<>(scanSpec.extraClassLoaderHandlers);
                 allClassLoaderHandlerEntries.addAll(ClassLoaderHandlerRegistry.DEFAULT_CLASS_LOADER_HANDLERS);
             }
-            if (log != null) {
-                final LogNode classLoaderHandlerLog = log.log("ClassLoaderHandlers:");
+            if (classpathFinderLog != null) {
+                final LogNode classLoaderHandlerLog = classpathFinderLog.log("ClassLoaderHandlers:");
                 for (final ClassLoaderHandlerRegistryEntry classLoaderHandlerEntry : allClassLoaderHandlerEntries) {
                     classLoaderHandlerLog.log(classLoaderHandlerEntry.classLoaderHandlerClass.getName());
                 }
@@ -314,9 +314,9 @@ public class ClasspathFinder {
                         || !envClassLoader.getClass().getName().startsWith("sun.misc.Launcher$ExtClassLoader")) {
                     findClassLoaderHandlerForClassLoaderAndParents(envClassLoader, allClassLoaderHandlerEntries,
                             /* foundClassLoaders = */ new AdditionOrderedSet<>(), classLoaderAndHandlerOrder,
-                            scanSpec, log);
-                } else if (log != null) {
-                    log.log("Skipping system classloader " + envClassLoader.getClass().getName());
+                            scanSpec, classpathFinderLog);
+                } else if (classpathFinderLog != null) {
+                    classpathFinderLog.log("Skipping system classloader " + envClassLoader.getClass().getName());
                 }
             }
 
@@ -325,8 +325,8 @@ public class ClasspathFinder {
                 final ClassLoader classLoader = classLoaderAndHandler.getKey();
 
                 final ClassLoaderHandler classLoaderHandler = classLoaderAndHandler.getValue();
-                final LogNode classLoaderClasspathLog = log == null ? null
-                        : log.log("Finding classpath elements in ClassLoader " + classLoader);
+                final LogNode classLoaderClasspathLog = classpathFinderLog == null ? null
+                        : classpathFinderLog.log("Finding classpath elements in ClassLoader " + classLoader);
                 try {
                     classLoaderHandler.handle(classLoader, /* classpathFinder = */ this, scanSpec,
                             classLoaderClasspathLog);
@@ -340,8 +340,8 @@ public class ClasspathFinder {
             if (scanSpec.overrideClassLoaders == null) {
                 // Add entries found in java.class.path, in case those entries were missed above due to some
                 // non-standard classloader that uses this property
-                final LogNode sysPropLog = log == null ? null
-                        : log.log("Getting classpath entries from java.class.path");
+                final LogNode sysPropLog = classpathFinderLog == null ? null
+                        : classpathFinderLog.log("Getting classpath entries from java.class.path");
                 addClasspathElements(System.getProperty("java.class.path"), envClassLoaderOrder, sysPropLog);
             }
         }

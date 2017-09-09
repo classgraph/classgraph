@@ -196,9 +196,10 @@ class ClasspathRelativePath {
                         "Path " + relativePath + " could not be resolved relative to " + pathToResolveAgainst);
             }
 
-            // check if this is a nested jarfile
+            // Check if this is a nested or remote jarfile
+            final boolean isRemote = path.startsWith("http://") || path.startsWith("https://");
             final int plingIdx = path.indexOf('!');
-            if (plingIdx > 0) {
+            if (plingIdx > 0 || isRemote) {
                 // Check that each segment of path is a jarfile, optionally excluding the last segment
                 final String[] parts = path.split("!");
                 for (int i = 0, ii = parts.length - 1; i < ii; i++) {
@@ -208,7 +209,7 @@ class ClasspathRelativePath {
                     }
                 }
                 String nestedJarPath;
-                if (!JarUtils.isJar(parts[parts.length - 1])) {
+                if (parts.length > 1 && !JarUtils.isJar(parts[parts.length - 1])) {
                     // Last segment is not a jarfile, so it represents a classpath root within the jarfile
                     // corresponding to the second-to-last element
                     zipClasspathBaseDir = parts[parts.length - 1];
@@ -219,8 +220,8 @@ class ClasspathRelativePath {
                 } else {
                     nestedJarPath = path;
                 }
-                // Recursively unzip the nested jarfiles to temporary files, then return the innermost jarfile.
-                // Throws IOException if anything goes wrong.
+                // Recursively unzip the nested jarfiles (or fetch remote jarfiles) to temporary files,
+                // then return the innermost (or downloaded) jarfile. Throws IOException if anything goes wrong.
                 try {
                     fileCached = nestedJarHandler.getInnermostNestedJar(nestedJarPath);
                 } catch (final Exception e) {
@@ -357,7 +358,7 @@ class ClasspathRelativePath {
             }
         } catch (final IOException e) {
             if (log != null) {
-                log.log("Could not canonicalize path: " + path);
+                log.log("Could not canonicalize path: " + path, e);
             }
             return false;
         }

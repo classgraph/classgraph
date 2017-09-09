@@ -30,6 +30,8 @@ package io.github.lukehutch.fastclasspathscanner.utils;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.concurrent.ConcurrentLinkedDeque;
@@ -37,7 +39,8 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 /**
- * Unzip a jarfile within a jarfile to a temporary file on disk.
+ * Unzip a jarfile within a jarfile to a temporary file on disk. Also handles the download of jars from http(s) URLs
+ * to temp files.
  * 
  * Somewhat paradoxically, the fastest way to support scanning zipfiles-within-zipfiles is to unzip the inner
  * zipfile to a temporary file on disk, because the inner zipfile can only be read using ZipInputStream, not ZipFile
@@ -84,9 +87,19 @@ public class NestedJarHandler {
             public File newInstance(final String nestedJarPath) throws Exception {
                 final int lastPlingIdx = nestedJarPath.lastIndexOf('!');
                 if (lastPlingIdx < 0) {
-                    // This portion of the file path is the highest parent (i.e. doesn't have any '!' sections).
+                    // This portion of the file path is the deepest-nested jar (i.e. doesn't have any '!' sections).
                     // It should end with a jar extension, and the file needs to exist and be a file.
-                    final File pathFile = new File(nestedJarPath);
+
+                    // If the path starts with "http(s)://", download the jar to a temp file
+                    final boolean isRemote = nestedJarPath.startsWith("http://")
+                            || nestedJarPath.startsWith("https://");
+                    final File pathFile = isRemote ? downloadTempFile(nestedJarPath, log) : new File(nestedJarPath);
+                    if (pathFile == null) {
+                        if (log != null) {
+                            log.log(nestedJarPath, "Could not download file: " + nestedJarPath);
+                        }
+                        return null;
+                    }
                     File canonicalFile;
                     try {
                         canonicalFile = pathFile.getCanonicalFile();
@@ -137,7 +150,7 @@ public class NestedJarHandler {
                     }
 
                     try {
-                        // Recursively get parent jarfile. This is guaranteed to terminate because parentPath
+                        // Recursively get next nested jarfile. This is guaranteed to terminate because parentPath
                         // is one '!'-section shorter with each recursion.
                         final File parentJarfile = nestedPathToJarfileMap.getOrCreateSingleton(parentPath);
                         if (parentJarfile == null) {
@@ -226,6 +239,43 @@ public class NestedJarHandler {
         }
     }
 
+    /** Download a jar from a URL to a temporary file. */
+    private File downloadTempFile(final String jarURL, final LogNode log) {
+        final LogNode subLog = log == null ? null : log.log(jarURL, "Downloading URL " + jarURL);
+        File tempFile = null;
+        try {
+            String suffix = TEMP_FILENAME_LEAF_SEPARATOR + jarURL.replace('/', '_').replace(':', '_')
+                    .replace('?', '_').replace('&', '_').replace('=', '_');
+            if (!JarUtils.isJar(suffix)) {
+                // Ensure there is a jar suffix on file, so that it is not skipped
+                // (an HTTP URL may deliver a jarfile as its response regardless of the format of the URL)
+                suffix += ".jar";
+            }
+            tempFile = File.createTempFile("FastClasspathScanner-", suffix);
+            tempFile.deleteOnExit();
+            tempFiles.add(tempFile);
+            final URL url = new URL(jarURL);
+            try (InputStream inputStream = url.openStream()) {
+                Files.copy(inputStream, tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            }
+            if (subLog != null) {
+                subLog.addElapsedTime();
+            }
+        } catch (final Exception e) {
+            if (subLog != null) {
+                subLog.log("Could not download " + jarURL, e);
+            }
+            return null;
+        }
+        if (subLog != null) {
+            subLog.log("Downloaded to temporary file " + tempFile);
+            subLog.log("***** Note that it is time-consuming to scan jars at http(s) addresses, "
+                    + "they must be downloaded for every scan, and the same jars must also be "
+                    + "separately downloaded by the ClassLoader *****");
+        }
+        return tempFile;
+    }
+
     /**
      * Unzip a ZipEntry to a temporary file, then return the temporary file. The temporary file will be removed when
      * NestedJarHandler#close() is called.
@@ -241,12 +291,18 @@ public class NestedJarHandler {
                 TEMP_FILENAME_LEAF_SEPARATOR + zipEntryLeaf);
         tempFile.deleteOnExit();
         tempFiles.add(tempFile);
+        LogNode subLog = null;
         if (log != null) {
             final String qualifiedPath = zipFile.getName() + "!/" + zipEntryPath;
-            final LogNode subLog = log.log(qualifiedPath, "Unzipping zip entry " + qualifiedPath);
-            subLog.log("Writing temporary file " + tempFile.getPath());
+            subLog = log.log(qualifiedPath, "Unzipping zip entry " + qualifiedPath);
+            subLog.log("Extracted to temporary file " + tempFile.getPath());
         }
-        Files.copy(zipFile.getInputStream(zipEntry), tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        try (InputStream inputStream = zipFile.getInputStream(zipEntry)) {
+            Files.copy(inputStream, tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        }
+        if (subLog != null) {
+            subLog.addElapsedTime();
+        }
         return tempFile;
     }
 
