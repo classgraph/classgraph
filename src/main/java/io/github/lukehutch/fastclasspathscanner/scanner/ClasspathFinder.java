@@ -28,6 +28,8 @@
  */
 package io.github.lukehutch.fastclasspathscanner.scanner;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -58,18 +60,69 @@ public class ClasspathFinder {
 
     /**
      * Add a classpath element relative to a base file. May be called by a ClassLoaderHandler to add classpath
-     * elements that it knows about.
+     * elements that it knows about. ClassLoaders will be called in order.
+     * 
+     * @param pathElement
+     *            the URL or path of the classpath element.
+     * @param classLoaders
+     *            the ClassLoader(s) that this classpath element was obtained from.
+     * @param log
+     *            the LogNode instance to use if logging in verbose mode.
+     * 
+     * @return true (and add the classpath element) if pathElement is not null or empty, otherwise return false.
      */
-    private void addClasspathElement(final ClasspathRelativePath classpathEltPath, final LogNode log) {
-        if (rawClasspathElementsSet.add(classpathEltPath)) {
-            rawClasspathElements.add(classpathEltPath);
-            if (log != null) {
-                log.log("Found classpath element: " + classpathEltPath);
+    private boolean addClasspathElement(final String pathElement, final ClassLoader[] classLoaders,
+            final LogNode log) {
+        if (pathElement == null || pathElement.isEmpty()) {
+            return false;
+        } else if (pathElement.equals("*") || pathElement.endsWith(File.separator + "*")) {
+            // Got wildcard path element (allowable for local classpaths as of JDK 6)
+            try {
+                final File classpathEltParentDir = new ClasspathRelativePath(currDirPathStr,
+                        pathElement.substring(0, pathElement.length() - 1), classLoaders, nestedJarHandler)
+                                .getFile();
+                if (!classpathEltParentDir.exists()) {
+                    if (log != null) {
+                        log.log("Directory does not exist for wildcard classpath element: " + pathElement);
+                    }
+                    return false;
+                }
+                if (!classpathEltParentDir.isDirectory()) {
+                    if (log != null) {
+                        log.log("Wildcard classpath element is not a directory: " + pathElement);
+                    }
+                    return false;
+                }
+                final LogNode subLog = log == null ? null
+                        : log.log("Including wildcard classpath element: " + pathElement);
+                for (final File fileInDir : classpathEltParentDir.listFiles()) {
+                    final String name = fileInDir.getName();
+                    if (!name.equals(".") && !name.equals("..")) {
+                        // Add each directory entry as a classpath element
+                        addClasspathElement(fileInDir.getPath(), classLoaders, subLog);
+                    }
+                }
+                return true;
+            } catch (final IOException e) {
+                if (log != null) {
+                    log.log("Could not add wildcard classpath element: " + pathElement, e);
+                }
+                return false;
             }
         } else {
-            if (log != null) {
-                log.log("Ignoring duplicate classpath element: " + classpathEltPath);
+            final ClasspathRelativePath classpathEltPath = new ClasspathRelativePath(currDirPathStr, pathElement,
+                    classLoaders, nestedJarHandler);
+            if (rawClasspathElementsSet.add(classpathEltPath)) {
+                rawClasspathElements.add(classpathEltPath);
+                if (log != null) {
+                    log.log("Found classpath element: " + classpathEltPath);
+                }
+            } else {
+                if (log != null) {
+                    log.log("Ignoring duplicate classpath element: " + classpathEltPath);
+                }
             }
+            return true;
         }
     }
 
@@ -88,30 +141,6 @@ public class ClasspathFinder {
      */
     public boolean addClasspathElement(final String pathElement, final ClassLoader classLoader, final LogNode log) {
         return addClasspathElement(pathElement, new ClassLoader[] { classLoader }, log);
-    }
-
-    /**
-     * Add a classpath element relative to a base file. May be called by a ClassLoaderHandler to add classpath
-     * elements that it knows about. ClassLoaders will be called in order.
-     * 
-     * @param pathElement
-     *            the URL or path of the classpath element.
-     * @param classLoaders
-     *            the ClassLoader(s) that this classpath element was obtained from.
-     * @param log
-     *            the LogNode instance to use if logging in verbose mode.
-     * 
-     * @return true (and add the classpath element) if pathElement is not null or empty, otherwise return false.
-     */
-    private boolean addClasspathElement(final String pathElement, final ClassLoader[] classLoaders,
-            final LogNode log) {
-        if (pathElement == null || pathElement.isEmpty()) {
-            return false;
-        } else {
-            addClasspathElement(
-                    new ClasspathRelativePath(currDirPathStr, pathElement, classLoaders, nestedJarHandler), log);
-            return true;
-        }
     }
 
     /**
