@@ -271,9 +271,9 @@ abstract class ClasspathElement {
                 } else {
                     if (log != null) {
                         log.log(String.format("%06d-1", classpathIdx),
-                                "Ignoring duplicate (masked) class "
-                                        + classfileMatch.pathRelativeToClasspathPrefix.replace('/', '.')
-                                        + " for classpath element " + classfileMatch);
+                                "Ignoring duplicate (masked) class " + classfileMatch.pathRelativeToClasspathPrefix
+                                        .substring(0, classfileMatch.pathRelativeToClasspathPrefix.length() - 6)
+                                        .replace('/', '.') + " for classpath element " + classfileMatch);
                     }
                 }
             }
