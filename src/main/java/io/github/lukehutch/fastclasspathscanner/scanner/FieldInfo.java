@@ -41,7 +41,7 @@ import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
 public class FieldInfo {
     private final String fieldName;
     private final int modifiers;
-    private final String typeStr;
+    private final String typeDescriptor;
     private final Object constValue;
     private final List<String> annotationNames;
 
@@ -49,12 +49,7 @@ public class FieldInfo {
             final Object constValue, final List<String> annotationNames) {
         this.fieldName = fieldName;
         this.modifiers = modifiers;
-
-        final List<String> typeNames = ReflectionUtils.parseTypeDescriptor(typeDescriptor);
-        if (typeNames.size() != 1) {
-            throw new IllegalArgumentException("Invalid type descriptor for field: " + typeDescriptor);
-        }
-        this.typeStr = typeNames.get(0);
+        this.typeDescriptor = typeDescriptor;
 
         this.constValue = constValue;
         this.annotationNames = annotationNames.isEmpty() ? Collections.<String> emptyList() : annotationNames;
@@ -110,9 +105,24 @@ public class FieldInfo {
         return modifiers;
     }
 
-    /** Returns the type of the field, in string representation (e.g. "int[][]"). */
+    /**
+     * Returns the type of the field, in string representation (e.g. "int[][]"). Note that the actual type of the
+     * field cannot be returned as a `Class<?>`, as with `Field#getType()` in the Java reflection API, because
+     * several Java reflection types cannot be constructed (including class references for arrays). The type of the
+     * field also cannot be returned as a `Type`, as with `Field#getGenericType()`, because the concrete subclasses
+     * of `Type` do not have public constructors. (See #140.)
+     */
     public String getTypeStr() {
-        return typeStr;
+        final List<String> typeNames = ReflectionUtils.parseTypeDescriptor(typeDescriptor);
+        if (typeNames.size() != 1) {
+            throw new IllegalArgumentException("Invalid type descriptor for field: " + typeDescriptor);
+        }
+        return typeNames.get(0);
+    }
+
+    /** Get the type descriptor for the field in Java-internal format (e.g. "Ljava/lang/String;") */
+    public String getTypeDescriptor() {
+        return typeDescriptor;
     }
 
     /** Returns the constant final initializer value of the field, or null if none. */
