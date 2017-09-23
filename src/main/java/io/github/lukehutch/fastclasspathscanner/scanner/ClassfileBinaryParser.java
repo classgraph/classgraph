@@ -557,8 +557,14 @@ class ClassfileBinaryParser implements AutoCloseable {
             case 18: // invoke dynamic
                 skip(4);
                 break;
+            case 19: // see https://docs.oracle.com/javase/specs/jvms/se9/html/jvms-4.html#jvms-4.4
+              skip(2);
+              break;
+            case 20: // see https://docs.oracle.com/javase/specs/jvms/se9/html/jvms-4.html#jvms-4.4
+              skip(2);
+              break;  
             default:
-                throw new RuntimeException("Unknown constant pool tag " + tag + " in classfile " + relativePath
+                throw new RuntimeException("Unknown constant pool tag " + tag[i] + " in classfile " + relativePath
                         + " (element size unknown, cannot continue reading class. Please report this on "
                         + "the FastClasspathScanner GitHub page.");
             }
@@ -568,6 +574,12 @@ class ClassfileBinaryParser implements AutoCloseable {
         final int classModifierFlags = readUnsignedShort();
         final boolean isInterface = (classModifierFlags & 0x0200) != 0;
         final boolean isAnnotation = (classModifierFlags & 0x2000) != 0;
+        final boolean isModule = (classModifierFlags & 0x8000) != 0;
+        
+        // don't process module-info class files
+        if (isModule) {
+          return null;
+        }
 
         // The fully-qualified class name of this class, with slashes replaced with dots
         final String classNamePath = getConstantPoolString(readUnsignedShort());
