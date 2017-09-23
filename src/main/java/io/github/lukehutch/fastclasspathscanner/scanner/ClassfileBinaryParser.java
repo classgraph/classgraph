@@ -557,10 +557,12 @@ class ClassfileBinaryParser implements AutoCloseable {
             case 18: // invoke dynamic
                 skip(4);
                 break;
-            case 19: // see https://docs.oracle.com/javase/specs/jvms/se9/html/jvms-4.html#jvms-4.4
+            case 19: // module (for module-info.class in JDK9+)
+                // see https://docs.oracle.com/javase/specs/jvms/se9/html/jvms-4.html#jvms-4.4
                 skip(2);
                 break;
-            case 20: // see https://docs.oracle.com/javase/specs/jvms/se9/html/jvms-4.html#jvms-4.4
+            case 20: // package (for module-info.class in JDK9+)
+                // see https://docs.oracle.com/javase/specs/jvms/se9/html/jvms-4.html#jvms-4.4
                 skip(2);
                 break;
             default:
