@@ -29,6 +29,7 @@
 package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import java.lang.reflect.Modifier;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -41,23 +42,22 @@ import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
 public class MethodInfo {
     private final String methodName;
     private final int modifiers;
+    private final String typeDescriptor;
+    private List<String> typeStrs;
     private final List<String> annotationNames;
-    private final List<String> parameterTypeStrs;
-    private final String returnTypeStr;
     private final boolean isConstructor;
+
+    /**
+     * The ScanResult (set after the scan is complete, so that we know which ClassLoader to call for any given named
+     * class; used for classloading for getType()).
+     */
+    ScanResult scanResult;
 
     public MethodInfo(final String methodName, final int modifiers, final String typeDescriptor,
             final List<String> annotationNames, final boolean isConstructor) {
         this.methodName = methodName;
         this.modifiers = modifiers;
-
-        final List<String> typeNames = ReflectionUtils.parseTypeDescriptor(typeDescriptor);
-        if (typeNames.size() < 1) {
-            throw new IllegalArgumentException("Invalid type descriptor for method: " + typeDescriptor);
-        }
-        this.parameterTypeStrs = typeNames.subList(0, typeNames.size() - 1);
-        this.returnTypeStr = typeNames.get(typeNames.size() - 1);
-
+        this.typeDescriptor = typeDescriptor;
         this.annotationNames = annotationNames.isEmpty() ? Collections.<String> emptyList() : annotationNames;
         this.isConstructor = isConstructor;
     }
@@ -82,17 +82,59 @@ public class MethodInfo {
         return modifiers;
     }
 
+    private List<String> getTypeStrs() {
+        if (typeStrs != null) {
+            return typeStrs;
+        } else {
+            final List<String> typeStrsList = ReflectionUtils.parseTypeDescriptor(typeDescriptor);
+            if (typeStrsList.size() < 1) {
+                throw new IllegalArgumentException("Invalid type descriptor for method: " + typeDescriptor);
+            }
+            return typeStrsList;
+        }
+    }
+
     /**
      * Returns the return type for the method in string representation, e.g. "char[]". If this is a constructor, the
      * returned type will be "void".
      */
     public String getReturnTypeStr() {
-        return returnTypeStr;
+        final List<String> typeStrsList = getTypeStrs();
+        return typeStrsList.get(typeStrsList.size() - 1);
+    }
+
+    /**
+     * Returns the return type for the method as a Class reference. If this is a constructor, the return type will
+     * be void.class. Note that this calls Class.forName() on the return type, which will cause the class to be
+     * loaded, and possibly initialized. If the class is initialized, this can trigger side effects.
+     * 
+     * @throws IllegalArgumentException
+     *             if the return type for the method could not be loaded.
+     */
+    public Class<?> getReturnType() throws IllegalArgumentException {
+        return ReflectionUtils.typeStrToClass(getReturnTypeStr(), scanResult);
     }
 
     /** Returns the parameter types for the method in string representation, e.g. ["int", "List", "com.abc.XYZ"]. */
     public List<String> getParameterTypeStrs() {
-        return parameterTypeStrs;
+        final List<String> typeStrsList = getTypeStrs();
+        return typeStrsList.subList(0, typeStrsList.size() - 1);
+    }
+
+    /**
+     * Returns the parameter types for the method. Note that this calls Class.forName() on the parameter types,
+     * which will cause the class to be loaded, and possibly initialized. If the class is initialized, this can
+     * trigger side effects.
+     * 
+     * @throws IllegalArgumentException
+     *             if the parameter types of the method could not be loaded.
+     */
+    public List<Class<?>> getParameterTypes() throws IllegalArgumentException {
+        final List<Class<?>> parameterClassRefs = new ArrayList<>();
+        for (final String parameterTypeStr : getParameterTypeStrs()) {
+            parameterClassRefs.add(ReflectionUtils.typeStrToClass(parameterTypeStr, scanResult));
+        }
+        return parameterClassRefs;
     }
 
     /** Returns true if this method is public. */
@@ -152,6 +194,25 @@ public class MethodInfo {
     /** Returns the names of annotations on the method, or the empty list if none. */
     public List<String> getAnnotationNames() {
         return annotationNames;
+    }
+
+    /**
+     * Returns Class references for the annotations on this method. Note that this calls Class.forName() on the
+     * annotation types, which will cause each annotation class to be loaded.
+     * 
+     * @throws IllegalArgumentException
+     *             if the annotation type could not be loaded.
+     */
+    public List<Class<?>> getAnnotationTypes() throws IllegalArgumentException {
+        if (annotationNames.isEmpty()) {
+            return Collections.<Class<?>> emptyList();
+        } else {
+            final List<Class<?>> annotationClassRefs = new ArrayList<>();
+            for (final String annotationName : annotationNames) {
+                annotationClassRefs.add(ReflectionUtils.typeStrToClass(annotationName, scanResult));
+            }
+            return annotationClassRefs;
+        }
     }
 
     @Override

@@ -28,12 +28,15 @@
  */
 package io.github.lukehutch.fastclasspathscanner.utils;
 
+import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.List;
+
+import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
 
 /** Reflection utility methods that can be used by ClassLoaderHandlers. */
 public class ReflectionUtils {
@@ -286,6 +289,9 @@ public class ReflectionUtils {
                 buf.append(className);
                 i = semicolonIdx;
                 break;
+            default:
+                throw new IllegalArgumentException(
+                        "Unparseable type descriptor \"" + typeDescriptor + "\" at character '" + c + "'");
             }
             for (int j = 0; j < numDims; j++) {
                 buf.append("[]");
@@ -294,5 +300,74 @@ public class ReflectionUtils {
             buf.setLength(0);
         }
         return types;
+    }
+
+    private static Class<?> arrayify(final Class<?> cls, final int arrayDims) {
+        if (arrayDims == 0) {
+            return cls;
+        } else {
+            final int[] zeroes = (int[]) Array.newInstance(int.class, arrayDims);
+            return Array.newInstance(cls, zeroes).getClass();
+        }
+    }
+
+    /**
+     * Parse a type string (e.g. "int[][]" or "com.xyz.Widget"; java.lang and java.util only need the class name,
+     * e.g. "String") and return the corresponding Class reference. For a single type (for a field), returns a list
+     * with one item. For a method, returns a list of types, with the first N-1 items corresponding to the argument
+     * types, and the last item corresponding to the method return type.
+     * 
+     * @param typeStr
+     *            The type string.
+     * @param scanResult
+     *            the ScanResult (used to call the correct ClassLoader(s)).
+     * @throws IllegalArgumentException
+     *             if the class could not be found or loaded.
+     */
+    public static Class<?> typeStrToClass(final String typeStr, final ScanResult scanResult)
+            throws IllegalArgumentException {
+        int end = typeStr.length();
+        while (end >= 2 && typeStr.charAt(end - 2) == '[' && typeStr.charAt(end - 1) == ']') {
+            end -= 2;
+        }
+        final int arrayDims = (typeStr.length() - end) / 2;
+        final String typeStrWithoutBrackets = typeStr.substring(0, end);
+        switch (typeStrWithoutBrackets) {
+        case "byte":
+            return arrayify(byte.class, arrayDims);
+        case "char":
+            return char.class;
+        case "double":
+            return double.class;
+        case "float":
+            return float.class;
+        case "int":
+            return int.class;
+        case "long":
+            return long.class;
+        case "short":
+            return short.class;
+        case "boolean":
+            return boolean.class;
+        case "void":
+            return void.class;
+        default:
+            final int dotIdx = typeStrWithoutBrackets.indexOf('.');
+            if (dotIdx < 0) {
+                // Try prepending "java.lang." or "java.util."
+                try {
+                    return arrayify(Class.forName("java.lang." + typeStrWithoutBrackets), arrayDims);
+                } catch (final Exception e) {
+                    // ignore
+                }
+                try {
+                    return arrayify(Class.forName("java.util." + typeStrWithoutBrackets), arrayDims);
+                } catch (final Exception e) {
+                    // ignore
+                }
+            }
+            // Throws IllegalArgumentException if class could not be loaded
+            return arrayify(scanResult.classNameToClassRef(typeStrWithoutBrackets), arrayDims);
+        }
     }
 }

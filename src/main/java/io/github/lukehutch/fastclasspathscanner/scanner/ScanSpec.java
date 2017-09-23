@@ -736,67 +736,6 @@ public class ScanSpec {
      * Call the classloader using Class.forName(className, initializeLoadedClasses, classLoader), for all known
      * ClassLoaders, until one is able to load the class, or until there are no more ClassLoaders to try.
      * 
-     * @throw IllegalArgumentException if LinkageError (including ExceptionInInitializerError) is thrown, or if no
-     *        ClassLoader is able to load the class.
-     * @return a reference to the loaded class, or null if the class could not be found.
-     */
-    private Class<?> loadClass(final String className, final ClassLoader classLoader, final LogNode log)
-            throws IllegalArgumentException {
-        try {
-            return Class.forName(className, initializeLoadedClasses, classLoader);
-        } catch (final ClassNotFoundException e) {
-            return null;
-        } catch (final Throwable e) {
-            if (log != null) {
-                log.log("Error while loading class " + className, e);
-            }
-            throw new IllegalArgumentException("Exception while loading class " + className, e);
-        }
-    }
-
-    /**
-     * Call the classloader using Class.forName(className, initializeLoadedClasses, classLoader), for all known
-     * ClassLoaders, until one is able to load the class, or until there are no more ClassLoaders to try.
-     * 
-     * @throw IllegalArgumentException if LinkageError (including ExceptionInInitializerError) is thrown, or if no
-     *        ClassLoader is able to load the class.
-     * @return a reference to the loaded class.
-     */
-    Class<?> loadClass(final String className, final ScanResult scanResult, final LogNode log)
-            throws IllegalArgumentException {
-        if (scanResult.scanSpec.overrideClasspath != null) {
-            // This is for your own good :-)  Too many surprises can result otherwise (e.g. the wrong class
-            // definition being loaded, if a class is defined more than once in the classpath, or a class
-            // not being able to be cast to its superclass, if the class and its superclass are loaded into
-            // different classloaders, possibly due to accidental loading and caching in the non-custom
-            // classloader). Basically if you're overriding the classpath and/or defining custom
-            // classloaders, bad things will probably happen at some point!
-            throw new IllegalArgumentException(
-                    "Cannot load classes from custom classpath, defined using .overrideClasspath(), "
-                            + "since system classloaders may search a different classpath, and/or may have "
-                            + "already loaded and cached a class (which can lead to a class being loaded "
-                            + "twice, if a new classloader is defined using the custom classpath). "
-                            + "If you want to load classes from a custom classpath at runtime, you need "
-                            + "to define your own ClassLoader (e.g. using new URLClassLoader()), and then "
-                            + "use .overrideClassLoaders() instead");
-        }
-        // Try loading class via each classloader in turn
-        for (final ClassLoader classLoader : scanResult.getClassLoadersForClass(className)) {
-            final Class<?> classRef = loadClass(className, classLoader, log);
-            if (classRef != null) {
-                return classRef;
-            }
-        }
-        if (log != null) {
-            log.log("No classloader was able to load class " + className);
-        }
-        throw new IllegalArgumentException("No classloader was able to load class " + className);
-    }
-
-    /**
-     * Call the classloader using Class.forName(className, initializeLoadedClasses, classLoader), for all known
-     * ClassLoaders, until one is able to load the class, or until there are no more ClassLoaders to try.
-     * 
      * @throw MatchProcessorException if LinkageError (including ExceptionInInitializerError) is thrown, or if no
      *        ClassLoader is able to load the class.
      * @return a reference to the loaded class.
@@ -804,7 +743,7 @@ public class ScanSpec {
     private Class<?> loadClassForMatchProcessor(final String className, final ScanResult scanResult,
             final LogNode log) throws MatchProcessorException {
         try {
-            return loadClass(className, scanResult, log);
+            return scanResult.loadClass(className, log);
         } catch (final IllegalArgumentException e) {
             throw MatchProcessorException.newInstance(e.getCause());
         }

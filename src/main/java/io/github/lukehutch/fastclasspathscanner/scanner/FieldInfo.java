@@ -45,6 +45,12 @@ public class FieldInfo {
     private final Object constValue;
     private final List<String> annotationNames;
 
+    /**
+     * The ScanResult (set after the scan is complete, so that we know which ClassLoader to call for any given named
+     * class; used for classloading for getType()).
+     */
+    ScanResult scanResult;
+
     public FieldInfo(final String fieldName, final int modifiers, final String typeDescriptor,
             final Object constValue, final List<String> annotationNames) {
         this.fieldName = fieldName;
@@ -105,13 +111,7 @@ public class FieldInfo {
         return modifiers;
     }
 
-    /**
-     * Returns the type of the field, in string representation (e.g. "int[][]"). Note that the actual type of the
-     * field cannot be returned as a `Class<?>`, as with `Field#getType()` in the Java reflection API, because
-     * several Java reflection types cannot be constructed (including class references for arrays). The type of the
-     * field also cannot be returned as a `Type`, as with `Field#getGenericType()`, because the concrete subclasses
-     * of `Type` do not have public constructors. (See #140.)
-     */
+    /** Returns the type of the field, in string representation (e.g. "int[][]"). */
     public String getTypeStr() {
         final List<String> typeNames = ReflectionUtils.parseTypeDescriptor(typeDescriptor);
         if (typeNames.size() != 1) {
@@ -120,9 +120,16 @@ public class FieldInfo {
         return typeNames.get(0);
     }
 
-    /** Get the type descriptor for the field in Java-internal format (e.g. "Ljava/lang/String;") */
-    public String getTypeDescriptor() {
-        return typeDescriptor;
+    /**
+     * Returns the Class<?> reference for the field. Note that this calls Class.forName() on the field type, which
+     * will cause the class to be loaded, and possibly initialized. If the class is initialized, this can trigger
+     * side effects.
+     * 
+     * @throws IllegalArgumentException
+     *             if the field type could not be loaded.
+     */
+    public Class<?> getType() throws IllegalArgumentException {
+        return ReflectionUtils.typeStrToClass(getTypeStr(), scanResult);
     }
 
     /** Returns the constant final initializer value of the field, or null if none. */

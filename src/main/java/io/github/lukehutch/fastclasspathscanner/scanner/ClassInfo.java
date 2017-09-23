@@ -90,13 +90,13 @@ public class ClassInfo implements Comparable<ClassInfo> {
     private final ScanSpec scanSpec;
 
     /** Info on fields. */
-    private List<FieldInfo> fieldInfo;
+    List<FieldInfo> fieldInfo;
 
     /** Reverse mapping from field name to FieldInfo. */
     private Map<String, FieldInfo> fieldNameToFieldInfo;
 
     /** Info on fields. */
-    private List<MethodInfo> methodInfo;
+    List<MethodInfo> methodInfo;
 
     /** Reverse mapping from method name to MethodInfo. */
     private Map<String, MethodInfo> methodNameToMethodInfo;
