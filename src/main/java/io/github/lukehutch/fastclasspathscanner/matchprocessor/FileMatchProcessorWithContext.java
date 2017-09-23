@@ -36,10 +36,13 @@ import java.io.InputStream;
 @FunctionalInterface
 public interface FileMatchProcessorWithContext {
     /**
-     * Process a matching file.
+     * Process a file with a matching filename or path.
+     * 
+     * You can get a fully-qualified URL for the file (even for files inside jars) by calling
+     * ClasspathUtils.getClasspathResourceURL(classpathElt, relativePath)
      * 
      * @param classpathElt
-     *            The classpath element that contained the match.
+     *            The classpath element that contained the match (a jarfile or directory).
      * @param relativePath
      *            The path of the matching file relative to the classpath element that contained the match.
      * @param inputStream
