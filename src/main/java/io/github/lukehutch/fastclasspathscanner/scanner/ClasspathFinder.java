@@ -342,8 +342,8 @@ public class ClasspathFinder {
                 if (!scanSpec.blacklistSystemJars()
                         || !envClassLoader.getClass().getName().startsWith("sun.misc.Launcher$ExtClassLoader")) {
                     findClassLoaderHandlerForClassLoaderAndParents(envClassLoader, allClassLoaderHandlerEntries,
-                            /* foundClassLoaders = */ new AdditionOrderedSet<>(), classLoaderAndHandlerOrder,
-                            scanSpec, classpathFinderLog);
+                            /* foundClassLoaders = */ new AdditionOrderedSet<ClassLoader>(),
+                            classLoaderAndHandlerOrder, scanSpec, classpathFinderLog);
                 } else if (classpathFinderLog != null) {
                     classpathFinderLog.log("Skipping system classloader " + envClassLoader.getClass().getName());
                 }
