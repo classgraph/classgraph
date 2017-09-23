@@ -29,6 +29,7 @@
 package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import java.lang.reflect.Modifier;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -140,6 +141,25 @@ public class FieldInfo {
     /** Returns the names of annotations on the field, or the empty list if none. */
     public List<String> getAnnotationNames() {
         return annotationNames;
+    }
+
+    /**
+     * Returns Class references for the annotations on this field. Note that this calls Class.forName() on the
+     * annotation types, which will cause each annotation class to be loaded.
+     * 
+     * @throws IllegalArgumentException
+     *             if the annotation type could not be loaded.
+     */
+    public List<Class<?>> getAnnotationTypes() throws IllegalArgumentException {
+        if (annotationNames.isEmpty()) {
+            return Collections.<Class<?>> emptyList();
+        } else {
+            final List<Class<?>> annotationClassRefs = new ArrayList<>();
+            for (final String annotationName : annotationNames) {
+                annotationClassRefs.add(ReflectionUtils.typeStrToClass(annotationName, scanResult));
+            }
+            return annotationClassRefs;
+        }
     }
 
     @Override
