@@ -40,8 +40,10 @@ import org.ops4j.pax.url.mvn.MavenResolvers;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 
+/**
+ * @author wuetherich
+ */
 public class Issue141Test {
-
     @Test
     public void issue141Test() throws IOException {
 
