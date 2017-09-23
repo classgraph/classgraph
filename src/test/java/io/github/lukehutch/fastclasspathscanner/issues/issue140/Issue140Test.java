@@ -47,10 +47,10 @@ public class Issue140Test {
 
     @Test
     public void issue140Test() throws IOException {
-        ClassInfo ci = new FastClasspathScanner(Issue140Test.class.getPackage().getName()).enableFieldInfo().scan()
-                .getClassNameToClassInfo().get(Issue140Test.class.getName());
+        final ClassInfo ci = new FastClasspathScanner(Issue140Test.class.getPackage().getName()).enableFieldInfo()
+                .scan().getClassNameToClassInfo().get(Issue140Test.class.getName());
         assertThat(ci).isNotNull();
-        List<FieldInfo> allFieldInfo = ci.getFieldInfo();
+        final List<FieldInfo> allFieldInfo = ci.getFieldInfo();
         assertThat(allFieldInfo.size()).isEqualTo(2);
         assertThat(allFieldInfo.get(0).getType()).isEqualTo(int.class);
         assertThat(allFieldInfo.get(1).getType()).isEqualTo(Array.newInstance(String.class, 0).getClass());
