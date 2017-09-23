@@ -839,8 +839,8 @@ public class ScanResult {
      * Enable verbose scanning to see details of any exceptions thrown during classloading, even if ignoreExceptions
      * is false.
      * 
-     * @param classNames
-     *            The list of names of classes to load.
+     * @param className
+     *            The names of the class to load.
      * @param ignoreExceptions
      *            If true, null is returned if there was an exception during classloading, otherwise
      *            IllegalArgumentException is thrown if a class could not be loaded.
@@ -887,8 +887,8 @@ public class ScanResult {
      * Enable verbose scanning to see details of any exceptions thrown during classloading, even if ignoreExceptions
      * is false.
      * 
-     * @param classNames
-     *            The list of names of classes to load.
+     * @param className
+     *            The names of the classe to load.
      * @throws IllegalArgumentException
      *             if an exception is thrown during classloading or class initialization. (Note that class
      *             initialization on load is not enabled by default, you can enable it with
