@@ -41,21 +41,21 @@ import org.ops4j.pax.url.mvn.MavenResolvers;
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 
 public class Issue141Test {
-  
-  @Test
-  public void issue141Test() throws IOException {
 
-    // resolve and download org.ow2.asm:asm:6.0_BETA (which contains a module-info.class)
-    File resolvedFile = MavenResolvers.createMavenResolver(null, null).resolve("org.ow2.asm", "asm", null, null,
-        "6.0_BETA");
+    @Test
+    public void issue141Test() throws IOException {
 
-    //
-    assertThat(resolvedFile).isFile();
+        // resolve and download org.ow2.asm:asm:6.0_BETA (which contains a module-info.class)
+        final File resolvedFile = MavenResolvers.createMavenResolver(null, null).resolve("org.ow2.asm", "asm", null,
+                null, "6.0_BETA");
 
-    // create a new custom class loader
-    final ClassLoader classLoader = new URLClassLoader(new URL[] { resolvedFile.toURI().toURL() }, null);
+        //
+        assertThat(resolvedFile).isFile();
 
-    // scan the classpath
-    new FastClasspathScanner().overrideClassLoaders(classLoader).scan();
-  }
+        // create a new custom class loader
+        final ClassLoader classLoader = new URLClassLoader(new URL[] { resolvedFile.toURI().toURL() }, null);
+
+        // scan the classpath
+        new FastClasspathScanner().overrideClassLoaders(classLoader).scan();
+    }
 }
