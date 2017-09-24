@@ -32,6 +32,6 @@ import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 
 /** An interface used for testing if a class matches specified criteria. */
-public interface ClassMatcher {
+public interface ClassMatchProcessorWrapper {
     public abstract void lookForMatches(ScanResult scanResult, LogNode log);
 }

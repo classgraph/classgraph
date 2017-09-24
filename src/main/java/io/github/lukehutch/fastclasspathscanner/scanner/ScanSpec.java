@@ -54,7 +54,7 @@ import io.github.lukehutch.fastclasspathscanner.matchprocessor.MethodAnnotationM
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.StaticFinalFieldMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubclassMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubinterfaceMatchProcessor;
-import io.github.lukehutch.fastclasspathscanner.scanner.matchers.ClassMatcher;
+import io.github.lukehutch.fastclasspathscanner.scanner.matchers.ClassMatchProcessorWrapper;
 import io.github.lukehutch.fastclasspathscanner.scanner.matchers.FileMatchProcessorAny;
 import io.github.lukehutch.fastclasspathscanner.scanner.matchers.FileMatchProcessorWrapper;
 import io.github.lukehutch.fastclasspathscanner.scanner.matchers.FileMatchProcessorWrapper.FilePathTester;
@@ -196,7 +196,7 @@ public class ScanSpec {
     }
 
     /** A list of class matchers to call once all classes have been read in from classpath. */
-    private ArrayList<ClassMatcher> classMatchers;
+    private ArrayList<ClassMatchProcessorWrapper> classMatchers;
 
     /** A list of file path testers and match processor wrappers to use for file matching. */
     private final List<FileMatchProcessorWrapper> fileMatchProcessorWrappers = new ArrayList<>();
@@ -516,7 +516,7 @@ public class ScanSpec {
             // Call any class, interface or annotation MatchProcessors
             if (classMatchers != null) {
                 final LogNode subLog = log == null ? null : log.log("Calling ClassMatchProcessors");
-                for (final ClassMatcher classMatcher : classMatchers) {
+                for (final ClassMatchProcessorWrapper classMatcher : classMatchers) {
                     classMatcher.lookForMatches(scanResult, subLog);
                     scanResult.interruptionChecker.check();
                 }
@@ -830,7 +830,7 @@ public class ScanSpec {
     // -------------------------------------------------------------------------------------------------------------
 
     /** Add a ClassMatcher. */
-    private void addClassMatcher(final ClassMatcher classMatcher) {
+    private void addClassMatcher(final ClassMatchProcessorWrapper classMatcher) {
         if (classMatchers == null) {
             classMatchers = new ArrayList<>();
         }
@@ -847,7 +847,7 @@ public class ScanSpec {
      *            the ClassMatchProcessor to call when a match is found.
      */
     public void matchAllClasses(final ClassMatchProcessor classMatchProcessor) {
-        addClassMatcher(new ClassMatcher() {
+        addClassMatcher(new ClassMatchProcessorWrapper() {
             @Override
             public void lookForMatches(final ScanResult scanResult, final LogNode log) {
                 for (final String className : scanResult.getNamesOfAllClasses()) {
@@ -879,7 +879,7 @@ public class ScanSpec {
      *            the ClassMatchProcessor to call when a match is found.
      */
     public void matchAllStandardClasses(final ClassMatchProcessor classMatchProcessor) {
-        addClassMatcher(new ClassMatcher() {
+        addClassMatcher(new ClassMatchProcessorWrapper() {
             @Override
             public void lookForMatches(final ScanResult scanResult, final LogNode log) {
                 for (final String className : scanResult.getNamesOfAllStandardClasses()) {
@@ -911,7 +911,7 @@ public class ScanSpec {
      *            the ClassMatchProcessor to call when a match is found.
      */
     public void matchAllInterfaceClasses(final ClassMatchProcessor classMatchProcessor) {
-        addClassMatcher(new ClassMatcher() {
+        addClassMatcher(new ClassMatchProcessorWrapper() {
             @Override
             public void lookForMatches(final ScanResult scanResult, final LogNode log) {
                 for (final String className : scanResult.getNamesOfAllInterfaceClasses()) {
@@ -943,7 +943,7 @@ public class ScanSpec {
      *            the ClassMatchProcessor to call when a match is found.
      */
     public void matchAllAnnotationClasses(final ClassMatchProcessor classMatchProcessor) {
-        addClassMatcher(new ClassMatcher() {
+        addClassMatcher(new ClassMatchProcessorWrapper() {
             @Override
             public void lookForMatches(final ScanResult scanResult, final LogNode log) {
                 for (final String className : scanResult.getNamesOfAllAnnotationClasses()) {
@@ -980,7 +980,7 @@ public class ScanSpec {
      */
     public <T> void matchSubclassesOf(final Class<T> superclass,
             final SubclassMatchProcessor<T> subclassMatchProcessor) {
-        addClassMatcher(new ClassMatcher() {
+        addClassMatcher(new ClassMatchProcessorWrapper() {
             @Override
             public void lookForMatches(final ScanResult scanResult, final LogNode log) {
                 final String superclassName = getStandardClassName(superclass);
@@ -1021,7 +1021,7 @@ public class ScanSpec {
      */
     public <T> void matchSubinterfacesOf(final Class<T> superinterface,
             final SubinterfaceMatchProcessor<T> subinterfaceMatchProcessor) {
-        addClassMatcher(new ClassMatcher() {
+        addClassMatcher(new ClassMatchProcessorWrapper() {
             @Override
             public void lookForMatches(final ScanResult scanResult, final LogNode log) {
                 final String superinterfaceName = getInterfaceName(superinterface);
@@ -1061,7 +1061,7 @@ public class ScanSpec {
      */
     public <T> void matchClassesImplementing(final Class<T> implementedInterface,
             final ImplementingClassMatchProcessor<T> implementingClassMatchProcessor) {
-        addClassMatcher(new ClassMatcher() {
+        addClassMatcher(new ClassMatchProcessorWrapper() {
             @Override
             public void lookForMatches(final ScanResult scanResult, final LogNode log) {
                 final String implementedInterfaceName = getInterfaceName(implementedInterface);
@@ -1104,7 +1104,7 @@ public class ScanSpec {
      */
     public <T> void matchClassesWithFieldOfType(final Class<T> fieldType,
             final ClassMatchProcessor classMatchProcessor) {
-        addClassMatcher(new ClassMatcher() {
+        addClassMatcher(new ClassMatchProcessorWrapper() {
             @Override
             public void lookForMatches(final ScanResult scanResult, final LogNode log) {
                 final String fieldTypeName = getClassName(fieldType);
@@ -1142,7 +1142,7 @@ public class ScanSpec {
      */
     public void matchClassesWithAnnotation(final Class<?> annotation,
             final ClassAnnotationMatchProcessor classAnnotationMatchProcessor) {
-        addClassMatcher(new ClassMatcher() {
+        addClassMatcher(new ClassMatchProcessorWrapper() {
             @Override
             public void lookForMatches(final ScanResult scanResult, final LogNode log) {
                 final String annotationName = getAnnotationName(annotation);
@@ -1182,7 +1182,7 @@ public class ScanSpec {
      */
     public void matchClassesWithMethodAnnotation(final Class<? extends Annotation> annotation,
             final MethodAnnotationMatchProcessor methodAnnotationMatchProcessor) {
-        addClassMatcher(new ClassMatcher() {
+        addClassMatcher(new ClassMatchProcessorWrapper() {
             @Override
             public void lookForMatches(final ScanResult scanResult, final LogNode log) {
                 final String annotationName = getAnnotationName(annotation);
@@ -1257,7 +1257,7 @@ public class ScanSpec {
      */
     public void matchClassesWithFieldAnnotation(final Class<? extends Annotation> annotation,
             final FieldAnnotationMatchProcessor fieldAnnotationMatchProcessor) {
-        addClassMatcher(new ClassMatcher() {
+        addClassMatcher(new ClassMatchProcessorWrapper() {
             @Override
             public void lookForMatches(final ScanResult scanResult, final LogNode log) {
                 final String annotationName = getAnnotationName(annotation);
