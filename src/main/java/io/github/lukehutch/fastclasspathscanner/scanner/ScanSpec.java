@@ -29,7 +29,6 @@
 package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import java.io.File;
-import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.reflect.Constructor;
@@ -50,19 +49,15 @@ import io.github.lukehutch.fastclasspathscanner.classloaderhandler.ClassLoaderHa
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.ClassAnnotationMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.ClassMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.FieldAnnotationMatchProcessor;
-import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchContentsProcessor;
-import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchContentsProcessorWithContext;
-import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchProcessor;
-import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchProcessorWithContext;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.ImplementingClassMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.MethodAnnotationMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.StaticFinalFieldMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubclassMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubinterfaceMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.scanner.matchers.ClassMatcher;
+import io.github.lukehutch.fastclasspathscanner.scanner.matchers.FileMatchProcessorAny;
 import io.github.lukehutch.fastclasspathscanner.scanner.matchers.FileMatchProcessorWrapper;
 import io.github.lukehutch.fastclasspathscanner.scanner.matchers.FileMatchProcessorWrapper.FilePathTester;
-import io.github.lukehutch.fastclasspathscanner.utils.FileUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.JarUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.MultiMapKeyToList;
@@ -1419,62 +1414,17 @@ public class ScanSpec {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    private static FileMatchProcessorWrapper makeFileMatchProcessorWrapper(final FilePathTester filePathTester,
-            final FileMatchProcessor fileMatchProcessor) {
-        return new FileMatchProcessorWrapper(filePathTester) {
-            @Override
-            public void processMatch(final ClasspathResource classpathResource) throws IOException {
-                fileMatchProcessor.processMatch(classpathResource.pathRelativeToClasspathPrefix,
-                        // Caller calls classpathResource.close() in finally block
-                        /* inputStream = */ classpathResource.open(), classpathResource.inputStreamLength);
-            }
-        };
-    }
-
-    private static FileMatchProcessorWrapper makeFileMatchProcessorWrapper(final FilePathTester filePathTester,
-            final FileMatchContentsProcessor fileMatchContentsProcessor) {
-        return new FileMatchProcessorWrapper(filePathTester) {
-            @Override
-            public void processMatch(final ClasspathResource classpathResource) throws IOException {
-                fileMatchContentsProcessor.processMatch(classpathResource.pathRelativeToClasspathPrefix,
-                        // Caller calls classpathResource.close() in finally block
-                        FileUtils.readAllBytes(/* inputStream = */ classpathResource.open(),
-                                classpathResource.inputStreamLength));
-            }
-        };
-    }
-
-    private static FileMatchProcessorWrapper makeFileMatchProcessorWrapper(final FilePathTester filePathTester,
-            final FileMatchProcessorWithContext fileMatchProcessorWithContext) {
-        return new FileMatchProcessorWrapper(filePathTester) {
-            @Override
-            public void processMatch(final ClasspathResource classpathResource) throws IOException {
-                fileMatchProcessorWithContext.processMatch(classpathResource.classpathEltFile,
-                        classpathResource.pathRelativeToClasspathPrefix,
-                        // Caller calls classpathResource.close() in finally block
-                        /* inputStream = */ classpathResource.open(), classpathResource.inputStreamLength);
-            }
-        };
-    }
-
-    private static FileMatchProcessorWrapper makeFileMatchProcessorWrapper(final FilePathTester filePathTester,
-            final FileMatchContentsProcessorWithContext fileMatchContentsProcessorWithContext) {
-        return new FileMatchProcessorWrapper(filePathTester) {
-            @Override
-            public void processMatch(final ClasspathResource classpathResource) throws IOException {
-                fileMatchContentsProcessorWithContext.processMatch(classpathResource.classpathEltFile,
-                        classpathResource.pathRelativeToClasspathPrefix,
-                        // Caller calls classpathResource.close() in finally block
-                        FileUtils.readAllBytes(/* inputStream = */ classpathResource.open(),
-                                classpathResource.inputStreamLength));
-            }
-        };
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    private FilePathTester makeFilePathTesterMatchingRegexp(final String pathRegexp) {
-        return new FilePathTester() {
+    /**
+     * Calls the given FileMatchProcessor if files are found on the classpath with the given regexp pattern in their
+     * path.
+     * 
+     * @param pathRegexp
+     *            The regexp to match, e.g. "app/templates/.*\\.html"
+     * @param fileMatchProcessor
+     *            The FileMatchProcessor to call when each match is found.
+     */
+    public void matchFilenamePattern(final String pathRegexp, final FileMatchProcessorAny fileMatchProcessor) {
+        fileMatchProcessorWrappers.add(new FileMatchProcessorWrapper(new FilePathTester() {
             private final Pattern pattern = Pattern.compile(pathRegexp);
 
             @Override
@@ -1486,83 +1436,10 @@ public class ScanSpec {
                 }
                 return matched;
             }
-        };
-    }
-
-    /**
-     * Calls the given FileMatchProcessor if files are found on the classpath with the given regexp pattern in their
-     * path.
-     * 
-     * @param pathRegexp
-     *            The regexp to match, e.g. "app/templates/.*\\.html"
-     * @param fileMatchProcessor
-     *            The FileMatchProcessor to call when each match is found.
-     */
-    public void matchFilenamePattern(final String pathRegexp, final FileMatchProcessor fileMatchProcessor) {
-        fileMatchProcessorWrappers.add(
-                makeFileMatchProcessorWrapper(makeFilePathTesterMatchingRegexp(pathRegexp), fileMatchProcessor));
-    }
-
-    /**
-     * Calls the given FileMatchContentsProcessor if files are found on the classpath with the given regexp pattern
-     * in their path.
-     * 
-     * @param pathRegexp
-     *            The regexp to match, e.g. "app/templates/.*\\.html"
-     * @param fileMatchContentsProcessor
-     *            The FileMatchContentsProcessor to call when each match is found.
-     */
-    public void matchFilenamePattern(final String pathRegexp,
-            final FileMatchContentsProcessor fileMatchContentsProcessor) {
-        fileMatchProcessorWrappers.add(makeFileMatchProcessorWrapper(makeFilePathTesterMatchingRegexp(pathRegexp),
-                fileMatchContentsProcessor));
-    }
-
-    /**
-     * Calls the given FileMatchProcessorWithContext if files are found on the classpath with the given regexp
-     * pattern in their path.
-     * 
-     * @param pathRegexp
-     *            The regexp to match, e.g. "app/templates/.*\\.html"
-     * @param fileMatchProcessorWithContext
-     *            The FileMatchProcessorWithContext to call when each match is found.
-     */
-    public void matchFilenamePattern(final String pathRegexp,
-            final FileMatchProcessorWithContext fileMatchProcessorWithContext) {
-        fileMatchProcessorWrappers.add(makeFileMatchProcessorWrapper(makeFilePathTesterMatchingRegexp(pathRegexp),
-                fileMatchProcessorWithContext));
-    }
-
-    /**
-     * Calls the given FileMatchContentsProcessorWithContext if files are found on the classpath with the given
-     * regexp pattern in their path.
-     * 
-     * @param pathRegexp
-     *            The regexp to match, e.g. "app/templates/.*\\.html"
-     * @param fileMatchContentsProcessorWithContext
-     *            The FileMatchContentsProcessorWithContext to call when each match is found.
-     */
-    public void matchFilenamePattern(final String pathRegexp,
-            final FileMatchContentsProcessorWithContext fileMatchContentsProcessorWithContext) {
-        fileMatchProcessorWrappers.add(makeFileMatchProcessorWrapper(makeFilePathTesterMatchingRegexp(pathRegexp),
-                fileMatchContentsProcessorWithContext));
+        }, fileMatchProcessor));
     }
 
     // -------------------------------------------------------------------------------------------------------------
-
-    private FilePathTester makeFilePathTesterMatchingRelativePath(final String relativePathToMatch) {
-        return new FilePathTester() {
-            @Override
-            public boolean filePathMatches(final File classpathElt, final String relativePathStr,
-                    final LogNode log) {
-                final boolean matched = relativePathStr.equals(relativePathToMatch);
-                if (matched && log != null) {
-                    log.log("Matched filename path " + relativePathToMatch);
-                }
-                return matched;
-            }
-        };
-    }
 
     /**
      * Calls the given FileMatchProcessor if files are found on the classpath that exactly match the given relative
@@ -1574,64 +1451,35 @@ public class ScanSpec {
      * @param fileMatchProcessor
      *            The FileMatchProcessor to call when each match is found.
      */
-    public void matchFilenamePath(final String relativePathToMatch, final FileMatchProcessor fileMatchProcessor) {
-        fileMatchProcessorWrappers.add(makeFileMatchProcessorWrapper(
-                makeFilePathTesterMatchingRelativePath(relativePathToMatch), fileMatchProcessor));
-    }
-
-    /**
-     * Calls the given FileMatchContentsProcessor if files are found on the classpath that exactly match the given
-     * relative path.
-     * 
-     * @param relativePathToMatch
-     *            The complete path to match relative to the classpath entry, e.g.
-     *            "app/templates/WidgetTemplate.html"
-     * @param fileMatchContentsProcessor
-     *            The FileMatchContentsProcessor to call when each match is found.
-     */
     public void matchFilenamePath(final String relativePathToMatch,
-            final FileMatchContentsProcessor fileMatchContentsProcessor) {
-        fileMatchProcessorWrappers.add(makeFileMatchProcessorWrapper(
-                makeFilePathTesterMatchingRelativePath(relativePathToMatch), fileMatchContentsProcessor));
-    }
-
-    /**
-     * Calls the given FileMatchProcessorWithContext if files are found on the classpath that exactly match the
-     * given relative path.
-     * 
-     * @param relativePathToMatch
-     *            The complete path to match relative to the classpath entry, e.g.
-     *            "app/templates/WidgetTemplate.html"
-     * @param fileMatchProcessorWithContext
-     *            The FileMatchProcessorWithContext to call when each match is found.
-     */
-    public void matchFilenamePath(final String relativePathToMatch,
-            final FileMatchProcessorWithContext fileMatchProcessorWithContext) {
-        fileMatchProcessorWrappers.add(makeFileMatchProcessorWrapper(
-                makeFilePathTesterMatchingRelativePath(relativePathToMatch), fileMatchProcessorWithContext));
-    }
-
-    /**
-     * Calls the given FileMatchContentsProcessorWithContext if files are found on the classpath that exactly match
-     * the given relative path.
-     * 
-     * @param relativePathToMatch
-     *            The complete path to match relative to the classpath entry, e.g.
-     *            "app/templates/WidgetTemplate.html"
-     * @param fileMatchContentsProcessorWithContext
-     *            The FileMatchContentsProcessorWithContext to call when each match is found.
-     */
-    public void matchFilenamePath(final String relativePathToMatch,
-            final FileMatchContentsProcessorWithContext fileMatchContentsProcessorWithContext) {
-        fileMatchProcessorWrappers
-                .add(makeFileMatchProcessorWrapper(makeFilePathTesterMatchingRelativePath(relativePathToMatch),
-                        fileMatchContentsProcessorWithContext));
+            final FileMatchProcessorAny fileMatchProcessor) {
+        fileMatchProcessorWrappers.add(new FileMatchProcessorWrapper(new FilePathTester() {
+            @Override
+            public boolean filePathMatches(final File classpathElt, final String relativePathStr,
+                    final LogNode log) {
+                final boolean matched = relativePathStr.equals(relativePathToMatch);
+                if (matched && log != null) {
+                    log.log("Matched filename path " + relativePathToMatch);
+                }
+                return matched;
+            }
+        }, fileMatchProcessor));
     }
 
     // -------------------------------------------------------------------------------------------------------------
 
-    private FilePathTester makeFilePathTesterMatchingPathLeaf(final String pathLeafToMatch) {
-        return new FilePathTester() {
+    /**
+     * Calls the given FileMatchProcessor if files are found on the classpath that exactly match the given path
+     * leafname.
+     * 
+     * @param pathLeafToMatch
+     *            The complete path leaf to match, e.g. "WidgetTemplate.html"
+     * @param fileMatchProcessor
+     *            The FileMatchProcessor to call when each match is found.
+     */
+    public void matchFilenamePathLeaf(final String pathLeafToMatch,
+            final FileMatchProcessorAny fileMatchProcessor) {
+        fileMatchProcessorWrappers.add(new FileMatchProcessorWrapper(new FilePathTester() {
             private final String leafToMatch = pathLeafToMatch.substring(pathLeafToMatch.lastIndexOf('/') + 1);
 
             @Override
@@ -1644,72 +1492,22 @@ public class ScanSpec {
                 }
                 return matched;
             }
-        };
-    }
-
-    /**
-     * Calls the given FileMatchProcessor if files are found on the classpath that exactly match the given path
-     * leafname.
-     * 
-     * @param pathLeafToMatch
-     *            The complete path leaf to match, e.g. "WidgetTemplate.html"
-     * @param fileMatchProcessor
-     *            The FileMatchProcessor to call when each match is found.
-     */
-    public void matchFilenamePathLeaf(final String pathLeafToMatch, final FileMatchProcessor fileMatchProcessor) {
-        fileMatchProcessorWrappers.add(makeFileMatchProcessorWrapper(
-                makeFilePathTesterMatchingPathLeaf(pathLeafToMatch), fileMatchProcessor));
-    }
-
-    /**
-     * Calls the given FileMatchContentsProcessor if files are found on the classpath that exactly match the given
-     * path leafname.
-     * 
-     * @param pathLeafToMatch
-     *            The complete path leaf to match, e.g. "WidgetTemplate.html"
-     * @param fileMatchContentsProcessor
-     *            The FileMatchContentsProcessor to call when each match is found.
-     */
-    public void matchFilenamePathLeaf(final String pathLeafToMatch,
-            final FileMatchContentsProcessor fileMatchContentsProcessor) {
-        fileMatchProcessorWrappers.add(makeFileMatchProcessorWrapper(
-                makeFilePathTesterMatchingPathLeaf(pathLeafToMatch), fileMatchContentsProcessor));
-    }
-
-    /**
-     * Calls the given FileMatchProcessorWithContext if files are found on the classpath that exactly match the
-     * given path leafname.
-     * 
-     * @param pathLeafToMatch
-     *            The complete path leaf to match, e.g. "WidgetTemplate.html"
-     * @param fileMatchProcessorWithContext
-     *            The FileMatchProcessorWithContext to call when each match is found.
-     */
-    public void matchFilenamePathLeaf(final String pathLeafToMatch,
-            final FileMatchProcessorWithContext fileMatchProcessorWithContext) {
-        fileMatchProcessorWrappers.add(makeFileMatchProcessorWrapper(
-                makeFilePathTesterMatchingPathLeaf(pathLeafToMatch), fileMatchProcessorWithContext));
-    }
-
-    /**
-     * Calls the given FileMatchContentsProcessorWithContext if files are found on the classpath that exactly match
-     * the given path leafname.
-     * 
-     * @param pathLeafToMatch
-     *            The complete path leaf to match, e.g. "WidgetTemplate.html"
-     * @param fileMatchContentsProcessorWithContext
-     *            The FileMatchContentsProcessorWithContext to call when each match is found.
-     */
-    public void matchFilenamePathLeaf(final String pathLeafToMatch,
-            final FileMatchContentsProcessorWithContext fileMatchContentsProcessorWithContext) {
-        fileMatchProcessorWrappers.add(makeFileMatchProcessorWrapper(
-                makeFilePathTesterMatchingPathLeaf(pathLeafToMatch), fileMatchContentsProcessorWithContext));
+        }, fileMatchProcessor));
     }
 
     // -------------------------------------------------------------------------------------------------------------
 
-    private FilePathTester makeFilePathTesterMatchingFilenameExtension(final String extensionToMatch) {
-        return new FilePathTester() {
+    /**
+     * Calls the given FileMatchProcessor if files are found on the classpath that have the given file extension.
+     * 
+     * @param extensionToMatch
+     *            The extension to match, e.g. "html" matches "WidgetTemplate.html" and "WIDGET.HTML".
+     * @param fileMatchProcessor
+     *            The FileMatchProcessor to call when each match is found.
+     */
+    public void matchFilenameExtension(final String extensionToMatch,
+            final FileMatchProcessorAny fileMatchProcessor) {
+        fileMatchProcessorWrappers.add(new FileMatchProcessorWrapper(new FilePathTester() {
             final int extLen = extensionToMatch.length();
 
             @Override
@@ -1723,64 +1521,6 @@ public class ScanSpec {
                 }
                 return matched;
             }
-        };
-    }
-
-    /**
-     * Calls the given FileMatchProcessor if files are found on the classpath that have the given file extension.
-     * 
-     * @param extensionToMatch
-     *            The extension to match, e.g. "html" matches "WidgetTemplate.html" and "WIDGET.HTML".
-     * @param fileMatchProcessor
-     *            The FileMatchProcessor to call when each match is found.
-     */
-    public void matchFilenameExtension(final String extensionToMatch, final FileMatchProcessor fileMatchProcessor) {
-        fileMatchProcessorWrappers.add(makeFileMatchProcessorWrapper(
-                makeFilePathTesterMatchingFilenameExtension(extensionToMatch), fileMatchProcessor));
-    }
-
-    /**
-     * Calls the given FileMatchProcessor if files are found on the classpath that have the given file extension.
-     * 
-     * @param extensionToMatch
-     *            The extension to match, e.g. "html" matches "WidgetTemplate.html".
-     * @param fileMatchContentsProcessor
-     *            The FileMatchContentsProcessor to call when each match is found.
-     */
-    public void matchFilenameExtension(final String extensionToMatch,
-            final FileMatchContentsProcessor fileMatchContentsProcessor) {
-        fileMatchProcessorWrappers.add(makeFileMatchProcessorWrapper(
-                makeFilePathTesterMatchingFilenameExtension(extensionToMatch), fileMatchContentsProcessor));
-    }
-
-    /**
-     * Calls the given FileMatchProcessorWithContext if files are found on the classpath that have the given file
-     * extension.
-     * 
-     * @param extensionToMatch
-     *            The extension to match, e.g. "html" matches "WidgetTemplate.html" and "WIDGET.HTML".
-     * @param fileMatchProcessorWithContext
-     *            The FileMatchProcessorWithContext to call when each match is found.
-     */
-    public void matchFilenameExtension(final String extensionToMatch,
-            final FileMatchProcessorWithContext fileMatchProcessorWithContext) {
-        fileMatchProcessorWrappers.add(makeFileMatchProcessorWrapper(
-                makeFilePathTesterMatchingFilenameExtension(extensionToMatch), fileMatchProcessorWithContext));
-    }
-
-    /**
-     * Calls the given FileMatchProcessorWithContext if files are found on the classpath that have the given file
-     * extension.
-     * 
-     * @param extensionToMatch
-     *            The extension to match, e.g. "html" matches "WidgetTemplate.html".
-     * @param fileMatchContentsProcessorWithContext
-     *            The FileMatchContentsProcessorWithContext to call when each match is found.
-     */
-    public void matchFilenameExtension(final String extensionToMatch,
-            final FileMatchContentsProcessorWithContext fileMatchContentsProcessorWithContext) {
-        fileMatchProcessorWrappers
-                .add(makeFileMatchProcessorWrapper(makeFilePathTesterMatchingFilenameExtension(extensionToMatch),
-                        fileMatchContentsProcessorWithContext));
+        }, fileMatchProcessor));
     }
 }

@@ -32,9 +32,11 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 
+import io.github.lukehutch.fastclasspathscanner.scanner.matchers.FileMatchProcessorAny;
+
 /** The method to run when a file with a matching path is found on the classpath. */
 @FunctionalInterface
-public interface FileMatchProcessorWithContext {
+public interface FileMatchProcessorWithContext extends FileMatchProcessorAny {
     /**
      * Process a file with a matching filename or path.
      * 

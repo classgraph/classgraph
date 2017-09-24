@@ -32,16 +32,23 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 
+import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchContentsProcessor;
+import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchContentsProcessorWithContext;
+import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchProcessor;
+import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchProcessorWithContext;
+import io.github.lukehutch.fastclasspathscanner.matchprocessor.FilenameMatchProcessor;
+import io.github.lukehutch.fastclasspathscanner.scanner.matchers.FileMatchProcessorAny;
 import io.github.lukehutch.fastclasspathscanner.utils.ClasspathUtils;
+import io.github.lukehutch.fastclasspathscanner.utils.FileUtils;
 
 /**
  * The combination of a classpath element and a relative path within this classpath element.
  */
 public abstract class ClasspathResource {
-    final File classpathEltFile;
-    final String pathRelativeToClasspathElt;
-    final String pathRelativeToClasspathPrefix;
-    protected long inputStreamLength;
+    public final File classpathEltFile;
+    public final String pathRelativeToClasspathElt;
+    public final String pathRelativeToClasspathPrefix;
+    public long inputStreamLength;
 
     protected ClasspathResource(final File classpathEltFile, final String pathRelativeToClasspathElt,
             final String pathRelativeToClasspathPrefix) {
@@ -59,6 +66,35 @@ public abstract class ClasspathResource {
 
     public long getInputStreamLength() {
         return inputStreamLength;
+    }
+
+    public void processFileMatch(final FileMatchProcessorAny fileMatchProcessor) throws IOException {
+        if (fileMatchProcessor instanceof FilenameMatchProcessor) {
+            ((FilenameMatchProcessor) fileMatchProcessor).processMatch(
+                    // classpathResource.open() is not called for FilenameMatchProcessors
+                    classpathEltFile, pathRelativeToClasspathPrefix);
+        } else if (fileMatchProcessor instanceof FileMatchProcessor) {
+            ((FileMatchProcessor) fileMatchProcessor).processMatch(pathRelativeToClasspathPrefix,
+                    // Caller calls classpathResource.close() in finally block
+                    /* inputStream = */ open(), inputStreamLength);
+        } else if (fileMatchProcessor instanceof FileMatchProcessorWithContext) {
+            ((FileMatchProcessorWithContext) fileMatchProcessor).processMatch(classpathEltFile,
+                    pathRelativeToClasspathPrefix,
+                    // Caller calls classpathResource.close() in finally block
+                    /* inputStream = */ open(), inputStreamLength);
+        } else if (fileMatchProcessor instanceof FileMatchContentsProcessor) {
+            ((FileMatchContentsProcessor) fileMatchProcessor).processMatch(pathRelativeToClasspathPrefix,
+                    // Caller calls classpathResource.close() in finally block
+                    FileUtils.readAllBytes(/* inputStream = */ open(), inputStreamLength));
+        } else if (fileMatchProcessor instanceof FileMatchContentsProcessorWithContext) {
+            ((FileMatchContentsProcessorWithContext) fileMatchProcessor).processMatch(classpathEltFile,
+                    pathRelativeToClasspathPrefix,
+                    // Caller calls classpathResource.close() in finally block
+                    FileUtils.readAllBytes(/* inputStream = */ open(), inputStreamLength));
+        } else {
+            throw new RuntimeException(
+                    "Unknown FileMatchProcessor type " + fileMatchProcessor.getClass().getName());
+        }
     }
 
     public abstract void close();

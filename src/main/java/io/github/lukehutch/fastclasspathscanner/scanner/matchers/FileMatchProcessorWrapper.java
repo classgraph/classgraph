@@ -35,21 +35,26 @@ import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathResource;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 
 /** An interface called when the corresponding FilePathTester returns true. */
-public abstract class FileMatchProcessorWrapper {
+public class FileMatchProcessorWrapper {
     /** An interface used to test whether a file's relative path matches a given specification. */
     public interface FilePathTester {
         public boolean filePathMatches(final File classpathElt, final String relativePathStr, final LogNode log);
     }
 
     private final FilePathTester filePathTester;
+    private final FileMatchProcessorAny fileMatchProcessor;
 
-    public FileMatchProcessorWrapper(final FilePathTester filePathTester) {
+    public FileMatchProcessorWrapper(final FilePathTester filePathTester,
+            final FileMatchProcessorAny fileMatchProcessor) {
         this.filePathTester = filePathTester;
+        this.fileMatchProcessor = fileMatchProcessor;
     }
 
     public boolean filePathMatches(final File classpathElt, final String relativePathStr, final LogNode log) {
         return filePathTester.filePathMatches(classpathElt, relativePathStr, log);
     }
 
-    public abstract void processMatch(ClasspathResource classpathResource) throws IOException;
+    public void processMatch(final ClasspathResource classpathResource) throws IOException {
+        classpathResource.processFileMatch(fileMatchProcessor);
+    }
 }

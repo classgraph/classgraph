@@ -30,9 +30,11 @@ package io.github.lukehutch.fastclasspathscanner.matchprocessor;
 
 import java.io.IOException;
 
+import io.github.lukehutch.fastclasspathscanner.scanner.matchers.FileMatchProcessorAny;
+
 /** The method to run when a file with a matching path is found on the classpath. */
 @FunctionalInterface
-public interface FileMatchContentsProcessor {
+public interface FileMatchContentsProcessor extends FileMatchProcessorAny {
     /**
      * Process a matching file.
      * 
