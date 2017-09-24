@@ -318,7 +318,7 @@ abstract class ClasspathElement {
                     log.log("IOException while attempting to read classfile " + classfileResource + " -- skipping",
                             e);
                 }
-            } catch (final Exception e) {
+            } catch (final Throwable e) {
                 if (log != null) {
                     log.log("Exception while parsing classfile " + classfileResource, e);
                 }
