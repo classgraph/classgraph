@@ -91,13 +91,13 @@ public class Scanner implements Callable<ScanResult> {
      * the final classpath element order.
      */
     private static void findClasspathOrder(final ClasspathElement currSingleton,
-            final ClasspathRelativePathToElementMap classpathElementMap,
+            final RelativePathToElementMap classpathElementMap,
             final HashSet<ClasspathElement> visitedClasspathElts, final ArrayList<ClasspathElement> order)
             throws InterruptedException {
         if (visitedClasspathElts.add(currSingleton)) {
             order.add(currSingleton);
             if (currSingleton.childClasspathElts != null) {
-                for (final ClasspathRelativePath childClasspathElt : currSingleton.childClasspathElts) {
+                for (final RelativePath childClasspathElt : currSingleton.childClasspathElts) {
                     final ClasspathElement childSingleton = classpathElementMap.get(childClasspathElt);
                     if (childSingleton != null && !childSingleton.ioExceptionOnOpen) {
                         findClasspathOrder(childSingleton, classpathElementMap, visitedClasspathElts, order);
@@ -111,14 +111,14 @@ public class Scanner implements Callable<ScanResult> {
      * Recursively perform a depth-first search of jar interdependencies, breaking cycles if necessary, to determine
      * the final classpath element order.
      */
-    private static List<ClasspathElement> findClasspathOrder(final List<ClasspathRelativePath> rawClasspathElements,
-            final ClasspathRelativePathToElementMap classpathElementMap) throws InterruptedException {
+    private static List<ClasspathElement> findClasspathOrder(final List<RelativePath> rawClasspathElements,
+            final RelativePathToElementMap classpathElementMap) throws InterruptedException {
         // Recurse from toplevel classpath elements to determine a total ordering of classpath elements
         // (jars with Class-Path entries in their manifest file should have those child resources included
         // in-place in the classpath).
         final HashSet<ClasspathElement> visitedClasspathElts = new HashSet<>();
         final ArrayList<ClasspathElement> order = new ArrayList<>();
-        for (final ClasspathRelativePath toplevelClasspathElt : rawClasspathElements) {
+        for (final RelativePath toplevelClasspathElt : rawClasspathElements) {
             final ClasspathElement toplevelSingleton = classpathElementMap.get(toplevelClasspathElt);
             if (toplevelSingleton != null && !toplevelSingleton.ioExceptionOnOpen) {
                 findClasspathOrder(toplevelSingleton, classpathElementMap, visitedClasspathElts, order);
@@ -211,20 +211,19 @@ public class Scanner implements Callable<ScanResult> {
                     : classpathFinderLog.log("Getting raw classpath elements");
             final ClasspathFinder classpathFinder = new ClasspathFinder(scanSpec, nestedJarHandler,
                     getRawElementsLog);
-            final List<ClasspathRelativePath> rawClasspathEltPathsDedupd = classpathFinder
-                    .getRawClasspathElements();
+            final List<RelativePath> rawClasspathEltPathsDedupd = classpathFinder.getRawClasspathElements();
             final ClassLoader[] classLoaderOrder = classpathFinder.getClassLoaderOrder();
 
             // In parallel, resolve raw classpath elements to canonical paths, creating a ClasspathElement
             // singleton for each unique canonical path. Also check jars against jar whitelist/blacklist.a
             final LogNode preScanLog = classpathFinderLog == null ? null
                     : classpathFinderLog.log("Searching for \"Class-Path:\" entries within manifest files");
-            final ClasspathRelativePathToElementMap classpathElementMap = new ClasspathRelativePathToElementMap(
+            final RelativePathToElementMap classpathElementMap = new RelativePathToElementMap(
                     enableRecursiveScanning, scanSpec, nestedJarHandler, interruptionChecker, preScanLog);
-            try (WorkQueue<ClasspathRelativePath> workQueue = new WorkQueue<>(rawClasspathEltPathsDedupd,
-                    new WorkUnitProcessor<ClasspathRelativePath>() {
+            try (WorkQueue<RelativePath> workQueue = new WorkQueue<>(rawClasspathEltPathsDedupd,
+                    new WorkUnitProcessor<RelativePath>() {
                         @Override
-                        public void processWorkUnit(ClasspathRelativePath rawClasspathEltPath) throws Exception {
+                        public void processWorkUnit(RelativePath rawClasspathEltPath) throws Exception {
                             // Check if classpath element is already in the singleton map -- saves needlessly
                             // repeating work in isValidClasspathElement() and createSingleton()
                             // (need to check for duplicates again, even though we checked above, since

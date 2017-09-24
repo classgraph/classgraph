@@ -37,18 +37,15 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
-import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathElement.ClasspathResource.ClasspathResourceInZipFile;
-import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec.FileMatchProcessorWrapper;
-import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec.FilePathTesterAndMatchProcessorWrapper;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec.ScanSpecPathMatch;
+import io.github.lukehutch.fastclasspathscanner.scanner.matchers.FileMatchProcessorWrapper;
 import io.github.lukehutch.fastclasspathscanner.utils.ClasspathUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.FastManifestParser;
 import io.github.lukehutch.fastclasspathscanner.utils.FastPathResolver;
+import io.github.lukehutch.fastclasspathscanner.utils.FileUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.InterruptionChecker;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.MultiMapKeyToList;
@@ -64,10 +61,9 @@ class ClasspathElementZip extends ClasspathElement {
     private Recycler<ZipFile, IOException> zipFileRecycler;
 
     /** A zip/jarfile classpath element. */
-    ClasspathElementZip(final ClasspathRelativePath classpathEltPath, final ScanSpec scanSpec,
-            final boolean scanFiles, final NestedJarHandler nestedJarHandler,
-            final WorkQueue<ClasspathRelativePath> workQueue, final InterruptionChecker interruptionChecker,
-            final LogNode log) {
+    ClasspathElementZip(final RelativePath classpathEltPath, final ScanSpec scanSpec, final boolean scanFiles,
+            final NestedJarHandler nestedJarHandler, final WorkQueue<RelativePath> workQueue,
+            final InterruptionChecker interruptionChecker, final LogNode log) {
         super(classpathEltPath, scanSpec, scanFiles, interruptionChecker);
         try {
             classpathEltZipFile = classpathEltPath.getFile();
@@ -125,7 +121,7 @@ class ClasspathElementZip extends ClasspathElement {
                 // Create child classpath elements from Class-Path entry
                 for (int i = 0; i < fastManifestParser.classPath.size(); i++) {
                     final String manifestClassPathEltPath = fastManifestParser.classPath.get(i);
-                    final ClasspathRelativePath childRelativePath = new ClasspathRelativePath(pathOfContainingDir,
+                    final RelativePath childRelativePath = new RelativePath(pathOfContainingDir,
                             manifestClassPathEltPath, classpathEltPath.getClassLoaders(), nestedJarHandler);
                     childClasspathElts.add(childRelativePath);
                     if (manifestLog != null) {
@@ -175,6 +171,54 @@ class ClasspathElementZip extends ClasspathElement {
         } finally {
             zipFileRecycler.release(zipFile);
         }
+    }
+
+    private ClasspathResource newClasspathResource(final File classpathEltFile,
+            final String pathRelativeToClasspathElt, final String pathRelativeToClasspathPrefix,
+            final ZipEntry zipEntry) {
+        return new ClasspathResource(classpathEltFile, pathRelativeToClasspathElt, pathRelativeToClasspathPrefix) {
+            ZipFile zipFile = null;
+            InputStream inputStream = null;
+
+            @Override
+            public InputStream open() throws IOException {
+                if (ioExceptionOnOpen) {
+                    // Can't open a file inside a zipfile if the zipfile couldn't be opened
+                    // (should never be triggered)
+                    throw new IOException("Parent zipfile could not be opened");
+                }
+                try {
+                    if (zipFile != null || inputStream != null) {
+                        // Should not happen, since this will only be called from single-threaded code
+                        // when MatchProcessors are running
+                        throw new RuntimeException("Tried to open classpath resource twice");
+                    }
+                    zipFile = zipFileRecycler.acquire();
+                    inputStream = zipFile.getInputStream(zipEntry);
+                    inputStreamLength = zipEntry.getSize();
+                    return inputStream;
+                } catch (final Exception e) {
+                    close();
+                    throw new IOException("Could not open " + this, e);
+                }
+            }
+
+            @Override
+            public void close() {
+                if (inputStream != null) {
+                    try {
+                        inputStream.close();
+                    } catch (final Exception e) {
+                        // Ignore
+                    }
+                    inputStream = null;
+                }
+                if (zipFile != null) {
+                    zipFileRecycler.release(zipFile);
+                    zipFile = null;
+                }
+            }
+        };
     }
 
     /** Scan a zipfile for file path patterns matching the scan spec. */
@@ -281,85 +325,27 @@ class ClasspathElementZip extends ClasspathElement {
             }
 
             // Store relative paths of any classfiles encountered
-            if (ClasspathRelativePath.isClassfile(relativePath)) {
-                classfileMatches.add(new ClasspathResourceInZipFile(zipFileFile, requiredPrefix + relativePath,
-                        relativePath, zipEntry));
+            if (FileUtils.isClassfile(relativePath)) {
+                classfileMatches.add(
+                        newClasspathResource(zipFileFile, requiredPrefix + relativePath, relativePath, zipEntry));
             }
 
             // Match file paths against path patterns
-            for (final FilePathTesterAndMatchProcessorWrapper fileMatcher : //
-            scanSpec.getFilePathTestersAndMatchProcessorWrappers()) {
-                if (fileMatcher.filePathMatches(zipFileFile, relativePath, log)) {
+            for (final FileMatchProcessorWrapper fileMatchProcessorWrapper : //
+            scanSpec.getFileMatchProcessorWrappers()) {
+                if (fileMatchProcessorWrapper.filePathMatches(zipFileFile, relativePath, log)) {
                     // File's relative path matches.
                     // Don't use the last modified time from the individual zipEntry objects,
                     // we use the last modified time for the zipfile itself instead.
-                    fileMatches.put(fileMatcher.fileMatchProcessorWrapper, new ClasspathResourceInZipFile(
-                            zipFileFile, requiredPrefix + relativePath, relativePath, zipEntry));
+                    fileMatches.put(fileMatchProcessorWrapper, newClasspathResource(zipFileFile,
+                            requiredPrefix + relativePath, relativePath, zipEntry));
                 }
             }
         }
         fileToLastModified.put(zipFileFile, zipFileFile.lastModified());
     }
 
-    /**
-     * Open an input stream and call a FileMatchProcessor on a specific whitelisted match found within this zipfile.
-     */
-    @Override
-    protected void openInputStreamAndProcessFileMatch(final ClasspathResource fileMatchResource,
-            final FileMatchProcessorWrapper fileMatchProcessorWrapper) throws IOException {
-        if (!ioExceptionOnOpen) {
-            // Open InputStream on relative path within zipfile
-            ZipFile zipFile = null;
-            try {
-                zipFile = zipFileRecycler.acquire();
-                final ClasspathResourceInZipFile classpathResourceInZipFile = //
-                        (ClasspathResourceInZipFile) fileMatchResource;
-                final ZipEntry zipEntry = classpathResourceInZipFile.zipEntry;
-                try (InputStream inputStream = zipFile.getInputStream(zipEntry)) {
-                    // Run FileMatcher
-                    fileMatchProcessorWrapper.processMatch(classpathResourceInZipFile.classpathEltFile,
-                            classpathResourceInZipFile.pathRelativeToClasspathPrefix, inputStream,
-                            zipEntry.getSize());
-                }
-            } finally {
-                zipFileRecycler.release(zipFile);
-            }
-        }
-    }
-
-    /** Open an input stream and parse a specific classfile found within this zipfile. */
-    @Override
-    protected void openInputStreamAndParseClassfile(final ClasspathResource classfileResource,
-            final ClassfileBinaryParser classfileBinaryParser, final ScanSpec scanSpec,
-            final ConcurrentHashMap<String, String> stringInternMap,
-            final ConcurrentLinkedQueue<ClassInfoUnlinked> classInfoUnlinked, final LogNode log)
-            throws IOException, InterruptedException {
-        if (!ioExceptionOnOpen) {
-            ZipFile zipFile = null;
-            try {
-                zipFile = zipFileRecycler.acquire();
-                final ClasspathResourceInZipFile classpathResourceInZipFile = //
-                        (ClasspathResourceInZipFile) classfileResource;
-                final ZipEntry zipEntry = classpathResourceInZipFile.zipEntry;
-                try (InputStream inputStream = zipFile.getInputStream(zipEntry)) {
-                    // Parse classpath binary format, creating a ClassInfoUnlinked object
-                    final ClassInfoUnlinked thisClassInfoUnlinked = classfileBinaryParser
-                            .readClassInfoFromClassfileHeader(this,
-                                    classpathResourceInZipFile.pathRelativeToClasspathPrefix, inputStream, scanSpec,
-                                    stringInternMap, log);
-                    // If class was successfully read, output new ClassInfoUnlinked object
-                    if (thisClassInfoUnlinked != null) {
-                        classInfoUnlinked.add(thisClassInfoUnlinked);
-                        thisClassInfoUnlinked.logTo(log);
-                    }
-                }
-            } finally {
-                zipFileRecycler.release(zipFile);
-            }
-        }
-    }
-
-    /** Close all open ZipFiles. */
+    /** Close and free all open ZipFiles. */
     @Override
     public void close() {
         if (zipFileRecycler != null) {

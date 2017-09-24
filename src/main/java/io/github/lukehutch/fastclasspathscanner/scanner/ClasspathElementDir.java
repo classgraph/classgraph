@@ -35,13 +35,10 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
 
-import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathElement.ClasspathResource.ClasspathResourceInDir;
-import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec.FileMatchProcessorWrapper;
-import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec.FilePathTesterAndMatchProcessorWrapper;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec.ScanSpecPathMatch;
+import io.github.lukehutch.fastclasspathscanner.scanner.matchers.FileMatchProcessorWrapper;
+import io.github.lukehutch.fastclasspathscanner.utils.FileUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.InterruptionChecker;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.MultiMapKeyToList;
@@ -51,8 +48,8 @@ class ClasspathElementDir extends ClasspathElement {
     private File dir;
 
     /** A directory classpath element. */
-    ClasspathElementDir(final ClasspathRelativePath classpathEltPath, final ScanSpec scanSpec,
-            final boolean scanFiles, final InterruptionChecker interruptionChecker, final LogNode log) {
+    ClasspathElementDir(final RelativePath classpathEltPath, final ScanSpec scanSpec, final boolean scanFiles,
+            final InterruptionChecker interruptionChecker, final LogNode log) {
         super(classpathEltPath, scanSpec, scanFiles, interruptionChecker);
         if (scanFiles) {
             try {
@@ -78,6 +75,48 @@ class ClasspathElementDir extends ClasspathElement {
         final int[] entryIdx = new int[1];
         scanDir(dir, dir, /* ignorePrefixLen = */ dir.getPath().length() + 1, /* inWhitelistedPath = */ false,
                 scannedCanonicalPaths, entryIdx, log);
+    }
+
+    private ClasspathResource newClasspathResource(final File classpathEltFile,
+            final String pathRelativeToClasspathElt, final String pathRelativeToClasspathPrefix,
+            final File relativePathFile) {
+        return new ClasspathResource(classpathEltFile, pathRelativeToClasspathElt, pathRelativeToClasspathPrefix) {
+            InputStream inputStream = null;
+
+            @Override
+            public InputStream open() throws IOException {
+                if (ioExceptionOnOpen) {
+                    // Can't open a file inside a directory that couldn't be opened
+                    // (should never be triggered)
+                    throw new IOException("Parent directory could not be opened");
+                }
+                try {
+                    if (inputStream != null) {
+                        // Should not happen, since this will only be called from single-threaded code
+                        // when MatchProcessors are running
+                        throw new RuntimeException("Tried to open classpath resource twice");
+                    }
+                    inputStream = new FileInputStream(relativePathFile);
+                    inputStreamLength = relativePathFile.length();
+                    return inputStream;
+                } catch (final Exception e) {
+                    close();
+                    throw new IOException("Could not open " + this, e);
+                }
+            }
+
+            @Override
+            public void close() {
+                if (inputStream != null) {
+                    try {
+                        inputStream.close();
+                    } catch (final Exception e) {
+                        // Ignore
+                    }
+                    inputStream = null;
+                }
+            }
+        };
     }
 
     /** Recursively scan a directory for file path patterns matching the scan spec. */
@@ -170,18 +209,18 @@ class ClasspathElementDir extends ClasspathElement {
                 fileToLastModified.put(fileInDir, fileInDir.lastModified());
 
                 // Store relative paths of any classfiles encountered
-                if (ClasspathRelativePath.isClassfile(fileInDirRelativePath)) {
-                    classfileMatches
-                            .add(new ClasspathResourceInDir(classpathElt, fileInDirRelativePath, fileInDir));
+                if (FileUtils.isClassfile(fileInDirRelativePath)) {
+                    classfileMatches.add(newClasspathResource(classpathElt, fileInDirRelativePath,
+                            fileInDirRelativePath, fileInDir));
                 }
 
                 // Match file paths against path patterns
-                for (final FilePathTesterAndMatchProcessorWrapper fileMatcher : //
-                scanSpec.getFilePathTestersAndMatchProcessorWrappers()) {
-                    if (fileMatcher.filePathMatches(classpathElt, fileInDirRelativePath, dirLog)) {
+                for (final FileMatchProcessorWrapper fileMatchProcessorWrapper : //
+                scanSpec.getFileMatchProcessorWrappers()) {
+                    if (fileMatchProcessorWrapper.filePathMatches(classpathElt, fileInDirRelativePath, dirLog)) {
                         // File's relative path matches.
-                        fileMatches.put(fileMatcher.fileMatchProcessorWrapper,
-                                new ClasspathResourceInDir(classpathElt, fileInDirRelativePath, fileInDir));
+                        fileMatches.put(fileMatchProcessorWrapper, newClasspathResource(classpathElt,
+                                fileInDirRelativePath, fileInDirRelativePath, fileInDir));
                     }
                 }
             }
@@ -198,49 +237,8 @@ class ClasspathElementDir extends ClasspathElement {
         }
     }
 
-    /**
-     * Open an input stream and call a FileMatchProcessor on a specific whitelisted match found within this
-     * directory.
-     */
-    @Override
-    protected void openInputStreamAndProcessFileMatch(final ClasspathResource fileMatchResource,
-            final FileMatchProcessorWrapper fileMatchProcessorWrapper) throws IOException {
-        if (!ioExceptionOnOpen) {
-            // Open InputStream on relative path within directory
-            final File relativePathFile = ((ClasspathResourceInDir) fileMatchResource).relativePathFile;
-            try (InputStream inputStream = new FileInputStream(relativePathFile)) {
-                // Run FileMatcher
-                fileMatchProcessorWrapper.processMatch(fileMatchResource.classpathEltFile,
-                        fileMatchResource.pathRelativeToClasspathElt, inputStream, relativePathFile.length());
-            }
-        }
-    }
-
-    /** Open an input stream and parse a specific classfile found within this directory. */
-    @Override
-    protected void openInputStreamAndParseClassfile(final ClasspathResource classfileResource,
-            final ClassfileBinaryParser classfileBinaryParser, final ScanSpec scanSpec,
-            final ConcurrentHashMap<String, String> stringInternMap,
-            final ConcurrentLinkedQueue<ClassInfoUnlinked> classInfoUnlinked, final LogNode log)
-            throws IOException, InterruptedException {
-        if (!ioExceptionOnOpen) {
-            final File relativePathFile = ((ClasspathResourceInDir) classfileResource).relativePathFile;
-            try (InputStream inputStream = new FileInputStream(relativePathFile)) {
-                // Parse classpath binary format, creating a ClassInfoUnlinked object
-                final ClassInfoUnlinked thisClassInfoUnlinked = classfileBinaryParser
-                        .readClassInfoFromClassfileHeader(this, classfileResource.pathRelativeToClasspathElt,
-                                inputStream, scanSpec, stringInternMap, log);
-                // If class was successfully read, output new ClassInfoUnlinked object
-                if (thisClassInfoUnlinked != null) {
-                    classInfoUnlinked.add(thisClassInfoUnlinked);
-                    thisClassInfoUnlinked.logTo(log);
-                }
-            }
-        }
-    }
-
-    /** Nothing to close in the case of dirs. */
     @Override
     public void close() {
+        // Nothing to do for directories
     }
 }

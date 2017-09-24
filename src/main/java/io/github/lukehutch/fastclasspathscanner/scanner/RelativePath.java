@@ -33,6 +33,7 @@ import java.io.IOException;
 
 import io.github.lukehutch.fastclasspathscanner.utils.ClasspathUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.FastPathResolver;
+import io.github.lukehutch.fastclasspathscanner.utils.FileUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.JarUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.NestedJarHandler;
@@ -41,7 +42,7 @@ import io.github.lukehutch.fastclasspathscanner.utils.NestedJarHandler;
  * A relative path. This is used for paths relative to the current directory (for classpath elements), and also for
  * relative paths within classpath elements (e.g. the files within a ZipFile).
  */
-class ClasspathRelativePath {
+class RelativePath {
     /** The ClassLoader(s) used to load classes for this classpath element */
     private final ClassLoader[] classLoaders;
 
@@ -97,7 +98,7 @@ class ClasspathRelativePath {
      * A relative path. This is used for paths relative to the current directory (for classpath elements), and also
      * for relative paths within classpath elements (e.g. the files within a ZipFile).
      */
-    public ClasspathRelativePath(final String pathToResolveAgainst, final String relativePath,
+    public RelativePath(final String pathToResolveAgainst, final String relativePath,
             final ClassLoader[] classLoaders, final NestedJarHandler nestedJarHandler) {
         this.classLoaders = classLoaders;
         this.pathToResolveAgainst = pathToResolveAgainst;
@@ -135,10 +136,10 @@ class ClasspathRelativePath {
         if (o == null) {
             return false;
         }
-        if (!(o instanceof ClasspathRelativePath)) {
+        if (!(o instanceof RelativePath)) {
             return false;
         }
-        final ClasspathRelativePath other = (ClasspathRelativePath) o;
+        final RelativePath other = (RelativePath) o;
         String thisCp;
         try {
             thisCp = getCanonicalPath();
@@ -287,15 +288,9 @@ class ClasspathRelativePath {
         return isJar;
     }
 
-    /** Returns true if path has a .class extension, ignoring case. */
-    public static boolean isClassfile(final String path) {
-        final int len = path.length();
-        return len > 6 && path.regionMatches(true, len - 6, ".class", 0, 6);
-    }
-
     /** Returns true if resolved path has a .class extension, ignoring case. */
     public boolean isClassfile() {
-        return isClassfile(getResolvedPath());
+        return FileUtils.isClassfile(getResolvedPath());
     }
 
     /** True if this relative path corresponds to a file or directory that exists. */

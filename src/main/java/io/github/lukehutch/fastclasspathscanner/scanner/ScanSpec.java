@@ -30,7 +30,6 @@ package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.lang.annotation.Annotation;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.reflect.Constructor;
@@ -60,6 +59,10 @@ import io.github.lukehutch.fastclasspathscanner.matchprocessor.MethodAnnotationM
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.StaticFinalFieldMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubclassMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubinterfaceMatchProcessor;
+import io.github.lukehutch.fastclasspathscanner.scanner.matchers.ClassMatcher;
+import io.github.lukehutch.fastclasspathscanner.scanner.matchers.FileMatchProcessorWrapper;
+import io.github.lukehutch.fastclasspathscanner.scanner.matchers.FileMatchProcessorWrapper.FilePathTester;
+import io.github.lukehutch.fastclasspathscanner.utils.FileUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.JarUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.MultiMapKeyToList;
@@ -197,17 +200,11 @@ public class ScanSpec {
         return classNameToStaticFinalFieldsToMatch;
     }
 
-    /** An interface used for testing if a class matches specified criteria. */
-    private static interface ClassMatcher {
-        public abstract void lookForMatches(ScanResult scanResult, LogNode log);
-    }
-
     /** A list of class matchers to call once all classes have been read in from classpath. */
     private ArrayList<ClassMatcher> classMatchers;
 
     /** A list of file path testers and match processor wrappers to use for file matching. */
-    private final List<FilePathTesterAndMatchProcessorWrapper> filePathTestersAndMatchProcessorWrappers = //
-            new ArrayList<>();
+    private final List<FileMatchProcessorWrapper> fileMatchProcessorWrappers = new ArrayList<>();
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -503,8 +500,7 @@ public class ScanSpec {
      * Return true if any MatchProcessors have been added.
      */
     public boolean hasMatchProcessors() {
-        return (filePathTestersAndMatchProcessorWrappers != null
-                && filePathTestersAndMatchProcessorWrappers.size() > 0)
+        return (fileMatchProcessorWrappers != null && fileMatchProcessorWrappers.size() > 0)
                 || (classMatchers != null && classMatchers.size() > 0)
                 || (fullyQualifiedFieldNameToStaticFinalFieldMatchProcessors != null
                         && !fullyQualifiedFieldNameToStaticFinalFieldMatchProcessors.isEmpty());
@@ -519,19 +515,14 @@ public class ScanSpec {
         try {
             // Call any FileMatchProcessors
             for (final ClasspathElement classpathElement : scanResult.classpathOrder) {
-                if (classpathElement.fileMatches != null && !classpathElement.fileMatches.isEmpty()) {
-                    classpathElement.callFileMatchProcessors(scanResult, //
-                            log == null ? null
-                                    : log.log("Calling FileMatchProcessors for classpath element "
-                                            + classpathElement));
-                }
+                classpathElement.callFileMatchProcessors(scanResult, log);
             }
 
             // Call any class, interface or annotation MatchProcessors
             if (classMatchers != null) {
+                final LogNode subLog = log == null ? null : log.log("Calling ClassMatchProcessors");
                 for (final ClassMatcher classMatcher : classMatchers) {
-                    classMatcher.lookForMatches(scanResult, //
-                            log == null ? null : log.log("Calling ClassMatchProcessors"));
+                    classMatcher.lookForMatches(scanResult, subLog);
                     scanResult.interruptionChecker.check();
                 }
             }
@@ -1422,97 +1413,60 @@ public class ScanSpec {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** An interface used to test whether a file's relative path matches a given specification. */
-    private interface FilePathTester {
-        public boolean filePathMatches(final File classpathElt, final String relativePathStr, final LogNode log);
-    }
-
-    /** An interface called when the corresponding FilePathTester returns true. */
-    interface FileMatchProcessorWrapper {
-        public void processMatch(final File classpathElt, final String relativePath, final InputStream inputStream,
-                final long fileSize) throws IOException;
-    }
-
-    static class FilePathTesterAndMatchProcessorWrapper {
-        private final FilePathTester filePathTester;
-        FileMatchProcessorWrapper fileMatchProcessorWrapper;
-
-        private FilePathTesterAndMatchProcessorWrapper(final FilePathTester filePathTester,
-                final FileMatchProcessorWrapper fileMatchProcessorWrapper) {
-            this.filePathTester = filePathTester;
-            this.fileMatchProcessorWrapper = fileMatchProcessorWrapper;
-        }
-
-        boolean filePathMatches(final File classpathElt, final String relativePathStr, final LogNode log) {
-            return filePathTester.filePathMatches(classpathElt, relativePathStr, log);
-        }
-    }
-
-    private void addFilePathMatcher(final FilePathTester filePathTester,
-            final FileMatchProcessorWrapper fileMatchProcessorWrapper) {
-        filePathTestersAndMatchProcessorWrappers
-                .add(new FilePathTesterAndMatchProcessorWrapper(filePathTester, fileMatchProcessorWrapper));
-    }
-
-    List<FilePathTesterAndMatchProcessorWrapper> getFilePathTestersAndMatchProcessorWrappers() {
-        return filePathTestersAndMatchProcessorWrappers;
+    List<FileMatchProcessorWrapper> getFileMatchProcessorWrappers() {
+        return fileMatchProcessorWrappers;
     }
 
     // -------------------------------------------------------------------------------------------------------------
 
-    private static byte[] readAllBytes(final InputStream inputStream, final long fileSize) throws IOException {
-        if (fileSize > Integer.MAX_VALUE) {
-            throw new IOException("File larger that 2GB, cannot read contents into a Java array");
-        }
-        final byte[] bytes = new byte[(int) fileSize];
-        final int bytesRead = inputStream.read(bytes);
-        if (bytesRead < fileSize) {
-            throw new IOException("Could not read whole file");
-        }
-        return bytes;
-    }
-
-    private static FileMatchProcessorWrapper makeFileMatchProcessorWrapper(
+    private static FileMatchProcessorWrapper makeFileMatchProcessorWrapper(final FilePathTester filePathTester,
             final FileMatchProcessor fileMatchProcessor) {
-        return new FileMatchProcessorWrapper() {
+        return new FileMatchProcessorWrapper(filePathTester) {
             @Override
-            public void processMatch(final File classpathElt, final String relativePath,
-                    final InputStream inputStream, final long fileSize) throws IOException {
-                fileMatchProcessor.processMatch(relativePath, inputStream, fileSize);
+            public void processMatch(final ClasspathResource classpathResource) throws IOException {
+                fileMatchProcessor.processMatch(classpathResource.pathRelativeToClasspathPrefix,
+                        // Caller calls classpathResource.close() in finally block
+                        /* inputStream = */ classpathResource.open(), classpathResource.inputStreamLength);
             }
         };
     }
 
-    private static FileMatchProcessorWrapper makeFileMatchProcessorWrapper(
-            final FileMatchProcessorWithContext fileMatchProcessorWithContext) {
-        return new FileMatchProcessorWrapper() {
-            @Override
-            public void processMatch(final File classpathElt, final String relativePath,
-                    final InputStream inputStream, final long fileSize) throws IOException {
-                fileMatchProcessorWithContext.processMatch(classpathElt, relativePath, inputStream, fileSize);
-            }
-        };
-    }
-
-    private static FileMatchProcessorWrapper makeFileMatchProcessorWrapper(
+    private static FileMatchProcessorWrapper makeFileMatchProcessorWrapper(final FilePathTester filePathTester,
             final FileMatchContentsProcessor fileMatchContentsProcessor) {
-        return new FileMatchProcessorWrapper() {
+        return new FileMatchProcessorWrapper(filePathTester) {
             @Override
-            public void processMatch(final File classpathElt, final String relativePath,
-                    final InputStream inputStream, final long fileSize) throws IOException {
-                fileMatchContentsProcessor.processMatch(relativePath, readAllBytes(inputStream, fileSize));
+            public void processMatch(final ClasspathResource classpathResource) throws IOException {
+                fileMatchContentsProcessor.processMatch(classpathResource.pathRelativeToClasspathPrefix,
+                        // Caller calls classpathResource.close() in finally block
+                        FileUtils.readAllBytes(/* inputStream = */ classpathResource.open(),
+                                classpathResource.inputStreamLength));
             }
         };
     }
 
-    private static FileMatchProcessorWrapper makeFileMatchProcessorWrapper(
-            final FileMatchContentsProcessorWithContext fileMatchContentsProcessorWithContext) {
-        return new FileMatchProcessorWrapper() {
+    private static FileMatchProcessorWrapper makeFileMatchProcessorWrapper(final FilePathTester filePathTester,
+            final FileMatchProcessorWithContext fileMatchProcessorWithContext) {
+        return new FileMatchProcessorWrapper(filePathTester) {
             @Override
-            public void processMatch(final File classpathElt, final String relativePath,
-                    final InputStream inputStream, final long fileSize) throws IOException {
-                fileMatchContentsProcessorWithContext.processMatch(classpathElt, relativePath,
-                        readAllBytes(inputStream, fileSize));
+            public void processMatch(final ClasspathResource classpathResource) throws IOException {
+                fileMatchProcessorWithContext.processMatch(classpathResource.classpathEltFile,
+                        classpathResource.pathRelativeToClasspathPrefix,
+                        // Caller calls classpathResource.close() in finally block
+                        /* inputStream = */ classpathResource.open(), classpathResource.inputStreamLength);
+            }
+        };
+    }
+
+    private static FileMatchProcessorWrapper makeFileMatchProcessorWrapper(final FilePathTester filePathTester,
+            final FileMatchContentsProcessorWithContext fileMatchContentsProcessorWithContext) {
+        return new FileMatchProcessorWrapper(filePathTester) {
+            @Override
+            public void processMatch(final ClasspathResource classpathResource) throws IOException {
+                fileMatchContentsProcessorWithContext.processMatch(classpathResource.classpathEltFile,
+                        classpathResource.pathRelativeToClasspathPrefix,
+                        // Caller calls classpathResource.close() in finally block
+                        FileUtils.readAllBytes(/* inputStream = */ classpathResource.open(),
+                                classpathResource.inputStreamLength));
             }
         };
     }
@@ -1545,8 +1499,8 @@ public class ScanSpec {
      *            The FileMatchProcessor to call when each match is found.
      */
     public void matchFilenamePattern(final String pathRegexp, final FileMatchProcessor fileMatchProcessor) {
-        addFilePathMatcher(makeFilePathTesterMatchingRegexp(pathRegexp),
-                makeFileMatchProcessorWrapper(fileMatchProcessor));
+        fileMatchProcessorWrappers.add(
+                makeFileMatchProcessorWrapper(makeFilePathTesterMatchingRegexp(pathRegexp), fileMatchProcessor));
     }
 
     /**
@@ -1560,8 +1514,8 @@ public class ScanSpec {
      */
     public void matchFilenamePattern(final String pathRegexp,
             final FileMatchContentsProcessor fileMatchContentsProcessor) {
-        addFilePathMatcher(makeFilePathTesterMatchingRegexp(pathRegexp),
-                makeFileMatchProcessorWrapper(fileMatchContentsProcessor));
+        fileMatchProcessorWrappers.add(makeFileMatchProcessorWrapper(makeFilePathTesterMatchingRegexp(pathRegexp),
+                fileMatchContentsProcessor));
     }
 
     /**
@@ -1575,8 +1529,8 @@ public class ScanSpec {
      */
     public void matchFilenamePattern(final String pathRegexp,
             final FileMatchProcessorWithContext fileMatchProcessorWithContext) {
-        addFilePathMatcher(makeFilePathTesterMatchingRegexp(pathRegexp),
-                makeFileMatchProcessorWrapper(fileMatchProcessorWithContext));
+        fileMatchProcessorWrappers.add(makeFileMatchProcessorWrapper(makeFilePathTesterMatchingRegexp(pathRegexp),
+                fileMatchProcessorWithContext));
     }
 
     /**
@@ -1590,8 +1544,8 @@ public class ScanSpec {
      */
     public void matchFilenamePattern(final String pathRegexp,
             final FileMatchContentsProcessorWithContext fileMatchContentsProcessorWithContext) {
-        addFilePathMatcher(makeFilePathTesterMatchingRegexp(pathRegexp),
-                makeFileMatchProcessorWrapper(fileMatchContentsProcessorWithContext));
+        fileMatchProcessorWrappers.add(makeFileMatchProcessorWrapper(makeFilePathTesterMatchingRegexp(pathRegexp),
+                fileMatchContentsProcessorWithContext));
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -1621,8 +1575,8 @@ public class ScanSpec {
      *            The FileMatchProcessor to call when each match is found.
      */
     public void matchFilenamePath(final String relativePathToMatch, final FileMatchProcessor fileMatchProcessor) {
-        addFilePathMatcher(makeFilePathTesterMatchingRelativePath(relativePathToMatch),
-                makeFileMatchProcessorWrapper(fileMatchProcessor));
+        fileMatchProcessorWrappers.add(makeFileMatchProcessorWrapper(
+                makeFilePathTesterMatchingRelativePath(relativePathToMatch), fileMatchProcessor));
     }
 
     /**
@@ -1637,8 +1591,8 @@ public class ScanSpec {
      */
     public void matchFilenamePath(final String relativePathToMatch,
             final FileMatchContentsProcessor fileMatchContentsProcessor) {
-        addFilePathMatcher(makeFilePathTesterMatchingRelativePath(relativePathToMatch),
-                makeFileMatchProcessorWrapper(fileMatchContentsProcessor));
+        fileMatchProcessorWrappers.add(makeFileMatchProcessorWrapper(
+                makeFilePathTesterMatchingRelativePath(relativePathToMatch), fileMatchContentsProcessor));
     }
 
     /**
@@ -1653,8 +1607,8 @@ public class ScanSpec {
      */
     public void matchFilenamePath(final String relativePathToMatch,
             final FileMatchProcessorWithContext fileMatchProcessorWithContext) {
-        addFilePathMatcher(makeFilePathTesterMatchingRelativePath(relativePathToMatch),
-                makeFileMatchProcessorWrapper(fileMatchProcessorWithContext));
+        fileMatchProcessorWrappers.add(makeFileMatchProcessorWrapper(
+                makeFilePathTesterMatchingRelativePath(relativePathToMatch), fileMatchProcessorWithContext));
     }
 
     /**
@@ -1669,8 +1623,9 @@ public class ScanSpec {
      */
     public void matchFilenamePath(final String relativePathToMatch,
             final FileMatchContentsProcessorWithContext fileMatchContentsProcessorWithContext) {
-        addFilePathMatcher(makeFilePathTesterMatchingRelativePath(relativePathToMatch),
-                makeFileMatchProcessorWrapper(fileMatchContentsProcessorWithContext));
+        fileMatchProcessorWrappers
+                .add(makeFileMatchProcessorWrapper(makeFilePathTesterMatchingRelativePath(relativePathToMatch),
+                        fileMatchContentsProcessorWithContext));
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -1702,8 +1657,8 @@ public class ScanSpec {
      *            The FileMatchProcessor to call when each match is found.
      */
     public void matchFilenamePathLeaf(final String pathLeafToMatch, final FileMatchProcessor fileMatchProcessor) {
-        addFilePathMatcher(makeFilePathTesterMatchingPathLeaf(pathLeafToMatch),
-                makeFileMatchProcessorWrapper(fileMatchProcessor));
+        fileMatchProcessorWrappers.add(makeFileMatchProcessorWrapper(
+                makeFilePathTesterMatchingPathLeaf(pathLeafToMatch), fileMatchProcessor));
     }
 
     /**
@@ -1717,8 +1672,8 @@ public class ScanSpec {
      */
     public void matchFilenamePathLeaf(final String pathLeafToMatch,
             final FileMatchContentsProcessor fileMatchContentsProcessor) {
-        addFilePathMatcher(makeFilePathTesterMatchingPathLeaf(pathLeafToMatch),
-                makeFileMatchProcessorWrapper(fileMatchContentsProcessor));
+        fileMatchProcessorWrappers.add(makeFileMatchProcessorWrapper(
+                makeFilePathTesterMatchingPathLeaf(pathLeafToMatch), fileMatchContentsProcessor));
     }
 
     /**
@@ -1732,8 +1687,8 @@ public class ScanSpec {
      */
     public void matchFilenamePathLeaf(final String pathLeafToMatch,
             final FileMatchProcessorWithContext fileMatchProcessorWithContext) {
-        addFilePathMatcher(makeFilePathTesterMatchingPathLeaf(pathLeafToMatch),
-                makeFileMatchProcessorWrapper(fileMatchProcessorWithContext));
+        fileMatchProcessorWrappers.add(makeFileMatchProcessorWrapper(
+                makeFilePathTesterMatchingPathLeaf(pathLeafToMatch), fileMatchProcessorWithContext));
     }
 
     /**
@@ -1747,8 +1702,8 @@ public class ScanSpec {
      */
     public void matchFilenamePathLeaf(final String pathLeafToMatch,
             final FileMatchContentsProcessorWithContext fileMatchContentsProcessorWithContext) {
-        addFilePathMatcher(makeFilePathTesterMatchingPathLeaf(pathLeafToMatch),
-                makeFileMatchProcessorWrapper(fileMatchContentsProcessorWithContext));
+        fileMatchProcessorWrappers.add(makeFileMatchProcessorWrapper(
+                makeFilePathTesterMatchingPathLeaf(pathLeafToMatch), fileMatchContentsProcessorWithContext));
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -1780,8 +1735,8 @@ public class ScanSpec {
      *            The FileMatchProcessor to call when each match is found.
      */
     public void matchFilenameExtension(final String extensionToMatch, final FileMatchProcessor fileMatchProcessor) {
-        addFilePathMatcher(makeFilePathTesterMatchingFilenameExtension(extensionToMatch),
-                makeFileMatchProcessorWrapper(fileMatchProcessor));
+        fileMatchProcessorWrappers.add(makeFileMatchProcessorWrapper(
+                makeFilePathTesterMatchingFilenameExtension(extensionToMatch), fileMatchProcessor));
     }
 
     /**
@@ -1794,8 +1749,8 @@ public class ScanSpec {
      */
     public void matchFilenameExtension(final String extensionToMatch,
             final FileMatchContentsProcessor fileMatchContentsProcessor) {
-        addFilePathMatcher(makeFilePathTesterMatchingFilenameExtension(extensionToMatch),
-                makeFileMatchProcessorWrapper(fileMatchContentsProcessor));
+        fileMatchProcessorWrappers.add(makeFileMatchProcessorWrapper(
+                makeFilePathTesterMatchingFilenameExtension(extensionToMatch), fileMatchContentsProcessor));
     }
 
     /**
@@ -1809,8 +1764,8 @@ public class ScanSpec {
      */
     public void matchFilenameExtension(final String extensionToMatch,
             final FileMatchProcessorWithContext fileMatchProcessorWithContext) {
-        addFilePathMatcher(makeFilePathTesterMatchingFilenameExtension(extensionToMatch),
-                makeFileMatchProcessorWrapper(fileMatchProcessorWithContext));
+        fileMatchProcessorWrappers.add(makeFileMatchProcessorWrapper(
+                makeFilePathTesterMatchingFilenameExtension(extensionToMatch), fileMatchProcessorWithContext));
     }
 
     /**
@@ -1824,7 +1779,8 @@ public class ScanSpec {
      */
     public void matchFilenameExtension(final String extensionToMatch,
             final FileMatchContentsProcessorWithContext fileMatchContentsProcessorWithContext) {
-        addFilePathMatcher(makeFilePathTesterMatchingFilenameExtension(extensionToMatch),
-                makeFileMatchProcessorWrapper(fileMatchContentsProcessorWithContext));
+        fileMatchProcessorWrappers
+                .add(makeFileMatchProcessorWrapper(makeFilePathTesterMatchingFilenameExtension(extensionToMatch),
+                        fileMatchContentsProcessorWithContext));
     }
 }

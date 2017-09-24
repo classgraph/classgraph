@@ -55,8 +55,8 @@ public class ClasspathFinder {
     private final ClassLoader[] envClassLoaderOrder;
 
     /** The list of raw classpath elements. */
-    private final List<ClasspathRelativePath> rawClasspathElements = new ArrayList<>();
-    private final Set<ClasspathRelativePath> rawClasspathElementsSet = new HashSet<>();
+    private final List<RelativePath> rawClasspathElements = new ArrayList<>();
+    private final Set<RelativePath> rawClasspathElementsSet = new HashSet<>();
 
     /**
      * Add a classpath element relative to a base file. May be called by a ClassLoaderHandler to add classpath
@@ -78,7 +78,7 @@ public class ClasspathFinder {
         } else if (pathElement.equals("*") || pathElement.endsWith(File.separator + "*")) {
             // Got wildcard path element (allowable for local classpaths as of JDK 6)
             try {
-                final File classpathEltParentDir = new ClasspathRelativePath(currDirPathStr,
+                final File classpathEltParentDir = new RelativePath(currDirPathStr,
                         pathElement.substring(0, pathElement.length() - 1), classLoaders, nestedJarHandler)
                                 .getFile();
                 if (!classpathEltParentDir.exists()) {
@@ -110,8 +110,8 @@ public class ClasspathFinder {
                 return false;
             }
         } else {
-            final ClasspathRelativePath classpathEltPath = new ClasspathRelativePath(currDirPathStr, pathElement,
-                    classLoaders, nestedJarHandler);
+            final RelativePath classpathEltPath = new RelativePath(currDirPathStr, pathElement, classLoaders,
+                    nestedJarHandler);
             if (rawClasspathElementsSet.add(classpathEltPath)) {
                 rawClasspathElements.add(classpathEltPath);
                 if (log != null) {
@@ -377,7 +377,7 @@ public class ClasspathFinder {
     }
 
     /** Get the raw classpath elements obtained from ClassLoaders. */
-    public List<ClasspathRelativePath> getRawClasspathElements() {
+    public List<RelativePath> getRawClasspathElements() {
         return rawClasspathElements;
     }
 

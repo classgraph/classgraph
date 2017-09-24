@@ -35,17 +35,16 @@ import io.github.lukehutch.fastclasspathscanner.utils.SingletonMap;
 import io.github.lukehutch.fastclasspathscanner.utils.WorkQueue;
 
 /** A map from relative path to classpath element singleton. */
-class ClasspathRelativePathToElementMap extends SingletonMap<ClasspathRelativePath, ClasspathElement>
-        implements AutoCloseable {
+class RelativePathToElementMap extends SingletonMap<RelativePath, ClasspathElement> implements AutoCloseable {
     private final boolean scanFiles;
     private final ScanSpec scanSpec;
     private final NestedJarHandler nestedJarHandler;
     private final InterruptionChecker interruptionChecker;
     private final LogNode log;
-    private WorkQueue<ClasspathRelativePath> workQueue;
+    private WorkQueue<RelativePath> workQueue;
 
     /** A map from relative path to classpath element singleton. */
-    ClasspathRelativePathToElementMap(final boolean scanFiles, final ScanSpec scanSpec,
+    RelativePathToElementMap(final boolean scanFiles, final ScanSpec scanSpec,
             final NestedJarHandler nestedJarHandler, final InterruptionChecker interruptionChecker,
             final LogNode log) {
         this.scanFiles = scanFiles;
@@ -59,13 +58,13 @@ class ClasspathRelativePathToElementMap extends SingletonMap<ClasspathRelativePa
      * Work queue -- needs to be set for zipfiles, but not for directories, since zipfiles can contain Class-Path
      * manifest entries, which require the adding of additional work units to the scanning work queue.
      */
-    public void setWorkQueue(final WorkQueue<ClasspathRelativePath> workQueue) {
+    public void setWorkQueue(final WorkQueue<RelativePath> workQueue) {
         this.workQueue = workQueue;
     }
 
     /** Create a new classpath element singleton instance. */
     @Override
-    public ClasspathElement newInstance(final ClasspathRelativePath classpathElt) {
+    public ClasspathElement newInstance(final RelativePath classpathElt) {
         return ClasspathElement.newInstance(classpathElt, scanFiles, scanSpec, nestedJarHandler, workQueue,
                 interruptionChecker, log);
     }

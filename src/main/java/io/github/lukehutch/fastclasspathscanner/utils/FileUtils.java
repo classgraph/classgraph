@@ -29,6 +29,7 @@
 package io.github.lukehutch.fastclasspathscanner.utils;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -52,5 +53,24 @@ public class FileUtils {
             throw new RuntimeException("Could not resolve current directory: " + currDirPathStr, e);
         }
         return currDirPathStr;
+    }
+
+    /** Read all the bytes in an InputStream. */
+    public static byte[] readAllBytes(final InputStream inputStream, final long fileSize) throws IOException {
+        if (fileSize > Integer.MAX_VALUE) {
+            throw new IOException("File larger that 2GB, cannot read contents into a Java array");
+        }
+        final byte[] bytes = new byte[(int) fileSize];
+        final int bytesRead = inputStream.read(bytes);
+        if (bytesRead < fileSize) {
+            throw new IOException("Could not read whole file");
+        }
+        return bytes;
+    }
+
+    /** Returns true if path has a .class extension, ignoring case. */
+    public static boolean isClassfile(final String path) {
+        final int len = path.length();
+        return len > 6 && path.regionMatches(true, len - 6, ".class", 0, 6);
     }
 }
