@@ -278,10 +278,6 @@ abstract class ClasspathElement {
                                     e);
                         }
                         scanResult.addMatchProcessorException(e);
-                    } finally {
-                        // Defensively close the resource's associated InputStream, if it was opened
-                        // (also close any associated ZipEntry, + recycle the associated ZipFile, if applicable)
-                        fileMatchResource.close();
                     }
                     interruptionChecker.check();
                 }
