@@ -164,11 +164,11 @@ public class ClassInfo implements Comparable<ClassInfo> {
         if (obj == null) {
             return false;
         }
-        if (this.getClass() == obj.getClass()) {
-            final ClassInfo other = (ClassInfo) obj;
-            return className != null ? className.equals(other.className) : other.className == null;
+        if (this.getClass() != obj.getClass()) {
+            return false;
         }
-        return false;
+        final ClassInfo other = (ClassInfo) obj;
+        return className.equals(other.className);
     }
 
     /** Use hash code of class name. */
@@ -1204,12 +1204,6 @@ public class ClassInfo implements Comparable<ClassInfo> {
 
     // -------------
 
-    /** Deprecated -- use getClassesWithDirectAnnotation() instead. */ // TODO remove
-    @Deprecated
-    public Set<ClassInfo> getDirectlyAnnotatedClasses() {
-        return getClassesWithDirectAnnotation();
-    }
-
     /**
      * Get the standard classes or non-annotation interfaces that are directly annotated with this annotation.
      * 
@@ -1218,12 +1212,6 @@ public class ClassInfo implements Comparable<ClassInfo> {
      */
     public Set<ClassInfo> getClassesWithDirectAnnotation() {
         return getClassesWithAnnotation(/* direct = */ true);
-    }
-
-    /** Deprecated. Use getNamesOfClassesWithDirectAnnotation() instead. */ // TODO remove
-    @Deprecated
-    public List<String> getNamesOfDirectlyAnnotatedClasses() {
-        return getNamesOfClassesWithDirectAnnotation();
     }
 
     /**
@@ -1419,14 +1407,17 @@ public class ClassInfo implements Comparable<ClassInfo> {
     // Methods
 
     /**
-     * Returns information on visible methods of the class that are not constructors. There may of course be more
-     * than one method of a given name with different type signatures, due to overloading.
+     * Returns information on visible methods of the class that are not constructors. There may be more than one
+     * method of a given name with different type signatures, due to overloading.
      * 
+     * <p>
      * Requires that FastClasspathScanner#enableMethodInfo() be called before scanning, otherwise throws
      * IllegalArgumentException.
      * 
+     * <p>
      * By default only returns information for public methods, unless FastClasspathScanner#ignoreMethodVisibility()
-     * was called before the scan.
+     * was called before the scan. If method visibility is ignored, the result may include a reference to a private
+     * static class initializer block, with a method name of {@code "<clinit>"}.
      * 
      * @return the list of MethodInfo objects for visible methods of this class, or the empty list if no methods
      *         were found or visible.
@@ -1454,12 +1445,14 @@ public class ClassInfo implements Comparable<ClassInfo> {
 
     /**
      * Returns information on visible constructors of the class. Constructors have the method name of
-     * {@code "<init>"}. There may of course be more than one constructor of a given name with different type
-     * signatures, due to overloading.
+     * {@code "<init>"}. There may be more than one constructor of a given name with different type signatures, due
+     * to overloading.
      * 
+     * <p>
      * Requires that FastClasspathScanner#enableMethodInfo() be called before scanning, otherwise throws
      * IllegalArgumentException.
      * 
+     * <p>
      * By default only returns information for public constructors, unless
      * FastClasspathScanner#ignoreMethodVisibility() was called before the scan.
      * 
@@ -1488,7 +1481,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
     }
 
     /**
-     * Returns information on visible methods and constructors of the class. There may of course be more than one
+     * Returns information on visible methods and constructors of the class. There may be more than one method or
      * constructor or method of a given name with different type signatures, due to overloading. Constructors have
      * the method name of {@code "<init>"}.
      * 
@@ -1498,7 +1491,9 @@ public class ClassInfo implements Comparable<ClassInfo> {
      * 
      * <p>
      * By default only returns information for public methods and constructors, unless
-     * FastClasspathScanner#ignoreMethodVisibility() was called before the scan.
+     * FastClasspathScanner#ignoreMethodVisibility() was called before the scan. If method visibility is ignored,
+     * the result may include a reference to a private static class initializer block, with a method name of
+     * {@code "<clinit>"}.
      * 
      * @return the list of MethodInfo objects for visible methods and constructors of this class, or the empty list
      *         if no methods or constructors were found or visible.
@@ -1514,7 +1509,8 @@ public class ClassInfo implements Comparable<ClassInfo> {
     }
 
     /**
-     * Returns information on a given visible method of the class.
+     * Returns information on a given visible method of the class. Constructors have the method name of
+     * {@code "<init>"}.
      * 
      * <p>
      * Requires that FastClasspathScanner#enableMethodInfo() be called before scanning, otherwise throws
