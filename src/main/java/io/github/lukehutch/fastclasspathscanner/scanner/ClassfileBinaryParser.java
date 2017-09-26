@@ -791,8 +791,8 @@ class ClassfileBinaryParser implements AutoCloseable {
                     }
                 }
                 if (scanSpec.enableFieldInfo && fieldIsVisible) {
-                    classInfoUnlinked.addFieldInfo(new FieldInfo(fieldName, fieldModifierFlags, fieldTypeDescriptor,
-                            fieldConstValue, fieldAnnotationNames));
+                    classInfoUnlinked.addFieldInfo(new FieldInfo(className, fieldName, fieldModifierFlags,
+                            fieldTypeDescriptor, fieldConstValue, fieldAnnotationNames));
                 }
             }
         }
@@ -852,9 +852,8 @@ class ClassfileBinaryParser implements AutoCloseable {
                 }
             }
             if (scanSpec.enableMethodInfo && methodIsVisible) {
-                final boolean isConstructor = "<init>".equals(methodName);
-                classInfoUnlinked.addMethodInfo(new MethodInfo(isConstructor ? className : methodName,
-                        methodModifierFlags, methodTypeDescriptor, methodAnnotationNames, isConstructor));
+                classInfoUnlinked.addMethodInfo(new MethodInfo(className, methodName, methodModifierFlags,
+                        methodTypeDescriptor, methodAnnotationNames));
             }
         }
 

@@ -69,19 +69,36 @@ public class MethodInfoTest {
     public void getMethodInfo() throws Exception {
         final Map<String, ClassInfo> classNameToClassInfo = new FastClasspathScanner(
                 MethodInfoTest.class.getPackage().getName()).enableMethodInfo().scan().getClassNameToClassInfo();
+
         final List<String> methodInfoStrs = new ArrayList<>();
-        for (final MethodInfo methodInfo : classNameToClassInfo.get(MethodInfoTest.class.getName())
-                .getMethodInfo()) {
-            methodInfoStrs.add(methodInfo.toString());
+        List<MethodInfo> methodInfo = classNameToClassInfo.get(MethodInfoTest.class.getName()).getMethodInfo();
+        assertThat(methodInfo).isNotNull();
+        for (MethodInfo mi : methodInfo) {
+            methodInfoStrs.add(mi.toString());
         }
         assertThat(methodInfoStrs).containsOnly( //
-                "public " + MethodInfoTest.class.getName() + "()", //
                 "@" + ExternalAnnotation.class.getName() //
                         + " public final int publicMethodWithArgs"
                         + "(String, char, long, float[], byte[][], List, int[]...)",
                 "@" + Test.class.getName() + " public void methodInfoNotEnabled()",
                 "@" + Test.class.getName() + " public void getMethodInfo()",
+                "@" + Test.class.getName() + " public void getConstructorInfo()",
                 "@" + Test.class.getName() + " public void getMethodInfoIgnoringVisibility()");
+    }
+
+    @Test
+    public void getConstructorInfo() throws Exception {
+        final Map<String, ClassInfo> classNameToClassInfo = new FastClasspathScanner(
+                MethodInfoTest.class.getPackage().getName()).enableMethodInfo().scan().getClassNameToClassInfo();
+
+        final List<String> constructorInfoStrs = new ArrayList<>();
+        List<MethodInfo> constructorInfo = classNameToClassInfo.get(MethodInfoTest.class.getName())
+                .getConstructorInfo();
+        assertThat(constructorInfo).isNotNull();
+        for (MethodInfo ci : constructorInfo) {
+            constructorInfoStrs.add(ci.toString());
+        }
+        assertThat(constructorInfoStrs).containsOnly("public <init>()");
     }
 
     @Test
@@ -95,13 +112,13 @@ public class MethodInfoTest {
             methodInfoStrs.add(methodInfo.toString());
         }
         assertThat(methodInfoStrs).containsOnly( //
-                "public " + MethodInfoTest.class.getName() + "()", //
                 "@" + ExternalAnnotation.class.getName() //
                         + " public final int publicMethodWithArgs"
                         + "(String, char, long, float[], byte[][], List, int[]...)",
                 "private static String[] privateMethod()",
                 "@" + Test.class.getName() + " public void methodInfoNotEnabled()",
                 "@" + Test.class.getName() + " public void getMethodInfo()",
+                "@" + Test.class.getName() + " public void getConstructorInfo()",
                 "@" + Test.class.getName() + " public void getMethodInfoIgnoringVisibility()");
     }
 }

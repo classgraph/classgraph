@@ -40,12 +40,12 @@ import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
  * classfile for the class.
  */
 public class MethodInfo implements Comparable<MethodInfo> {
+    private final String className;
     private final String methodName;
     private final int modifiers;
     private final String typeDescriptor;
     private List<String> typeStrs;
     private final List<String> annotationNames;
-    private final boolean isConstructor;
 
     /**
      * The ScanResult (set after the scan is complete, so that we know which ClassLoader to call for any given named
@@ -53,13 +53,13 @@ public class MethodInfo implements Comparable<MethodInfo> {
      */
     ScanResult scanResult;
 
-    public MethodInfo(final String methodName, final int modifiers, final String typeDescriptor,
-            final List<String> annotationNames, final boolean isConstructor) {
+    public MethodInfo(final String className, final String methodName, final int modifiers,
+            final String typeDescriptor, final List<String> annotationNames) {
+        this.className = className;
         this.methodName = methodName;
         this.modifiers = modifiers;
         this.typeDescriptor = typeDescriptor;
         this.annotationNames = annotationNames.isEmpty() ? Collections.<String> emptyList() : annotationNames;
-        this.isConstructor = isConstructor;
     }
 
     /** Get the method modifiers as a string, e.g. "public static final". */
@@ -67,12 +67,23 @@ public class MethodInfo implements Comparable<MethodInfo> {
         return ReflectionUtils.modifiersToString(modifiers, /* isMethod = */ true);
     }
 
-    /** Returns true if this method is a constructor. */
+    /**
+     * Returns true if this method is a constructor. Constructors have the method name {@code "<init>"}. This
+     * returns false for private static class initializer blocks, which are named {@code "<clinit>"}.
+     */
     public boolean isConstructor() {
-        return isConstructor;
+        return "<init>".equals(methodName);
     }
 
-    /** Returns the name of the method. */
+    /** Get the name of the class this method is part of. */
+    public String getClassName() {
+        return className;
+    }
+
+    /**
+     * Returns the name of the method. Note that constructors are named {@code "<init>"}, and private static class
+     * initializer blocks are named {@code "<clinit>"}.
+     */
     public String getMethodName() {
         return methodName;
     }
@@ -258,6 +269,10 @@ public class MethodInfo implements Comparable<MethodInfo> {
         return typeDescriptor.compareTo(other.typeDescriptor);
     }
 
+    /**
+     * Get a string representation of the method. Note that constructors are named {@code "<init>"}, and private
+     * static class initializer blocks are named {@code "<clinit>"}.
+     */
     @Override
     public String toString() {
         final StringBuilder buf = new StringBuilder();
@@ -276,6 +291,7 @@ public class MethodInfo implements Comparable<MethodInfo> {
         }
         buf.append(getModifiers());
 
+        boolean isConstructor = isConstructor();
         if (!isConstructor) {
             if (buf.length() > 0) {
                 buf.append(' ');

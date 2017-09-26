@@ -40,6 +40,7 @@ import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
  * classfile for the class.
  */
 public class FieldInfo implements Comparable<FieldInfo> {
+    private final String className;
     private final String fieldName;
     private final int modifiers;
     private final String typeDescriptor;
@@ -52,14 +53,25 @@ public class FieldInfo implements Comparable<FieldInfo> {
      */
     ScanResult scanResult;
 
-    public FieldInfo(final String fieldName, final int modifiers, final String typeDescriptor,
-            final Object constValue, final List<String> annotationNames) {
+    public FieldInfo(final String className, final String fieldName, final int modifiers,
+            final String typeDescriptor, final Object constValue, final List<String> annotationNames) {
+        this.className = className;
         this.fieldName = fieldName;
         this.modifiers = modifiers;
         this.typeDescriptor = typeDescriptor;
 
         this.constValue = constValue;
         this.annotationNames = annotationNames.isEmpty() ? Collections.<String> emptyList() : annotationNames;
+    }
+
+    /** Get the name of the class this method is part of. */
+    public String getClassName() {
+        return className;
+    }
+
+    /** Returns the name of the field. */
+    public String getFieldName() {
+        return fieldName;
     }
 
     /** Get the field modifiers as a string, e.g. "public static final". */
@@ -100,11 +112,6 @@ public class FieldInfo implements Comparable<FieldInfo> {
     /** Returns true if this field is a transient field. */
     public boolean isTransient() {
         return Modifier.isTransient(modifiers);
-    }
-
-    /** Returns the name of the field. */
-    public String getFieldName() {
-        return fieldName;
     }
 
     /** Returns the access flags of the field. */

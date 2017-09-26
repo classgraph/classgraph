@@ -42,6 +42,7 @@ import java.util.Set;
 
 import io.github.lukehutch.fastclasspathscanner.utils.AdditionOrderedSet;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
+import io.github.lukehutch.fastclasspathscanner.utils.MultiMapKeyToList;
 
 /** Holds metadata about a class encountered during a scan. */
 public class ClassInfo implements Comparable<ClassInfo> {
@@ -99,7 +100,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
     List<MethodInfo> methodInfo;
 
     /** Reverse mapping from method name to MethodInfo. */
-    private Map<String, MethodInfo> methodNameToMethodInfo;
+    private MultiMapKeyToList<String, MethodInfo> methodNameToMethodInfo;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -1418,9 +1419,14 @@ public class ClassInfo implements Comparable<ClassInfo> {
     // Methods
 
     /**
-     * Returns information on visible methods of the class. Requires that FastClasspathScanner#enableMethodInfo() be
-     * called before scanning, otherwise throws IllegalArgumentException. By default only returns information for
-     * public methods, unless FastClasspathScanner#enableMethodInfo() was called before the scan.
+     * Returns information on visible methods of the class that are not constructors. There may of course be more
+     * than one method of a given name with different type signatures, due to overloading.
+     * 
+     * Requires that FastClasspathScanner#enableMethodInfo() be called before scanning, otherwise throws
+     * IllegalArgumentException.
+     * 
+     * By default only returns information for public methods, unless FastClasspathScanner#ignoreMethodVisibility()
+     * was called before the scan.
      * 
      * @return the list of MethodInfo objects for visible methods of this class, or the empty list if no methods
      *         were found or visible.
@@ -1432,23 +1438,100 @@ public class ClassInfo implements Comparable<ClassInfo> {
             throw new IllegalArgumentException("Cannot get method info without calling "
                     + "FastClasspathScanner#enableMethodInfo() before starting the scan");
         }
+        if (methodInfo == null) {
+            return Collections.<MethodInfo> emptyList();
+        } else {
+            List<MethodInfo> nonConstructorMethods = new ArrayList<>();
+            for (MethodInfo mi : methodInfo) {
+                String methodName = mi.getMethodName();
+                if (!methodName.equals("<init>") && !methodName.equals("<clinit>")) {
+                    nonConstructorMethods.add(mi);
+                }
+            }
+            return nonConstructorMethods;
+        }
+    }
+
+    /**
+     * Returns information on visible constructors of the class. Constructors have the method name of
+     * {@code "<init>"}. There may of course be more than one constructor of a given name with different type
+     * signatures, due to overloading.
+     * 
+     * Requires that FastClasspathScanner#enableMethodInfo() be called before scanning, otherwise throws
+     * IllegalArgumentException.
+     * 
+     * By default only returns information for public constructors, unless
+     * FastClasspathScanner#ignoreMethodVisibility() was called before the scan.
+     * 
+     * @return the list of MethodInfo objects for visible constructors of this class, or the empty list if no
+     *         constructors were found or visible.
+     * @throws IllegalArgumentException
+     *             if FastClasspathScanner#enableMethodInfo() was not called prior to initiating the scan.
+     */
+    public List<MethodInfo> getConstructorInfo() {
+        if (!scanSpec.enableMethodInfo) {
+            throw new IllegalArgumentException("Cannot get method info without calling "
+                    + "FastClasspathScanner#enableMethodInfo() before starting the scan");
+        }
+        if (methodInfo == null) {
+            return Collections.<MethodInfo> emptyList();
+        } else {
+            List<MethodInfo> nonConstructorMethods = new ArrayList<>();
+            for (MethodInfo mi : methodInfo) {
+                String methodName = mi.getMethodName();
+                if (methodName.equals("<init>")) {
+                    nonConstructorMethods.add(mi);
+                }
+            }
+            return nonConstructorMethods;
+        }
+    }
+
+    /**
+     * Returns information on visible methods and constructors of the class. There may of course be more than one
+     * constructor or method of a given name with different type signatures, due to overloading. Constructors have
+     * the method name of {@code "<init>"}.
+     * 
+     * <p>
+     * Requires that FastClasspathScanner#enableMethodInfo() be called before scanning, otherwise throws
+     * IllegalArgumentException.
+     * 
+     * <p>
+     * By default only returns information for public methods and constructors, unless
+     * FastClasspathScanner#ignoreMethodVisibility() was called before the scan.
+     * 
+     * @return the list of MethodInfo objects for visible methods and constructors of this class, or the empty list
+     *         if no methods or constructors were found or visible.
+     * @throws IllegalArgumentException
+     *             if FastClasspathScanner#enableMethodInfo() was not called prior to initiating the scan.
+     */
+    public List<MethodInfo> getMethodAndConstructorInfo() {
+        if (!scanSpec.enableMethodInfo) {
+            throw new IllegalArgumentException("Cannot get method info without calling "
+                    + "FastClasspathScanner#enableMethodInfo() before starting the scan");
+        }
         return methodInfo == null ? Collections.<MethodInfo> emptyList() : methodInfo;
     }
 
     /**
-     * Returns information on a given visible method of the class. Requires that
-     * FastClasspathScanner#enableMethodInfo() be called before scanning, otherwise throws IllegalArgumentException.
+     * Returns information on a given visible method of the class.
+     * 
+     * <p>
+     * Requires that FastClasspathScanner#enableMethodInfo() be called before scanning, otherwise throws
+     * IllegalArgumentException.
+     * 
+     * <p>
      * By default only returns information for public methods, unless FastClasspathScanner#ignoreMethodVisibility()
      * was called before the scan.
      * 
      * @param methodName
      *            The method name to query.
-     * @return the MethodInfo object for the named method, or null if the method was not found in this class (or is
-     *         not visible).
+     * @return a list of MethodInfo objects for the named method, or the empty list if the method was not found in
+     *         this class (or is not visible).
      * @throws IllegalArgumentException
      *             if FastClasspathScanner#enableMethodInfo() was not called prior to initiating the scan.
      */
-    public MethodInfo getMethodInfo(final String methodName) {
+    public List<MethodInfo> getMethodInfo(final String methodName) {
         if (!scanSpec.enableMethodInfo) {
             throw new IllegalArgumentException("Cannot get method info without calling "
                     + "FastClasspathScanner#enableMethodInfo() before starting the scan");
@@ -1458,12 +1541,13 @@ public class ClassInfo implements Comparable<ClassInfo> {
         }
         if (methodNameToMethodInfo == null) {
             // Lazily build reverse mapping cache
-            methodNameToMethodInfo = new HashMap<>();
+            methodNameToMethodInfo = new MultiMapKeyToList<>();
             for (final MethodInfo f : methodInfo) {
                 methodNameToMethodInfo.put(f.getMethodName(), f);
             }
         }
-        return methodNameToMethodInfo.get(methodName);
+        List<MethodInfo> methodList = methodNameToMethodInfo.get(methodName);
+        return methodList == null ? Collections.<MethodInfo> emptyList() : methodList;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -1691,9 +1775,15 @@ public class ClassInfo implements Comparable<ClassInfo> {
     }
 
     /**
-     * Returns information on all visible fields of the class. Requires that FastClasspathScanner#enableFieldInfo()
-     * be called before scanning, otherwise throws IllegalArgumentException. By default only returns information for
-     * public methods, unless FastClasspathScanner#ignoreFieldVisibility() was called before the scan.
+     * Returns information on all visible fields of the class.
+     * 
+     * <p>
+     * Requires that FastClasspathScanner#enableFieldInfo() be called before scanning, otherwise throws
+     * IllegalArgumentException.
+     * 
+     * <p>
+     * By default only returns information for public methods, unless FastClasspathScanner#ignoreFieldVisibility()
+     * was called before the scan.
      * 
      * @return the list of FieldInfo objects for visible fields of this class, or the empty list if no fields were
      *         found or visible.
@@ -1709,8 +1799,13 @@ public class ClassInfo implements Comparable<ClassInfo> {
     }
 
     /**
-     * Returns information on a given visible field of the class. Requires that
-     * FastClasspathScanner#enableFieldInfo() be called before scanning, otherwise throws IllegalArgumentException.
+     * Returns information on a given visible field of the class.
+     * 
+     * <p>
+     * Requires that FastClasspathScanner#enableFieldInfo() be called before scanning, otherwise throws
+     * IllegalArgumentException.
+     * 
+     * <p>
      * By default only returns information for public fields, unless FastClasspathScanner#ignoreFieldVisibility()
      * was called before the scan.
      * 
