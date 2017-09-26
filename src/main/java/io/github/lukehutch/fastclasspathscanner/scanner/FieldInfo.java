@@ -39,7 +39,7 @@ import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
  * Holds metadata about fields of a class encountered during a scan. All values are taken directly out of the
  * classfile for the class.
  */
-public class FieldInfo {
+public class FieldInfo implements Comparable<FieldInfo> {
     private final String fieldName;
     private final int modifiers;
     private final String typeDescriptor;
@@ -112,6 +112,11 @@ public class FieldInfo {
         return modifiers;
     }
 
+    /** Returns the internal type descriptor for the field, e.g. "Ljava/lang/String;" */
+    public String getTypeDescriptor() {
+        return typeDescriptor;
+    }
+
     /** Returns the type of the field, in string representation (e.g. "int[][]"). */
     public String getTypeStr() {
         final List<String> typeNames = ReflectionUtils.parseTypeDescriptor(typeDescriptor);
@@ -160,6 +165,40 @@ public class FieldInfo {
             }
             return annotationClassRefs;
         }
+    }
+
+    /**
+     * Use field name for equals(). Note that this assumes you are only testing fields in the same class for
+     * equality, since the class name is not compared.
+     */
+    @Override
+    public boolean equals(final Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (obj == null) {
+            return false;
+        }
+        if (this.getClass() == obj.getClass()) {
+            final FieldInfo other = (FieldInfo) obj;
+            return fieldName.equals(other.fieldName);
+        }
+        return false;
+    }
+
+    /** Use hash code of field name. */
+    @Override
+    public int hashCode() {
+        return fieldName.hashCode();
+    }
+
+    /**
+     * Sort in order of field name. Note that this assumes you are only sorting fields in the same class, since the
+     * class name is not compared.
+     */
+    @Override
+    public int compareTo(final FieldInfo other) {
+        return fieldName.compareTo(other.fieldName);
     }
 
     @Override

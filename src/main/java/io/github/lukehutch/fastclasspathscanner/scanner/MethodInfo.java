@@ -39,7 +39,7 @@ import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
  * Holds metadata about methods of a class encountered during a scan. All values are taken directly out of the
  * classfile for the class.
  */
-public class MethodInfo {
+public class MethodInfo implements Comparable<MethodInfo> {
     private final String methodName;
     private final int modifiers;
     private final String typeDescriptor;
@@ -92,6 +92,11 @@ public class MethodInfo {
             }
             return typeStrsList;
         }
+    }
+
+    /** Returns the internal type descriptor for the method, e.g. "Ljava/lang/String;V" */
+    public String getTypeDescriptor() {
+        return typeDescriptor;
     }
 
     /**
@@ -213,6 +218,44 @@ public class MethodInfo {
             }
             return annotationClassRefs;
         }
+    }
+
+    /**
+     * Use method name and type descriptor for equals(). Note that this assumes you are only testing methods in the
+     * same class for equality, since the class name is not compared.
+     */
+    @Override
+    public boolean equals(final Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (obj == null) {
+            return false;
+        }
+        if (this.getClass() == obj.getClass()) {
+            final MethodInfo other = (MethodInfo) obj;
+            return typeDescriptor.equals(other.typeDescriptor) && methodName.equals(other.methodName);
+        }
+        return false;
+    }
+
+    /** Use hash code of method name and type descriptor. */
+    @Override
+    public int hashCode() {
+        return methodName.hashCode() + typeDescriptor.hashCode() * 57;
+    }
+
+    /**
+     * Sort in order of method name, then type descriptor. Note that this assumes you are only sorting methods in
+     * the same class, since the class name is not compared.
+     */
+    @Override
+    public int compareTo(final MethodInfo other) {
+        final int diff = methodName.compareTo(other.methodName);
+        if (diff != 0) {
+            return diff;
+        }
+        return typeDescriptor.compareTo(other.typeDescriptor);
     }
 
     @Override
