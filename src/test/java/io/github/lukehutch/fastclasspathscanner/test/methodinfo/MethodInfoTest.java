@@ -71,9 +71,10 @@ public class MethodInfoTest {
                 MethodInfoTest.class.getPackage().getName()).enableMethodInfo().scan().getClassNameToClassInfo();
 
         final List<String> methodInfoStrs = new ArrayList<>();
-        List<MethodInfo> methodInfo = classNameToClassInfo.get(MethodInfoTest.class.getName()).getMethodInfo();
+        final List<MethodInfo> methodInfo = classNameToClassInfo.get(MethodInfoTest.class.getName())
+                .getMethodInfo();
         assertThat(methodInfo).isNotNull();
-        for (MethodInfo mi : methodInfo) {
+        for (final MethodInfo mi : methodInfo) {
             methodInfoStrs.add(mi.toString());
         }
         assertThat(methodInfoStrs).containsOnly( //
@@ -92,10 +93,10 @@ public class MethodInfoTest {
                 MethodInfoTest.class.getPackage().getName()).enableMethodInfo().scan().getClassNameToClassInfo();
 
         final List<String> constructorInfoStrs = new ArrayList<>();
-        List<MethodInfo> constructorInfo = classNameToClassInfo.get(MethodInfoTest.class.getName())
+        final List<MethodInfo> constructorInfo = classNameToClassInfo.get(MethodInfoTest.class.getName())
                 .getConstructorInfo();
         assertThat(constructorInfo).isNotNull();
-        for (MethodInfo ci : constructorInfo) {
+        for (final MethodInfo ci : constructorInfo) {
             constructorInfoStrs.add(ci.toString());
         }
         assertThat(constructorInfoStrs).containsOnly("public <init>()");

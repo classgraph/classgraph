@@ -292,7 +292,7 @@ public class MethodInfo implements Comparable<MethodInfo> {
         }
         buf.append(getModifiers());
 
-        boolean isConstructor = isConstructor();
+        final boolean isConstructor = isConstructor();
         if (!isConstructor) {
             if (buf.length() > 0) {
                 buf.append(' ');

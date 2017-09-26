@@ -1432,9 +1432,9 @@ public class ClassInfo implements Comparable<ClassInfo> {
         if (methodInfo == null) {
             return Collections.<MethodInfo> emptyList();
         } else {
-            List<MethodInfo> nonConstructorMethods = new ArrayList<>();
-            for (MethodInfo mi : methodInfo) {
-                String methodName = mi.getMethodName();
+            final List<MethodInfo> nonConstructorMethods = new ArrayList<>();
+            for (final MethodInfo mi : methodInfo) {
+                final String methodName = mi.getMethodName();
                 if (!methodName.equals("<init>") && !methodName.equals("<clinit>")) {
                     nonConstructorMethods.add(mi);
                 }
@@ -1469,9 +1469,9 @@ public class ClassInfo implements Comparable<ClassInfo> {
         if (methodInfo == null) {
             return Collections.<MethodInfo> emptyList();
         } else {
-            List<MethodInfo> nonConstructorMethods = new ArrayList<>();
-            for (MethodInfo mi : methodInfo) {
-                String methodName = mi.getMethodName();
+            final List<MethodInfo> nonConstructorMethods = new ArrayList<>();
+            for (final MethodInfo mi : methodInfo) {
+                final String methodName = mi.getMethodName();
                 if (methodName.equals("<init>")) {
                     nonConstructorMethods.add(mi);
                 }
@@ -1542,7 +1542,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
                 methodNameToMethodInfo.put(f.getMethodName(), f);
             }
         }
-        List<MethodInfo> methodList = methodNameToMethodInfo.get(methodName);
+        final List<MethodInfo> methodList = methodNameToMethodInfo.get(methodName);
         return methodList == null ? Collections.<MethodInfo> emptyList() : methodList;
     }
 
