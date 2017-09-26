@@ -174,10 +174,7 @@ public class FieldInfo implements Comparable<FieldInfo> {
         }
     }
 
-    /**
-     * Use field name for equals(). Note that this assumes you are only testing fields in the same class for
-     * equality, since the class name is not compared.
-     */
+    /** Use class name and field name for equals(). */
     @Override
     public boolean equals(final Object obj) {
         if (this == obj) {
@@ -186,25 +183,26 @@ public class FieldInfo implements Comparable<FieldInfo> {
         if (obj == null) {
             return false;
         }
-        if (this.getClass() == obj.getClass()) {
-            final FieldInfo other = (FieldInfo) obj;
-            return fieldName.equals(other.fieldName);
+        if (this.getClass() != obj.getClass()) {
+            return false;
         }
-        return false;
+        final FieldInfo other = (FieldInfo) obj;
+        return className.equals(other.className) && fieldName.equals(other.fieldName);
     }
 
-    /** Use hash code of field name. */
+    /** Use hash code of class name and field name. */
     @Override
     public int hashCode() {
-        return fieldName.hashCode();
+        return fieldName.hashCode() + className.hashCode() * 11;
     }
 
-    /**
-     * Sort in order of field name. Note that this assumes you are only sorting fields in the same class, since the
-     * class name is not compared.
-     */
+    /** Sort in order of class name then field name */
     @Override
     public int compareTo(final FieldInfo other) {
+        final int diff = className.compareTo(other.className);
+        if (diff != 0) {
+            return diff;
+        }
         return fieldName.compareTo(other.fieldName);
     }
 
