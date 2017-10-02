@@ -60,10 +60,23 @@ public class FileUtils {
         if (fileSize > Integer.MAX_VALUE) {
             throw new IOException("File larger that 2GB, cannot read contents into a Java array");
         }
-        final byte[] bytes = new byte[(int) fileSize];
-        final int bytesRead = inputStream.read(bytes);
-        if (bytesRead < fileSize) {
-            throw new IOException("Could not read whole file");
+        int len = (int) fileSize;
+        if (len != fileSize) {
+            throw new RuntimeException("File is too long to decompress");
+        }
+        final byte[] bytes = new byte[len];
+        int totBytesRead = 0;
+        for (;;) {
+            final int bytesRead = inputStream.read(bytes, totBytesRead, len - totBytesRead);
+            if (bytesRead <= 0) {
+                break;
+            } else {
+                totBytesRead += bytesRead;
+            }
+        }
+        if (totBytesRead < fileSize) {
+            throw new IOException(
+                    "Could not read whole file: expected " + fileSize + " bytes, got " + totBytesRead + " bytes");
         }
         return bytes;
     }
