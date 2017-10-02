@@ -60,7 +60,7 @@ public class FileUtils {
         if (fileSize > Integer.MAX_VALUE) {
             throw new IOException("File larger that 2GB, cannot read contents into a Java array");
         }
-        int len = (int) fileSize;
+        final int len = (int) fileSize;
         if (len != fileSize) {
             throw new RuntimeException("File is too long to decompress");
         }
