@@ -194,21 +194,10 @@ abstract class ClasspathElement {
         }
         // Take the union of classfile and file match relative paths, since matches can be in both lists
         // if a user adds a custom file path matcher that matches paths ending in ".class"
-        final HashSet<String> allMatchingRelativePathsForThisClasspathElement = new HashSet<>();
-        for (final ClasspathResource res : classfileMatches) {
-            allMatchingRelativePathsForThisClasspathElement.add(res.pathRelativeToClasspathPrefix);
-        }
-        for (final Entry<FileMatchProcessorWrapper, List<ClasspathResource>> ent : fileMatches.entrySet()) {
-            for (final ClasspathResource classpathResource : ent.getValue()) {
-                allMatchingRelativePathsForThisClasspathElement
-                        .add(classpathResource.pathRelativeToClasspathPrefix);
-            }
-        }
-        // See which of these paths are masked, if any
         final HashSet<String> maskedRelativePaths = new HashSet<>();
-        for (final String match : allMatchingRelativePathsForThisClasspathElement) {
-            if (classpathRelativePathsFound.contains(match)) {
-                maskedRelativePaths.add(match);
+        for (final ClasspathResource res : classfileMatches) {
+            if (classpathRelativePathsFound.contains(res.pathRelativeToClasspathPrefix)) {
+                maskedRelativePaths.add(res.pathRelativeToClasspathPrefix);
             }
         }
         if (!maskedRelativePaths.isEmpty()) {
@@ -227,26 +216,8 @@ abstract class ClasspathElement {
                 }
             }
             classfileMatches = filteredClassfileMatches;
-
-            final MultiMapKeyToList<FileMatchProcessorWrapper, ClasspathResource> filteredFileMatches = //
-                    new MultiMapKeyToList<>();
-            for (final Entry<FileMatchProcessorWrapper, List<ClasspathResource>> ent : fileMatches.entrySet()) {
-                for (final ClasspathResource fileMatch : ent.getValue()) {
-                    if (!maskedRelativePaths.contains(fileMatch.pathRelativeToClasspathPrefix)) {
-                        filteredFileMatches.put(ent.getKey(), fileMatch);
-                    } else {
-                        if (log != null) {
-                            log.log(String.format("%06d-1", classpathIdx),
-                                    "Ignoring duplicate (masked) file path "
-                                            + fileMatch.pathRelativeToClasspathPrefix + " in classpath element "
-                                            + fileMatch);
-                        }
-                    }
-                }
-            }
-            fileMatches = filteredFileMatches;
         }
-        classpathRelativePathsFound.addAll(allMatchingRelativePathsForThisClasspathElement);
+        classpathRelativePathsFound.addAll(maskedRelativePaths);
     }
 
     // -------------------------------------------------------------------------------------------------------------

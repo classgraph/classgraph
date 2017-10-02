@@ -383,10 +383,10 @@ public class Scanner implements Callable<ScanResult> {
                     workQueue.runWorkLoop();
                 }
 
-                // Implement classpath masking -- if the same relative path occurs multiple times in the
-                // classpath, ignore (remove) the second and subsequent occurrences. Note that classpath
-                // masking is performed whether or not a jar is whitelisted, and whether or not jar or
-                // dir scanning is enabled, in order to ensure that class references passed into
+                // Implement classpath masking -- if the same relative classfile  path occurs multiple times
+                // in the classpath, ignore (remove) the second and subsequent occurrences. Note that
+                // classpath masking is performed whether or not a jar is whitelisted, and whether or not
+                // jar or dir scanning is enabled, in order to ensure that class references passed into
                 // MatchProcessors are the same as those that would be loaded by standard classloading.
                 // (See bug #100.)
                 final LogNode maskLog = log == null ? null : log.log("Masking classpath files");
