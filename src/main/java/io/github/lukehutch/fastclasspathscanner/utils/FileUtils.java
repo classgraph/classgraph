@@ -28,12 +28,12 @@
  */
 package io.github.lukehutch.fastclasspathscanner.utils;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Arrays;
 
 public class FileUtils {
     /** Get current dir (without resolving symlinks), and normalize path by calling FastPathResolver.resolve(). */
@@ -59,29 +59,32 @@ public class FileUtils {
     /** Read all the bytes in an InputStream. */
     public static byte[] readAllBytes(final InputStream inputStream, final long fileSize, final LogNode log)
             throws IOException {
-        if (fileSize > Integer.MAX_VALUE) {
+        // Java arrays can only currently have 32-bit indices
+        if (fileSize > Integer.MAX_VALUE
+                // ZipEntry#getSize() can wrap around to negative for files larger than 2GB
+                // http://bugs.java.com/bugdatabase/view_bug.do?bug_id=6916399
+                || (fileSize < 0
+                        // ZipEntry#getSize() can return -1 for unknown size 
+                        && fileSize != -1L)) {
             throw new IOException("File larger that 2GB, cannot read contents into a Java array");
         }
-        final int len = (int) fileSize;
-        final byte[] bytes = new byte[len];
+
+        // We can't always trust the fileSize, unfortunately, so we just use it as a hint
+        final ByteArrayOutputStream baos = new ByteArrayOutputStream(fileSize <= 0 ? 16384 : (int) fileSize);
+
+        // N.B. there is a better solution for this in Java 9, byte[] bytes = inputStream.readAllBytes()
+        final byte[] buf = new byte[4096];
         int totBytesRead = 0;
-        for (;;) {
-            final int bytesRead = inputStream.read(bytes, totBytesRead, len - totBytesRead);
-            if (bytesRead <= 0) {
-                break;
-            } else {
-                totBytesRead += bytesRead;
-            }
+        for (int bytesRead; (bytesRead = inputStream.read(buf)) != -1;) {
+            baos.write(buf, 0, bytesRead);
+            totBytesRead += bytesRead;
         }
-        if (totBytesRead < fileSize) {
+        if (totBytesRead != fileSize) {
             if (log != null) {
-                log.log("Could not read whole file: expected " + fileSize + " bytes, read " + totBytesRead
-                        + " bytes -- returning only the bytes read");
+                log.log("File length expected to be " + fileSize + " bytes, but read " + totBytesRead + " bytes");
             }
-            return Arrays.copyOf(bytes, totBytesRead);
-        } else {
-            return bytes;
         }
+        return baos.toByteArray();
     }
 
     /** Returns true if path has a .class extension, ignoring case. */
