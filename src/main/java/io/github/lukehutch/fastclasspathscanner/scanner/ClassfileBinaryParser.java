@@ -501,7 +501,7 @@ class ClassfileBinaryParser implements AutoCloseable {
                 && (bytesRead = inputStream.read(buf, used, INITIAL_BUFFER_CHUNK_SIZE - used)) != -1;) {
             used += bytesRead;
         }
-        if (used < 0) {
+        if (used == 0) {
             throw new IOException("Classfile " + relativePath + " is empty");
         }
 
