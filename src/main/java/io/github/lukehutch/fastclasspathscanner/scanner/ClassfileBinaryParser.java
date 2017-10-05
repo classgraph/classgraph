@@ -93,6 +93,10 @@ class ClassfileBinaryParser implements AutoCloseable {
             int newBufLen = buf.length;
             while (newBufLen < maxNewUsed) {
                 newBufLen <<= 1;
+                if (newBufLen <= 0) {
+                    // Handle overflow
+                    throw new IOException("Classfile is bigger than 2GB, cannot read it");
+                }
             }
             buf = Arrays.copyOf(buf, newBufLen);
         }
@@ -492,7 +496,11 @@ class ClassfileBinaryParser implements AutoCloseable {
         curr = 0;
 
         // Read first bufferful
-        used = inputStream.read(buf, 0, INITIAL_BUFFER_CHUNK_SIZE);
+        used = 0;
+        for (int bytesRead; used < INITIAL_BUFFER_CHUNK_SIZE
+                && (bytesRead = inputStream.read(buf, used, INITIAL_BUFFER_CHUNK_SIZE - used)) != -1;) {
+            used += bytesRead;
+        }
         if (used < 0) {
             throw new IOException("Classfile " + relativePath + " is empty");
         }
