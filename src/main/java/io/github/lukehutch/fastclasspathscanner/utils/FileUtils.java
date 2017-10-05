@@ -61,9 +61,6 @@ public class FileUtils {
             throw new IOException("File larger that 2GB, cannot read contents into a Java array");
         }
         final int len = (int) fileSize;
-        if (len != fileSize) {
-            throw new RuntimeException("File is too long to decompress");
-        }
         final byte[] bytes = new byte[len];
         int totBytesRead = 0;
         for (;;) {
