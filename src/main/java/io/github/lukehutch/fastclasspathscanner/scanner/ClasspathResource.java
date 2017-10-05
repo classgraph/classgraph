@@ -40,6 +40,7 @@ import io.github.lukehutch.fastclasspathscanner.matchprocessor.FilenameMatchProc
 import io.github.lukehutch.fastclasspathscanner.scanner.matchers.FileMatchProcessorAny;
 import io.github.lukehutch.fastclasspathscanner.utils.ClasspathUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.FileUtils;
+import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 
 /**
  * The combination of a classpath element and a relative path within this classpath element.
@@ -68,7 +69,8 @@ public abstract class ClasspathResource {
         return inputStreamLength;
     }
 
-    public void processFileMatch(final FileMatchProcessorAny fileMatchProcessor) throws IOException {
+    public void processFileMatch(final FileMatchProcessorAny fileMatchProcessor, final LogNode log)
+            throws IOException {
         if (fileMatchProcessor instanceof FilenameMatchProcessor) {
             ((FilenameMatchProcessor) fileMatchProcessor).processMatch(
                     // classpathResource.open() is not called for FilenameMatchProcessors
@@ -94,7 +96,7 @@ public abstract class ClasspathResource {
             try {
                 ((FileMatchContentsProcessor) fileMatchProcessor).processMatch(pathRelativeToClasspathPrefix,
                         FileUtils.readAllBytes(/* inputStream = */ open(), //
-                                inputStreamLength));
+                                inputStreamLength, log));
             } finally {
                 close();
             }
@@ -103,7 +105,7 @@ public abstract class ClasspathResource {
                 ((FileMatchContentsProcessorWithContext) fileMatchProcessor).processMatch(classpathEltFile,
                         pathRelativeToClasspathPrefix, //
                         FileUtils.readAllBytes(/* inputStream = */ open(), //
-                                inputStreamLength));
+                                inputStreamLength, log));
             } finally {
                 close();
             }

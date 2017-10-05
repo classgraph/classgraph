@@ -235,7 +235,7 @@ abstract class ClasspathElement {
                         final LogNode logNode = subLog == null ? null
                                 : subLog.log("Calling MatchProcessor for matching file " + fileMatchResource);
                         // Process the file match (may call fileMatchResource.open())
-                        fileMatchProcessorWrapper.processMatch(fileMatchResource);
+                        fileMatchProcessorWrapper.processMatch(fileMatchResource, log);
                         if (logNode != null) {
                             logNode.addElapsedTime();
                         }

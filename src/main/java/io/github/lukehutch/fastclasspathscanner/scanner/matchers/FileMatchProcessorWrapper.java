@@ -54,7 +54,7 @@ public class FileMatchProcessorWrapper {
         return filePathTester.filePathMatches(classpathElt, relativePathStr, log);
     }
 
-    public void processMatch(final ClasspathResource classpathResource) throws IOException {
-        classpathResource.processFileMatch(fileMatchProcessor);
+    public void processMatch(final ClasspathResource classpathResource, final LogNode log) throws IOException {
+        classpathResource.processFileMatch(fileMatchProcessor, log);
     }
 }

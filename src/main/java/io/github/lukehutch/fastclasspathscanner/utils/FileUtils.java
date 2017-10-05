@@ -33,6 +33,7 @@ import java.io.InputStream;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays;
 
 public class FileUtils {
     /** Get current dir (without resolving symlinks), and normalize path by calling FastPathResolver.resolve(). */
@@ -56,7 +57,8 @@ public class FileUtils {
     }
 
     /** Read all the bytes in an InputStream. */
-    public static byte[] readAllBytes(final InputStream inputStream, final long fileSize) throws IOException {
+    public static byte[] readAllBytes(final InputStream inputStream, final long fileSize, final LogNode log)
+            throws IOException {
         if (fileSize > Integer.MAX_VALUE) {
             throw new IOException("File larger that 2GB, cannot read contents into a Java array");
         }
@@ -72,10 +74,14 @@ public class FileUtils {
             }
         }
         if (totBytesRead < fileSize) {
-            throw new IOException(
-                    "Could not read whole file: expected " + fileSize + " bytes, got " + totBytesRead + " bytes");
+            if (log != null) {
+                log.log("Could not read whole file: expected " + fileSize + " bytes, read " + totBytesRead
+                        + " bytes -- returning only the bytes read");
+            }
+            return Arrays.copyOf(bytes, totBytesRead);
+        } else {
+            return bytes;
         }
-        return bytes;
     }
 
     /** Returns true if path has a .class extension, ignoring case. */
