@@ -48,9 +48,11 @@ public class ClassLoaderHandlerRegistry {
             new ClassLoaderHandlerRegistryEntry(WebsphereLibertyClassLoaderHandler.class),
             new ClassLoaderHandlerRegistryEntry(WebsphereTraditionalClassLoaderHandler.class),
             new ClassLoaderHandlerRegistryEntry(OSGiDefaultClassLoaderHandler.class),
+            
+            // Java 9 support
+            new ClassLoaderHandlerRegistryEntry(Java9ClassLoaderHandler.class),
 
-            // The main default ClassLoaderHandler -- URLClassLoader is the most common ClassLoader.
-            // Call this last, so that specific handlers for subclasses can override this if necessary.
+            // Java 7/8 support
             new ClassLoaderHandlerRegistryEntry(URLClassLoaderHandler.class));
 
     /**
