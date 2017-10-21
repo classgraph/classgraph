@@ -45,6 +45,7 @@ public class MethodInfo implements Comparable<MethodInfo> {
     private final int modifiers;
     private final String typeDescriptor;
     private List<String> typeStrs;
+    private final String[] parameterNames;
     private final List<String> annotationNames;
 
     /**
@@ -54,11 +55,12 @@ public class MethodInfo implements Comparable<MethodInfo> {
     ScanResult scanResult;
 
     public MethodInfo(final String className, final String methodName, final int modifiers,
-            final String typeDescriptor, final List<String> annotationNames) {
+            final String typeDescriptor, final String[] parameterNames, final List<String> annotationNames) {
         this.className = className;
         this.methodName = methodName;
         this.modifiers = modifiers;
         this.typeDescriptor = typeDescriptor;
+        this.parameterNames = parameterNames;
         this.annotationNames = annotationNames.isEmpty() ? Collections.<String> emptyList() : annotationNames;
     }
 
@@ -205,6 +207,14 @@ public class MethodInfo implements Comparable<MethodInfo> {
     /** Returns true if this method is a native method. */
     public boolean isNative() {
         return Modifier.isNative(modifiers);
+    }
+
+    /**
+     * Returns the method parameter names, if available (only available in classfiles compiled in JDK8 or above),
+     * otherwise returns null.
+     */
+    public String[] getParameterNames() {
+        return parameterNames;
     }
 
     /** Returns the names of annotations on the method, or the empty list if none. */

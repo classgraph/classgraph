@@ -48,7 +48,7 @@ public class ClassLoaderHandlerRegistry {
             new ClassLoaderHandlerRegistryEntry(WebsphereLibertyClassLoaderHandler.class),
             new ClassLoaderHandlerRegistryEntry(WebsphereTraditionalClassLoaderHandler.class),
             new ClassLoaderHandlerRegistryEntry(OSGiDefaultClassLoaderHandler.class),
-            
+
             // Java 9 support
             new ClassLoaderHandlerRegistryEntry(Java9ClassLoaderHandler.class),
 

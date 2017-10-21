@@ -56,7 +56,7 @@ public class Java9ClassLoaderHandler implements ClassLoaderHandler {
             final ScanSpec scanSpec, final LogNode log) {
         try {
             // Type URLClassPath
-            Object ucp = ReflectionUtils.getFieldVal(classLoader, "ucp");
+            final Object ucp = ReflectionUtils.getFieldVal(classLoader, "ucp");
             if (ucp != null) {
                 // A list of classpath element URL strings.
                 // TODO: each URL element can add additional URL elements through the module-info mechanism,
@@ -65,14 +65,14 @@ public class Java9ClassLoaderHandler implements ClassLoaderHandler {
                 // way, but this should be abstracted to work with classloading too. Or alternatively,
                 // maybe the Java 9 module loader should simply be queried when running under Java 9.
                 @SuppressWarnings("unchecked")
-                List<String> path = (List<String>) ReflectionUtils.getFieldVal(ucp, "path");
+                final List<String> path = (List<String>) ReflectionUtils.getFieldVal(ucp, "path");
                 if (path != null) {
-                    for (String pathElt : path) {
+                    for (final String pathElt : path) {
                         classpathFinder.addClasspathElement(pathElt, classLoader, log);
                     }
                 }
             }
-        } catch (Exception e) {
+        } catch (final Exception e) {
             if (log != null) {
                 log.log("Exception while trying to get paths from ClassLoader " + classLoader, e);
             }

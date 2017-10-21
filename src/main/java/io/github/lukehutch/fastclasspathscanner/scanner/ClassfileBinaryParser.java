@@ -825,6 +825,7 @@ class ClassfileBinaryParser implements AutoCloseable {
             final int attributesCount = readUnsignedShort();
             final boolean isPublicMethod = ((methodModifierFlags & 0x0001) == 0x0001);
             final boolean methodIsVisible = isPublicMethod || scanSpec.ignoreMethodVisibility;
+            String[] methodParameterNames = null;
             List<String> methodAnnotationNames = null;
             if (scanSpec.enableMethodInfo && methodIsVisible) {
                 methodAnnotationNames = new ArrayList<>(1);
@@ -854,6 +855,13 @@ class ClassfileBinaryParser implements AutoCloseable {
                                 methodAnnotationNames.add(annotationName);
                             }
                         }
+                    } else if (constantPoolStringEquals(attributeNameCpIdx, "MethodParameters")) {
+                        final int annotationCount = readUnsignedShort();
+                        methodParameterNames = new String[annotationCount];
+                        for (int k = 0; k < annotationCount; k++) {
+                            methodParameterNames[k] = getConstantPoolString(readUnsignedShort());
+                            skip(2);
+                        }
                     } else {
                         skip(attributeLength);
                     }
@@ -861,7 +869,7 @@ class ClassfileBinaryParser implements AutoCloseable {
             }
             if (scanSpec.enableMethodInfo && methodIsVisible) {
                 classInfoUnlinked.addMethodInfo(new MethodInfo(className, methodName, methodModifierFlags,
-                        methodTypeDescriptor, methodAnnotationNames));
+                        methodTypeDescriptor, methodParameterNames, methodAnnotationNames));
             }
         }
 
