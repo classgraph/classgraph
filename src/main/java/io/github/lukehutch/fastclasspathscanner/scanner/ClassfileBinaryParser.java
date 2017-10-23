@@ -826,6 +826,7 @@ class ClassfileBinaryParser implements AutoCloseable {
             final boolean isPublicMethod = ((methodModifierFlags & 0x0001) == 0x0001);
             final boolean methodIsVisible = isPublicMethod || scanSpec.ignoreMethodVisibility;
             String[] methodParameterNames = null;
+            int[] methodParameterAccessFlags = null;
             List<String> methodAnnotationNames = null;
             if (scanSpec.enableMethodInfo && methodIsVisible) {
                 methodAnnotationNames = new ArrayList<>(1);
@@ -860,18 +861,12 @@ class ClassfileBinaryParser implements AutoCloseable {
                         // the commandline switch `-parameters` is provided at compiletime.
                         final int paramCount = readUnsignedByte();
                         methodParameterNames = new String[paramCount];
+                        methodParameterAccessFlags = new int[paramCount];
                         for (int k = 0; k < paramCount; k++) {
                             final int cpIdx = readUnsignedShort();
                             // If the constant pool index is zero, then the parameter is unnamed => use null
                             methodParameterNames[k] = cpIdx == 0 ? null : getConstantPoolString(cpIdx);
-                            // Skip access_flags, as most users won't need this:
-                            // 0x0010 (ACC_FINAL): Indicates that the formal parameter was declared final.
-                            // 0x1000 (ACC_SYNTHETIC): Indicates that the formal parameter was not explicitly or
-                            // implicitly declared in source code, according to the specification of the language
-                            // in which the source code was written (JLS §13.1). (The formal parameter is an
-                            // implementation artifact of the compiler which produced this class file.)
-                            // 0x8000 (ACC_MANDATED)
-                            skip(2);
+                            methodParameterAccessFlags[k] = readUnsignedShort();
                         }
                     } else {
                         skip(attributeLength);
@@ -879,8 +874,9 @@ class ClassfileBinaryParser implements AutoCloseable {
                 }
             }
             if (scanSpec.enableMethodInfo && methodIsVisible) {
-                classInfoUnlinked.addMethodInfo(new MethodInfo(className, methodName, methodModifierFlags,
-                        methodTypeDescriptor, methodParameterNames, methodAnnotationNames));
+                classInfoUnlinked.addMethodInfo(
+                        new MethodInfo(className, methodName, methodModifierFlags, methodTypeDescriptor,
+                                methodParameterNames, methodParameterAccessFlags, methodAnnotationNames));
             }
         }
 

@@ -351,5 +351,6 @@ class ClasspathElementZip extends ClasspathElement {
         if (zipFileRecycler != null) {
             zipFileRecycler.close();
         }
+        zipFileRecycler = null;
     }
 }

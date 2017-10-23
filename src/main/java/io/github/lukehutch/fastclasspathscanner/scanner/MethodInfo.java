@@ -47,6 +47,7 @@ public class MethodInfo implements Comparable<MethodInfo> {
     private final String typeDescriptor;
     private List<String> typeStrs;
     private final String[] parameterNames;
+    private final int[] parameterAccessFlags;
     private final List<String> annotationNames;
 
     /**
@@ -56,12 +57,14 @@ public class MethodInfo implements Comparable<MethodInfo> {
     ScanResult scanResult;
 
     public MethodInfo(final String className, final String methodName, final int modifiers,
-            final String typeDescriptor, final String[] parameterNames, final List<String> annotationNames) {
+            final String typeDescriptor, final String[] parameterNames, final int[] parameterAccessFlags,
+            final List<String> annotationNames) {
         this.className = className;
         this.methodName = methodName;
         this.modifiers = modifiers;
         this.typeDescriptor = typeDescriptor;
         this.parameterNames = parameterNames;
+        this.parameterAccessFlags = parameterAccessFlags;
         this.annotationNames = annotationNames.isEmpty() ? Collections.<String> emptyList() : annotationNames;
     }
 
@@ -217,7 +220,35 @@ public class MethodInfo implements Comparable<MethodInfo> {
      * Note that parameters may be unnamed, in which case the corresponding parameter name will be null.
      */
     public List<String> getParameterNames() {
-        return Arrays.asList(parameterNames);
+        return parameterNames == null ? null : Arrays.asList(parameterNames);
+    }
+
+    /**
+     * Returns the parameter access flags, if available (only available in classfiles compiled in JDK8 or above
+     * using the -parameters commandline switch), otherwise returns null.
+     * 
+     * Flag bits:
+     * <ul>
+     * <li>0x0010 (ACC_FINAL): Indicates that the formal parameter was declared final.
+     * <li>0x1000 (ACC_SYNTHETIC): Indicates that the formal parameter was not explicitly or implicitly declared in
+     * source code, according to the specification of the language in which the source code was written (JLS §13.1).
+     * (The formal parameter is an implementation artifact of the compiler which produced this class file.)
+     * <li>0x8000 (ACC_MANDATED): Indicates that the formal parameter was implicitly declared in source code,
+     * according to the specification of the language in which the source code was written (JLS §13.1). (The formal
+     * parameter is mandated by a language specification, so all compilers for the language must emit it.)
+     * </ul>
+     * 
+     * @return
+     */
+    public List<Integer> getParameterAccessFlags() {
+        if (parameterAccessFlags == null) {
+            return null;
+        }
+        List<Integer> flags = new ArrayList<>(parameterAccessFlags.length);
+        for (int flag : parameterAccessFlags) {
+            flags.add(flag);
+        }
+        return flags;
     }
 
     /** Returns the names of annotations on the method, or the empty list if none. */
@@ -320,10 +351,26 @@ public class MethodInfo implements Comparable<MethodInfo> {
 
         buf.append('(');
         final List<String> paramTypes = getParameterTypeStrs();
+        if (parameterNames != null && paramTypes.size() != parameterNames.length) {
+            // Should not happen
+            throw new RuntimeException("paramTypes.size() != parameterNames.length");
+        }
         final boolean isVarargs = isVarArgs();
         for (int i = 0; i < paramTypes.size(); i++) {
             if (i > 0) {
                 buf.append(", ");
+            }
+            if (parameterAccessFlags != null) {
+                int flag = parameterAccessFlags[i];
+                if ((flag & 0x0010) != 0) {
+                    buf.append("final ");
+                }
+                if ((flag & 0x1000) != 0) {
+                    buf.append("synthetic ");
+                }
+                if ((flag & 0x8000) != 0) {
+                    buf.append("mandated ");
+                }
             }
             final String paramType = paramTypes.get(i);
             if (isVarargs && (i == paramTypes.size() - 1)) {
@@ -336,6 +383,11 @@ public class MethodInfo implements Comparable<MethodInfo> {
                 buf.append("...");
             } else {
                 buf.append(paramType);
+            }
+            if (parameterNames != null) {
+                String paramName = parameterNames[i];
+                buf.append(' ');
+                buf.append(paramName == null ? "_unnamed_param_" + i : paramName);
             }
         }
         buf.append(')');
