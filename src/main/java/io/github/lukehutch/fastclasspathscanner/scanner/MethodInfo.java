@@ -30,6 +30,7 @@ package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -210,11 +211,13 @@ public class MethodInfo implements Comparable<MethodInfo> {
     }
 
     /**
-     * Returns the method parameter names, if available (only available in classfiles compiled in JDK8 or above),
-     * otherwise returns null.
+     * Returns the method parameter names, if available (only available in classfiles compiled in JDK8 or above
+     * using the -parameters commandline switch), otherwise returns null.
+     * 
+     * Note that parameters may be unnamed, in which case the corresponding parameter name will be null.
      */
-    public String[] getParameterNames() {
-        return parameterNames;
+    public List<String> getParameterNames() {
+        return Arrays.asList(parameterNames);
     }
 
     /** Returns the names of annotations on the method, or the empty list if none. */

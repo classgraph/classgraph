@@ -856,10 +856,21 @@ class ClassfileBinaryParser implements AutoCloseable {
                             }
                         }
                     } else if (constantPoolStringEquals(attributeNameCpIdx, "MethodParameters")) {
-                        final int annotationCount = readUnsignedShort();
-                        methodParameterNames = new String[annotationCount];
-                        for (int k = 0; k < annotationCount; k++) {
-                            methodParameterNames[k] = getConstantPoolString(readUnsignedShort());
+                        // Read method parameters. For Java, these are only produced in JDK8+, and only if
+                        // the commandline switch `-parameters` is provided at compiletime.
+                        final int paramCount = readUnsignedByte();
+                        methodParameterNames = new String[paramCount];
+                        for (int k = 0; k < paramCount; k++) {
+                            final int cpIdx = readUnsignedShort();
+                            // If the constant pool index is zero, then the parameter is unnamed => use null
+                            methodParameterNames[k] = cpIdx == 0 ? null : getConstantPoolString(cpIdx);
+                            // Skip access_flags, as most users won't need this:
+                            // 0x0010 (ACC_FINAL): Indicates that the formal parameter was declared final.
+                            // 0x1000 (ACC_SYNTHETIC): Indicates that the formal parameter was not explicitly or
+                            // implicitly declared in source code, according to the specification of the language
+                            // in which the source code was written (JLS §13.1). (The formal parameter is an
+                            // implementation artifact of the compiler which produced this class file.)
+                            // 0x8000 (ACC_MANDATED)
                             skip(2);
                         }
                     } else {
