@@ -28,28 +28,29 @@
  */
 package io.github.lukehutch.fastclasspathscanner.issues.issue146;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.StrictAssertions.assertThat;
 
 import java.io.IOException;
 
 import org.junit.Test;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
+import io.github.lukehutch.fastclasspathscanner.scanner.MethodInfo;
 
 public class Issue146Test {
     @Test
     public void issue146Test() throws IOException {
         // Scans io.github.lukehutch.fastclasspathscanner.issues.issue146.CompiledWithJDK8,
         // which is in src/test/resources
-        String pkg = Issue146Test.class.getPackage().getName();
-        assertThat(new FastClasspathScanner(pkg) //
+        final String pkg = Issue146Test.class.getPackage().getName();
+        final MethodInfo methodInfo = new FastClasspathScanner(pkg) //
                 .enableMethodInfo() //
                 .scan() //
                 .getClassNameToClassInfo() //
                 .get(pkg + "." + "CompiledWithJDK8") //
                 .getMethodInfo("method") //
-                .get(0) //
-                .getParameterNames()) //
-                        .containsExactly("param0", "param1", "param2");
+                .get(0);
+        assertThat(methodInfo.toString()) //
+                .isEqualTo("public void method(int param0, String param1, double[] param2)");
     }
 }
