@@ -244,8 +244,8 @@ public class MethodInfo implements Comparable<MethodInfo> {
         if (parameterAccessFlags == null) {
             return null;
         }
-        List<Integer> flags = new ArrayList<>(parameterAccessFlags.length);
-        for (int flag : parameterAccessFlags) {
+        final List<Integer> flags = new ArrayList<>(parameterAccessFlags.length);
+        for (final int flag : parameterAccessFlags) {
             flags.add(flag);
         }
         return flags;
@@ -361,7 +361,7 @@ public class MethodInfo implements Comparable<MethodInfo> {
                 buf.append(", ");
             }
             if (parameterAccessFlags != null) {
-                int flag = parameterAccessFlags[i];
+                final int flag = parameterAccessFlags[i];
                 if ((flag & 0x0010) != 0) {
                     buf.append("final ");
                 }
@@ -385,7 +385,7 @@ public class MethodInfo implements Comparable<MethodInfo> {
                 buf.append(paramType);
             }
             if (parameterNames != null) {
-                String paramName = parameterNames[i];
+                final String paramName = parameterNames[i];
                 buf.append(' ');
                 buf.append(paramName == null ? "_unnamed_param_" + i : paramName);
             }
