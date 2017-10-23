@@ -1,4 +1,5 @@
 *.class
+!CompiledWithJDK8.class
 /target/
 bin/
 tmp/
