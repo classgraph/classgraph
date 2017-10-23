@@ -50,8 +50,10 @@ public abstract class Recycler<T extends AutoCloseable, E extends Exception> imp
         final T newInstance = newInstance();
         if (newInstance != null) {
             allocatedInstances.add(newInstance);
+            return newInstance;
+        } else {
+            throw new RuntimeException("Failed to allocate a new recyclable instance");
         }
-        return newInstance;
     }
 
     /** Release/recycle an instance. */
