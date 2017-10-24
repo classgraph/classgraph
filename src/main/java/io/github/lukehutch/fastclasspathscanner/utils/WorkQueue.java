@@ -58,6 +58,9 @@ public class WorkQueue<T> implements AutoCloseable {
      */
     private final AtomicInteger numWorkUnitsRemaining = new AtomicInteger();
 
+    /** The number of threads currently running (used for clean shutdown). */
+    private final AtomicInteger numRunningThreads = new AtomicInteger();
+
     /** The Future object added for each worker, used to detect worker completion. */
     private final ConcurrentLinkedQueue<Future<?>> workerFutures = new ConcurrentLinkedQueue<>();
 
@@ -130,6 +133,7 @@ public class WorkQueue<T> implements AutoCloseable {
             // Got a work unit -- hold numWorkUnitsRemaining high until work is complete
             try {
                 // Process the work unit
+                numRunningThreads.incrementAndGet();
                 workUnitProcessor.processWorkUnit(workUnit);
             } catch (final InterruptedException e) {
                 // Interrupt all threads
@@ -146,6 +150,7 @@ public class WorkQueue<T> implements AutoCloseable {
                 // after this work unit was removed from the queue, other worker threads haven't
                 // terminated yet, so the newly-added work units can get taken by workers.  
                 numWorkUnitsRemaining.decrementAndGet();
+                numRunningThreads.decrementAndGet();
             }
         }
     }
@@ -166,7 +171,7 @@ public class WorkQueue<T> implements AutoCloseable {
     /**
      * Ensure that there are no work units still uncompleted. This should be called after runWorkLoop() exits on the
      * main thread (e.g. using try-with-resources, since this class is AutoCloseable). If any work units are still
-     * uncompleted, will shut down remaining workers and will then throw a RuntimeException.
+     * uncompleted (e.g. in the case of an exception), will shut down remaining workers.
      */
     @Override
     public void close() throws ExecutionException {
@@ -190,8 +195,13 @@ public class WorkQueue<T> implements AutoCloseable {
                 interruptionChecker.executionException(e);
             }
         }
+        while (numRunningThreads.get() > 0) {
+            // Busy wait -- future.cancel(true) returns immediately, so need to wait for thread shutdown
+        }
         if (uncompletedWork) {
-            throw new RuntimeException("Called close() before completing all work units");
+            if (log != null) {
+                log.log("Some work units not completed");
+            }
         }
     }
 }
