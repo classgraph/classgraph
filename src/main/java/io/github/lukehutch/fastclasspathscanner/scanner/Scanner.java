@@ -50,6 +50,7 @@ import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.NestedJarHandler;
 import io.github.lukehutch.fastclasspathscanner.utils.Recycler;
 import io.github.lukehutch.fastclasspathscanner.utils.WorkQueue;
+import io.github.lukehutch.fastclasspathscanner.utils.WorkQueue.WorkQueuePreStartHook;
 import io.github.lukehutch.fastclasspathscanner.utils.WorkQueue.WorkUnitProcessor;
 
 /** The classpath scanner. */
@@ -220,10 +221,10 @@ public class Scanner implements Callable<ScanResult> {
                     : classpathFinderLog.log("Searching for \"Class-Path:\" entries within manifest files");
             final RelativePathToElementMap classpathElementMap = new RelativePathToElementMap(
                     enableRecursiveScanning, scanSpec, nestedJarHandler, interruptionChecker, preScanLog);
-            try (WorkQueue<RelativePath> workQueue = new WorkQueue<>(rawClasspathEltPathsDedupd,
+            WorkQueue.runWorkQueue(rawClasspathEltPathsDedupd, executorService, numParallelTasks,
                     new WorkUnitProcessor<RelativePath>() {
                         @Override
-                        public void processWorkUnit(RelativePath rawClasspathEltPath) throws Exception {
+                        public void processWorkUnit(final RelativePath rawClasspathEltPath) throws Exception {
                             // Check if classpath element is already in the singleton map -- saves needlessly
                             // repeating work in isValidClasspathElement() and createSingleton()
                             // (need to check for duplicates again, even though we checked above, since
@@ -234,8 +235,8 @@ public class Scanner implements Callable<ScanResult> {
                                 }
                             } else if (rawClasspathEltPath.isValidClasspathElement(scanSpec, preScanLog)) {
                                 try {
-                                    boolean isFile = rawClasspathEltPath.isFile();
-                                    boolean isDir = rawClasspathEltPath.isDirectory();
+                                    final boolean isFile = rawClasspathEltPath.isFile();
+                                    final boolean isDir = rawClasspathEltPath.isDirectory();
                                     if (isFile && !scanSpec.scanJars) {
                                         if (preScanLog != null) {
                                             preScanLog.log("Ignoring because jar scanning has been disabled: "
@@ -264,20 +265,23 @@ public class Scanner implements Callable<ScanResult> {
                                         // classpath order.
                                         classpathElementMap.createSingleton(rawClasspathEltPath);
                                     }
-                                } catch (Exception e) {
+                                } catch (final Exception e) {
                                     // Could not create singleton, probably due to path canonicalization problem
                                     preScanLog.log("Classpath element " + rawClasspathEltPath + " is not valid ("
                                             + e + ") -- skipping");
                                 }
                             }
                         }
-                    }, interruptionChecker, preScanLog)) {
-                classpathElementMap.setWorkQueue(workQueue);
-                // Start workers, then use this thread to do work too, in case there is only one thread
-                // available in the ExecutorService
-                workQueue.startWorkers(executorService, numParallelTasks - 1, preScanLog);
-                workQueue.runWorkLoop();
-            }
+                    }, new WorkQueuePreStartHook<RelativePath>() {
+                        @Override
+                        public void processWorkQueueRef(final WorkQueue<RelativePath> workQueue) {
+                            // Store a ref back to the work queue in the classpath element map,
+                            // because some classpath elements will need to schedule additional
+                            // classpath elements for scanning, e.g. "Class-Path:" refs in jar
+                            // manifest files
+                            classpathElementMap.setWorkQueue(workQueue);
+                        }
+                    }, interruptionChecker, preScanLog);
 
             // Determine total ordering of classpath elements, inserting jars referenced in manifest Class-Path
             // entries in-place into the ordering, if they haven't been listed earlier in the classpath already.
@@ -369,19 +373,14 @@ public class Scanner implements Callable<ScanResult> {
                 // Scan for matching classfiles / files, looking only at filenames / file paths, and not contents
                 final LogNode pathScanLog = classpathFinderLog == null ? null
                         : classpathFinderLog.log("Scanning filenames within classpath elements");
-                try (WorkQueue<ClasspathElement> workQueue = new WorkQueue<>(classpathOrder,
+                WorkQueue.runWorkQueue(classpathOrder, executorService, numParallelTasks,
                         new WorkUnitProcessor<ClasspathElement>() {
                             @Override
-                            public void processWorkUnit(ClasspathElement classpathElement) throws Exception {
+                            public void processWorkUnit(final ClasspathElement classpathElement) throws Exception {
                                 // Scan the paths within a directory or jar
                                 classpathElement.scanPaths(pathScanLog);
                             }
-                        }, interruptionChecker, pathScanLog)) {
-                    // Start workers, then use this thread to do work too, in case there is only one thread
-                    // available in the ExecutorService
-                    workQueue.startWorkers(executorService, numParallelTasks - 1, pathScanLog);
-                    workQueue.runWorkLoop();
-                }
+                        }, interruptionChecker, pathScanLog);
 
                 // Implement classpath masking -- if the same relative classfile  path occurs multiple times
                 // in the classpath, ignore (remove) the second and subsequent occurrences. Note that
@@ -414,26 +413,23 @@ public class Scanner implements Callable<ScanResult> {
                             public ClassfileBinaryParser newInstance() {
                                 return new ClassfileBinaryParser();
                             }
-                        };
-                        WorkQueue<ClassfileParserChunk> workQueue = new WorkQueue<>(
-                                getClassfileParserChunks(classpathOrder), //
-                                new WorkUnitProcessor<ClassfileParserChunk>() {
-                                    @Override
-                                    public void processWorkUnit(ClassfileParserChunk chunk) throws Exception {
-                                        ClassfileBinaryParser classfileBinaryParser = null;
-                                        try {
-                                            classfileBinaryParser = classfileBinaryParserRecycler.acquire();
-                                            chunk.classpathElement.parseClassfiles(classfileBinaryParser,
-                                                    chunk.classfileStartIdx, chunk.classfileEndIdx, stringInternMap,
-                                                    classInfoUnlinked, classfileScanLog);
-                                        } finally {
-                                            classfileBinaryParserRecycler.release(classfileBinaryParser);
-                                            classfileBinaryParser = null;
-                                        }
+                        }) {
+                    WorkQueue.runWorkQueue(getClassfileParserChunks(classpathOrder), executorService,
+                            numParallelTasks, new WorkUnitProcessor<ClassfileParserChunk>() {
+                                @Override
+                                public void processWorkUnit(final ClassfileParserChunk chunk) throws Exception {
+                                    ClassfileBinaryParser classfileBinaryParser = null;
+                                    try {
+                                        classfileBinaryParser = classfileBinaryParserRecycler.acquire();
+                                        chunk.classpathElement.parseClassfiles(classfileBinaryParser,
+                                                chunk.classfileStartIdx, chunk.classfileEndIdx, stringInternMap,
+                                                classInfoUnlinked, classfileScanLog);
+                                    } finally {
+                                        classfileBinaryParserRecycler.release(classfileBinaryParser);
+                                        classfileBinaryParser = null;
                                     }
-                                }, interruptionChecker, classfileScanLog)) {
-                    workQueue.startWorkers(executorService, numParallelTasks - 1, classfileScanLog);
-                    workQueue.runWorkLoop();
+                                }
+                            }, interruptionChecker, classfileScanLog);
                 }
 
                 // Build the class graph: convert ClassInfoUnlinked to linked ClassInfo objects.

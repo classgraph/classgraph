@@ -78,18 +78,63 @@ public class WorkQueue<T> implements AutoCloseable {
         public void processWorkUnit(T workUnit) throws Exception;
     }
 
+    /**
+     * A hook that is called once a WorkQueue is created, inside its try-with-resources block, before the workers
+     * are started.
+     */
+    public interface WorkQueuePreStartHook<T> {
+        public void processWorkQueueRef(WorkQueue<T> workQueue);
+    }
+
+    /**
+     * Start a work queue on the elements in the provided collection, blocking until all work units have been
+     * completed. Calls workQueuePreStartHook with a ref to the work queue before starting the workers.
+     */
+    public static <U> void runWorkQueue(final Collection<U> elements, final ExecutorService executorService,
+            final int numParallelTasks, final WorkUnitProcessor<U> workUnitProcessor,
+            final WorkQueuePreStartHook<U> workQueuePreStartHook, final InterruptionChecker interruptionChecker,
+            final LogNode log) throws ExecutionException, InterruptedException {
+        // Wrap in a try-with-resources block, so that the WorkQueue is closed on exception
+        try (WorkQueue<U> workQueue = new WorkQueue<>(elements, workUnitProcessor, interruptionChecker, log)) {
+            // Call work queue pre-start hook, if available
+            if (workQueuePreStartHook != null) {
+                workQueuePreStartHook.processWorkQueueRef(workQueue);
+            }
+            // Start (numParallelTasks - 1) worker threads (may start zero threads if numParallelTasks == 1)
+            workQueue.startWorkers(executorService, numParallelTasks - 1, log);
+            // Use the current thread to do work too, in case there is only one thread available in the
+            // ExecutorService, or in case numParallelTasks is greater than the number of available threads
+            // in the ExecutorService.
+            workQueue.runWorkLoop();
+        }
+        // WorkQueue#close() is called when the above try-with-resources block terminates,
+        // initiating a barrier wait while all worker threads complete.
+    }
+
+    /**
+     * Start a work queue on the elements in the provided collection, blocking until all work units have been
+     * completed.
+     */
+    public static <U> void runWorkQueue(final Collection<U> elements, final ExecutorService executorService,
+            final int numParallelTasks, final WorkUnitProcessor<U> workUnitProcessor,
+            final InterruptionChecker interruptionChecker, final LogNode log)
+            throws ExecutionException, InterruptedException {
+        runWorkQueue(elements, executorService, numParallelTasks, workUnitProcessor,
+                /* workQueuePreStartHook = */ null, interruptionChecker, log);
+    }
+
     /** A parallel work queue. */
-    private WorkQueue(final WorkUnitProcessor<T> workUnitProcesor, final InterruptionChecker interruptionChecker,
+    private WorkQueue(final WorkUnitProcessor<T> workUnitProcessor, final InterruptionChecker interruptionChecker,
             final LogNode log) {
-        this.workUnitProcessor = workUnitProcesor;
+        this.workUnitProcessor = workUnitProcessor;
         this.interruptionChecker = interruptionChecker;
         this.log = log;
     }
 
     /** A parallel work queue. */
-    public WorkQueue(final Collection<T> initialWorkUnits, final WorkUnitProcessor<T> workUnitProcesor,
+    public WorkQueue(final Collection<T> initialWorkUnits, final WorkUnitProcessor<T> workUnitProcessor,
             final InterruptionChecker interruptionChecker, final LogNode log) {
-        this(workUnitProcesor, interruptionChecker, log);
+        this(workUnitProcessor, interruptionChecker, log);
         addWorkUnits(initialWorkUnits);
     }
 
@@ -199,7 +244,10 @@ public class WorkQueue<T> implements AutoCloseable {
             }
         }
         while (numRunningThreads.get() > 0) {
-            // Busy wait -- future.cancel(true) returns immediately, so need to wait for thread shutdown
+            // Barrier (busy wait) for worker thread completion.
+            // (If an exception is thrown, future.cancel(true) returns immediately, so we need to wait
+            // for thread shutdown here. Otherwise a finally-block of a caller may be called before
+            // the worker threads have completed and cleaned up theri resources.)
         }
     }
 }
