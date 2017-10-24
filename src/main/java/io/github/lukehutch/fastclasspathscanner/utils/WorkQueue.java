@@ -178,6 +178,9 @@ public class WorkQueue<T> implements AutoCloseable {
         boolean uncompletedWork = false;
         if (numWorkUnitsRemaining.get() > 0) {
             uncompletedWork = true;
+            if (log != null) {
+                log.log("Some work units not completed");
+            }
         }
         for (Future<?> future; (future = workerFutures.poll()) != null;) {
             try {
@@ -197,11 +200,6 @@ public class WorkQueue<T> implements AutoCloseable {
         }
         while (numRunningThreads.get() > 0) {
             // Busy wait -- future.cancel(true) returns immediately, so need to wait for thread shutdown
-        }
-        if (uncompletedWork) {
-            if (log != null) {
-                log.log("Some work units not completed");
-            }
         }
     }
 }
