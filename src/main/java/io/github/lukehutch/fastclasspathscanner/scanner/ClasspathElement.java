@@ -196,9 +196,12 @@ abstract class ClasspathElement {
         // if a user adds a custom file path matcher that matches paths ending in ".class"
         final HashSet<String> maskedRelativePaths = new HashSet<>();
         for (final ClasspathResource res : classfileMatches) {
+            // Don't mask module-info.class, since all modules need this classfile to be read
             if (!res.pathRelativeToClasspathPrefix.equals("module-info.class")
                     && !res.pathRelativeToClasspathPrefix.endsWith("/module-info.class")) {
                 if (!classpathRelativePathsFound.add(res.pathRelativeToClasspathPrefix)) {
+                    // This relative path has been encountered more than once;
+                    // mask the second and subsequent occurrences of the path
                     maskedRelativePaths.add(res.pathRelativeToClasspathPrefix);
                 }
             }
