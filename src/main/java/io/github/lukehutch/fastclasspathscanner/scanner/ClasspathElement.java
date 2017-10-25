@@ -196,8 +196,11 @@ abstract class ClasspathElement {
         // if a user adds a custom file path matcher that matches paths ending in ".class"
         final HashSet<String> maskedRelativePaths = new HashSet<>();
         for (final ClasspathResource res : classfileMatches) {
-            if (classpathRelativePathsFound.contains(res.pathRelativeToClasspathPrefix)) {
-                maskedRelativePaths.add(res.pathRelativeToClasspathPrefix);
+            if (!res.pathRelativeToClasspathPrefix.equals("module-info.class")
+                    && !res.pathRelativeToClasspathPrefix.endsWith("/module-info.class")) {
+                if (!classpathRelativePathsFound.add(res.pathRelativeToClasspathPrefix)) {
+                    maskedRelativePaths.add(res.pathRelativeToClasspathPrefix);
+                }
             }
         }
         if (!maskedRelativePaths.isEmpty()) {
@@ -217,7 +220,6 @@ abstract class ClasspathElement {
             }
             classfileMatches = filteredClassfileMatches;
         }
-        classpathRelativePathsFound.addAll(maskedRelativePaths);
     }
 
     // -------------------------------------------------------------------------------------------------------------
