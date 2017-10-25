@@ -63,25 +63,27 @@ public class Issue148Test {
             buf.append(ci.isInnerClass() + " " + ci.isAnonymousInnerClass() + " " + ci.isOuterClass() + "|");
             buf.append(ci.getInnerClassNames() + "|");
             buf.append(ci.getOuterClassName() + "|");
-            buf.append(ci.getFullyQualifiedContainingMethodName() + "||" //
+            buf.append(ci.getFullyQualifiedContainingMethodName() + "\n" //
                     + "");
         }
         final String bufStr = buf.toString().replace(pkg + ".", "");
 
+        // System.out.println("\"" + bufStr.replace("\n", "\\n\" //\n+\"") + "\"");
+
         assertThat(bufStr) //
-                .isEqualTo(
-                        "OuterClass1$NonStaticInnerClass$NonStaticNestedInnerClass$2|true true false|[]|[OuterClass1, OuterClass1$NonStaticInnerClass, OuterClass1$NonStaticInnerClass$NonStaticNestedInnerClass]|OuterClass1$NonStaticInnerClass$NonStaticNestedInnerClass.newAnonymousNonStaticInnerClass||" //
-                                + "OuterClass1$NonStaticInnerClass$NonStaticNestedInnerClass$1|true true false|[]|[OuterClass1, OuterClass1$NonStaticInnerClass, OuterClass1$NonStaticInnerClass$NonStaticNestedInnerClass]|OuterClass1$NonStaticInnerClass$NonStaticNestedInnerClass.newAnonymousStaticInnerClass||" //
-                                + "OuterClass1$NonStaticInnerClass|true false true|[OuterClass1$NonStaticInnerClass$NonStaticNestedInnerClass, OuterClass1$NonStaticInnerClass$NonStaticNestedInnerClass$1, OuterClass1$NonStaticInnerClass$NonStaticNestedInnerClass$2]|[OuterClass1]|null||" //
-                                + "Issue148Test$1|true true false|[]|[Issue148Test]|Issue148Test.issue148Test||" //
-                                + "OuterClass1$NonStaticInnerClass$NonStaticNestedInnerClass|true false true|[OuterClass1$NonStaticInnerClass$NonStaticNestedInnerClass$1, OuterClass1$NonStaticInnerClass$NonStaticNestedInnerClass$2]|[OuterClass1, OuterClass1$NonStaticInnerClass]|null||" //
-                                + "OuterClass2|false false true|[OuterClass2$1, OuterClass2$2]|[]|null||" //
-                                + "Issue148Test|false false true|[Issue148Test$1]|[]|null||" //
-                                + "OuterClass1|false false true|[OuterClass1$NonStaticInnerClass, OuterClass1$NonStaticInnerClass$NonStaticNestedInnerClass, OuterClass1$NonStaticInnerClass$NonStaticNestedInnerClass$1, OuterClass1$NonStaticInnerClass$NonStaticNestedInnerClass$2, OuterClass1$StaticInnerClass]|[]|null||" //
-                                + "OuterClass2$1|true true false|[]|[OuterClass2]|OuterClass2.<clinit>||" //
-                                + "java.lang.Object|false false false|[]|[]|null||" //
-                                + "java.util.Comparator|false false false|[]|[]|null||" //
-                                + "OuterClass1$StaticInnerClass|true false false|[]|[OuterClass1]|null||" //
-                                + "OuterClass2$2|true true false|[]|[OuterClass2]|OuterClass2.<init>||");
+                .isEqualTo("O1$I|true false true|[O1$I$II, O1$I$II$1, O1$I$II$2]|[O1]|null\n" //
+                        + "Issue148Test$1|true true false|[]|[Issue148Test]|Issue148Test.issue148Test\n" //
+                        + "O1$SI|true false false|[]|[O1]|null\n" //
+                        + "O1$I$II|true false true|[O1$I$II$1, O1$I$II$2]|[O1, O1$I]|null\n" //
+                        + "Issue148Test|false false true|[Issue148Test$1]|[]|null\n" //
+                        + "O2$1|true true false|[]|[O2]|O2.<clinit>\n" //
+                        + "O1|false false true|[O1$I, O1$I$II, O1$I$II$1, O1$I$II$2, O1$SI]|[]|null\n" //
+                        + "O2|false false true|[O2$1, O2$2]|[]|null\n" //
+                        + "O1$I$II$1|true true false|[]|[O1, O1$I, O1$I$II]|O1$I$II.newSI\n" //
+                        + "java.lang.Object|false false false|[]|[]|null\n" //
+                        + "java.util.Comparator|false false false|[]|[]|null\n" //
+                        + "O2$2|true true false|[]|[O2]|O2.<init>\n" //
+                        + "O1$I$II$2|true true false|[]|[O1, O1$I, O1$I$II]|O1$I$II.newI\n" //
+                        + "");
     }
 }
