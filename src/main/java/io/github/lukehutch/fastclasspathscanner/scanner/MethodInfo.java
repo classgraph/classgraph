@@ -237,8 +237,6 @@ public class MethodInfo implements Comparable<MethodInfo> {
      * according to the specification of the language in which the source code was written (JLS §13.1). (The formal
      * parameter is mandated by a language specification, so all compilers for the language must emit it.)
      * </ul>
-     * 
-     * @return
      */
     public List<Integer> getParameterAccessFlags() {
         if (parameterAccessFlags == null) {
