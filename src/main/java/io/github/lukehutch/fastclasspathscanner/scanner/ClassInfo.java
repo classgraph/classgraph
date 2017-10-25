@@ -774,8 +774,8 @@ public class ClassInfo implements Comparable<ClassInfo> {
     }
 
     /**
-     * Returns the containing outer class(es), for inner classes. Note that all containing outer classes are
-     * returned, not just the innermost containing outer class. Returns the empty set if this is not an inner class.
+     * Returns the containing outer classes, for inner classes. Note that all containing outer classes are returned,
+     * not just the innermost containing outer class. Returns the empty set if this is not an inner class.
      */
     public Set<ClassInfo> getOuterClasses() {
         return filterClassInfo(getReachableClasses(RelType.CONTAINED_WITHIN_OUTER_CLASS),
@@ -783,9 +783,9 @@ public class ClassInfo implements Comparable<ClassInfo> {
     }
 
     /**
-     * Returns the name(s) of the containing outer class(es), for inner classes. Note that all containing outer
-     * classes are returned, not just the innermost containing outer class. Returns the empty list if this is not an
-     * inner class.
+     * Returns the names of the containing outer classes, for inner classes. Note that all containing outer classes
+     * are returned, not just the innermost containing outer class. Returns the empty list if this is not an inner
+     * class.
      */
     public List<String> getOuterClassName() {
         return getClassNames(getOuterClasses());
