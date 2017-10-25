@@ -30,6 +30,7 @@ package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import java.lang.reflect.Modifier;
 import java.net.URL;
+import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -58,6 +59,9 @@ public class ClassInfo implements Comparable<ClassInfo> {
 
     /** True if the classfile indicated this is an annotation. */
     private boolean isAnnotation;
+
+    /** The fully-qualified containing method name, for anonymous inner classes. */
+    private String fullyQualifiedContainingMethodName;
 
     /**
      * True when a class has been scanned (i.e. its classfile contents read), as opposed to only being referenced by
@@ -220,6 +224,12 @@ public class ClassInfo implements Comparable<ClassInfo> {
 
         /** The types of fields of regular classes, if this is a regular class. */
         FIELD_TYPES,
+
+        /** Indicates that an inner class is contained within this one. */
+        CONTAINS_INNER_CLASS,
+
+        /** Indicates that an outer class contains this one. (Should only have zero or one entries.) */
+        CONTAINED_WITHIN_OUTER_CLASS,
 
         // Interfaces:
 
@@ -498,6 +508,26 @@ public class ClassInfo implements Comparable<ClassInfo> {
         interfaceClassInfo.addRelatedClass(RelType.CLASSES_IMPLEMENTING, this);
     }
 
+    /** Add class containment info */
+    static void addClassContainment(final List<SimpleEntry<String, String>> classContainmentEntries,
+            final ScanSpec scanSpec, final Map<String, ClassInfo> classNameToClassInfo) {
+        for (final SimpleEntry<String, String> ent : classContainmentEntries) {
+            final String innerClassName = ent.getKey();
+            final ClassInfo innerClassInfo = ClassInfo.getOrCreateClassInfo(innerClassName,
+                    /* classModifiers = */ 0, scanSpec, classNameToClassInfo);
+            final String outerClassName = ent.getValue();
+            final ClassInfo outerClassInfo = ClassInfo.getOrCreateClassInfo(outerClassName,
+                    /* classModifiers = */ 0, scanSpec, classNameToClassInfo);
+            innerClassInfo.addRelatedClass(RelType.CONTAINED_WITHIN_OUTER_CLASS, outerClassInfo);
+            outerClassInfo.addRelatedClass(RelType.CONTAINS_INNER_CLASS, innerClassInfo);
+        }
+    }
+
+    /** Add containing method name, for anonymous inner classes */
+    void addFullyQualifiedContainingMethodName(final String fullyQualifiedContainingMethodName) {
+        this.fullyQualifiedContainingMethodName = fullyQualifiedContainingMethodName;
+    }
+
     /** Add a field type. */
     void addFieldType(final String fieldTypeName, final Map<String, ClassInfo> classNameToClassInfo) {
         final String fieldTypeBaseName = scalaBaseClassName(fieldTypeName);
@@ -733,6 +763,67 @@ public class ClassInfo implements Comparable<ClassInfo> {
      */
     public boolean hasSuperclass(final String superclassName) {
         return getNamesOfSuperclasses().contains(superclassName);
+    }
+
+    /**
+     * Returns true if this is an inner class (call isAnonymousInnerClass() to test if this is an anonymous inner
+     * class). If true, the containing class can be determined by calling getOuterClasses() or getOuterClassNames().
+     */
+    public boolean isInnerClass() {
+        return !getOuterClasses().isEmpty();
+    }
+
+    /**
+     * Returns the containing outer class(es), for inner classes. Note that all containing outer classes are
+     * returned, not just the innermost containing outer class. Returns the empty set if this is not an inner class.
+     */
+    public Set<ClassInfo> getOuterClasses() {
+        return filterClassInfo(getReachableClasses(RelType.CONTAINED_WITHIN_OUTER_CLASS),
+                /* removeExternalClassesIfStrictWhitelist = */ false, scanSpec, ClassType.ALL);
+    }
+
+    /**
+     * Returns the name(s) of the containing outer class(es), for inner classes. Note that all containing outer
+     * classes are returned, not just the innermost containing outer class. Returns the empty list if this is not an
+     * inner class.
+     */
+    public List<String> getOuterClassName() {
+        return getClassNames(getOuterClasses());
+    }
+
+    /**
+     * Returns true if this class contains inner classes. If true, the inner classes can be determined by calling
+     * getInnerClasses() or getInnerClassNames().
+     */
+    public boolean isOuterClass() {
+        return !getInnerClasses().isEmpty();
+    }
+
+    /** Returns the inner classes contained within this class. Returns the empty set if none. */
+    public Set<ClassInfo> getInnerClasses() {
+        return filterClassInfo(getReachableClasses(RelType.CONTAINS_INNER_CLASS),
+                /* removeExternalClassesIfStrictWhitelist = */ false, scanSpec, ClassType.ALL);
+    }
+
+    /** Returns the names of inner classes contained within this class. Returns the empty list if none. */
+    public List<String> getInnerClassNames() {
+        return getClassNames(getInnerClasses());
+    }
+
+    /**
+     * Returns true if this is an anonymous inner class. If true, the name of the containing method can be obtained
+     * by calling getFullyQualifiedContainingMethodName().
+     */
+    public boolean isAnonymousInnerClass() {
+        return fullyQualifiedContainingMethodName != null;
+    }
+
+    /**
+     * Get fully-qualified containing method name (i.e. fully qualified classname, followed by dot, followed by
+     * method name, for the containing method that creates an anonymous inner class.
+     */
+    public String getFullyQualifiedContainingMethodName() {
+        return fullyQualifiedContainingMethodName;
     }
 
     // -------------

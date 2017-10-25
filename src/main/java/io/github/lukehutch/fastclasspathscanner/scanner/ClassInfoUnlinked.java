@@ -28,6 +28,7 @@
  */
 package io.github.lukehutch.fastclasspathscanner.scanner;
 
+import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -57,6 +58,8 @@ class ClassInfoUnlinked {
     private Set<String> fieldAnnotations;
     private Set<String> fieldTypes;
     private Map<String, Object> staticFinalFieldValues;
+    private String fullyQualifiedContainingMethodName;
+    private List<SimpleEntry<String, String>> classContainmentEntries;
     private final ConcurrentHashMap<String, String> stringInternMap;
     private final ClasspathElement classpathElement;
     List<FieldInfo> fieldInfoList;
@@ -141,6 +144,17 @@ class ClassInfoUnlinked {
         methodInfoList.add(methodInfo);
     }
 
+    public void addEnclosingMethod(final String fullyQualifiedContainingMethodName) {
+        this.fullyQualifiedContainingMethodName = fullyQualifiedContainingMethodName;
+    }
+
+    public void addClassContainment(final String innerClassName, final String outerClassName) {
+        if (classContainmentEntries == null) {
+            classContainmentEntries = new ArrayList<>();
+        }
+        classContainmentEntries.add(new SimpleEntry<>(innerClassName, outerClassName));
+    }
+
     /** Link classes. Not threadsafe, should be run in a single-threaded context. */
     void link(final ScanSpec scanSpec, final Map<String, ClassInfo> classNameToClassInfo, final LogNode log) {
         final ClassInfo classInfo = ClassInfo.addScannedClass(className, classModifiers, isInterface, isAnnotation,
@@ -177,6 +191,12 @@ class ClassInfoUnlinked {
             for (final Entry<String, Object> ent : staticFinalFieldValues.entrySet()) {
                 classInfo.addStaticFinalFieldConstantInitializerValue(ent.getKey(), ent.getValue());
             }
+        }
+        if (classContainmentEntries != null) {
+            ClassInfo.addClassContainment(classContainmentEntries, scanSpec, classNameToClassInfo);
+        }
+        if (fullyQualifiedContainingMethodName != null) {
+            classInfo.addFullyQualifiedContainingMethodName(fullyQualifiedContainingMethodName);
         }
         if (fieldInfoList != null) {
             classInfo.addFieldInfo(fieldInfoList);

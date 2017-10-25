@@ -273,17 +273,30 @@ class ClassfileBinaryParser implements AutoCloseable {
     /** The indirection index for String/Class entries in the constant pool. */
     private int[] indirectStringRefs;
 
-    /** Get the byte offset within the buffer of a string from the constant pool, or 0 for a null string. */
-    private int getConstantPoolStringOffset(final int CpIdx) {
-        final int t = tag[CpIdx];
-        if (t != 1 && t != 7 && t != 8) {
-            throw new RuntimeException("Wrong tag number at constant pool index " + CpIdx + ", "
-                    + "cannot continue reading class. Please report this at "
-                    + "https://github.com/lukehutch/fast-classpath-scanner/issues");
+    /**
+     * Get the byte offset within the buffer of a string from the constant pool, or 0 for a null string.
+     * 
+     * @param cpIdx
+     *            the constant pool index
+     * @param subFieldIdx
+     *            should be 0 for CONSTANT_Utf8, CONSTANT_Class and CONSTANT_String, and for
+     *            CONSTANT_NameAndType_info, fetches the name for value 0, or the type descriptor for value 1.
+     */
+    private int getConstantPoolStringOffset(final int cpIdx, final int subFieldIdx) {
+        final int t = tag[cpIdx];
+        if ((t != 12 && subFieldIdx != 0) || (t == 12 && subFieldIdx != 0 && subFieldIdx != 1)) {
+            throw new RuntimeException(
+                    "Bad subfield index " + subFieldIdx + " for tag " + t + ", cannot continue reading class. "
+                            + "Please report this at https://github.com/lukehutch/fast-classpath-scanner/issues");
         }
-        int cpIdx = CpIdx;
-        if (t == 7 || t == 8) {
-            final int indirIdx = indirectStringRefs[CpIdx];
+        int cpIdxToUse;
+        if (t == 1) {
+            // CONSTANT_Utf8
+            cpIdxToUse = cpIdx;
+        } else if (t == 7 || t == 8) {
+            // t == 7 => CONSTANT_Class, e.g. "[[I", "[Ljava/lang/Thread;"
+            // t == 8 => CONSTANT_String
+            final int indirIdx = indirectStringRefs[cpIdx];
             if (indirIdx == -1) {
                 // Should not happen
                 throw new RuntimeException("Bad string indirection index, cannot continue reading class. "
@@ -293,27 +306,54 @@ class ClassfileBinaryParser implements AutoCloseable {
                 // I assume this represents a null string, since the zeroeth entry is unused
                 return 0;
             }
-            cpIdx = indirIdx;
+            cpIdxToUse = indirIdx;
+        } else if (t == 12) {
+            // CONSTANT_NameAndType_info
+            final int compoundIndirIdx = indirectStringRefs[cpIdx];
+            final int indirIdx = (subFieldIdx == 0 ? (compoundIndirIdx >> 16) : compoundIndirIdx) & 0xffff;
+            if (indirIdx == 0 || indirIdx == -1) {
+                // Should not happen
+                throw new RuntimeException("Bad string indirection index, cannot continue reading class. "
+                        + "Please report this at https://github.com/lukehutch/fast-classpath-scanner/issues");
+            }
+            cpIdxToUse = indirIdx;
+        } else {
+            throw new RuntimeException("Wrong tag number " + t + " at constant pool index " + cpIdx + ", "
+                    + "cannot continue reading class. Please report this at "
+                    + "https://github.com/lukehutch/fast-classpath-scanner/issues");
         }
-        return offset[cpIdx];
+        return offset[cpIdxToUse];
     }
 
     /** Get a string from the constant pool, optionally replacing '/' with '.'. */
-    private String getConstantPoolString(final int CpIdx, final boolean replaceSlashWithDot) {
-        final int constantPoolStringOffset = getConstantPoolStringOffset(CpIdx);
+    private String getConstantPoolString(final int cpIdx, final boolean replaceSlashWithDot) {
+        final int constantPoolStringOffset = getConstantPoolStringOffset(cpIdx, /* subFieldIdx = */ 0);
         return constantPoolStringOffset == 0 ? null : readString(constantPoolStringOffset, replaceSlashWithDot);
     }
 
-    /** Get a string from the constant pool. */
-    private String getConstantPoolString(final int CpIdx) {
-        final int constantPoolStringOffset = getConstantPoolStringOffset(CpIdx);
+    /**
+     * Get a string from the constant pool.
+     * 
+     * @param cpIdx
+     *            the constant pool index
+     * @param subFieldIdx
+     *            should be 0 for CONSTANT_Utf8, CONSTANT_Class and CONSTANT_String, and for
+     *            CONSTANT_NameAndType_info, fetches the name for value 0, or the type descriptor for value 1.
+     */
+    private String getConstantPoolString(final int cpIdx, final int subFieldIdx) {
+        final int constantPoolStringOffset = getConstantPoolStringOffset(cpIdx, subFieldIdx);
         return constantPoolStringOffset == 0 ? null
                 : readString(constantPoolStringOffset, /* replaceSlashWithDot = */ false);
     }
 
+    /** Get a string from the constant pool. */
+    private String getConstantPoolString(final int cpIdx) {
+        return getConstantPoolString(cpIdx, /* subFieldIdx = */ 0);
+    }
+
     /** Get the first UTF8 byte of a string in the constant pool, or '\0' if the string is null or empty. */
-    private byte getConstantPoolStringFirstByte(final int CpIdx) {
-        final int constantPoolStringOffset = getConstantPoolStringOffset(CpIdx);
+    private byte getConstantPoolStringFirstByte(final int cpIdx) {
+        final int constantPoolStringOffset = getConstantPoolStringOffset(cpIdx, /* subFieldIdx = */ 0);
         if (constantPoolStringOffset == 0) {
             return '\0';
         }
@@ -330,8 +370,8 @@ class ClassfileBinaryParser implements AutoCloseable {
     }
 
     /** Compare a string in the constant pool with a given constant, without constructing the String object. */
-    private boolean constantPoolStringEquals(final int CpIdx, final String otherString) {
-        final int strOffset = getConstantPoolStringOffset(CpIdx);
+    private boolean constantPoolStringEquals(final int cpIdx, final String otherString) {
+        final int strOffset = getConstantPoolStringOffset(cpIdx, /* subFieldIdx = */ 0);
         if (strOffset == 0) {
             return otherString == null;
         }
@@ -350,25 +390,25 @@ class ClassfileBinaryParser implements AutoCloseable {
     }
 
     /** Get a constant from the constant pool. */
-    private Object getConstantPoolValue(final int CpIdx) throws IOException {
-        switch (tag[CpIdx]) {
+    private Object getConstantPoolValue(final int cpIdx) throws IOException {
+        switch (tag[cpIdx]) {
         case 1: // Modified UTF8
-            return getConstantPoolString(CpIdx);
+            return getConstantPoolString(cpIdx, /* subFieldIdx = */ 0);
         case 3: // int, short, char, byte, boolean are all represented by Constant_INTEGER
-            return new Integer(readInt(offset[CpIdx]));
+            return new Integer(readInt(offset[cpIdx]));
         case 4: // float
-            return new Float(Float.intBitsToFloat(readInt(offset[CpIdx])));
+            return new Float(Float.intBitsToFloat(readInt(offset[cpIdx])));
         case 5: // long
-            return new Long(readLong(offset[CpIdx]));
+            return new Long(readLong(offset[cpIdx]));
         case 6: // double
-            return new Double(Double.longBitsToDouble(readLong(offset[CpIdx])));
+            return new Double(Double.longBitsToDouble(readLong(offset[cpIdx])));
         case 7: // Class
         case 8: // String
             // Forward or backward indirect reference to a modified UTF8 entry
-            return getConstantPoolString(CpIdx);
+            return getConstantPoolString(cpIdx, /* subFieldIdx = */ 0);
         default:
             // FastClasspathScanner doesn't currently do anything with the other types
-            throw new RuntimeException("Constant pool entry type " + tag[CpIdx] + " unsupported, "
+            throw new RuntimeException("Constant pool entry type " + tag[cpIdx] + " unsupported, "
                     + "cannot continue reading class. Please report this at "
                     + "https://github.com/lukehutch/fast-classpath-scanner/issues");
         }
@@ -553,8 +593,12 @@ class ClassfileBinaryParser implements AutoCloseable {
             case 9: // field ref
             case 10: // method ref
             case 11: // interface ref
-            case 12: // name and type
                 skip(4);
+                break;
+            case 12: // name and type
+                final int nameRef = readUnsignedShort();
+                final int typeRef = readUnsignedShort();
+                indirectStringRefs[i] = (nameRef << 16) | typeRef;
                 break;
             case 15: // method handle
                 skip(3);
@@ -586,7 +630,7 @@ class ClassfileBinaryParser implements AutoCloseable {
         final boolean isAnnotation = (classModifierFlags & 0x2000) != 0;
         final boolean isModule = (classModifierFlags & 0x8000) != 0;
 
-        // don't process module-info class files
+        // TODO: not yet processing module-info class files
         if (isModule) {
             return null;
         }
@@ -895,6 +939,35 @@ class ClassfileBinaryParser implements AutoCloseable {
                     final String annotationName = readAnnotation();
                     classInfoUnlinked.addAnnotation(annotationName);
                 }
+            } else if (constantPoolStringEquals(attributeNameCpIdx, "InnerClasses")) {
+                final int numInnerClasses = readUnsignedShort();
+                for (int j = 0; j < numInnerClasses; j++) {
+                    final int innerClassInfoCpIdx = readUnsignedShort();
+                    final int outerClassInfoCpIdx = readUnsignedShort();
+                    if (innerClassInfoCpIdx != 0 && outerClassInfoCpIdx != 0) {
+                        classInfoUnlinked.addClassContainment(getConstantPoolClassName(innerClassInfoCpIdx),
+                                getConstantPoolClassName(outerClassInfoCpIdx));
+                    }
+                    skip(2); // inner_name_idx
+                    skip(2); // inner_class_access_flags
+                }
+            } else if (constantPoolStringEquals(attributeNameCpIdx, "EnclosingMethod")) {
+                final String innermostEnclosingClassName = getConstantPoolClassName(readUnsignedShort());
+                final int enclosingMethodCpIdx = readUnsignedShort();
+                String enclosingMethodName;
+                if (enclosingMethodCpIdx == 0) {
+                    // A cpIdx of 0 (which is an invalid value) is used for anonymous inner classes declared
+                    // in class initializer code, e.g. assigned to a class field.
+                    enclosingMethodName = "<clinit>";
+                } else {
+                    enclosingMethodName = getConstantPoolString(enclosingMethodCpIdx, /* subFieldIdx = */ 0);
+                    // Could also fetch field type signature with subFieldIdx = 1, if needed
+                }
+                // Link anonymous inner classes into the class with their containing method
+                classInfoUnlinked.addClassContainment(className, innermostEnclosingClassName);
+                // Also store the fully-qualified name of the enclosing method, to mark this as an anonymous
+                // inner class
+                classInfoUnlinked.addEnclosingMethod(innermostEnclosingClassName + "." + enclosingMethodName);
             } else {
                 skip(attributeLength);
             }
