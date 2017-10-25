@@ -46,6 +46,7 @@ import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
  */
 class ClassInfoUnlinked {
     String className;
+    private final int classModifiers;
     private final boolean isInterface;
     private final boolean isAnnotation;
     // Superclass (can be null if no superclass, or if superclass is blacklisted)
@@ -69,10 +70,12 @@ class ClassInfoUnlinked {
         return oldValue == null ? string : oldValue;
     }
 
-    ClassInfoUnlinked(final String className, final boolean isInterface, final boolean isAnnotation,
-            final ConcurrentHashMap<String, String> stringInternMap, final ClasspathElement classpathElement) {
+    ClassInfoUnlinked(final String className, final int classModifiers, final boolean isInterface,
+            final boolean isAnnotation, final ConcurrentHashMap<String, String> stringInternMap,
+            final ClasspathElement classpathElement) {
         this.stringInternMap = stringInternMap;
         this.className = intern(className);
+        this.classModifiers = classModifiers;
         this.isInterface = isInterface;
         this.isAnnotation = isAnnotation;
         this.classpathElement = classpathElement;
@@ -140,8 +143,8 @@ class ClassInfoUnlinked {
 
     /** Link classes. Not threadsafe, should be run in a single-threaded context. */
     void link(final ScanSpec scanSpec, final Map<String, ClassInfo> classNameToClassInfo, final LogNode log) {
-        final ClassInfo classInfo = ClassInfo.addScannedClass(className, isInterface, isAnnotation, scanSpec,
-                classNameToClassInfo, classpathElement, log);
+        final ClassInfo classInfo = ClassInfo.addScannedClass(className, classModifiers, isInterface, isAnnotation,
+                scanSpec, classNameToClassInfo, classpathElement, log);
         if (superclassName != null) {
             classInfo.addSuperclass(superclassName, classNameToClassInfo);
         }

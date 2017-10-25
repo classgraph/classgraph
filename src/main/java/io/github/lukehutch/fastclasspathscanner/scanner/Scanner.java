@@ -414,9 +414,10 @@ public class Scanner implements Callable<ScanResult> {
                                 return new ClassfileBinaryParser();
                             }
                         }) {
-                    List<ClassfileParserChunk> classfileParserChunks = getClassfileParserChunks(classpathOrder);
-                    WorkQueue.runWorkQueue(classfileParserChunks, executorService,
-                            numParallelTasks, new WorkUnitProcessor<ClassfileParserChunk>() {
+                    final List<ClassfileParserChunk> classfileParserChunks = getClassfileParserChunks(
+                            classpathOrder);
+                    WorkQueue.runWorkQueue(classfileParserChunks, executorService, numParallelTasks,
+                            new WorkUnitProcessor<ClassfileParserChunk>() {
                                 @Override
                                 public void processWorkUnit(final ClassfileParserChunk chunk) throws Exception {
                                     ClassfileBinaryParser classfileBinaryParser = null;

@@ -619,8 +619,10 @@ class ClassfileBinaryParser implements AutoCloseable {
         // Superclass name, with slashes replaced with dots
         final String superclassName = getConstantPoolClassName(readUnsignedShort());
 
-        final ClassInfoUnlinked classInfoUnlinked = new ClassInfoUnlinked(className, isInterface, isAnnotation,
-                stringInternMap, classpathElement);
+        // Create holder object for the class information. This is "unlinked", in the sense that it is
+        // not linked to other class info references at this point.
+        final ClassInfoUnlinked classInfoUnlinked = new ClassInfoUnlinked(className, classModifierFlags,
+                isInterface, isAnnotation, stringInternMap, classpathElement);
 
         // Connect class to superclass
         classInfoUnlinked.addSuperclass(superclassName);

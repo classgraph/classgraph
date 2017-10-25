@@ -28,6 +28,7 @@
  */
 package io.github.lukehutch.fastclasspathscanner.scanner;
 
+import java.lang.reflect.Modifier;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -48,6 +49,9 @@ import io.github.lukehutch.fastclasspathscanner.utils.MultiMapKeyToList;
 public class ClassInfo implements Comparable<ClassInfo> {
     /** Name of the class/interface/annotation. */
     private final String className;
+
+    /** Class modifier flags, e.g. Modifier.PUBLIC */
+    private int classModifiers;
 
     /** True if the classfile indicated this is an interface. */
     private boolean isInterface;
@@ -107,6 +111,11 @@ public class ClassInfo implements Comparable<ClassInfo> {
     /** Get the name of this class. */
     public String getClassName() {
         return className;
+    }
+
+    /** Get the class modifier flags, e.g. Modifier.PUBLIC */
+    public int getClassModifiers() {
+        return classModifiers;
     }
 
     /**
@@ -179,7 +188,17 @@ public class ClassInfo implements Comparable<ClassInfo> {
 
     @Override
     public String toString() {
-        return className;
+        return ((classModifiers & Modifier.PUBLIC) != 0 ? "public " : "") //
+                + ((classModifiers & Modifier.PROTECTED) != 0 ? "protected " : "") //
+                + ((classModifiers & Modifier.PRIVATE) != 0 ? "private " : "") //
+                + ((classModifiers & 0x1000) != 0 ? "synthetic " : "") //
+                + ((classModifiers & Modifier.ABSTRACT) != 0 ? "abstract " : "") //
+                + ((classModifiers & Modifier.STATIC) != 0 ? "static " : "") //
+                + ((classModifiers & Modifier.FINAL) != 0 ? "final " : "") //
+                + ((classModifiers & Modifier.STRICT) != 0 ? "strict " : "") //
+                + (isAnnotation ? "@interface " : isInterface ? "interface " : //
+                        (classModifiers & 0x4000) != 0 ? "enum " : "class ") // 
+                + className;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -252,8 +271,9 @@ public class ClassInfo implements Comparable<ClassInfo> {
      */
     private Map<String, Object> staticFinalFieldNameToConstantInitializerValue;
 
-    private ClassInfo(final String className, final ScanSpec scanSpec) {
+    private ClassInfo(final String className, final int classModifiers, final ScanSpec scanSpec) {
         this.className = className;
+        this.classModifiers = classModifiers;
         this.scanSpec = scanSpec;
     }
 
@@ -423,11 +443,11 @@ public class ClassInfo implements Comparable<ClassInfo> {
      * Get a ClassInfo object, or create it if it doesn't exist. N.B. not threadsafe, so ClassInfo objects should
      * only ever be constructed by a single thread.
      */
-    private static ClassInfo getOrCreateClassInfo(final String className, final ScanSpec scanSpec,
-            final Map<String, ClassInfo> classNameToClassInfo) {
+    private static ClassInfo getOrCreateClassInfo(final String className, final int classModifiers,
+            final ScanSpec scanSpec, final Map<String, ClassInfo> classNameToClassInfo) {
         ClassInfo classInfo = classNameToClassInfo.get(className);
         if (classInfo == null) {
-            classNameToClassInfo.put(className, classInfo = new ClassInfo(className, scanSpec));
+            classNameToClassInfo.put(className, classInfo = new ClassInfo(className, classModifiers, scanSpec));
         }
         return classInfo;
     }
@@ -435,8 +455,8 @@ public class ClassInfo implements Comparable<ClassInfo> {
     /** Add a superclass to this class. */
     void addSuperclass(final String superclassName, final Map<String, ClassInfo> classNameToClassInfo) {
         if (superclassName != null) {
-            final ClassInfo superclassClassInfo = getOrCreateClassInfo(scalaBaseClassName(superclassName), scanSpec,
-                    classNameToClassInfo);
+            final ClassInfo superclassClassInfo = getOrCreateClassInfo(scalaBaseClassName(superclassName),
+                    /* classModifiers = */ 0, scanSpec, classNameToClassInfo);
             this.addRelatedClass(RelType.SUPERCLASSES, superclassClassInfo);
             superclassClassInfo.addRelatedClass(RelType.SUBCLASSES, this);
         }
@@ -444,8 +464,8 @@ public class ClassInfo implements Comparable<ClassInfo> {
 
     /** Add an annotation to this class. */
     void addAnnotation(final String annotationName, final Map<String, ClassInfo> classNameToClassInfo) {
-        final ClassInfo annotationClassInfo = getOrCreateClassInfo(scalaBaseClassName(annotationName), scanSpec,
-                classNameToClassInfo);
+        final ClassInfo annotationClassInfo = getOrCreateClassInfo(scalaBaseClassName(annotationName),
+                /* classModifiers = */ 0x2000, scanSpec, classNameToClassInfo);
         annotationClassInfo.isAnnotation = true;
         this.addRelatedClass(RelType.ANNOTATIONS, annotationClassInfo);
         annotationClassInfo.addRelatedClass(RelType.ANNOTATED_CLASSES, this);
@@ -453,8 +473,8 @@ public class ClassInfo implements Comparable<ClassInfo> {
 
     /** Add a method annotation to this class. */
     void addMethodAnnotation(final String annotationName, final Map<String, ClassInfo> classNameToClassInfo) {
-        final ClassInfo annotationClassInfo = getOrCreateClassInfo(scalaBaseClassName(annotationName), scanSpec,
-                classNameToClassInfo);
+        final ClassInfo annotationClassInfo = getOrCreateClassInfo(scalaBaseClassName(annotationName),
+                /* classModifiers = */ 0x2000, scanSpec, classNameToClassInfo);
         annotationClassInfo.isAnnotation = true;
         this.addRelatedClass(RelType.METHOD_ANNOTATIONS, annotationClassInfo);
         annotationClassInfo.addRelatedClass(RelType.CLASSES_WITH_METHOD_ANNOTATION, this);
@@ -462,8 +482,8 @@ public class ClassInfo implements Comparable<ClassInfo> {
 
     /** Add a field annotation to this class. */
     void addFieldAnnotation(final String annotationName, final Map<String, ClassInfo> classNameToClassInfo) {
-        final ClassInfo annotationClassInfo = getOrCreateClassInfo(scalaBaseClassName(annotationName), scanSpec,
-                classNameToClassInfo);
+        final ClassInfo annotationClassInfo = getOrCreateClassInfo(scalaBaseClassName(annotationName),
+                /* classModifiers = */ 0x2000, scanSpec, classNameToClassInfo);
         annotationClassInfo.isAnnotation = true;
         this.addRelatedClass(RelType.FIELD_ANNOTATIONS, annotationClassInfo);
         annotationClassInfo.addRelatedClass(RelType.CLASSES_WITH_FIELD_ANNOTATION, this);
@@ -471,8 +491,8 @@ public class ClassInfo implements Comparable<ClassInfo> {
 
     /** Add an implemented interface to this class. */
     void addImplementedInterface(final String interfaceName, final Map<String, ClassInfo> classNameToClassInfo) {
-        final ClassInfo interfaceClassInfo = getOrCreateClassInfo(scalaBaseClassName(interfaceName), scanSpec,
-                classNameToClassInfo);
+        final ClassInfo interfaceClassInfo = getOrCreateClassInfo(scalaBaseClassName(interfaceName),
+                /* classModifiers = */ Modifier.INTERFACE, scanSpec, classNameToClassInfo);
         interfaceClassInfo.isInterface = true;
         this.addRelatedClass(RelType.IMPLEMENTED_INTERFACES, interfaceClassInfo);
         interfaceClassInfo.addRelatedClass(RelType.CLASSES_IMPLEMENTING, this);
@@ -481,8 +501,8 @@ public class ClassInfo implements Comparable<ClassInfo> {
     /** Add a field type. */
     void addFieldType(final String fieldTypeName, final Map<String, ClassInfo> classNameToClassInfo) {
         final String fieldTypeBaseName = scalaBaseClassName(fieldTypeName);
-        final ClassInfo fieldTypeClassInfo = getOrCreateClassInfo(fieldTypeBaseName, scanSpec,
-                classNameToClassInfo);
+        final ClassInfo fieldTypeClassInfo = getOrCreateClassInfo(fieldTypeBaseName, /* classModifiers = */ 0,
+                scanSpec, classNameToClassInfo);
         this.addRelatedClass(RelType.FIELD_TYPES, fieldTypeClassInfo);
     }
 
@@ -514,8 +534,8 @@ public class ClassInfo implements Comparable<ClassInfo> {
      * Add a class that has just been scanned (as opposed to just referenced by a scanned class). Not threadsafe,
      * should be run in single threaded context.
      */
-    static ClassInfo addScannedClass(final String className, final boolean isInterface, final boolean isAnnotation,
-            final ScanSpec scanSpec, final Map<String, ClassInfo> classNameToClassInfo,
+    static ClassInfo addScannedClass(final String className, final int classModifiers, final boolean isInterface,
+            final boolean isAnnotation, final ScanSpec scanSpec, final Map<String, ClassInfo> classNameToClassInfo,
             final ClasspathElement classpathElement, final LogNode log) {
         // Handle Scala auxiliary classes (companion objects ending in "$" and trait methods classes
         // ending in "$class")
@@ -540,9 +560,12 @@ public class ClassInfo implements Comparable<ClassInfo> {
                             + className + " (merging info from all copies of the classfile)");
                 }
             }
+            // Merge modifiers
+            classInfo.classModifiers |= classModifiers;
         } else {
             // This is the first time this class has been seen, add it
-            classNameToClassInfo.put(classBaseName, classInfo = new ClassInfo(classBaseName, scanSpec));
+            classNameToClassInfo.put(classBaseName,
+                    classInfo = new ClassInfo(classBaseName, classModifiers, scanSpec));
         }
 
         // Remember which classpath element(s) the class was found in, for classloading
