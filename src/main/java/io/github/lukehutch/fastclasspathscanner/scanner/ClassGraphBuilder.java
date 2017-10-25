@@ -35,6 +35,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import io.github.lukehutch.fastclasspathscanner.scanner.ClassInfo.ClassType;
+
 /** Builds the class graph, and provides methods for querying it. */
 class ClassGraphBuilder {
     final Map<String, ClassInfo> classNameToClassInfo;
@@ -210,6 +212,17 @@ class ClassGraphBuilder {
 
     // -------------------------------------------------------------------------------------------------------------
     // Class graph visualization
+    /**
+     * Splits a .dot node label into two text lines, putting the package on one line and the class name on the next.
+     */
+    private static String label(final ClassInfo node) {
+        final String className = node.getClassName();
+        final int dotIdx = className.lastIndexOf('.');
+        if (dotIdx < 0) {
+            return className;
+        }
+        return className.substring(0, dotIdx + 1) + "\\n" + className.substring(dotIdx + 1);
+    }
 
     /**
      * Generates a .dot file which can be fed into GraphViz for layout and visualization of the class graph. The
@@ -217,6 +230,90 @@ class ClassGraphBuilder {
      * .dot file.
      */
     String generateClassGraphDotFile(final float sizeX, final float sizeY) {
-        return ClassInfo.generateClassGraphDotFile(scanSpec, allClassInfo, sizeX, sizeY);
+        final StringBuilder buf = new StringBuilder();
+        buf.append("digraph {\n");
+        buf.append("size=\"" + sizeX + "," + sizeY + "\";\n");
+        buf.append("layout=dot;\n");
+        buf.append("rankdir=\"BT\";\n");
+        buf.append("overlap=false;\n");
+        buf.append("splines=true;\n");
+        buf.append("pack=true;\n");
+
+        final Set<ClassInfo> standardClassNodes = ClassInfo.filterClassInfo(allClassInfo,
+                /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.STANDARD_CLASS);
+        final Set<ClassInfo> interfaceNodes = ClassInfo.filterClassInfo(allClassInfo,
+                /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.IMPLEMENTED_INTERFACE);
+        final Set<ClassInfo> annotationNodes = ClassInfo.filterClassInfo(allClassInfo,
+                /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.ANNOTATION);
+
+        buf.append("\nnode[shape=box,style=filled,fillcolor=\"#fff2b6\"];\n");
+        for (final ClassInfo node : standardClassNodes) {
+            if (!node.getClassName().equals("java.lang.Object")) {
+                buf.append("  \"" + label(node) + "\"\n");
+            }
+        }
+
+        buf.append("\nnode[shape=diamond,style=filled,fillcolor=\"#b6e7ff\"];\n");
+        for (final ClassInfo node : interfaceNodes) {
+            buf.append("  \"" + label(node) + "\"\n");
+        }
+
+        buf.append("\nnode[shape=oval,style=filled,fillcolor=\"#f3c9ff\"];\n");
+        for (final ClassInfo node : annotationNodes) {
+            buf.append("  \"" + label(node) + "\"\n");
+        }
+
+        buf.append("\n");
+        for (final ClassInfo classNode : standardClassNodes) {
+            final ClassInfo directSuperclassNode = classNode.getDirectSuperclass();
+            if (directSuperclassNode != null) {
+                // class --> superclass
+                if (!directSuperclassNode.getClassName().equals("java.lang.Object")) {
+                    buf.append("  \"" + label(classNode) + "\" -> \"" + label(directSuperclassNode) + "\"\n");
+                }
+            }
+            for (final ClassInfo implementedInterfaceNode : classNode.getDirectlyImplementedInterfaces()) {
+                // class --<> implemented interface
+                buf.append("  \"" + label(classNode) + "\" -> \"" + label(implementedInterfaceNode)
+                        + "\" [arrowhead=diamond]\n");
+            }
+            for (final ClassInfo fieldTypeNode : classNode.getFieldTypes()) {
+                // class --[] whitelisted field type
+                buf.append("  \"" + label(fieldTypeNode) + "\" -> \"" + label(classNode)
+                        + "\" [arrowtail=obox, dir=back]\n");
+            }
+        }
+        for (final ClassInfo interfaceNode : interfaceNodes) {
+            for (final ClassInfo superinterfaceNode : interfaceNode.getDirectSuperinterfaces()) {
+                // interface --<> superinterface
+                buf.append("  \"" + label(interfaceNode) + "\" -> \"" + label(superinterfaceNode)
+                        + "\" [arrowhead=diamond]\n");
+            }
+        }
+        for (final ClassInfo annotationNode : annotationNodes) {
+            for (final ClassInfo annotatedClassNode : annotationNode.getClassesWithDirectAnnotation()) {
+                // annotated class --o annotation
+                buf.append("  \"" + label(annotatedClassNode) + "\" -> \"" + label(annotationNode)
+                        + "\" [arrowhead=dot]\n");
+            }
+            for (final ClassInfo annotatedClassNode : annotationNode.getAnnotationsWithDirectMetaAnnotation()) {
+                // annotation --o meta-annotation
+                buf.append("  \"" + label(annotatedClassNode) + "\" -> \"" + label(annotationNode)
+                        + "\" [arrowhead=dot]\n");
+            }
+            for (final ClassInfo classWithMethodAnnotationNode : annotationNode
+                    .getClassesWithDirectMethodAnnotation()) {
+                // class with method annotation --o method annotation
+                buf.append("  \"" + label(classWithMethodAnnotationNode) + "\" -> \"" + label(annotationNode)
+                        + "\" [arrowhead=odot]\n");
+            }
+            for (final ClassInfo classWithMethodAnnotationNode : annotationNode.getClassesWithFieldAnnotation()) {
+                // class with field annotation --o method annotation
+                buf.append("  \"" + label(classWithMethodAnnotationNode) + "\" -> \"" + label(annotationNode)
+                        + "\" [arrowhead=odot]\n");
+            }
+        }
+        buf.append("}");
+        return buf.toString();
     }
 }
