@@ -30,6 +30,7 @@ package io.github.lukehutch.fastclasspathscanner.classloaderhandler;
 
 import java.io.File;
 import java.lang.reflect.Array;
+import java.nio.file.Path;
 import java.util.Map;
 
 import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
@@ -92,8 +93,13 @@ public class JBossClassLoaderHandler implements ClassLoaderHandler {
                             // Fallback
                             path = (String) ReflectionUtils.invokeMethod(root, "getPathName");
                             if (path == null) {
-                                // Try File:
-                                Object file = root;
+                                // Try Path or File:
+                                Object file;
+                                if (root instanceof Path) {
+                                    file = ((Path) root).toFile();
+                                } else {
+                                    file = root;
+                                }
                                 if (file == null) {
                                     // Try JarFileResource:
                                     file = ReflectionUtils.getFieldVal(resourceLoader, "fileOfJar");
