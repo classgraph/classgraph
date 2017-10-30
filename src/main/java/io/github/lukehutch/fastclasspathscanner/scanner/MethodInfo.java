@@ -48,6 +48,7 @@ public class MethodInfo implements Comparable<MethodInfo> {
     private List<String> typeStrs;
     private final String[] parameterNames;
     private final int[] parameterAccessFlags;
+    private final String[][] parameterAnnotations;
     private final List<String> annotationNames;
 
     /**
@@ -58,13 +59,14 @@ public class MethodInfo implements Comparable<MethodInfo> {
 
     public MethodInfo(final String className, final String methodName, final int modifiers,
             final String typeDescriptor, final String[] parameterNames, final int[] parameterAccessFlags,
-            final List<String> annotationNames) {
+            final List<String> annotationNames, final String[][] parameterAnnotations) {
         this.className = className;
         this.methodName = methodName;
         this.modifiers = modifiers;
         this.typeDescriptor = typeDescriptor;
         this.parameterNames = parameterNames;
         this.parameterAccessFlags = parameterAccessFlags;
+        this.parameterAnnotations = parameterAnnotations;
         this.annotationNames = annotationNames.isEmpty() ? Collections.<String> emptyList() : annotationNames;
     }
 
@@ -249,6 +251,14 @@ public class MethodInfo implements Comparable<MethodInfo> {
         return flags;
     }
 
+    /**
+     * Returns the parameter annotations, if any parameters have annotations, else returns null. If non-null, there
+     * is one list entry per parameter, containing an array of method parameter annotations.
+     */
+    public List<String[]> getParameterAnnotations() {
+        return parameterAnnotations == null ? null : Arrays.asList(parameterAnnotations);
+    }
+
     /** Returns the names of annotations on the method, or the empty list if none. */
     public List<String> getAnnotationNames() {
         return annotationNames;
@@ -349,14 +359,21 @@ public class MethodInfo implements Comparable<MethodInfo> {
 
         buf.append('(');
         final List<String> paramTypes = getParameterTypeStrs();
-        if (parameterNames != null && paramTypes.size() != parameterNames.length) {
+        if (parameterNames != null && paramTypes.size() != parameterNames.length
+                || parameterAccessFlags != null && paramTypes.size() != parameterAccessFlags.length
+                || parameterAnnotations != null && paramTypes.size() != parameterAnnotations.length) {
             // Should not happen
-            throw new RuntimeException("paramTypes.size() != parameterNames.length");
+            throw new RuntimeException("parameter number mismatch");
         }
         final boolean isVarargs = isVarArgs();
         for (int i = 0; i < paramTypes.size(); i++) {
             if (i > 0) {
                 buf.append(", ");
+            }
+            if (parameterAnnotations != null) {
+                for (final String annotation : parameterAnnotations[i]) {
+                    buf.append("@" + annotation + " ");
+                }
             }
             if (parameterAccessFlags != null) {
                 final int flag = parameterAccessFlags[i];

@@ -873,6 +873,7 @@ class ClassfileBinaryParser implements AutoCloseable {
             final boolean methodIsVisible = isPublicMethod || scanSpec.ignoreMethodVisibility;
             String[] methodParameterNames = null;
             int[] methodParameterAccessFlags = null;
+            String[][] methodParameterAnnotations = null;
             List<String> methodAnnotationNames = null;
             if (scanSpec.enableMethodInfo && methodIsVisible) {
                 methodAnnotationNames = new ArrayList<>(1);
@@ -902,6 +903,18 @@ class ClassfileBinaryParser implements AutoCloseable {
                                 methodAnnotationNames.add(annotationName);
                             }
                         }
+                    } else if (constantPoolStringEquals(attributeNameCpIdx, "RuntimeVisibleParameterAnnotations")
+                            || (scanSpec.annotationVisibility == RetentionPolicy.CLASS && constantPoolStringEquals(
+                                    attributeNameCpIdx, "RuntimeInvisibleParameterAnnotations"))) {
+                        final int paramCount = readUnsignedByte();
+                        methodParameterAnnotations = new String[paramCount][];
+                        for (int k = 0; k < paramCount; k++) {
+                            final int numAnnotations = readUnsignedShort();
+                            methodParameterAnnotations[k] = new String[numAnnotations];
+                            for (int l = 0; l < numAnnotations; l++) {
+                                methodParameterAnnotations[k][l] = readAnnotation();
+                            }
+                        }
                     } else if (constantPoolStringEquals(attributeNameCpIdx, "MethodParameters")) {
                         // Read method parameters. For Java, these are only produced in JDK8+, and only if
                         // the commandline switch `-parameters` is provided at compiletime.
@@ -920,9 +933,9 @@ class ClassfileBinaryParser implements AutoCloseable {
                 }
             }
             if (scanSpec.enableMethodInfo && methodIsVisible) {
-                classInfoUnlinked.addMethodInfo(
-                        new MethodInfo(className, methodName, methodModifierFlags, methodTypeDescriptor,
-                                methodParameterNames, methodParameterAccessFlags, methodAnnotationNames));
+                classInfoUnlinked.addMethodInfo(new MethodInfo(className, methodName, methodModifierFlags,
+                        methodTypeDescriptor, methodParameterNames, methodParameterAccessFlags,
+                        methodAnnotationNames, methodParameterAnnotations));
             }
         }
 
