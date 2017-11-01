@@ -321,6 +321,8 @@ public class ReflectionUtils {
             return true;
         case 'V':
             buf.append("void");
+            str.next();
+            return true;
         default:
             return false;
         }
