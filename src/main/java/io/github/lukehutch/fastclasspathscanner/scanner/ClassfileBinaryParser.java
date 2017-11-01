@@ -795,13 +795,17 @@ class ClassfileBinaryParser implements AutoCloseable {
                             classInfoUnlinked.addFieldConstantValue(fieldName, fieldConstValue);
                         }
                         foundFieldConstValue = true;
-                    } else if (scanSpec.enableFieldTypeIndexing && fieldIsVisible
+                    } else if ((scanSpec.enableFieldTypeIndexing || scanSpec.enableFieldInfo) && fieldIsVisible
                             && constantPoolStringEquals(attributeNameCpIdx, "Signature")) {
-                        // Check if the type signature of this field falls within a non-blacklisted
-                        // package, and if so, record the field type. The type signature contains
-                        // type parameters, whereas the type descriptor does not.
                         final String fieldTypeSignature = getConstantPoolString(readUnsignedShort());
-                        addFieldTypeDescriptorParts(classInfoUnlinked, fieldTypeSignature);
+                        fieldTypeDescriptor = fieldTypeSignature;
+                        if (scanSpec.enableFieldTypeIndexing) {
+                            // Check if the type signature of this field falls within a non-blacklisted
+                            // package, and if so, record the field type. The type signature contains
+                            // type parameters, whereas the type descriptor does not.
+                            addFieldTypeDescriptorParts(classInfoUnlinked, fieldTypeSignature);
+                            // Add type params to field type signature
+                        }
                     } else if ((scanSpec.enableFieldInfo || scanSpec.enableFieldAnnotationIndexing)
                             && (constantPoolStringEquals(attributeNameCpIdx, "RuntimeVisibleAnnotations")
                                     || (scanSpec.annotationVisibility == RetentionPolicy.CLASS
@@ -927,6 +931,10 @@ class ClassfileBinaryParser implements AutoCloseable {
                             methodParameterNames[k] = cpIdx == 0 ? null : getConstantPoolString(cpIdx);
                             methodParameterAccessFlags[k] = readUnsignedShort();
                         }
+                    } else if (constantPoolStringEquals(attributeNameCpIdx, "Signature")) {
+                        // Add type params to method type signature
+                        final String methodTypeSignature = getConstantPoolString(readUnsignedShort());
+                        methodTypeDescriptor = methodTypeSignature;
                     } else {
                         skip(attributeLength);
                     }

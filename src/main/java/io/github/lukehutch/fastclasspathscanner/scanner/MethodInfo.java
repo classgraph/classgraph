@@ -102,15 +102,14 @@ public class MethodInfo implements Comparable<MethodInfo> {
     }
 
     private List<String> getTypeStrs() {
-        if (typeStrs != null) {
-            return typeStrs;
-        } else {
-            final List<String> typeStrsList = ReflectionUtils.parseTypeDescriptor(typeDescriptor);
-            if (typeStrsList.size() < 1) {
+        if (typeStrs == null) {
+            typeStrs = ReflectionUtils.parseTypeDescriptor(typeDescriptor);
+            if (typeStrs.size() < 1) {
                 throw new IllegalArgumentException("Invalid type descriptor for method: " + typeDescriptor);
             }
-            return typeStrsList;
+            return typeStrs;
         }
+        return typeStrs;
     }
 
     /** Returns the internal type descriptor for the method, e.g. "Ljava/lang/String;V" */

@@ -142,7 +142,8 @@ public class FieldInfo implements Comparable<FieldInfo> {
      *             if the field type could not be loaded.
      */
     public Class<?> getType() throws IllegalArgumentException {
-        return ReflectionUtils.typeStrToClass(getTypeStr(), scanResult);
+        final String typeStr = getTypeStr();
+        return ReflectionUtils.typeStrToClass(typeStr, scanResult);
     }
 
     /** Returns the constant final initializer value of the field, or null if none. */

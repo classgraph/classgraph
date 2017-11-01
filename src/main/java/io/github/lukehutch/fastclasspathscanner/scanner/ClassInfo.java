@@ -1623,8 +1623,8 @@ public class ClassInfo implements Comparable<ClassInfo> {
     }
 
     /**
-     * Returns information on a given visible method of the class. Constructors have the method name of
-     * {@code "<init>"}.
+     * Returns information on the method(s) of the class with the given method name. Constructors have the method
+     * name of {@code "<init>"}.
      * 
      * <p>
      * Requires that FastClasspathScanner#enableMethodInfo() be called before scanning, otherwise throws
@@ -1634,10 +1634,13 @@ public class ClassInfo implements Comparable<ClassInfo> {
      * By default only returns information for public methods, unless FastClasspathScanner#ignoreMethodVisibility()
      * was called before the scan.
      * 
+     * <p>
+     * May return info for multiple methods with the same name (with different type signatures).
+     * 
      * @param methodName
      *            The method name to query.
-     * @return a list of MethodInfo objects for the named method, or the empty list if the method was not found in
-     *         this class (or is not visible).
+     * @return a list of MethodInfo objects for the method(s) with the given name, or the empty list if the method
+     *         was not found in this class (or is not visible).
      * @throws IllegalArgumentException
      *             if FastClasspathScanner#enableMethodInfo() was not called prior to initiating the scan.
      */

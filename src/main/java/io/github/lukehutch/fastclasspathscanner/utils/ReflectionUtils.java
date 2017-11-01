@@ -214,93 +214,246 @@ public class ReflectionUtils {
         return buf.toString();
     }
 
+    // -------------------------------------------------------------------------------------------------------------
+
+    private static class ParseException extends Exception {
+    }
+
+    private static class StringAndPosition {
+        String string;
+        int position;
+
+        public StringAndPosition(final String string) {
+            this.string = string;
+        }
+
+        public char getc() {
+            if (position >= string.length()) {
+                return '\0';
+            }
+            return string.charAt(position++);
+        }
+
+        public char peek() {
+            return string.charAt(position);
+        }
+
+        public boolean peekMatches(final String strMatch) {
+            return string.regionMatches(position, strMatch, 0, strMatch.length());
+        }
+
+        public void next() {
+            position++;
+        }
+
+        public void advance(final int n) {
+            position += n;
+        }
+
+        @Override
+        public String toString() {
+            return string + " (position: " + position + ")";
+        }
+
+        public boolean hasMore() {
+            return position < string.length();
+        }
+
+        public void expect(final char c) {
+            final int next = getc();
+            if (next != c) {
+                throw new IllegalArgumentException(
+                        "Got character '" + (char) next + "', expected '" + c + "' in string: " + this);
+            }
+        }
+    }
+
+    private static boolean parseIdentifier(final StringAndPosition str, final char separator,
+            final char separatorReplace, final StringBuilder buf) throws ParseException {
+        boolean consumedChar = false;
+        while (str.hasMore()) {
+            final char c = str.peek();
+            if (c == separator) {
+                buf.append(separatorReplace);
+                str.next();
+                consumedChar = true;
+            } else if (c != ';' && c != '[' && c != '<' && c != '>' && c != ':' && c != '/' && c != '.') {
+                buf.append(c);
+                str.next();
+                consumedChar = true;
+            } else {
+                break;
+            }
+        }
+        return consumedChar;
+    }
+
+    private static boolean parseIdentifier(final StringAndPosition str, final StringBuilder buf)
+            throws ParseException {
+        return parseIdentifier(str, '\0', '\0', buf);
+    }
+
+    private static boolean parseBaseType(final StringAndPosition str, final StringBuilder buf) {
+        switch (str.peek()) {
+        case 'B':
+            buf.append("byte");
+            str.next();
+            return true;
+        case 'C':
+            buf.append("char");
+            str.next();
+            return true;
+        case 'D':
+            buf.append("double");
+            str.next();
+            return true;
+        case 'F':
+            buf.append("float");
+            str.next();
+            return true;
+        case 'I':
+            buf.append("int");
+            str.next();
+            return true;
+        case 'J':
+            buf.append("long");
+            str.next();
+            return true;
+        case 'V':
+            buf.append("void");
+        default:
+            return false;
+        }
+    }
+
+    private static boolean parseJavaTypeSignature(final StringAndPosition str, final StringBuilder buf)
+            throws ParseException {
+        return (parseReferenceTypeSignature(str, buf) || parseBaseType(str, buf));
+    }
+
+    private static boolean parseArrayTypeSignature(final StringAndPosition str, final StringBuilder buf)
+            throws ParseException {
+        int numArrayDims = 0;
+        while (str.peek() == '[') {
+            numArrayDims++;
+            str.next();
+        }
+        if (numArrayDims > 0) {
+            if (!parseJavaTypeSignature(str, buf)) {
+                throw new IllegalArgumentException("Malformatted Java type signature");
+            }
+            for (int i = 0; i < numArrayDims; i++) {
+                buf.append("[]");
+            }
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    private static boolean parseTypeVariableSignature(final StringAndPosition str, final StringBuilder buf)
+            throws ParseException {
+        final char peek = str.peek();
+        if (peek == 'T') {
+            str.next();
+            final boolean gotIdent = parseIdentifier(str, buf);
+            str.expect(';');
+            return gotIdent;
+        } else {
+            return false;
+        }
+    }
+
+    private static boolean parseTypeArgument(final StringAndPosition str, final StringBuilder buf)
+            throws ParseException {
+        // Handle wildcard types
+        final char peek = str.peek();
+        if (peek == '*') {
+            str.next();
+            buf.append("?");
+            return true;
+        } else if (peek == '+') {
+            str.next();
+            buf.append("? extends ");
+            return parseReferenceTypeSignature(str, buf);
+        } else if (peek == '-') {
+            str.next();
+            buf.append("? super ");
+            return parseReferenceTypeSignature(str, buf);
+        } else {
+            return parseReferenceTypeSignature(str, buf);
+        }
+    }
+
+    private static boolean parseClassTypeSignature(final StringAndPosition str, final StringBuilder buf)
+            throws ParseException {
+        if (str.peek() == 'L') {
+            str.next();
+            if (str.peekMatches("java/lang/") || str.peekMatches("java/util/")) {
+                str.advance(10);
+            }
+            if (!parseIdentifier(str, /* separator = */ '/', /* separatorReplace = */ '.', buf)) {
+                throw new IllegalArgumentException("Malformed class name");
+            }
+            if (str.peek() == '<') {
+                buf.append(str.getc()); // '<'
+                for (boolean isFirstTypeArg = true; str.peek() != '>'; isFirstTypeArg = false) {
+                    if (!isFirstTypeArg) {
+                        buf.append(", ");
+                    }
+                    if (!parseTypeArgument(str, buf)) {
+                        throw new IllegalArgumentException("Bad type argument");
+                    }
+                }
+                buf.append(str.getc()); // '>'
+            }
+            while (str.peek() == '.') {
+                // TODO: Figure out what to do with this (ClassTypeSignatureSuffix) -- where/how is it used?
+                buf.append(str.getc()); // '.'
+                parseIdentifier(str, buf);
+            }
+            str.expect(';');
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    private static boolean parseReferenceTypeSignature(final StringAndPosition str, final StringBuilder buf)
+            throws ParseException {
+        return parseClassTypeSignature(str, buf) || parseTypeVariableSignature(str, buf)
+                || parseArrayTypeSignature(str, buf);
+    }
+
     /**
      * Parse a type descriptor into a type or list of types. For a single type (for a field), returns a list with
      * one item. For a method, returns a list of types, with the first N-1 items corresponding to the argument
      * types, and the last item corresponding to the method return type.
      */
     public static List<String> parseTypeDescriptor(final String typeDescriptor) {
-        final List<String> types = new ArrayList<>();
-        final StringBuilder buf = new StringBuilder();
-        for (int i = 0; i < typeDescriptor.length(); i++) {
-            int numDims = 0;
-            char c = typeDescriptor.charAt(i);
-            if (c == '(' || c == ')') {
-                // Beginning or end of arg list, ignore
-                continue;
-            } else if (c == '[') {
-                // Beginning of array, count the number of dimensions
-                numDims = 1;
-                for (i++; i < typeDescriptor.length(); i++) {
-                    c = typeDescriptor.charAt(i);
-                    if (c == '[') {
-                        numDims++;
-                    } else {
-                        break;
+        final StringAndPosition str = new StringAndPosition(typeDescriptor);
+        try {
+            final StringBuilder buf = new StringBuilder();
+            final List<String> typeParts = new ArrayList<>();
+            while (str.hasMore()) {
+                final char peek = str.peek();
+                if (peek == '(' || peek == ')') {
+                    str.next();
+                } else {
+                    if (!parseJavaTypeSignature(str, buf)) {
+                        throw new ParseException();
                     }
-                }
-                if (i == typeDescriptor.length()) {
-                    // No type after '['
-                    throw new RuntimeException("Invalid type descriptor: " + typeDescriptor);
+                    typeParts.add(buf.toString());
+                    buf.setLength(0);
                 }
             }
-            switch (c) {
-            case 'B':
-                buf.append("byte");
-                break;
-            case 'C':
-                buf.append("char");
-                break;
-            case 'D':
-                buf.append("double");
-                break;
-            case 'F':
-                buf.append("float");
-                break;
-            case 'I':
-                buf.append("int");
-                break;
-            case 'J':
-                buf.append("long");
-                break;
-            case 'S':
-                buf.append("short");
-                break;
-            case 'Z':
-                buf.append("boolean");
-                break;
-            case 'V':
-                buf.append("void");
-                break;
-            case 'L':
-                final int semicolonIdx = typeDescriptor.indexOf(';', i + 1);
-                if (semicolonIdx < 0) {
-                    // Missing ';' after class name
-                    throw new RuntimeException("Invalid type descriptor: " + typeDescriptor);
-                }
-                String className = typeDescriptor.substring(i + 1, semicolonIdx).replace('/', '.');
-                if (className.isEmpty()) {
-                    throw new RuntimeException("Invalid type descriptor: " + typeDescriptor);
-                }
-                if (className.startsWith("java.lang.") || className.startsWith("java.util.")) {
-                    // Strip common Java prefixes
-                    className = className.substring(10);
-                }
-                buf.append(className);
-                i = semicolonIdx;
-                break;
-            default:
-                throw new IllegalArgumentException(
-                        "Unparseable type descriptor \"" + typeDescriptor + "\" at character '" + c + "'");
-            }
-            for (int j = 0; j < numDims; j++) {
-                buf.append("[]");
-            }
-            types.add(buf.toString());
-            buf.setLength(0);
+            return typeParts;
+        } catch (final Exception e) {
+            throw new RuntimeException("Type signature could not be parsed: " + str, e);
         }
-        return types;
     }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     private static Class<?> arrayify(final Class<?> cls, final int arrayDims) {
         if (arrayDims == 0) {
@@ -327,12 +480,17 @@ public class ReflectionUtils {
     public static Class<?> typeStrToClass(final String typeStr, final ScanResult scanResult)
             throws IllegalArgumentException {
         int end = typeStr.length();
+        int arrayDims = 0;
         while (end >= 2 && typeStr.charAt(end - 2) == '[' && typeStr.charAt(end - 1) == ']') {
             end -= 2;
+            arrayDims++;
         }
-        final int arrayDims = (typeStr.length() - end) / 2;
-        final String typeStrWithoutBrackets = typeStr.substring(0, end);
-        switch (typeStrWithoutBrackets) {
+        final int typeParamIdx = typeStr.indexOf('<');
+        if (typeParamIdx > 0) {
+            end = Math.min(end, typeParamIdx);
+        }
+        final String bareType = typeStr.substring(0, end);
+        switch (bareType) {
         case "byte":
             return arrayify(byte.class, arrayDims);
         case "char":
@@ -352,22 +510,22 @@ public class ReflectionUtils {
         case "void":
             return void.class;
         default:
-            final int dotIdx = typeStrWithoutBrackets.indexOf('.');
+            final int dotIdx = bareType.indexOf('.');
             if (dotIdx < 0) {
                 // Try prepending "java.lang." or "java.util."
                 try {
-                    return arrayify(Class.forName("java.lang." + typeStrWithoutBrackets), arrayDims);
+                    return arrayify(Class.forName("java.lang." + bareType), arrayDims);
                 } catch (final Exception e) {
                     // ignore
                 }
                 try {
-                    return arrayify(Class.forName("java.util." + typeStrWithoutBrackets), arrayDims);
+                    return arrayify(Class.forName("java.util." + bareType), arrayDims);
                 } catch (final Exception e) {
                     // ignore
                 }
             }
             // Throws IllegalArgumentException if class could not be loaded
-            return arrayify(scanResult.classNameToClassRef(typeStrWithoutBrackets), arrayDims);
+            return arrayify(scanResult.classNameToClassRef(bareType), arrayDims);
         }
     }
 }

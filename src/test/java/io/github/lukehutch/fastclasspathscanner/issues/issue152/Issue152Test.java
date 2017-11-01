@@ -26,55 +26,60 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.lukehutch.fastclasspathscanner.issues.issue151;
+package io.github.lukehutch.fastclasspathscanner.issues.issue152;
 
 import static org.assertj.core.api.StrictAssertions.assertThat;
 
 import java.io.IOException;
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import org.junit.Test;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
+import io.github.lukehutch.fastclasspathscanner.scanner.ClassInfo;
+import io.github.lukehutch.fastclasspathscanner.scanner.FieldInfo;
 import io.github.lukehutch.fastclasspathscanner.scanner.MethodInfo;
 
-public class Issue151Test {
+public class Issue152Test {
+    public Map<Integer, Map<String, Boolean>> testField;
+
+    public Set<Integer> testMethod(final List<String[]> param0, final Map<String, Map<Integer, Boolean>> param2,
+            final double[][][] param3, final int param4, final TestType[] param5,
+            final Set<? extends TestType> param6, final List<? super TestType> param7, final Map<Integer, ?> param8,
+            final Set<String>[] param9) {
+        return null;
+    }
+
+    public static class TestType {
+    }
+
     @Test
-    public void issue151Test() throws IOException {
+    public void issue152Test() throws IOException {
         // Scans io.github.lukehutch.fastclasspathscanner.issues.issue146.CompiledWithJDK8,
         // which is in src/test/resources
-        final String pkg = Issue151Test.class.getPackage().getName();
-        final MethodInfo methodInfo = new FastClasspathScanner(pkg) //
+        final String pkg = Issue152Test.class.getPackage().getName();
+        final ClassInfo classInfo = new FastClasspathScanner(pkg) //
                 .enableMethodInfo() //
+                .enableFieldInfo() //
                 .scan() //
                 .getClassNameToClassInfo() //
-                .get(Issue151Test.class.getName()) //
-                .getMethodInfo("method") //
+                .get(Issue152Test.class.getName());
+        final MethodInfo methodInfo = classInfo //
+                .getMethodInfo("testMethod") //
                 .get(0);
+        final String cmp = "public Set<Integer> testMethod("
+                + "List<String[]>, Map<String, Map<Integer, Boolean>>, double[][][], int, "
+                + TestType.class.getName() + "[], Set<? extends " + TestType.class.getName() + ">, List<? super "
+                + TestType.class.getName() + ">, Map<Integer, ?>, Set<String>[])";
+        System.out.println(methodInfo);
+        System.out.println(cmp);
         assertThat(methodInfo.toString()) //
-                .isEqualTo("public void method(@" + ParamAnnotation0.class.getName() + " String, @"
-                        + ParamAnnotation1.class.getName() + " @" + ParamAnnotation2.class.getName() + " String)");
-    }
-
-    @Retention(RetentionPolicy.CLASS)
-    @Target(ElementType.PARAMETER)
-    public static @interface ParamAnnotation0 {
-    }
-
-    @Retention(RetentionPolicy.CLASS)
-    @Target(ElementType.PARAMETER)
-    public static @interface ParamAnnotation1 {
-    }
-
-    @Retention(RetentionPolicy.CLASS)
-    @Target(ElementType.PARAMETER)
-    public static @interface ParamAnnotation2 {
-    }
-
-    public void method(@ParamAnnotation0 final String annotatedValue0,
-            @ParamAnnotation1 @ParamAnnotation2 final String annotatedValue1) {
+                .isEqualTo(cmp);
+        final FieldInfo fieldInfo = classInfo //
+                .getFieldInfo("testField");
+        assertThat(fieldInfo.toString()) //
+                .isEqualTo("public Map<Integer, Map<String, Boolean>> testField");
     }
 }
