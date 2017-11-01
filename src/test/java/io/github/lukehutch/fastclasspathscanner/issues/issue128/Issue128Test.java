@@ -31,6 +31,7 @@ package io.github.lukehutch.fastclasspathscanner.issues.issue128;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
@@ -53,22 +54,11 @@ public class Issue128Test {
 
     @Test
     public void issue128Test() throws IOException {
-        //        // Test fetching a jarfile over HTTP
-        //        List<String> filesInsideLevel1 = new ArrayList<>();
-        //        new FastClasspathScanner() //
-        //                .overrideClassLoaders(new URLClassLoader(new URL[] { new URL(JAR_URL) }, null))
-        //                .matchFilenamePattern(".*", new FileMatchContentsProcessor() {
-        //                    @Override
-        //                    public void processMatch(String relativePath, byte[] fileContents) throws IOException {
-        //                        filesInsideLevel1.add(relativePath);
-        //                    }
-        //                }).scan();
-        //        assertThat(filesInsideLevel1).containsOnly("level2.jar");
-
         // Test a nested jar inside a jar fetched over HTTP
         final List<String> filesInsideLevel3 = new ArrayList<>();
+        final URL jarURL = new URL(NESTED_JAR_URL);
         new FastClasspathScanner() //
-                .overrideClassLoaders(new URLClassLoader(new URL[] { new URL(NESTED_JAR_URL) }, null))
+                .overrideClassLoaders(new URLClassLoader(new URL[] { jarURL }, null))
                 .matchFilenamePattern(".*", new FileMatchContentsProcessor() {
                     @Override
                     public void processMatch(final String relativePath, final byte[] fileContents)
@@ -76,18 +66,16 @@ public class Issue128Test {
                         filesInsideLevel3.add(relativePath);
                     }
                 }).scan();
-        assertThat(filesInsideLevel3).containsOnly("com/test/Test.java", "com/test/Test.class");
-
-        //        // Test an https URL on the classpath (rather than using a URLClassLoader)
-        //        List<String> filesInsideLevel3_2 = new ArrayList<>();
-        //        new FastClasspathScanner().verbose() //
-        //                .overrideClasspath(NESTED_JAR_URL) //
-        //                .matchFilenamePattern(".*", new FileMatchContentsProcessor() {
-        //                    @Override
-        //                    public void processMatch(String relativePath, byte[] fileContents) throws IOException {
-        //                        filesInsideLevel3_2.add(relativePath);
-        //                    }
-        //                }).scan();
-        //        assertThat(filesInsideLevel3_2).containsOnly("com/test/Test.java", "com/test/Test.class");
+        if (filesInsideLevel3.isEmpty()) {
+            // If there were no files inside jar, it is possible that remote jar could not be downloaded
+            try (InputStream is = jarURL.openStream()) {
+                throw new RuntimeException("Able to download remote jar, but could not find files within jar");
+            } catch (final IOException e) {
+                System.err.println(
+                        "Could not download remote jar, skipping test " + Issue128Test.class.getName() + ": " + e);
+            }
+        } else {
+            assertThat(filesInsideLevel3).containsOnly("com/test/Test.java", "com/test/Test.class");
+        }
     }
 }
