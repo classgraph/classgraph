@@ -39,8 +39,6 @@ import org.junit.Test;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.scanner.ClassInfo;
-import io.github.lukehutch.fastclasspathscanner.scanner.FieldInfo;
-import io.github.lukehutch.fastclasspathscanner.scanner.MethodInfo;
 
 public class Issue152Test {
     public Map<Integer, Map<String, Boolean>> testField;
@@ -57,8 +55,6 @@ public class Issue152Test {
 
     @Test
     public void issue152Test() throws IOException {
-        // Scans io.github.lukehutch.fastclasspathscanner.issues.issue146.CompiledWithJDK8,
-        // which is in src/test/resources
         final String pkg = Issue152Test.class.getPackage().getName();
         final ClassInfo classInfo = new FastClasspathScanner(pkg) //
                 .enableMethodInfo() //
@@ -66,20 +62,16 @@ public class Issue152Test {
                 .scan() //
                 .getClassNameToClassInfo() //
                 .get(Issue152Test.class.getName());
-        final MethodInfo methodInfo = classInfo //
+        assertThat(classInfo //
                 .getMethodInfo("testMethod") //
-                .get(0);
-        final String cmp = "public Set<Integer> testMethod("
-                + "List<String[]>, Map<String, Map<Integer, Boolean>>, double[][][], int, "
-                + TestType.class.getName() + "[], Set<? extends " + TestType.class.getName() + ">, List<? super "
-                + TestType.class.getName() + ">, Map<Integer, ?>, Set<String>[])";
-        System.out.println(methodInfo);
-        System.out.println(cmp);
-        assertThat(methodInfo.toString()) //
-                .isEqualTo(cmp);
-        final FieldInfo fieldInfo = classInfo //
-                .getFieldInfo("testField");
-        assertThat(fieldInfo.toString()) //
-                .isEqualTo("public Map<Integer, Map<String, Boolean>> testField");
+                .get(0).toString()) //
+                        .isEqualTo("public Set<Integer> testMethod("
+                                + "List<String[]>, Map<String, Map<Integer, Boolean>>, double[][][], int, "
+                                + TestType.class.getName() + "[], Set<? extends " + TestType.class.getName()
+                                + ">, List<? super " + TestType.class.getName()
+                                + ">, Map<Integer, ?>, Set<String>[])");
+        assertThat(classInfo //
+                .getFieldInfo("testField").toString()) //
+                        .isEqualTo("public Map<Integer, Map<String, Boolean>> testField");
     }
 }
