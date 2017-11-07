@@ -390,22 +390,42 @@ class ClassfileBinaryParser implements AutoCloseable {
     }
 
     /** Get a constant from the constant pool. */
-    private Object getConstantPoolValue(final int cpIdx) throws IOException {
+    private Object getConstantPoolValue(final int cpIdx, final char fieldTypeDescriptorFirstChar)
+            throws IOException {
         switch (tag[cpIdx]) {
         case 1: // Modified UTF8
-            return getConstantPoolString(cpIdx, /* subFieldIdx = */ 0);
-        case 3: // int, short, char, byte, boolean are all represented by Constant_INTEGER
-            return new Integer(readInt(offset[cpIdx]));
-        case 4: // float
-            return new Float(Float.intBitsToFloat(readInt(offset[cpIdx])));
-        case 5: // long
-            return new Long(readLong(offset[cpIdx]));
-        case 6: // double
-            return new Double(Double.longBitsToDouble(readLong(offset[cpIdx])));
         case 7: // Class
         case 8: // String
             // Forward or backward indirect reference to a modified UTF8 entry
             return getConstantPoolString(cpIdx, /* subFieldIdx = */ 0);
+        case 3: // int, short, char, byte, boolean are all represented by Constant_INTEGER
+        {
+            final int intVal = readInt(offset[cpIdx]);
+            switch (fieldTypeDescriptorFirstChar) {
+            case 'I':
+                return new Integer(intVal);
+            case 'S':
+                return new Short((short) intVal);
+            case 'C':
+                return new Character((char) intVal);
+            case 'B':
+                return new Byte((byte) intVal);
+            case 'Z':
+                return new Boolean(intVal != 0);
+            default:
+                throw new RuntimeException("Unknown Constant_INTEGER type, " + //
+                        "cannot continue reading class. Please report this at "
+                        + "https://github.com/lukehutch/fast-classpath-scanner/issues");
+            }
+        }
+        case 4: // float
+        {
+            return new Float(Float.intBitsToFloat(readInt(offset[cpIdx])));
+        }
+        case 5: // long
+            return new Long(readLong(offset[cpIdx]));
+        case 6: // double
+            return new Double(Double.longBitsToDouble(readLong(offset[cpIdx])));
         default:
             // FastClasspathScanner doesn't currently do anything with the other types
             throw new RuntimeException("Constant pool entry type " + tag[cpIdx] + " unsupported, "
@@ -418,7 +438,7 @@ class ClassfileBinaryParser implements AutoCloseable {
 
     /** Read annotation entry from classfile. */
     private String readAnnotation() throws IOException, InterruptedException {
-        // Lcom/xyz/Annotation -> Lcom.xyz.Annotation
+        // Lcom/xyz/Annotation; -> Lcom.xyz.Annotation;
         final String annotationFieldDescriptor = getConstantPoolClassName(readUnsignedShort());
         String annotationClassName;
         if (annotationFieldDescriptor.charAt(0) == 'L'
@@ -746,50 +766,7 @@ class ClassfileBinaryParser implements AutoCloseable {
                     if ((isMatchedFieldName || scanSpec.enableFieldInfo)
                             && constantPoolStringEquals(attributeNameCpIdx, "ConstantValue")) {
                         // http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.7.2
-                        fieldConstValue = getConstantPoolValue(readUnsignedShort());
-                        // byte, char, short and boolean constants are all stored as 4-byte int
-                        // values -- coerce and wrap in the proper wrapper class with autoboxing
-                        switch (fieldTypeDescriptorFirstChar) {
-                        case 'B':
-                            // byte, char, short and boolean constants are all stored as 4-byte int values.
-                            // Convert and wrap in Byte object.
-                            fieldConstValue = new Byte(((Integer) fieldConstValue).byteValue());
-                            break;
-                        case 'C':
-                            // byte, char, short and boolean constants are all stored as 4-byte int values.
-                            // Convert and wrap in Character object.
-                            fieldConstValue = new Character((char) ((Integer) fieldConstValue).intValue());
-                            break;
-                        case 'S':
-                            // byte, char, short and boolean constants are all stored as 4-byte int values.
-                            // Convert and wrap in Short object.
-                            fieldConstValue = new Short(((Integer) fieldConstValue).shortValue());
-                            break;
-                        case 'Z':
-                            // byte, char, short and boolean constants are all stored as 4-byte int values.
-                            // Convert and wrap in Boolean object.
-                            fieldConstValue = new Boolean(((Integer) fieldConstValue).intValue() != 0);
-                            break;
-                        case 'I':
-                        case 'J':
-                        case 'F':
-                        case 'D':
-                            // int, long, float or double are already in correct wrapper type (Integer, Long,
-                            // Float, Double or String) -- nothing to do
-                            break;
-                        default:
-                            if (constantPoolStringEquals(fieldTypeDescriptorCpIdx, "Ljava/lang/String;")) {
-                                // String constants are already in correct form, nothing to do
-                            } else {
-                                // Should never happen, constant values can only be stored as an int, long,
-                                // float, double or String
-                                throw new RuntimeException("Unknown constant initializer type "
-                                        + getConstantPoolString(fieldTypeDescriptorCpIdx) + " for class "
-                                        + className + " -- please report this at "
-                                        + "https://github.com/lukehutch/fast-classpath-scanner/issues");
-                            }
-                            break;
-                        }
+                        fieldConstValue = getConstantPoolValue(readUnsignedShort(), fieldTypeDescriptorFirstChar);
                         // Store static final field match in ClassInfo object
                         if (isMatchedFieldName) {
                             classInfoUnlinked.addFieldConstantValue(fieldName, fieldConstValue);
