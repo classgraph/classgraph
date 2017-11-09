@@ -280,7 +280,7 @@ abstract class ClasspathElement {
                 // If class was successfully read, output new ClassInfoUnlinked object
                 if (thisClassInfoUnlinked != null) {
                     classInfoUnlinked.add(thisClassInfoUnlinked);
-                    thisClassInfoUnlinked.logTo(log);
+                    thisClassInfoUnlinked.logTo(logNode);
                 }
                 if (logNode != null) {
                     logNode.addElapsedTime();
