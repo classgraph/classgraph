@@ -276,7 +276,7 @@ abstract class ClasspathElement {
                         .readClassInfoFromClassfileHeader(this, classfileResource.pathRelativeToClasspathPrefix,
                                 // Open classfile as an InputStream
                                 /* inputStream = */ classfileResource.open(), //
-                                scanSpec, stringInternMap, log);
+                                scanSpec, stringInternMap, logNode);
                 // If class was successfully read, output new ClassInfoUnlinked object
                 if (thisClassInfoUnlinked != null) {
                     classInfoUnlinked.add(thisClassInfoUnlinked);
