@@ -722,16 +722,19 @@ public class ScanSpec {
      * Call the classloader using Class.forName(className, initializeLoadedClasses, classLoader), for all known
      * ClassLoaders, until one is able to load the class, or until there are no more ClassLoaders to try.
      * 
-     * @throw MatchProcessorException if LinkageError (including ExceptionInInitializerError) is thrown, or if no
-     *        ClassLoader is able to load the class.
-     * @return a reference to the loaded class.
+     * @throw MatchProcessorException if LinkageError (including ExceptionInInitializerError) is thrown.
+     * @return a reference to the loaded class, or null if the class could not be loaded by its ClassLoader(s).
      */
     private Class<?> loadClassForMatchProcessor(final String className, final ScanResult scanResult,
             final LogNode log) throws MatchProcessorException {
         try {
-            return scanResult.loadClass(className, log);
-        } catch (final IllegalArgumentException e) {
-            throw MatchProcessorException.newInstance(e);
+            return scanResult.loadClass(className, /* returnNullIfClassNotFound = */ true, log);
+        } catch (final Throwable e) {
+            Throwable cause = e.getCause();
+            if (cause == null) {
+                cause = e;
+            }
+            throw MatchProcessorException.newInstance(cause);
         }
     }
 
@@ -859,7 +862,9 @@ public class ScanSpec {
                         // Call classloader
                         final Class<?> cls = loadClassForMatchProcessor(className, scanResult, log);
                         // Process match
-                        classMatchProcessor.processMatch(cls);
+                        if (cls != null) {
+                            classMatchProcessor.processMatch(cls);
+                        }
                     } catch (final Throwable e) {
                         if (subLog != null) {
                             subLog.log("Exception while processing match for class " + className, e);
@@ -891,7 +896,9 @@ public class ScanSpec {
                         // Call classloader
                         final Class<?> cls = loadClassForMatchProcessor(className, scanResult, log);
                         // Process match
-                        classMatchProcessor.processMatch(cls);
+                        if (cls != null) {
+                            classMatchProcessor.processMatch(cls);
+                        }
                     } catch (final Throwable e) {
                         if (subLog != null) {
                             subLog.log("Exception while processing match for class " + className, e);
@@ -923,7 +930,9 @@ public class ScanSpec {
                         // Call classloader
                         final Class<?> cls = loadClassForMatchProcessor(className, scanResult, log);
                         // Process match
-                        classMatchProcessor.processMatch(cls);
+                        if (cls != null) {
+                            classMatchProcessor.processMatch(cls);
+                        }
                     } catch (final Throwable e) {
                         if (subLog != null) {
                             subLog.log("Exception while processing match for class " + className, e);
@@ -955,7 +964,9 @@ public class ScanSpec {
                         // Call classloader
                         final Class<?> cls = loadClassForMatchProcessor(className, scanResult, log);
                         // Process match
-                        classMatchProcessor.processMatch(cls);
+                        if (cls != null) {
+                            classMatchProcessor.processMatch(cls);
+                        }
                     } catch (final Throwable e) {
                         if (subLog != null) {
                             subLog.log("Exception while processing match for class " + className, e);
@@ -995,7 +1006,9 @@ public class ScanSpec {
                         final Class<? extends T> cls = (Class<? extends T>) loadClassForMatchProcessor(subclassName,
                                 scanResult, log);
                         // Process match
-                        subclassMatchProcessor.processMatch(cls);
+                        if (cls != null) {
+                            subclassMatchProcessor.processMatch(cls);
+                        }
                     } catch (final Throwable e) {
                         if (subLog != null) {
                             subLog.log("Exception while processing match for class " + subclassName, e);
@@ -1036,7 +1049,9 @@ public class ScanSpec {
                         final Class<? extends T> cls = (Class<? extends T>) loadClassForMatchProcessor(
                                 subinterfaceName, scanResult, log);
                         // Process match
-                        subinterfaceMatchProcessor.processMatch(cls);
+                        if (cls != null) {
+                            subinterfaceMatchProcessor.processMatch(cls);
+                        }
                     } catch (final Throwable e) {
                         if (subLog != null) {
                             subLog.log("Exception while processing match for class " + subinterfaceName, e);
@@ -1078,7 +1093,9 @@ public class ScanSpec {
                         final Class<? extends T> cls = (Class<? extends T>) loadClassForMatchProcessor(
                                 implementingClassName, scanResult, log);
                         // Process match
-                        implementingClassMatchProcessor.processMatch(cls);
+                        if (cls != null) {
+                            implementingClassMatchProcessor.processMatch(cls);
+                        }
                     } catch (final Throwable e) {
                         if (subLog != null) {
                             subLog.log("Exception while processing match for class " + implementingClassName, e);
@@ -1117,7 +1134,9 @@ public class ScanSpec {
                         // Call classloader
                         final Class<?> cls = loadClassForMatchProcessor(className, scanResult, log);
                         // Process match
-                        classMatchProcessor.processMatch(cls);
+                        if (cls != null) {
+                            classMatchProcessor.processMatch(cls);
+                        }
                     } catch (final Throwable e) {
                         if (subLog != null) {
                             subLog.log("Exception while processing match for class " + fieldTypeName, e);
@@ -1157,7 +1176,9 @@ public class ScanSpec {
                         // Call classloader
                         final Class<?> cls = loadClassForMatchProcessor(classWithAnnotation, scanResult, log);
                         // Process match
-                        classAnnotationMatchProcessor.processMatch(cls);
+                        if (cls != null) {
+                            classAnnotationMatchProcessor.processMatch(cls);
+                        }
                     } catch (final Throwable e) {
                         if (subLog != null) {
                             subLog.log("Exception while processing match for class " + classWithAnnotation, e);
@@ -1199,43 +1220,45 @@ public class ScanSpec {
                         scanResult.addMatchProcessorException(e);
                         return;
                     }
-                    // Find methods with the specified annotation
-                    for (final Constructor<?> ctor : cls.getDeclaredConstructors()) {
-                        if ((ignoreMethodVisibility || (ctor.getModifiers() & Modifier.PUBLIC) != 0)
-                                && ctor.isAnnotationPresent(annotation)) {
-                            LogNode subLog = null;
-                            if (log != null) {
-                                subLog = log.log(
-                                        "Constructor matched method annotation " + annotationName + ": " + ctor);
-                            }
-                            try {
-                                // Process match
-                                methodAnnotationMatchProcessor.processMatch(cls, ctor);
-                            } catch (final Throwable e) {
-                                if (subLog != null) {
-                                    subLog.log("Exception while processing match for class "
-                                            + classWithMethodAnnotation, e);
+                    if (cls != null) {
+                        // Find methods with the specified annotation
+                        for (final Constructor<?> ctor : cls.getDeclaredConstructors()) {
+                            if ((ignoreMethodVisibility || (ctor.getModifiers() & Modifier.PUBLIC) != 0)
+                                    && ctor.isAnnotationPresent(annotation)) {
+                                LogNode subLog = null;
+                                if (log != null) {
+                                    subLog = log.log("Constructor matched method annotation " + annotationName
+                                            + ": " + ctor);
                                 }
-                                scanResult.addMatchProcessorException(e);
+                                try {
+                                    // Process match
+                                    methodAnnotationMatchProcessor.processMatch(cls, ctor);
+                                } catch (final Throwable e) {
+                                    if (subLog != null) {
+                                        subLog.log("Exception while processing match for class "
+                                                + classWithMethodAnnotation, e);
+                                    }
+                                    scanResult.addMatchProcessorException(e);
+                                }
                             }
                         }
-                    }
-                    for (final Method method : cls.getDeclaredMethods()) {
-                        if ((ignoreMethodVisibility || (method.getModifiers() & Modifier.PUBLIC) != 0)
-                                && method.isAnnotationPresent(annotation)) {
-                            LogNode subLog = null;
-                            if (log != null) {
-                                subLog = log.log("Matched method annotation " + annotationName + ": " + method);
-                            }
-                            try {
-                                // Process match
-                                methodAnnotationMatchProcessor.processMatch(cls, method);
-                            } catch (final Throwable e) {
-                                if (subLog != null) {
-                                    subLog.log("Exception while processing match for class "
-                                            + classWithMethodAnnotation, e);
+                        for (final Method method : cls.getDeclaredMethods()) {
+                            if ((ignoreMethodVisibility || (method.getModifiers() & Modifier.PUBLIC) != 0)
+                                    && method.isAnnotationPresent(annotation)) {
+                                LogNode subLog = null;
+                                if (log != null) {
+                                    subLog = log.log("Matched method annotation " + annotationName + ": " + method);
                                 }
-                                scanResult.addMatchProcessorException(e);
+                                try {
+                                    // Process match
+                                    methodAnnotationMatchProcessor.processMatch(cls, method);
+                                } catch (final Throwable e) {
+                                    if (subLog != null) {
+                                        subLog.log("Exception while processing match for class "
+                                                + classWithMethodAnnotation, e);
+                                    }
+                                    scanResult.addMatchProcessorException(e);
+                                }
                             }
                         }
                     }
@@ -1274,22 +1297,25 @@ public class ScanSpec {
                         scanResult.addMatchProcessorException(e);
                         return;
                     }
-                    // Find fields with the specified annotation
-                    for (final Field field : ignoreFieldVisibility ? cls.getDeclaredFields() : cls.getFields()) {
-                        if (field.isAnnotationPresent(annotation)) {
-                            LogNode subLog = null;
-                            if (log != null) {
-                                subLog = log.log("Matched field annotation " + annotationName + ": " + field);
-                            }
-                            try {
-                                // Process match
-                                fieldAnnotationMatchProcessor.processMatch(cls, field);
-                            } catch (final Throwable e) {
-                                if (subLog != null) {
-                                    subLog.log("Exception while processing match for class "
-                                            + classWithFieldAnnotation, e);
+                    if (cls != null) {
+                        // Find fields with the specified annotation
+                        for (final Field field : ignoreFieldVisibility ? cls.getDeclaredFields()
+                                : cls.getFields()) {
+                            if (field.isAnnotationPresent(annotation)) {
+                                LogNode subLog = null;
+                                if (log != null) {
+                                    subLog = log.log("Matched field annotation " + annotationName + ": " + field);
                                 }
-                                scanResult.addMatchProcessorException(e);
+                                try {
+                                    // Process match
+                                    fieldAnnotationMatchProcessor.processMatch(cls, field);
+                                } catch (final Throwable e) {
+                                    if (subLog != null) {
+                                        subLog.log("Exception while processing match for class "
+                                                + classWithFieldAnnotation, e);
+                                    }
+                                    scanResult.addMatchProcessorException(e);
+                                }
                             }
                         }
                     }

@@ -723,9 +723,6 @@ public class ScanResult {
         } catch (final ClassNotFoundException e) {
             return null;
         } catch (final Throwable e) {
-            if (log != null) {
-                log.log("Error while loading class " + className, e);
-            }
             throw new IllegalArgumentException("Exception while loading class " + className, e);
         }
     }
@@ -734,11 +731,13 @@ public class ScanResult {
      * Call the classloader using Class.forName(className, initializeLoadedClasses, classLoader), for all known
      * ClassLoaders, until one is able to load the class, or until there are no more ClassLoaders to try.
      * 
-     * @throw IllegalArgumentException if LinkageError (including ExceptionInInitializerError) is thrown, or if no
-     *        ClassLoader is able to load the class.
-     * @return a reference to the loaded class.
+     * @throw IllegalArgumentException if LinkageError (including ExceptionInInitializerError) is thrown, or if
+     *        returnNullIfClassNotFound is false and no ClassLoader is able to load the class.
+     * @return a reference to the loaded class, or null if returnNullIfClassNotFound was true and the class could
+     *         not be loaded.
      */
-    Class<?> loadClass(final String className, final LogNode log) throws IllegalArgumentException {
+    Class<?> loadClass(final String className, final boolean returnNullIfClassNotFound, final LogNode log)
+            throws IllegalArgumentException {
         if (scanSpec.overrideClasspath != null) {
             // This is for your own good :-)  Too many surprises can result otherwise (e.g. the wrong class
             // definition being loaded, if a class is defined more than once in the classpath, or a class
@@ -755,6 +754,10 @@ public class ScanResult {
                             + "to define your own ClassLoader (e.g. using new URLClassLoader()), and then "
                             + "use .overrideClassLoaders() instead");
         }
+        if (className == null || className.isEmpty()) {
+            throw new IllegalArgumentException("Cannot load class -- class names cannot be null or empty");
+        }
+
         // Try loading class via each classloader in turn
         for (final ClassLoader classLoader : getClassLoadersForClass(className)) {
             final Class<?> classRef = loadClass(className, classLoader, log);
@@ -762,10 +765,16 @@ public class ScanResult {
                 return classRef;
             }
         }
-        if (log != null) {
-            log.log("No classloader was able to load class " + className);
+
+        // Could not load class
+        if (!returnNullIfClassNotFound) {
+            throw new IllegalArgumentException("No classloader was able to load class " + className);
+        } else {
+            if (log != null) {
+                log.log("No classloader was able to load class " + className);
+            }
+            return null;
         }
-        throw new IllegalArgumentException("No classloader was able to load class " + className);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -854,23 +863,12 @@ public class ScanResult {
     public Class<?> classNameToClassRef(final String className, final boolean ignoreExceptions)
             throws IllegalArgumentException {
         try {
-            if (className == null || className.isEmpty()) {
-                if (!ignoreExceptions) {
-                    throw new IllegalArgumentException("Class names cannot be null or empty");
-                } else {
-                    return null;
-                }
+            return loadClass(className, /* returnNullIfClassNotFound = */ ignoreExceptions, log);
+        } catch (final Throwable e) {
+            if (ignoreExceptions) {
+                return null;
             } else {
-                if (ignoreExceptions) {
-                    try {
-                        return loadClass(className, log);
-                    } catch (final IllegalArgumentException e) {
-                        // Ignore exceptions
-                        return null;
-                    }
-                } else {
-                    return loadClass(className, log);
-                }
+                throw e;
             }
         } finally {
             // Manually flush log, since this method is called after scanning is complete
