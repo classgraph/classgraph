@@ -1424,21 +1424,25 @@ public class FastClasspathScanner {
             }
             throw new ScanInterruptedException();
         } catch (final ExecutionException e) {
-            if (e.getCause() instanceof InterruptedException) {
+            Throwable cause = e.getCause();
+            if (cause == null) {
+                cause = e;
+            }
+            if (cause instanceof InterruptedException) {
                 if (log != null) {
                     log.log("Scan interrupted");
                 }
                 throw new ScanInterruptedException();
-            } else if (e.getCause() instanceof MatchProcessorException) {
+            } else if (cause instanceof MatchProcessorException) {
                 if (log != null) {
                     log.log("Exception during scan", e);
                 }
-                throw (MatchProcessorException) e.getCause();
+                throw (MatchProcessorException) cause;
             } else {
                 if (log != null) {
                     log.log("Unexpected exception during scan", e);
                 }
-                throw new RuntimeException(e.getCause());
+                throw new RuntimeException(cause);
             }
         } finally {
             if (log != null) {
@@ -1591,7 +1595,8 @@ public class FastClasspathScanner {
                 if (log != null) {
                     log.log("Exception while getting classpath elements", e);
                 }
-                throw new RuntimeException(e.getCause());
+                final Throwable cause = e.getCause();
+                throw new RuntimeException(cause == null ? e : cause);
             } finally {
                 if (log != null) {
                     log.flush();

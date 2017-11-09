@@ -731,7 +731,7 @@ public class ScanSpec {
         try {
             return scanResult.loadClass(className, log);
         } catch (final IllegalArgumentException e) {
-            throw MatchProcessorException.newInstance(e.getCause());
+            throw MatchProcessorException.newInstance(e);
         }
     }
 
