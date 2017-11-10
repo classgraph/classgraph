@@ -411,6 +411,7 @@ public class ReflectionUtils {
             }
             while (str.peek() == '.') {
                 // TODO: Figure out what to do with this (ClassTypeSignatureSuffix) -- where/how is it used?
+                // (Is it used for enum constants?)
                 buf.append(str.getc()); // '.'
                 parseIdentifier(str, buf);
             }
@@ -432,7 +433,7 @@ public class ReflectionUtils {
      * one item. For a method, returns a list of types, with the first N-1 items corresponding to the argument
      * types, and the last item corresponding to the method return type.
      */
-    public static List<String> parseTypeDescriptor(final String typeDescriptor) {
+    public static List<String> parseComplexTypeDescriptor(final String typeDescriptor) {
         final StringAndPosition str = new StringAndPosition(typeDescriptor);
         try {
             final StringBuilder buf = new StringBuilder();
@@ -455,6 +456,33 @@ public class ReflectionUtils {
         }
     }
 
+    /**
+     * Parse a simple Java type descriptor (for a single type -- methods are not supported), and turn it into a type
+     * string, e.g. "[[[Ljava/lang/String;" -> "String[][][]".
+     */
+    public static String parseSimpleTypeDescriptor(final String typeDescriptor) {
+        final StringAndPosition str = new StringAndPosition(typeDescriptor);
+        final char peek = str.peek();
+        if (peek == '(') {
+            // This method is not for method signatures, use parseComplexTypeDescriptor() instead
+            throw new RuntimeException("Got unexpected method signature");
+        }
+        String typeStr;
+        try {
+            final StringBuilder buf = new StringBuilder();
+            if (!parseJavaTypeSignature(str, buf)) {
+                throw new ParseException();
+            }
+            typeStr = buf.toString();
+        } catch (final Exception e) {
+            throw new RuntimeException("Type signature could not be parsed: " + str, e);
+        }
+        if (str.hasMore()) {
+            throw new RuntimeException("Unused characters in type signature: " + str);
+        }
+        return typeStr;
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     private static Class<?> arrayify(final Class<?> cls, final int arrayDims) {
@@ -468,14 +496,13 @@ public class ReflectionUtils {
 
     /**
      * Parse a type string (e.g. "int[][]" or "com.xyz.Widget"; java.lang and java.util only need the class name,
-     * e.g. "String") and return the corresponding Class reference. For a single type (for a field), returns a list
-     * with one item. For a method, returns a list of types, with the first N-1 items corresponding to the argument
-     * types, and the last item corresponding to the method return type.
+     * e.g. "String") and return the corresponding Class reference.
      * 
      * @param typeStr
      *            The type string.
      * @param scanResult
      *            the ScanResult (used to call the correct ClassLoader(s)).
+     * @return the type reference.
      * @throws IllegalArgumentException
      *             if the class could not be found or loaded.
      */
@@ -496,21 +523,21 @@ public class ReflectionUtils {
         case "byte":
             return arrayify(byte.class, arrayDims);
         case "char":
-            return char.class;
+            return arrayify(char.class, arrayDims);
         case "double":
-            return double.class;
+            return arrayify(double.class, arrayDims);
         case "float":
-            return float.class;
+            return arrayify(float.class, arrayDims);
         case "int":
-            return int.class;
+            return arrayify(int.class, arrayDims);
         case "long":
-            return long.class;
+            return arrayify(long.class, arrayDims);
         case "short":
-            return short.class;
+            return arrayify(short.class, arrayDims);
         case "boolean":
-            return boolean.class;
+            return arrayify(boolean.class, arrayDims);
         case "void":
-            return void.class;
+            return arrayify(void.class, arrayDims);
         default:
             final int dotIdx = bareType.indexOf('.');
             if (dotIdx < 0) {

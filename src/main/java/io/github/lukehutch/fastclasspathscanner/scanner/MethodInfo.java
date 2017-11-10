@@ -48,8 +48,8 @@ public class MethodInfo implements Comparable<MethodInfo> {
     private List<String> typeStrs;
     private final String[] parameterNames;
     private final int[] parameterAccessFlags;
-    private final String[][] parameterAnnotations;
-    private final List<String> annotationNames;
+    final AnnotationInfo[][] parameterAnnotationInfo;
+    final List<AnnotationInfo> annotationInfo;
 
     /**
      * The ScanResult (set after the scan is complete, so that we know which ClassLoader to call for any given named
@@ -59,15 +59,17 @@ public class MethodInfo implements Comparable<MethodInfo> {
 
     public MethodInfo(final String className, final String methodName, final int modifiers,
             final String typeDescriptor, final String[] parameterNames, final int[] parameterAccessFlags,
-            final List<String> annotationNames, final String[][] parameterAnnotations) {
+            final List<AnnotationInfo> methodAnnotationInfo, final AnnotationInfo[][] parameterAnnotationInfo) {
         this.className = className;
         this.methodName = methodName;
         this.modifiers = modifiers;
         this.typeDescriptor = typeDescriptor;
         this.parameterNames = parameterNames;
         this.parameterAccessFlags = parameterAccessFlags;
-        this.parameterAnnotations = parameterAnnotations;
-        this.annotationNames = annotationNames.isEmpty() ? Collections.<String> emptyList() : annotationNames;
+        this.parameterAnnotationInfo = parameterAnnotationInfo;
+        this.annotationInfo = methodAnnotationInfo == null || methodAnnotationInfo.isEmpty()
+                ? Collections.<AnnotationInfo> emptyList()
+                : methodAnnotationInfo;
     }
 
     /** Get the method modifiers as a string, e.g. "public static final". */
@@ -103,7 +105,7 @@ public class MethodInfo implements Comparable<MethodInfo> {
 
     private List<String> getTypeStrs() {
         if (typeStrs == null) {
-            typeStrs = ReflectionUtils.parseTypeDescriptor(typeDescriptor);
+            typeStrs = ReflectionUtils.parseComplexTypeDescriptor(typeDescriptor);
             if (typeStrs.size() < 1) {
                 throw new IllegalArgumentException("Invalid type descriptor for method: " + typeDescriptor);
             }
@@ -220,8 +222,8 @@ public class MethodInfo implements Comparable<MethodInfo> {
      * 
      * Note that parameters may be unnamed, in which case the corresponding parameter name will be null.
      */
-    public List<String> getParameterNames() {
-        return parameterNames == null ? null : Arrays.asList(parameterNames);
+    public String[] getParameterNames() {
+        return parameterNames;
     }
 
     /**
@@ -239,47 +241,72 @@ public class MethodInfo implements Comparable<MethodInfo> {
      * parameter is mandated by a language specification, so all compilers for the language must emit it.)
      * </ul>
      */
-    public List<Integer> getParameterAccessFlags() {
-        if (parameterAccessFlags == null) {
-            return null;
-        }
-        final List<Integer> flags = new ArrayList<>(parameterAccessFlags.length);
-        for (final int flag : parameterAccessFlags) {
-            flags.add(flag);
-        }
-        return flags;
+    public int[] getParameterAccessFlags() {
+        return parameterAccessFlags;
     }
 
     /**
-     * Returns the parameter annotations, if any parameters have annotations, else returns null. If non-null, there
-     * is one list entry per parameter, containing an array of method parameter annotations.
+     * Returns the unique annotation names for annotations on each method parameter, if any parameters have
+     * annotations, else returns null. When the return value is non-null, there is one list entry per parameter,
+     * containing an array of method parameter annotations.
      */
-    public List<String[]> getParameterAnnotations() {
-        return parameterAnnotations == null ? null : Arrays.asList(parameterAnnotations);
+    public AnnotationInfo[][] getParameterAnnotations() {
+        return parameterAnnotationInfo;
+    }
+
+    /**
+     * Returns the unique annotation names for annotations on each method parameter, if any parameters have
+     * annotations, else returns null.
+     */
+    public String[][] getParameterAnnotationNames() {
+        if (parameterAnnotationInfo == null) {
+            return null;
+        }
+        final String[][] parameterAnnotationNames = new String[parameterAnnotationInfo.length][];
+        for (int i = 0; i < parameterAnnotationInfo.length; i++) {
+            parameterAnnotationNames[i] = AnnotationInfo.getUniqueAnnotationNamesSorted(parameterAnnotationInfo[i]);
+        }
+        return parameterAnnotationNames;
+    }
+
+    /**
+     * Returns the annotations on each method parameter (along with any annotation parameters, wrapped in
+     * AnnotationInfo objects) if any parameters have annotations, else returns null.
+     */
+    public AnnotationInfo[][] getParameterAnnotationInfo() {
+        return parameterAnnotationInfo;
     }
 
     /** Returns the names of annotations on the method, or the empty list if none. */
     public List<String> getAnnotationNames() {
-        return annotationNames;
+        return Arrays.asList(AnnotationInfo.getUniqueAnnotationNamesSorted(annotationInfo));
     }
 
     /**
-     * Returns Class references for the annotations on this method. Note that this calls Class.forName() on the
-     * annotation types, which will cause each annotation class to be loaded.
+     * Returns a list of Class<?> references for the annotations on this method, or the empty list if none. Note
+     * that this calls Class.forName() on the annotation types, which will cause each annotation class to be loaded.
      * 
      * @throws IllegalArgumentException
      *             if the annotation type could not be loaded.
      */
     public List<Class<?>> getAnnotationTypes() throws IllegalArgumentException {
-        if (annotationNames.isEmpty()) {
+        if (annotationInfo == null || annotationInfo.isEmpty()) {
             return Collections.<Class<?>> emptyList();
         } else {
             final List<Class<?>> annotationClassRefs = new ArrayList<>();
-            for (final String annotationName : annotationNames) {
+            for (final String annotationName : getAnnotationNames()) {
                 annotationClassRefs.add(ReflectionUtils.typeStrToClass(annotationName, scanResult));
             }
             return annotationClassRefs;
         }
+    }
+
+    /**
+     * Get a list of annotations on this method, along with any annotation parameter values, wrapped in
+     * AnnotationInfo objects, or the empty list if none.
+     */
+    public List<AnnotationInfo> getAnnotationInfo() {
+        return annotationInfo == null ? Collections.<AnnotationInfo> emptyList() : annotationInfo;
     }
 
     /**
@@ -329,12 +356,12 @@ public class MethodInfo implements Comparable<MethodInfo> {
     public String toString() {
         final StringBuilder buf = new StringBuilder();
 
-        if (!annotationNames.isEmpty()) {
-            for (final String annotationName : annotationNames) {
+        if (annotationInfo != null) {
+            for (final AnnotationInfo annotation : annotationInfo) {
                 if (buf.length() > 0) {
                     buf.append(' ');
                 }
-                buf.append("@" + annotationName);
+                buf.append(annotation.toString());
             }
         }
 
@@ -360,7 +387,7 @@ public class MethodInfo implements Comparable<MethodInfo> {
         final List<String> paramTypes = getParameterTypeStrs();
         if (parameterNames != null && paramTypes.size() != parameterNames.length
                 || parameterAccessFlags != null && paramTypes.size() != parameterAccessFlags.length
-                || parameterAnnotations != null && paramTypes.size() != parameterAnnotations.length) {
+                || parameterAnnotationInfo != null && paramTypes.size() != parameterAnnotationInfo.length) {
             // Should not happen
             throw new RuntimeException("parameter number mismatch");
         }
@@ -369,9 +396,11 @@ public class MethodInfo implements Comparable<MethodInfo> {
             if (i > 0) {
                 buf.append(", ");
             }
-            if (parameterAnnotations != null) {
-                for (final String annotation : parameterAnnotations[i]) {
-                    buf.append("@" + annotation + " ");
+            if (parameterAnnotationInfo != null) {
+                final AnnotationInfo[] annotationInfoForParameter = parameterAnnotationInfo[i];
+                for (int j = 0; j < annotationInfoForParameter.length; j++) {
+                    buf.append(annotationInfoForParameter[j].toString());
+                    buf.append(' ');
                 }
             }
             if (parameterAccessFlags != null) {

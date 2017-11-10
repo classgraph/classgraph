@@ -42,6 +42,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import io.github.lukehutch.fastclasspathscanner.scanner.AnnotationInfo.AnnotationParamValue;
 import io.github.lukehutch.fastclasspathscanner.utils.AdditionOrderedSet;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.MultiMapKeyToList;
@@ -98,6 +99,9 @@ public class ClassInfo implements Comparable<ClassInfo> {
     /** The scan spec. */
     private final ScanSpec scanSpec;
 
+    /** Info on class annotations, including optional annotation param values. */
+    List<AnnotationInfo> annotationInfo;
+
     /** Info on fields. */
     List<FieldInfo> fieldInfo;
 
@@ -109,6 +113,9 @@ public class ClassInfo implements Comparable<ClassInfo> {
 
     /** Reverse mapping from method name to MethodInfo. */
     private MultiMapKeyToList<String, MethodInfo> methodNameToMethodInfo;
+
+    /** For annotations, the default values of parameters. */
+    List<AnnotationParamValue> annotationDefaultParamValues;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -250,10 +257,10 @@ public class ClassInfo implements Comparable<ClassInfo> {
          * Annotations on this class, if this is a regular class, or meta-annotations on this annotation, if this is
          * an annotation.
          */
-        ANNOTATIONS,
+        CLASS_ANNOTATIONS,
 
         /** Classes annotated with this annotation, if this is an annotation. */
-        ANNOTATED_CLASSES,
+        CLASSES_WITH_CLASS_ANNOTATION,
 
         // Method annotations:
 
@@ -285,6 +292,9 @@ public class ClassInfo implements Comparable<ClassInfo> {
         this.className = className;
         this.classModifiers = classModifiers;
         this.scanSpec = scanSpec;
+        if (className.endsWith(";")) {
+            throw new RuntimeException("Bad class name");
+        }
     }
 
     /** The class type to return. */
@@ -399,13 +409,14 @@ public class ClassInfo implements Comparable<ClassInfo> {
         if (relType == RelType.METHOD_ANNOTATIONS || relType == RelType.FIELD_ANNOTATIONS) {
             // For method and field annotations, need to change the RelType when finding meta-annotations
             for (final ClassInfo annotation : directlyRelatedClasses) {
-                reachableClasses.addAll(annotation.getReachableClasses(RelType.ANNOTATIONS));
+                reachableClasses.addAll(annotation.getReachableClasses(RelType.CLASS_ANNOTATIONS));
             }
         } else if (relType == RelType.CLASSES_WITH_METHOD_ANNOTATION
                 || relType == RelType.CLASSES_WITH_FIELD_ANNOTATION) {
             // If looking for meta-annotated methods or fields, need to find all meta-annotated annotations,
             // then look for the methods or fields that they annotate
-            for (final ClassInfo subAnnotation : filterClassInfo(getReachableClasses(RelType.ANNOTATED_CLASSES),
+            for (final ClassInfo subAnnotation : filterClassInfo(
+                    getReachableClasses(RelType.CLASSES_WITH_CLASS_ANNOTATION),
                     /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.ANNOTATION)) {
                 reachableClasses.addAll(subAnnotation.getDirectlyRelatedClasses(relType));
             }
@@ -473,28 +484,41 @@ public class ClassInfo implements Comparable<ClassInfo> {
     }
 
     /** Add an annotation to this class. */
-    void addAnnotation(final String annotationName, final Map<String, ClassInfo> classNameToClassInfo) {
-        final ClassInfo annotationClassInfo = getOrCreateClassInfo(scalaBaseClassName(annotationName),
-                /* classModifiers = */ 0x2000, scanSpec, classNameToClassInfo);
+    void addClassAnnotation(final AnnotationInfo classAnnotationInfo,
+            final Map<String, ClassInfo> classNameToClassInfo) {
+        final ClassInfo annotationClassInfo = getOrCreateClassInfo(
+                scalaBaseClassName(classAnnotationInfo.annotationName), /* classModifiers = */ 0x2000, scanSpec,
+                classNameToClassInfo);
         annotationClassInfo.isAnnotation = true;
-        this.addRelatedClass(RelType.ANNOTATIONS, annotationClassInfo);
-        annotationClassInfo.addRelatedClass(RelType.ANNOTATED_CLASSES, this);
+        if (this.annotationInfo == null) {
+            this.annotationInfo = new ArrayList<>();
+        }
+        this.annotationInfo.add(classAnnotationInfo);
+        classAnnotationInfo.addDefaultValues(annotationClassInfo.annotationDefaultParamValues);
+        this.addRelatedClass(RelType.CLASS_ANNOTATIONS, annotationClassInfo);
+        annotationClassInfo.addRelatedClass(RelType.CLASSES_WITH_CLASS_ANNOTATION, this);
     }
 
     /** Add a method annotation to this class. */
-    void addMethodAnnotation(final String annotationName, final Map<String, ClassInfo> classNameToClassInfo) {
-        final ClassInfo annotationClassInfo = getOrCreateClassInfo(scalaBaseClassName(annotationName),
-                /* classModifiers = */ 0x2000, scanSpec, classNameToClassInfo);
+    void addMethodAnnotation(final AnnotationInfo methodAnnotationInfo,
+            final Map<String, ClassInfo> classNameToClassInfo) {
+        final ClassInfo annotationClassInfo = getOrCreateClassInfo(
+                scalaBaseClassName(methodAnnotationInfo.annotationName), /* classModifiers = */ 0x2000, scanSpec,
+                classNameToClassInfo);
         annotationClassInfo.isAnnotation = true;
+        methodAnnotationInfo.addDefaultValues(annotationClassInfo.annotationDefaultParamValues);
         this.addRelatedClass(RelType.METHOD_ANNOTATIONS, annotationClassInfo);
         annotationClassInfo.addRelatedClass(RelType.CLASSES_WITH_METHOD_ANNOTATION, this);
     }
 
     /** Add a field annotation to this class. */
-    void addFieldAnnotation(final String annotationName, final Map<String, ClassInfo> classNameToClassInfo) {
-        final ClassInfo annotationClassInfo = getOrCreateClassInfo(scalaBaseClassName(annotationName),
-                /* classModifiers = */ 0x2000, scanSpec, classNameToClassInfo);
+    void addFieldAnnotation(final AnnotationInfo fieldAnnotationInfo,
+            final Map<String, ClassInfo> classNameToClassInfo) {
+        final ClassInfo annotationClassInfo = getOrCreateClassInfo(
+                scalaBaseClassName(fieldAnnotationInfo.annotationName), /* classModifiers = */ 0x2000, scanSpec,
+                classNameToClassInfo);
         annotationClassInfo.isAnnotation = true;
+        fieldAnnotationInfo.addDefaultValues(annotationClassInfo.annotationDefaultParamValues);
         this.addRelatedClass(RelType.FIELD_ANNOTATIONS, annotationClassInfo);
         annotationClassInfo.addRelatedClass(RelType.CLASSES_WITH_FIELD_ANNOTATION, this);
     }
@@ -545,19 +569,65 @@ public class ClassInfo implements Comparable<ClassInfo> {
     }
 
     /** Add field info. */
-    void addFieldInfo(final List<FieldInfo> fieldInfoList) {
-        if (this.fieldInfo == null) {
-            this.fieldInfo = new ArrayList<>();
+    void addFieldInfo(final List<FieldInfo> fieldInfoList, final Map<String, ClassInfo> classNameToClassInfo) {
+        for (final FieldInfo fieldInfo : fieldInfoList) {
+            final List<AnnotationInfo> fieldAnnotationInfoList = fieldInfo.annotationInfo;
+            if (fieldAnnotationInfoList != null) {
+                for (final AnnotationInfo fieldAnnotationInfo : fieldAnnotationInfoList) {
+                    final ClassInfo classInfo = getOrCreateClassInfo(fieldAnnotationInfo.annotationName,
+                            /* classModifiers = */ 0x2000, scanSpec, classNameToClassInfo);
+                    fieldAnnotationInfo.addDefaultValues(classInfo.annotationDefaultParamValues);
+                }
+            }
         }
-        this.fieldInfo.addAll(fieldInfoList);
+        if (this.fieldInfo == null) {
+            this.fieldInfo = fieldInfoList;
+        } else {
+            this.fieldInfo.addAll(fieldInfoList);
+        }
     }
 
     /** Add method info. */
-    void addMethodInfo(final List<MethodInfo> methodInfoList) {
-        if (this.methodInfo == null) {
-            this.methodInfo = new ArrayList<>();
+    void addMethodInfo(final List<MethodInfo> methodInfoList, final Map<String, ClassInfo> classNameToClassInfo) {
+        for (final MethodInfo methodInfo : methodInfoList) {
+            final List<AnnotationInfo> methodAnnotationInfoList = methodInfo.annotationInfo;
+            if (methodAnnotationInfoList != null) {
+                for (final AnnotationInfo methodAnnotationInfo : methodAnnotationInfoList) {
+                    methodAnnotationInfo.addDefaultValues(
+                            getOrCreateClassInfo(methodAnnotationInfo.annotationName, /* classModifiers = */ 0x2000,
+                                    scanSpec, classNameToClassInfo).annotationDefaultParamValues);
+                }
+            }
+            final AnnotationInfo[][] methodParamAnnotationInfoList = methodInfo.parameterAnnotationInfo;
+            if (methodParamAnnotationInfoList != null) {
+                for (int i = 0; i < methodParamAnnotationInfoList.length; i++) {
+                    final AnnotationInfo[] paramAnnotationInfoArr = methodParamAnnotationInfoList[i];
+                    if (paramAnnotationInfoArr != null) {
+                        for (int j = 0; j < paramAnnotationInfoArr.length; j++) {
+                            final AnnotationInfo paramAnnotationInfo = paramAnnotationInfoArr[j];
+                            paramAnnotationInfo
+                                    .addDefaultValues(getOrCreateClassInfo(paramAnnotationInfo.annotationName,
+                                            /* classModifiers = */ 0x2000, scanSpec,
+                                            classNameToClassInfo).annotationDefaultParamValues);
+                        }
+                    }
+                }
+            }
         }
-        this.methodInfo.addAll(methodInfoList);
+        if (this.methodInfo == null) {
+            this.methodInfo = methodInfoList;
+        } else {
+            this.methodInfo.addAll(methodInfoList);
+        }
+    }
+
+    /** Add annotation default values. */
+    void addAnnotationParamDefaultValues(final List<AnnotationParamValue> paramNamesAndValues) {
+        if (this.annotationDefaultParamValues == null) {
+            this.annotationDefaultParamValues = paramNamesAndValues;
+        } else {
+            this.annotationDefaultParamValues.addAll(paramNamesAndValues);
+        }
     }
 
     /**
@@ -1269,12 +1339,12 @@ public class ClassInfo implements Comparable<ClassInfo> {
             return Collections.<ClassInfo> emptySet();
         }
         final Set<ClassInfo> classesWithAnnotation = filterClassInfo(
-                direct ? getDirectlyRelatedClasses(RelType.ANNOTATED_CLASSES)
-                        : getReachableClasses(RelType.ANNOTATED_CLASSES),
+                direct ? getDirectlyRelatedClasses(RelType.CLASSES_WITH_CLASS_ANNOTATION)
+                        : getReachableClasses(RelType.CLASSES_WITH_CLASS_ANNOTATION),
                 /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, //
                 ClassType.STANDARD_CLASS, ClassType.IMPLEMENTED_INTERFACE);
         boolean isInherited = false;
-        for (final ClassInfo metaAnnotation : getDirectlyRelatedClasses(RelType.ANNOTATIONS)) {
+        for (final ClassInfo metaAnnotation : getDirectlyRelatedClasses(RelType.CLASS_ANNOTATIONS)) {
             if (metaAnnotation.className.equals("java.lang.annotation.Inherited")) {
                 isInherited = true;
                 break;
@@ -1359,7 +1429,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
      *         is an annotation. Returns the empty set if none.
      */
     public Set<ClassInfo> getAnnotations() {
-        return filterClassInfo(getReachableClasses(RelType.ANNOTATIONS),
+        return filterClassInfo(getReachableClasses(RelType.CLASS_ANNOTATIONS),
                 /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.ALL);
     }
 
@@ -1384,6 +1454,23 @@ public class ClassInfo implements Comparable<ClassInfo> {
         return getNamesOfAnnotations().contains(annotationName);
     }
 
+    /**
+     * Get a list of annotations on this method, along with any annotation parameter values, wrapped in
+     * AnnotationInfo objects, or the empty list if none.
+     */
+    public List<AnnotationInfo> getAnnotationInfo() {
+        return annotationInfo == null ? Collections.<AnnotationInfo> emptyList() : annotationInfo;
+    }
+
+    /**
+     * Get a list of the default parameter values, if this is an annotation, and it has default parameter values.
+     * Otherwise returns the empty list.
+     */
+    public List<AnnotationParamValue> getAnnotationDefaultParamValues() {
+        return annotationDefaultParamValues == null ? Collections.<AnnotationParamValue> emptyList()
+                : annotationDefaultParamValues;
+    }
+
     // -------------
 
     /**
@@ -1394,7 +1481,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
      * @return the set of direct annotations and meta-annotations on this class, or the empty set if none.
      */
     public Set<ClassInfo> getDirectAnnotations() {
-        return filterClassInfo(getDirectlyRelatedClasses(RelType.ANNOTATIONS),
+        return filterClassInfo(getDirectlyRelatedClasses(RelType.CLASS_ANNOTATIONS),
                 /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.ALL);
     }
 
@@ -1431,7 +1518,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
      */
     public Set<ClassInfo> getMetaAnnotations() {
         return !isAnnotation() ? Collections.<ClassInfo> emptySet()
-                : filterClassInfo(getReachableClasses(RelType.ANNOTATIONS),
+                : filterClassInfo(getReachableClasses(RelType.CLASS_ANNOTATIONS),
                         /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.ALL);
     }
 
@@ -1463,7 +1550,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
      */
     public Set<ClassInfo> getAnnotationsWithMetaAnnotation() {
         return !isAnnotation() ? Collections.<ClassInfo> emptySet()
-                : filterClassInfo(getReachableClasses(RelType.ANNOTATED_CLASSES),
+                : filterClassInfo(getReachableClasses(RelType.CLASSES_WITH_CLASS_ANNOTATION),
                         /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.ANNOTATION);
     }
 
@@ -1494,7 +1581,7 @@ public class ClassInfo implements Comparable<ClassInfo> {
      */
     public Set<ClassInfo> getAnnotationsWithDirectMetaAnnotation() {
         return !isAnnotation() ? Collections.<ClassInfo> emptySet()
-                : filterClassInfo(getDirectlyRelatedClasses(RelType.ANNOTATED_CLASSES),
+                : filterClassInfo(getDirectlyRelatedClasses(RelType.CLASSES_WITH_CLASS_ANNOTATION),
                         /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.ANNOTATION);
     }
 

@@ -38,6 +38,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+import io.github.lukehutch.fastclasspathscanner.scanner.AnnotationInfo.AnnotationParamValue;
 import io.github.lukehutch.fastclasspathscanner.utils.Join;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 
@@ -53,17 +54,18 @@ class ClassInfoUnlinked {
     // Superclass (can be null if no superclass, or if superclass is blacklisted)
     private String superclassName;
     private List<String> implementedInterfaces;
-    private List<String> annotations;
-    private Set<String> methodAnnotations;
-    private Set<String> fieldAnnotations;
+    private List<AnnotationInfo> classAnnotations;
+    private List<AnnotationInfo> methodAnnotations;
+    private List<AnnotationInfo> fieldAnnotations;
     private Set<String> fieldTypes;
     private Map<String, Object> staticFinalFieldValues;
     private String fullyQualifiedContainingMethodName;
     private List<SimpleEntry<String, String>> classContainmentEntries;
-    private final ConcurrentHashMap<String, String> stringInternMap;
+    List<AnnotationParamValue> annotationParamDefaultValues;
     private final ClasspathElement classpathElement;
     List<FieldInfo> fieldInfoList;
     List<MethodInfo> methodInfoList;
+    private final ConcurrentHashMap<String, String> stringInternMap;
 
     private String intern(final String string) {
         if (string == null) {
@@ -95,25 +97,25 @@ class ClassInfoUnlinked {
         implementedInterfaces.add(intern(interfaceName));
     }
 
-    void addAnnotation(final String annotationName) {
-        if (annotations == null) {
-            annotations = new ArrayList<>();
+    void addClassAnnotation(final AnnotationInfo classAnnotation) {
+        if (classAnnotations == null) {
+            classAnnotations = new ArrayList<>();
         }
-        annotations.add(intern(annotationName));
+        classAnnotations.add(classAnnotation);
     }
 
-    public void addMethodAnnotation(final String annotationName) {
+    void addMethodAnnotation(final AnnotationInfo methodAnnotation) {
         if (methodAnnotations == null) {
-            methodAnnotations = new HashSet<>();
+            methodAnnotations = new ArrayList<>();
         }
-        methodAnnotations.add(intern(annotationName));
+        methodAnnotations.add(methodAnnotation);
     }
 
-    public void addFieldAnnotation(final String annotationName) {
+    void addFieldAnnotation(final AnnotationInfo fieldAnnotation) {
         if (fieldAnnotations == null) {
-            fieldAnnotations = new HashSet<>();
+            fieldAnnotations = new ArrayList<>();
         }
-        fieldAnnotations.add(intern(annotationName));
+        fieldAnnotations.add(fieldAnnotation);
     }
 
     void addFieldType(final String fieldTypeName) {
@@ -155,6 +157,10 @@ class ClassInfoUnlinked {
         classContainmentEntries.add(new SimpleEntry<>(innerClassName, outerClassName));
     }
 
+    public void addAnnotationParamDefaultValues(final List<AnnotationParamValue> annotationParamDefaultValues) {
+        this.annotationParamDefaultValues = annotationParamDefaultValues;
+    }
+
     /** Link classes. Not threadsafe, should be run in a single-threaded context. */
     void link(final ScanSpec scanSpec, final Map<String, ClassInfo> classNameToClassInfo, final LogNode log) {
         final ClassInfo classInfo = ClassInfo.addScannedClass(className, classModifiers, isInterface, isAnnotation,
@@ -167,19 +173,19 @@ class ClassInfoUnlinked {
                 classInfo.addImplementedInterface(interfaceName, classNameToClassInfo);
             }
         }
-        if (annotations != null) {
-            for (final String annotationName : annotations) {
-                classInfo.addAnnotation(annotationName, classNameToClassInfo);
+        if (classAnnotations != null) {
+            for (final AnnotationInfo classAnnotation : classAnnotations) {
+                classInfo.addClassAnnotation(classAnnotation, classNameToClassInfo);
             }
         }
         if (methodAnnotations != null) {
-            for (final String annotationName : methodAnnotations) {
-                classInfo.addMethodAnnotation(annotationName, classNameToClassInfo);
+            for (final AnnotationInfo methodAnnotation : methodAnnotations) {
+                classInfo.addMethodAnnotation(methodAnnotation, classNameToClassInfo);
             }
         }
         if (fieldAnnotations != null) {
-            for (final String annotationName : fieldAnnotations) {
-                classInfo.addFieldAnnotation(annotationName, classNameToClassInfo);
+            for (final AnnotationInfo fieldAnnotation : fieldAnnotations) {
+                classInfo.addFieldAnnotation(fieldAnnotation, classNameToClassInfo);
             }
         }
         if (fieldTypes != null) {
@@ -195,14 +201,17 @@ class ClassInfoUnlinked {
         if (classContainmentEntries != null) {
             ClassInfo.addClassContainment(classContainmentEntries, scanSpec, classNameToClassInfo);
         }
+        if (annotationParamDefaultValues != null) {
+            classInfo.addAnnotationParamDefaultValues(annotationParamDefaultValues);
+        }
         if (fullyQualifiedContainingMethodName != null) {
             classInfo.addFullyQualifiedContainingMethodName(fullyQualifiedContainingMethodName);
         }
         if (fieldInfoList != null) {
-            classInfo.addFieldInfo(fieldInfoList);
+            classInfo.addFieldInfo(fieldInfoList, classNameToClassInfo);
         }
         if (methodInfoList != null) {
-            classInfo.addMethodInfo(methodInfoList);
+            classInfo.addMethodInfo(methodInfoList, classNameToClassInfo);
         }
     }
 
@@ -218,11 +227,14 @@ class ClassInfoUnlinked {
             if (implementedInterfaces != null) {
                 subLog.log("Interfaces: " + Join.join(", ", implementedInterfaces));
             }
-            if (annotations != null) {
-                subLog.log("Annotations: " + Join.join(", ", annotations));
+            if (classAnnotations != null) {
+                subLog.log("Class annotations: " + Join.join(", ", classAnnotations));
             }
             if (methodAnnotations != null) {
                 subLog.log("Method annotations: " + Join.join(", ", methodAnnotations));
+            }
+            if (fieldAnnotations != null) {
+                subLog.log("Field annotations: " + Join.join(", ", fieldAnnotations));
             }
             if (fieldTypes != null) {
                 subLog.log("Field types: " + Join.join(", ", fieldTypes));

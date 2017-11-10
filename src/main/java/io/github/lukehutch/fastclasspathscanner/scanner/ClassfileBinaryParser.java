@@ -37,8 +37,12 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+import io.github.lukehutch.fastclasspathscanner.scanner.AnnotationInfo.AnnotationClassRef;
+import io.github.lukehutch.fastclasspathscanner.scanner.AnnotationInfo.AnnotationEnumValue;
+import io.github.lukehutch.fastclasspathscanner.scanner.AnnotationInfo.AnnotationParamValue;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.MultiMapKeyToSet;
+import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
 
 /**
  * A classfile binary format parser. Implements its own buffering to avoid the overhead of using DataInputStream.
@@ -196,8 +200,12 @@ class ClassfileBinaryParser implements AutoCloseable {
         curr += bytesToSkip;
     }
 
-    /** Reads the "modified UTF8" format defined in the Java classfile spec, optionally replacing '/' with '.'. */
-    private String readString(final int strStart, final boolean replaceSlashWithDot) {
+    /**
+     * Reads the "modified UTF8" format defined in the Java classfile spec, optionally replacing '/' with '.', and
+     * optionally removing the prefix "L" and the suffix ";".
+     */
+    private String readString(final int strStart, final boolean replaceSlashWithDot,
+            final boolean stripLSemicolon) {
         final int utfLen = readUnsignedShort(strStart);
         final int utfStart = strStart + 2;
         final char[] chars = new char[utfLen];
@@ -255,10 +263,18 @@ class ClassfileBinaryParser implements AutoCloseable {
                 throw new RuntimeException("Bad modified UTF8");
             }
         }
-        if (charIdx < utfLen) {
-            return new String(chars, 0, charIdx);
-        } else {
+        if (charIdx == utfLen && !stripLSemicolon) {
             return new String(chars);
+        } else {
+            if (stripLSemicolon) {
+                if (charIdx < 2 || chars[0] != 'L' || chars[charIdx - 1] != ';') {
+                    throw new RuntimeException("Expected string to start with 'L' and end with ';', got \""
+                            + new String(chars) + "\"");
+                }
+                return new String(chars, 1, charIdx - 2);
+            } else {
+                return new String(chars, 0, charIdx);
+            }
         }
     }
 
@@ -326,9 +342,11 @@ class ClassfileBinaryParser implements AutoCloseable {
     }
 
     /** Get a string from the constant pool, optionally replacing '/' with '.'. */
-    private String getConstantPoolString(final int cpIdx, final boolean replaceSlashWithDot) {
+    private String getConstantPoolString(final int cpIdx, final boolean replaceSlashWithDot,
+            final boolean stripLSemicolon) {
         final int constantPoolStringOffset = getConstantPoolStringOffset(cpIdx, /* subFieldIdx = */ 0);
-        return constantPoolStringOffset == 0 ? null : readString(constantPoolStringOffset, replaceSlashWithDot);
+        return constantPoolStringOffset == 0 ? null
+                : readString(constantPoolStringOffset, replaceSlashWithDot, stripLSemicolon);
     }
 
     /**
@@ -343,7 +361,8 @@ class ClassfileBinaryParser implements AutoCloseable {
     private String getConstantPoolString(final int cpIdx, final int subFieldIdx) {
         final int constantPoolStringOffset = getConstantPoolStringOffset(cpIdx, subFieldIdx);
         return constantPoolStringOffset == 0 ? null
-                : readString(constantPoolStringOffset, /* replaceSlashWithDot = */ false);
+                : readString(constantPoolStringOffset, /* replaceSlashWithDot = */ false,
+                        /* stripLSemicolon = */ false);
     }
 
     /** Get a string from the constant pool. */
@@ -366,7 +385,16 @@ class ClassfileBinaryParser implements AutoCloseable {
 
     /** Get a string from the constant pool, and interpret it as a class name by replacing '/' with '.'. */
     private String getConstantPoolClassName(final int CpIdx) {
-        return getConstantPoolString(CpIdx, /* replaceSlashWithDot = */ true);
+        return getConstantPoolString(CpIdx, /* replaceSlashWithDot = */ true, /* stripLSemicolon = */ false);
+    }
+
+    /**
+     * Get a string from the constant pool representing an internal string descriptor for a class name
+     * ("Lcom/xyz/MyClass;"), and interpret it as a class name by replacing '/' with '.', and removing the leading
+     * "L" and the trailing ";".
+     */
+    private String getConstantPoolClassDescriptor(final int CpIdx) {
+        return getConstantPoolString(CpIdx, /* replaceSlashWithDot = */ true, /* stripLSemicolon = */ true);
     }
 
     /** Compare a string in the constant pool with a given constant, without constructing the String object. */
@@ -390,9 +418,9 @@ class ClassfileBinaryParser implements AutoCloseable {
     }
 
     /** Get a constant from the constant pool. */
-    private Object getConstantPoolValue(final int cpIdx, final char fieldTypeDescriptorFirstChar)
+    private Object getConstantPoolValue(final int tag, final char fieldTypeDescriptorFirstChar, final int cpIdx)
             throws IOException {
-        switch (tag[cpIdx]) {
+        switch (tag) {
         case 1: // Modified UTF8
         case 7: // Class
         case 8: // String
@@ -413,22 +441,20 @@ class ClassfileBinaryParser implements AutoCloseable {
             case 'Z':
                 return new Boolean(intVal != 0);
             default:
-                throw new RuntimeException("Unknown Constant_INTEGER type, " + //
-                        "cannot continue reading class. Please report this at "
+                throw new RuntimeException("Unknown Constant_INTEGER type " + fieldTypeDescriptorFirstChar + ", "
+                        + "cannot continue reading class. Please report this at "
                         + "https://github.com/lukehutch/fast-classpath-scanner/issues");
             }
         }
         case 4: // float
-        {
             return new Float(Float.intBitsToFloat(readInt(offset[cpIdx])));
-        }
         case 5: // long
             return new Long(readLong(offset[cpIdx]));
         case 6: // double
             return new Double(Double.longBitsToDouble(readLong(offset[cpIdx])));
         default:
             // FastClasspathScanner doesn't currently do anything with the other types
-            throw new RuntimeException("Constant pool entry type " + tag[cpIdx] + " unsupported, "
+            throw new RuntimeException("Unknown constant pool tag " + tag + ", "
                     + "cannot continue reading class. Please report this at "
                     + "https://github.com/lukehutch/fast-classpath-scanner/issues");
         }
@@ -437,65 +463,65 @@ class ClassfileBinaryParser implements AutoCloseable {
     // -------------------------------------------------------------------------------------------------------------
 
     /** Read annotation entry from classfile. */
-    private String readAnnotation() throws IOException, InterruptedException {
+    private AnnotationInfo readAnnotation() throws IOException, InterruptedException {
         // Lcom/xyz/Annotation; -> Lcom.xyz.Annotation;
-        final String annotationFieldDescriptor = getConstantPoolClassName(readUnsignedShort());
-        String annotationClassName;
-        if (annotationFieldDescriptor.charAt(0) == 'L'
-                && annotationFieldDescriptor.charAt(annotationFieldDescriptor.length() - 1) == ';') {
-            // Lcom.xyz.Annotation; -> com.xyz.Annotation
-            annotationClassName = annotationFieldDescriptor.substring(1, annotationFieldDescriptor.length() - 1);
-        } else {
-            // Should not happen
-            annotationClassName = annotationFieldDescriptor;
-        }
+        final String annotationClassName = getConstantPoolClassDescriptor(readUnsignedShort());
         final int numElementValuePairs = readUnsignedShort();
+        final List<AnnotationParamValue> paramVals = numElementValuePairs == 0 ? null : new ArrayList<>();
         for (int i = 0; i < numElementValuePairs; i++) {
-            skip(2); // element_name_index
-            readAnnotationElementValue();
+            final String paramName = getConstantPoolString(readUnsignedShort()); // skip(2); // element_name_index
+            final Object paramValue = readAnnotationElementValue();
+            paramVals.add(new AnnotationParamValue(paramName, paramValue));
         }
-        return annotationClassName;
+        return new AnnotationInfo(annotationClassName, paramVals);
     }
 
-    /**
-     * Read annotation element value from classfile. (These values are currently just skipped, so this function
-     * returns nothing.)
-     */
-    private void readAnnotationElementValue() throws IOException, InterruptedException {
+    /** Read annotation element value from classfile. */
+    private Object readAnnotationElementValue() throws IOException, InterruptedException {
         final int tag = (char) readUnsignedByte();
         switch (tag) {
         case 'B':
+            return new Byte((byte) readInt(offset[readUnsignedShort()]));
         case 'C':
+            return new Character((char) readInt(offset[readUnsignedShort()]));
         case 'D':
+            return new Double(Double.longBitsToDouble(readLong(offset[readUnsignedShort()])));
         case 'F':
+            return new Float(Float.intBitsToFloat(readInt(offset[readUnsignedShort()])));
         case 'I':
+            return new Integer(readInt(offset[readUnsignedShort()]));
         case 'J':
+            return new Long(readLong(offset[readUnsignedShort()]));
         case 'S':
+            return new Short((short) readInt(offset[readUnsignedShort()]));
         case 'Z':
+            return new Boolean(readInt(offset[readUnsignedShort()]) != 0);
         case 's':
-            // const_value_index
-            skip(2);
-            break;
-        case 'e':
-            // enum_const_value
-            skip(4);
-            break;
+            return getConstantPoolString(readUnsignedShort());
+        case 'e': {
+            // Return type is AnnotatinEnumVal.
+            final String className = getConstantPoolClassDescriptor(readUnsignedShort());
+            final String constName = getConstantPoolString(readUnsignedShort());
+            return new AnnotationEnumValue(className, constName);
+        }
         case 'c':
-            // class_info_index
-            skip(2);
-            break;
+            // Return type is AnnotationClassRef (for class references in annotations)
+            final String classRefTypeDescriptor = getConstantPoolString(readUnsignedShort());
+            final String classRefTypeStr = ReflectionUtils.parseSimpleTypeDescriptor(classRefTypeDescriptor);
+            return new AnnotationClassRef(classRefTypeStr);
         case '@':
-            // Complex (nested) annotation
-            readAnnotation();
-            break;
+            // Complex (nested) annotation. TODO: link up annotation class names to ClassInfo after scan.
+            // Return type is AnnotationInfo.
+            return readAnnotation();
         case '[':
-            // array_value
+            // Return type is Object[] (of nested annotation element values)
             final int count = readUnsignedShort();
-            for (int l = 0; l < count; ++l) {
+            final Object[] arr = new Object[count];
+            for (int i = 0; i < count; ++i) {
                 // Nested annotation element value
-                readAnnotationElementValue();
+                arr[i] = readAnnotationElementValue();
             }
-            break;
+            return arr;
         default:
             throw new RuntimeException("Class " + className + " has unknown annotation element type tag '"
                     + ((char) tag) + "': element size unknown, cannot continue reading class. "
@@ -753,9 +779,9 @@ class ClassfileBinaryParser implements AutoCloseable {
 
                 Object fieldConstValue = null;
                 boolean foundFieldConstValue = false;
-                List<String> fieldAnnotationNames = null;
+                List<AnnotationInfo> fieldAnnotationInfo = null;
                 if (scanSpec.enableFieldInfo && fieldIsVisible) {
-                    fieldAnnotationNames = new ArrayList<>(1);
+                    fieldAnnotationInfo = new ArrayList<>(1);
                 }
                 final int attributesCount = readUnsignedShort();
                 for (int j = 0; j < attributesCount; j++) {
@@ -766,7 +792,8 @@ class ClassfileBinaryParser implements AutoCloseable {
                     if ((isMatchedFieldName || scanSpec.enableFieldInfo)
                             && constantPoolStringEquals(attributeNameCpIdx, "ConstantValue")) {
                         // http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.7.2
-                        fieldConstValue = getConstantPoolValue(readUnsignedShort(), fieldTypeDescriptorFirstChar);
+                        final int cpIdx = readUnsignedShort();
+                        fieldConstValue = getConstantPoolValue(tag[cpIdx], fieldTypeDescriptorFirstChar, cpIdx);
                         // Store static final field match in ClassInfo object
                         if (isMatchedFieldName) {
                             classInfoUnlinked.addFieldConstantValue(fieldName, fieldConstValue);
@@ -791,12 +818,12 @@ class ClassfileBinaryParser implements AutoCloseable {
                         // Read annotation names
                         final int annotationCount = readUnsignedShort();
                         for (int k = 0; k < annotationCount; k++) {
-                            final String annotationName = readAnnotation();
+                            final AnnotationInfo fieldAnnotation = readAnnotation();
                             if (scanSpec.enableFieldAnnotationIndexing) {
-                                classInfoUnlinked.addFieldAnnotation(annotationName);
+                                classInfoUnlinked.addFieldAnnotation(fieldAnnotation);
                             }
-                            if (fieldAnnotationNames != null) {
-                                fieldAnnotationNames.add(annotationName);
+                            if (fieldAnnotationInfo != null) {
+                                fieldAnnotationInfo.add(fieldAnnotation);
                             }
                         }
                     } else {
@@ -827,7 +854,7 @@ class ClassfileBinaryParser implements AutoCloseable {
                 }
                 if (scanSpec.enableFieldInfo && fieldIsVisible) {
                     classInfoUnlinked.addFieldInfo(new FieldInfo(className, fieldName, fieldModifierFlags,
-                            fieldTypeDescriptor, fieldConstValue, fieldAnnotationNames));
+                            fieldTypeDescriptor, fieldConstValue, fieldAnnotationInfo));
                 }
             }
         }
@@ -837,10 +864,12 @@ class ClassfileBinaryParser implements AutoCloseable {
         for (int i = 0; i < methodCount; i++) {
             // Info on modifier flags: http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.6
             final int methodModifierFlags = readUnsignedShort();
+            final boolean isPublicMethod = ((methodModifierFlags & 0x0001) == 0x0001);
+            final boolean methodIsVisible = isPublicMethod || scanSpec.ignoreMethodVisibility;
 
             String methodName = null;
             String methodTypeDescriptor = null;
-            if (scanSpec.enableMethodInfo) {
+            if (scanSpec.enableMethodInfo || isAnnotation) { // Annotations store defaults in method_info
                 final int methodNameCpIdx = readUnsignedShort();
                 methodName = getConstantPoolString(methodNameCpIdx);
                 final int methodTypeDescriptorCpIdx = readUnsignedShort();
@@ -848,18 +877,17 @@ class ClassfileBinaryParser implements AutoCloseable {
             } else {
                 skip(4); // name_index, descriptor_index
             }
-
             final int attributesCount = readUnsignedShort();
-            final boolean isPublicMethod = ((methodModifierFlags & 0x0001) == 0x0001);
-            final boolean methodIsVisible = isPublicMethod || scanSpec.ignoreMethodVisibility;
             String[] methodParameterNames = null;
             int[] methodParameterAccessFlags = null;
-            String[][] methodParameterAnnotations = null;
-            List<String> methodAnnotationNames = null;
+            AnnotationInfo[][] methodParameterAnnotations = null;
+            List<AnnotationParamValue> annotationParamDefaultValues = null;
+            List<AnnotationInfo> methodAnnotationInfo = null;
             if (scanSpec.enableMethodInfo && methodIsVisible) {
-                methodAnnotationNames = new ArrayList<>(1);
+                methodAnnotationInfo = new ArrayList<>(1);
             }
-            if (!methodIsVisible || (!scanSpec.enableMethodInfo && !scanSpec.enableMethodAnnotationIndexing)) {
+            if (!methodIsVisible
+                    || (!scanSpec.enableMethodInfo && !isAnnotation && !scanSpec.enableMethodAnnotationIndexing)) {
                 // Skip method attributes
                 for (int j = 0; j < attributesCount; j++) {
                     skip(2); // attribute_name_index
@@ -876,22 +904,22 @@ class ClassfileBinaryParser implements AutoCloseable {
                                     attributeNameCpIdx, "RuntimeInvisibleAnnotations"))) {
                         final int annotationCount = readUnsignedShort();
                         for (int k = 0; k < annotationCount; k++) {
-                            final String annotationName = readAnnotation();
+                            final AnnotationInfo annotationInfo = readAnnotation();
                             if (scanSpec.enableMethodAnnotationIndexing) {
-                                classInfoUnlinked.addMethodAnnotation(annotationName);
+                                classInfoUnlinked.addMethodAnnotation(annotationInfo);
                             }
-                            if (methodAnnotationNames != null) {
-                                methodAnnotationNames.add(annotationName);
+                            if (methodAnnotationInfo != null) {
+                                methodAnnotationInfo.add(annotationInfo);
                             }
                         }
                     } else if (constantPoolStringEquals(attributeNameCpIdx, "RuntimeVisibleParameterAnnotations")
                             || (scanSpec.annotationVisibility == RetentionPolicy.CLASS && constantPoolStringEquals(
                                     attributeNameCpIdx, "RuntimeInvisibleParameterAnnotations"))) {
                         final int paramCount = readUnsignedByte();
-                        methodParameterAnnotations = new String[paramCount][];
+                        methodParameterAnnotations = new AnnotationInfo[paramCount][];
                         for (int k = 0; k < paramCount; k++) {
                             final int numAnnotations = readUnsignedShort();
-                            methodParameterAnnotations[k] = new String[numAnnotations];
+                            methodParameterAnnotations[k] = new AnnotationInfo[numAnnotations];
                             for (int l = 0; l < numAnnotations; l++) {
                                 methodParameterAnnotations[k][l] = readAnnotation();
                             }
@@ -912,15 +940,28 @@ class ClassfileBinaryParser implements AutoCloseable {
                         // Add type params to method type signature
                         final String methodTypeSignature = getConstantPoolString(readUnsignedShort());
                         methodTypeDescriptor = methodTypeSignature;
+                    } else if (constantPoolStringEquals(attributeNameCpIdx, "AnnotationDefault")) {
+                        // Get annotation parameter default values
+                        if (annotationParamDefaultValues == null) {
+                            annotationParamDefaultValues = new ArrayList<>();
+                        }
+                        final Object annotationParamDefaultValue = readAnnotationElementValue();
+                        annotationParamDefaultValues
+                                .add(new AnnotationParamValue(methodName, annotationParamDefaultValue));
                     } else {
                         skip(attributeLength);
                     }
                 }
             }
-            if (scanSpec.enableMethodInfo && methodIsVisible) {
-                classInfoUnlinked.addMethodInfo(new MethodInfo(className, methodName, methodModifierFlags,
-                        methodTypeDescriptor, methodParameterNames, methodParameterAccessFlags,
-                        methodAnnotationNames, methodParameterAnnotations));
+            if (methodIsVisible) {
+                if (isAnnotation && annotationParamDefaultValues != null) {
+                    classInfoUnlinked.addAnnotationParamDefaultValues(annotationParamDefaultValues);
+                }
+                if (scanSpec.enableMethodInfo) {
+                    classInfoUnlinked.addMethodInfo(new MethodInfo(className, methodName, methodModifierFlags,
+                            methodTypeDescriptor, methodParameterNames, methodParameterAccessFlags,
+                            methodAnnotationInfo, methodParameterAnnotations));
+                }
             }
         }
 
@@ -934,8 +975,8 @@ class ClassfileBinaryParser implements AutoCloseable {
                             && constantPoolStringEquals(attributeNameCpIdx, "RuntimeInvisibleAnnotations"))) {
                 final int annotationCount = readUnsignedShort();
                 for (int m = 0; m < annotationCount; m++) {
-                    final String annotationName = readAnnotation();
-                    classInfoUnlinked.addAnnotation(annotationName);
+                    final AnnotationInfo classAnnotation = readAnnotation();
+                    classInfoUnlinked.addClassAnnotation(classAnnotation);
                 }
             } else if (constantPoolStringEquals(attributeNameCpIdx, "InnerClasses")) {
                 final int numInnerClasses = readUnsignedShort();

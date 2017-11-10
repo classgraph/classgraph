@@ -31,7 +31,9 @@ package io.github.lukehutch.fastclasspathscanner.scanner;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
 
@@ -45,7 +47,7 @@ public class FieldInfo implements Comparable<FieldInfo> {
     private final int modifiers;
     private final String typeDescriptor;
     private final Object constValue;
-    private final List<String> annotationNames;
+    final List<AnnotationInfo> annotationInfo;
 
     /**
      * The ScanResult (set after the scan is complete, so that we know which ClassLoader to call for any given named
@@ -54,14 +56,16 @@ public class FieldInfo implements Comparable<FieldInfo> {
     ScanResult scanResult;
 
     public FieldInfo(final String className, final String fieldName, final int modifiers,
-            final String typeDescriptor, final Object constValue, final List<String> annotationNames) {
+            final String typeDescriptor, final Object constValue, final List<AnnotationInfo> annotationInfo) {
         this.className = className;
         this.fieldName = fieldName;
         this.modifiers = modifiers;
         this.typeDescriptor = typeDescriptor;
 
         this.constValue = constValue;
-        this.annotationNames = annotationNames.isEmpty() ? Collections.<String> emptyList() : annotationNames;
+        this.annotationInfo = annotationInfo == null || annotationInfo.isEmpty()
+                ? Collections.<AnnotationInfo> emptyList()
+                : annotationInfo;
     }
 
     /** Get the name of the class this method is part of. */
@@ -126,7 +130,7 @@ public class FieldInfo implements Comparable<FieldInfo> {
 
     /** Returns the type of the field, in string representation (e.g. "int[][]"). */
     public String getTypeStr() {
-        final List<String> typeNames = ReflectionUtils.parseTypeDescriptor(typeDescriptor);
+        final List<String> typeNames = ReflectionUtils.parseComplexTypeDescriptor(typeDescriptor);
         if (typeNames.size() != 1) {
             throw new IllegalArgumentException("Invalid type descriptor for field: " + typeDescriptor);
         }
@@ -151,28 +155,45 @@ public class FieldInfo implements Comparable<FieldInfo> {
         return constValue;
     }
 
-    /** Returns the names of annotations on the field, or the empty list if none. */
+    /** Returns the names of unique annotations on the field, or the empty list if none. */
     public List<String> getAnnotationNames() {
-        return annotationNames;
+        if (annotationInfo.isEmpty()) {
+            return Collections.<String> emptyList();
+        }
+        final Set<String> annotationNamesSet = new HashSet<>();
+        for (final AnnotationInfo annotation : annotationInfo) {
+            annotationNamesSet.add(annotation.annotationName);
+        }
+        final List<String> annotationNamesSorted = new ArrayList<>(annotationNamesSet);
+        Collections.sort(annotationNamesSorted);
+        return annotationNamesSorted;
     }
 
     /**
-     * Returns Class references for the annotations on this field. Note that this calls Class.forName() on the
-     * annotation types, which will cause each annotation class to be loaded.
+     * Returns Class references for the unique annotations on this field. Note that this calls Class.forName() on
+     * the annotation types, which will cause each annotation class to be loaded.
      * 
      * @throws IllegalArgumentException
      *             if the annotation type could not be loaded.
      */
     public List<Class<?>> getAnnotationTypes() throws IllegalArgumentException {
-        if (annotationNames.isEmpty()) {
+        if (annotationInfo.isEmpty()) {
             return Collections.<Class<?>> emptyList();
         } else {
             final List<Class<?>> annotationClassRefs = new ArrayList<>();
-            for (final String annotationName : annotationNames) {
+            for (final String annotationName : getAnnotationNames()) {
                 annotationClassRefs.add(ReflectionUtils.typeStrToClass(annotationName, scanResult));
             }
             return annotationClassRefs;
         }
+    }
+
+    /**
+     * Get a list of annotations on this field, along with any annotation parameter values, wrapped in
+     * AnnotationInfo objects, or the empty list if none.
+     */
+    public List<AnnotationInfo> getAnnotationInfo() {
+        return annotationInfo == null ? Collections.<AnnotationInfo> emptyList() : annotationInfo;
     }
 
     /** Use class name and field name for equals(). */
@@ -211,12 +232,12 @@ public class FieldInfo implements Comparable<FieldInfo> {
     public String toString() {
         final StringBuilder buf = new StringBuilder();
 
-        if (!annotationNames.isEmpty()) {
-            for (final String annotationName : annotationNames) {
+        if (annotationInfo != null) {
+            for (final AnnotationInfo annotation : annotationInfo) {
                 if (buf.length() > 0) {
                     buf.append(' ');
                 }
-                buf.append("@" + annotationName);
+                buf.append(annotation.toString());
             }
         }
 

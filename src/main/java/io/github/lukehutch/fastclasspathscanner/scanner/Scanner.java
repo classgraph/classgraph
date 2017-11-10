@@ -438,8 +438,18 @@ public class Scanner implements Callable<ScanResult> {
                 final LogNode classGraphLog = log == null ? null : log.log("Building class graph");
                 final Map<String, ClassInfo> classNameToClassInfo = new HashMap<>();
                 for (final ClassInfoUnlinked c : classInfoUnlinked) {
-                    // Create ClassInfo object from ClassInfoUnlinked object, and link into class graph
-                    c.link(scanSpec, classNameToClassInfo, classGraphLog);
+                    // Need to do two passes, so that annotation default parameter vals are available when linking
+                    // non-attribute classes. In first pass, link annotations with default parameter vals.
+                    if (c.annotationParamDefaultValues != null) {
+                        c.link(scanSpec, classNameToClassInfo, classGraphLog);
+                    }
+                }
+                for (final ClassInfoUnlinked c : classInfoUnlinked) {
+                    // In second pass, link everything else.
+                    if (c.annotationParamDefaultValues == null) {
+                        // Create ClassInfo object from ClassInfoUnlinked object, and link into class graph
+                        c.link(scanSpec, classNameToClassInfo, classGraphLog);
+                    }
                 }
                 final ClassGraphBuilder classGraphBuilder = new ClassGraphBuilder(scanSpec, classNameToClassInfo);
                 if (classGraphLog != null) {
