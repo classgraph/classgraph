@@ -375,7 +375,6 @@ public class AnnotationInfo implements Comparable<AnnotationInfo> {
                 if (i > 0) {
                     buf.append(", ");
                 }
-                // TODO: Pull in annotation default values, and add default values to toString() for the annotation
                 final AnnotationParamValue annotationParamValue = annotationParamValues.get(i);
                 if (annotationParamValues.size() > 1 || !"value".equals(annotationParamValue.paramName)) {
                     annotationParamValue.toString(buf);
