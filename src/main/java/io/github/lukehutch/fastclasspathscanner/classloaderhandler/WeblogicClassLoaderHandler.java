@@ -33,13 +33,16 @@ import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
 
+import java.util.StringTokenizer;
+
 /**
  * Extract classpath entries from the Weblogic ClassLoader. See:
  */
 public class WeblogicClassLoaderHandler implements ClassLoaderHandler {
+    private static final String GENERIC_CLASS_LOADER = "weblogic.utils.classloaders.GenericClassLoader";
     public static final String[] HANDLED_CLASSLOADERS = { // 
             "weblogic.utils.classloaders.ChangeAwareClassLoader", //
-            "weblogic.utils.classloaders.GenericClassLoader", //
+            GENERIC_CLASS_LOADER, //
             "weblogic.utils.classloaders.FilteringClassLoader", //
     };
 
@@ -51,9 +54,18 @@ public class WeblogicClassLoaderHandler implements ClassLoaderHandler {
     @Override
     public void handle(final ClassLoader classLoader, final ClasspathFinder classpathFinder,
             final ScanSpec scanSpec, final LogNode log) throws Exception {
-        final String classpath = (String) ReflectionUtils.invokeMethod(classLoader, "getClassPath");
-        if (classpath != null) {
-            classpathFinder.addClasspathElements(classpath, classLoader, log);
+        if (GENERIC_CLASS_LOADER.equals(classLoader.getClass().getName())) {
+            final String classpath = (String) ReflectionUtils.invokeMethod(classLoader, "getFinderClassPath");
+            if (classpath != null) {
+                for (StringTokenizer st = new StringTokenizer(classpath, ":"); st.hasMoreTokens(); ) {
+                    classpathFinder.addClasspathElements(st.nextToken(), classLoader, log);
+                }
+            }
+        } else {
+            final String classpath = (String) ReflectionUtils.invokeMethod(classLoader, "getClassPath");
+            if (classpath != null) {
+                classpathFinder.addClasspathElements(classpath, classLoader, log);
+            }
         }
     }
 }
