@@ -237,8 +237,10 @@ class RelativePath {
             }
             try {
                 fileCached = fileCached.getCanonicalFile();
+            } catch (final IOException e) {
+                throw new IOException("Could not canonicalize path " + path, e);
             } catch (final SecurityException e) {
-                throw new IOException(e);
+                throw new IOException("Could not canonicalize path " + path, e);
             }
             fileIsCached = true;
         }
