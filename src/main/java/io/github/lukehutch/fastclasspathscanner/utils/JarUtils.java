@@ -211,6 +211,10 @@ public class JarUtils {
                 || path.regionMatches(true, len - 4, ".zip", 0, 4) //
                 || path.regionMatches(true, len - 4, ".war", 0, 4) //
                 || path.regionMatches(true, len - 4, ".car", 0, 4) //
+                || path.regionMatches(true, len - 4, ".ear", 0, 4) //
+                || path.regionMatches(true, len - 4, ".sar", 0, 4) //
+                || path.regionMatches(true, len - 4, ".har", 0, 4) //
+                || path.regionMatches(true, len - 4, ".par", 0, 4) //
                 || path.regionMatches(true, len - 6, ".wsjar", 0, 6);
         if (!isJar) {
             // Support URLs of the form "http://domain.com/path/to/jarfile.jar?version=2"
