@@ -157,7 +157,7 @@ public class ClasspathFinder {
      * @return true (and add the classpath element) if pathElement is not null or empty, otherwise return false.
      */
     public boolean addClasspathElements(final String pathStr, final ClassLoader classLoader, final LogNode log) {
-        return addClasspathElement(pathStr, new ClassLoader[] { classLoader }, log);
+        return addClasspathElements(pathStr, new ClassLoader[] { classLoader }, log);
     }
 
     /**
