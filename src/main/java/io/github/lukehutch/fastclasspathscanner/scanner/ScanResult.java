@@ -801,25 +801,18 @@ public class ScanResult {
      */
     public List<Class<?>> classNamesToClassRefs(final List<String> classNames, final boolean ignoreExceptions)
             throws IllegalArgumentException {
-        try {
-            if (classNames.isEmpty()) {
-                return Collections.<Class<?>> emptyList();
-            } else {
-                final List<Class<?>> classRefs = new ArrayList<>();
-                // Try loading each class
-                for (final String className : classNames) {
-                    final Class<?> classRef = classNameToClassRef(className, ignoreExceptions);
-                    if (classRef != null) {
-                        classRefs.add(classRef);
-                    }
+        if (classNames.isEmpty()) {
+            return Collections.<Class<?>> emptyList();
+        } else {
+            final List<Class<?>> classRefs = new ArrayList<>();
+            // Try loading each class
+            for (final String className : classNames) {
+                final Class<?> classRef = classNameToClassRef(className, ignoreExceptions);
+                if (classRef != null) {
+                    classRefs.add(classRef);
                 }
-                return classRefs.isEmpty() ? Collections.<Class<?>> emptyList() : classRefs;
             }
-        } finally {
-            // Manually flush log, since this method is called after scanning is complete
-            if (log != null) {
-                log.flush();
-            }
+            return classRefs.isEmpty() ? Collections.<Class<?>> emptyList() : classRefs;
         }
     }
 
