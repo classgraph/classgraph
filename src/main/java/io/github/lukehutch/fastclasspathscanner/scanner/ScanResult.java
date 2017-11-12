@@ -808,7 +808,7 @@ public class ScanResult {
                 final List<Class<?>> classRefs = new ArrayList<>();
                 // Try loading each class
                 for (final String className : classNames) {
-                    final Class<?> classRef = classNameToClassRef(className);
+                    final Class<?> classRef = classNameToClassRef(className, ignoreExceptions);
                     if (classRef != null) {
                         classRefs.add(classRef);
                     }
