@@ -138,6 +138,8 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
         }
     }
 
+    private static final int ANNOTATION_CLASS_MODIFIER = 0x2000;
+
     // -------------------------------------------------------------------------------------------------------------
 
     /** Get the name of this class. */
@@ -508,7 +510,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     void addClassAnnotation(final AnnotationInfo classAnnotationInfo,
             final Map<String, ClassInfo> classNameToClassInfo) {
         final ClassInfo annotationClassInfo = getOrCreateClassInfo(
-                scalaBaseClassName(classAnnotationInfo.annotationName), /* classModifiers = */ 0x2000, scanSpec,
+                scalaBaseClassName(classAnnotationInfo.annotationName), ANNOTATION_CLASS_MODIFIER, scanSpec,
                 classNameToClassInfo);
         annotationClassInfo.isAnnotation = true;
         if (this.annotationInfo == null) {
@@ -524,7 +526,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     void addMethodAnnotation(final AnnotationInfo methodAnnotationInfo,
             final Map<String, ClassInfo> classNameToClassInfo) {
         final ClassInfo annotationClassInfo = getOrCreateClassInfo(
-                scalaBaseClassName(methodAnnotationInfo.annotationName), /* classModifiers = */ 0x2000, scanSpec,
+                scalaBaseClassName(methodAnnotationInfo.annotationName), ANNOTATION_CLASS_MODIFIER, scanSpec,
                 classNameToClassInfo);
         annotationClassInfo.isAnnotation = true;
         methodAnnotationInfo.addDefaultValues(annotationClassInfo.annotationDefaultParamValues);
@@ -536,7 +538,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     void addFieldAnnotation(final AnnotationInfo fieldAnnotationInfo,
             final Map<String, ClassInfo> classNameToClassInfo) {
         final ClassInfo annotationClassInfo = getOrCreateClassInfo(
-                scalaBaseClassName(fieldAnnotationInfo.annotationName), /* classModifiers = */ 0x2000, scanSpec,
+                scalaBaseClassName(fieldAnnotationInfo.annotationName), ANNOTATION_CLASS_MODIFIER, scanSpec,
                 classNameToClassInfo);
         annotationClassInfo.isAnnotation = true;
         fieldAnnotationInfo.addDefaultValues(annotationClassInfo.annotationDefaultParamValues);
@@ -596,7 +598,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
             if (fieldAnnotationInfoList != null) {
                 for (final AnnotationInfo fieldAnnotationInfo : fieldAnnotationInfoList) {
                     final ClassInfo classInfo = getOrCreateClassInfo(fieldAnnotationInfo.annotationName,
-                            /* classModifiers = */ 0x2000, scanSpec, classNameToClassInfo);
+                            ANNOTATION_CLASS_MODIFIER, scanSpec, classNameToClassInfo);
                     fieldAnnotationInfo.addDefaultValues(classInfo.annotationDefaultParamValues);
                 }
             }
@@ -615,7 +617,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
             if (methodAnnotationInfoList != null) {
                 for (final AnnotationInfo methodAnnotationInfo : methodAnnotationInfoList) {
                     methodAnnotationInfo.addDefaultValues(
-                            getOrCreateClassInfo(methodAnnotationInfo.annotationName, /* classModifiers = */ 0x2000,
+                            getOrCreateClassInfo(methodAnnotationInfo.annotationName, ANNOTATION_CLASS_MODIFIER,
                                     scanSpec, classNameToClassInfo).annotationDefaultParamValues);
                 }
             }
@@ -628,7 +630,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
                             final AnnotationInfo paramAnnotationInfo = paramAnnotationInfoArr[j];
                             paramAnnotationInfo
                                     .addDefaultValues(getOrCreateClassInfo(paramAnnotationInfo.annotationName,
-                                            /* classModifiers = */ 0x2000, scanSpec,
+                                            ANNOTATION_CLASS_MODIFIER, scanSpec,
                                             classNameToClassInfo).annotationDefaultParamValues);
                         }
                     }
