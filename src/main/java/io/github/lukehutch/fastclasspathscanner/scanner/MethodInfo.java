@@ -90,7 +90,11 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
                 : methodAnnotationInfo;
     }
 
-    /** Get the method modifiers as a string, e.g. "public static final". */
+    /**
+     * Get the method modifiers as a string, e.g. "public static final". For the modifier bits, call
+     * getAccessFlags().
+     */
+    // TODO: Rename to getModifiersStr()
     public String getModifiers() {
         return ReflectionUtils.modifiersToString(modifiers, /* isMethod = */ true);
     }
@@ -117,6 +121,7 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
     }
 
     /** Returns the access flags of the method. */
+    // TODO: Rename to getModifiers()
     public int getAccessFlags() {
         return modifiers;
     }
@@ -278,8 +283,26 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
      * parameter is mandated by a language specification, so all compilers for the language must emit it.)
      * </ul>
      */
+    // TODO: Rename to getParameterModifiers()
     public int[] getParameterAccessFlags() {
         return parameterAccessFlags;
+    }
+
+    /**
+     * Returns the parameter modifiers as a string (e.g. ["final", ""], if available (only available in classfiles
+     * compiled in JDK8 or above using the -parameters commandline switch), otherwise returns null.
+     */
+    // TODO: Rename to getParameterModifierStrs()
+    public String[] getParameterModifiers() {
+        if (parameterAccessFlags == null) {
+            return null;
+        }
+        String[] parameterModifierStrs = new String[parameterAccessFlags.length];
+        for (int i = 0; i < parameterAccessFlags.length; i++) {
+            parameterModifierStrs[i] = ReflectionUtils.modifiersToString(parameterAccessFlags[i],
+                    /* isMethod = */ false);
+        }
+        return parameterModifierStrs;
     }
 
     /**
