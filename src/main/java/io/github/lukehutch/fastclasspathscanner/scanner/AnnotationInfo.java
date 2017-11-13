@@ -457,9 +457,9 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
             annotationNamesSet.add(annotation.annotationName);
         }
         final String[] annotationNamesSorted = new String[annotationNamesSet.size()];
-        final int i = 0;
+        int i = 0;
         for (final String annotationName : annotationNamesSet) {
-            annotationNamesSorted[i] = annotationName;
+            annotationNamesSorted[i++] = annotationName;
         }
         Arrays.sort(annotationNamesSorted);
         return annotationNamesSorted;
@@ -475,9 +475,9 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
             annotationNamesSet.add(annotation.annotationName);
         }
         final String[] annotationNamesSorted = new String[annotationNamesSet.size()];
-        final int i = 0;
+        int i = 0;
         for (final String annotationName : annotationNamesSet) {
-            annotationNamesSorted[i] = annotationName;
+            annotationNamesSorted[i++] = annotationName;
         }
         Arrays.sort(annotationNamesSorted);
         return annotationNamesSorted;
