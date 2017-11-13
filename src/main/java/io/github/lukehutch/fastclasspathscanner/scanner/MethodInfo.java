@@ -297,7 +297,7 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
         if (parameterAccessFlags == null) {
             return null;
         }
-        String[] parameterModifierStrs = new String[parameterAccessFlags.length];
+        final String[] parameterModifierStrs = new String[parameterAccessFlags.length];
         for (int i = 0; i < parameterAccessFlags.length; i++) {
             parameterModifierStrs[i] = ReflectionUtils.modifiersToString(parameterAccessFlags[i],
                     /* isMethod = */ false);
