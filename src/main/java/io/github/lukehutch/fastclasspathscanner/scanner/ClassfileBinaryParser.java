@@ -467,7 +467,8 @@ class ClassfileBinaryParser implements AutoCloseable {
         // Lcom/xyz/Annotation; -> Lcom.xyz.Annotation;
         final String annotationClassName = getConstantPoolClassDescriptor(readUnsignedShort());
         final int numElementValuePairs = readUnsignedShort();
-        final List<AnnotationParamValue> paramVals = numElementValuePairs == 0 ? null : new ArrayList<>();
+        final List<AnnotationParamValue> paramVals = numElementValuePairs == 0 ? null
+                : new ArrayList<AnnotationParamValue>();
         for (int i = 0; i < numElementValuePairs; i++) {
             final String paramName = getConstantPoolString(readUnsignedShort()); // skip(2); // element_name_index
             final Object paramValue = readAnnotationElementValue();
