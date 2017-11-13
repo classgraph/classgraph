@@ -43,7 +43,9 @@ import io.github.lukehutch.fastclasspathscanner.issues.issue153.Issue153Test.Fru
 import io.github.lukehutch.fastclasspathscanner.issues.issue153.Issue153Test.NestedAnnotation;
 import io.github.lukehutch.fastclasspathscanner.issues.issue153.Issue153Test.StringAnnotation;
 import io.github.lukehutch.fastclasspathscanner.issues.issue153.Issue153Test.TwoParamAnnotation;
+import io.github.lukehutch.fastclasspathscanner.scanner.AnnotationInfo;
 import io.github.lukehutch.fastclasspathscanner.scanner.AnnotationInfo.AnnotationEnumValue;
+import io.github.lukehutch.fastclasspathscanner.scanner.AnnotationInfo.AnnotationParamValue;
 import io.github.lukehutch.fastclasspathscanner.scanner.ClassInfo;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
 
@@ -147,8 +149,9 @@ public class Issue153Test {
                 .isEqualTo("[@" + AnnotationWithOnlyDefaultValue.class.getName() + "(6)]");
 
         // Make sure enum constants can be instantiated
-        final Object bananaRef = ((AnnotationEnumValue) classInfo.getAnnotationInfo().get(2)
-                .getAnnotationParamValues().get(0).getParamValue()).getEnumValueRef(scanResult);
+        final AnnotationInfo annotation2 = classInfo.getAnnotationInfo().get(2);
+        final AnnotationParamValue annotationParam0 = annotation2.getAnnotationParamValues().get(0);
+        final Object bananaRef = ((AnnotationEnumValue) annotationParam0.getParamValue()).getEnumValueRef();
         assertThat(bananaRef.getClass()).isEqualTo(FruitEnum.class);
         assertThat(bananaRef.toString()).isEqualTo(FruitEnum.BANANA.toString());
     }

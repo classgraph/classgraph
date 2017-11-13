@@ -34,13 +34,14 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult.InfoObject;
 import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
 
 /**
  * Holds metadata about methods of a class encountered during a scan. All values are taken directly out of the
  * classfile for the class.
  */
-public class MethodInfo implements Comparable<MethodInfo> {
+public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
     private final String className;
     private final String methodName;
     private final int modifiers;
@@ -50,12 +51,29 @@ public class MethodInfo implements Comparable<MethodInfo> {
     private final int[] parameterAccessFlags;
     final AnnotationInfo[][] parameterAnnotationInfo;
     final List<AnnotationInfo> annotationInfo;
+    private ScanResult scanResult;
 
-    /**
-     * The ScanResult (set after the scan is complete, so that we know which ClassLoader to call for any given named
-     * class; used for classloading for getType()).
-     */
-    ScanResult scanResult;
+    /** Sets back-reference to scan result after scan is complete. */
+    @Override
+    void setScanResult(final ScanResult scanResult) {
+        this.scanResult = scanResult;
+        if (this.annotationInfo != null) {
+            for (int i = 0; i < this.annotationInfo.size(); i++) {
+                final AnnotationInfo ai = this.annotationInfo.get(i);
+                ai.setScanResult(scanResult);
+            }
+        }
+        if (this.parameterAnnotationInfo != null) {
+            for (int i = 0; i < this.parameterAnnotationInfo.length; i++) {
+                final AnnotationInfo[] pai = this.parameterAnnotationInfo[i];
+                if (pai != null) {
+                    for (final AnnotationInfo ai : pai) {
+                        ai.setScanResult(scanResult);
+                    }
+                }
+            }
+        }
+    }
 
     public MethodInfo(final String className, final String methodName, final int modifiers,
             final String typeDescriptor, final String[] parameterNames, final int[] parameterAccessFlags,
@@ -140,26 +158,45 @@ public class MethodInfo implements Comparable<MethodInfo> {
         return ReflectionUtils.typeStrToClass(getReturnTypeStr(), scanResult);
     }
 
-    /** Returns the parameter types for the method in string representation, e.g. ["int", "List", "com.abc.XYZ"]. */
-    public List<String> getParameterTypeStrs() {
-        final List<String> typeStrsList = getTypeStrs();
-        return typeStrsList.subList(0, typeStrsList.size() - 1);
-    }
+    private static final String[] EMPTY_STRING_ARRAY = new String[0];
 
     /**
-     * Returns the parameter types for the method. Note that this calls Class.forName() on the parameter types,
-     * which will cause the class to be loaded, and possibly initialized. If the class is initialized, this can
-     * trigger side effects.
+     * Returns the parameter types for the method in string representation, e.g. ["int", "List", "com.abc.XYZ"]. If
+     * the method has no parameters, returns a zero-sized array.
+     */
+    public String[] getParameterTypeStrs() {
+        final List<String> typeStrsList = getTypeStrs();
+        if (typeStrsList.size() == 1) {
+            return EMPTY_STRING_ARRAY;
+        } else {
+            final List<String> paramsOnly = typeStrsList.subList(0, typeStrsList.size() - 1);
+            return paramsOnly.toArray(new String[paramsOnly.size()]);
+        }
+    }
+
+    private static Class<?>[] EMPTY_CLASS_ARRAY = new Class<?>[0];
+
+    /**
+     * Returns the parameter types for the method. If the method has no parameters, returns a zero-sized array.
+     * 
+     * <p>
+     * Note that this calls Class.forName() on the parameter types, which will cause the class to be loaded, and
+     * possibly initialized. If the class is initialized, this can trigger side effects.
      * 
      * @throws IllegalArgumentException
      *             if the parameter types of the method could not be loaded.
      */
-    public List<Class<?>> getParameterTypes() throws IllegalArgumentException {
-        final List<Class<?>> parameterClassRefs = new ArrayList<>();
-        for (final String parameterTypeStr : getParameterTypeStrs()) {
-            parameterClassRefs.add(ReflectionUtils.typeStrToClass(parameterTypeStr, scanResult));
+    public Class<?>[] getParameterTypes() throws IllegalArgumentException {
+        final String[] parameterTypeStrs = getParameterTypeStrs();
+        if (parameterTypeStrs.length == 0) {
+            return EMPTY_CLASS_ARRAY;
+        } else {
+            final Class<?>[] parameterClassRefs = new Class<?>[parameterTypeStrs.length];
+            for (int i = 0; i < parameterTypeStrs.length; i++) {
+                parameterClassRefs[i] = ReflectionUtils.typeStrToClass(parameterTypeStrs[i], scanResult);
+            }
+            return parameterClassRefs;
         }
-        return parameterClassRefs;
     }
 
     /** Returns true if this method is public. */
@@ -247,15 +284,6 @@ public class MethodInfo implements Comparable<MethodInfo> {
 
     /**
      * Returns the unique annotation names for annotations on each method parameter, if any parameters have
-     * annotations, else returns null. When the return value is non-null, there is one list entry per parameter,
-     * containing an array of method parameter annotations.
-     */
-    public AnnotationInfo[][] getParameterAnnotations() {
-        return parameterAnnotationInfo;
-    }
-
-    /**
-     * Returns the unique annotation names for annotations on each method parameter, if any parameters have
      * annotations, else returns null.
      */
     public String[][] getParameterAnnotationNames() {
@@ -267,6 +295,26 @@ public class MethodInfo implements Comparable<MethodInfo> {
             parameterAnnotationNames[i] = AnnotationInfo.getUniqueAnnotationNamesSorted(parameterAnnotationInfo[i]);
         }
         return parameterAnnotationNames;
+    }
+
+    /**
+     * Returns the unique annotation types for annotations on each method parameter, if any parameters have
+     * annotations, else returns null.
+     */
+    public Class<?>[][] getParameterAnnotationTypes() {
+        if (parameterAnnotationInfo == null) {
+            return null;
+        }
+        final String[][] parameterAnnotationNames = getParameterAnnotationNames();
+        final Class<?>[][] parameterAnnotationTypes = new Class<?>[parameterAnnotationNames.length][];
+        for (int i = 0; i < parameterAnnotationInfo.length; i++) {
+            parameterAnnotationTypes[i] = new Class<?>[parameterAnnotationNames[i].length];
+            for (int j = 0; j < parameterAnnotationNames[i].length; j++) {
+                parameterAnnotationTypes[i][j] = ReflectionUtils.typeStrToClass(parameterAnnotationNames[i][j],
+                        scanResult);
+            }
+        }
+        return parameterAnnotationTypes;
     }
 
     /**
@@ -384,15 +432,15 @@ public class MethodInfo implements Comparable<MethodInfo> {
         buf.append(methodName);
 
         buf.append('(');
-        final List<String> paramTypes = getParameterTypeStrs();
-        if (parameterNames != null && paramTypes.size() != parameterNames.length
-                || parameterAccessFlags != null && paramTypes.size() != parameterAccessFlags.length
-                || parameterAnnotationInfo != null && paramTypes.size() != parameterAnnotationInfo.length) {
+        final String[] paramTypes = getParameterTypeStrs();
+        if ((parameterNames != null && paramTypes.length != parameterNames.length)
+                || (parameterAccessFlags != null && paramTypes.length != parameterAccessFlags.length)
+                || (parameterAnnotationInfo != null && paramTypes.length != parameterAnnotationInfo.length)) {
             // Should not happen
             throw new RuntimeException("parameter number mismatch");
         }
         final boolean isVarargs = isVarArgs();
-        for (int i = 0; i < paramTypes.size(); i++) {
+        for (int i = 0; i < paramTypes.length; i++) {
             if (i > 0) {
                 buf.append(", ");
             }
@@ -415,8 +463,8 @@ public class MethodInfo implements Comparable<MethodInfo> {
                     buf.append("mandated ");
                 }
             }
-            final String paramType = paramTypes.get(i);
-            if (isVarargs && (i == paramTypes.size() - 1)) {
+            final String paramType = paramTypes[i];
+            if (isVarargs && (i == paramTypes.length - 1)) {
                 // Show varargs params correctly
                 if (!paramType.endsWith("[]")) {
                     throw new IllegalArgumentException(

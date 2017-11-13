@@ -87,6 +87,11 @@ public class ScanResult {
     /** The log. */
     final LogNode log;
 
+    /** Used to set ScanResult references in info objects after scan has completed. */
+    static abstract class InfoObject {
+        abstract void setScanResult(ScanResult scanResult);
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /** The result of a scan. Make sure you call complete() after calling the constructor. */
@@ -111,26 +116,10 @@ public class ScanResult {
 
         // classGraphBuilder is null when only getting classpath elements
         if (classGraphBuilder != null) {
-            // Add some post-scan backrefs to the ScanResult 
+            // Add some post-scan backrefs from info objects to this ScanResult
             if (classGraphBuilder.getClassNameToClassInfo() != null) {
                 for (final ClassInfo ci : classGraphBuilder.getClassNameToClassInfo().values()) {
-                    // FieldInfo#getType() and/or MethodInfo#getType() may need to do classloading, which requires
-                    // a reference back to ScanResult
-                    final List<FieldInfo> allFieldInfo = ci.fieldInfo;
-                    if (allFieldInfo != null) {
-                        for (final FieldInfo fi : allFieldInfo) {
-                            // 'this' should really never be passed out of a constructor, because objects may not be
-                            // fully initialized as the constructor is being run, but here we are only setting
-                            // field values, not calling external methods (and there's only one thread), so it's OK
-                            fi.scanResult = this;
-                        }
-                    }
-                    final List<MethodInfo> allMethodInfo = ci.methodInfo;
-                    if (allMethodInfo != null) {
-                        for (final MethodInfo mi : allMethodInfo) {
-                            mi.scanResult = this;
-                        }
-                    }
+                    ci.setScanResult(this);
                 }
             }
         }

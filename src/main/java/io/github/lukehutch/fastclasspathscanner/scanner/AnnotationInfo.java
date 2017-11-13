@@ -41,21 +41,54 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
+import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult.InfoObject;
+import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
+
 /** Holds metadata about annotations. */
-public class AnnotationInfo implements Comparable<AnnotationInfo> {
+public class AnnotationInfo extends InfoObject implements Comparable<AnnotationInfo> {
     final String annotationName;
     List<AnnotationParamValue> annotationParamValues;
+    private ScanResult scanResult;
+
+    @Override
+    void setScanResult(final ScanResult scanResult) {
+        this.scanResult = scanResult;
+        if (annotationParamValues != null) {
+            for (final AnnotationParamValue a : annotationParamValues) {
+                a.setScanResult(scanResult);
+            }
+        }
+    }
 
     // -------------------------------------------------------------------------------------------------------------
 
     /** A wrapper used to pair annotation parameter names with annotation parameter values. */
-    public static class AnnotationParamValue implements Comparable<AnnotationParamValue> {
+    public static class AnnotationParamValue extends InfoObject implements Comparable<AnnotationParamValue> {
         private final String paramName;
         private final Object paramValue;
 
         public AnnotationParamValue(final String paramName, final Object paramValue) {
             this.paramName = paramName;
             this.paramValue = paramValue;
+        }
+
+        @Override
+        void setScanResult(final ScanResult scanResult) {
+            if (paramValue != null) {
+                if (paramValue instanceof InfoObject) {
+                    ((InfoObject) paramValue).setScanResult(scanResult);
+                } else {
+                    final Class<? extends Object> valClass = paramValue.getClass();
+                    if (valClass.isArray()) {
+                        for (int j = 0, n = Array.getLength(paramValue); j < n; j++) {
+                            final Object elt = Array.get(paramValue, j);
+                            if (elt != null && elt instanceof InfoObject) {
+                                ((InfoObject) elt).setScanResult(scanResult);
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         /** Get the annotation parameter name. */
@@ -167,13 +200,19 @@ public class AnnotationInfo implements Comparable<AnnotationInfo> {
      * Class for wrapping an enum constant value (split into class name and constant name) referenced inside an
      * annotation.
      */
-    public static class AnnotationEnumValue implements Comparable<AnnotationEnumValue> {
+    public static class AnnotationEnumValue extends InfoObject implements Comparable<AnnotationEnumValue> {
         final String className;
         final String constName;
+        private ScanResult scanResult;
 
         public AnnotationEnumValue(final String className, final String constName) {
             this.className = className;
             this.constName = constName;
+        }
+
+        @Override
+        void setScanResult(final ScanResult scanResult) {
+            this.scanResult = scanResult;
         }
 
         /** Get the class name of the enum. */
@@ -191,7 +230,7 @@ public class AnnotationInfo implements Comparable<AnnotationInfo> {
          * 
          * @throw IllegalArgumentException if the class could not be loaded, or the enum constant is invalid.
          */
-        public Object getEnumValueRef(final ScanResult scanResult) throws IllegalArgumentException {
+        public Object getEnumValueRef() throws IllegalArgumentException {
             final Class<?> classRef = scanResult.classNameToClassRef(className);
             if (!classRef.isEnum()) {
                 throw new IllegalArgumentException("Class " + className + " is not an enum");
@@ -243,25 +282,37 @@ public class AnnotationInfo implements Comparable<AnnotationInfo> {
      * 
      * Use ReflectionUtils.typeStrToClass() to get a Class<?> reference from this class type string.
      */
-    public static class AnnotationClassRef {
-        private final String annotationTypeStr;
+    public static class AnnotationClassRef extends InfoObject {
+        private final String typeStr;
+        private ScanResult scanResult;
+
+        @Override
+        void setScanResult(final ScanResult scanResult) {
+            this.scanResult = scanResult;
+        }
 
         AnnotationClassRef(final String annotationTypeStr) {
-            this.annotationTypeStr = annotationTypeStr;
+            this.typeStr = annotationTypeStr;
         }
 
         /**
-         * Get a class type string from an annotation, e.g. "String[][][]" or "int".
+         * Get a class type string (e.g. "String[][][]" or "int") for a type reference used in an annotation
+         * parameter.
          * 
          * Use ReflectionUtils.typeStrToClass() to get a Class<?> reference from this class type string.
          */
-        public String getAnnotationTypeStr() {
-            return annotationTypeStr;
+        public String getTypeStr() {
+            return typeStr;
+        }
+
+        /** Get a class reference for a class-reference-typed value used in an annotation parameter. */
+        public Class<?> getType() {
+            return ReflectionUtils.typeStrToClass(typeStr, scanResult);
         }
 
         @Override
         public String toString() {
-            return annotationTypeStr + ".class";
+            return typeStr + ".class";
         }
     }
 
@@ -307,6 +358,11 @@ public class AnnotationInfo implements Comparable<AnnotationInfo> {
     /** Get the name of the annotation. */
     public String getAnnotationName() {
         return annotationName;
+    }
+
+    /** Get a class reference for the annotation. */
+    public Class<?> getAnnotationType() {
+        return ReflectionUtils.typeStrToClass(annotationName, scanResult);
     }
 
     /** Get the parameter value of the annotation. */

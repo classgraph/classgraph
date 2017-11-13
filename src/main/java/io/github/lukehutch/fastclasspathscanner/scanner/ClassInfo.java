@@ -43,12 +43,13 @@ import java.util.Map;
 import java.util.Set;
 
 import io.github.lukehutch.fastclasspathscanner.scanner.AnnotationInfo.AnnotationParamValue;
+import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult.InfoObject;
 import io.github.lukehutch.fastclasspathscanner.utils.AdditionOrderedSet;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.MultiMapKeyToList;
 
 /** Holds metadata about a class encountered during a scan. */
-public class ClassInfo implements Comparable<ClassInfo> {
+public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     /** Name of the class/interface/annotation. */
     private final String className;
 
@@ -116,6 +117,26 @@ public class ClassInfo implements Comparable<ClassInfo> {
 
     /** For annotations, the default values of parameters. */
     List<AnnotationParamValue> annotationDefaultParamValues;
+
+    /** Sets back-reference to scan result after scan is complete. */
+    @Override
+    void setScanResult(final ScanResult scanResult) {
+        if (annotationInfo != null) {
+            for (final AnnotationInfo ai : annotationInfo) {
+                ai.setScanResult(scanResult);
+            }
+        }
+        if (fieldInfo != null) {
+            for (final FieldInfo fi : fieldInfo) {
+                fi.setScanResult(scanResult);
+            }
+        }
+        if (methodInfo != null) {
+            for (final MethodInfo mi : methodInfo) {
+                mi.setScanResult(scanResult);
+            }
+        }
+    }
 
     // -------------------------------------------------------------------------------------------------------------
 

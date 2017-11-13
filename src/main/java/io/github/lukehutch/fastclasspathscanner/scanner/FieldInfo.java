@@ -35,25 +35,32 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult.InfoObject;
 import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
 
 /**
  * Holds metadata about fields of a class encountered during a scan. All values are taken directly out of the
  * classfile for the class.
  */
-public class FieldInfo implements Comparable<FieldInfo> {
+public class FieldInfo extends InfoObject implements Comparable<FieldInfo> {
     private final String className;
     private final String fieldName;
     private final int modifiers;
     private final String typeDescriptor;
     private final Object constValue;
     final List<AnnotationInfo> annotationInfo;
+    private ScanResult scanResult;
 
-    /**
-     * The ScanResult (set after the scan is complete, so that we know which ClassLoader to call for any given named
-     * class; used for classloading for getType()).
-     */
-    ScanResult scanResult;
+    /** Sets back-reference to scan result after scan is complete. */
+    @Override
+    void setScanResult(final ScanResult scanResult) {
+        this.scanResult = scanResult;
+        if (this.annotationInfo != null) {
+            for (final AnnotationInfo ai : this.annotationInfo) {
+                ai.setScanResult(scanResult);
+            }
+        }
+    }
 
     public FieldInfo(final String className, final String fieldName, final int modifiers,
             final String typeDescriptor, final Object constValue, final List<AnnotationInfo> annotationInfo) {
