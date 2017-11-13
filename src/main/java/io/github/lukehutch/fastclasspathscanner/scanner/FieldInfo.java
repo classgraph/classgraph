@@ -85,7 +85,11 @@ public class FieldInfo extends InfoObject implements Comparable<FieldInfo> {
         return fieldName;
     }
 
-    /** Get the field modifiers as a string, e.g. "public static final". */
+    /**
+     * Get the field modifiers as a string, e.g. "public static final". For the modifier bits, call
+     * getAccessFlags().
+     */
+    // TODO: rename to getModifiersStr()
     public String getModifiers() {
         return ReflectionUtils.modifiersToString(modifiers, /* isMethod = */ false);
     }
@@ -126,6 +130,7 @@ public class FieldInfo extends InfoObject implements Comparable<FieldInfo> {
     }
 
     /** Returns the access flags of the field. */
+    // TODO: Rename to getModifiers()
     public int getAccessFlags() {
         return modifiers;
     }
