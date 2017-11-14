@@ -30,10 +30,9 @@ package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult.InfoObject;
 import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
@@ -169,16 +168,7 @@ public class FieldInfo extends InfoObject implements Comparable<FieldInfo> {
 
     /** Returns the names of unique annotations on the field, or the empty list if none. */
     public List<String> getAnnotationNames() {
-        if (annotationInfo.isEmpty()) {
-            return Collections.<String> emptyList();
-        }
-        final Set<String> annotationNamesSet = new HashSet<>();
-        for (final AnnotationInfo annotation : annotationInfo) {
-            annotationNamesSet.add(annotation.annotationName);
-        }
-        final List<String> annotationNamesSorted = new ArrayList<>(annotationNamesSet);
-        Collections.sort(annotationNamesSorted);
-        return annotationNamesSorted;
+        return Arrays.asList(AnnotationInfo.getUniqueAnnotationNamesSorted(annotationInfo));
     }
 
     /**
