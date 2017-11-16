@@ -315,6 +315,10 @@ public class ReflectionUtils {
             buf.append("int");
             str.next();
             return true;
+        case 'J':
+            buf.append("long");
+            str.next();
+            return true;
         case 'S':
             buf.append("short");
             str.next();
