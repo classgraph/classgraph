@@ -513,7 +513,7 @@ class ClassfileBinaryParser implements AutoCloseable {
             final String classRefTypeStr = ReflectionUtils.parseSimpleTypeDescriptor(classRefTypeDescriptor);
             return new AnnotationClassRef(classRefTypeStr);
         case '@':
-            // Complex (nested) annotation. TODO: link up annotation class names to ClassInfo after scan.
+            // Complex (nested) annotation.
             // Return type is AnnotationInfo.
             return readAnnotation();
         case '[':
