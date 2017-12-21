@@ -66,9 +66,9 @@ public class ClassLoaderHandlerRegistry {
             final String fieldName = "HANDLED_CLASSLOADERS";
             Object handledClassLoaders;
             try {
-                handledClassLoaders = ReflectionUtils.getStaticFieldVal(classLoaderHandlerClass, fieldName);
-            } catch (IllegalArgumentException | IllegalAccessException | NoSuchFieldException
-                    | SecurityException e) {
+                handledClassLoaders = ReflectionUtils.getStaticFieldVal(classLoaderHandlerClass, fieldName,
+                        /* throwException = */ true);
+            } catch (final IllegalArgumentException e) {
                 throw new RuntimeException("Could not read field " + classLoaderHandlerClass + "." + fieldName, e);
             }
             if (handledClassLoaders == null) {

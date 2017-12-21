@@ -40,9 +40,13 @@ import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
 
 /** Reflection utility methods that can be used by ClassLoaderHandlers. */
 public class ReflectionUtils {
-    /** Get the value of the named field in the class of the given object or any of its superclasses. */
-    public static Object getFieldVal(final Object obj, final String fieldName)
-            throws IllegalArgumentException, IllegalAccessException, NoSuchFieldException, SecurityException {
+    /**
+     * Get the value of the named field in the class of the given object or any of its superclasses. If an exception
+     * is thrown while trying to read the field, and throwException is true, then IllegalArgumentException is thrown
+     * wrapping the cause, otherwise this will return null. If passed a null object, returns null unless
+     * throwException is true, then throws NullPointerException.
+     */
+    public static Object getFieldVal(final Object obj, final String fieldName, final boolean throwException) {
         if (obj != null) {
             for (Class<?> classOrSuperclass = obj.getClass(); classOrSuperclass != null; //
                     classOrSuperclass = classOrSuperclass.getSuperclass()) {
@@ -54,33 +58,62 @@ public class ReflectionUtils {
                     return field.get(obj);
                 } catch (final NoSuchFieldException e) {
                     // Try parent
+                } catch (final Throwable e) {
+                    if (throwException) {
+                        throw new IllegalArgumentException("Could not get value of field \"" + fieldName + "\"", e);
+                    }
                 }
             }
+            if (throwException) {
+                throw new IllegalArgumentException("Field \"" + fieldName + "\" doesn't exist");
+            }
+        } else if (throwException) {
+            throw new NullPointerException("Can't get field value for null object");
         }
         return null;
     }
 
-    /** Get the value of the named static field in the given class or any of its superclasses. */
-    public static Object getStaticFieldVal(final Class<?> cls, final String fieldName)
-            throws IllegalArgumentException, IllegalAccessException, NoSuchFieldException, SecurityException {
-        for (Class<?> classOrSuperclass = cls; classOrSuperclass != null; //
-                classOrSuperclass = classOrSuperclass.getSuperclass()) {
-            try {
-                final Field field = classOrSuperclass.getDeclaredField(fieldName);
-                if (!field.isAccessible()) {
-                    field.setAccessible(true);
+    /**
+     * Get the value of the named static field in the given class or any of its superclasses. If an exception is
+     * thrown while trying to read the field value, and throwException is true, then IllegalArgumentException is
+     * thrown wrapping the cause, otherwise this will return null. If passed a null class reference, returns null
+     * unless throwException is true, then throws NullPointerException.
+     */
+    public static Object getStaticFieldVal(final Class<?> cls, final String fieldName,
+            final boolean throwException) {
+        if (cls != null) {
+            for (Class<?> classOrSuperclass = cls; classOrSuperclass != null; //
+                    classOrSuperclass = classOrSuperclass.getSuperclass()) {
+                try {
+                    final Field field = classOrSuperclass.getDeclaredField(fieldName);
+                    if (!field.isAccessible()) {
+                        field.setAccessible(true);
+                    }
+                    return field.get(null);
+                } catch (final NoSuchFieldException e) {
+                    // Try parent
+                } catch (final Throwable e) {
+                    if (throwException) {
+                        throw new IllegalArgumentException("Could not get value of field \"" + fieldName + "\"", e);
+                    }
                 }
-                return field.get(null);
-            } catch (final NoSuchFieldException e) {
-                // Try parent
             }
+            if (throwException) {
+                throw new IllegalArgumentException("Field \"" + fieldName + "\" doesn't exist");
+            }
+        } else if (throwException) {
+            throw new NullPointerException("Can't get field value for null class reference");
         }
         return null;
     }
 
-    /** Invoke the named method in the given object or its superclasses. */
-    public static Object invokeMethod(final Object obj, final String methodName)
-            throws IllegalAccessException, IllegalArgumentException, InvocationTargetException {
+    /**
+     * Invoke the named method in the given object or its superclasses. If an exception is thrown while trying to
+     * call the method, and throwException is true, then IllegalArgumentException is thrown wrapping the cause,
+     * otherwise this will return null. If passed a null object, returns null unless throwException is true, then
+     * throws NullPointerException.
+     */
+    public static Object invokeMethod(final Object obj, final String methodName, final boolean throwException) {
         if (obj != null) {
             for (Class<?> classOrSuperclass = obj.getClass(); classOrSuperclass != null; //
                     classOrSuperclass = classOrSuperclass.getSuperclass()) {
@@ -92,15 +125,29 @@ public class ReflectionUtils {
                     return method.invoke(obj);
                 } catch (final NoSuchMethodException e) {
                     // Try parent
+                } catch (final Throwable e) {
+                    if (throwException) {
+                        throw new IllegalArgumentException("Could not invoke method \"" + methodName + "\"", e);
+                    }
                 }
             }
+            if (throwException) {
+                throw new IllegalArgumentException("Method \"" + methodName + "\" doesn't exist");
+            }
+        } else if (throwException) {
+            throw new NullPointerException("Can't get field value for null object");
         }
         return null;
     }
 
-    /** Invoke the named method in the given object or its superclasses. */
+    /**
+     * Invoke the named method in the given object or its superclasses. If an exception is thrown while trying to
+     * call the method, and throwException is true, then IllegalArgumentException is thrown wrapping the cause,
+     * otherwise this will return null. If passed a null object, returns null unless throwException is true, then
+     * throws NullPointerException.
+     */
     public static Object invokeMethod(final Object obj, final String methodName, final Class<?> argType,
-            final Object arg) throws IllegalAccessException, IllegalArgumentException, InvocationTargetException {
+            final Object arg, final boolean throwException) {
         if (obj != null) {
             for (Class<?> classOrSuperclass = obj.getClass(); classOrSuperclass != null; //
                     classOrSuperclass = classOrSuperclass.getSuperclass()) {
@@ -112,14 +159,28 @@ public class ReflectionUtils {
                     return method.invoke(obj, arg);
                 } catch (final NoSuchMethodException e) {
                     // Try parent
+                } catch (final Throwable e) {
+                    if (throwException) {
+                        throw new IllegalArgumentException("Could not invoke method \"" + methodName + "\"", e);
+                    }
                 }
             }
+            if (throwException) {
+                throw new IllegalArgumentException("Method \"" + methodName + "\" doesn't exist");
+            }
+        } else if (throwException) {
+            throw new NullPointerException("Can't get field value for null object");
         }
         return null;
     }
 
-    /** Invoke the named static method. */
-    public static Object invokeStaticMethod(final Class<?> cls, final String methodName)
+    /**
+     * Invoke the named static method. If an exception is thrown while trying to call the method, and throwException
+     * is true, then IllegalArgumentException is thrown wrapping the cause, otherwise this will return null. If
+     * passed a null class reference, returns null unless throwException is true, then throws NullPointerException.
+     */
+    public static Object invokeStaticMethod(final Class<?> cls, final String methodName,
+            final boolean throwException)
             throws IllegalAccessException, IllegalArgumentException, InvocationTargetException {
         if (cls != null) {
             try {
@@ -128,16 +189,24 @@ public class ReflectionUtils {
                     method.setAccessible(true);
                 }
                 return method.invoke(null);
-            } catch (final NoSuchMethodException e) {
-                // Try parent
+            } catch (final Throwable e) {
+                if (throwException) {
+                    throw new IllegalArgumentException("Could not invoke method \"" + methodName + "\"", e);
+                }
             }
+        } else if (throwException) {
+            throw new NullPointerException("Can't get field value for null class reference");
         }
         return null;
     }
 
-    /** Invoke the named static method. */
+    /**
+     * Invoke the named static method. If an exception is thrown while trying to call the method, and throwException
+     * is true, then IllegalArgumentException is thrown wrapping the cause, otherwise this will return null. If
+     * passed a null class reference, returns null unless throwException is true, then throws NullPointerException.
+     */
     public static Object invokeStaticMethod(final Class<?> cls, final String methodName, final Class<?> argType,
-            final Object arg) throws IllegalAccessException, IllegalArgumentException, InvocationTargetException {
+            final Object arg, final boolean throwException) {
         if (cls != null) {
             try {
                 final Method method = cls.getDeclaredMethod(methodName, argType);
@@ -145,12 +214,18 @@ public class ReflectionUtils {
                     method.setAccessible(true);
                 }
                 return method.invoke(null, arg);
-            } catch (final NoSuchMethodException e) {
-                // Try parent
+            } catch (final Throwable e) {
+                if (throwException) {
+                    throw new IllegalArgumentException("Could not invoke method \"" + methodName + "\"", e);
+                }
             }
+        } else if (throwException) {
+            throw new NullPointerException("Can't get field value for null class reference");
         }
         return null;
     }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     /** Convert field or method modifiers into a string representation, e.g. "public static final". */
     public static String modifiersToString(final int modifiers, final boolean isMethod) {
@@ -213,8 +288,6 @@ public class ReflectionUtils {
         }
         return buf.toString();
     }
-
-    // -------------------------------------------------------------------------------------------------------------
 
     private static class ParseException extends Exception {
     }

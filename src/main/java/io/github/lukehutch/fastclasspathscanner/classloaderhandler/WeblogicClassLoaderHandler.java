@@ -51,10 +51,10 @@ public class WeblogicClassLoaderHandler implements ClassLoaderHandler {
 
     @Override
     public void handle(final ClassLoader classLoader, final ClasspathFinder classpathFinder,
-            final ScanSpec scanSpec, final LogNode log) throws Exception {
+            final ScanSpec scanSpec, final LogNode log) {
         classpathFinder.addClasspathElements( //
-                (String) ReflectionUtils.invokeMethod(classLoader, "getFinderClassPath"), classLoader, log);
+                (String) ReflectionUtils.invokeMethod(classLoader, "getFinderClassPath", false), classLoader, log);
         classpathFinder.addClasspathElements( //
-                (String) ReflectionUtils.invokeMethod(classLoader, "getClassPath"), classLoader, log);
+                (String) ReflectionUtils.invokeMethod(classLoader, "getClassPath", false), classLoader, log);
     }
 }

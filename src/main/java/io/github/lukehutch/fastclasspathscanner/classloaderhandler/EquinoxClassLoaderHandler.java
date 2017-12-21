@@ -48,15 +48,15 @@ public class EquinoxClassLoaderHandler implements ClassLoaderHandler {
     private boolean readSystemBundles = false;
 
     private void addBundleFile(final Object bundlefile, final HashSet<Object> path, final ClassLoader classLoader,
-            final ClasspathFinder classpathFinder, final LogNode log) throws Exception {
+            final ClasspathFinder classpathFinder, final LogNode log) {
         if (bundlefile != null) {
             // Don't get stuck in infinite loop
             if (path.add(bundlefile)) {
                 // type File
-                final Object basefile = ReflectionUtils.getFieldVal(bundlefile, "basefile");
+                final Object basefile = ReflectionUtils.getFieldVal(bundlefile, "basefile", false);
                 if (basefile != null) {
                     // type String
-                    final Object cp = ReflectionUtils.getFieldVal(bundlefile, "cp");
+                    final Object cp = ReflectionUtils.getFieldVal(bundlefile, "cp", false);
                     if (cp != null) {
                         // We found the base file and a classpath
                         // element, e.g. "bin/"
@@ -67,27 +67,27 @@ public class EquinoxClassLoaderHandler implements ClassLoaderHandler {
                         classpathFinder.addClasspathElement(basefile.toString(), classLoader, log);
                     }
                 }
-                addBundleFile(ReflectionUtils.getFieldVal(bundlefile, "wrapped"), path, classLoader,
+                addBundleFile(ReflectionUtils.getFieldVal(bundlefile, "wrapped", false), path, classLoader,
                         classpathFinder, log);
-                addBundleFile(ReflectionUtils.getFieldVal(bundlefile, "next"), path, classLoader, classpathFinder,
-                        log);
+                addBundleFile(ReflectionUtils.getFieldVal(bundlefile, "next", false), path, classLoader,
+                        classpathFinder, log);
             }
         }
     }
 
     @Override
     public void handle(final ClassLoader classLoader, final ClasspathFinder classpathFinder,
-            final ScanSpec scanSpec, final LogNode log) throws Exception {
+            final ScanSpec scanSpec, final LogNode log) {
         // type ClasspathManager
-        final Object manager = ReflectionUtils.getFieldVal(classLoader, "manager");
+        final Object manager = ReflectionUtils.getFieldVal(classLoader, "manager", false);
         // type ClasspathEntry[]
-        final Object entries = ReflectionUtils.getFieldVal(manager, "entries");
+        final Object entries = ReflectionUtils.getFieldVal(manager, "entries", false);
         if (entries != null) {
             for (int i = 0, n = Array.getLength(entries); i < n; i++) {
                 // type ClasspathEntry
                 final Object entry = Array.get(entries, i);
                 // type BundleFile
-                final Object bundlefile = ReflectionUtils.getFieldVal(entry, "bundlefile");
+                final Object bundlefile = ReflectionUtils.getFieldVal(entry, "bundlefile", false);
                 addBundleFile(bundlefile, new HashSet<>(), classLoader, classpathFinder, log);
             }
         }
@@ -97,34 +97,34 @@ public class EquinoxClassLoaderHandler implements ClassLoaderHandler {
         // classpath.
         if (!readSystemBundles) {
             // type BundleLoader
-            final Object delegate = ReflectionUtils.getFieldVal(classLoader, "delegate");
+            final Object delegate = ReflectionUtils.getFieldVal(classLoader, "delegate", false);
             // type EquinoxContainer
-            final Object container = ReflectionUtils.getFieldVal(delegate, "container");
+            final Object container = ReflectionUtils.getFieldVal(delegate, "container", false);
             // type Storage
-            final Object storage = ReflectionUtils.getFieldVal(container, "storage");
+            final Object storage = ReflectionUtils.getFieldVal(container, "storage", false);
             // type ModuleContainer
-            final Object moduleContainer = ReflectionUtils.getFieldVal(storage, "moduleContainer");
+            final Object moduleContainer = ReflectionUtils.getFieldVal(storage, "moduleContainer", false);
             // type ModuleDatabase
-            final Object moduleDatabase = ReflectionUtils.getFieldVal(moduleContainer, "moduleDatabase");
+            final Object moduleDatabase = ReflectionUtils.getFieldVal(moduleContainer, "moduleDatabase", false);
             // type HashMap<Integer, EquinoxModule>
-            final Object modulesById = ReflectionUtils.getFieldVal(moduleDatabase, "modulesById");
+            final Object modulesById = ReflectionUtils.getFieldVal(moduleDatabase, "modulesById", false);
             // type EquinoxSystemModule (module 0 is always the system
             // module)
-            final Object module0 = ReflectionUtils.invokeMethod(modulesById, "get", Object.class, 0L);
+            final Object module0 = ReflectionUtils.invokeMethod(modulesById, "get", Object.class, 0L, false);
             // type Bundle
-            final Object bundle = ReflectionUtils.invokeMethod(module0, "getBundle");
+            final Object bundle = ReflectionUtils.invokeMethod(module0, "getBundle", false);
             // type BundleContext
-            final Object bundleContext = ReflectionUtils.invokeMethod(bundle, "getBundleContext");
+            final Object bundleContext = ReflectionUtils.invokeMethod(bundle, "getBundleContext", false);
             // type Bundle[]
-            final Object bundles = ReflectionUtils.invokeMethod(bundleContext, "getBundles");
+            final Object bundles = ReflectionUtils.invokeMethod(bundleContext, "getBundles", false);
             if (bundles != null) {
                 for (int i = 0, n = Array.getLength(bundles); i < n; i++) {
                     // type EquinoxBundle
                     final Object equinoxBundle = Array.get(bundles, i);
                     // type EquinoxModule
-                    final Object module = ReflectionUtils.getFieldVal(equinoxBundle, "module");
+                    final Object module = ReflectionUtils.getFieldVal(equinoxBundle, "module", false);
                     // type String
-                    String location = (String) ReflectionUtils.getFieldVal(module, "location");
+                    String location = (String) ReflectionUtils.getFieldVal(module, "location", false);
                     if (location != null) {
                         final int fileIdx = location.indexOf("file:");
                         if (fileIdx >= 0) {

@@ -54,27 +54,21 @@ public class Java9ClassLoaderHandler implements ClassLoaderHandler {
     @Override
     public void handle(final ClassLoader classLoader, final ClasspathFinder classpathFinder,
             final ScanSpec scanSpec, final LogNode log) {
-        try {
-            // Type URLClassPath
-            final Object ucp = ReflectionUtils.getFieldVal(classLoader, "ucp");
-            if (ucp != null) {
-                // A list of classpath element URL strings.
-                // TODO: each URL element can add additional URL elements through the module-info mechanism,
-                // so the URLClassPath class has a stack of opened URLs (and opening a URL can push more
-                // URLs onto the stack). Currently the manifest's Class-Path mechanism works in a similar
-                // way, but this should be abstracted to work with classloading too. Or alternatively,
-                // maybe the Java 9 module loader should simply be queried when running under Java 9.
-                @SuppressWarnings("unchecked")
-                final List<String> path = (List<String>) ReflectionUtils.getFieldVal(ucp, "path");
-                if (path != null) {
-                    for (final String pathElt : path) {
-                        classpathFinder.addClasspathElement(pathElt, classLoader, log);
-                    }
+        // Type URLClassPath
+        final Object ucp = ReflectionUtils.getFieldVal(classLoader, "ucp", false);
+        if (ucp != null) {
+            // A list of classpath element URL strings.
+            // TODO: each URL element can add additional URL elements through the module-info mechanism,
+            // so the URLClassPath class has a stack of opened URLs (and opening a URL can push more
+            // URLs onto the stack). Currently the manifest's Class-Path mechanism works in a similar
+            // way, but this should be abstracted to work with classloading too. Or alternatively,
+            // maybe the Java 9 module loader should simply be queried when running under Java 9.
+            @SuppressWarnings("unchecked")
+            final List<String> path = (List<String>) ReflectionUtils.getFieldVal(ucp, "path", false);
+            if (path != null) {
+                for (final String pathElt : path) {
+                    classpathFinder.addClasspathElement(pathElt, classLoader, log);
                 }
-            }
-        } catch (final Exception e) {
-            if (log != null) {
-                log.log("Exception while trying to get paths from ClassLoader " + classLoader, e);
             }
         }
     }

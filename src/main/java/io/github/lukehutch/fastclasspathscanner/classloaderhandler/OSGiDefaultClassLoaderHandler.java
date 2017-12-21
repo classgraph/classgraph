@@ -46,13 +46,13 @@ public class OSGiDefaultClassLoaderHandler implements ClassLoaderHandler {
 
     @Override
     public void handle(final ClassLoader classloader, final ClasspathFinder classpathFinder,
-            final ScanSpec scanSpec, final LogNode log) throws Exception {
-        final Object classpathManager = ReflectionUtils.invokeMethod(classloader, "getClasspathManager");
-        final Object[] entries = (Object[]) ReflectionUtils.getFieldVal(classpathManager, "entries");
+            final ScanSpec scanSpec, final LogNode log) {
+        final Object classpathManager = ReflectionUtils.invokeMethod(classloader, "getClasspathManager", false);
+        final Object[] entries = (Object[]) ReflectionUtils.getFieldVal(classpathManager, "entries", false);
         if (entries != null) {
             for (int i = 0; i < entries.length; i++) {
-                final Object bundleFile = ReflectionUtils.invokeMethod(entries[i], "getBundleFile");
-                final File baseFile = (File) ReflectionUtils.invokeMethod(bundleFile, "getBaseFile");
+                final Object bundleFile = ReflectionUtils.invokeMethod(entries[i], "getBundleFile", false);
+                final File baseFile = (File) ReflectionUtils.invokeMethod(bundleFile, "getBaseFile", false);
                 if (baseFile != null) {
                     classpathFinder.addClasspathElement(baseFile.getPath(), classloader, log);
                 }

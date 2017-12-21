@@ -46,8 +46,8 @@ public class WebsphereTraditionalClassLoaderHandler implements ClassLoaderHandle
 
     @Override
     public void handle(final ClassLoader classloader, final ClasspathFinder classpathFinder,
-            final ScanSpec scanSpec, final LogNode log) throws Exception {
-        final String classpath = (String) ReflectionUtils.invokeMethod(classloader, "getClassPath");
+            final ScanSpec scanSpec, final LogNode log) {
+        final String classpath = (String) ReflectionUtils.invokeMethod(classloader, "getClassPath", false);
         classpathFinder.addClasspathElements(classpath, classloader, log);
     }
 }

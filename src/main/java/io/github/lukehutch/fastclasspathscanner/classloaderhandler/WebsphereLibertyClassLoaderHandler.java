@@ -59,16 +59,17 @@ public class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
 
     @Override
     public void handle(final ClassLoader classLoader, final ClasspathFinder classpathFinder,
-            final ScanSpec scanSpec, final LogNode log) throws Exception {
+            final ScanSpec scanSpec, final LogNode log) {
         Object smartClassPath = null;
-        final Object appLoader = ReflectionUtils.getFieldVal(classLoader, "appLoader");
+        final Object appLoader = ReflectionUtils.getFieldVal(classLoader, "appLoader", false);
         if (appLoader != null) {
-            smartClassPath = ReflectionUtils.getFieldVal(appLoader, "smartClassPath");
+            smartClassPath = ReflectionUtils.getFieldVal(appLoader, "smartClassPath", false);
         } else {
-            smartClassPath = ReflectionUtils.getFieldVal(classLoader, "smartClassPath");
+            smartClassPath = ReflectionUtils.getFieldVal(classLoader, "smartClassPath", false);
         }
         if (smartClassPath != null) {
-            final List<?> classPathElements = (List<?>) ReflectionUtils.getFieldVal(smartClassPath, "classPath");
+            final List<?> classPathElements = (List<?>) ReflectionUtils.getFieldVal(smartClassPath, "classPath",
+                    false);
             if (classPathElements != null) {
                 for (final Object classpath : classPathElements) {
                     final String path = getPath(classpath);
@@ -80,29 +81,29 @@ public class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
         }
     }
 
-    private String getPath(final Object classpath) throws Exception {
-        final Object container = ReflectionUtils.getFieldVal(classpath, "container");
+    private String getPath(final Object classpath) {
+        final Object container = ReflectionUtils.getFieldVal(classpath, "container", false);
         if (container == null) {
             return "";
         }
 
-        final Object delegate = ReflectionUtils.getFieldVal(container, "delegate");
+        final Object delegate = ReflectionUtils.getFieldVal(container, "delegate", false);
         if (delegate == null) {
             return "";
         }
 
-        final String path = (String) ReflectionUtils.getFieldVal(delegate, "path");
+        final String path = (String) ReflectionUtils.getFieldVal(delegate, "path", false);
         if (path != null && path.length() > 0) {
             return path;
         }
 
-        final Object base = ReflectionUtils.getFieldVal(delegate, "base");
+        final Object base = ReflectionUtils.getFieldVal(delegate, "base", false);
         if (base == null) {
             // giving up.
             return "";
         }
 
-        final Object archiveFile = ReflectionUtils.getFieldVal(base, "archiveFile");
+        final Object archiveFile = ReflectionUtils.getFieldVal(base, "archiveFile", false);
         if (archiveFile != null) {
             final File file = (File) archiveFile;
             return file.getAbsolutePath();

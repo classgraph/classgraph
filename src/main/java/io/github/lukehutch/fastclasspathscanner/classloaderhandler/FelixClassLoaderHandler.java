@@ -58,47 +58,28 @@ public class FelixClassLoaderHandler implements ClassLoaderHandler {
 
     final Set<Object> bundles = new HashSet<>();
 
-    @Override
-    public void handle(final ClassLoader classLoader, final ClasspathFinder classpathFinder,
-            final ScanSpec scanSpec, final LogNode log) throws Exception {
-
-        // Get the wiring for the ClassLoader's bundle
-        final Object bundleWiring = ReflectionUtils.getFieldVal(classLoader, "m_wiring");
-        addBundle(bundleWiring, classLoader, classpathFinder, log);
-
-        /*
-         * Finally, deal with any other bundles we might be wired to.
-         * TODO: use the ScanSpec to narrow down the list of wires that we follow.
-         */
-
-        final List<?> requiredWires = (List<?>) ReflectionUtils.invokeMethod(bundleWiring, "getRequiredWires",
-                String.class, null);
-        if (requiredWires != null) {
-            for (final Object wire : requiredWires) {
-                final Object provider = ReflectionUtils.invokeMethod(wire, "getProviderWiring");
-                if (!bundles.contains(provider)) {
-                    addBundle(provider, classLoader, classpathFinder, log);
-                }
-            }
-        }
+    private String getContentLocation(final Object content) {
+        final File file = (File) ReflectionUtils.invokeMethod(content, "getFile", false);
+        return file != null ? file.toURI().toString() : null;
     }
 
     private void addBundle(final Object bundleWiring, final ClassLoader classLoader,
-            final ClasspathFinder classpathFinder, final LogNode log) throws Exception {
+            final ClasspathFinder classpathFinder, final LogNode log) {
         // Track the bundles we've processed to prevent loops
         bundles.add(bundleWiring);
 
         // Get the revision for this wiring
-        final Object revision = ReflectionUtils.invokeMethod(bundleWiring, "getRevision");
+        final Object revision = ReflectionUtils.invokeMethod(bundleWiring, "getRevision", false);
         // Get the contents
-        final Object content = ReflectionUtils.invokeMethod(revision, "getContent");
+        final Object content = ReflectionUtils.invokeMethod(revision, "getContent", false);
         final String location = content != null ? getContentLocation(content) : null;
         if (location != null) {
             // Add the bundle object
             classpathFinder.addClasspathElement(location, classLoader, log);
 
             // And any embedded content
-            final List<?> embeddedContent = (List<?>) ReflectionUtils.invokeMethod(revision, "getContentPath");
+            final List<?> embeddedContent = (List<?>) ReflectionUtils.invokeMethod(revision, "getContentPath",
+                    false);
             if (embeddedContent != null) {
                 for (final Object embedded : embeddedContent) {
                     if (embedded != content) {
@@ -112,8 +93,26 @@ public class FelixClassLoaderHandler implements ClassLoaderHandler {
         }
     }
 
-    private String getContentLocation(final Object content) throws Exception {
-        final File file = (File) ReflectionUtils.invokeMethod(content, "getFile");
-        return file != null ? file.toURI().toString() : null;
+    @Override
+    public void handle(final ClassLoader classLoader, final ClasspathFinder classpathFinder,
+            final ScanSpec scanSpec, final LogNode log) {
+
+        // Get the wiring for the ClassLoader's bundle
+        final Object bundleWiring = ReflectionUtils.getFieldVal(classLoader, "m_wiring", false);
+        addBundle(bundleWiring, classLoader, classpathFinder, log);
+
+        // Deal with any other bundles we might be wired to.
+        // TODO: Use the ScanSpec to narrow down the list of wires that we follow.
+
+        final List<?> requiredWires = (List<?>) ReflectionUtils.invokeMethod(bundleWiring, "getRequiredWires",
+                String.class, null, false);
+        if (requiredWires != null) {
+            for (final Object wire : requiredWires) {
+                final Object provider = ReflectionUtils.invokeMethod(wire, "getProviderWiring", false);
+                if (!bundles.contains(provider)) {
+                    addBundle(provider, classLoader, classpathFinder, log);
+                }
+            }
+        }
     }
 }
