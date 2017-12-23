@@ -28,12 +28,9 @@
  */
 package io.github.lukehutch.fastclasspathscanner.classloaderhandler;
 
-import java.util.List;
-
 import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
-import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
 
 /**
  * A basic ClassLoaderHandler that is able to extract the URLs from Java 9+ classloaders.
@@ -54,22 +51,27 @@ public class Java9ClassLoaderHandler implements ClassLoaderHandler {
     @Override
     public void handle(final ClassLoader classLoader, final ClasspathFinder classpathFinder,
             final ScanSpec scanSpec, final LogNode log) {
-        // Type URLClassPath
-        final Object ucp = ReflectionUtils.getFieldVal(classLoader, "ucp", false);
-        if (ucp != null) {
-            // A list of classpath element URL strings.
-            // TODO: each URL element can add additional URL elements through the module-info mechanism,
-            // so the URLClassPath class has a stack of opened URLs (and opening a URL can push more
-            // URLs onto the stack). Currently the manifest's Class-Path mechanism works in a similar
-            // way, but this should be abstracted to work with classloading too. Or alternatively,
-            // maybe the Java 9 module loader should simply be queried when running under Java 9.
-            @SuppressWarnings("unchecked")
-            final List<String> path = (List<String>) ReflectionUtils.getFieldVal(ucp, "path", false);
-            if (path != null) {
-                for (final String pathElt : path) {
-                    classpathFinder.addClasspathElement(pathElt, classLoader, log);
-                }
-            }
-        }
+        
+        // TODO: These fields cannot be queried, because Java 9 strictly enforces encapsulation:
+        // https://stackoverflow.com/a/41265267
+        // The JRE still seems to honor java.class.path for non-modular code.
+        
+        //        // Type URLClassPath
+        //        final Object ucp = ReflectionUtils.getFieldVal(classLoader, "ucp", false);
+        //        if (ucp != null) {
+        //            // A list of classpath element URL strings.
+        //            // TODO: each URL element can add additional URL elements through the module-info mechanism,
+        //            // so the URLClassPath class has a stack of opened URLs (and opening a URL can push more
+        //            // URLs onto the stack). Currently the manifest's Class-Path mechanism works in a similar
+        //            // way, but this should be abstracted to work with classloading too. Or alternatively,
+        //            // maybe the Java 9 module loader should simply be queried when running under Java 9.
+        //            @SuppressWarnings("unchecked")
+        //            final List<String> path = (List<String>) ReflectionUtils.getFieldVal(ucp, "path", false);
+        //            if (path != null) {
+        //                for (final String pathElt : path) {
+        //                    classpathFinder.addClasspathElement(pathElt, classLoader, log);
+        //                }
+        //            }
+        //        }
     }
 }
