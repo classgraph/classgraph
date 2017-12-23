@@ -51,11 +51,11 @@ public class Java9ClassLoaderHandler implements ClassLoaderHandler {
     @Override
     public void handle(final ClassLoader classLoader, final ClasspathFinder classpathFinder,
             final ScanSpec scanSpec, final LogNode log) {
-        
+
         // TODO: These fields cannot be queried, because Java 9 strictly enforces encapsulation:
         // https://stackoverflow.com/a/41265267
         // The JRE still seems to honor java.class.path for non-modular code.
-        
+
         //        // Type URLClassPath
         //        final Object ucp = ReflectionUtils.getFieldVal(classLoader, "ucp", false);
         //        if (ucp != null) {

@@ -361,6 +361,39 @@ public class FastClasspathScanner {
     }
 
     /**
+     * Allows you to scan default packages (with package name "") without scanning sub-packages unless they are
+     * whitelisted. This is needed because if you add the package name "" to the whitelist, that package and all
+     * sub-packages will be scanned, which means everything will be scanned. This method makes it possible to
+     * whitelist just the toplevel (default) package but not its sub-packages.
+     * 
+     * @param alwaysScanClasspathElementRoot
+     *            If true, always scan the classpath element root, regardless of the whitelist or blacklist.
+     * @return this (for method chaining).
+     */
+    public FastClasspathScanner alwaysScanClasspathElementRoot(final boolean alwaysScanClasspathElementRoot) {
+        if (alwaysScanClasspathElementRoot) {
+            getScanSpec().whitelistedPaths.add("");
+            getScanSpec().whitelistedPaths.add("/");
+        } else {
+            getScanSpec().whitelistedPaths.remove("");
+            getScanSpec().whitelistedPaths.remove("/");
+        }
+        return this;
+    }
+
+    /**
+     * Allows you to scan default packages (with package name "") without scanning sub-packages unless they are
+     * whitelisted. This is needed because if you add the package name "" to the whitelist, that package and all
+     * sub-packages will be scanned, which means everything will be scanned. This method makes it possible to
+     * whitelist just the toplevel (default) package but not its sub-packages.
+     * 
+     * @return this (for method chaining).
+     */
+    public FastClasspathScanner alwaysScanClasspathElementRoot() {
+        return alwaysScanClasspathElementRoot(true);
+    }
+
+    /**
      * If strictWhitelist is true, switches FastClasspathScanner to strict mode, which disallows searching/matching
      * based on blacklisted classes, and removes "external" classes from result lists returned by ScanSpec#get...()
      * methods. (External classes are classes outside of whitelisted packages that are directly referred to by

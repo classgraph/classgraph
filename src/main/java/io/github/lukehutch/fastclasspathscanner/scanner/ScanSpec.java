@@ -68,13 +68,22 @@ import io.github.lukehutch.fastclasspathscanner.utils.MultiMapKeyToSet;
  * ClassLoaders. Also defines core MatchProcessor matching logic.
  */
 public class ScanSpec {
-    /** Whitelisted package paths with "/" appended, or the empty list if all packages are whitelisted. */
+    /**
+     * Whitelisted package paths with "/" appended, or the empty list if all packages are whitelisted. These
+     * packages and any subpackages will be scanned.
+     */
     public final ArrayList<String> whitelistedPathPrefixes = new ArrayList<>();
 
-    /** Blacklisted package paths with "/" appended. */
+    /**
+     * Whitelisted package paths with "/" appended, or the empty list if all packages are whitelisted. These
+     * packages will be scanned, but subpackages will not be scanned unless they are whitelisted.
+     */
+    public final ArrayList<String> whitelistedPaths = new ArrayList<>();
+
+    /** Blacklisted package paths with "/" appended. Neither these packages nor any subpackages will be scanned. */
     public final ArrayList<String> blacklistedPathPrefixes = new ArrayList<>();
 
-    /** Blacklisted package names with "." appended. */
+    /** Blacklisted package names with "." appended. Neither these packages nor any subpackages will be scanned. */
     public final ArrayList<String> blacklistedPackagePrefixes = new ArrayList<>();
 
     /** Whitelisted class names, or the empty list if none. */
@@ -377,7 +386,8 @@ public class ScanSpec {
 
         uniqueWhitelistedPathPrefixes.removeAll(uniqueBlacklistedPathPrefixes);
         whitelistedPathPrefixes.addAll(uniqueWhitelistedPathPrefixes);
-        if (whitelistedPathPrefixes.isEmpty() && specificallyWhitelistedClassRelativePaths.isEmpty()) {
+        if (whitelistedPathPrefixes.isEmpty() && whitelistedPaths.isEmpty()
+                && specificallyWhitelistedClassRelativePaths.isEmpty()) {
             // If no whitelisted package names or class names were given, scan all packages.
             // Having a whitelisted class name but no whitelisted package name should not trigger the scanning
             // of all packages (Issue #78.)
@@ -400,6 +410,9 @@ public class ScanSpec {
 
         if (log != null) {
             log.log("Whitelisted relative path prefixes:  " + whitelistedPathPrefixes);
+            if (!whitelistedPaths.isEmpty()) {
+                log.log("Whitelisted paths (non-recursive):  " + whitelistedPaths);
+            }
             if (!blacklistedPathPrefixes.isEmpty()) {
                 log.log("Blacklisted relative path prefixes:  " + blacklistedPathPrefixes);
             }
@@ -602,28 +615,37 @@ public class ScanSpec {
 
     /** Whether a path is a descendant of a blacklisted path, or an ancestor or descendant of a whitelisted path. */
     enum ScanSpecPathMatch {
-        WITHIN_BLACKLISTED_PATH, WITHIN_WHITELISTED_PATH, ANCESTOR_OF_WHITELISTED_PATH, //
-        AT_WHITELISTED_CLASS_PACKAGE, NOT_WITHIN_WHITELISTED_PATH;
+        HAS_BLACKLISTED_PATH_PREFIX, HAS_WHITELISTED_PATH_PREFIX, AT_WHITELISTED_PATH, //
+        ANCESTOR_OF_WHITELISTED_PATH, AT_WHITELISTED_CLASS_PACKAGE, NOT_WITHIN_WHITELISTED_PATH;
     }
 
     /**
      * Returns true if the given directory path is a descendant of a blacklisted path, or an ancestor or descendant
      * of a whitelisted path. The path should end in "/".
      */
-    ScanSpecPathMatch pathWhitelistMatchStatus(final String relativePath) {
+    ScanSpecPathMatch dirWhitelistMatchStatus(final String relativePath) {
         for (final String blacklistedPath : blacklistedPathPrefixes) {
             if (relativePath.startsWith(blacklistedPath)) {
                 // The directory or its ancestor is blacklisted.
-                return ScanSpecPathMatch.WITHIN_BLACKLISTED_PATH;
+                return ScanSpecPathMatch.HAS_BLACKLISTED_PATH_PREFIX;
             }
         }
         for (final String whitelistedPath : whitelistedPathPrefixes) {
             if (disableRecursiveScanning && relativePath.equals(whitelistedPath)) {
                 // Recursive scanning is disabled, and the directory is a toplevel whitelisted path.
-                return ScanSpecPathMatch.WITHIN_WHITELISTED_PATH;
+                return ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX;
             } else if (!disableRecursiveScanning && relativePath.startsWith(whitelistedPath)) {
                 // Recursive scanning is enabled, and the directory is a whitelisted path or subdirectory.
-                return ScanSpecPathMatch.WITHIN_WHITELISTED_PATH;
+                return ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX;
+            } else if (whitelistedPath.startsWith(relativePath) || "/".equals(relativePath)) {
+                // The directory the ancestor is a whitelisted path (so need to keep scanning deeper into hierarchy)
+                return ScanSpecPathMatch.ANCESTOR_OF_WHITELISTED_PATH;
+            }
+        }
+        for (final String whitelistedPath : whitelistedPaths) {
+            if (relativePath.equals(whitelistedPath)) {
+                // Recursive scanning is disabled, and the directory is a toplevel whitelisted path.
+                return ScanSpecPathMatch.AT_WHITELISTED_PATH;
             } else if (whitelistedPath.startsWith(relativePath) || "/".equals(relativePath)) {
                 // The directory the ancestor is a whitelisted path (so need to keep scanning deeper into hierarchy)
                 return ScanSpecPathMatch.ANCESTOR_OF_WHITELISTED_PATH;

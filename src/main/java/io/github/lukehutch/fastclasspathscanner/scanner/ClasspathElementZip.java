@@ -287,14 +287,15 @@ class ClasspathElementZip extends ClasspathElement {
             final boolean parentRelativePathChanged = !parentRelativePath.equals(prevParentRelativePath);
             final ScanSpecPathMatch parentMatchStatus = // 
                     prevParentRelativePath == null || parentRelativePathChanged
-                            ? scanSpec.pathWhitelistMatchStatus(parentRelativePath)
+                            ? scanSpec.dirWhitelistMatchStatus(parentRelativePath)
                             : prevParentMatchStatus;
             prevParentRelativePath = parentRelativePath;
             prevParentMatchStatus = parentMatchStatus;
 
             // Class can only be scanned if it's within a whitelisted path subtree, or if it is a classfile
             // that has been specifically-whitelisted
-            if (parentMatchStatus != ScanSpecPathMatch.WITHIN_WHITELISTED_PATH
+            if (parentMatchStatus != ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX
+                    && parentMatchStatus != ScanSpecPathMatch.AT_WHITELISTED_PATH
                     && (parentMatchStatus != ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE
                             || !scanSpec.isSpecificallyWhitelistedClass(relativePath))) {
                 continue;

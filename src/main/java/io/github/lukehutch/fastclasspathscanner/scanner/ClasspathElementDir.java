@@ -144,15 +144,16 @@ class ClasspathElementDir extends ClasspathElement {
         final String dirPath = dir.getPath();
         final String dirRelativePath = ignorePrefixLen > dirPath.length() ? "/" //
                 : dirPath.substring(ignorePrefixLen).replace(File.separatorChar, '/') + "/";
-        final ScanSpecPathMatch matchStatus = scanSpec.pathWhitelistMatchStatus(dirRelativePath);
+        final ScanSpecPathMatch matchStatus = scanSpec.dirWhitelistMatchStatus(dirRelativePath);
         if (matchStatus == ScanSpecPathMatch.NOT_WITHIN_WHITELISTED_PATH
-                || matchStatus == ScanSpecPathMatch.WITHIN_BLACKLISTED_PATH) {
+                || matchStatus == ScanSpecPathMatch.HAS_BLACKLISTED_PATH_PREFIX) {
             // Reached a non-whitelisted or blacklisted path -- stop the recursive scan
             if (log != null) {
                 log.log("Reached non-whitelisted (or blacklisted) directory: " + dirRelativePath);
             }
             return;
-        } else if (matchStatus == ScanSpecPathMatch.WITHIN_WHITELISTED_PATH) {
+        } else if (matchStatus == ScanSpecPathMatch.AT_WHITELISTED_PATH
+                || matchStatus == ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX) {
             // Reached a whitelisted path -- can start scanning directories and files from this point
             inWhitelistedPath = true;
         }
@@ -225,7 +226,7 @@ class ClasspathElementDir extends ClasspathElement {
                 }
             }
         }
-        if (matchStatus == ScanSpecPathMatch.WITHIN_WHITELISTED_PATH
+        if (matchStatus == ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX
                 || matchStatus == ScanSpecPathMatch.ANCESTOR_OF_WHITELISTED_PATH) {
             // Need to timestamp whitelisted directories, so that changes to directory content can be detected.
             // Also need to timestamp ancestors of whitelisted directories, in case a new directory is added
