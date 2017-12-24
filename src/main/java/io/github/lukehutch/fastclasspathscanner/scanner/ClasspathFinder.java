@@ -75,7 +75,12 @@ public class ClasspathFinder {
             final LogNode log) {
         if (pathElement == null || pathElement.isEmpty()) {
             return false;
-        } else if (pathElement.equals("*") || pathElement.endsWith(File.separator + "*")) {
+        } else
+        // If (pathElement.endsWith("*") || pathElement.endsWith(File.separatorChar + "*"))
+        if (pathElement.equals("*")
+                || (pathElement.length() > 2 && pathElement.charAt(pathElement.length() - 1) == '*'
+                        && (pathElement.charAt(pathElement.length() - 2) == '/' || (File.separatorChar != '/'
+                                && pathElement.charAt(pathElement.length() - 2) == File.separatorChar)))) {
             // Got wildcard path element (allowable for local classpaths as of JDK 6)
             try {
                 final File classpathEltParentDir = new RelativePath(currDirPathStr,
@@ -154,7 +159,7 @@ public class ClasspathFinder {
      * @param log
      *            the LogNode instance to use if logging in verbose mode.
      * 
-     * @return true (and add the classpath element) if pathElement is not null or empty, otherwise return false.
+     * @return true (and add the classpath element) if pathEl)ement is not null or empty, otherwise return false.
      */
     public boolean addClasspathElements(final String pathStr, final ClassLoader classLoader, final LogNode log) {
         return addClasspathElements(pathStr, new ClassLoader[] { classLoader }, log);
