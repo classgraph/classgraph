@@ -335,7 +335,8 @@ public class ScanSpec {
                     boolean isClassName = false;
                     final int lastSlashIdx = specPath.lastIndexOf('/');
                     if (lastSlashIdx < specPath.length() - 1) {
-                        isClassName = Character.isUpperCase(specPath.charAt(lastSlashIdx + 1));
+                        isClassName = Character.isUpperCase(specPath.charAt(lastSlashIdx + 1))
+                                && !specPath.substring(lastSlashIdx + 1).equals("META-INF");
                     }
                     if (isClassName) {
                         // Convert class name to classfile filename
