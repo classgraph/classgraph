@@ -156,18 +156,28 @@ class ClasspathElementZip extends ClasspathElement {
     /** Scan for path matches within jarfile, and record ZipEntry objects of matching files. */
     @Override
     public void scanPaths(final LogNode log) {
+        final String path = classpathEltPath.getResolvedPath();
+        String canonicalPath = path;
+        try {
+            canonicalPath = classpathEltPath.getCanonicalPath();
+        } catch (final IOException e) {
+        }
+        final LogNode logNode = log == null ? null
+                : log.log(canonicalPath, "Scanning jarfile classpath entry " + classpathEltPath
+                        + (path.equals(canonicalPath) ? "" : " ; canonical path: " + canonicalPath));
+
         ZipFile zipFile = null;
         try {
             try {
                 zipFile = zipFileRecycler.acquire();
             } catch (final IOException e) {
-                if (log != null) {
-                    log.log("Exception opening zipfile " + classpathEltZipFile, e);
+                if (logNode != null) {
+                    logNode.log("Exception opening zipfile " + classpathEltZipFile, e);
                 }
                 ioExceptionOnOpen = true;
                 return;
             }
-            scanZipFile(classpathEltZipFile, zipFile, classpathEltPath.getZipClasspathBaseDir(), log);
+            scanZipFile(classpathEltZipFile, zipFile, classpathEltPath.getZipClasspathBaseDir(), logNode);
         } finally {
             zipFileRecycler.release(zipFile);
         }

@@ -71,10 +71,20 @@ class ClasspathElementDir extends ClasspathElement {
     /** Hierarchically scan directory structure for classfiles and matching files. */
     @Override
     public void scanPaths(final LogNode log) {
+        final String path = classpathEltPath.getResolvedPath();
+        String canonicalPath = path;
+        try {
+            canonicalPath = classpathEltPath.getCanonicalPath();
+        } catch (final IOException e) {
+        }
+        final LogNode logNode = log == null ? null
+                : log.log(canonicalPath, "Scanning directory classpath entry " + classpathEltPath
+                        + (path.equals(canonicalPath) ? "" : " ; canonical path: " + canonicalPath));
+
         final HashSet<String> scannedCanonicalPaths = new HashSet<>();
         final int[] entryIdx = new int[1];
         scanDir(dir, dir, /* ignorePrefixLen = */ dir.getPath().length() + 1, /* inWhitelistedPath = */ false,
-                scannedCanonicalPaths, entryIdx, log);
+                scannedCanonicalPaths, entryIdx, logNode);
     }
 
     private ClasspathResource newClasspathResource(final File classpathEltFile,
