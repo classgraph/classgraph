@@ -186,6 +186,15 @@ public class ScanResult {
         return buf.toString();
     }
 
+    /**
+     * Returns the list of unique classpath element paths as URLs, in classloader resolution order.
+     * 
+     * @return The unique classpath element URLs.
+     */
+    public List<URL> getUniqueClasspathElementURLs() {
+        return classpathElementOrderURLs;
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**

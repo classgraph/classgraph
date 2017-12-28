@@ -31,6 +31,7 @@ package io.github.lukehutch.fastclasspathscanner;
 import java.io.File;
 import java.lang.annotation.Annotation;
 import java.lang.annotation.RetentionPolicy;
+import java.net.URL;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Callable;
@@ -79,6 +80,9 @@ public class FastClasspathScanner {
 
     /** The unique classpath elements. */
     private List<File> classpathElts;
+
+    /** The unique classpath element URLs. */
+    private List<URL> classpathEltURLs;
 
     /** The FastClasspathScanner version. */
     private static String version;
@@ -1543,21 +1547,22 @@ public class FastClasspathScanner {
      * 
      * https://github.com/lukehutch/fast-classpath-scanner/wiki/1.-Usage#multithreading-issues
      * 
-     * Note that if there are nested jarfiles on the classpath, e.g. file:///path/to/jar1.jar!/path/to/jar2.jar ,
-     * then both FastClasspathScanner#scanAsync() and FastClasspathScanner#getUniqueClasspathElementsAsync() will
-     * cause jar2.jar to be extracted to a temporary file, however
-     * FastClasspathScanner#getUniqueClasspathElementsAsync() will not remove this temporary file after the scan (so
-     * that the file is still accessible to the caller -- each of the File objects in the returned list of classpath
-     * elements should exist). These extracted temporary files are marked for deletion on JVM exit, however.
+     * Note that if there are nested jarfiles on the classpath, e.g.
+     * {@code file:///path/to/jar1.jar!/path/to/jar2.jar}, then both FastClasspathScanner#scanAsync() and
+     * FastClasspathScanner#getUniqueClasspathElementsAsync() will cause jar2.jar to be extracted to a temporary
+     * file, however FastClasspathScanner#getUniqueClasspathElementsAsync() will not remove this temporary file
+     * after the scan (so that the file is still accessible to the caller -- each of the File objects in the
+     * returned list of classpath elements should exist). These extracted temporary files are marked for deletion on
+     * JVM exit, however.
      * 
      * @param executorService
      *            A custom ExecutorService to use for scheduling worker tasks.
      * @param numParallelTasks
      *            The number of parallel tasks to break the work into during the most CPU-intensive stage of
      *            classpath scanning. Ideally the ExecutorService will have at least this many threads available.
-     * @return a Future<List<File>>, that when resolved with get() returns a list of the unique directories and
-     *         jarfiles on the classpath, in classpath resolution order. You can call cancel(true) on this Future if
-     *         you want to interrupt the process (although the result is typically returned quickly).
+     * @return a {@code Future<List<File>>}, that when resolved with get() returns a list of the unique directories
+     *         and jarfiles on the classpath, in classpath resolution order. You can call cancel(true) on this
+     *         Future if you want to interrupt the process (although the result is typically returned quickly).
      */
     public Future<List<File>> getUniqueClasspathElementsAsync(final ExecutorService executorService,
             final int numParallelTasks) {
@@ -1595,12 +1600,13 @@ public class FastClasspathScanner {
      * the result can be returned, when all classpath elements have been found and tested to see if they exist in
      * the filesystem.
      * 
-     * Note that if there are nested jarfiles on the classpath, e.g. file:///path/to/jar1.jar!/path/to/jar2.jar ,
-     * then both FastClasspathScanner#scan() and FastClasspathScanner#getUniqueClasspathElements() will cause
-     * jar2.jar to be extracted to a temporary file, however FastClasspathScanner#getUniqueClasspathElements() will
-     * not remove this temporary file after the scan (so that the file is still accessible to the caller -- each of
-     * the File objects in the returned list of classpath elements should exist). These extracted temporary files
-     * are marked for deletion on JVM exit, however.
+     * Note that if there are nested jarfiles on the classpath, e.g.
+     * {@code file:///path/to/jar1.jar!/path/to/jar2.jar}, then both FastClasspathScanner#scan() and
+     * FastClasspathScanner#getUniqueClasspathElements() will cause jar2.jar to be extracted to a temporary file,
+     * however FastClasspathScanner#getUniqueClasspathElements() will not remove this temporary file after the scan
+     * (so that the file is still accessible to the caller -- each of the File objects in the returned list of
+     * classpath elements should exist). These extracted temporary files are marked for deletion on JVM exit,
+     * however.
      * 
      * @param executorService
      *            A custom ExecutorService to use for scheduling worker tasks.
@@ -1611,7 +1617,7 @@ public class FastClasspathScanner {
      *             if any of the worker threads are interrupted during the scan. If you care about thread
      *             interruption, you should catch this exception. If you don't plan to interrupt the scan, you
      *             probably don't need to catch this.
-     * @return a List<File> consisting of the unique directories and jarfiles on the classpath, in classpath
+     * @return a {@code List<File>} consisting of the unique directories and jarfiles on the classpath, in classpath
      *         resolution order.
      */
     public List<File> getUniqueClasspathElements(final ExecutorService executorService,
@@ -1645,17 +1651,18 @@ public class FastClasspathScanner {
      * the result can be returned, when all classpath elements have been found and tested to see if they exist in
      * the filesystem.
      * 
-     * Note that if there are nested jarfiles on the classpath, e.g. file:///path/to/jar1.jar!/path/to/jar2.jar ,
-     * then both FastClasspathScanner#scan() and FastClasspathScanner#getUniqueClasspathElements() will cause
-     * jar2.jar to be extracted to a temporary file, however FastClasspathScanner#getUniqueClasspathElements() will
-     * not remove this temporary file after the scan (so that the file is still accessible to the caller -- each of
-     * the File objects in the returned list of classpath elements should exist). These extracted temporary files
-     * are marked for deletion on JVM exit, however.
+     * Note that if there are nested jarfiles on the classpath, e.g.
+     * {@code file:///path/to/jar1.jar!/path/to/jar2.jar}, then both FastClasspathScanner#scan() and
+     * FastClasspathScanner#getUniqueClasspathElements() will cause jar2.jar to be extracted to a temporary file,
+     * however FastClasspathScanner#getUniqueClasspathElements() will not remove this temporary file after the scan
+     * (so that the file is still accessible to the caller -- each of the File objects in the returned list of
+     * classpath elements should exist). These extracted temporary files are marked for deletion on JVM exit,
+     * however.
      * 
      * @throws ScanInterruptedException
      *             if any of the worker threads are interrupted during the scan (shouldn't happen under normal
      *             circumstances).
-     * @return a List<File> consisting of the unique directories and jarfiles on the classpath, in classpath
+     * @return a {@code List<File>} consisting of the unique directories and jarfiles on the classpath, in classpath
      *         resolution order.
      */
     public List<File> getUniqueClasspathElements() {
@@ -1674,12 +1681,13 @@ public class FastClasspathScanner {
      * are not included in the path. Blocks until the result can be returned, when all classpath elements have been
      * found and tested to see if they exist in the filesystem.
      * 
-     * Note that if there are nested jarfiles on the classpath, e.g. file:///path/to/jar1.jar!/path/to/jar2.jar ,
-     * then both FastClasspathScanner#scan() and FastClasspathScanner#getUniqueClasspathElements() will cause
-     * jar2.jar to be extracted to a temporary file, however FastClasspathScanner#getUniqueClasspathElements() will
-     * not remove this temporary file after the scan (so that the file is still accessible to the caller -- each of
-     * the File objects in the returned list of classpath elements should exist). These extracted temporary files
-     * are marked for deletion on JVM exit, however.
+     * Note that if there are nested jarfiles on the classpath, e.g.
+     * {@code file:///path/to/jar1.jar!/path/to/jar2.jar}, then both FastClasspathScanner#scan() and
+     * FastClasspathScanner#getUniqueClasspathElements() will cause jar2.jar to be extracted to a temporary file,
+     * however FastClasspathScanner#getUniqueClasspathElements() will not remove this temporary file after the scan
+     * (so that the file is still accessible to the caller -- each of the File objects in the returned list of
+     * classpath elements should exist). These extracted temporary files are marked for deletion on JVM exit,
+     * however.
      * 
      * @throws ScanInterruptedException
      *             if any of the worker threads are interrupted during the scan (shouldn't happen under normal
@@ -1696,5 +1704,142 @@ public class FastClasspathScanner {
             buf.append(f.toString());
         }
         return buf.toString();
+    }
+
+    /**
+     * Asynchronously returns the list of all unique URLs representing directories or zip/jarfiles on the classpath,
+     * in classloader resolution order. Classpath elements that do not exist are not included in the list.
+     * 
+     * See the following for info on thread safety:
+     * 
+     * https://github.com/lukehutch/fast-classpath-scanner/wiki/1.-Usage#multithreading-issues
+     * 
+     * Note that if there are nested jarfiles on the classpath, e.g.
+     * {@code file:///path/to/jar1.jar!/path/to/jar2.jar}, then both FastClasspathScanner#scanAsync() and
+     * FastClasspathScanner#getUniqueClasspathElementsAsync() will cause jar2.jar to be extracted to a temporary
+     * file, however FastClasspathScanner#getUniqueClasspathElementURLsAsync() will not remove this temporary file
+     * after the scan (so that the file is still accessible to the caller -- each of the File objects in the
+     * returned list of classpath elements should exist). These extracted temporary files are marked for deletion on
+     * JVM exit, however.
+     * 
+     * @param executorService
+     *            A custom ExecutorService to use for scheduling worker tasks.
+     * @param numParallelTasks
+     *            The number of parallel tasks to break the work into during the most CPU-intensive stage of
+     *            classpath scanning. Ideally the ExecutorService will have at least this many threads available.
+     * @return a {@code Future<List<URL>>}, that when resolved with get() returns a list of URLs for the unique
+     *         directories and jarfiles on the classpath, in classpath resolution order. You can call cancel(true)
+     *         on this Future if you want to interrupt the process (although the result is typically returned
+     *         quickly).
+     */
+    public Future<List<URL>> getUniqueClasspathElementURLsAsync(final ExecutorService executorService,
+            final int numParallelTasks) {
+        // No need to call disallowCallingFromClassInitializer() here, because no MatchProcessors are run,
+        // so class initializer deadlock cannot occur.
+        final Future<List<URL>> classpathElementsFuture;
+        try {
+            final Future<ScanResult> scanResultFuture = executorService.submit( //
+                    new Scanner(getScanSpec(), executorService, numParallelTasks,
+                            /* enableRecursiveScanning = */ false, /* scanResultProcessor = */ null,
+                            /* failureHandler = */ null,
+                            log == null ? null : log.log("Getting unique classpath elements")));
+            classpathElementsFuture = executorService.submit(new Callable<List<URL>>() {
+                @Override
+                public List<URL> call() throws Exception {
+                    final ScanResult scanResult = scanResultFuture.get();
+                    final List<URL> uniqueClasspathElementURLs = scanResult.getUniqueClasspathElementURLs();
+                    // N.B. scanResult.freeTempFiles() is *not* called for this method, so that the classpath
+                    // elements resulting from jars within jars are left in place. However, they are cleaned
+                    // up on normal JVM exit.
+                    return uniqueClasspathElementURLs;
+                }
+            });
+        } finally {
+            if (log != null) {
+                log.flush();
+            }
+        }
+        return classpathElementsFuture;
+    }
+
+    /**
+     * Returns the list of all unique URL objects representing directories or zip/jarfiles on the classpath, in
+     * classloader resolution order. Classpath elements that do not exist are not included in the list. Blocks until
+     * the result can be returned, when all classpath elements have been found and tested to see if they exist in
+     * the filesystem.
+     * 
+     * Note that if there are nested jarfiles on the classpath, e.g.
+     * {@code file:///path/to/jar1.jar!/path/to/jar2.jar}, then both FastClasspathScanner#scan() and
+     * FastClasspathScanner#getUniqueClasspathElements() will cause jar2.jar to be extracted to a temporary file,
+     * however FastClasspathScanner#getUniqueClasspathElementURLs() will not remove this temporary file after the
+     * scan (so that the file is still accessible to the caller -- each of the File objects in the returned list of
+     * classpath elements should exist). These extracted temporary files are marked for deletion on JVM exit,
+     * however.
+     * 
+     * @param executorService
+     *            A custom ExecutorService to use for scheduling worker tasks.
+     * @param numParallelTasks
+     *            The number of parallel tasks to break the work into during the most CPU-intensive stage of
+     *            classpath scanning. Ideally the ExecutorService will have at least this many threads available.
+     * @throws ScanInterruptedException
+     *             if any of the worker threads are interrupted during the scan. If you care about thread
+     *             interruption, you should catch this exception. If you don't plan to interrupt the scan, you
+     *             probably don't need to catch this.
+     * @return a {@code List<URL>} consisting of the unique directories and jarfiles on the classpath, in classpath
+     *         resolution order.
+     */
+    public List<URL> getUniqueClasspathElementURLs(final ExecutorService executorService,
+            final int numParallelTasks) {
+        if (classpathEltURLs == null) {
+            try {
+                classpathEltURLs = getUniqueClasspathElementURLsAsync(executorService, numParallelTasks).get();
+            } catch (final InterruptedException e) {
+                if (log != null) {
+                    log.log("Thread interrupted while getting classpath elements");
+                }
+                throw new ScanInterruptedException();
+            } catch (final ExecutionException e) {
+                if (log != null) {
+                    log.log("Exception while getting classpath elements", e);
+                }
+                final Throwable cause = e.getCause();
+                throw new RuntimeException(cause == null ? e : cause);
+            } finally {
+                if (log != null) {
+                    log.flush();
+                }
+            }
+        }
+        return classpathEltURLs;
+    }
+
+    /**
+     * Returns the list of all unique URL objects representing directories or zip/jarfiles on the classpath, in
+     * classloader resolution order. Classpath elements that do not exist are not included in the list. Blocks until
+     * the result can be returned, when all classpath elements have been found and tested to see if they exist in
+     * the filesystem.
+     * 
+     * Note that if there are nested jarfiles on the classpath, e.g.
+     * {@code file:///path/to/jar1.jar!/path/to/jar2.jar}, then both FastClasspathScanner#scan() and
+     * FastClasspathScanner#getUniqueClasspathElements() will cause jar2.jar to be extracted to a temporary file,
+     * however FastClasspathScanner#getUniqueClasspathElementURLs() will not remove this temporary file after the
+     * scan (so that the file is still accessible to the caller -- each of the File objects in the returned list of
+     * classpath elements should exist). These extracted temporary files are marked for deletion on JVM exit,
+     * however.
+     * 
+     * @throws ScanInterruptedException
+     *             if any of the worker threads are interrupted during the scan (shouldn't happen under normal
+     *             circumstances).
+     * @return a {@code List<URL>} consisting of the unique directories and jarfiles on the classpath, in classpath
+     *         resolution order.
+     */
+    public List<URL> getUniqueClasspathElementURLs() {
+        if (classpathEltURLs == null) {
+            try (AutoCloseableExecutorService executorService = new AutoCloseableExecutorService(
+                    DEFAULT_NUM_WORKER_THREADS)) {
+                return getUniqueClasspathElementURLs(executorService, DEFAULT_NUM_WORKER_THREADS);
+            }
+        }
+        return classpathEltURLs;
     }
 }
