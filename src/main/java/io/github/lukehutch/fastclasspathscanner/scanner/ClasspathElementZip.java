@@ -99,7 +99,7 @@ class ClasspathElementZip extends ClasspathElement {
                 zipFile = zipFileRecycler.acquire();
             } catch (final IOException e) {
                 if (log != null) {
-                    log.log("Exception opening zipfile " + classpathEltZipFile, e);
+                    log.log("Exception opening zipfile " + classpathEltZipFile + " : " + e.getMessage());
                 }
                 ioExceptionOnOpen = true;
                 return;
