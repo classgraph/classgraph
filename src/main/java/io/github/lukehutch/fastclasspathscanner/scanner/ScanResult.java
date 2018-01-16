@@ -181,7 +181,8 @@ public class ScanResult {
             if (buf.length() > 0) {
                 buf.append(File.pathSeparatorChar);
             }
-            buf.append(f.toString());
+            // Escape path separators
+            buf.append(f.toString().replaceAll(File.pathSeparator, "\\" + File.pathSeparator));
         }
         return buf.toString();
     }
