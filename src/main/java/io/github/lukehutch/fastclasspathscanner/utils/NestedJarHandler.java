@@ -34,6 +34,10 @@ import java.io.InputStream;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
+import java.util.AbstractMap.SimpleEntry;
+import java.util.HashSet;
+import java.util.Map.Entry;
+import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
@@ -56,7 +60,7 @@ import java.util.zip.ZipFile;
  */
 public class NestedJarHandler {
     private final ConcurrentLinkedDeque<File> tempFiles = new ConcurrentLinkedDeque<>();
-    private final SingletonMap<String, File> nestedPathToJarfileMap;
+    private final SingletonMap<String, Entry<File, Set<String>>> nestedPathToJarfileAndRootRelativePathsMap;
     private final SingletonMap<String, Recycler<ZipFile, IOException>> canonicalPathToZipFileRecyclerMap;
     private final InterruptionChecker interruptionChecker;
     private final LogNode log;
@@ -82,19 +86,19 @@ public class NestedJarHandler {
 
         // Create a singleton map from path to zipfile File, in order to eliminate repeatedly unzipping
         // the same file when there are multiple jars-within-jars that need unzipping to temporary files. 
-        this.nestedPathToJarfileMap = new SingletonMap<String, File>() {
+        this.nestedPathToJarfileAndRootRelativePathsMap = new SingletonMap<String, Entry<File, Set<String>>>() {
             @Override
-            public File newInstance(final String nestedJarPath) throws Exception {
+            public Entry<File, Set<String>> newInstance(final String nestedJarPath) throws Exception {
                 final int lastPlingIdx = nestedJarPath.lastIndexOf('!');
                 if (lastPlingIdx < 0) {
-                    // This portion of the file path is the deepest-nested jar (i.e. doesn't have any '!' sections).
-                    // It should end with a jar extension, and the file needs to exist and be a file.
+                    // nestedJarPath is a simple file path or URL (i.e. doesn't have any '!' sections).
+                    // This is also the last frame of recursion for the 'else' clause below.
 
                     // If the path starts with "http(s)://", download the jar to a temp file
                     final boolean isRemote = nestedJarPath.startsWith("http://")
                             || nestedJarPath.startsWith("https://");
                     final File pathFile = isRemote ? downloadTempFile(nestedJarPath, log) : new File(nestedJarPath);
-                    if (pathFile == null) {
+                    if (isRemote && pathFile == null) {
                         if (log != null) {
                             log.log(nestedJarPath, "Could not download file: " + nestedJarPath);
                         }
@@ -118,51 +122,43 @@ public class NestedJarHandler {
                     }
                     if (!canonicalFile.isFile()) {
                         if (log != null) {
-                            log.log(nestedJarPath, "Path component is not a file: " + nestedJarPath);
-                        }
-                        return null;
-                    }
-                    if (!JarUtils.isJar(canonicalFile.getPath())) {
-                        // Should not happen, this has already been checked for
-                        if (log != null) {
                             log.log(nestedJarPath,
-                                    "Ignoring classpath element with non-jar path component: " + nestedJarPath);
+                                    "Path component is not a file (expected a jarfile): " + nestedJarPath);
                         }
                         return null;
                     }
                     // Return canonical file as the singleton entry for this path
-                    return canonicalFile;
+                    return new SimpleEntry<>(canonicalFile, /* rootRelativePaths = */ new HashSet<String>());
 
                 } else {
-                    // This path has one or more '!' sections
+                    // This path has one or more '!' sections.
                     final String parentPath = nestedJarPath.substring(0, lastPlingIdx);
                     String childPath = nestedJarPath.substring(lastPlingIdx + 1);
                     if (childPath.startsWith("/")) {
+                        // "file.jar!/path_or_jar" -> "file.jar!path_or_jar"
                         childPath = childPath.substring(1);
                     }
-                    if (!JarUtils.isJar(childPath)) {
-                        // Should not happen, this has already been checked for
-                        if (log != null) {
-                            log.log(nestedJarPath,
-                                    "Ignoring classpath element with non-jar path component: " + nestedJarPath);
-                        }
-                        return null;
-                    }
-
                     try {
-                        // Recursively get next nested jarfile. This is guaranteed to terminate because parentPath
-                        // is one '!'-section shorter with each recursion.
-                        final File parentJarfile = nestedPathToJarfileMap.getOrCreateSingleton(parentPath);
+                        // Recursively remove one '!' section at a time, back towards the beginning of the URL or
+                        // file path. At the last frame of recursion, the toplevel jarfile will be reached and
+                        // returned. The recursion is guaranteed to terminate because parentPath gets one
+                        // '!'-section shorter with each recursion frame.
+                        final Entry<File, Set<String>> parentJarfileAndRootRelativePaths = //
+                                nestedPathToJarfileAndRootRelativePathsMap.getOrCreateSingleton(parentPath);
+                        // Only the last item in a '!'-delimited list can be a non-jar path, so the parent
+                        // must always be a jarfile.
+                        final File parentJarfile = parentJarfileAndRootRelativePaths.getKey();
                         if (parentJarfile == null) {
                             // Failed to get parent jarfile
                             return null;
                         }
 
                         // Avoid decompressing the same nested jarfiles multiple times for different non-canonical
-                        // parent paths. This recursion is guaranteed to terminate after one extra recursion if
-                        // File.getCanonicalFile() is idempotent, which it should be by definition.
+                        // parent paths, by calling getOrCreateSingleton() again using parentJarfile (which has
+                        // a canonicalized path). This recursion is guaranteed to terminate after one extra
+                        // recursion if File.getCanonicalFile() is idempotent, which it should be by definition.
                         if (!parentJarfile.getPath().equals(parentPath)) {
-                            return nestedPathToJarfileMap
+                            return nestedPathToJarfileAndRootRelativePathsMap
                                     .getOrCreateSingleton(parentJarfile.getPath() + "!" + childPath);
                         }
 
@@ -182,6 +178,18 @@ public class NestedJarHandler {
                                 return null;
                             }
 
+                            // If Make sure path component is a file, not a directory (can't unzip directories)
+                            if (childZipEntry.isDirectory()) {
+                                if (log != null) {
+                                    log.log(nestedJarPath, "Child path component " + childPath + " in jarfile "
+                                            + parentPath + " is a directory, not a file -- using as scanning root");
+                                }
+                                // Add directory path to parent jarfile root relative paths set
+                                parentJarfileAndRootRelativePaths.getValue().add(childPath);
+                                // Return parent entry
+                                return parentJarfileAndRootRelativePaths;
+                            }
+
                             // Unzip the child zipfile to a temporary file
                             final File childTempFile = unzipToTempFile(parentZipFile, childZipEntry);
 
@@ -191,8 +199,9 @@ public class NestedJarHandler {
                                 return null;
                             }
 
-                            // Return the child temp zipfile
-                            return childTempFile;
+                            // Return the child temp zipfile as a new entry
+                            return new SimpleEntry<>(childTempFile,
+                                    /* rootRelativePaths = */ new HashSet<String>());
 
                         } finally {
                             parentJarRecycler.release(parentZipFile);
@@ -228,11 +237,13 @@ public class NestedJarHandler {
      * 
      * All path segments should end in a jarfile extension, e.g. ".jar" or ".zip".
      * 
-     * @return the File for the innermost jar.
+     * @return An {@code Entry<File, Set<String>>}, where the {@code File} is the innermost jar, and the
+     *         {@code Set<String>} is the set of all relative paths of scanning roots within the innermost jar (may
+     *         be empty, or may contain strings like "target/classes" or similar).
      */
-    public File getInnermostNestedJar(final String nestedJarPath) throws Exception {
+    public Entry<File, Set<String>> getInnermostNestedJar(final String nestedJarPath) throws Exception {
         try {
-            return nestedPathToJarfileMap.getOrCreateSingleton(nestedJarPath);
+            return nestedPathToJarfileAndRootRelativePathsMap.getOrCreateSingleton(nestedJarPath);
         } catch (final InterruptedException e) {
             interruptionChecker.interrupt();
             throw e;
@@ -244,13 +255,8 @@ public class NestedJarHandler {
         final LogNode subLog = log == null ? null : log.log(jarURL, "Downloading URL " + jarURL);
         File tempFile = null;
         try {
-            String suffix = TEMP_FILENAME_LEAF_SEPARATOR + jarURL.replace('/', '_').replace(':', '_')
+            final String suffix = TEMP_FILENAME_LEAF_SEPARATOR + jarURL.replace('/', '_').replace(':', '_')
                     .replace('?', '_').replace('&', '_').replace('=', '_');
-            if (!JarUtils.isJar(suffix)) {
-                // Ensure there is a jar suffix on file, so that it is not skipped
-                // (an HTTP URL may deliver a jarfile as its response regardless of the format of the URL)
-                suffix += ".jar";
-            }
             tempFile = File.createTempFile("FastClasspathScanner-", suffix);
             tempFile.deleteOnExit();
             tempFiles.add(tempFile);

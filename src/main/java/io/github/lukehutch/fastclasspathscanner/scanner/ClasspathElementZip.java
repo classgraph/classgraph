@@ -245,6 +245,10 @@ class ClasspathElementZip extends ClasspathElement {
         } else {
             requiredPrefix = "";
         }
+        if (requiredPrefix.startsWith("/")) {
+            // Strip any initial "/" to correspond with handling of relativePath below
+            requiredPrefix = requiredPrefix.substring(1);
+        }
         final int requiredPrefixLen = requiredPrefix.length();
 
         // Convert set to list for faster iteration

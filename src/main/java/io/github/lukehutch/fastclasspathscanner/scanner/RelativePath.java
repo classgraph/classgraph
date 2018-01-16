@@ -30,6 +30,8 @@ package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Map.Entry;
+import java.util.Set;
 
 import io.github.lukehutch.fastclasspathscanner.utils.ClasspathUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.FastPathResolver;
@@ -52,13 +54,12 @@ class RelativePath {
     /** The relative path. */
     private final String relativePath;
 
-    /** If true, this is a jarfile. */
-    private final boolean isJar;
     /**
-     * If isJar is true, this gives the trailing zip-internal path, if the section of the path after the last '!' is
-     * not a jarfile.
+     * For jarfiles, this gives the trailing zip-internal path, if the section of the path after the last '!' is not
+     * a jarfile.
      */
     private String zipClasspathBaseDir = "";
+
     /** Handler for nested jars. */
     private final NestedJarHandler nestedJarHandler;
 
@@ -116,8 +117,6 @@ class RelativePath {
         } else {
             this.relativePath = relativePath;
         }
-
-        this.isJar = this.relativePath.contains("!") || JarUtils.isJar(this.relativePath);
     }
 
     /** Hash based on canonical path. */
@@ -199,32 +198,27 @@ class RelativePath {
 
             // Check if this is a nested or remote jarfile
             final boolean isRemote = path.startsWith("http://") || path.startsWith("https://");
-            final int plingIdx = path.indexOf('!');
+            final int plingIdx = path.lastIndexOf('!');
             if (plingIdx > 0 || isRemote) {
-                // Check that each segment of path is a jarfile, optionally excluding the last segment
-                final String[] parts = path.split("!");
-                for (int i = 0, ii = parts.length - 1; i < ii; i++) {
-                    if (!JarUtils.isJar(parts[i])) {
-                        throw new IOException("Path " + path + " uses nested jar syntax, "
-                                + "but contains a segment that does not have a jar extension");
-                    }
-                }
-                String nestedJarPath;
-                if (parts.length > 1 && !JarUtils.isJar(parts[parts.length - 1])) {
-                    // Last segment is not a jarfile, so it represents a classpath root within the jarfile
-                    // corresponding to the second-to-last element
-                    zipClasspathBaseDir = parts[parts.length - 1];
-                    if (zipClasspathBaseDir.startsWith("/")) {
-                        zipClasspathBaseDir = zipClasspathBaseDir.substring(1);
-                    }
-                    nestedJarPath = path.substring(0, path.lastIndexOf('!'));
-                } else {
-                    nestedJarPath = path;
-                }
                 // Recursively unzip the nested jarfiles (or fetch remote jarfiles) to temporary files,
                 // then return the innermost (or downloaded) jarfile. Throws IOException if anything goes wrong.
                 try {
-                    fileCached = nestedJarHandler.getInnermostNestedJar(nestedJarPath);
+                    final Entry<File, Set<String>> innermostJarAndRootRelativePaths = //
+                            nestedJarHandler.getInnermostNestedJar(path);
+                    fileCached = innermostJarAndRootRelativePaths.getKey();
+                    final Set<String> rootRelativePaths = innermostJarAndRootRelativePaths.getValue();
+                    if (!rootRelativePaths.isEmpty()) {
+                        // Get section after last '!' (stripping any initial '/')
+                        final String tail = path.length() == plingIdx + 1 ? ""
+                                : path.charAt(plingIdx + 1) == '/' ? path.substring(plingIdx + 2)
+                                        : path.substring(plingIdx + 1);
+                        // Check to see if last segment is listed in the set of root relative paths for the jar
+                        // -- if so, then this is the classpath base for this jarfile
+                        if (rootRelativePaths.contains(tail)) {
+
+                        }
+                        zipClasspathBaseDir = tail;
+                    }
                 } catch (final Exception e) {
                     throw new IOException("Exception while getting jarfile " + relativePath, e);
                 }
@@ -285,11 +279,6 @@ class RelativePath {
         return isDirectoryCached;
     }
 
-    /** True if this relative path corresponds with a jarfile. */
-    public boolean isJar() {
-        return isJar;
-    }
-
     /** Returns true if resolved path has a .class extension, ignoring case. */
     public boolean isClassfile() {
         return FileUtils.isClassfile(getResolvedPath());
@@ -337,21 +326,17 @@ class RelativePath {
                 return false;
             }
             if (isFile) {
-                // If a classpath entry is a file, it must be a jar
                 final String canonicalPath = getCanonicalPath();
-                if (!JarUtils.isJar(canonicalPath)) {
-                    if (log != null) {
-                        log.log("Ignoring non-jar file on classpath: " + path);
-                    }
-                    return false;
-                }
-                if (scanSpec.blacklistSystemJars() && JarUtils.isJREJar(path, log)) {
+                if (scanSpec.blacklistSystemJars() && JarUtils.isJREJar(canonicalPath, log)) {
                     // Don't scan system jars if they are blacklisted
                     if (log != null) {
                         log.log("Ignoring JRE jar: " + path);
                     }
                     return false;
                 }
+                // If a classpath entry is a file, it must be a jar.
+                // Jarfiles may not have a jar/zip extension (see Issue #166), so can't check extension.
+                // If the file is not a zipfile, opening it will fail during scanning.
             }
         } catch (final IOException e) {
             if (log != null) {

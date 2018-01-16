@@ -45,7 +45,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 
 import io.github.lukehutch.fastclasspathscanner.utils.InterruptionChecker;
-import io.github.lukehutch.fastclasspathscanner.utils.JarUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.NestedJarHandler;
 import io.github.lukehutch.fastclasspathscanner.utils.Recycler;
@@ -339,26 +338,21 @@ public class Scanner implements Callable<ScanResult> {
                                 // are explicitly listed on the classpath)
                                 final String nestedClasspathRelativePath = comparePath.substring(basePathLen + 1);
                                 if (nestedClasspathRelativePath.indexOf('!') < 0) {
-                                    // Ensure that the nested classpath is not a jar, since we only care
-                                    // about cases where the nested classpath root is a dir, whether or
-                                    // not the outer classpath element is a dir or jar
-                                    if (!JarUtils.isJar(nestedClasspathRelativePath)) {
-                                        // Found a nested classpath root
-                                        foundNestedClasspathRoot = true;
-                                        // Store link from prefix element to nested elements
-                                        final ClasspathElement baseElement = ei.getValue();
-                                        if (baseElement.nestedClasspathRoots == null) {
-                                            baseElement.nestedClasspathRoots = new HashSet<>();
+                                    // Found a nested classpath root
+                                    foundNestedClasspathRoot = true;
+                                    // Store link from prefix element to nested elements
+                                    final ClasspathElement baseElement = ei.getValue();
+                                    if (baseElement.nestedClasspathRoots == null) {
+                                        baseElement.nestedClasspathRoots = new HashSet<>();
+                                    }
+                                    baseElement.nestedClasspathRoots.add(nestedClasspathRelativePath + "/");
+                                    if (classpathFinderLog != null) {
+                                        if (nestedClasspathRootNode == null) {
+                                            nestedClasspathRootNode = classpathFinderLog
+                                                    .log("Found nested classpath elements");
                                         }
-                                        baseElement.nestedClasspathRoots.add(nestedClasspathRelativePath + "/");
-                                        if (classpathFinderLog != null) {
-                                            if (nestedClasspathRootNode == null) {
-                                                nestedClasspathRootNode = classpathFinderLog
-                                                        .log("Found nested classpath elements");
-                                            }
-                                            nestedClasspathRootNode.log(
-                                                    basePath + " is a prefix of the nested element " + comparePath);
-                                        }
+                                        nestedClasspathRootNode.log(
+                                                basePath + " is a prefix of the nested element " + comparePath);
                                     }
                                 }
                             }

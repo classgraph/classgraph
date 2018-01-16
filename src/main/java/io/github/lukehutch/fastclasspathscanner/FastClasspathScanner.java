@@ -60,6 +60,7 @@ import io.github.lukehutch.fastclasspathscanner.scanner.ScanResultProcessor;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
 import io.github.lukehutch.fastclasspathscanner.scanner.Scanner;
 import io.github.lukehutch.fastclasspathscanner.utils.AutoCloseableExecutorService;
+import io.github.lukehutch.fastclasspathscanner.utils.JarUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.VersionFinder;
 
@@ -542,16 +543,7 @@ public class FastClasspathScanner {
      * @return this (for method chaining).
      */
     public FastClasspathScanner overrideClasspath(final Iterable<?> overrideClasspathElements) {
-        final StringBuilder buf = new StringBuilder();
-        for (final Object classpathElt : overrideClasspathElements) {
-            if (classpathElt != null) {
-                if (buf.length() > 0) {
-                    buf.append(File.pathSeparatorChar);
-                }
-                buf.append(classpathElt);
-            }
-        }
-        final String overrideClasspath = buf.toString();
+        final String overrideClasspath = JarUtils.pathElementsToPathStr(overrideClasspathElements);
         if (overrideClasspath.isEmpty()) {
             throw new IllegalArgumentException("Can't override classpath with an empty path");
         }
@@ -569,16 +561,7 @@ public class FastClasspathScanner {
      * @return this (for method chaining).
      */
     public FastClasspathScanner overrideClasspath(final Object... overrideClasspathElements) {
-        final StringBuilder buf = new StringBuilder();
-        for (final Object classpathElt : overrideClasspathElements) {
-            if (classpathElt != null) {
-                if (buf.length() > 0) {
-                    buf.append(File.pathSeparatorChar);
-                }
-                buf.append(classpathElt);
-            }
-        }
-        final String overrideClasspath = buf.toString();
+        final String overrideClasspath = JarUtils.pathElementsToPathStr(overrideClasspathElements);
         if (overrideClasspath.isEmpty()) {
             throw new IllegalArgumentException("Can't override classpath with an empty path");
         }
@@ -1762,14 +1745,7 @@ public class FastClasspathScanner {
      *         string.
      */
     public String getUniqueClasspathElementsAsPathStr() {
-        final StringBuilder buf = new StringBuilder();
-        for (final File f : getUniqueClasspathElements()) {
-            if (buf.length() > 0) {
-                buf.append(File.pathSeparatorChar);
-            }
-            buf.append(f.toString());
-        }
-        return buf.toString();
+        return JarUtils.pathElementsToPathStr(getUniqueClasspathElements());
     }
 
     /**

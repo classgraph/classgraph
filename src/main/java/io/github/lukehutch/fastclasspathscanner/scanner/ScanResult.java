@@ -38,6 +38,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import io.github.lukehutch.fastclasspathscanner.utils.InterruptionChecker;
+import io.github.lukehutch.fastclasspathscanner.utils.JarUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.NestedJarHandler;
 
@@ -176,15 +177,7 @@ public class ScanResult {
      *         string.
      */
     public String getUniqueClasspathElementsAsPathStr() {
-        final StringBuilder buf = new StringBuilder();
-        for (final File f : getUniqueClasspathElements()) {
-            if (buf.length() > 0) {
-                buf.append(File.pathSeparatorChar);
-            }
-            // Escape path separators
-            buf.append(f.toString().replaceAll(File.pathSeparator, "\\" + File.pathSeparator));
-        }
-        return buf.toString();
+        return JarUtils.pathElementsToPathStr(getUniqueClasspathElements());
     }
 
     /**
