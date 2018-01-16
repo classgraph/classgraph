@@ -47,6 +47,7 @@ import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchContents
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchContentsProcessorWithContext;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchProcessorWithContext;
+import io.github.lukehutch.fastclasspathscanner.matchprocessor.FilenameMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.ImplementingClassMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.MethodAnnotationMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.StaticFinalFieldMatchProcessor;
@@ -970,6 +971,22 @@ public class FastClasspathScanner {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Calls the given FilenameMatchProcessor if files are found on the classpath with the given regexp pattern in
+     * their path.
+     * 
+     * @param pathRegexp
+     *            The regexp to match, e.g. "app/templates/.*\\.html"
+     * @param filenameMatchProcessor
+     *            The FilenameMatchProcessor to call when each match is found.
+     * @return this (for method chaining).
+     */
+    public FastClasspathScanner matchFilenamePattern(final String pathRegexp,
+            final FilenameMatchProcessor filenameMatchProcessor) {
+        getScanSpec().matchFilenamePattern(pathRegexp, filenameMatchProcessor);
+        return this;
+    }
+
+    /**
      * Calls the given FileMatchProcessor if files are found on the classpath with the given regexp pattern in their
      * path.
      * 
@@ -1034,6 +1051,23 @@ public class FastClasspathScanner {
     }
 
     // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Calls the given FilenameMatchProcessor if files are found on the classpath that exactly match the given
+     * relative path.
+     * 
+     * @param relativePathToMatch
+     *            The complete path to match relative to the classpath entry, e.g.
+     *            "app/templates/WidgetTemplate.html"
+     * @param filenameMatchProcessor
+     *            The FilenameMatchProcessor to call when each match is found.
+     * @return this (for method chaining).
+     */
+    public FastClasspathScanner matchFilenamePath(final String relativePathToMatch,
+            final FilenameMatchProcessor filenameMatchProcessor) {
+        getScanSpec().matchFilenamePath(relativePathToMatch, filenameMatchProcessor);
+        return this;
+    }
 
     /**
      * Calls the given FileMatchProcessor if files are found on the classpath that exactly match the given relative
@@ -1106,6 +1140,22 @@ public class FastClasspathScanner {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Calls the given FilenameMatchProcessor if files are found on the classpath that exactly match the given path
+     * leafname.
+     * 
+     * @param pathLeafToMatch
+     *            The complete path leaf to match, e.g. "WidgetTemplate.html"
+     * @param filenameMatchProcessor
+     *            The FilenameMatchProcessor to call when each match is found.
+     * @return this (for method chaining).
+     */
+    public FastClasspathScanner matchFilenamePathLeaf(final String pathLeafToMatch,
+            final FilenameMatchProcessor filenameMatchProcessor) {
+        getScanSpec().matchFilenamePathLeaf(pathLeafToMatch, filenameMatchProcessor);
+        return this;
+    }
+
+    /**
      * Calls the given FileMatchProcessor if files are found on the classpath that exactly match the given path
      * leafname.
      * 
@@ -1170,6 +1220,22 @@ public class FastClasspathScanner {
     }
 
     // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Calls the given FilenameMatchProcessor if files are found on the classpath that have the given file
+     * extension.
+     * 
+     * @param extensionToMatch
+     *            The extension to match, e.g. "html" matches "WidgetTemplate.html" and "WIDGET.HTML".
+     * @param filenameMatchProcessor
+     *            The FilenameMatchProcessor to call when each match is found.
+     * @return this (for method chaining).
+     */
+    public FastClasspathScanner matchFilenameExtension(final String extensionToMatch,
+            final FilenameMatchProcessor filenameMatchProcessor) {
+        getScanSpec().matchFilenameExtension(extensionToMatch, filenameMatchProcessor);
+        return this;
+    }
 
     /**
      * Calls the given FileMatchProcessor if files are found on the classpath that have the given file extension.
