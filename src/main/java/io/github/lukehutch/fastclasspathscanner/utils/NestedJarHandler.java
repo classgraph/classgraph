@@ -128,7 +128,8 @@ public class NestedJarHandler {
                         return null;
                     }
                     // Return canonical file as the singleton entry for this path
-                    return new SimpleEntry<>(canonicalFile, /* rootRelativePaths = */ new HashSet<String>());
+                    final Set<String> rootRelativePaths = new HashSet<>();
+                    return new SimpleEntry<>(canonicalFile, rootRelativePaths);
 
                 } else {
                     // This path has one or more '!' sections.
@@ -200,8 +201,8 @@ public class NestedJarHandler {
                             }
 
                             // Return the child temp zipfile as a new entry
-                            return new SimpleEntry<>(childTempFile,
-                                    /* rootRelativePaths = */ new HashSet<String>());
+                            final Set<String> rootRelativePaths = new HashSet<>();
+                            return new SimpleEntry<>(childTempFile, rootRelativePaths);
 
                         } finally {
                             parentJarRecycler.release(parentZipFile);
