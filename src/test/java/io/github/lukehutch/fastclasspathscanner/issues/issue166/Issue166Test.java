@@ -72,7 +72,6 @@ public class Issue166Test {
                 .overrideClasspath(nonExistentURL) //
                 .matchFilenamePattern(".*",
                         (final File classpathElt, final String relativePath) -> fileNames.add(relativePath))
-                //.verbose()
                 .scan();
         assertThat(fileNames).isEmpty();
     }
