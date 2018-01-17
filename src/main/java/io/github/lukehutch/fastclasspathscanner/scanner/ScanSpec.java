@@ -36,6 +36,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map.Entry;
@@ -407,6 +408,11 @@ public class ScanSpec {
                 log.log("Scanning of jars and dirs are both disabled -- re-enabling scanning of dirs");
             }
             scanDirs = true;
+        }
+
+        // Sort the whitelistedPathPrefixes to ensure correct evaluation (but only if we have prefixes specified)
+        if (!uniqueWhitelistedPathPrefixes.isEmpty()) {
+            Collections.sort(whitelistedPathPrefixes);
         }
 
         if (log != null) {
