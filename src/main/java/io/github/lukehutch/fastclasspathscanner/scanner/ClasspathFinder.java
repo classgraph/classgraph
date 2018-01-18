@@ -255,18 +255,17 @@ public class ClasspathFinder {
             // parent classloader and not in a child classloader (and don't use java.class.path at all if
             // overrideClassLoaders is true or overrideClasspath is set)
             if (scanSpec.overrideClassLoaders == null && scanSpec.overrideClasspath == null) {
-                final String[] parts = JarUtils.smartPathSplit(System.getProperty("java.class.path"));
-                if (parts.length > 0) {
+                final String[] pathElements = JarUtils.smartPathSplit(System.getProperty("java.class.path"));
+                if (pathElements.length > 0) {
                     final LogNode sysPropLog = classpathFinderLog == null ? null
                             : classpathFinderLog.log("Getting classpath entries from java.class.path");
-                    for (final String pathElement : parts) {
-                        final RelativePath relativePath = new RelativePath(currDirPathStr, pathElement,
-                                envClassLoaderOrder, nestedJarHandler);
-                        if (!ignoredClasspathOrder.get().contains(relativePath)) {
-                            // java.class.path element is not also listed in an ignored parent classloader
-                            // (Issue #169)
+                    for (final String pathElement : pathElements) {
+                        if (!ignoredClasspathOrder.get().contains(new RelativePath(currDirPathStr, pathElement,
+                                envClassLoaderOrder, nestedJarHandler))) {
+                            // pathElement is not also listed in an ignored parent classloader
                             classpathOrder.addClasspathElement(pathElement, envClassLoaderOrder, sysPropLog);
                         } else {
+                            // pathElement is also listed in an ignored parent classloader, ignore it (Issue #169)
                             if (sysPropLog != null) {
                                 sysPropLog.log("Found classpath element in java.class.path that will be ignored, "
                                         + "since it is also found in an ignored parent classloader: "
