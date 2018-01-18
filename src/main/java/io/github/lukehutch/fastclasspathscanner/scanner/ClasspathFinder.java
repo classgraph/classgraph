@@ -259,19 +259,14 @@ public class ClasspathFinder {
                 if (parts.length > 0) {
                     final LogNode sysPropLog = classpathFinderLog == null ? null
                             : classpathFinderLog.log("Getting classpath entries from java.class.path");
-                    final ClasspathOrder sysPropOrder = new ClasspathOrder(nestedJarHandler);
                     for (final String pathElement : parts) {
                         final RelativePath relativePath = new RelativePath(currDirPathStr, pathElement,
                                 envClassLoaderOrder, nestedJarHandler);
-                        final boolean alreadyInClassloaderPath = classpathOrder.get().contains(relativePath);
-                        final boolean alreadyInIgnoredClassloaderPath = ignoredClasspathOrder.get()
-                                .contains(relativePath);
-                        if (!alreadyInClassloaderPath && !alreadyInIgnoredClassloaderPath) {
-                            sysPropOrder.addClasspathElement(pathElement, envClassLoaderOrder, sysPropLog);
-                        } else if (alreadyInClassloaderPath && !alreadyInIgnoredClassloaderPath) {
-                            sysPropOrder.addClasspathElement(pathElement, envClassLoaderOrder, sysPropLog);
-                        } else if (alreadyInIgnoredClassloaderPath) {
-                            // For Issue #169
+                        if (!ignoredClasspathOrder.get().contains(relativePath)) {
+                            // java.class.path element is not also listed in an ignored parent classloader
+                            // (Issue #169)
+                            classpathOrder.addClasspathElement(pathElement, envClassLoaderOrder, sysPropLog);
+                        } else {
                             if (sysPropLog != null) {
                                 sysPropLog.log("Found classpath element in java.class.path that will be ignored, "
                                         + "since it is also found in an ignored parent classloader: "
@@ -279,7 +274,6 @@ public class ClasspathFinder {
                             }
                         }
                     }
-                    classpathOrder.addClasspathElements(sysPropOrder);
                 }
             }
         }
