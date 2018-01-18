@@ -51,7 +51,7 @@ public class AdditionOrderedSet<T> implements Iterable<T> {
     }
 
     /** Add all items of a list to the set. Returns true if the list changed as a result of the add. */
-    public boolean addAll(final List<T> items) {
+    public boolean addAll(final Iterable<T> items) {
         boolean changed = false;
         for (final T item : items) {
             changed |= add(item);
