@@ -79,8 +79,7 @@ public class ClasspathFinder {
         // If (pathElement.endsWith("*") || pathElement.endsWith(File.separatorChar + "*"))
         if (pathElement.equals("*")
                 || (pathElement.length() > 2 && pathElement.charAt(pathElement.length() - 1) == '*'
-                        && (pathElement.charAt(pathElement.length() - 2) == '/' || (File.separatorChar != '/'
-                                && pathElement.charAt(pathElement.length() - 2) == File.separatorChar)))) {
+                        && (pathElement.charAt(pathElement.length() - 2) == File.separatorChar))) {
             // Got wildcard path element (allowable for local classpaths as of JDK 6)
             try {
                 final File classpathEltParentDir = new RelativePath(currDirPathStr,
