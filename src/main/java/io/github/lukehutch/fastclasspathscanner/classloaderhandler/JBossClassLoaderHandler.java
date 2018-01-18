@@ -33,7 +33,7 @@ import java.lang.reflect.Array;
 import java.nio.file.Path;
 import java.util.Map;
 
-import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
+import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathOrder;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
 import io.github.lukehutch.fastclasspathscanner.utils.ClasspathUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
@@ -54,8 +54,8 @@ public class JBossClassLoaderHandler implements ClassLoaderHandler {
     }
 
     @Override
-    public void handle(final ClassLoader classLoader, final ClasspathFinder classpathFinder,
-            final ScanSpec scanSpec, final LogNode log) {
+    public void handle(final ScanSpec scanSpec, final ClassLoader classLoader,
+            final ClasspathOrder classpathOrderOut, final LogNode log) {
         final Object module = ReflectionUtils.invokeMethod(classLoader, "getModule", false);
         final Object serviceLoader = ReflectionUtils.invokeMethod(module, "getCallerModuleLoader", false);
         @SuppressWarnings("unchecked")
@@ -110,7 +110,7 @@ public class JBossClassLoaderHandler implements ClassLoaderHandler {
                             }
                         }
                     }
-                    classpathFinder.addClasspathElement(path, (ClassLoader) moduleLoader, log);
+                    classpathOrderOut.addClasspathElement(path, (ClassLoader) moduleLoader, log);
                 }
             }
         }

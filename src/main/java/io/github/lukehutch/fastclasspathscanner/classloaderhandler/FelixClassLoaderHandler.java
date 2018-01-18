@@ -33,7 +33,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
+import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathOrder;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
@@ -64,7 +64,7 @@ public class FelixClassLoaderHandler implements ClassLoaderHandler {
     }
 
     private void addBundle(final Object bundleWiring, final ClassLoader classLoader,
-            final ClasspathFinder classpathFinder, final LogNode log) {
+            final ClasspathOrder classpathOrderOut, final LogNode log) {
         // Track the bundles we've processed to prevent loops
         bundles.add(bundleWiring);
 
@@ -75,7 +75,7 @@ public class FelixClassLoaderHandler implements ClassLoaderHandler {
         final String location = content != null ? getContentLocation(content) : null;
         if (location != null) {
             // Add the bundle object
-            classpathFinder.addClasspathElement(location, classLoader, log);
+            classpathOrderOut.addClasspathElement(location, classLoader, log);
 
             // And any embedded content
             final List<?> embeddedContent = (List<?>) ReflectionUtils.invokeMethod(revision, "getContentPath",
@@ -85,7 +85,7 @@ public class FelixClassLoaderHandler implements ClassLoaderHandler {
                     if (embedded != content) {
                         final String embeddedLocation = embedded != null ? getContentLocation(embedded) : null;
                         if (embeddedLocation != null) {
-                            classpathFinder.addClasspathElement(embeddedLocation, classLoader, log);
+                            classpathOrderOut.addClasspathElement(embeddedLocation, classLoader, log);
                         }
                     }
                 }
@@ -94,12 +94,12 @@ public class FelixClassLoaderHandler implements ClassLoaderHandler {
     }
 
     @Override
-    public void handle(final ClassLoader classLoader, final ClasspathFinder classpathFinder,
-            final ScanSpec scanSpec, final LogNode log) {
+    public void handle(final ScanSpec scanSpec, final ClassLoader classLoader,
+            final ClasspathOrder classpathOrderOut, final LogNode log) {
 
         // Get the wiring for the ClassLoader's bundle
         final Object bundleWiring = ReflectionUtils.getFieldVal(classLoader, "m_wiring", false);
-        addBundle(bundleWiring, classLoader, classpathFinder, log);
+        addBundle(bundleWiring, classLoader, classpathOrderOut, log);
 
         // Deal with any other bundles we might be wired to.
         // TODO: Use the ScanSpec to narrow down the list of wires that we follow.
@@ -110,7 +110,7 @@ public class FelixClassLoaderHandler implements ClassLoaderHandler {
             for (final Object wire : requiredWires) {
                 final Object provider = ReflectionUtils.invokeMethod(wire, "getProviderWiring", false);
                 if (!bundles.contains(provider)) {
-                    addBundle(provider, classLoader, classpathFinder, log);
+                    addBundle(provider, classLoader, classpathOrderOut, log);
                 }
             }
         }

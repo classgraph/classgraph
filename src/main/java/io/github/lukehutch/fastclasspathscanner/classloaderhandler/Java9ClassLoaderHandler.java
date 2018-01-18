@@ -28,7 +28,7 @@
  */
 package io.github.lukehutch.fastclasspathscanner.classloaderhandler;
 
-import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
+import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathOrder;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 
@@ -49,8 +49,8 @@ public class Java9ClassLoaderHandler implements ClassLoaderHandler {
     }
 
     @Override
-    public void handle(final ClassLoader classLoader, final ClasspathFinder classpathFinder,
-            final ScanSpec scanSpec, final LogNode log) {
+    public void handle(final ScanSpec scanSpec, final ClassLoader classLoader,
+            final ClasspathOrder classpathOrderOut, final LogNode log) {
 
         // TODO: These fields cannot be queried, because Java 9 strictly enforces encapsulation:
         // https://stackoverflow.com/a/41265267
@@ -69,7 +69,7 @@ public class Java9ClassLoaderHandler implements ClassLoaderHandler {
         //            final List<String> path = (List<String>) ReflectionUtils.getFieldVal(ucp, "path", false);
         //            if (path != null) {
         //                for (final String pathElt : path) {
-        //                    classpathFinder.addClasspathElement(pathElt, classLoader, log);
+        //                    classpathOrderOut.addClasspathElement(pathElt, classLoader, log);
         //                }
         //            }
         //        }

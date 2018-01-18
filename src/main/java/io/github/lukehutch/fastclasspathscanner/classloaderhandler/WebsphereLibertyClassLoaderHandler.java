@@ -31,7 +31,7 @@ package io.github.lukehutch.fastclasspathscanner.classloaderhandler;
 import java.io.File;
 import java.util.List;
 
-import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
+import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathOrder;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
@@ -58,8 +58,8 @@ public class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
     }
 
     @Override
-    public void handle(final ClassLoader classLoader, final ClasspathFinder classpathFinder,
-            final ScanSpec scanSpec, final LogNode log) {
+    public void handle(final ScanSpec scanSpec, final ClassLoader classLoader,
+            final ClasspathOrder classpathOrderOut, final LogNode log) {
         Object smartClassPath = null;
         final Object appLoader = ReflectionUtils.getFieldVal(classLoader, "appLoader", false);
         if (appLoader != null) {
@@ -74,7 +74,7 @@ public class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
                 for (final Object classpath : classPathElements) {
                     final String path = getPath(classpath);
                     if (path != null && path.length() > 0) {
-                        classpathFinder.addClasspathElement(path, classLoader, log);
+                        classpathOrderOut.addClasspathElement(path, classLoader, log);
                     }
                 }
             }

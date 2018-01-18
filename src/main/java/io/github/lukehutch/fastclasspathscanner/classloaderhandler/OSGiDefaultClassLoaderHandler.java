@@ -30,7 +30,7 @@ package io.github.lukehutch.fastclasspathscanner.classloaderhandler;
 
 import java.io.File;
 
-import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
+import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathOrder;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
@@ -45,8 +45,8 @@ public class OSGiDefaultClassLoaderHandler implements ClassLoaderHandler {
     }
 
     @Override
-    public void handle(final ClassLoader classloader, final ClasspathFinder classpathFinder,
-            final ScanSpec scanSpec, final LogNode log) {
+    public void handle(final ScanSpec scanSpec, final ClassLoader classloader,
+            final ClasspathOrder classpathOrderOut, final LogNode log) {
         final Object classpathManager = ReflectionUtils.invokeMethod(classloader, "getClasspathManager", false);
         final Object[] entries = (Object[]) ReflectionUtils.getFieldVal(classpathManager, "entries", false);
         if (entries != null) {
@@ -54,7 +54,7 @@ public class OSGiDefaultClassLoaderHandler implements ClassLoaderHandler {
                 final Object bundleFile = ReflectionUtils.invokeMethod(entries[i], "getBundleFile", false);
                 final File baseFile = (File) ReflectionUtils.invokeMethod(bundleFile, "getBaseFile", false);
                 if (baseFile != null) {
-                    classpathFinder.addClasspathElement(baseFile.getPath(), classloader, log);
+                    classpathOrderOut.addClasspathElement(baseFile.getPath(), classloader, log);
                 }
             }
         }

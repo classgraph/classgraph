@@ -31,7 +31,7 @@ package io.github.lukehutch.fastclasspathscanner.classloaderhandler;
 import java.lang.reflect.Array;
 import java.util.HashSet;
 
-import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
+import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathOrder;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
@@ -48,7 +48,7 @@ public class EquinoxClassLoaderHandler implements ClassLoaderHandler {
     private boolean readSystemBundles = false;
 
     private void addBundleFile(final Object bundlefile, final HashSet<Object> path, final ClassLoader classLoader,
-            final ClasspathFinder classpathFinder, final LogNode log) {
+            final ClasspathOrder classpathOrderOut, final LogNode log) {
         if (bundlefile != null) {
             // Don't get stuck in infinite loop
             if (path.add(bundlefile)) {
@@ -60,24 +60,24 @@ public class EquinoxClassLoaderHandler implements ClassLoaderHandler {
                     if (cp != null) {
                         // We found the base file and a classpath
                         // element, e.g. "bin/"
-                        classpathFinder.addClasspathElement(basefile.toString() + "/" + cp.toString(), classLoader,
-                                log);
+                        classpathOrderOut.addClasspathElement(basefile.toString() + "/" + cp.toString(),
+                                classLoader, log);
                     } else {
                         // No classpath element found, just use basefile
-                        classpathFinder.addClasspathElement(basefile.toString(), classLoader, log);
+                        classpathOrderOut.addClasspathElement(basefile.toString(), classLoader, log);
                     }
                 }
                 addBundleFile(ReflectionUtils.getFieldVal(bundlefile, "wrapped", false), path, classLoader,
-                        classpathFinder, log);
+                        classpathOrderOut, log);
                 addBundleFile(ReflectionUtils.getFieldVal(bundlefile, "next", false), path, classLoader,
-                        classpathFinder, log);
+                        classpathOrderOut, log);
             }
         }
     }
 
     @Override
-    public void handle(final ClassLoader classLoader, final ClasspathFinder classpathFinder,
-            final ScanSpec scanSpec, final LogNode log) {
+    public void handle(final ScanSpec scanSpec, final ClassLoader classLoader,
+            final ClasspathOrder classpathOrderOut, final LogNode log) {
         // type ClasspathManager
         final Object manager = ReflectionUtils.getFieldVal(classLoader, "manager", false);
         // type ClasspathEntry[]
@@ -88,7 +88,7 @@ public class EquinoxClassLoaderHandler implements ClassLoaderHandler {
                 final Object entry = Array.get(entries, i);
                 // type BundleFile
                 final Object bundlefile = ReflectionUtils.getFieldVal(entry, "bundlefile", false);
-                addBundleFile(bundlefile, new HashSet<>(), classLoader, classpathFinder, log);
+                addBundleFile(bundlefile, new HashSet<>(), classLoader, classpathOrderOut, log);
             }
         }
         // Only read system bundles once (all bundles should give the
@@ -129,7 +129,7 @@ public class EquinoxClassLoaderHandler implements ClassLoaderHandler {
                         final int fileIdx = location.indexOf("file:");
                         if (fileIdx >= 0) {
                             location = location.substring(fileIdx);
-                            classpathFinder.addClasspathElement(location, classLoader, log);
+                            classpathOrderOut.addClasspathElement(location, classLoader, log);
                         }
                     }
                 }

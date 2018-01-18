@@ -28,7 +28,7 @@
  */
 package io.github.lukehutch.fastclasspathscanner.classloaderhandler;
 
-import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
+import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathOrder;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
@@ -50,11 +50,11 @@ public class WeblogicClassLoaderHandler implements ClassLoaderHandler {
     }
 
     @Override
-    public void handle(final ClassLoader classLoader, final ClasspathFinder classpathFinder,
-            final ScanSpec scanSpec, final LogNode log) {
-        classpathFinder.addClasspathElements( //
+    public void handle(final ScanSpec scanSpec, final ClassLoader classLoader,
+            final ClasspathOrder classpathOrderOut, final LogNode log) {
+        classpathOrderOut.addClasspathElements( //
                 (String) ReflectionUtils.invokeMethod(classLoader, "getFinderClassPath", false), classLoader, log);
-        classpathFinder.addClasspathElements( //
+        classpathOrderOut.addClasspathElements( //
                 (String) ReflectionUtils.invokeMethod(classLoader, "getClassPath", false), classLoader, log);
     }
 }

@@ -28,7 +28,7 @@
  */
 package io.github.lukehutch.fastclasspathscanner.classloaderhandler;
 
-import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
+import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathOrder;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 
@@ -66,21 +66,21 @@ public interface ClassLoaderHandler {
      * ClasspathFinder using classpathFinder.addClasspathElement(pathElement) or
      * classpathFinder.addClasspathElements(path).
      * 
-     * @param classLoader
-     *            The ClassLoader class to attempt to handle. If you can't directly use instanceof (because you are
-     *            using introspection so that your ClassLoaderHandler implementation can be added to the upstream
-     *            FastClasspathScanner project), you should iterate through the ClassLoader's superclass lineage to
-     *            ensure subclasses of the target ClassLoader are correctly detected.
-     * @param classpathFinder
-     *            The ClasspathFinder to register any discovered classpath elements with.
      * @param scanSpec
      *            the scanning specification, in case it is needed, e.g. this could be used to reduce the number of
      *            classpath elements returned in cases where it is very costly for a given classloader to return the
      *            entire classpath. (The ScanSpec can be safely ignored, however, and the returned paths will be
      *            filtered by FastClasspathScanner.)
+     * @param classLoader
+     *            The ClassLoader class to attempt to handle. If you can't directly use instanceof (because you are
+     *            using introspection so that your ClassLoaderHandler implementation can be added to the upstream
+     *            FastClasspathScanner project), you should iterate through the ClassLoader's superclass lineage to
+     *            ensure subclasses of the target ClassLoader are correctly detected.
+     * @param classpathOrderOut
+     *            The ClasspathOrder to register any discovered classpath elements with.
      * @param log
      *            A logger instance -- if this is non-null, write debug information using log.log("message").
      */
-    public abstract void handle(final ClassLoader classLoader, final ClasspathFinder classpathFinder,
-            ScanSpec scanSpec, LogNode log) throws Exception;
+    public abstract void handle(ScanSpec scanSpec, final ClassLoader classLoader,
+            final ClasspathOrder classpathOrderOut, LogNode log) throws Exception;
 }

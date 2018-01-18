@@ -121,6 +121,9 @@ public class JarUtils {
      * the JRE, in all likelihood, but it's better to be robust.
      */
     public static String[] smartPathSplit(final String pathStr) {
+        if (pathStr == null || pathStr.isEmpty()) {
+            return new String[0];
+        }
         // The fast path for Windows can skips this special handling (no need to handle these cases if the
         // path separator is ';')
         if (File.pathSeparatorChar == ':') {

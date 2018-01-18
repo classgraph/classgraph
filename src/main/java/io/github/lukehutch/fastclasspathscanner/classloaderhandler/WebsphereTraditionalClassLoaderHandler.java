@@ -28,7 +28,7 @@
  */
 package io.github.lukehutch.fastclasspathscanner.classloaderhandler;
 
-import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
+import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathOrder;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
@@ -45,9 +45,9 @@ public class WebsphereTraditionalClassLoaderHandler implements ClassLoaderHandle
     }
 
     @Override
-    public void handle(final ClassLoader classloader, final ClasspathFinder classpathFinder,
-            final ScanSpec scanSpec, final LogNode log) {
+    public void handle(final ScanSpec scanSpec, final ClassLoader classloader,
+            final ClasspathOrder classpathOrderOut, final LogNode log) {
         final String classpath = (String) ReflectionUtils.invokeMethod(classloader, "getClassPath", false);
-        classpathFinder.addClasspathElements(classpath, classloader, log);
+        classpathOrderOut.addClasspathElements(classpath, classloader, log);
     }
 }
