@@ -28,43 +28,40 @@
  */
 package io.github.lukehutch.fastclasspathscanner.issues.issue167;
 
+import static org.junit.Assert.assertEquals;
+
 import java.io.IOException;
-
-import org.junit.Test;
-import static org.junit.Assert.*;
-
-import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import io.github.lukehutch.fastclasspathscanner.issues.issue167.a.b.TestAB;
+import org.junit.Test;
+
+import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.issues.issue167.a.TestA;
+import io.github.lukehutch.fastclasspathscanner.issues.issue167.a.b.TestAB;
 
 public class Issue167Test {
-  public static List<Class<?>> classes = Arrays.asList(new Class<?>[] {TestA.class,TestAB.class});
-  public static List<String> packages = classes.stream().map(c -> c.getPackage().getName()).collect(Collectors.toList());
-  public static List<String> classNames = classes.stream().map(c -> c.getName()).collect(Collectors.toList());
+    public static List<Class<?>> classes = Arrays.asList(new Class<?>[] { TestA.class, TestAB.class });
+    public static List<String> packages = classes.stream().map(c -> c.getPackage().getName())
+            .collect(Collectors.toList());
+    public static List<String> classNames = classes.stream().map(c -> c.getName()).collect(Collectors.toList());
 
     @Test
     public void scanPackagesTest1() throws IOException {
-        assertEquals(classNames,new FastClasspathScanner(packages.toArray(new String[packages.size()]))
-            .disableRecursiveScanning()
-            .scan()
-            .getNamesOfAllClasses());
+        assertEquals(classNames, new FastClasspathScanner(packages.toArray(new String[packages.size()]))
+                .disableRecursiveScanning().scan().getNamesOfAllClasses());
     }
 
     @Test
     public void scanPackagesTest2() throws IOException {
-        List<String> reversedPackages = new ArrayList<>(packages);
+        final List<String> reversedPackages = new ArrayList<>(packages);
         Collections.reverse(reversedPackages);
-        assertEquals(classNames,new FastClasspathScanner(reversedPackages.toArray(new String[reversedPackages.size()]))
-            .disableRecursiveScanning()
-            .scan()
-            .getNamesOfAllClasses());
+        assertEquals(classNames,
+                new FastClasspathScanner(reversedPackages.toArray(new String[reversedPackages.size()]))
+                        .disableRecursiveScanning().scan().getNamesOfAllClasses());
     }
 
 }

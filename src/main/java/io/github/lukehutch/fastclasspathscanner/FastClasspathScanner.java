@@ -378,11 +378,11 @@ public class FastClasspathScanner {
      */
     public FastClasspathScanner alwaysScanClasspathElementRoot(final boolean alwaysScanClasspathElementRoot) {
         if (alwaysScanClasspathElementRoot) {
-            getScanSpec().whitelistedPaths.add("");
-            getScanSpec().whitelistedPaths.add("/");
+            getScanSpec().whitelistedPathsNonRecursive.add("");
+            getScanSpec().whitelistedPathsNonRecursive.add("/");
         } else {
-            getScanSpec().whitelistedPaths.remove("");
-            getScanSpec().whitelistedPaths.remove("/");
+            getScanSpec().whitelistedPathsNonRecursive.remove("");
+            getScanSpec().whitelistedPathsNonRecursive.remove("/");
         }
         return this;
     }

@@ -73,43 +73,43 @@ public class ScanSpec {
      * Whitelisted package paths with "/" appended, or the empty list if all packages are whitelisted. These
      * packages and any subpackages will be scanned.
      */
-    public final ArrayList<String> whitelistedPathPrefixes = new ArrayList<>();
+    public final List<String> whitelistedPathPrefixes = new ArrayList<>();
 
     /**
      * Whitelisted package paths with "/" appended, or the empty list if all packages are whitelisted. These
      * packages will be scanned, but subpackages will not be scanned unless they are whitelisted.
      */
-    public final ArrayList<String> whitelistedPaths = new ArrayList<>();
+    public final List<String> whitelistedPathsNonRecursive = new ArrayList<>();
 
     /** Blacklisted package paths with "/" appended. Neither these packages nor any subpackages will be scanned. */
-    public final ArrayList<String> blacklistedPathPrefixes = new ArrayList<>();
+    public final List<String> blacklistedPathPrefixes = new ArrayList<>();
 
     /** Blacklisted package names with "." appended. Neither these packages nor any subpackages will be scanned. */
-    public final ArrayList<String> blacklistedPackagePrefixes = new ArrayList<>();
+    public final List<String> blacklistedPackagePrefixes = new ArrayList<>();
 
     /** Whitelisted class names, or the empty list if none. */
-    public final HashSet<String> specificallyWhitelistedClassRelativePaths = new HashSet<>();
+    public final Set<String> specificallyWhitelistedClassRelativePaths = new HashSet<>();
 
     /** Path prefixes of whitelisted classes, or the empty list if none. */
-    public final HashSet<String> specificallyWhitelistedClassParentRelativePaths = new HashSet<>();
+    public final Set<String> specificallyWhitelistedClassParentRelativePaths = new HashSet<>();
 
     /** Blacklisted class relative paths. */
-    public final HashSet<String> specificallyBlacklistedClassRelativePaths = new HashSet<>();
+    public final Set<String> specificallyBlacklistedClassRelativePaths = new HashSet<>();
 
     /** Blacklisted class names. */
-    public final HashSet<String> specificallyBlacklistedClassNames = new HashSet<>();
+    public final Set<String> specificallyBlacklistedClassNames = new HashSet<>();
 
     /** Whitelisted jarfile names. (Leaf filename only.) */
-    public final HashSet<String> whitelistedJars = new HashSet<>();
+    public final Set<String> whitelistedJars = new HashSet<>();
 
     /** Blacklisted jarfile names. (Leaf filename only.) */
-    public final HashSet<String> blacklistedJars = new HashSet<>();
+    public final Set<String> blacklistedJars = new HashSet<>();
 
     /** Whitelisted jarfile names containing a glob('*') character, converted to a regexp. (Leaf filename only.) */
-    public final ArrayList<Pattern> whitelistedJarPatterns = new ArrayList<>();
+    public final List<Pattern> whitelistedJarPatterns = new ArrayList<>();
 
     /** Blacklisted jarfile names containing a glob('*') character, converted to a regexp. (Leaf filename only.) */
-    public final ArrayList<Pattern> blacklistedJarPatterns = new ArrayList<>();
+    public final List<Pattern> blacklistedJarPatterns = new ArrayList<>();
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -388,7 +388,7 @@ public class ScanSpec {
 
         uniqueWhitelistedPathPrefixes.removeAll(uniqueBlacklistedPathPrefixes);
         whitelistedPathPrefixes.addAll(uniqueWhitelistedPathPrefixes);
-        if (whitelistedPathPrefixes.isEmpty() && whitelistedPaths.isEmpty()
+        if (whitelistedPathPrefixes.isEmpty() && whitelistedPathsNonRecursive.isEmpty()
                 && specificallyWhitelistedClassRelativePaths.isEmpty()) {
             // If no whitelisted package names or class names were given, scan all packages.
             // Having a whitelisted class name but no whitelisted package name should not trigger the scanning
@@ -410,24 +410,16 @@ public class ScanSpec {
             scanDirs = true;
         }
 
-        // Sort the whitelistedPathPrefixes to ensure correct evaluation (but only if we have prefixes specified)
-        if (!uniqueWhitelistedPathPrefixes.isEmpty()) {
-            Collections.sort(whitelistedPathPrefixes);
-        }
+        // Sort the whitelistedPathPrefixes and whitelistedPathsNonRecursive to ensure correct evaluation
+        // (see Issue #167).
+        Collections.sort(whitelistedPathPrefixes);
+        Collections.sort(whitelistedPathsNonRecursive);
+        Collections.sort(blacklistedPathPrefixes);
+        Collections.sort(blacklistedPackagePrefixes);
 
         if (log != null) {
-            log.log("Whitelisted relative path prefixes:  " + whitelistedPathPrefixes);
-            if (!whitelistedPaths.isEmpty()) {
-                log.log("Whitelisted paths (non-recursive):  " + whitelistedPaths);
-            }
             if (!blacklistedPathPrefixes.isEmpty()) {
                 log.log("Blacklisted relative path prefixes:  " + blacklistedPathPrefixes);
-            }
-            if (!whitelistedJars.isEmpty()) {
-                log.log("Whitelisted jars:  " + whitelistedJars);
-            }
-            if (!whitelistedJarPatterns.isEmpty()) {
-                log.log("Whitelisted jars with glob wildcards:  " + whitelistedJarPatterns);
             }
             if (!blacklistedJars.isEmpty()) {
                 log.log("Blacklisted jars:  " + blacklistedJars);
@@ -435,12 +427,26 @@ public class ScanSpec {
             if (!blacklistedJarPatterns.isEmpty()) {
                 log.log("Whitelisted jars with glob wildcards:  " + blacklistedJarPatterns);
             }
-            if (!specificallyWhitelistedClassRelativePaths.isEmpty()) {
-                log.log("Specifically-whitelisted classfiles: " + specificallyWhitelistedClassRelativePaths);
-            }
             if (!specificallyBlacklistedClassRelativePaths.isEmpty()) {
                 log.log("Specifically-blacklisted classfiles: " + specificallyBlacklistedClassRelativePaths);
             }
+
+            if (!whitelistedPathPrefixes.isEmpty()) {
+                log.log("Whitelisted relative path prefixes:  " + whitelistedPathPrefixes);
+            }
+            if (!whitelistedPathsNonRecursive.isEmpty()) {
+                log.log("Whitelisted paths (non-recursive):  " + whitelistedPathsNonRecursive);
+            }
+            if (!whitelistedJars.isEmpty()) {
+                log.log("Whitelisted jars:  " + whitelistedJars);
+            }
+            if (!whitelistedJarPatterns.isEmpty()) {
+                log.log("Whitelisted jars with glob wildcards:  " + whitelistedJarPatterns);
+            }
+            if (!specificallyWhitelistedClassRelativePaths.isEmpty()) {
+                log.log("Specifically-whitelisted classfiles: " + specificallyWhitelistedClassRelativePaths);
+            }
+
             if (!scanJars) {
                 log.log("Scanning of jarfiles is disabled");
             }
@@ -649,7 +655,7 @@ public class ScanSpec {
                 return ScanSpecPathMatch.ANCESTOR_OF_WHITELISTED_PATH;
             }
         }
-        for (final String whitelistedPath : whitelistedPaths) {
+        for (final String whitelistedPath : whitelistedPathsNonRecursive) {
             if (relativePath.equals(whitelistedPath)) {
                 // Recursive scanning is disabled, and the directory is a toplevel whitelisted path.
                 return ScanSpecPathMatch.AT_WHITELISTED_PATH;
@@ -714,7 +720,7 @@ public class ScanSpec {
     // -------------------------------------------------------------------------------------------------------------
 
     /** Test if a list of jar names contains the requested name, allowing for globs. */
-    private static boolean containsJarName(final HashSet<String> jarNames, final ArrayList<Pattern> jarNamePatterns,
+    private static boolean containsJarName(final Set<String> jarNames, final List<Pattern> jarNamePatterns,
             final String jarName) {
         final String jarLeafName = JarUtils.leafName(jarName);
         if (jarNames.contains(jarLeafName)) {
