@@ -52,7 +52,7 @@ public class ClassLoaderHandlerRegistry {
             // Java 9 support
             new ClassLoaderHandlerRegistryEntry(Java9ClassLoaderHandler.class),
 
-            // Java 7/8 support
+            // Java 7/8 support (list last, as fallback)
             new ClassLoaderHandlerRegistryEntry(URLClassLoaderHandler.class));
 
     /**
