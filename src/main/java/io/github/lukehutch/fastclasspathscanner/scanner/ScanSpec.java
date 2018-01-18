@@ -637,43 +637,65 @@ public class ScanSpec {
      * of a whitelisted path. The path should end in "/".
      */
     ScanSpecPathMatch dirWhitelistMatchStatus(final String relativePath) {
+        // In blacklisted path
+
         for (final String blacklistedPath : blacklistedPathPrefixes) {
             if (relativePath.startsWith(blacklistedPath)) {
                 // The directory or its ancestor is blacklisted.
                 return ScanSpecPathMatch.HAS_BLACKLISTED_PATH_PREFIX;
             }
         }
-        for (final String whitelistedPath : whitelistedPathPrefixes) {
-            if (disableRecursiveScanning && relativePath.equals(whitelistedPath)) {
-                // Recursive scanning is disabled, and the directory is a toplevel whitelisted path.
-                return ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX;
-            } else if (!disableRecursiveScanning && relativePath.startsWith(whitelistedPath)) {
-                // Recursive scanning is enabled, and the directory is a whitelisted path or subdirectory.
-                return ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX;
-            } else if (whitelistedPath.startsWith(relativePath) || "/".equals(relativePath)) {
-                // The directory the ancestor is a whitelisted path (so need to keep scanning deeper into hierarchy)
-                return ScanSpecPathMatch.ANCESTOR_OF_WHITELISTED_PATH;
-            }
-        }
-        for (final String whitelistedPath : whitelistedPathsNonRecursive) {
-            if (relativePath.equals(whitelistedPath)) {
-                // Recursive scanning is disabled, and the directory is a toplevel whitelisted path.
-                return ScanSpecPathMatch.AT_WHITELISTED_PATH;
-            } else if (whitelistedPath.startsWith(relativePath) || "/".equals(relativePath)) {
-                // The directory the ancestor is a whitelisted path (so need to keep scanning deeper into hierarchy)
-                return ScanSpecPathMatch.ANCESTOR_OF_WHITELISTED_PATH;
-            }
-        }
+
+        // At whitelisted path
+
         if (specificallyWhitelistedClassParentRelativePaths.contains(relativePath)
                 && !specificallyBlacklistedClassRelativePaths.contains(relativePath)) {
+            // Reached a package containing a specifically-whitelisted class
             return ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE;
         }
+        if (whitelistedPathPrefixes.contains(relativePath) || whitelistedPathsNonRecursive.contains(relativePath)) {
+            // Reached a whitelisted path
+            return ScanSpecPathMatch.AT_WHITELISTED_PATH;
+        }
+
+        // Ancestor of whitelisted path
+
+        if (relativePath.equals("/")) {
+            // The default package is always the ancestor of whitelisted paths (need to keep recursing)
+            return ScanSpecPathMatch.ANCESTOR_OF_WHITELISTED_PATH;
+        }
+        for (final String whitelistedPathPrefix : whitelistedPathPrefixes) {
+            if (whitelistedPathPrefix.startsWith(relativePath)) {
+                // relativePath is an ancestor (prefix) of a whitelisted path
+                return ScanSpecPathMatch.ANCESTOR_OF_WHITELISTED_PATH;
+            }
+        }
+        for (final String whitelistedPathNonRecursive : whitelistedPathsNonRecursive) {
+            if (whitelistedPathNonRecursive.startsWith(relativePath)) {
+                // relativePath is an ancestor (prefix) of a whitelisted path
+                return ScanSpecPathMatch.ANCESTOR_OF_WHITELISTED_PATH;
+            }
+        }
         for (final String whitelistedClassPathPrefix : specificallyWhitelistedClassParentRelativePaths) {
-            if (whitelistedClassPathPrefix.startsWith(relativePath) || "/".equals(relativePath)) {
+            if (whitelistedClassPathPrefix.startsWith(relativePath)) {
                 // The directory is an ancestor of a non-whitelisted package containing a whitelisted class 
                 return ScanSpecPathMatch.ANCESTOR_OF_WHITELISTED_PATH;
             }
         }
+
+        // Descendant of whitelisted path
+
+        if (!disableRecursiveScanning) {
+            for (final String whitelistedPathPrefix : whitelistedPathPrefixes) {
+                if (relativePath.startsWith(whitelistedPathPrefix)) {
+                    // Path prefix matches one in the whitelist
+                    return ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX;
+                }
+            }
+        }
+
+        // Not in whitelisted path
+
         return ScanSpecPathMatch.NOT_WITHIN_WHITELISTED_PATH;
     }
 
