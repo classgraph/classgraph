@@ -41,6 +41,7 @@ public class ClassLoaderHandlerRegistry {
      */
     public static final List<ClassLoaderHandlerRegistryEntry> DEFAULT_CLASS_LOADER_HANDLERS = Arrays.asList(
             // ClassLoaderHandlers for other ClassLoaders that are handled by FastClasspathScanner
+            new ClassLoaderHandlerRegistryEntry(AntClassLoaderHandler.class),
             new ClassLoaderHandlerRegistryEntry(EquinoxClassLoaderHandler.class),
             new ClassLoaderHandlerRegistryEntry(FelixClassLoaderHandler.class),
             new ClassLoaderHandlerRegistryEntry(JBossClassLoaderHandler.class),
