@@ -31,8 +31,6 @@ package io.github.lukehutch.fastclasspathscanner.classloaderhandler;
 import java.util.Arrays;
 import java.util.List;
 
-import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
-
 /** The registry for ClassLoaderHandler classes. */
 public class ClassLoaderHandlerRegistry {
     /**
@@ -68,25 +66,14 @@ public class ClassLoaderHandlerRegistry {
         public final Class<? extends ClassLoaderHandler> classLoaderHandlerClass;
 
         public ClassLoaderHandlerRegistryEntry(final Class<? extends ClassLoaderHandler> classLoaderHandlerClass) {
-            final String fieldName = "HANDLED_CLASSLOADERS";
-            Object handledClassLoaders;
-            try {
-                handledClassLoaders = ReflectionUtils.getStaticFieldVal(classLoaderHandlerClass, fieldName,
-                        /* throwException = */ true);
-            } catch (final IllegalArgumentException e) {
-                throw new RuntimeException("Could not read field " + classLoaderHandlerClass + "." + fieldName, e);
-            }
-            if (handledClassLoaders == null) {
-                throw new RuntimeException("Class " + classLoaderHandlerClass
-                        + " needs a non-null static String[] field " + fieldName);
-            }
-            if (!handledClassLoaders.getClass().isArray()
-                    || handledClassLoaders.getClass().getComponentType() != String.class) {
-                throw new RuntimeException("Field " + classLoaderHandlerClass + "." + fieldName
-                        + " has incorrect type, should be String[]");
-            }
-            this.handledClassLoaderNames = (String[]) handledClassLoaders;
             this.classLoaderHandlerClass = classLoaderHandlerClass;
+            try {
+                // Instantiate each ClassLoaderHandler in order to call the handledClassLoaders() method
+                // (this is needed because Java doesn't support inherited static interface methods)
+                this.handledClassLoaderNames = classLoaderHandlerClass.newInstance().handledClassLoaders();
+            } catch (InstantiationException | IllegalAccessException e) {
+                throw new RuntimeException("Could not instantiate " + classLoaderHandlerClass.getName(), e);
+            }
         }
     }
 }
