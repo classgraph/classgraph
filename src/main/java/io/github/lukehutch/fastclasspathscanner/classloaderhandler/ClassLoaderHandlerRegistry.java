@@ -55,7 +55,7 @@ public class ClassLoaderHandlerRegistry {
             new ClassLoaderHandlerRegistryEntry(URLClassLoaderHandler.class));
 
     // Do not need to add FallbackClassLoaderHandler to the above list
-    public static ClassLoaderHandlerRegistryEntry FALLBACK_CLASS_LOADER_HANDLER = //
+    public static final ClassLoaderHandlerRegistryEntry FALLBACK_CLASS_LOADER_HANDLER = //
             new ClassLoaderHandlerRegistryEntry(FallbackClassLoaderHandler.class);
 
     /**
