@@ -38,13 +38,13 @@ public class AntClassLoaderHandler implements ClassLoaderHandler {
     public static final String[] HANDLED_CLASSLOADERS = { "org.apache.tools.ant.AntClassLoader" };
 
     @Override
-    public DelegationOrder getDelegationOrder(ClassLoader classLoaderInstance) {
+    public DelegationOrder getDelegationOrder(final ClassLoader classLoaderInstance) {
         return DelegationOrder.PARENT_FIRST;
     }
 
     @Override
-    public void handle(ScanSpec scanSpec, ClassLoader classLoader, ClasspathOrder classpathOrderOut, LogNode log)
-            throws Exception {
+    public void handle(final ScanSpec scanSpec, final ClassLoader classLoader,
+            final ClasspathOrder classpathOrderOut, final LogNode log) throws Exception {
         classpathOrderOut.addClasspathElements( //
                 (String) ReflectionUtils.invokeMethod(classLoader, "getClasspath", false), classLoader, log);
     }

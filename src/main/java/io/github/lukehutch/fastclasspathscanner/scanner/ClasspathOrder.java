@@ -30,6 +30,7 @@ package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Array;
 
 import io.github.lukehutch.fastclasspathscanner.utils.AdditionOrderedSet;
 import io.github.lukehutch.fastclasspathscanner.utils.JarUtils;
@@ -174,6 +175,51 @@ public class ClasspathOrder {
      */
     public boolean addClasspathElement(final String pathElement, final ClassLoader classLoader, final LogNode log) {
         return addClasspathElement(pathElement, new ClassLoader[] { classLoader }, log);
+    }
+
+    /**
+     * Add classpath elements from an object obtained from reflection. The object may be a String (containing a
+     * single path, or several paths separated with File.pathSeparator), a List or other Iterable, or an array
+     * object. In the case of Iterables and arrays, the elements may be any type whose {@code toString()} method
+     * returns a path or URL string (including the {@code URL} and {@code Path} types).
+     * 
+     * @param pathObject
+     *            the object containing a classpath string or strings.
+     * @param classLoader
+     *            the ClassLoader that this classpath was obtained from.
+     * @param log
+     *            the LogNode instance to use if logging in verbose mode.
+     * 
+     * @return true (and add the classpath element) if pathEl)ement is not null or empty, otherwise return false.
+     */
+    public boolean addClasspathElementObject(final Object pathObject, final ClassLoader classLoader,
+            final LogNode log) {
+        boolean valid = false;
+        if (pathObject != null) {
+            if (pathObject instanceof String) {
+                valid |= addClasspathElements((String) pathObject, classLoader, log);
+            } else if (pathObject instanceof Iterable) {
+                for (final Object p : (Iterable<?>) pathObject) {
+                    if (p != null) {
+                        valid |= addClasspathElements(p.toString(), classLoader, log);
+                    }
+                }
+            } else {
+                final Class<? extends Object> valClass = pathObject.getClass();
+                if (valClass.isArray()) {
+                    for (int j = 0, n = Array.getLength(pathObject); j < n; j++) {
+                        final Object elt = Array.get(pathObject, j);
+                        if (elt != null) {
+                            valid |= addClasspathElementObject(elt, classLoader, log);
+                        }
+                    }
+                } else {
+                    // Try simply calling toString() as a final fallback, in case this returns something sensible
+                    valid |= addClasspathElements(pathObject.toString(), classLoader, log);
+                }
+            }
+        }
+        return valid;
     }
 
     /**

@@ -56,6 +56,10 @@ public class ClassLoaderHandlerRegistry {
             // Java 7/8 support (list last, as fallback)
             new ClassLoaderHandlerRegistryEntry(URLClassLoaderHandler.class));
 
+    // Do not need to add FallbackClassLoaderHandler to the above list
+    public static ClassLoaderHandlerRegistryEntry FALLBACK_CLASS_LOADER_HANDLER = //
+            new ClassLoaderHandlerRegistryEntry(FallbackClassLoaderHandler.class);
+
     /**
      * A list of fully-qualified ClassLoader class names paired with the ClassLoaderHandler that can handle them.
      */
