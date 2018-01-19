@@ -42,7 +42,9 @@ import io.github.lukehutch.fastclasspathscanner.utils.NestedJarHandler;
 
 /**
  * A relative path. This is used for paths relative to the current directory (for classpath elements), and also for
- * relative paths within classpath elements (e.g. the files within a ZipFile).
+ * relative paths within classpath elements (e.g. the files within a ZipFile). If the path is an http(s):// URL, the
+ * remote jar will be fetched and cached if getFile() / isFile() etc. are called, and/or if the path is a
+ * '!'-separated path to a nested jar, the innermost jar will be extracted and cached on these calls.
  */
 class RelativePath {
     /** The ClassLoader(s) used to load classes for this classpath element */
@@ -67,6 +69,11 @@ class RelativePath {
     private String resolvedPathCached;
     /** True if the path has been resolved. */
     private boolean resolvedPathIsCached;
+
+    /** True if the resolved path is an http(s):// URL. */
+    private boolean isHttpURL;
+    /** True if isHttpURL has been set. */
+    private boolean isHttpURLIsCached;
 
     /** The canonical file for the relative path. */
     private File fileCached;
@@ -182,6 +189,17 @@ class RelativePath {
         return resolvedPathCached;
     }
 
+    /** Returns true if the path is an http(s):// URL. */
+    public boolean isHttpURL() {
+        if (!isHttpURLIsCached) {
+            final String resolvedPath = getResolvedPath();
+            isHttpURL = resolvedPath.regionMatches(/* ignoreCase = */ true, 0, "http://", 0, 7) || //
+                    resolvedPath.regionMatches(/* ignoreCase = */ true, 0, "https://", 0, 8);
+            isHttpURLIsCached = true;
+        }
+        return isHttpURL;
+    }
+
     /**
      * Get the File object for the resolved path.
      * 
@@ -196,10 +214,8 @@ class RelativePath {
                         "Path " + relativePath + " could not be resolved relative to " + pathToResolveAgainst);
             }
 
-            // Check if this is a nested or remote jarfile
-            final boolean isRemote = path.startsWith("http://") || path.startsWith("https://");
             final int plingIdx = path.lastIndexOf('!');
-            if (plingIdx > 0 || isRemote) {
+            if (plingIdx > 0 || isHttpURL()) {
                 // Recursively unzip the nested jarfiles (or fetch remote jarfiles) to temporary files,
                 // then return the innermost (or downloaded) jarfile. Throws IOException if anything goes wrong.
                 try {
@@ -298,17 +314,13 @@ class RelativePath {
     /**
      * True if this relative path is a valid classpath element: that its path can be canonicalized, that it exists,
      * that it is a jarfile or directory, that it is not a blacklisted jar, that it should be scanned, etc.
+     * 
+     * N.B. this has the side effect of fetching any http(s):// URLs, and/or unzipping any inner jarfiles, to
+     * determine if these paths are valid. Any resulting temporary files will be cached.
      */
     public boolean isValidClasspathElement(final ScanSpec scanSpec, final LogNode log) throws InterruptedException {
         // Get absolute URI and File for classpathElt
         final String path = getResolvedPath();
-        if (path == null) {
-            // Got an http: or https: URI as a classpath element
-            if (log != null) {
-                log.log("Ignoring non-local classpath element: " + relativePath);
-            }
-            return false;
-        }
         try {
             if (!exists()) {
                 if (log != null) {
@@ -316,6 +328,7 @@ class RelativePath {
                 }
                 return false;
             }
+            // Call isFile(), which calls getFile(), which will fetch URLs and/or unzip nested jarfiles.
             final boolean isFile = isFile();
             final boolean isDirectory = isDirectory();
             if (isFile != !isDirectory) {
