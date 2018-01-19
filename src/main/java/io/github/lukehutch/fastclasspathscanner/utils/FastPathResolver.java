@@ -212,7 +212,8 @@ public class FastPathResolver {
         }
 
         if (resolveBasePath == null || isAbsolutePath) {
-            // There is no base path to resolve against, or path is an absolute path => ignore the base path
+            // There is no base path to resolve against, or path is an absolute path or http(s):// URL
+            // (ignore the base path)
             return pathStr;
         } else {
             // Path is a relative path -- resolve it relative to the base path
