@@ -38,7 +38,10 @@ import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
 
 /** Extract classpath entries from the Eclipse Equinox ClassLoader. */
 public class EquinoxClassLoaderHandler implements ClassLoaderHandler {
-    public static final String[] HANDLED_CLASSLOADERS = { "org.eclipse.osgi.internal.loader.EquinoxClassLoader" };
+    @Override
+    public String[] handledClassLoaders() {
+        return new String[] { "org.eclipse.osgi.internal.loader.EquinoxClassLoader" };
+    }
 
     @Override
     public DelegationOrder getDelegationOrder(final ClassLoader classLoaderInstance) {

@@ -34,9 +34,14 @@ import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
 
 public class WebsphereTraditionalClassLoaderHandler implements ClassLoaderHandler {
-    // All three class loaders implement the getClassPath method call.
-    public static final String[] HANDLED_CLASSLOADERS = { "com.ibm.ws.classloader.CompoundClassLoader",
-            "com.ibm.ws.classloader.ProtectionClassLoader", "com.ibm.ws.bootstrap.ExtClassLoader" };
+    @Override
+    public String[] handledClassLoaders() {
+        // All three class loaders implement the getClassPath method call.
+        return new String[] { //
+                "com.ibm.ws.classloader.CompoundClassLoader", //
+                "com.ibm.ws.classloader.ProtectionClassLoader", //
+                "com.ibm.ws.bootstrap.ExtClassLoader" };
+    }
 
     @Override
     public DelegationOrder getDelegationOrder(final ClassLoader classLoaderInstance) {

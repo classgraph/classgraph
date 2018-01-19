@@ -35,8 +35,11 @@ import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
 
 /** Fallback ClassLoaderHandler. Tries to get classpath from a range of possible method and field names. */
 public class FallbackClassLoaderHandler implements ClassLoaderHandler {
-    // The actual string "*" is unimportant here, it is ignored
-    public static final String[] HANDLED_CLASSLOADERS = { "*" };
+    @Override
+    public String[] handledClassLoaders() {
+        // The actual string "*" is unimportant here, it is ignored
+        return new String[] { "*" };
+    }
 
     @Override
     public DelegationOrder getDelegationOrder(final ClassLoader classLoaderInstance) {

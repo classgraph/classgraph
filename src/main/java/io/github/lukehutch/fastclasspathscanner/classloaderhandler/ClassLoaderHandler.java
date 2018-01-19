@@ -42,8 +42,8 @@ import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
  * incorporation into FastClasspathScanner.
  */
 public interface ClassLoaderHandler {
-    // ** The following field is required in all implementing classes: **
-    // static final String[] HANDLED_CLASSLOADERS = { /* fully qualified classnames of handled ClassLoaders */ }; 
+    /** The fully-qualified names of handled classloader classes. */
+    public String[] handledClassLoaders();
 
     /**
      * The delegation order configuration for a given ClassLoader instance (this is usually PARENT_FIRST for most
@@ -58,7 +58,7 @@ public interface ClassLoaderHandler {
      * ClassLoaders, since you don't generally want to be able to override system classes with user classes, but
      * this can be overridden by some ClassLoaders, e.g. WebSphere).
      */
-    public abstract DelegationOrder getDelegationOrder(ClassLoader classLoaderInstance);
+    public DelegationOrder getDelegationOrder(ClassLoader classLoaderInstance);
 
     /**
      * Determine if a given ClassLoader can be handled (meaning that its classpath elements can be extracted from
@@ -81,6 +81,6 @@ public interface ClassLoaderHandler {
      * @param log
      *            A logger instance -- if this is non-null, write debug information using log.log("message").
      */
-    public abstract void handle(ScanSpec scanSpec, final ClassLoader classLoader,
-            final ClasspathOrder classpathOrderOut, LogNode log) throws Exception;
+    public void handle(ScanSpec scanSpec, final ClassLoader classLoader, final ClasspathOrder classpathOrderOut,
+            LogNode log) throws Exception;
 }

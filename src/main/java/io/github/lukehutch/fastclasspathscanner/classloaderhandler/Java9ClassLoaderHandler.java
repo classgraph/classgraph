@@ -38,10 +38,12 @@ import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
  * N.B. does not honor Java 9 module module encapsulation rules.
  */
 public class Java9ClassLoaderHandler implements ClassLoaderHandler {
-    public static final String[] HANDLED_CLASSLOADERS = { //
-            "jdk.internal.loader.ClassLoaders$AppClassLoader", //
-            "jdk.internal.loader.BuiltinClassLoader" //
-    };
+    @Override
+    public String[] handledClassLoaders() {
+        return new String[] { //
+                "jdk.internal.loader.ClassLoaders$AppClassLoader", //
+                "jdk.internal.loader.BuiltinClassLoader" };
+    }
 
     @Override
     public DelegationOrder getDelegationOrder(final ClassLoader classLoaderInstance) {

@@ -37,7 +37,10 @@ import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 
 /** ClassLoaderHandler that is able to extract the URLs from a URLClassLoader. */
 public class URLClassLoaderHandler implements ClassLoaderHandler {
-    public static final String[] HANDLED_CLASSLOADERS = { "java.net.URLClassLoader" };
+    @Override
+    public String[] handledClassLoaders() {
+        return new String[] { "java.net.URLClassLoader" };
+    }
 
     @Override
     public DelegationOrder getDelegationOrder(final ClassLoader classLoaderInstance) {

@@ -46,7 +46,10 @@ import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
  * 
  */
 public class JBossClassLoaderHandler implements ClassLoaderHandler {
-    public static final String[] HANDLED_CLASSLOADERS = { "org.jboss.modules.ModuleClassLoader" };
+    @Override
+    public String[] handledClassLoaders() {
+        return new String[] { "org.jboss.modules.ModuleClassLoader" };
+    }
 
     @Override
     public DelegationOrder getDelegationOrder(final ClassLoader classLoaderInstance) {

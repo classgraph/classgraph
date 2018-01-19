@@ -36,8 +36,10 @@ import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
 
 public class OSGiDefaultClassLoaderHandler implements ClassLoaderHandler {
-    public static final String[] HANDLED_CLASSLOADERS = {
-            "org.eclipse.osgi.internal.baseadaptor.DefaultClassLoader" };
+    @Override
+    public String[] handledClassLoaders() {
+        return new String[] { "org.eclipse.osgi.internal.baseadaptor.DefaultClassLoader" };
+    }
 
     @Override
     public DelegationOrder getDelegationOrder(final ClassLoader classLoaderInstance) {

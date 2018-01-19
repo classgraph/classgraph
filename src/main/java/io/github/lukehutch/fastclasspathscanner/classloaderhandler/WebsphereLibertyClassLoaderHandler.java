@@ -44,12 +44,14 @@ import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
  * @author R. Kempees
  */
 public class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
-
     private static final String PKG_PREFIX = "com.ibm.ws.classloading.internal.";
     private static final String IBM_APP_CLASS_LOADER = PKG_PREFIX + "AppClassLoader";
     private static final String IBM_THREAD_CONTEXT_CLASS_LOADER = PKG_PREFIX + "ThreadContextClassLoader";
 
-    public static final String[] HANDLED_CLASSLOADERS = { IBM_APP_CLASS_LOADER, IBM_THREAD_CONTEXT_CLASS_LOADER };
+    @Override
+    public String[] handledClassLoaders() {
+        return new String[] { IBM_APP_CLASS_LOADER, IBM_THREAD_CONTEXT_CLASS_LOADER };
+    }
 
     @Override
     public DelegationOrder getDelegationOrder(final ClassLoader classLoaderInstance) {

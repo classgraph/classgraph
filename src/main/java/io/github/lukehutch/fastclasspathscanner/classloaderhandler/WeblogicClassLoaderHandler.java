@@ -35,14 +35,17 @@ import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
 
 /** Extract classpath entries from the Weblogic ClassLoaders. */
 public class WeblogicClassLoaderHandler implements ClassLoaderHandler {
-    public static final String[] HANDLED_CLASSLOADERS = { // 
-            "weblogic.utils.classloaders.ChangeAwareClassLoader", //
-            "weblogic.utils.classloaders.GenericClassLoader", //
-            "weblogic.utils.classloaders.FilteringClassLoader", //
-            // TODO: other known classloader names:
-            // weblogic.servlet.jsp.JspClassLoader
-            // weblogic.servlet.jsp.TagFileClassLoader
-    };
+    @Override
+    public String[] handledClassLoaders() {
+        return new String[] { // 
+                "weblogic.utils.classloaders.ChangeAwareClassLoader", //
+                "weblogic.utils.classloaders.GenericClassLoader", //
+                "weblogic.utils.classloaders.FilteringClassLoader", //
+                // TODO: other known classloader names:
+                // weblogic.servlet.jsp.JspClassLoader
+                // weblogic.servlet.jsp.TagFileClassLoader
+        };
+    }
 
     @Override
     public DelegationOrder getDelegationOrder(final ClassLoader classLoaderInstance) {

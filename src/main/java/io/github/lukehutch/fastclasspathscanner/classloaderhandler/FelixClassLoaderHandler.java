@@ -47,9 +47,13 @@ import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
  * @author elrufaie
  */
 public class FelixClassLoaderHandler implements ClassLoaderHandler {
-    public static final String[] HANDLED_CLASSLOADERS = {
-            "org.apache.felix.framework.BundleWiringImpl$BundleClassLoaderJava5",
-            "org.apache.felix.framework.BundleWiringImpl$BundleClassLoader" };
+    @Override
+    public String[] handledClassLoaders() {
+        return new String[] { //
+                "org.apache.felix.framework.BundleWiringImpl$BundleClassLoaderJava5",
+                "org.apache.felix.framework.BundleWiringImpl$BundleClassLoader" };
+
+    }
 
     @Override
     public DelegationOrder getDelegationOrder(final ClassLoader classLoaderInstance) {

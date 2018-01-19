@@ -35,7 +35,10 @@ import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
 
 /** Extract classpath entries from the Ant ClassLoader. */
 public class AntClassLoaderHandler implements ClassLoaderHandler {
-    public static final String[] HANDLED_CLASSLOADERS = { "org.apache.tools.ant.AntClassLoader" };
+    @Override
+    public String[] handledClassLoaders() {
+        return new String[] { "org.apache.tools.ant.AntClassLoader" };
+    }
 
     @Override
     public DelegationOrder getDelegationOrder(final ClassLoader classLoaderInstance) {
