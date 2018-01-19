@@ -145,11 +145,14 @@ public class ClasspathFinder {
                     break;
                 }
             }
-            if (!foundMatch && log != null) {
-                log.log("Could not find a ClassLoaderHandler that can handle " + classLoader + " , trying "
-                        + ClassLoaderHandlerRegistry.FALLBACK_CLASS_LOADER_HANDLER.classLoaderHandlerClass.getName()
-                        + " instead. Please report this at: "
-                        + "https://github.com/lukehutch/fast-classpath-scanner/issues");
+            if (!foundMatch) {
+                if (log != null) {
+                    log.log("Could not find a ClassLoaderHandler that can handle " + classLoader + " , trying "
+                            + ClassLoaderHandlerRegistry.FALLBACK_CLASS_LOADER_HANDLER.classLoaderHandlerClass
+                                    .getName()
+                            + " instead. Please report this at: "
+                            + "https://github.com/lukehutch/fast-classpath-scanner/issues");
+                }
                 addClassLoaderHandler(scanSpec, classLoader,
                         ClassLoaderHandlerRegistry.FALLBACK_CLASS_LOADER_HANDLER, allClassLoaderHandlerEntries,
                         foundClassLoaders, classLoaderAndHandlerOrderOut, ignoredClassLoaderAndHandlerOrderOut,
