@@ -100,7 +100,7 @@ public class NestedJarHandler {
                     final File pathFile = isRemote ? downloadTempFile(nestedJarPath, log) : new File(nestedJarPath);
                     if (isRemote && pathFile == null) {
                         if (log != null) {
-                            log.log(nestedJarPath, "Could not download file: " + nestedJarPath);
+                            log.log(nestedJarPath, "Could not download jarfile " + nestedJarPath);
                         }
                         return null;
                     }
@@ -109,21 +109,21 @@ public class NestedJarHandler {
                         canonicalFile = pathFile.getCanonicalFile();
                     } catch (final IOException | SecurityException e) {
                         if (log != null) {
-                            log.log(nestedJarPath, "Path component could not be canonicalized: " + nestedJarPath,
-                                    e);
+                            log.log(nestedJarPath,
+                                    "Path component " + nestedJarPath + " could not be canonicalized: " + e);
                         }
                         return null;
                     }
                     if (!ClasspathUtils.canRead(canonicalFile)) {
                         if (log != null) {
-                            log.log(nestedJarPath, "Path component does not exist: " + nestedJarPath);
+                            log.log(nestedJarPath, "Path component " + nestedJarPath + " does not exist");
                         }
                         return null;
                     }
                     if (!canonicalFile.isFile()) {
                         if (log != null) {
                             log.log(nestedJarPath,
-                                    "Path component is not a file (expected a jarfile): " + nestedJarPath);
+                                    "Path component " + nestedJarPath + "  is not a file (expected a jarfile)");
                         }
                         return null;
                     }

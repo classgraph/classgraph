@@ -238,10 +238,10 @@ class RelativePath {
                         }
                     }
                 } catch (final Exception e) {
-                    throw new IOException("Exception while getting jarfile " + relativePath, e);
+                    throw new IOException("Exception while locating jarfile " + relativePath, e);
                 }
                 if (fileCached == null || !ClasspathUtils.canRead(fileCached)) {
-                    throw new IOException("Could not find jarfile " + relativePath);
+                    throw new IOException("Could not locate jarfile " + relativePath);
                 }
 
             } else {
@@ -250,9 +250,9 @@ class RelativePath {
             try {
                 fileCached = fileCached.getCanonicalFile();
             } catch (final IOException e) {
-                throw new IOException("Could not canonicalize path " + path, e);
+                throw new IOException("Could not canonicalize path " + path + " : " + e);
             } catch (final SecurityException e) {
-                throw new IOException("Could not canonicalize path " + path, e);
+                throw new IOException("Could not canonicalize path " + path + " : " + e);
             }
             fileIsCached = true;
         }
@@ -355,7 +355,7 @@ class RelativePath {
             }
         } catch (final IOException e) {
             if (log != null) {
-                log.log("Could not canonicalize path: " + path, e);
+                log.log("Could not canonicalize path " + path + " : " + e);
             }
             return false;
         }
