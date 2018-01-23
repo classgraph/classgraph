@@ -221,19 +221,21 @@ class RelativePath {
                 try {
                     final Entry<File, Set<String>> innermostJarAndRootRelativePaths = //
                             nestedJarHandler.getInnermostNestedJar(path);
-                    fileCached = innermostJarAndRootRelativePaths.getKey();
-                    final Set<String> rootRelativePaths = innermostJarAndRootRelativePaths.getValue();
-                    if (!rootRelativePaths.isEmpty()) {
-                        // Get section after last '!' (stripping any initial '/')
-                        final String tail = path.length() == plingIdx + 1 ? ""
-                                : path.charAt(plingIdx + 1) == '/' ? path.substring(plingIdx + 2)
-                                        : path.substring(plingIdx + 1);
-                        // Check to see if last segment is listed in the set of root relative paths for the jar
-                        // -- if so, then this is the classpath base for this jarfile
-                        if (rootRelativePaths.contains(tail)) {
+                    if (innermostJarAndRootRelativePaths != null) {
+                        fileCached = innermostJarAndRootRelativePaths.getKey();
+                        final Set<String> rootRelativePaths = innermostJarAndRootRelativePaths.getValue();
+                        if (!rootRelativePaths.isEmpty()) {
+                            // Get section after last '!' (stripping any initial '/')
+                            final String tail = path.length() == plingIdx + 1 ? ""
+                                    : path.charAt(plingIdx + 1) == '/' ? path.substring(plingIdx + 2)
+                                            : path.substring(plingIdx + 1);
+                            // Check to see if last segment is listed in the set of root relative paths for the jar
+                            // -- if so, then this is the classpath base for this jarfile
+                            if (rootRelativePaths.contains(tail)) {
 
+                            }
+                            zipClasspathBaseDir = tail;
                         }
-                        zipClasspathBaseDir = tail;
                     }
                 } catch (final Exception e) {
                     throw new IOException("Exception while getting jarfile " + relativePath, e);

@@ -240,7 +240,8 @@ public class NestedJarHandler {
      * 
      * @return An {@code Entry<File, Set<String>>}, where the {@code File} is the innermost jar, and the
      *         {@code Set<String>} is the set of all relative paths of scanning roots within the innermost jar (may
-     *         be empty, or may contain strings like "target/classes" or similar).
+     *         be empty, or may contain strings like "target/classes" or similar). If there was an issue with the
+     *         path, returns null.
      */
     public Entry<File, Set<String>> getInnermostNestedJar(final String nestedJarPath) throws Exception {
         try {
