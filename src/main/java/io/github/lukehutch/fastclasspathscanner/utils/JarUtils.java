@@ -37,82 +37,29 @@ import java.util.List;
 import java.util.Set;
 
 public class JarUtils {
-    private static final List<String> JRE_PATHS = new ArrayList<>();
-    private static String RT_JAR_PATH = null;
+    /**
+     * On everything but Windows, where the path separator is ':', need to treat the colon in these substrings as
+     * non-separators, when at the beginning of the string or following a ':'.
+     */
+    private static final String[] UNIX_NON_PATH_SEPARATORS = { //
+            "jar:", "file:", "http://", "https://", //
+            // Allow for escaping of ':' characters in paths, which probably goes beyond what the spec
+            // would allow for, but would make sense, since File.separatorChar will never be '\\' when
+            // File.pathSeparatorChar is ':'
+            "\\:" //
+    };
 
-    private static String getProperty(final String propName) {
-        try {
-            return System.getProperty(propName);
-        } catch (final SecurityException e) {
-            return null;
-        }
-    }
+    /** The position of the colon characters in the corresponding UNIX_NON_PATH_SEPARATORS array entry. */
+    private static final int[] UNIX_NON_PATH_SEPARATOR_COLON_POSITIONS;
 
-    private static void addJREPath(final File dir, final Set<String> jrePathsSet) {
-        if (ClasspathUtils.canRead(dir) && dir.isDirectory()) {
-            String path = dir.getPath();
-            if (!path.endsWith(File.separator)) {
-                path += File.separator;
-            }
-            final String jrePath = FastPathResolver.resolve("", path);
-            if (!jrePath.isEmpty()) {
-                jrePathsSet.add(jrePath);
-            }
-            try {
-                String canonicalPath = dir.getCanonicalPath();
-                if (!canonicalPath.endsWith(File.separator)) {
-                    canonicalPath += File.separator;
-                }
-                final String jreCanonicalPath = FastPathResolver.resolve("", canonicalPath);
-                if (!jreCanonicalPath.equals(jrePath) && !jreCanonicalPath.isEmpty()) {
-                    jrePathsSet.add(jreCanonicalPath);
-                }
-            } catch (IOException | SecurityException e) {
-            }
-        }
-    }
-
-    // Find JRE jar dirs.
-    // TODO: Update for JDK9.
     static {
-        final Set<String> jrePathsSet = new HashSet<>();
-        final String javaHome = getProperty("java.home");
-        if (javaHome != null && !javaHome.isEmpty()) {
-            final File javaHomeFile = new File(javaHome);
-            addJREPath(javaHomeFile, jrePathsSet);
-            final File libFile = new File(javaHomeFile, "lib");
-            addJREPath(libFile, jrePathsSet);
-            final File extFile = new File(libFile, "ext");
-            addJREPath(extFile, jrePathsSet);
-            final File rtJarFile = new File(libFile, "rt.jar");
-            if (ClasspathUtils.canRead(rtJarFile)) {
-                RT_JAR_PATH = rtJarFile.getPath();
-            }
-            if (javaHomeFile.getName().equals("jre")) {
-                // Handle jre/../lib/tools.jar
-                final File parent = javaHomeFile.getParentFile();
-                if (parent != null) {
-                    final File parentLibFile = new File(parent, "lib");
-                    addJREPath(parentLibFile, jrePathsSet);
-                }
+        UNIX_NON_PATH_SEPARATOR_COLON_POSITIONS = new int[UNIX_NON_PATH_SEPARATORS.length];
+        for (int i = 0; i < UNIX_NON_PATH_SEPARATORS.length; i++) {
+            UNIX_NON_PATH_SEPARATOR_COLON_POSITIONS[i] = UNIX_NON_PATH_SEPARATORS[i].indexOf(':');
+            if (UNIX_NON_PATH_SEPARATOR_COLON_POSITIONS[i] < 0) {
+                throw new RuntimeException("Could not find ':' in \"" + UNIX_NON_PATH_SEPARATORS[i] + "\"");
             }
         }
-        final String javaExtDirs = getProperty("java.ext.dirs");
-        if (javaExtDirs != null) {
-            for (final String javaExtDir : smartPathSplit(javaExtDirs)) {
-                if (!javaExtDir.isEmpty()) {
-                    final File javaExtDirFile = new File(javaExtDir);
-                    addJREPath(javaExtDirFile, jrePathsSet);
-                }
-            }
-        }
-
-        // Add special-case path for Mac OS X, this is not always picked up
-        // from java.home or java.ext.dirs
-        addJREPath(new File("/System/Library/Java"), jrePathsSet);
-
-        JRE_PATHS.addAll(jrePathsSet);
-        Collections.sort(JRE_PATHS);
     }
 
     /**
@@ -130,38 +77,26 @@ public class JarUtils {
             // For Linux, don't split on URL protocol boundaries. This will allow for HTTP(S) jars to be
             // given in java.class.path. (The JRE may not even support them, but we may as well do so.)
             final Set<Integer> splitPoints = new HashSet<>();
-            splitPoints.add(-1);
-            splitPoints.add(pathStr.length());
-            for (int i = pathStr.indexOf(':'); i >= 0; i = pathStr.indexOf(':', i + 1)) {
-                splitPoints.add(i);
-            }
-            final String pathStrLower = pathStr.toLowerCase();
-            for (int i = pathStrLower.indexOf("jar:"); i >= 0; i = pathStrLower.indexOf("jar:", i + 4)) {
-                // Ignore the ":" if "jar:" is at the beginning of the path string, or if it occurs after a path
-                // separator character, otherwise leave as a separator, to handle cases like:
-                // "/path/to/jar1.jar:/path/to/jar2.jar".
-                if (i == 0 || pathStrLower.charAt(i - 1) == ':') {
-                    splitPoints.remove(i + 3);
+            for (int i = -1;;) {
+                boolean foundNonPathSeparator = false;
+                for (int j = 0; j < UNIX_NON_PATH_SEPARATORS.length; j++) {
+                    if (pathStr.regionMatches(true, i - UNIX_NON_PATH_SEPARATOR_COLON_POSITIONS[j],
+                            UNIX_NON_PATH_SEPARATORS[j], 0, UNIX_NON_PATH_SEPARATORS[j].length())) {
+                        // Skip ':' characters in the middle of non-path-separators such as "http://"
+                        foundNonPathSeparator = true;
+                        break;
+                    }
                 }
-            }
-            for (int i = pathStrLower.indexOf("http://"); i >= 0; i = pathStrLower.indexOf("http://", i + 7)) {
-                splitPoints.remove(i + 4);
-            }
-            for (int i = pathStrLower.indexOf("https://"); i >= 0; i = pathStrLower.indexOf("https://", i + 8)) {
-                splitPoints.remove(i + 5);
-            }
-            for (int i = pathStrLower.indexOf("file:"); i >= 0; i = pathStrLower.indexOf("file:", i + 5)) {
-                // Ignore the ":" if "file:" is at the beginning of the path string, or if it occurs after a path
-                // separator character, to handle cases like: "/path/to/myfile:/path/to/myotherfile".
-                if (i == 0 || splitPoints.contains(i - 1)) {
-                    splitPoints.remove(i + 4);
+                if (!foundNonPathSeparator) {
+                    // The ':' character is a valid path separator
+                    splitPoints.add(i);
                 }
-            }
-            // Handle escaping ("\\:") -- this should work since the file separator is not "\\" when the path
-            // separator is ':'
-            if (File.separatorChar != '\\') {
-                for (int i = pathStrLower.indexOf("\\:"); i >= 0; i = pathStrLower.indexOf("\\:", i + 2)) {
-                    splitPoints.remove(i + 1);
+                // Search for next ':' character
+                i = pathStr.indexOf(':', i + 1);
+                if (i < 0) {
+                    // Add end of string marker once last ':' has been found
+                    splitPoints.add(pathStr.length());
+                    break;
                 }
             }
             final List<Integer> splitPointsSorted = new ArrayList<>(splitPoints);
@@ -240,37 +175,6 @@ public class JarUtils {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Get the path of rt.jar */
-    public static String getRtJarPath() {
-        return RT_JAR_PATH;
-    }
-
-    /** Log the Java version and the JRE paths that were found. */
-    public static void logJavaInfo(final LogNode log) {
-        if (log != null) {
-            log.log("Operating system: " + getProperty("os.name") + " " + getProperty("os.version") + " "
-                    + getProperty("os.arch"));
-            log.log("Java version: " + getProperty("java.version") + " (" + getProperty("java.vendor") + ")");
-            final LogNode javaLog = log.log("JRE paths:");
-            for (final String jrePath : JRE_PATHS) {
-                javaLog.log(jrePath);
-            }
-            if (RT_JAR_PATH != null) {
-                javaLog.log(RT_JAR_PATH);
-            }
-        }
-    }
-
-    /** Determine whether a given jarfile is in a JRE system directory (jre, jre/lib, jre/lib/ext, etc.). */
-    public static boolean isJREJar(final String filePath, final LogNode log) {
-        for (final String jrePathPrefix : JRE_PATHS) {
-            if (filePath.startsWith(jrePathPrefix)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     //    /** Returns true if the path ends with a jarfile extension, ignoring case. */
     //    public static boolean isJar(final String path) {
     //        final int len = path.length();
@@ -293,7 +197,7 @@ public class JarUtils {
     //        return isJar;
     //    }
 
-    /** Returns the leafname of a path. */
+    /** Returns the leafname of a path, after first stripping off everything after the first '!', if present. */
     public static String leafName(final String path) {
         final int bangIdx = path.indexOf("!");
         final int endIdx = bangIdx >= 0 ? bangIdx : path.length();
@@ -308,5 +212,116 @@ public class JarUtils {
         leafStartIdx = Math.max(leafStartIdx, sepIdx);
         leafStartIdx = Math.min(leafStartIdx, endIdx);
         return path.substring(leafStartIdx, endIdx);
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    private static final List<String> JRE_PATHS = new ArrayList<>();
+    private static String RT_JAR_PATH = null;
+
+    // Find JRE jar dirs.
+    // TODO: Update for JDK9.
+    static {
+        final Set<String> jrePathsSet = new HashSet<>();
+        final String javaHome = getProperty("java.home");
+        if (javaHome != null && !javaHome.isEmpty()) {
+            final File javaHomeFile = new File(javaHome);
+            addJREPath(javaHomeFile, jrePathsSet);
+            final File libFile = new File(javaHomeFile, "lib");
+            addJREPath(libFile, jrePathsSet);
+            final File extFile = new File(libFile, "ext");
+            addJREPath(extFile, jrePathsSet);
+            final File rtJarFile = new File(libFile, "rt.jar");
+            if (ClasspathUtils.canRead(rtJarFile)) {
+                RT_JAR_PATH = rtJarFile.getPath();
+            }
+            if (javaHomeFile.getName().equals("jre")) {
+                // Handle jre/../lib/tools.jar
+                final File parent = javaHomeFile.getParentFile();
+                if (parent != null) {
+                    final File parentLibFile = new File(parent, "lib");
+                    addJREPath(parentLibFile, jrePathsSet);
+                }
+            }
+        }
+        final String javaExtDirs = getProperty("java.ext.dirs");
+        if (javaExtDirs != null) {
+            for (final String javaExtDir : smartPathSplit(javaExtDirs)) {
+                if (!javaExtDir.isEmpty()) {
+                    final File javaExtDirFile = new File(javaExtDir);
+                    addJREPath(javaExtDirFile, jrePathsSet);
+                }
+            }
+        }
+
+        // Add special-case path for Mac OS X, this is not always picked up
+        // from java.home or java.ext.dirs
+        addJREPath(new File("/System/Library/Java"), jrePathsSet);
+
+        JRE_PATHS.addAll(jrePathsSet);
+        Collections.sort(JRE_PATHS);
+    }
+
+    private static String getProperty(final String propName) {
+        try {
+            return System.getProperty(propName);
+        } catch (final SecurityException e) {
+            return null;
+        }
+    }
+
+    private static void addJREPath(final File dir, final Set<String> jrePathsSet) {
+        if (ClasspathUtils.canRead(dir) && dir.isDirectory()) {
+            String path = dir.getPath();
+            if (!path.endsWith(File.separator)) {
+                path += File.separator;
+            }
+            final String jrePath = FastPathResolver.resolve("", path);
+            if (!jrePath.isEmpty()) {
+                jrePathsSet.add(jrePath);
+            }
+            try {
+                String canonicalPath = dir.getCanonicalPath();
+                if (!canonicalPath.endsWith(File.separator)) {
+                    canonicalPath += File.separator;
+                }
+                final String jreCanonicalPath = FastPathResolver.resolve("", canonicalPath);
+                if (!jreCanonicalPath.equals(jrePath) && !jreCanonicalPath.isEmpty()) {
+                    jrePathsSet.add(jreCanonicalPath);
+                }
+            } catch (IOException | SecurityException e) {
+            }
+        }
+    }
+
+    /** Get the path of rt.jar */
+    public static String getRtJarPath() {
+        return RT_JAR_PATH;
+    }
+
+    /** Determine whether a given jarfile is in a JRE system directory (jre, jre/lib, jre/lib/ext, etc.). */
+    public static boolean isJREJar(final String filePath, final LogNode log) {
+        for (final String jrePathPrefix : JRE_PATHS) {
+            if (filePath.startsWith(jrePathPrefix)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Log the Java version and the JRE paths that were found. */
+    public static void logJavaInfo(final LogNode log) {
+        if (log != null) {
+            log.log("Operating system: " + getProperty("os.name") + " " + getProperty("os.version") + " "
+                    + getProperty("os.arch"));
+            log.log("Java version: " + getProperty("java.version") + " (" + getProperty("java.vendor") + ")");
+            final LogNode javaLog = log.log("JRE paths:");
+            for (final String jrePath : JRE_PATHS) {
+                javaLog.log(jrePath);
+            }
+            if (RT_JAR_PATH != null) {
+                javaLog.log(RT_JAR_PATH);
+            }
+        }
     }
 }
