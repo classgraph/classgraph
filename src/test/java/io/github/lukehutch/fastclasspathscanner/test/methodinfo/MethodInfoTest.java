@@ -80,7 +80,8 @@ public class MethodInfoTest {
         assertThat(methodInfoStrs).containsOnly( //
                 "@" + ExternalAnnotation.class.getName() //
                         + " public final int publicMethodWithArgs"
-                        + "(String, char, long, float[], byte[][], List<Float>, int[]...)",
+                        + "(java.lang.String, char, long, float[], byte[][], "
+                        + "java.util.List<java.lang.Float>, int[]...)",
                 "@" + Test.class.getName() + " public void methodInfoNotEnabled()",
                 "@" + Test.class.getName() + " public void getMethodInfo()",
                 "@" + Test.class.getName() + " public void getConstructorInfo()",
@@ -115,8 +116,9 @@ public class MethodInfoTest {
         assertThat(methodInfoStrs).containsOnly( //
                 "@" + ExternalAnnotation.class.getName() //
                         + " public final int publicMethodWithArgs"
-                        + "(String, char, long, float[], byte[][], List<Float>, int[]...)",
-                "private static String[] privateMethod()",
+                        + "(java.lang.String, char, long, float[], byte[][], "
+                        + "java.util.List<java.lang.Float>, int[]...)",
+                "private static java.lang.String[] privateMethod()",
                 "@" + Test.class.getName() + " public void methodInfoNotEnabled()",
                 "@" + Test.class.getName() + " public void getMethodInfo()",
                 "@" + Test.class.getName() + " public void getConstructorInfo()",

@@ -132,7 +132,7 @@ public class Issue153Test {
                         + "@" + EnumAnnotation.class.getName() + "(" + FruitEnum.class.getName() + ".BANANA" + "), " //
                         + "@" + NestedAnnotation.class.getName() + "({@" + StringAnnotation.class.getName()
                         + "(\"one\"), " + "@" + StringAnnotation.class.getName() + "(\"two\")}), " //
-                        + "@" + ClassRefAnnotation.class.getName() + "(" + Issue153Test.class.getName() + ".class)" //
+                        + "@" + ClassRefAnnotation.class.getName() + "(" + Issue153Test.class.getName() + ")" //
                         + "]");
 
         assertThat(classInfo.getFieldInfo("testField").getAnnotationInfo().toString()) //

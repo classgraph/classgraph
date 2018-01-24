@@ -35,7 +35,8 @@ import java.util.Collections;
 import java.util.List;
 
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult.InfoObject;
-import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
+import io.github.lukehutch.fastclasspathscanner.utils.TypeParser;
+import io.github.lukehutch.fastclasspathscanner.utils.TypeParser.TypeSignature;
 
 /**
  * Holds metadata about fields of a class encountered during a scan. All values are taken directly out of the
@@ -90,7 +91,7 @@ public class FieldInfo extends InfoObject implements Comparable<FieldInfo> {
      */
     // TODO: rename to getModifiersStr()
     public String getModifiers() {
-        return ReflectionUtils.modifiersToString(modifiers, /* isMethod = */ false);
+        return TypeParser.modifiersToString(modifiers, /* isMethod = */ false);
     }
 
     /** Returns true if this field is public. */
@@ -139,9 +140,9 @@ public class FieldInfo extends InfoObject implements Comparable<FieldInfo> {
         return typeDescriptor;
     }
 
-    /** Returns the type of the field, in string representation (e.g. "int[][]"). */
-    public String getTypeStr() {
-        return ReflectionUtils.parseSimpleTypeDescriptor(typeDescriptor);
+    /** Returns the type signature for the field. */
+    public TypeSignature getTypeSignature() {
+        return TypeParser.parseTypeSignature(typeDescriptor);
     }
 
     /**
@@ -153,8 +154,12 @@ public class FieldInfo extends InfoObject implements Comparable<FieldInfo> {
      *             if the field type could not be loaded.
      */
     public Class<?> getType() throws IllegalArgumentException {
-        final String typeStr = getTypeStr();
-        return ReflectionUtils.typeStrToClass(typeStr, scanResult);
+        return getTypeSignature().instantiate(scanResult);
+    }
+
+    /** Returns the type of the field, in string representation (e.g. "int[][]"). */
+    public String getTypeStr() {
+        return getTypeSignature().toString();
     }
 
     /** Returns the constant final initializer value of the field, or null if none. */
@@ -180,7 +185,7 @@ public class FieldInfo extends InfoObject implements Comparable<FieldInfo> {
         } else {
             final List<Class<?>> annotationClassRefs = new ArrayList<>();
             for (final String annotationName : getAnnotationNames()) {
-                annotationClassRefs.add(ReflectionUtils.typeStrToClass(annotationName, scanResult));
+                annotationClassRefs.add(scanResult.classNameToClassRef(annotationName));
             }
             return annotationClassRefs;
         }

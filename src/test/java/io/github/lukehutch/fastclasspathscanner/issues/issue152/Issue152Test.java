@@ -65,13 +65,15 @@ public class Issue152Test {
         assertThat(classInfo //
                 .getMethodInfo("testMethod") //
                 .get(0).toString()) //
-                        .isEqualTo("public Set<Integer> testMethod("
-                                + "List<String[]>, Map<String, Map<Integer, Boolean>>, double[][][], int, "
-                                + TestType.class.getName() + "[], Set<? extends " + TestType.class.getName()
-                                + ">, List<? super " + TestType.class.getName()
-                                + ">, Map<Integer, ?>, Set<String>[])");
+                        .isEqualTo("public java.util.Set<java.lang.Integer> testMethod("
+                                + "java.util.List<java.lang.String[]>, java.util.Map<java.lang.String, "
+                                + "java.util.Map<java.lang.Integer, java.lang.Boolean>>, double[][][], int, "
+                                + TestType.class.getName() + "[], java.util.Set<? extends "
+                                + TestType.class.getName() + ">, java.util.List<? super " + TestType.class.getName()
+                                + ">, java.util.Map<java.lang.Integer, ?>, java.util.Set<java.lang.String>[])");
         assertThat(classInfo //
                 .getFieldInfo("testField").toString()) //
-                        .isEqualTo("public Map<Integer, Map<String, Boolean>> testField");
+                        .isEqualTo("public java.util.Map<java.lang.Integer, java.util.Map<java.lang.String, "
+                                + "java.lang.Boolean>> testField");
     }
 }

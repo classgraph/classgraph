@@ -35,7 +35,11 @@ import java.util.Collections;
 import java.util.List;
 
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult.InfoObject;
-import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
+import io.github.lukehutch.fastclasspathscanner.utils.TypeParser;
+import io.github.lukehutch.fastclasspathscanner.utils.TypeParser.ClassTypeOrTypeVariableSignature;
+import io.github.lukehutch.fastclasspathscanner.utils.TypeParser.MethodSignature;
+import io.github.lukehutch.fastclasspathscanner.utils.TypeParser.TypeParameter;
+import io.github.lukehutch.fastclasspathscanner.utils.TypeParser.TypeSignature;
 
 /**
  * Holds metadata about methods of a class encountered during a scan. All values are taken directly out of the
@@ -46,7 +50,7 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
     private final String methodName;
     private final int modifiers;
     private final String typeDescriptor;
-    private List<String> typeStrs;
+    private MethodSignature methodSignature;
     private final String[] parameterNames;
     private final int[] parameterAccessFlags;
     final AnnotationInfo[][] parameterAnnotationInfo;
@@ -96,7 +100,7 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
      */
     // TODO: Rename to getModifiersStr()
     public String getModifiers() {
-        return ReflectionUtils.modifiersToString(modifiers, /* isMethod = */ true);
+        return TypeParser.modifiersToString(modifiers, /* isMethod = */ true);
     }
 
     /**
@@ -126,20 +130,24 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
         return modifiers;
     }
 
-    private List<String> getTypeStrs() {
-        if (typeStrs == null) {
-            typeStrs = ReflectionUtils.parseMethodTypeDescriptor(typeDescriptor);
-            if (typeStrs.size() < 1) {
-                throw new IllegalArgumentException("Invalid type descriptor for method: " + typeDescriptor);
-            }
-            return typeStrs;
-        }
-        return typeStrs;
-    }
-
-    /** Returns the internal type descriptor for the method, e.g. "Ljava/lang/String;V" */
+    /** Returns the internal type descriptor for the method, e.g. "Ljava/lang/String;V". */
     public String getTypeDescriptor() {
         return typeDescriptor;
+    }
+
+    /** Returns the Java type signature for the method. */
+    public MethodSignature getTypeSignature() {
+        if (methodSignature == null) {
+            methodSignature = TypeParser.parseMethodSignature(typeDescriptor);
+        }
+        return methodSignature;
+    }
+
+    /**
+     * Returns the return type signature for the method. If this is a constructor, the returned type will be void.
+     */
+    public TypeSignature getReturnTypeSignature() {
+        return getTypeSignature().resultType;
     }
 
     /**
@@ -147,8 +155,7 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
      * returned type will be "void".
      */
     public String getReturnTypeStr() {
-        final List<String> typeStrsList = getTypeStrs();
-        return typeStrsList.get(typeStrsList.size() - 1);
+        return getReturnTypeSignature().toString();
     }
 
     /**
@@ -160,26 +167,77 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
      *             if the return type for the method could not be loaded.
      */
     public Class<?> getReturnType() throws IllegalArgumentException {
-        return ReflectionUtils.typeStrToClass(getReturnTypeStr(), scanResult);
+        return getReturnTypeSignature().instantiate(scanResult);
     }
 
     private static final String[] EMPTY_STRING_ARRAY = new String[0];
 
-    /**
-     * Returns the parameter types for the method in string representation, e.g. ["int", "List", "com.abc.XYZ"]. If
-     * the method has no parameters, returns a zero-sized array.
-     */
-    public String[] getParameterTypeStrs() {
-        final List<String> typeStrsList = getTypeStrs();
-        if (typeStrsList.size() == 1) {
+    private static final TypeSignature[] EMPTY_TYPE_SIGNATURE_ARRAY = new TypeSignature[0];
+
+    private static final TypeParameter[] EMPTY_TYPE_PARAMETER_ARRAY = new TypeParameter[0];
+
+    private static final ClassTypeOrTypeVariableSignature[] EMPTY_CLASS_TYPE_OR_TYPE_VARIABLE_SIGNATURE_ARRAY //
+            = new ClassTypeOrTypeVariableSignature[0];
+
+    private static final Class<?>[] EMPTY_CLASS_REF_ARRAY = new Class<?>[0];
+
+    private static String[] toStringArray(final List<?> list) {
+        if (list.size() == 0) {
             return EMPTY_STRING_ARRAY;
         } else {
-            final List<String> paramsOnly = typeStrsList.subList(0, typeStrsList.size() - 1);
-            return paramsOnly.toArray(new String[paramsOnly.size()]);
+            final String[] stringArray = new String[list.size()];
+            for (int i = 0; i < list.size(); i++) {
+                stringArray[i] = list.get(i).toString();
+            }
+            return stringArray;
         }
     }
 
-    private static Class<?>[] EMPTY_CLASS_ARRAY = new Class<?>[0];
+    private static Class<?>[] toClassRefs(final List<? extends TypeSignature> typeSignatures,
+            final ScanResult scanResult) {
+        if (typeSignatures.size() == 0) {
+            return EMPTY_CLASS_REF_ARRAY;
+        } else {
+            final Class<?>[] classRefArray = new Class<?>[typeSignatures.size()];
+            for (int i = 0; i < typeSignatures.size(); i++) {
+                classRefArray[i] = typeSignatures.get(i).instantiate(scanResult);
+            }
+            return classRefArray;
+        }
+    }
+
+    private static TypeSignature[] toTypeSignatureArray(final List<? extends TypeSignature> typeSignatures) {
+        if (typeSignatures.size() == 0) {
+            return EMPTY_TYPE_SIGNATURE_ARRAY;
+        } else {
+            return typeSignatures.toArray(new TypeSignature[typeSignatures.size()]);
+        }
+    }
+
+    private static ClassTypeOrTypeVariableSignature[] toTypeOrTypeVariableSignatureArray(
+            final List<? extends ClassTypeOrTypeVariableSignature> typeSignatures) {
+        if (typeSignatures.size() == 0) {
+            return EMPTY_CLASS_TYPE_OR_TYPE_VARIABLE_SIGNATURE_ARRAY;
+        } else {
+            return typeSignatures.toArray(new ClassTypeOrTypeVariableSignature[typeSignatures.size()]);
+        }
+    }
+
+    private static TypeParameter[] toTypeParameterArray(final List<? extends TypeParameter> typeParameters) {
+        if (typeParameters.size() == 0) {
+            return EMPTY_TYPE_PARAMETER_ARRAY;
+        } else {
+            return typeParameters.toArray(new TypeParameter[typeParameters.size()]);
+        }
+    }
+
+    /**
+     * Returns the parameter type signatures for the method. If the method has no parameters, returns a zero-sized
+     * array.
+     */
+    public TypeSignature[] getParameterTypeSignatures() {
+        return toTypeSignatureArray(getTypeSignature().paramTypes);
+    }
 
     /**
      * Returns the parameter types for the method. If the method has no parameters, returns a zero-sized array.
@@ -192,16 +250,54 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
      *             if the parameter types of the method could not be loaded.
      */
     public Class<?>[] getParameterTypes() throws IllegalArgumentException {
-        final String[] parameterTypeStrs = getParameterTypeStrs();
-        if (parameterTypeStrs.length == 0) {
-            return EMPTY_CLASS_ARRAY;
-        } else {
-            final Class<?>[] parameterClassRefs = new Class<?>[parameterTypeStrs.length];
-            for (int i = 0; i < parameterTypeStrs.length; i++) {
-                parameterClassRefs[i] = ReflectionUtils.typeStrToClass(parameterTypeStrs[i], scanResult);
-            }
-            return parameterClassRefs;
-        }
+        return toClassRefs(getTypeSignature().paramTypes, scanResult);
+    }
+
+    /**
+     * Returns the parameter types for the method in string representation, e.g.
+     * {@code ["int", "List<X>", "com.abc.XYZ"]}. If the method has no parameters, returns a zero-sized array.
+     */
+    public String[] getParameterTypeStrs() {
+        return toStringArray(getTypeSignature().paramTypes);
+    }
+
+    /**
+     * Returns the types of exceptions the method may throw, in string representation, e.g.
+     * {@code ["com.abc.BadException", "<X>"]}. If the method throws no exceptions, returns a zero-sized array.
+     */
+    public ClassTypeOrTypeVariableSignature[] getThrowsTypeSignatures() {
+        return toTypeOrTypeVariableSignatureArray(getTypeSignature().throwsSignatures);
+    }
+
+    /**
+     * Returns the types of exceptions the method may throw. If the method throws no exceptions, returns a
+     * zero-sized array.
+     */
+    public Class<?>[] getThrowsTypes() {
+        return toClassRefs(getTypeSignature().throwsSignatures, scanResult);
+    }
+
+    /**
+     * Returns the types of exceptions the method may throw, in string representation, e.g.
+     * {@code ["com.abc.BadException", "<X>"]}. If the method throws no exceptions, returns a zero-sized array.
+     */
+    public String[] getThrowsTypeStrs() {
+        return toStringArray(getTypeSignature().throwsSignatures);
+    }
+
+    /**
+     * Returns the type parameters of the method. If the method has no type parameters, returns a zero-sized array.
+     */
+    public TypeParameter[] getTypeParameters() {
+        return toTypeParameterArray(getTypeSignature().typeParameters);
+    }
+
+    /**
+     * Returns the type parameters of the method, in string representation, e.g. {@code ["<X>", "<Y>"]}. If the
+     * method has no type parameters, returns a zero-sized array.
+     */
+    public String[] getTypeParameterStrs() {
+        return toStringArray(getTypeSignature().typeParameters);
     }
 
     /** Returns true if this method is public. */
@@ -299,7 +395,7 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
         }
         final String[] parameterModifierStrs = new String[parameterAccessFlags.length];
         for (int i = 0; i < parameterAccessFlags.length; i++) {
-            parameterModifierStrs[i] = ReflectionUtils.modifiersToString(parameterAccessFlags[i],
+            parameterModifierStrs[i] = TypeParser.modifiersToString(parameterAccessFlags[i],
                     /* isMethod = */ false);
         }
         return parameterModifierStrs;
@@ -333,8 +429,7 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
         for (int i = 0; i < parameterAnnotationInfo.length; i++) {
             parameterAnnotationTypes[i] = new Class<?>[parameterAnnotationNames[i].length];
             for (int j = 0; j < parameterAnnotationNames[i].length; j++) {
-                parameterAnnotationTypes[i][j] = ReflectionUtils.typeStrToClass(parameterAnnotationNames[i][j],
-                        scanResult);
+                parameterAnnotationTypes[i][j] = scanResult.classNameToClassRef(parameterAnnotationNames[i][j]);
             }
         }
         return parameterAnnotationTypes;
@@ -366,7 +461,7 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
         } else {
             final List<Class<?>> annotationClassRefs = new ArrayList<>();
             for (final String annotationName : getAnnotationNames()) {
-                annotationClassRefs.add(ReflectionUtils.typeStrToClass(annotationName, scanResult));
+                annotationClassRefs.add(scanResult.classNameToClassRef(annotationName));
             }
             return annotationClassRefs;
         }
@@ -425,87 +520,7 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
      */
     @Override
     public String toString() {
-        final StringBuilder buf = new StringBuilder();
-
-        if (annotationInfo != null) {
-            for (final AnnotationInfo annotation : annotationInfo) {
-                if (buf.length() > 0) {
-                    buf.append(' ');
-                }
-                buf.append(annotation.toString());
-            }
-        }
-
-        if (buf.length() > 0) {
-            buf.append(' ');
-        }
-        buf.append(getModifiers());
-
-        final boolean isConstructor = isConstructor();
-        if (!isConstructor) {
-            if (buf.length() > 0) {
-                buf.append(' ');
-            }
-            buf.append(getReturnTypeStr());
-        }
-
-        if (buf.length() > 0) {
-            buf.append(' ');
-        }
-        buf.append(methodName);
-
-        buf.append('(');
-        final String[] paramTypes = getParameterTypeStrs();
-        if ((parameterNames != null && paramTypes.length != parameterNames.length)
-                || (parameterAccessFlags != null && paramTypes.length != parameterAccessFlags.length)
-                || (parameterAnnotationInfo != null && paramTypes.length != parameterAnnotationInfo.length)) {
-            // Should not happen
-            throw new RuntimeException("parameter number mismatch");
-        }
-        final boolean isVarargs = isVarArgs();
-        for (int i = 0; i < paramTypes.length; i++) {
-            if (i > 0) {
-                buf.append(", ");
-            }
-            if (parameterAnnotationInfo != null) {
-                final AnnotationInfo[] annotationInfoForParameter = parameterAnnotationInfo[i];
-                for (int j = 0; j < annotationInfoForParameter.length; j++) {
-                    buf.append(annotationInfoForParameter[j].toString());
-                    buf.append(' ');
-                }
-            }
-            if (parameterAccessFlags != null) {
-                final int flag = parameterAccessFlags[i];
-                if ((flag & 0x0010) != 0) {
-                    buf.append("final ");
-                }
-                if ((flag & 0x1000) != 0) {
-                    buf.append("synthetic ");
-                }
-                if ((flag & 0x8000) != 0) {
-                    buf.append("mandated ");
-                }
-            }
-            final String paramType = paramTypes[i];
-            if (isVarargs && (i == paramTypes.length - 1)) {
-                // Show varargs params correctly
-                if (!paramType.endsWith("[]")) {
-                    throw new IllegalArgumentException(
-                            "Got non-array type for last parameter of varargs method " + methodName);
-                }
-                buf.append(paramType.substring(0, paramType.length() - 2));
-                buf.append("...");
-            } else {
-                buf.append(paramType);
-            }
-            if (parameterNames != null) {
-                final String paramName = parameterNames[i];
-                buf.append(' ');
-                buf.append(paramName == null ? "_unnamed_param_" + i : paramName);
-            }
-        }
-        buf.append(')');
-
-        return buf.toString();
+        return getTypeSignature().toString(annotationInfo, modifiers, isConstructor(), methodName, isVarArgs(),
+                parameterNames, parameterAccessFlags, parameterAnnotationInfo);
     }
 }

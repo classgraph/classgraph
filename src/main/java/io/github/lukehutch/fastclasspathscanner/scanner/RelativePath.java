@@ -241,7 +241,7 @@ class RelativePath {
                     throw new IOException("Exception while locating jarfile " + relativePath, e);
                 }
                 if (fileCached == null || !ClasspathUtils.canRead(fileCached)) {
-                    throw new IOException("Could not locate jarfile " + relativePath);
+                    throw new IOException("Could not locate jarfile " + relativePath + " -- resolved to: " + path);
                 }
 
             } else {

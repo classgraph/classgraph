@@ -87,7 +87,7 @@ public class FieldInfoTest {
         assertThat(fieldInfoStrs).containsOnly(
                 "@" + ExternalAnnotation.class.getName() + " public final int publicFieldWithAnnotation = 3",
                 "@" + ExternalAnnotation.class.getName()
-                        + " private final String privateFieldWithAnnotation = \"test\"",
+                        + " private final java.lang.String privateFieldWithAnnotation = \"test\"",
                 "public int fieldWithoutAnnotation");
     }
 }

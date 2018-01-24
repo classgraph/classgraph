@@ -51,6 +51,6 @@ public class Issue146Test {
                 .getMethodInfo("method") //
                 .get(0);
         assertThat(methodInfo.toString()) //
-                .isEqualTo("public void method(int param0, String param1, double[] param2)");
+                .isEqualTo("public void method(int param0, java.lang.String param1, double[] param2)");
     }
 }

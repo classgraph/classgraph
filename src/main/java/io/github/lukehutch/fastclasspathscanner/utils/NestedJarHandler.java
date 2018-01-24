@@ -179,7 +179,7 @@ public class NestedJarHandler {
                                 return null;
                             }
 
-                            // If Make sure path component is a file, not a directory (can't unzip directories)
+                            // Make sure path component is a file, not a directory (can't unzip directories)
                             if (childZipEntry.isDirectory()) {
                                 if (log != null) {
                                     log.log(nestedJarPath, "Child path component " + childPath + " in jarfile "
