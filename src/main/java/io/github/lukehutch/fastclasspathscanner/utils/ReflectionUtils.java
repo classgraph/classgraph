@@ -292,11 +292,12 @@ public class ReflectionUtils {
     private static class ParseException extends Exception {
     }
 
-    private static class StringAndPosition {
-        String string;
-        int position;
+    private static class ParseState {
+        private final String string;
+        private int position;
+        private final StringBuilder token = new StringBuilder();
 
-        public StringAndPosition(final String string) {
+        public ParseState(final String string) {
             this.string = string;
         }
 
@@ -323,11 +324,6 @@ public class ReflectionUtils {
             position += n;
         }
 
-        @Override
-        public String toString() {
-            return string + " (position: " + position + ")";
-        }
-
         public boolean hasMore() {
             return position < string.length();
         }
@@ -339,19 +335,39 @@ public class ReflectionUtils {
                         "Got character '" + (char) next + "', expected '" + c + "' in string: " + this);
             }
         }
+
+        public void appendToToken(final String str) {
+            token.append(str);
+        }
+
+        public void appendToToken(final char c) {
+            token.append(c);
+        }
+
+        /** Get the current token, and reset the token to empty. */
+        public String getToken() {
+            final String tok = token.toString();
+            token.setLength(0);
+            return tok;
+        }
+
+        @Override
+        public String toString() {
+            return string + " (position: " + position + "; token: \"" + token + "\")";
+        }
     }
 
-    private static boolean parseIdentifier(final StringAndPosition str, final char separator,
-            final char separatorReplace, final StringBuilder buf) throws ParseException {
+    private static boolean parseIdentifier(final ParseState str, final char separator, final char separatorReplace)
+            throws ParseException {
         boolean consumedChar = false;
         while (str.hasMore()) {
             final char c = str.peek();
             if (c == separator) {
-                buf.append(separatorReplace);
+                str.appendToToken(separatorReplace);
                 str.next();
                 consumedChar = true;
             } else if (c != ';' && c != '[' && c != '<' && c != '>' && c != ':' && c != '/' && c != '.') {
-                buf.append(c);
+                str.appendToToken(c);
                 str.next();
                 consumedChar = true;
             } else {
@@ -361,47 +377,46 @@ public class ReflectionUtils {
         return consumedChar;
     }
 
-    private static boolean parseIdentifier(final StringAndPosition str, final StringBuilder buf)
-            throws ParseException {
-        return parseIdentifier(str, '\0', '\0', buf);
+    private static boolean parseIdentifier(final ParseState str) throws ParseException {
+        return parseIdentifier(str, '\0', '\0');
     }
 
-    private static boolean parseBaseType(final StringAndPosition str, final StringBuilder buf) {
+    private static boolean parseBaseType(final ParseState str) {
         switch (str.peek()) {
         case 'B':
-            buf.append("byte");
+            str.appendToToken("byte");
             str.next();
             return true;
         case 'C':
-            buf.append("char");
+            str.appendToToken("char");
             str.next();
             return true;
         case 'D':
-            buf.append("double");
+            str.appendToToken("double");
             str.next();
             return true;
         case 'F':
-            buf.append("float");
+            str.appendToToken("float");
             str.next();
             return true;
         case 'I':
-            buf.append("int");
+            str.appendToToken("int");
             str.next();
             return true;
         case 'J':
-            buf.append("long");
+            str.appendToToken("long");
             str.next();
             return true;
         case 'S':
-            buf.append("short");
+            str.appendToToken("short");
             str.next();
             return true;
         case 'Z':
-            buf.append("boolean");
+            str.appendToToken("boolean");
             str.next();
             return true;
         case 'V':
-            buf.append("void");
+            str.appendToToken("void");
             str.next();
             return true;
         default:
@@ -409,24 +424,22 @@ public class ReflectionUtils {
         }
     }
 
-    private static boolean parseJavaTypeSignature(final StringAndPosition str, final StringBuilder buf)
-            throws ParseException {
-        return (parseReferenceTypeSignature(str, buf) || parseBaseType(str, buf));
+    private static boolean parseJavaTypeSignature(final ParseState str) throws ParseException {
+        return (parseReferenceTypeSignature(str) || parseBaseType(str));
     }
 
-    private static boolean parseArrayTypeSignature(final StringAndPosition str, final StringBuilder buf)
-            throws ParseException {
+    private static boolean parseArrayTypeSignature(final ParseState str) throws ParseException {
         int numArrayDims = 0;
         while (str.peek() == '[') {
             numArrayDims++;
             str.next();
         }
         if (numArrayDims > 0) {
-            if (!parseJavaTypeSignature(str, buf)) {
+            if (!parseJavaTypeSignature(str)) {
                 throw new IllegalArgumentException("Malformatted Java type signature");
             }
             for (int i = 0; i < numArrayDims; i++) {
-                buf.append("[]");
+                str.appendToToken("[]");
             }
             return true;
         } else {
@@ -434,12 +447,11 @@ public class ReflectionUtils {
         }
     }
 
-    private static boolean parseTypeVariableSignature(final StringAndPosition str, final StringBuilder buf)
-            throws ParseException {
+    private static boolean parseTypeVariableSignature(final ParseState str) throws ParseException {
         final char peek = str.peek();
         if (peek == 'T') {
             str.next();
-            final boolean gotIdent = parseIdentifier(str, buf);
+            final boolean gotIdent = parseIdentifier(str);
             str.expect(';');
             return gotIdent;
         } else {
@@ -447,54 +459,52 @@ public class ReflectionUtils {
         }
     }
 
-    private static boolean parseTypeArgument(final StringAndPosition str, final StringBuilder buf)
-            throws ParseException {
+    private static boolean parseTypeArgument(final ParseState str) throws ParseException {
         // Handle wildcard types
         final char peek = str.peek();
         if (peek == '*') {
             str.next();
-            buf.append("?");
+            str.appendToToken("?");
             return true;
         } else if (peek == '+') {
             str.next();
-            buf.append("? extends ");
-            return parseReferenceTypeSignature(str, buf);
+            str.appendToToken("? extends ");
+            return parseReferenceTypeSignature(str);
         } else if (peek == '-') {
             str.next();
-            buf.append("? super ");
-            return parseReferenceTypeSignature(str, buf);
+            str.appendToToken("? super ");
+            return parseReferenceTypeSignature(str);
         } else {
-            return parseReferenceTypeSignature(str, buf);
+            return parseReferenceTypeSignature(str);
         }
     }
 
-    private static boolean parseClassTypeSignature(final StringAndPosition str, final StringBuilder buf)
-            throws ParseException {
+    private static boolean parseClassTypeSignature(final ParseState str) throws ParseException {
         if (str.peek() == 'L') {
             str.next();
             if (str.peekMatches("java/lang/") || str.peekMatches("java/util/")) {
                 str.advance(10);
             }
-            if (!parseIdentifier(str, /* separator = */ '/', /* separatorReplace = */ '.', buf)) {
+            if (!parseIdentifier(str, /* separator = */ '/', /* separatorReplace = */ '.')) {
                 throw new IllegalArgumentException("Malformed class name");
             }
             if (str.peek() == '<') {
-                buf.append(str.getc()); // '<'
+                str.appendToToken(str.getc()); // '<'
                 for (boolean isFirstTypeArg = true; str.peek() != '>'; isFirstTypeArg = false) {
                     if (!isFirstTypeArg) {
-                        buf.append(", ");
+                        str.appendToToken(", ");
                     }
-                    if (!parseTypeArgument(str, buf)) {
+                    if (!parseTypeArgument(str)) {
                         throw new IllegalArgumentException("Bad type argument");
                     }
                 }
-                buf.append(str.getc()); // '>'
+                str.appendToToken(str.getc()); // '>'
             }
             while (str.peek() == '.') {
                 // TODO: Figure out what to do with this (ClassTypeSignatureSuffix) -- where/how is it used?
                 // (Is it used for enum constants?)
-                buf.append(str.getc()); // '.'
-                parseIdentifier(str, buf);
+                str.appendToToken(str.getc()); // '.'
+                parseIdentifier(str);
             }
             str.expect(';');
             return true;
@@ -503,10 +513,8 @@ public class ReflectionUtils {
         }
     }
 
-    private static boolean parseReferenceTypeSignature(final StringAndPosition str, final StringBuilder buf)
-            throws ParseException {
-        return parseClassTypeSignature(str, buf) || parseTypeVariableSignature(str, buf)
-                || parseArrayTypeSignature(str, buf);
+    private static boolean parseReferenceTypeSignature(final ParseState str) throws ParseException {
+        return parseClassTypeSignature(str) || parseTypeVariableSignature(str) || parseArrayTypeSignature(str);
     }
 
     /**
@@ -515,20 +523,18 @@ public class ReflectionUtils {
      * types, and the last item corresponding to the method return type.
      */
     public static List<String> parseComplexTypeDescriptor(final String typeDescriptor) {
-        final StringAndPosition str = new StringAndPosition(typeDescriptor);
+        final ParseState str = new ParseState(typeDescriptor);
         try {
-            final StringBuilder buf = new StringBuilder();
             final List<String> typeParts = new ArrayList<>();
             while (str.hasMore()) {
                 final char peek = str.peek();
                 if (peek == '(' || peek == ')') {
                     str.next();
                 } else {
-                    if (!parseJavaTypeSignature(str, buf)) {
+                    if (!parseJavaTypeSignature(str)) {
                         throw new ParseException();
                     }
-                    typeParts.add(buf.toString());
-                    buf.setLength(0);
+                    typeParts.add(str.getToken());
                 }
             }
             return typeParts;
@@ -542,19 +548,17 @@ public class ReflectionUtils {
      * string, e.g. "[[[Ljava/lang/String;" -> "String[][][]".
      */
     public static String parseSimpleTypeDescriptor(final String typeDescriptor) {
-        final StringAndPosition str = new StringAndPosition(typeDescriptor);
-        final char peek = str.peek();
-        if (peek == '(') {
+        final ParseState str = new ParseState(typeDescriptor);
+        if (str.peek() == '(') {
             // This method is not for method signatures, use parseComplexTypeDescriptor() instead
             throw new RuntimeException("Got unexpected method signature");
         }
         String typeStr;
         try {
-            final StringBuilder buf = new StringBuilder();
-            if (!parseJavaTypeSignature(str, buf)) {
+            if (!parseJavaTypeSignature(str)) {
                 throw new ParseException();
             }
-            typeStr = buf.toString();
+            typeStr = str.getToken();
         } catch (final Exception e) {
             throw new RuntimeException("Type signature could not be parsed: " + str, e);
         }
