@@ -128,7 +128,7 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
 
     private List<String> getTypeStrs() {
         if (typeStrs == null) {
-            typeStrs = ReflectionUtils.parseComplexTypeDescriptor(typeDescriptor);
+            typeStrs = ReflectionUtils.parseMethodTypeDescriptor(typeDescriptor);
             if (typeStrs.size() < 1) {
                 throw new IllegalArgumentException("Invalid type descriptor for method: " + typeDescriptor);
             }

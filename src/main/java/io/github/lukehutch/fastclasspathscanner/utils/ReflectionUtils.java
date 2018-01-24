@@ -522,7 +522,7 @@ public class ReflectionUtils {
      * one item. For a method, returns a list of types, with the first N-1 items corresponding to the argument
      * types, and the last item corresponding to the method return type.
      */
-    public static List<String> parseComplexTypeDescriptor(final String typeDescriptor) {
+    public static List<String> parseMethodTypeDescriptor(final String typeDescriptor) {
         final ParseState str = new ParseState(typeDescriptor);
         try {
             final List<String> typeParts = new ArrayList<>();
