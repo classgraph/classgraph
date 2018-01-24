@@ -141,11 +141,7 @@ public class FieldInfo extends InfoObject implements Comparable<FieldInfo> {
 
     /** Returns the type of the field, in string representation (e.g. "int[][]"). */
     public String getTypeStr() {
-        final List<String> typeNames = ReflectionUtils.parseComplexTypeDescriptor(typeDescriptor);
-        if (typeNames.size() != 1) {
-            throw new IllegalArgumentException("Invalid type descriptor for field: " + typeDescriptor);
-        }
-        return typeNames.get(0);
+        return ReflectionUtils.parseSimpleTypeDescriptor(typeDescriptor);
     }
 
     /**
