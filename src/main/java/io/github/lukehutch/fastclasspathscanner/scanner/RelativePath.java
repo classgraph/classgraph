@@ -214,31 +214,36 @@ class RelativePath {
                         "Path " + relativePath + " could not be resolved relative to " + pathToResolveAgainst);
             }
 
-            final int plingIdx = path.lastIndexOf('!');
-            try {
-                // Fetch any remote jarfiles, recursively unzip any nested jarfiles, and remove ZipSFX
-                // header from jarfiles that don't start with "PK". In each case a temporary file will be
-                // created. Throws IOException if anything goes wrong.
-                final Entry<File, Set<String>> innermostJarAndRootRelativePaths = //
-                        nestedJarHandler.getInnermostNestedJar(path);
-                if (innermostJarAndRootRelativePaths != null) {
-                    fileCached = innermostJarAndRootRelativePaths.getKey();
-                    final Set<String> rootRelativePaths = innermostJarAndRootRelativePaths.getValue();
-                    if (!rootRelativePaths.isEmpty()) {
-                        // Get section after last '!' (stripping any initial '/')
-                        final String tail = path.length() == plingIdx + 1 ? ""
-                                : path.charAt(plingIdx + 1) == '/' ? path.substring(plingIdx + 2)
-                                        : path.substring(plingIdx + 1);
-                        // Check to see if last segment is listed in the set of root relative paths for the jar
-                        // -- if so, then this is the classpath base for this jarfile
-                        if (rootRelativePaths.contains(tail)) {
+            final File pathFile = new File(path);
+            if (pathFile.exists() && pathFile.isDirectory()) {
+                fileCached = pathFile;
+            } else {
+                final int plingIdx = path.lastIndexOf('!');
+                try {
+                    // Fetch any remote jarfiles, recursively unzip any nested jarfiles, and remove ZipSFX
+                    // header from jarfiles that don't start with "PK". In each case a temporary file will be
+                    // created. Throws IOException if anything goes wrong.
+                    final Entry<File, Set<String>> innermostJarAndRootRelativePaths = //
+                            nestedJarHandler.getInnermostNestedJar(path);
+                    if (innermostJarAndRootRelativePaths != null) {
+                        fileCached = innermostJarAndRootRelativePaths.getKey();
+                        final Set<String> rootRelativePaths = innermostJarAndRootRelativePaths.getValue();
+                        if (!rootRelativePaths.isEmpty()) {
+                            // Get section after last '!' (stripping any initial '/')
+                            final String tail = path.length() == plingIdx + 1 ? ""
+                                    : path.charAt(plingIdx + 1) == '/' ? path.substring(plingIdx + 2)
+                                            : path.substring(plingIdx + 1);
+                            // Check to see if last segment is listed in the set of root relative paths for the jar
+                            // -- if so, then this is the classpath base for this jarfile
+                            if (rootRelativePaths.contains(tail)) {
 
+                            }
+                            zipClasspathBaseDir = tail;
                         }
-                        zipClasspathBaseDir = tail;
                     }
+                } catch (final Exception e) {
+                    throw new IOException("Exception while locating jarfile " + relativePath, e);
                 }
-            } catch (final Exception e) {
-                throw new IOException("Exception while locating jarfile " + relativePath, e);
             }
             if (fileCached == null || !ClasspathUtils.canRead(fileCached)) {
                 throw new IOException("Could not locate jarfile " + relativePath + " -- resolved to: " + path);
