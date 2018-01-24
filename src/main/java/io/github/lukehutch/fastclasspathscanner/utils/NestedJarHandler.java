@@ -127,9 +127,11 @@ public class NestedJarHandler {
                         }
                         return null;
                     }
+                    // Handle self-extracting archives (they can be created by Spring-Boot)
+                    final File bareZipfile = stripSFXHeader(canonicalFile, log);
                     // Return canonical file as the singleton entry for this path
                     final Set<String> rootRelativePaths = new HashSet<>();
-                    return new SimpleEntry<>(canonicalFile, rootRelativePaths);
+                    return new SimpleEntry<>(bareZipfile, rootRelativePaths);
 
                 } else {
                     // This path has one or more '!' sections.
@@ -312,6 +314,30 @@ public class NestedJarHandler {
             subLog.addElapsedTime();
         }
         return tempFile;
+    }
+
+    /**
+     * Strip self-extracting archive header from zipfile, if present. (Simply strips everything before the first
+     * "PK".)
+     */
+    private File stripSFXHeader(final File zipfile, final LogNode log) throws IOException {
+        final long sfxHeaderBytes = JarUtils.countBytesBeforePKMarker(zipfile);
+        if (sfxHeaderBytes == 0L) {
+            // No self-extracting zipfile header
+            return zipfile;
+        } else {
+            // Need to strip off ZipSFX header (e.g. Bash script prepended by Spring-Boot)
+            final File bareZipfile = File.createTempFile("FastClasspathScanner-",
+                    TEMP_FILENAME_LEAF_SEPARATOR + JarUtils.leafName(zipfile.getName()));
+            bareZipfile.deleteOnExit();
+            tempFiles.add(bareZipfile);
+            if (log != null) {
+                log.log("Zipfile " + zipfile + " contains an SFX header of " + sfxHeaderBytes
+                        + " bytes. Stripping off header to create bare zipfile " + bareZipfile);
+            }
+            JarUtils.stripSFXHeader(zipfile, sfxHeaderBytes, bareZipfile);
+            return bareZipfile;
+        }
     }
 
     /** Delete temporary files and release other resources. */

@@ -28,8 +28,13 @@
  */
 package io.github.lukehutch.fastclasspathscanner.utils;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.FileReader;
 import java.io.IOException;
+import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -307,6 +312,44 @@ public class JarUtils {
             }
         }
         return false;
+    }
+
+    /**
+     * Count the number of bytes before the characters "PK" in a zipfile. Returns -1 if PK is not found anywhere in
+     * the file.
+     */
+    public static long countBytesBeforePKMarker(final File zipfile) throws IOException {
+        try (BufferedReader reader = new BufferedReader(new FileReader(zipfile))) {
+            boolean readP = false;
+            long fileIdx = 0;
+            for (int c; (c = reader.read()) != -1; fileIdx++) {
+                if (!readP) {
+                    if (c == 'P') {
+                        readP = true;
+                    }
+                } else {
+                    if (c == 'K') {
+                        // Found PK marker
+                        return fileIdx - 1;
+                    } else {
+                        readP = false;
+                    }
+                }
+            }
+            return -1;
+        }
+    }
+
+    /** Strip the self-extracting archive header from the beginning of a zipfile. */
+    public static void stripSFXHeader(final File srcZipfile, final long sfxHeaderBytes, final File destZipfile)
+            throws IOException {
+        try (FileInputStream inputStream = new FileInputStream(srcZipfile);
+                FileChannel inputChannel = inputStream.getChannel();
+                FileOutputStream outputStream = new FileOutputStream(destZipfile);
+                FileChannel outputChannel = outputStream.getChannel()) {
+            inputChannel.position(sfxHeaderBytes);
+            outputChannel.transferFrom(inputChannel, 0, inputChannel.size());
+        }
     }
 
     /** Log the Java version and the JRE paths that were found. */
