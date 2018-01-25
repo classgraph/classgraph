@@ -121,8 +121,7 @@ abstract class ClasspathElement {
         try {
             return getClasspathElementFile(log).toURI().toURL();
         } catch (final MalformedURLException e) {
-            // Shouldn't happen; File objects should always be able to be turned into URIs
-            // and then URLs
+            // Shouldn't happen; File objects should always be able to be turned into URIs and then URLs
             throw new RuntimeException(e);
         }
     }
@@ -132,8 +131,7 @@ abstract class ClasspathElement {
         try {
             return classpathEltPath.getFile(log);
         } catch (final IOException e) {
-            // Shouldn't happen; files have already been screened for IOException during
-            // canonicalization
+            // Shouldn't happen; files have already been screened for IOException during canonicalization
             throw new RuntimeException(e);
         }
     }
@@ -198,26 +196,22 @@ abstract class ClasspathElement {
             // Should not happen
             throw new IllegalArgumentException("scanFiles is false");
         }
-        // Take the union of classfile and file match relative paths, since matches can
-        // be in both lists
-        // if a user adds a custom file path matcher that matches paths ending in
-        // ".class"
+        // Take the union of classfile and file match relative paths, since matches can be in both lists if a user
+        // adds a custom file path matcher that matches paths ending in ".class"
         final HashSet<String> maskedRelativePaths = new HashSet<>();
         for (final ClasspathResource res : classfileMatches) {
-            // Don't mask module-info.class, since all modules need this classfile to be
-            // read
+            // Don't mask module-info.class, since all modules need this classfile to be read
             if (!res.pathRelativeToClasspathPrefix.equals("module-info.class")
                     && !res.pathRelativeToClasspathPrefix.endsWith("/module-info.class")) {
                 if (!classpathRelativePathsFound.add(res.pathRelativeToClasspathPrefix)) {
-                    // This relative path has been encountered more than once;
-                    // mask the second and subsequent occurrences of the path
+                    // This relative path has been encountered more than once; mask the second and subsequent
+                    // occurrences of the path
                     maskedRelativePaths.add(res.pathRelativeToClasspathPrefix);
                 }
             }
         }
         if (!maskedRelativePaths.isEmpty()) {
-            // Replace the lists of matching resources with filtered versions with masked
-            // paths removed
+            // Replace the lists of matching resources with filtered versions with masked paths removed
             final List<ClasspathResource> filteredClassfileMatches = new ArrayList<>();
             for (final ClasspathResource classfileMatch : classfileMatches) {
                 if (!maskedRelativePaths.contains(classfileMatch.pathRelativeToClasspathPrefix)) {
@@ -307,8 +301,7 @@ abstract class ClasspathElement {
                 // Re-throw
                 throw e;
             } finally {
-                // Close classfile InputStream (and any associated ZipEntry); recycle ZipFile if
-                // applicable
+                // Close classfile InputStream (and any associated ZipEntry); recycle ZipFile if applicable
                 classfileResource.close();
             }
             interruptionChecker.check();

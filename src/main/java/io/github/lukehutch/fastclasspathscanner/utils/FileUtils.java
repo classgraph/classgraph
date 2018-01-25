@@ -42,11 +42,9 @@ public class FileUtils {
     public static String getCurrDirPathStr() {
         String currDirPathStr = "";
         try {
-            // The result is moved to currDirPathStr after each step, so we can provide
-            // fine-grained debug info
-            // and a best guess at the path, if the current dir doesn't exist (#109), or
-            // something goes wrong
-            // while trying to get the current dir path.
+            // The result is moved to currDirPathStr after each step, so we can provide fine-grained debug info and
+            // a best guess at the path, if the current dir doesn't exist (#109), or something goes wrong while
+            // trying to get the current dir path.
             Path currDirPath = Paths.get("").toAbsolutePath();
             currDirPathStr = currDirPath.toString();
             currDirPath = currDirPath.normalize();
@@ -73,12 +71,10 @@ public class FileUtils {
             throw new IOException("File larger that 2GB, cannot read contents into a Java array");
         }
 
-        // We can't always trust the fileSize, unfortunately, so we just use it as a
-        // hint
+        // We can't always trust the fileSize, unfortunately, so we just use it as a hint
         final ByteArrayOutputStream baos = new ByteArrayOutputStream(fileSize <= 0 ? 16384 : (int) fileSize);
 
-        // N.B. there is a better solution for this in Java 9, byte[] bytes =
-        // inputStream.readAllBytes()
+        // N.B. there is a better solution for this in Java 9, byte[] bytes = inputStream.readAllBytes()
         final byte[] buf = new byte[4096];
         int totBytesRead = 0;
         for (int bytesRead; (bytesRead = inputStream.read(buf)) != -1;) {

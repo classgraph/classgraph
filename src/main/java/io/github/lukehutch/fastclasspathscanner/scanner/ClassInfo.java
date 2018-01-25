@@ -380,8 +380,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
         if (includeStandardClasses && includeImplementedInterfaces && includeAnnotations) {
             includeAllTypes = true;
         }
-        // Do two passes with the same filter logic to avoid copying the set if nothing
-        // is filtered out
+        // Do two passes with the same filter logic to avoid copying the set if nothing is filtered out
         final Set<ClassInfo> classInfoSetFiltered = new HashSet<>(classInfoSet.size());
         for (final ClassInfo classInfo : classInfoSet) {
             // Check class type against requested type(s)
@@ -439,25 +438,22 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
         }
         final Set<ClassInfo> reachableClasses = new HashSet<>(directlyRelatedClasses);
         if (relType == RelType.METHOD_ANNOTATIONS || relType == RelType.FIELD_ANNOTATIONS) {
-            // For method and field annotations, need to change the RelType when finding
-            // meta-annotations
+            // For method and field annotations, need to change the RelType when finding meta-annotations
             for (final ClassInfo annotation : directlyRelatedClasses) {
                 reachableClasses.addAll(annotation.getReachableClasses(RelType.CLASS_ANNOTATIONS));
             }
         } else if (relType == RelType.CLASSES_WITH_METHOD_ANNOTATION
                 || relType == RelType.CLASSES_WITH_FIELD_ANNOTATION) {
-            // If looking for meta-annotated methods or fields, need to find all
-            // meta-annotated annotations,
-            // then look for the methods or fields that they annotate
+            // If looking for meta-annotated methods or fields, need to find all meta-annotated annotations, then
+            // look for the methods or fields that they annotate
             for (final ClassInfo subAnnotation : filterClassInfo(
                     getReachableClasses(RelType.CLASSES_WITH_CLASS_ANNOTATION),
                     /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.ANNOTATION)) {
                 reachableClasses.addAll(subAnnotation.getDirectlyRelatedClasses(relType));
             }
         } else {
-            // For other relationship types, the reachable type stays the same over the
-            // transitive closure.
-            // Find the transitive closure, breaking cycles where necessary.
+            // For other relationship types, the reachable type stays the same over the transitive closure. Find the
+            // transitive closure, breaking cycles where necessary.
             final LinkedList<ClassInfo> queue = new LinkedList<>();
             queue.addAll(directlyRelatedClasses);
             while (!queue.isEmpty()) {
@@ -672,31 +668,24 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     static ClassInfo addScannedClass(final String className, final int classModifiers, final boolean isInterface,
             final boolean isAnnotation, final ScanSpec scanSpec, final Map<String, ClassInfo> classNameToClassInfo,
             final ClasspathElement classpathElement, final LogNode log) {
-        // Handle Scala auxiliary classes (companion objects ending in "$" and trait
-        // methods classes
-        // ending in "$class")
+        // Handle Scala auxiliary classes (companion objects ending in "$" and trait methods classes ending in
+        // "$class")
         final boolean isCompanionObjectClass = className.endsWith("$");
         final boolean isTraitMethodClass = className.endsWith("$class");
         final boolean isNonAuxClass = !isCompanionObjectClass && !isTraitMethodClass;
         final String classBaseName = scalaBaseClassName(className);
         ClassInfo classInfo;
         if (classNameToClassInfo.containsKey(classBaseName)) {
-            // Merge into base ClassInfo object that was already allocated, rather than the
-            // new one
+            // Merge into base ClassInfo object that was already allocated, rather than the new one
             classInfo = classNameToClassInfo.get(classBaseName);
-            // Class base name has been seen before, check if we're just merging scala aux
-            // classes together
+            // Class base name has been seen before, check if we're just merging scala aux classes together
             if (isNonAuxClass && classInfo.classfileScanned
                     || isCompanionObjectClass && classInfo.companionObjectClassfileScanned
                     || isTraitMethodClass && classInfo.traitMethodClassfileScanned) {
-                // The same class was encountered more than once in a single jarfile -- should
-                // not happen.
-                // However, actually there is no restriction for paths within a zipfile to be
-                // unique (!!),
-                // and in fact zipfiles in the wild do contain the same classfiles multiple
-                // times with the
-                // same exact path, e.g.:
-                // xmlbeans-2.6.0.jar!org/apache/xmlbeans/xml/stream/Location.class
+                // The same class was encountered more than once in a single jarfile -- should not happen. However,
+                // actually there is no restriction for paths within a zipfile to be unique (!!), and in fact
+                // zipfiles in the wild do contain the same classfiles multiple times with the same exact path,
+                // e.g.: xmlbeans-2.6.0.jar!org/apache/xmlbeans/xml/stream/Location.class
                 if (log != null) {
                     log.log("Encountered class with same exact path more than once in the same jarfile: "
                             + className + " (merging info from all copies of the classfile)");
@@ -731,11 +720,8 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
             classInfo.classLoaders = classLoaderOrder.toArray(new ClassLoader[classLoaderOrder.size()]);
         }
 
-        // Mark the appropriate class type as scanned (aux classes all need to be merged
-        // into a single
-        // ClassInfo object for Scala, but we only want to use the first instance of a
-        // given class on the
-        // classpath).
+        // Mark the appropriate class type as scanned (aux classes all need to be merged into a single ClassInfo
+        // object for Scala, but we only want to use the first instance of a given class on the classpath).
         if (isTraitMethodClass) {
             classInfo.traitMethodClassfileScanned = true;
         } else if (isCompanionObjectClass) {
@@ -1922,10 +1908,8 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
      */
     static List<String> getNamesOfClassesWithDirectMethodAnnotation(final String annotationName,
             final Set<ClassInfo> allClassInfo) {
-        // This method will not likely be used for a large number of different
-        // annotation types, so perform a linear
-        // search on each invocation, rather than building an index on classpath scan
-        // (so we don't slow down more
+        // This method will not likely be used for a large number of different annotation types, so perform a linear
+        // search on each invocation, rather than building an index on classpath scan (so we don't slow down more
         // common methods).
         final ArrayList<String> namesOfClassesWithNamedMethodAnnotation = new ArrayList<>();
         for (final ClassInfo classInfo : allClassInfo) {
@@ -1950,10 +1934,8 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
      */
     static List<String> getNamesOfClassesWithMethodAnnotation(final String annotationName,
             final Set<ClassInfo> allClassInfo) {
-        // This method will not likely be used for a large number of different
-        // annotation types, so perform a linear
-        // search on each invocation, rather than building an index on classpath scan
-        // (so we don't slow down more
+        // This method will not likely be used for a large number of different annotation types, so perform a linear
+        // search on each invocation, rather than building an index on classpath scan (so we don't slow down more
         // common methods).
         final ArrayList<String> namesOfClassesWithNamedMethodAnnotation = new ArrayList<>();
         for (final ClassInfo classInfo : allClassInfo) {
@@ -2002,10 +1984,8 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
      */
     static List<String> getNamesOfClassesWithFieldOfType(final String fieldTypeName,
             final Set<ClassInfo> allClassInfo) {
-        // This method will not likely be used for a large number of different field
-        // types, so perform a linear
-        // search on each invocation, rather than building an index on classpath scan
-        // (so we don't slow down more
+        // This method will not likely be used for a large number of different field types, so perform a linear
+        // search on each invocation, rather than building an index on classpath scan (so we don't slow down more
         // common methods).
         final ArrayList<String> namesOfClassesWithFieldOfType = new ArrayList<>();
         for (final ClassInfo classInfo : allClassInfo) {
@@ -2183,10 +2163,8 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
      */
     static List<String> getNamesOfClassesWithFieldAnnotation(final String annotationName,
             final Set<ClassInfo> allClassInfo) {
-        // This method will not likely be used for a large number of different
-        // annotation types, so perform a linear
-        // search on each invocation, rather than building an index on classpath scan
-        // (so we don't slow down more
+        // This method will not likely be used for a large number of different annotation types, so perform a linear
+        // search on each invocation, rather than building an index on classpath scan (so we don't slow down more
         // common methods).
         final ArrayList<String> namesOfClassesWithNamedFieldAnnotation = new ArrayList<>();
         for (final ClassInfo classInfo : allClassInfo) {
@@ -2211,10 +2189,8 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
      */
     static List<String> getNamesOfClassesWithDirectFieldAnnotation(final String annotationName,
             final Set<ClassInfo> allClassInfo) {
-        // This method will not likely be used for a large number of different
-        // annotation types, so perform a linear
-        // search on each invocation, rather than building an index on classpath scan
-        // (so we don't slow down more
+        // This method will not likely be used for a large number of different annotation types, so perform a linear
+        // search on each invocation, rather than building an index on classpath scan (so we don't slow down more
         // common methods).
         final ArrayList<String> namesOfClassesWithNamedFieldAnnotation = new ArrayList<>();
         for (final ClassInfo classInfo : allClassInfo) {

@@ -111,12 +111,11 @@ class ClasspathElementZip extends ClasspathElement {
                 final LogNode manifestLog = log == null ? null
                         : log.log("Manifest file " + FastManifestParser.MANIFEST_PATH + " has Class-Path entries");
 
-                // Get the classpath elements from the Class-Path manifest entry
-                // (these are space-delimited).
+                // Get the classpath elements from the Class-Path manifest entry (these are space-delimited).
                 childClasspathElts = new ArrayList<>(fastManifestParser.classPath.size());
 
-                // Class-Path entries in the manifest file are resolved relative to
-                // the dir the manifest's jarfile is contaiin. Get the parent path.
+                // Class-Path entries in the manifest file are resolved relative to the dir the manifest's jarfile
+                // is contaiin. Get the parent path.
                 final String pathOfContainingDir = FastPathResolver.resolve(classpathEltZipFile.getParent());
 
                 // Create child classpath elements from Class-Path entry
@@ -136,8 +135,8 @@ class ClasspathElementZip extends ClasspathElement {
                     if (workQueue != null) {
                         workQueue.addWorkUnits(childClasspathElts);
                     } else {
-                        // When adding rt.jar, workQueue will be null. But rt.jar should not include
-                        // Class-Path references (so this block should not be reached).
+                        // When adding rt.jar, workQueue will be null. But rt.jar should not include Class-Path
+                        // references (so this block should not be reached).
                         if (log != null) {
                             log.log("Ignoring Class-Path entries in rt.jar: " + childClasspathElts);
                         }
@@ -194,14 +193,14 @@ class ClasspathElementZip extends ClasspathElement {
             @Override
             public InputStream open() throws IOException {
                 if (ioExceptionOnOpen) {
-                    // Can't open a file inside a zipfile if the zipfile couldn't be opened
-                    // (should never be triggered)
+                    // Can't open a file inside a zipfile if the zipfile couldn't be opened (should never be
+                    // triggered)
                     throw new IOException("Parent zipfile could not be opened");
                 }
                 try {
                     if (zipFile != null || inputStream != null) {
-                        // Should not happen, since this will only be called from single-threaded code
-                        // when MatchProcessors are running
+                        // Should not happen, since this will only be called from single-threaded code when
+                        // MatchProcessors are running
                         throw new RuntimeException("Tried to open classpath resource twice");
                     }
                     zipFile = zipFileRecycler.acquire();
@@ -235,9 +234,8 @@ class ClasspathElementZip extends ClasspathElement {
     /** Scan a zipfile for file path patterns matching the scan spec. */
     private void scanZipFile(final File zipFileFile, final ZipFile zipFile, final String classpathBaseDir,
             final LogNode log) {
-        // Support specification of a classpath root within a jarfile, as required by
-        // Spring,
-        // e.g. "spring-project.jar!/BOOT-INF/classes"
+        // Support specification of a classpath root within a jarfile, as required by Spring, e.g.
+        // "spring-project.jar!/BOOT-INF/classes"
         String requiredPrefix;
         if (!classpathBaseDir.isEmpty()) {
             if (log != null) {
@@ -283,8 +281,7 @@ class ClasspathElementZip extends ClasspathElement {
             // Normalize path of ZipEntry
             String relativePath = zipEntry.getName();
             if (relativePath.startsWith("/")) {
-                // Shouldn't happen with the standard Java zipfile implementation (but just to
-                // be safe)
+                // Shouldn't happen with the standard Java zipfile implementation (but just to be safe)
                 relativePath = relativePath.substring(1);
             }
 
@@ -297,10 +294,8 @@ class ClasspathElementZip extends ClasspathElement {
                 relativePath = relativePath.substring(requiredPrefixLen);
             }
 
-            // Get match status of the parent directory of this zipentry file's relative
-            // path
-            // (or reuse the last match status for speed, if the directory name hasn't
-            // changed).
+            // Get match status of the parent directory of this zipentry file's relative path (or reuse the last
+            // match status for speed, if the directory name hasn't changed).
             final int lastSlashIdx = relativePath.lastIndexOf("/");
             final String parentRelativePath = lastSlashIdx < 0 ? "/" : relativePath.substring(0, lastSlashIdx + 1);
             final boolean parentRelativePathChanged = !parentRelativePath.equals(prevParentRelativePath);
@@ -311,9 +306,8 @@ class ClasspathElementZip extends ClasspathElement {
             prevParentRelativePath = parentRelativePath;
             prevParentMatchStatus = parentMatchStatus;
 
-            // Class can only be scanned if it's within a whitelisted path subtree, or if it
-            // is a classfile
-            // that has been specifically-whitelisted
+            // Class can only be scanned if it's within a whitelisted path subtree, or if it is a classfile that has
+            // been specifically-whitelisted
             if (parentMatchStatus != ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX
                     && parentMatchStatus != ScanSpecPathMatch.AT_WHITELISTED_PATH
                     && (parentMatchStatus != ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE
@@ -323,8 +317,7 @@ class ClasspathElementZip extends ClasspathElement {
 
             // Check if the relative path is within a nested classpath root
             if (nestedClasspathRootsList != null) {
-                // This is O(mn), which is inefficient, but the number of nested classpath roots
-                // should be small
+                // This is O(mn), which is inefficient, but the number of nested classpath roots should be small
                 for (final String nestedClasspathRoot : nestedClasspathRootsList) {
                     if (relativePath.startsWith(nestedClasspathRoot)) {
                         // relativePath has a prefix of nestedClasspathRoot
@@ -356,9 +349,8 @@ class ClasspathElementZip extends ClasspathElement {
             for (final FileMatchProcessorWrapper fileMatchProcessorWrapper : //
             scanSpec.getFileMatchProcessorWrappers()) {
                 if (fileMatchProcessorWrapper.filePathMatches(zipFileFile, relativePath, log)) {
-                    // File's relative path matches.
-                    // Don't use the last modified time from the individual zipEntry objects,
-                    // we use the last modified time for the zipfile itself instead.
+                    // File's relative path matches. Don't use the last modified time from the individual zipEntry
+                    // objects, we use the last modified time for the zipfile itself instead.
                     fileMatches.put(fileMatchProcessorWrapper, newClasspathResource(zipFileFile,
                             requiredPrefix + relativePath, relativePath, zipEntry));
                 }

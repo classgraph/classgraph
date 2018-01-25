@@ -210,8 +210,7 @@ public class ClasspathOrder {
                         }
                     }
                 } else {
-                    // Try simply calling toString() as a final fallback, in case this returns
-                    // something sensible
+                    // Try simply calling toString() as a final fallback, in case this returns something sensible
                     valid |= addClasspathElements(pathObject.toString(), classLoader, log);
                 }
             }

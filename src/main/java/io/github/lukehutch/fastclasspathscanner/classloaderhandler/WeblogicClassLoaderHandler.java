@@ -41,8 +41,7 @@ public class WeblogicClassLoaderHandler implements ClassLoaderHandler {
                 "weblogic.utils.classloaders.ChangeAwareClassLoader", //
                 "weblogic.utils.classloaders.GenericClassLoader", //
                 "weblogic.utils.classloaders.FilteringClassLoader", //
-                // TODO: other known classloader names:
-                // weblogic.servlet.jsp.JspClassLoader
+                // TODO: other known classloader names: weblogic.servlet.jsp.JspClassLoader
                 // weblogic.servlet.jsp.TagFileClassLoader
         };
     }

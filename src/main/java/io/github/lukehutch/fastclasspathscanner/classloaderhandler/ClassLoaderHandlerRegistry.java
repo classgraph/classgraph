@@ -38,8 +38,7 @@ public class ClassLoaderHandlerRegistry {
      * this list.
      */
     public static final List<ClassLoaderHandlerRegistryEntry> DEFAULT_CLASS_LOADER_HANDLERS = Arrays.asList(
-            // ClassLoaderHandlers for other ClassLoaders that are handled by
-            // FastClasspathScanner
+            // ClassLoaderHandlers for other ClassLoaders that are handled by FastClasspathScanner
             new ClassLoaderHandlerRegistryEntry(AntClassLoaderHandler.class),
             new ClassLoaderHandlerRegistryEntry(EquinoxClassLoaderHandler.class),
             new ClassLoaderHandlerRegistryEntry(FelixClassLoaderHandler.class),
@@ -69,10 +68,8 @@ public class ClassLoaderHandlerRegistry {
         public ClassLoaderHandlerRegistryEntry(final Class<? extends ClassLoaderHandler> classLoaderHandlerClass) {
             this.classLoaderHandlerClass = classLoaderHandlerClass;
             try {
-                // Instantiate each ClassLoaderHandler in order to call the
-                // handledClassLoaders() method
-                // (this is needed because Java doesn't support inherited static interface
-                // methods)
+                // Instantiate each ClassLoaderHandler in order to call the handledClassLoaders() method (this is
+                // needed because Java doesn't support inherited static interface methods)
                 this.handledClassLoaderNames = classLoaderHandlerClass.newInstance().handledClassLoaders();
             } catch (InstantiationException | IllegalAccessException e) {
                 throw new RuntimeException("Could not instantiate " + classLoaderHandlerClass.getName(), e);

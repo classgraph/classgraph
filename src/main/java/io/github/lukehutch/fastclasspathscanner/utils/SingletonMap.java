@@ -87,11 +87,9 @@ public abstract class SingletonMap<K, V> {
                     throw new IllegalArgumentException("newInstance(key) returned null");
                 }
             } finally {
-                // Have to call .set() even if an exception is thrown by newInstance(), or if
-                // newInstance is null,
-                // since .set() calls initialized.countDown(). Otherwise threads that call
-                // .get() can end up
-                // waiting forever.
+                // Have to call .set() even if an exception is thrown by newInstance(), or if newInstance is null,
+                // since .set() calls initialized.countDown(). Otherwise threads that call .get() can end up waiting
+                // forever.
                 newSingletonHolder.set(newInstance);
             }
             return true;
@@ -116,9 +114,8 @@ public abstract class SingletonMap<K, V> {
         if (existingSingleton != null) {
             return existingSingleton;
         } else {
-            // Create singleton
-            // (in case of race condition, only one thread will cause a new singleton to be
-            // created for this key)
+            // Create singleton (in case of race condition, only one thread will cause a new singleton to be created
+            // for this key)
             createSingleton(key, log);
             // Look up newly-created singleton, and get the created value
             return get(key);

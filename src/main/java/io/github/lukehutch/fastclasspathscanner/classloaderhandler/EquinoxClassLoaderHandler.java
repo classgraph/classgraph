@@ -61,8 +61,7 @@ public class EquinoxClassLoaderHandler implements ClassLoaderHandler {
                     // type String
                     final Object cp = ReflectionUtils.getFieldVal(bundlefile, "cp", false);
                     if (cp != null) {
-                        // We found the base file and a classpath
-                        // element, e.g. "bin/"
+                        // We found the base file and a classpath element, e.g. "bin/"
                         classpathOrderOut.addClasspathElement(basefile.toString() + "/" + cp.toString(),
                                 classLoader, log);
                     } else {
@@ -94,10 +93,8 @@ public class EquinoxClassLoaderHandler implements ClassLoaderHandler {
                 addBundleFile(bundlefile, new HashSet<>(), classLoader, classpathOrderOut, log);
             }
         }
-        // Only read system bundles once (all bundles should give the
-        // same results for this).
-        // We assume there is only one separate Equinox instance on the
-        // classpath.
+        // Only read system bundles once (all bundles should give the same results for this). We assume there is
+        // only one separate Equinox instance on the classpath.
         if (!readSystemBundles) {
             // type BundleLoader
             final Object delegate = ReflectionUtils.getFieldVal(classLoader, "delegate", false);
@@ -111,8 +108,7 @@ public class EquinoxClassLoaderHandler implements ClassLoaderHandler {
             final Object moduleDatabase = ReflectionUtils.getFieldVal(moduleContainer, "moduleDatabase", false);
             // type HashMap<Integer, EquinoxModule>
             final Object modulesById = ReflectionUtils.getFieldVal(moduleDatabase, "modulesById", false);
-            // type EquinoxSystemModule (module 0 is always the system
-            // module)
+            // type EquinoxSystemModule (module 0 is always the system module)
             final Object module0 = ReflectionUtils.invokeMethod(modulesById, "get", Object.class, 0L, false);
             // type Bundle
             final Object bundle = ReflectionUtils.invokeMethod(module0, "getBundle", false);

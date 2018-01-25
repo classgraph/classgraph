@@ -94,26 +94,21 @@ public class WorkQueue<T> implements AutoCloseable {
             final int numParallelTasks, final WorkUnitProcessor<U> workUnitProcessor,
             final WorkQueuePreStartHook<U> workQueuePreStartHook, final InterruptionChecker interruptionChecker,
             final LogNode log) throws ExecutionException, InterruptedException {
-        // Wrap in a try-with-resources block, so that the WorkQueue is closed on
-        // exception
+        // Wrap in a try-with-resources block, so that the WorkQueue is closed on exception
         try (WorkQueue<U> workQueue = new WorkQueue<>(elements, workUnitProcessor, interruptionChecker, log)) {
             // Call work queue pre-start hook, if available
             if (workQueuePreStartHook != null) {
                 workQueuePreStartHook.processWorkQueueRef(workQueue);
             }
-            // Start (numParallelTasks - 1) worker threads (may start zero threads if
-            // numParallelTasks == 1)
+            // Start (numParallelTasks - 1) worker threads (may start zero threads if numParallelTasks == 1)
             workQueue.startWorkers(executorService, numParallelTasks - 1, log);
-            // Use the current thread to do work too, in case there is only one thread
-            // available in the
-            // ExecutorService, or in case numParallelTasks is greater than the number of
-            // available threads
-            // in the ExecutorService.
+            // Use the current thread to do work too, in case there is only one thread available in the
+            // ExecutorService, or in case numParallelTasks is greater than the number of available threads in the
+            // ExecutorService.
             workQueue.runWorkLoop();
         }
-        // WorkQueue#close() is called when the above try-with-resources block
-        // terminates,
-        // initiating a barrier wait while all worker threads complete.
+        // WorkQueue#close() is called when the above try-with-resources block terminates, initiating a barrier wait
+        // while all worker threads complete.
     }
 
     /**
@@ -168,10 +163,8 @@ public class WorkQueue<T> implements AutoCloseable {
             T workUnit = null;
             while (numWorkUnitsRemaining.get() > 0) {
                 interruptionChecker.check();
-                // Busy-wait for work units added after the queue is empty, while work units are
-                // still
-                // being processed, since the in-process work units may generate other work
-                // units.
+                // Busy-wait for work units added after the queue is empty, while work units are still being
+                // processed, since the in-process work units may generate other work units.
                 workUnit = workQueue.poll();
                 if (workUnit != null) {
                     // Got a work unit
@@ -197,12 +190,10 @@ public class WorkQueue<T> implements AutoCloseable {
                 }
                 throw interruptionChecker.executionException(e);
             } finally {
-                // Only after completing the work unit, decrement the count of work units
-                // remaining.
-                // This way, if process() generates mork work units, but the queue is emptied
-                // some time
-                // after this work unit was removed from the queue, other worker threads haven't
-                // terminated yet, so the newly-added work units can get taken by workers.
+                // Only after completing the work unit, decrement the count of work units remaining. This way, if
+                // process() generates mork work units, but the queue is emptied some time after this work unit was
+                // removed from the queue, other worker threads haven't terminated yet, so the newly-added work
+                // units can get taken by workers.
                 numWorkUnitsRemaining.decrementAndGet();
                 numRunningThreads.decrementAndGet();
             }
@@ -245,8 +236,7 @@ public class WorkQueue<T> implements AutoCloseable {
                 if (uncompletedWork) {
                     future.cancel(true);
                 }
-                // Call future.get(), so that ExecutionExceptions get logged if the worker threw
-                // an exception
+                // Call future.get(), so that ExecutionExceptions get logged if the worker threw an exception
                 future.get();
             } catch (CancellationException | InterruptedException e) {
                 // Ignore
@@ -258,12 +248,9 @@ public class WorkQueue<T> implements AutoCloseable {
             }
         }
         while (numRunningThreads.get() > 0) {
-            // Barrier (busy wait) for worker thread completion.
-            // (If an exception is thrown, future.cancel(true) returns immediately, so we
-            // need to wait
-            // for thread shutdown here. Otherwise a finally-block of a caller may be called
-            // before
-            // the worker threads have completed and cleaned up theri resources.)
+            // Barrier (busy wait) for worker thread completion. (If an exception is thrown, future.cancel(true)
+            // returns immediately, so we need to wait for thread shutdown here. Otherwise a finally-block of a
+            // caller may be called before the worker threads have completed and cleaned up theri resources.)
         }
     }
 }

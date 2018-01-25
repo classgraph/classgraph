@@ -178,8 +178,7 @@ public class TypeParser {
 
         private static ReferenceTypeSignature parseClassBound(final ParseState parseState) throws ParseException {
             parseState.expect(':');
-            // May return null if there is no signature after ':' (class bound signature may
-            // be empty)
+            // May return null if there is no signature after ':' (class bound signature may be empty)
             return parseReferenceTypeSignature(parseState);
         }
     }
@@ -316,8 +315,7 @@ public class TypeParser {
         /** Instantiate class ref. Type arguments are ignored. */
         @Override
         public Class<?> instantiate(final ScanResult scanResult) {
-            // TODO: I'm not sure if this is the right thing to do with suffixes (append
-            // them to class name)
+            // TODO: I'm not sure if this is the right thing to do with suffixes (append them to class name)
             final StringBuilder buf = new StringBuilder();
             buf.append(className);
             for (int i = 0; i < suffixes.size(); i++) {
@@ -379,10 +377,8 @@ public class TypeParser {
                 throws ParseException {
             if (parseState.peek() == 'L') {
                 parseState.next();
-                // if (parseState.peekMatches("java/lang/") ||
-                // parseState.peekMatches("java/util/")) {
-                // parseState.advance(10);
-                // }
+                // if (parseState.peekMatches("java/lang/") || parseState.peekMatches("java/util/")) {
+                // parseState.advance(10); }
                 if (!parseState.parseIdentifier(/* separator = */ '/', /* separatorReplace = */ '.')) {
                     throw new ParseException();
                 }
@@ -926,15 +922,15 @@ public class TypeParser {
             buf.append("synchronized");
         }
         if (!isMethod && (modifiers & Modifier.TRANSIENT) != 0) {
-            // TRANSIENT has the same value as VARARGS, since they are mutually exclusive
-            // (TRANSIENT applies only to fields, VARARGS applies only to methods)
+            // TRANSIENT has the same value as VARARGS, since they are mutually exclusive (TRANSIENT applies only to
+            // fields, VARARGS applies only to methods)
             if (buf.length() > 0) {
                 buf.append(' ');
             }
             buf.append("transient");
         } else if ((modifiers & Modifier.VOLATILE) != 0) {
-            // VOLATILE has the same value as BRIDGE, since they are mutually exclusive
-            // (VOLATILE applies only to fields, BRIDGE applies only to methods)
+            // VOLATILE has the same value as BRIDGE, since they are mutually exclusive (VOLATILE applies only to
+            // fields, BRIDGE applies only to methods)
             if (buf.length() > 0) {
                 buf.append(' ');
             }
@@ -1144,8 +1140,7 @@ public class TypeParser {
     public static TypeSignature parseTypeSignature(final String typeDescriptor) {
         final ParseState parseState = new ParseState(typeDescriptor);
         if (parseState.peek() == '(') {
-            // This method is not for method signatures, use parseComplexTypeDescriptor()
-            // instead
+            // This method is not for method signatures, use parseComplexTypeDescriptor() instead
             throw new RuntimeException("Got unexpected method signature");
         }
         TypeSignature typeSignature;

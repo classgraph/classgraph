@@ -85,18 +85,16 @@ public class NestedJarHandler {
             }
         };
 
-        // Create a singleton map from path to zipfile File, in order to eliminate
-        // repeatedly unzipping
-        // the same file when there are multiple jars-within-jars that need unzipping to
-        // temporary files.
+        // Create a singleton map from path to zipfile File, in order to eliminate repeatedly unzipping the same
+        // file when there are multiple jars-within-jars that need unzipping to temporary files.
         this.nestedPathToJarfileAndRootRelativePathsMap = new SingletonMap<String, Entry<File, Set<String>>>() {
             @Override
             public Entry<File, Set<String>> newInstance(final String nestedJarPath, final LogNode log)
                     throws Exception {
                 final int lastPlingIdx = nestedJarPath.lastIndexOf('!');
                 if (lastPlingIdx < 0) {
-                    // nestedJarPath is a simple file path or URL (i.e. doesn't have any '!' sections).
-                    // This is also the last frame of recursion for the 'else' clause below.
+                    // nestedJarPath is a simple file path or URL (i.e. doesn't have any '!' sections). This is also
+                    // the last frame of recursion for the 'else' clause below.
 
                     // If the path starts with "http(s)://", download the jar to a temp file
                     final boolean isRemote = nestedJarPath.startsWith("http://")
@@ -146,32 +144,24 @@ public class NestedJarHandler {
                         childPath = childPath.substring(1);
                     }
                     try {
-                        // Recursively remove one '!' section at a time, back towards the beginning of
-                        // the URL or
-                        // file path. At the last frame of recursion, the toplevel jarfile will be
-                        // reached and
-                        // returned. The recursion is guaranteed to terminate because parentPath gets
-                        // one
+                        // Recursively remove one '!' section at a time, back towards the beginning of the URL or
+                        // file path. At the last frame of recursion, the toplevel jarfile will be reached and
+                        // returned. The recursion is guaranteed to terminate because parentPath gets one
                         // '!'-section shorter with each recursion frame.
                         final Entry<File, Set<String>> parentJarfileAndRootRelativePaths = //
                                 nestedPathToJarfileAndRootRelativePathsMap.getOrCreateSingleton(parentPath, log);
-                        // Only the last item in a '!'-delimited list can be a non-jar path, so the
-                        // parent
-                        // must always be a jarfile.
+                        // Only the last item in a '!'-delimited list can be a non-jar path, so the parent must
+                        // always be a jarfile.
                         final File parentJarFile = parentJarfileAndRootRelativePaths.getKey();
                         if (parentJarFile == null) {
                             // Failed to get parent jarfile
                             return null;
                         }
 
-                        // Avoid decompressing the same nested jarfiles multiple times for different
-                        // non-canonical
-                        // parent paths, by calling getOrCreateSingleton() again using parentJarfile
-                        // (which has
-                        // a canonicalized path). This recursion is guaranteed to terminate after one
-                        // extra
-                        // recursion if File.getCanonicalFile() is idempotent, which it should be by
-                        // definition.
+                        // Avoid decompressing the same nested jarfiles multiple times for different non-canonical
+                        // parent paths, by calling getOrCreateSingleton() again using parentJarfile (which has a
+                        // canonicalized path). This recursion is guaranteed to terminate after one extra recursion
+                        // if File.getCanonicalFile() is idempotent, which it should be by definition.
                         if (!parentJarFile.getPath().equals(parentPath)) {
                             return nestedPathToJarfileAndRootRelativePathsMap
                                     .getOrCreateSingleton(parentJarFile.getPath() + "!" + childPath, log);
@@ -212,8 +202,8 @@ public class NestedJarHandler {
                             // Unzip the child zipfile to a temporary file
                             final File childTempFile = unzipToTempFile(parentZipFile, childZipEntry, log);
 
-                            // Stop the nested unzipping process if this thread was interrupted,
-                            // and notify other threads
+                            // Stop the nested unzipping process if this thread was interrupted, and notify other
+                            // threads
                             if (interruptionChecker.checkAndReturn()) {
                                 return null;
                             }

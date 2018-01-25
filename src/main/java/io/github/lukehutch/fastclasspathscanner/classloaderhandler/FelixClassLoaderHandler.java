@@ -105,8 +105,8 @@ public class FelixClassLoaderHandler implements ClassLoaderHandler {
         final Object bundleWiring = ReflectionUtils.getFieldVal(classLoader, "m_wiring", false);
         addBundle(bundleWiring, classLoader, classpathOrderOut, log);
 
-        // Deal with any other bundles we might be wired to.
-        // TODO: Use the ScanSpec to narrow down the list of wires that we follow.
+        // Deal with any other bundles we might be wired to. TODO: Use the ScanSpec to narrow down the list of wires
+        // that we follow.
 
         final List<?> requiredWires = (List<?>) ReflectionUtils.invokeMethod(bundleWiring, "getRequiredWires",
                 String.class, null, false);

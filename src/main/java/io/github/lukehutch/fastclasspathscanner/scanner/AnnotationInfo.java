@@ -177,9 +177,8 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
                 } catch (final ClassCastException e) {
                 }
             }
-            // Use toString() order if trying to compare uncomparable types
-            // (this is inefficient, but it's a last-ditch effort to order things
-            // consistently)
+            // Use toString() order if trying to compare uncomparable types (this is inefficient, but it's a
+            // last-ditch effort to order things consistently)
             return paramValue.toString().compareTo(o.paramValue.toString());
         }
 

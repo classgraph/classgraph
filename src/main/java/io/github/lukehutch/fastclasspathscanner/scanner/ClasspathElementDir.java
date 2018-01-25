@@ -96,14 +96,13 @@ class ClasspathElementDir extends ClasspathElement {
             @Override
             public InputStream open() throws IOException {
                 if (ioExceptionOnOpen) {
-                    // Can't open a file inside a directory that couldn't be opened
-                    // (should never be triggered)
+                    // Can't open a file inside a directory that couldn't be opened (should never be triggered)
                     throw new IOException("Parent directory could not be opened");
                 }
                 try {
                     if (inputStream != null) {
-                        // Should not happen, since this will only be called from single-threaded code
-                        // when MatchProcessors are running
+                        // Should not happen, since this will only be called from single-threaded code when
+                        // MatchProcessors are running
                         throw new RuntimeException("Tried to open classpath resource twice");
                     }
                     inputStream = new FileInputStream(relativePathFile);
@@ -134,9 +133,8 @@ class ClasspathElementDir extends ClasspathElement {
             final boolean prevInWhitelistedPath, final HashSet<String> scannedCanonicalPaths, final int[] entryIdx,
             final LogNode log) {
         boolean inWhitelistedPath = prevInWhitelistedPath;
-        // See if this canonical path has been scanned before, so that recursive
-        // scanning doesn't get stuck in
-        // an infinite loop due to symlinks
+        // See if this canonical path has been scanned before, so that recursive scanning doesn't get stuck in an
+        // infinite loop due to symlinks
         String canonicalPath;
         try {
             canonicalPath = dir.getCanonicalPath();
@@ -165,8 +163,7 @@ class ClasspathElementDir extends ClasspathElement {
             return;
         } else if (matchStatus == ScanSpecPathMatch.AT_WHITELISTED_PATH
                 || matchStatus == ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX) {
-            // Reached a whitelisted path -- can start scanning directories and files from
-            // this point
+            // Reached a whitelisted path -- can start scanning directories and files from this point
             inWhitelistedPath = true;
         }
         if (nestedClasspathRoots != null) {
@@ -207,14 +204,12 @@ class ClasspathElementDir extends ClasspathElement {
                         ? fileInDir.getName()
                         : dirRelativePath + fileInDir.getName();
 
-                // Class can only be scanned if it's within a whitelisted path subtree, or if it
-                // is a classfile
-                // that has been specifically-whitelisted
+                // Class can only be scanned if it's within a whitelisted path subtree, or if it is a classfile that
+                // has been specifically-whitelisted
                 if (!inWhitelistedPath && (matchStatus != ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE
                         || !scanSpec.isSpecificallyWhitelistedClass(fileInDirRelativePath))) {
-                    // Ignore files that are siblings of specifically-whitelisted files, but that
-                    // are not
-                    // themselves specifically whitelisted
+                    // Ignore files that are siblings of specifically-whitelisted files, but that are not themselves
+                    // specifically whitelisted
                     continue;
                 }
 
@@ -242,11 +237,9 @@ class ClasspathElementDir extends ClasspathElement {
         }
         if (matchStatus == ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX
                 || matchStatus == ScanSpecPathMatch.ANCESTOR_OF_WHITELISTED_PATH) {
-            // Need to timestamp whitelisted directories, so that changes to directory
-            // content can be detected.
-            // Also need to timestamp ancestors of whitelisted directories, in case a new
-            // directory is added
-            // that matches whitelist criteria.
+            // Need to timestamp whitelisted directories, so that changes to directory content can be detected. Also
+            // need to timestamp ancestors of whitelisted directories, in case a new directory is added that matches
+            // whitelist criteria.
             fileToLastModified.put(dir, dir.lastModified());
         }
         if (log != null) {

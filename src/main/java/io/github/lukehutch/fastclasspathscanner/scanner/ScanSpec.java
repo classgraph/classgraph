@@ -341,8 +341,7 @@ public class ScanSpec {
                     if (spec.startsWith("/")) {
                         spec = spec.substring(1);
                     }
-                    // See if a class name was specified, rather than a package name. Relies on the
-                    // Java convention
+                    // See if a class name was specified, rather than a package name. Relies on the Java convention
                     // that package names should be lower case and class names should be upper case.
                     boolean isClassName = false;
                     final int lastSlashIdx = specPath.lastIndexOf('/');
@@ -359,8 +358,8 @@ public class ScanSpec {
                             specificallyWhitelistedClassRelativePaths.add(specPath + ".class");
                         }
                     } else {
-                        // This is a package name:
-                        // convert into a prefix by adding '.', and also convert to path prefix
+                        // This is a package name: convert into a prefix by adding '.', and also convert to path
+                        // prefix
                         if (blacklisted) {
                             uniqueBlacklistedPathPrefixes.add(specPath + "/");
                         } else {
@@ -401,10 +400,9 @@ public class ScanSpec {
         whitelistedPathPrefixes.addAll(uniqueWhitelistedPathPrefixes);
         if (whitelistedPathPrefixes.isEmpty() && whitelistedPathsNonRecursive.isEmpty()
                 && specificallyWhitelistedClassRelativePaths.isEmpty()) {
-            // If no whitelisted package names or class names were given, scan all packages.
-            // Having a whitelisted class name but no whitelisted package name should not
-            // trigger the scanning
-            // of all packages (Issue #78.)
+            // If no whitelisted package names or class names were given, scan all packages. Having a whitelisted
+            // class name but no whitelisted package name should not trigger the scanning of all packages (Issue
+            // #78.)
             whitelistedPathPrefixes.add("/");
         }
 
@@ -415,17 +413,15 @@ public class ScanSpec {
 
         whitelistedJars.removeAll(blacklistedJars);
         if (!scanJars && !scanDirs) {
-            // Can't disable scanning of everything, so if specified, arbitrarily pick one
-            // to re-enable.
+            // Can't disable scanning of everything, so if specified, arbitrarily pick one to re-enable.
             if (log != null) {
                 log.log("Scanning of jars and dirs are both disabled -- re-enabling scanning of dirs");
             }
             scanDirs = true;
         }
 
-        // Sort the whitelistedPathPrefixes and whitelistedPathsNonRecursive to ensure
-        // correct evaluation
-        // (see Issue #167).
+        // Sort the whitelistedPathPrefixes and whitelistedPathsNonRecursive to ensure correct evaluation (see Issue
+        // #167).
         Collections.sort(whitelistedPathPrefixes);
         Collections.sort(whitelistedPathsNonRecursive);
         Collections.sort(blacklistedPathPrefixes);
@@ -609,8 +605,8 @@ public class ScanSpec {
             }
             final List<Throwable> matchProcessorExceptions = scanResult.getMatchProcessorExceptions();
             if (matchProcessorExceptions.size() > 0) {
-                // If one or more non-IO exceptions were thrown outside of FastClasspathScanner,
-                // throw MatchProcessorException
+                // If one or more non-IO exceptions were thrown outside of FastClasspathScanner, throw
+                // MatchProcessorException
                 if (log != null) {
                     log.log("Number of exceptions raised during classloading and/or while calling "
                             + "MatchProcessors: " + matchProcessorExceptions.size());
@@ -672,8 +668,7 @@ public class ScanSpec {
         // Ancestor of whitelisted path
 
         if (relativePath.equals("/")) {
-            // The default package is always the ancestor of whitelisted paths (need to keep
-            // recursing)
+            // The default package is always the ancestor of whitelisted paths (need to keep recursing)
             return ScanSpecPathMatch.ANCESTOR_OF_WHITELISTED_PATH;
         }
         for (final String whitelistedPathPrefix : whitelistedPathPrefixes) {
@@ -690,8 +685,7 @@ public class ScanSpec {
         }
         for (final String whitelistedClassPathPrefix : specificallyWhitelistedClassParentRelativePaths) {
             if (whitelistedClassPathPrefix.startsWith(relativePath)) {
-                // The directory is an ancestor of a non-whitelisted package containing a
-                // whitelisted class
+                // The directory is an ancestor of a non-whitelisted package containing a whitelisted class
                 return ScanSpecPathMatch.ANCESTOR_OF_WHITELISTED_PATH;
             }
         }

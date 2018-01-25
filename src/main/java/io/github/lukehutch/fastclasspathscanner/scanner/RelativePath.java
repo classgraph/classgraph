@@ -228,11 +228,9 @@ class RelativePath {
             } else {
                 final int plingIdx = path.lastIndexOf('!');
                 try {
-                    // Fetch any remote jarfiles, recursively unzip any nested jarfiles, and remove
-                    // ZipSFX
-                    // header from jarfiles that don't start with "PK". In each case a temporary
-                    // file will be
-                    // created. Throws IOException if anything goes wrong.
+                    // Fetch any remote jarfiles, recursively unzip any nested jarfiles, and remove ZipSFX header
+                    // from jarfiles that don't start with "PK". In each case a temporary file will be created.
+                    // Throws IOException if anything goes wrong.
                     final Entry<File, Set<String>> innermostJarAndRootRelativePaths = //
                             nestedJarHandler.getInnermostNestedJar(path, log);
                     if (innermostJarAndRootRelativePaths != null) {
@@ -243,8 +241,7 @@ class RelativePath {
                             final String tail = path.length() == plingIdx + 1 ? ""
                                     : path.charAt(plingIdx + 1) == '/' ? path.substring(plingIdx + 2)
                                             : path.substring(plingIdx + 1);
-                            // Check to see if last segment is listed in the set of root relative paths for
-                            // the jar
+                            // Check to see if last segment is listed in the set of root relative paths for the jar
                             // -- if so, then this is the classpath base for this jarfile
                             if (rootRelativePaths.contains(tail)) {
                             }
@@ -342,8 +339,7 @@ class RelativePath {
                 }
                 return false;
             }
-            // Call isFile(), which calls getFile(), which will fetch URLs and/or unzip
-            // nested jarfiles.
+            // Call isFile(), which calls getFile(), which will fetch URLs and/or unzip nested jarfiles.
             final boolean isFile = isFile(log);
             final boolean isDirectory = isDirectory(log);
             if (isFile != !isDirectory) {
@@ -362,10 +358,9 @@ class RelativePath {
                     }
                     return false;
                 }
-                // If a classpath entry is a file, it must be a jar.
-                // Jarfiles may not have a jar/zip extension (see Issue #166), so can't check
-                // extension.
-                // If the file is not a zipfile, opening it will fail during scanning.
+                // If a classpath entry is a file, it must be a jar. Jarfiles may not have a jar/zip extension (see
+                // Issue #166), so can't check extension. If the file is not a zipfile, opening it will fail during
+                // scanning.
             }
         } catch (final IOException e) {
             if (log != null) {

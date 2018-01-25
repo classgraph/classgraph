@@ -46,16 +46,15 @@ public class ClassLoaderFinder {
 
     static {
         try {
-            // This can fail if the current SecurityManager does not allow
-            // RuntimePermission ("createSecurityManager"):
+            // This can fail if the current SecurityManager does not allow RuntimePermission
+            // ("createSecurityManager"):
             CALLER_RESOLVER = new CallerResolver();
         } catch (final SecurityException e) {
             // Handled in findAllClassLoaders()
         }
     }
 
-    // Using a SecurityManager gets around the fact that Oracle removed
-    // sun.reflect.Reflection.getCallerClass, see:
+    // Using a SecurityManager gets around the fact that Oracle removed sun.reflect.Reflection.getCallerClass, see:
     // https://www.infoq.com/news/2013/07/Oracle-Removes-getCallerClass
     // http://www.javaworld.com/article/2077344/core-java/find-a-way-out-of-the-classloader-maze.html
     private static final class CallerResolver extends SecurityManager {
@@ -74,12 +73,10 @@ public class ClassLoaderFinder {
         if (scanSpec.overrideClassLoaders == null) {
             // ClassLoaders were not overridden
 
-            // Add the ClassLoaders in the order system, caller, context; then remove any of
-            // them that are
-            // parents/ancestors of one or more other classloaders (performed below).
-            // There will generally only be one class left after this. In rare cases, you
-            // may have a separate
-            // callerLoader and contextLoader, but those cases are ill-defined -- see:
+            // Add the ClassLoaders in the order system, caller, context; then remove any of them that are
+            // parents/ancestors of one or more other classloaders (performed below). There will generally only be
+            // one class left after this. In rare cases, you may have a separate callerLoader and contextLoader, but
+            // those cases are ill-defined -- see:
             // http://www.javaworld.com/article/2077344/core-java/find-a-way-out-of-the-classloader-maze.html?page=2
 
             // Get system classloader
@@ -142,8 +139,7 @@ public class ClassLoaderFinder {
             classLoadersFoundLog = log == null ? null : log.log("Override ClassLoaders:");
         }
 
-        // Remove all ancestral classloaders (they are called automatically during class
-        // load)
+        // Remove all ancestral classloaders (they are called automatically during class load)
         final Set<ClassLoader> ancestralClassLoaders = new HashSet<>(classLoadersUnique.size());
         for (final ClassLoader classLoader : classLoadersUnique) {
             for (ClassLoader cl = classLoader.getParent(); cl != null; cl = cl.getParent()) {

@@ -61,8 +61,7 @@ public class ClasspathFinder {
             final LogNode log) {
         ClassLoaderHandler classLoaderHandler = null;
         try {
-            // Instantiate a ClassLoaderHandler for each ClassLoader, in case the
-            // ClassLoaderHandler has state
+            // Instantiate a ClassLoaderHandler for each ClassLoader, in case the ClassLoaderHandler has state
             classLoaderHandler = classLoaderHandlerRegistryEntry.classLoaderHandlerClass.newInstance();
         } catch (InstantiationException | IllegalAccessException e) {
             if (log != null) {
@@ -119,8 +118,7 @@ public class ClasspathFinder {
             final List<SimpleEntry<ClassLoader, ClassLoaderHandler>> classLoaderAndHandlerOrderOut,
             final List<SimpleEntry<ClassLoader, ClassLoaderHandler>> ignoredClassLoaderAndHandlerOrderOut,
             final LogNode log) {
-        // Don't handle ClassLoaders twice (so that any shared parent ClassLoaders get
-        // handled only once)
+        // Don't handle ClassLoaders twice (so that any shared parent ClassLoaders get handled only once)
         if (foundClassLoaders.add(classLoader)) {
             boolean foundMatch = false;
             // Iterate through each ClassLoader superclass name
@@ -129,8 +127,8 @@ public class ClasspathFinder {
                 for (final ClassLoaderHandlerRegistryEntry classLoaderHandlerRegistryEntry : allClassLoaderHandlerEntries) {
                     for (final String handledClassLoaderName : classLoaderHandlerRegistryEntry.handledClassLoaderNames) {
                         if (handledClassLoaderName.equals(c.getName())) {
-                            // This ClassLoaderHandler can handle this class
-                            // Instantiate the ClassLoaderHandler for this ClassLoader
+                            // This ClassLoaderHandler can handle this class Instantiate the ClassLoaderHandler for
+                            // this ClassLoader
                             if (addClassLoaderHandler(scanSpec, classLoader, classLoaderHandlerRegistryEntry,
                                     allClassLoaderHandlerEntries, foundClassLoaders, classLoaderAndHandlerOrderOut,
                                     ignoredClassLoaderAndHandlerOrderOut, log)) {
@@ -194,10 +192,8 @@ public class ClasspathFinder {
                                 + "context classloader");
             }
         } else {
-            // If system jars are not blacklisted, need to manually add rt.jar at the
-            // beginning of the classpath,
-            // because it is included implicitly by the JVM.
-            // TODO: this is handled differently in Java 9.
+            // If system jars are not blacklisted, need to manually add rt.jar at the beginning of the classpath,
+            // because it is included implicitly by the JVM. TODO: this is handled differently in Java 9.
             if (!scanSpec.blacklistSystemJars()) {
                 // There should only be zero or one of these.
                 final String rtJarPath = JarUtils.getRtJarPath();
@@ -207,10 +203,8 @@ public class ClasspathFinder {
                 }
             }
 
-            // Get all manually-added ClassLoaderHandlers
-            // (these are added before the default ClassLoaderHandlers, so that the behavior
-            // of the defaults
-            // can be overridden)
+            // Get all manually-added ClassLoaderHandlers (these are added before the default ClassLoaderHandlers,
+            // so that the behavior of the defaults can be overridden)
             List<ClassLoaderHandlerRegistryEntry> allClassLoaderHandlerEntries;
             if (scanSpec.extraClassLoaderHandlers.isEmpty()) {
                 allClassLoaderHandlerEntries = ClassLoaderHandlerRegistry.DEFAULT_CLASS_LOADER_HANDLERS;
@@ -225,9 +219,8 @@ public class ClasspathFinder {
                 }
             }
 
-            // Find all unique parent ClassLoaders, and put all ClassLoaders into a single
-            // order,
-            // according to the delegation order (PARENT_FIRST or PARENT_LAST)
+            // Find all unique parent ClassLoaders, and put all ClassLoaders into a single order, according to the
+            // delegation order (PARENT_FIRST or PARENT_LAST)
             final List<SimpleEntry<ClassLoader, ClassLoaderHandler>> classLoaderAndHandlerOrder = new ArrayList<>();
             final List<SimpleEntry<ClassLoader, ClassLoaderHandler>> ignoredClassLoaderAndHandlerOrder = //
                     new ArrayList<>();
@@ -243,8 +236,7 @@ public class ClasspathFinder {
                 }
             }
 
-            // Call each ClassLoaderHandler on its corresponding ClassLoader to get the
-            // classpath URLs or paths
+            // Call each ClassLoaderHandler on its corresponding ClassLoader to get the classpath URLs or paths
             for (final SimpleEntry<ClassLoader, ClassLoaderHandler> classLoaderAndHandler : //
             classLoaderAndHandlerOrder) {
                 final ClassLoader classLoader = classLoaderAndHandler.getKey();
@@ -278,10 +270,8 @@ public class ClasspathFinder {
                 }
             }
 
-            // Get classpath elements from java.class.path, but don't add them if the
-            // element is in an ignored
-            // parent classloader and not in a child classloader (and don't use
-            // java.class.path at all if
+            // Get classpath elements from java.class.path, but don't add them if the element is in an ignored
+            // parent classloader and not in a child classloader (and don't use java.class.path at all if
             // overrideClassLoaders is true or overrideClasspath is set)
             if (scanSpec.overrideClassLoaders == null && scanSpec.overrideClasspath == null) {
                 final String[] pathElements = JarUtils.smartPathSplit(System.getProperty("java.class.path"));
@@ -294,8 +284,7 @@ public class ClasspathFinder {
                             // pathElement is not also listed in an ignored parent classloader
                             classpathOrder.addClasspathElement(pathElement, envClassLoaderOrder, sysPropLog);
                         } else {
-                            // pathElement is also listed in an ignored parent classloader, ignore it (Issue
-                            // #169)
+                            // pathElement is also listed in an ignored parent classloader, ignore it (Issue #169)
                             if (sysPropLog != null) {
                                 sysPropLog.log("Found classpath element in java.class.path that will be ignored, "
                                         + "since it is also found in an ignored parent classloader: "

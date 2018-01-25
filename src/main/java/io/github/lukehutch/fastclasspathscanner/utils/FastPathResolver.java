@@ -127,8 +127,7 @@ public class FastPathResolver {
      * mixes of filesystem and URI conventions; resolve relative paths relative to resolveBasePath.
      */
     public static String resolve(final String resolveBasePath, final String relativePathStr) {
-        // See:
-        // http://stackoverflow.com/a/17870390/3950982
+        // See: http://stackoverflow.com/a/17870390/3950982
         // https://weblogs.java.net/blog/kohsuke/archive/2007/04/how_to_convert.html
 
         if (relativePathStr == null || relativePathStr.isEmpty()) {
@@ -149,9 +148,8 @@ public class FastPathResolver {
             startIdx += 7;
             // Force protocol name to lowercase
             prefix = "http://";
-            // Treat the part after the protocol as an absolute path, so the domain is not
-            // treated as a
-            // directory relative to the current directory.
+            // Treat the part after the protocol as an absolute path, so the domain is not treated as a directory
+            // relative to the current directory.
             isAbsolutePath = true;
             // Don't un-escape percent encoding etc.
             isHttpURL = true;
@@ -213,9 +211,8 @@ public class FastPathResolver {
         }
 
         if (resolveBasePath == null || isAbsolutePath) {
-            // There is no base path to resolve against, or path is an absolute path or
-            // http(s):// URL
-            // (ignore the base path)
+            // There is no base path to resolve against, or path is an absolute path or http(s):// URL (ignore the
+            // base path)
             return pathStr;
         } else {
             // Path is a relative path -- resolve it relative to the base path

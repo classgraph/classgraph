@@ -54,8 +54,7 @@ public class Issue37Test {
                     methodNames.add(matchingMethod.getName());
                 }) //
                 .scan();
-        // For some reason in the JRE, constructor names are fully-qualified, method
-        // names are not :~)
+        // For some reason in the JRE, constructor names are fully-qualified, method names are not :~)
         assertThat(methodNames).containsExactly(Issue37Test.class.getName(), "issue37Test");
     }
 

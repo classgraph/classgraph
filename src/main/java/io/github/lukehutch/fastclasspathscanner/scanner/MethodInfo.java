@@ -338,15 +338,13 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
 
     /** Returns true if this method is a bridge method. */
     public boolean isBridge() {
-        // From:
-        // http://anonsvn.jboss.org/repos/javassist/trunk/src/main/javassist/bytecode/AccessFlag.java
+        // From: http://anonsvn.jboss.org/repos/javassist/trunk/src/main/javassist/bytecode/AccessFlag.java
         return (modifiers & 0x0040) != 0;
     }
 
     /** Returns true if this method is a varargs method. */
     public boolean isVarArgs() {
-        // From:
-        // http://anonsvn.jboss.org/repos/javassist/trunk/src/main/javassist/bytecode/AccessFlag.java
+        // From: http://anonsvn.jboss.org/repos/javassist/trunk/src/main/javassist/bytecode/AccessFlag.java
         return (modifiers & 0x0080) != 0;
     }
 
