@@ -187,7 +187,7 @@ public class NestedJarHandler {
                             if (childZipEntry == null) {
                                 if (log != null) {
                                     log.log(nestedJarPath, "Child path component " + childPath
-                                            + " does not exist in jarfile " + parentPath);
+                                            + " does not exist in jarfile " + parentJarfile);
                                 }
                                 return null;
                             }
@@ -195,8 +195,9 @@ public class NestedJarHandler {
                             // Make sure path component is a file, not a directory (can't unzip directories)
                             if (childZipEntry.isDirectory()) {
                                 if (log != null) {
-                                    log.log(nestedJarPath, "Child path component " + childPath + " in jarfile "
-                                            + parentPath + " is a directory, not a file -- using as scanning root");
+                                    log.log(nestedJarPath,
+                                            "Child path component " + childPath + " in jarfile " + parentJarfile
+                                                    + " is a directory, not a file -- using as scanning root");
                                 }
                                 // Add directory path to parent jarfile root relative paths set
                                 parentJarfileAndRootRelativePaths.getValue().add(childPath);
@@ -335,25 +336,26 @@ public class NestedJarHandler {
      * "PK".)
      */
     private File stripSFXHeader(final File zipfile, final LogNode log) throws IOException {
-        final long sfxHeaderBytes = JarUtils.countBytesBeforePKMarker(zipfile);
-        if (sfxHeaderBytes == -1L) {
-            throw new IOException("Could not find zipfile \"PK\" marker in file " + zipfile);
-        } else if (sfxHeaderBytes == 0L) {
-            // No self-extracting zipfile header
-            return zipfile;
-        } else {
-            // Need to strip off ZipSFX header (e.g. Bash script prepended by Spring-Boot)
-            final File bareZipfile = File.createTempFile("FastClasspathScanner-",
-                    TEMP_FILENAME_LEAF_SEPARATOR + JarUtils.leafName(zipfile.getName()));
-            bareZipfile.deleteOnExit();
-            tempFiles.add(bareZipfile);
-            if (log != null) {
-                log.log("Zipfile " + zipfile + " contains a self-extracting executable header of " + sfxHeaderBytes
-                        + " bytes. Stripping off header to create bare zipfile " + bareZipfile);
-            }
-            JarUtils.stripSFXHeader(zipfile, sfxHeaderBytes, bareZipfile);
-            return bareZipfile;
-        }
+        return zipfile;
+        //        final long sfxHeaderBytes = JarUtils.countBytesBeforePKMarker(zipfile);
+        //        if (sfxHeaderBytes == -1L) {
+        //            throw new IOException("Could not find zipfile \"PK\" marker in file " + zipfile);
+        //        } else if (sfxHeaderBytes == 0L) {
+        //            // No self-extracting zipfile header
+        //            return zipfile;
+        //        } else {
+        //            // Need to strip off ZipSFX header (e.g. Bash script prepended by Spring-Boot)
+        //            final File bareZipfile = File.createTempFile("FastClasspathScanner-",
+        //                    TEMP_FILENAME_LEAF_SEPARATOR + JarUtils.leafName(zipfile.getName()));
+        //            bareZipfile.deleteOnExit();
+        //            tempFiles.add(bareZipfile);
+        //            if (log != null) {
+        //                log.log("Zipfile " + zipfile + " contains a self-extracting executable header of " + sfxHeaderBytes
+        //                        + " bytes. Stripping off header to create bare zipfile " + bareZipfile);
+        //            }
+        //            JarUtils.stripSFXHeader(zipfile, sfxHeaderBytes, bareZipfile);
+        //            return bareZipfile;
+        //        }
     }
 
     /** Delete temporary files and release other resources. */
