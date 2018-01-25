@@ -122,7 +122,7 @@ class ClasspathElementZip extends ClasspathElement {
                 for (int i = 0; i < fastManifestParser.classPath.size(); i++) {
                     final String manifestClassPathEltPath = fastManifestParser.classPath.get(i);
                     final RelativePath childRelativePath = new RelativePath(pathOfContainingDir,
-                            manifestClassPathEltPath, classpathEltPath.getClassLoaders(), nestedJarHandler);
+                            manifestClassPathEltPath, classpathEltPath.getClassLoaders(), nestedJarHandler, log);
                     childClasspathElts.add(childRelativePath);
                     if (manifestLog != null) {
                         manifestLog.log("Found Class-Path entry in manifest: " + manifestClassPathEltPath + " -> "

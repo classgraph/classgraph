@@ -78,7 +78,7 @@ public class ClasspathOrder {
                 // Got wildcard path element (allowable for local classpaths as of JDK 6)
                 try {
                     final File classpathEltParentDir = new RelativePath(ClasspathFinder.currDirPathStr,
-                            pathElement.substring(0, pathElement.length() - 1), classLoaders, nestedJarHandler)
+                            pathElement.substring(0, pathElement.length() - 1), classLoaders, nestedJarHandler, log)
                                     .getFile(log);
                     if (!classpathEltParentDir.exists()) {
                         if (log != null) {
@@ -117,7 +117,7 @@ public class ClasspathOrder {
             }
         } else {
             final RelativePath classpathEltPath = new RelativePath(ClasspathFinder.currDirPathStr, pathElement,
-                    classLoaders, nestedJarHandler);
+                    classLoaders, nestedJarHandler, log);
             if (classpathOrder.add(classpathEltPath)) {
                 if (log != null) {
                     log.log("Found classpath element: " + classpathEltPath);

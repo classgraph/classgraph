@@ -100,6 +100,8 @@ class RelativePath {
     /** True if existsCached has been cached. */
     private boolean existsIsCached;
 
+    private final LogNode log;
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
@@ -107,10 +109,11 @@ class RelativePath {
      * for relative paths within classpath elements (e.g. the files within a ZipFile).
      */
     public RelativePath(final String pathToResolveAgainst, final String relativePath,
-            final ClassLoader[] classLoaders, final NestedJarHandler nestedJarHandler) {
+            final ClassLoader[] classLoaders, final NestedJarHandler nestedJarHandler, final LogNode log) {
         this.classLoaders = classLoaders;
         this.pathToResolveAgainst = pathToResolveAgainst;
         this.nestedJarHandler = nestedJarHandler;
+        this.log = log;
 
         // Fix Spring relative paths with empty zip resource sections
         if (relativePath.endsWith("!")) {
@@ -130,7 +133,7 @@ class RelativePath {
     @Override
     public int hashCode() {
         try {
-            return getCanonicalPath(/* log = */ null).hashCode() + zipClasspathBaseDir.hashCode() * 57;
+            return getCanonicalPath(log).hashCode() + zipClasspathBaseDir.hashCode() * 57;
         } catch (final IOException e) {
             return 0;
         }
@@ -148,8 +151,8 @@ class RelativePath {
         final RelativePath other = (RelativePath) o;
         String thisCp;
         try {
-            thisCp = getCanonicalPath(/* log = */ null);
-            final String otherCp = other.getCanonicalPath(/* log = */ null);
+            thisCp = getCanonicalPath(log);
+            final String otherCp = other.getCanonicalPath(log);
             if (thisCp == null || otherCp == null) {
                 return false;
             }
@@ -175,7 +178,7 @@ class RelativePath {
     /** Return the canonical path. */
     @Override
     public String toString() {
-        return toString(/* log = */ null);
+        return toString(log);
     }
 
     // -------------------------------------------------------------------------------------------------------------

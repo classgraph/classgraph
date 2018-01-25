@@ -229,7 +229,8 @@ public class ClasspathFinder {
             // order,
             // according to the delegation order (PARENT_FIRST or PARENT_LAST)
             final List<SimpleEntry<ClassLoader, ClassLoaderHandler>> classLoaderAndHandlerOrder = new ArrayList<>();
-            final List<SimpleEntry<ClassLoader, ClassLoaderHandler>> ignoredClassLoaderAndHandlerOrder = new ArrayList<>();
+            final List<SimpleEntry<ClassLoader, ClassLoaderHandler>> ignoredClassLoaderAndHandlerOrder = //
+                    new ArrayList<>();
             for (final ClassLoader envClassLoader : envClassLoaderOrder) {
                 if (!scanSpec.blacklistSystemJars()
                         || !envClassLoader.getClass().getName().startsWith("sun.misc.Launcher$ExtClassLoader")) {
@@ -244,7 +245,8 @@ public class ClasspathFinder {
 
             // Call each ClassLoaderHandler on its corresponding ClassLoader to get the
             // classpath URLs or paths
-            for (final SimpleEntry<ClassLoader, ClassLoaderHandler> classLoaderAndHandler : classLoaderAndHandlerOrder) {
+            for (final SimpleEntry<ClassLoader, ClassLoaderHandler> classLoaderAndHandler : //
+            classLoaderAndHandlerOrder) {
                 final ClassLoader classLoader = classLoaderAndHandler.getKey();
                 final ClassLoaderHandler classLoaderHandler = classLoaderAndHandler.getValue();
                 final LogNode classLoaderClasspathLog = classpathFinderLog == null ? null
@@ -258,7 +260,8 @@ public class ClasspathFinder {
                 }
             }
             // Repeat the process for ignored parent ClassLoaders
-            for (final SimpleEntry<ClassLoader, ClassLoaderHandler> classLoaderAndHandler : ignoredClassLoaderAndHandlerOrder) {
+            for (final SimpleEntry<ClassLoader, ClassLoaderHandler> classLoaderAndHandler : //
+            ignoredClassLoaderAndHandlerOrder) {
                 final ClassLoader classLoader = classLoaderAndHandler.getKey();
                 final ClassLoaderHandler classLoaderHandler = classLoaderAndHandler.getValue();
                 final LogNode classLoaderClasspathLog = classpathFinderLog == null ? null
@@ -287,7 +290,7 @@ public class ClasspathFinder {
                             : classpathFinderLog.log("Getting classpath entries from java.class.path");
                     for (final String pathElement : pathElements) {
                         if (!ignoredClasspathOrder.get().contains(new RelativePath(currDirPathStr, pathElement,
-                                envClassLoaderOrder, nestedJarHandler))) {
+                                envClassLoaderOrder, nestedJarHandler, log))) {
                             // pathElement is not also listed in an ignored parent classloader
                             classpathOrder.addClasspathElement(pathElement, envClassLoaderOrder, sysPropLog);
                         } else {
