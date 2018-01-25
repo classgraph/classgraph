@@ -322,7 +322,9 @@ public class NestedJarHandler {
      */
     private File stripSFXHeader(final File zipfile, final LogNode log) throws IOException {
         final long sfxHeaderBytes = JarUtils.countBytesBeforePKMarker(zipfile);
-        if (sfxHeaderBytes == 0L) {
+        if (sfxHeaderBytes == -1L) {
+            throw new IOException("Could not find zipfile \"PK\" marker in file " + zipfile);
+        } else if (sfxHeaderBytes == 0L) {
             // No self-extracting zipfile header
             return zipfile;
         } else {
