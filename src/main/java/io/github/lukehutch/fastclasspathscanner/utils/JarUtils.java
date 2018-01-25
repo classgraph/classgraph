@@ -87,11 +87,15 @@ public class JarUtils {
             for (int i = -1;;) {
                 boolean foundNonPathSeparator = false;
                 for (int j = 0; j < UNIX_NON_PATH_SEPARATORS.length; j++) {
-                    if (pathStr.regionMatches(true, i - UNIX_NON_PATH_SEPARATOR_COLON_POSITIONS[j],
-                            UNIX_NON_PATH_SEPARATORS[j], 0, UNIX_NON_PATH_SEPARATORS[j].length())) {
-                        // Skip ':' characters in the middle of non-path-separators such as "http://"
-                        foundNonPathSeparator = true;
-                        break;
+                    // Skip ':' characters in the middle of non-path-separators such as "http://"
+                    final int startIdx = i - UNIX_NON_PATH_SEPARATOR_COLON_POSITIONS[j];
+                    if (pathStr.regionMatches(true, startIdx, UNIX_NON_PATH_SEPARATORS[j], 0,
+                            UNIX_NON_PATH_SEPARATORS[j].length())) {
+                        // Don't treat the "jar:" in the middle of "x.jar:y.jar" as a URL scheme
+                        if (startIdx == 0 || pathStr.charAt(startIdx - 1) == ':') {
+                            foundNonPathSeparator = true;
+                            break;
+                        }
                     }
                 }
                 if (!foundNonPathSeparator) {
