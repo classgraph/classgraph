@@ -348,7 +348,7 @@ public class NestedJarHandler {
             bareZipfile.deleteOnExit();
             tempFiles.add(bareZipfile);
             if (log != null) {
-                log.log("Zipfile " + zipfile + " contains an SFX header of " + sfxHeaderBytes
+                log.log("Zipfile " + zipfile + " contains a self-extracting executable header of " + sfxHeaderBytes
                         + " bytes. Stripping off header to create bare zipfile " + bareZipfile);
             }
             JarUtils.stripSFXHeader(zipfile, sfxHeaderBytes, bareZipfile);
