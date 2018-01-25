@@ -53,7 +53,7 @@ class ClasspathElementDir extends ClasspathElement {
         super(classpathEltPath, scanSpec, scanFiles, interruptionChecker);
         if (scanFiles) {
             try {
-                dir = classpathEltPath.getFile();
+                dir = classpathEltPath.getFile(log);
             } catch (final IOException e) {
                 // Technically can't happen, was already checked by caller
                 if (log != null) {
@@ -74,7 +74,7 @@ class ClasspathElementDir extends ClasspathElement {
         final String path = classpathEltPath.getResolvedPath();
         String canonicalPath = path;
         try {
-            canonicalPath = classpathEltPath.getCanonicalPath();
+            canonicalPath = classpathEltPath.getCanonicalPath(log);
         } catch (final IOException e) {
         }
         final LogNode logNode = log == null ? null

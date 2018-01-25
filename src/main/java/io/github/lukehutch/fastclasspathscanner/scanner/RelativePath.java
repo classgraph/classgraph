@@ -130,7 +130,7 @@ class RelativePath {
     @Override
     public int hashCode() {
         try {
-            return getCanonicalPath().hashCode() + zipClasspathBaseDir.hashCode() * 57;
+            return getCanonicalPath(/* log = */ null).hashCode() + zipClasspathBaseDir.hashCode() * 57;
         } catch (final IOException e) {
             return 0;
         }
@@ -148,8 +148,8 @@ class RelativePath {
         final RelativePath other = (RelativePath) o;
         String thisCp;
         try {
-            thisCp = getCanonicalPath();
-            final String otherCp = other.getCanonicalPath();
+            thisCp = getCanonicalPath(/* log = */ null);
+            final String otherCp = other.getCanonicalPath(/* log = */ null);
             if (thisCp == null || otherCp == null) {
                 return false;
             }
@@ -163,14 +163,19 @@ class RelativePath {
     }
 
     /** Return the canonical path. */
-    @Override
-    public String toString() {
+    public String toString(final LogNode log) {
         try {
-            return zipClasspathBaseDir.isEmpty() ? getCanonicalPath()
-                    : getCanonicalPath() + "!" + zipClasspathBaseDir;
+            return zipClasspathBaseDir.isEmpty() ? getCanonicalPath(log)
+                    : getCanonicalPath(log) + "!" + zipClasspathBaseDir;
         } catch (final IOException e) {
             return getResolvedPath();
         }
+    }
+
+    /** Return the canonical path. */
+    @Override
+    public String toString() {
+        return toString(/* log = */ null);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -206,7 +211,7 @@ class RelativePath {
      * @throws IOException
      *             if the path cannot be canonicalized.
      */
-    public File getFile() throws IOException {
+    public File getFile(final LogNode log) throws IOException {
         if (!fileIsCached) {
             final String path = getResolvedPath();
             if (path == null) {
@@ -224,7 +229,7 @@ class RelativePath {
                     // header from jarfiles that don't start with "PK". In each case a temporary file will be
                     // created. Throws IOException if anything goes wrong.
                     final Entry<File, Set<String>> innermostJarAndRootRelativePaths = //
-                            nestedJarHandler.getInnermostNestedJar(path);
+                            nestedJarHandler.getInnermostNestedJar(path, log);
                     if (innermostJarAndRootRelativePaths != null) {
                         fileCached = innermostJarAndRootRelativePaths.getKey();
                         final Set<String> rootRelativePaths = innermostJarAndRootRelativePaths.getValue();
@@ -272,9 +277,9 @@ class RelativePath {
     /**
      * Gets the canonical path of the File object corresponding to the resolved path.
      */
-    public String getCanonicalPath() throws IOException {
+    public String getCanonicalPath(final LogNode log) throws IOException {
         if (!canonicalPathIsCached) {
-            final File file = getFile();
+            final File file = getFile(log);
             canonicalPathCached = file.getPath();
             canonicalPathIsCached = true;
         }
@@ -282,18 +287,18 @@ class RelativePath {
     }
 
     /** True if this relative path corresponds with a file. */
-    public boolean isFile() throws IOException {
+    public boolean isFile(final LogNode log) throws IOException {
         if (!isFileIsCached) {
-            isFileCached = getFile().isFile();
+            isFileCached = getFile(log).isFile();
             isFileIsCached = true;
         }
         return isFileCached;
     }
 
     /** True if this relative path corresponds with a directory. */
-    public boolean isDirectory() throws IOException {
+    public boolean isDirectory(final LogNode log) throws IOException {
         if (!isDirectoryIsCached) {
-            isDirectoryCached = getFile().isDirectory();
+            isDirectoryCached = getFile(log).isDirectory();
             isDirectoryIsCached = true;
         }
         return isDirectoryCached;
@@ -305,9 +310,9 @@ class RelativePath {
     }
 
     /** True if this relative path corresponds to a file or directory that exists. */
-    private boolean exists() throws IOException {
+    private boolean exists(final LogNode log) throws IOException {
         if (!existsIsCached) {
-            existsCached = ClasspathUtils.canRead(getFile());
+            existsCached = ClasspathUtils.canRead(getFile(log));
             existsIsCached = true;
         }
         return existsCached;
@@ -326,15 +331,15 @@ class RelativePath {
         // Get absolute URI and File for classpathElt
         final String path = getResolvedPath();
         try {
-            if (!exists()) {
+            if (!exists(log)) {
                 if (log != null) {
                     log.log("Classpath element does not exist: " + path);
                 }
                 return false;
             }
             // Call isFile(), which calls getFile(), which will fetch URLs and/or unzip nested jarfiles.
-            final boolean isFile = isFile();
-            final boolean isDirectory = isDirectory();
+            final boolean isFile = isFile(log);
+            final boolean isDirectory = isDirectory(log);
             if (isFile != !isDirectory) {
                 // Exactly one of isFile and isDirectory should be true
                 if (log != null) {
@@ -343,7 +348,7 @@ class RelativePath {
                 return false;
             }
             if (isFile) {
-                final String canonicalPath = getCanonicalPath();
+                final String canonicalPath = getCanonicalPath(log);
                 if (scanSpec.blacklistSystemJars() && JarUtils.isJREJar(canonicalPath, log)) {
                     // Don't scan system jars if they are blacklisted
                     if (log != null) {

@@ -66,7 +66,7 @@ class ClasspathElementZip extends ClasspathElement {
             final InterruptionChecker interruptionChecker, final LogNode log) {
         super(classpathEltPath, scanSpec, scanFiles, interruptionChecker);
         try {
-            classpathEltZipFile = classpathEltPath.getFile();
+            classpathEltZipFile = classpathEltPath.getFile(log);
         } catch (final IOException e) {
             if (log != null) {
                 log.log("Exception while trying to canonicalize path " + classpathEltPath.getResolvedPath(), e);
@@ -82,7 +82,7 @@ class ClasspathElementZip extends ClasspathElement {
             return;
         }
         try {
-            zipFileRecycler = nestedJarHandler.getZipFileRecycler(classpathEltZipFile.getPath());
+            zipFileRecycler = nestedJarHandler.getZipFileRecycler(classpathEltZipFile.getPath(), log);
         } catch (final Exception e) {
             // Stop other threads
             interruptionChecker.interrupt();
@@ -159,7 +159,7 @@ class ClasspathElementZip extends ClasspathElement {
         final String path = classpathEltPath.getResolvedPath();
         String canonicalPath = path;
         try {
-            canonicalPath = classpathEltPath.getCanonicalPath();
+            canonicalPath = classpathEltPath.getCanonicalPath(log);
         } catch (final IOException e) {
         }
         final LogNode logNode = log == null ? null

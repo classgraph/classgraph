@@ -106,8 +106,8 @@ public class ScanResult {
         this.classpathElementOrderFiles = new ArrayList<>();
         this.classpathElementOrderURLs = new ArrayList<>();
         for (final ClasspathElement classpathElement : classpathOrder) {
-            classpathElementOrderFiles.add(classpathElement.getClasspathElementFile());
-            classpathElementOrderURLs.add(classpathElement.getClasspathElementURL());
+            classpathElementOrderFiles.add(classpathElement.getClasspathElementFile(log));
+            classpathElementOrderURLs.add(classpathElement.getClasspathElementURL(log));
         }
         this.fileToLastModified = fileToLastModified;
         this.classGraphBuilder = classGraphBuilder;

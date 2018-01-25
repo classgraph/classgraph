@@ -79,7 +79,7 @@ public class ClasspathOrder {
                 try {
                     final File classpathEltParentDir = new RelativePath(ClasspathFinder.currDirPathStr,
                             pathElement.substring(0, pathElement.length() - 1), classLoaders, nestedJarHandler)
-                                    .getFile();
+                                    .getFile(log);
                     if (!classpathEltParentDir.exists()) {
                         if (log != null) {
                             log.log("Directory does not exist for wildcard classpath element: " + pathElement);

@@ -71,7 +71,7 @@ public abstract class SingletonMap<K, V> {
      * @throws IllegalArgumentException
      *             if newInstance(key) returns null.
      */
-    public boolean createSingleton(final K key) throws Exception {
+    public boolean createSingleton(final K key, final LogNode log) throws Exception {
         SingletonHolder<V> newSingletonHolder = singletonHolderRecycler.poll();
         if (newSingletonHolder == null) {
             newSingletonHolder = new SingletonHolder<>();
@@ -82,7 +82,7 @@ public abstract class SingletonMap<K, V> {
 
             V newInstance = null;
             try {
-                newInstance = newInstance(key);
+                newInstance = newInstance(key, log);
                 if (newInstance == null) {
                     throw new IllegalArgumentException("newInstance(key) returned null");
                 }
@@ -109,21 +109,21 @@ public abstract class SingletonMap<K, V> {
      * @throws IllegalArgumentException
      *             if newInstance(key) returns null.
      */
-    public V getOrCreateSingleton(final K key) throws Exception {
+    public V getOrCreateSingleton(final K key, final LogNode log) throws Exception {
         final V existingSingleton = get(key);
         if (existingSingleton != null) {
             return existingSingleton;
         } else {
             // Create singleton
             // (in case of race condition, only one thread will cause a new singleton to be created for this key)
-            createSingleton(key);
+            createSingleton(key, log);
             // Look up newly-created singleton, and get the created value
             return get(key);
         }
     }
 
     /** Construct a new singleton instance. */
-    public abstract V newInstance(K key) throws Exception;
+    public abstract V newInstance(K key, LogNode log) throws Exception;
 
     /**
      * Get the singleton for a given key.

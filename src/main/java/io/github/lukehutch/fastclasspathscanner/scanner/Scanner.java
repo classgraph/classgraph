@@ -219,7 +219,7 @@ public class Scanner implements Callable<ScanResult> {
             final LogNode preScanLog = classpathFinderLog == null ? null
                     : classpathFinderLog.log("Searching for \"Class-Path:\" entries within manifest files");
             final RelativePathToElementMap classpathElementMap = new RelativePathToElementMap(
-                    enableRecursiveScanning, scanSpec, nestedJarHandler, interruptionChecker, preScanLog);
+                    enableRecursiveScanning, scanSpec, nestedJarHandler, interruptionChecker);
             WorkQueue.runWorkQueue(rawClasspathEltPathsDedupd, executorService, numParallelTasks,
                     new WorkUnitProcessor<RelativePath>() {
                         @Override
@@ -234,8 +234,8 @@ public class Scanner implements Callable<ScanResult> {
                                 }
                             } else if (rawClasspathEltPath.isValidClasspathElement(scanSpec, preScanLog)) {
                                 try {
-                                    final boolean isFile = rawClasspathEltPath.isFile();
-                                    final boolean isDir = rawClasspathEltPath.isDirectory();
+                                    final boolean isFile = rawClasspathEltPath.isFile(preScanLog);
+                                    final boolean isDir = rawClasspathEltPath.isDirectory(preScanLog);
                                     if (isFile && !scanSpec.scanJars) {
                                         if (preScanLog != null) {
                                             preScanLog.log("Ignoring because jar scanning has been disabled: "
@@ -262,7 +262,7 @@ public class Scanner implements Callable<ScanResult> {
                                         // are found, they are added as child elements of the current classpath
                                         // element, so that they can be inserted at the correct location in the
                                         // classpath order.
-                                        classpathElementMap.createSingleton(rawClasspathEltPath);
+                                        classpathElementMap.createSingleton(rawClasspathEltPath, preScanLog);
                                     }
                                 } catch (final Exception e) {
                                     // Could not create singleton, probably due to path canonicalization problem

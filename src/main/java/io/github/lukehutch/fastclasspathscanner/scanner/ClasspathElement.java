@@ -113,9 +113,9 @@ abstract class ClasspathElement {
     }
 
     /** Return the classpath element's URL */
-    public URL getClasspathElementURL() {
+    public URL getClasspathElementURL(final LogNode log) {
         try {
-            return getClasspathElementFile().toURI().toURL();
+            return getClasspathElementFile(log).toURI().toURL();
         } catch (final MalformedURLException e) {
             // Shouldn't happen; File objects should always be able to be turned into URIs and then URLs
             throw new RuntimeException(e);
@@ -123,9 +123,9 @@ abstract class ClasspathElement {
     }
 
     /** Return the classpath element's file (directory or jarfile) */
-    public File getClasspathElementFile() {
+    public File getClasspathElementFile(final LogNode log) {
         try {
-            return classpathEltPath.getFile();
+            return classpathEltPath.getFile(log);
         } catch (final IOException e) {
             // Shouldn't happen; files have already been screened for IOException during canonicalization
             throw new RuntimeException(e);
@@ -154,9 +154,9 @@ abstract class ClasspathElement {
         String canonicalPath;
         File file;
         try {
-            file = classpathRelativePath.getFile();
-            isDir = classpathRelativePath.isDirectory();
-            canonicalPath = classpathRelativePath.getCanonicalPath();
+            file = classpathRelativePath.getFile(log);
+            isDir = classpathRelativePath.isDirectory(log);
+            canonicalPath = classpathRelativePath.getCanonicalPath(log);
         } catch (final IOException e) {
             if (log != null) {
                 log.log("Exception while trying to canonicalize path " + classpathRelativePath.getResolvedPath(),

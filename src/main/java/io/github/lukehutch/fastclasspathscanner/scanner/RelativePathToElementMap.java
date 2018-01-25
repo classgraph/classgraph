@@ -40,18 +40,15 @@ class RelativePathToElementMap extends SingletonMap<RelativePath, ClasspathEleme
     private final ScanSpec scanSpec;
     private final NestedJarHandler nestedJarHandler;
     private final InterruptionChecker interruptionChecker;
-    private final LogNode log;
     private WorkQueue<RelativePath> workQueue;
 
     /** A map from relative path to classpath element singleton. */
     RelativePathToElementMap(final boolean scanFiles, final ScanSpec scanSpec,
-            final NestedJarHandler nestedJarHandler, final InterruptionChecker interruptionChecker,
-            final LogNode log) {
+            final NestedJarHandler nestedJarHandler, final InterruptionChecker interruptionChecker) {
         this.scanFiles = scanFiles;
         this.scanSpec = scanSpec;
         this.nestedJarHandler = nestedJarHandler;
         this.interruptionChecker = interruptionChecker;
-        this.log = log;
     }
 
     /**
@@ -64,7 +61,7 @@ class RelativePathToElementMap extends SingletonMap<RelativePath, ClasspathEleme
 
     /** Create a new classpath element singleton instance. */
     @Override
-    public ClasspathElement newInstance(final RelativePath classpathElt) {
+    public ClasspathElement newInstance(final RelativePath classpathElt, final LogNode log) {
         return ClasspathElement.newInstance(classpathElt, scanFiles, scanSpec, nestedJarHandler, workQueue,
                 interruptionChecker, log);
     }

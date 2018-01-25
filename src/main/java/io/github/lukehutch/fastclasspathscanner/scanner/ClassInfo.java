@@ -695,7 +695,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
         if (classInfo.classpathElementURLs == null) {
             classInfo.classpathElementURLs = new HashSet<>();
         }
-        classInfo.classpathElementURLs.add(classpathElement.getClasspathElementURL());
+        classInfo.classpathElementURLs.add(classpathElement.getClasspathElementURL(log));
 
         // Remember which classpath element(s) the class was found in, for classloading
         final ClassLoader[] classLoaders = classpathElement.getClassLoaders();

@@ -63,18 +63,17 @@ public class NestedJarHandler {
     private final SingletonMap<String, Entry<File, Set<String>>> nestedPathToJarfileAndRootRelativePathsMap;
     private final SingletonMap<String, Recycler<ZipFile, IOException>> canonicalPathToZipFileRecyclerMap;
     private final InterruptionChecker interruptionChecker;
-    private final LogNode log;
 
     public static final String TEMP_FILENAME_LEAF_SEPARATOR = "---";
 
     public NestedJarHandler(final InterruptionChecker interruptionChecker, final LogNode log) {
         this.interruptionChecker = interruptionChecker;
-        this.log = log;
 
         // Set up a singleton map from canonical path to ZipFile recycler
         this.canonicalPathToZipFileRecyclerMap = new SingletonMap<String, Recycler<ZipFile, IOException>>() {
             @Override
-            public Recycler<ZipFile, IOException> newInstance(final String canonicalPath) throws Exception {
+            public Recycler<ZipFile, IOException> newInstance(final String canonicalPath, final LogNode log)
+                    throws Exception {
                 return new Recycler<ZipFile, IOException>() {
                     @Override
                     public ZipFile newInstance() throws IOException {
@@ -88,7 +87,8 @@ public class NestedJarHandler {
         // the same file when there are multiple jars-within-jars that need unzipping to temporary files. 
         this.nestedPathToJarfileAndRootRelativePathsMap = new SingletonMap<String, Entry<File, Set<String>>>() {
             @Override
-            public Entry<File, Set<String>> newInstance(final String nestedJarPath) throws Exception {
+            public Entry<File, Set<String>> newInstance(final String nestedJarPath, final LogNode log)
+                    throws Exception {
                 final int lastPlingIdx = nestedJarPath.lastIndexOf('!');
                 if (lastPlingIdx < 0) {
                     // nestedJarPath is a simple file path or URL (i.e. doesn't have any '!' sections).
@@ -147,7 +147,7 @@ public class NestedJarHandler {
                         // returned. The recursion is guaranteed to terminate because parentPath gets one
                         // '!'-section shorter with each recursion frame.
                         final Entry<File, Set<String>> parentJarfileAndRootRelativePaths = //
-                                nestedPathToJarfileAndRootRelativePathsMap.getOrCreateSingleton(parentPath);
+                                nestedPathToJarfileAndRootRelativePathsMap.getOrCreateSingleton(parentPath, log);
                         // Only the last item in a '!'-delimited list can be a non-jar path, so the parent
                         // must always be a jarfile.
                         final File parentJarfile = parentJarfileAndRootRelativePaths.getKey();
@@ -162,12 +162,12 @@ public class NestedJarHandler {
                         // recursion if File.getCanonicalFile() is idempotent, which it should be by definition.
                         if (!parentJarfile.getPath().equals(parentPath)) {
                             return nestedPathToJarfileAndRootRelativePathsMap
-                                    .getOrCreateSingleton(parentJarfile.getPath() + "!" + childPath);
+                                    .getOrCreateSingleton(parentJarfile.getPath() + "!" + childPath, log);
                         }
 
                         // Get the ZipFile recycler for the parent jar's canonical path
                         final Recycler<ZipFile, IOException> parentJarRecycler = canonicalPathToZipFileRecyclerMap
-                                .getOrCreateSingleton(parentJarfile.getCanonicalPath());
+                                .getOrCreateSingleton(parentJarfile.getCanonicalPath(), log);
                         ZipFile parentZipFile = null;
                         try {
                             // Look up the child path within the parent zipfile
@@ -194,7 +194,7 @@ public class NestedJarHandler {
                             }
 
                             // Unzip the child zipfile to a temporary file
-                            final File childTempFile = unzipToTempFile(parentZipFile, childZipEntry);
+                            final File childTempFile = unzipToTempFile(parentZipFile, childZipEntry, log);
 
                             // Stop the nested unzipping process if this thread was interrupted,
                             // and notify other threads
@@ -223,9 +223,10 @@ public class NestedJarHandler {
      * 
      * @return The ZipFile recycler.
      */
-    public Recycler<ZipFile, IOException> getZipFileRecycler(final String canonicalPath) throws Exception {
+    public Recycler<ZipFile, IOException> getZipFileRecycler(final String canonicalPath, final LogNode log)
+            throws Exception {
         try {
-            return canonicalPathToZipFileRecyclerMap.getOrCreateSingleton(canonicalPath);
+            return canonicalPathToZipFileRecyclerMap.getOrCreateSingleton(canonicalPath, log);
         } catch (final InterruptedException e) {
             interruptionChecker.interrupt();
             throw e;
@@ -245,9 +246,10 @@ public class NestedJarHandler {
      *         be empty, or may contain strings like "target/classes" or similar). If there was an issue with the
      *         path, returns null.
      */
-    public Entry<File, Set<String>> getInnermostNestedJar(final String nestedJarPath) throws Exception {
+    public Entry<File, Set<String>> getInnermostNestedJar(final String nestedJarPath, final LogNode log)
+            throws Exception {
         try {
-            return nestedPathToJarfileAndRootRelativePathsMap.getOrCreateSingleton(nestedJarPath);
+            return nestedPathToJarfileAndRootRelativePathsMap.getOrCreateSingleton(nestedJarPath, log);
         } catch (final InterruptedException e) {
             interruptionChecker.interrupt();
             throw e;
@@ -290,7 +292,8 @@ public class NestedJarHandler {
      * Unzip a ZipEntry to a temporary file, then return the temporary file. The temporary file will be removed when
      * NestedJarHandler#close() is called.
      */
-    public File unzipToTempFile(final ZipFile zipFile, final ZipEntry zipEntry) throws IOException {
+    public File unzipToTempFile(final ZipFile zipFile, final ZipEntry zipEntry, final LogNode log)
+            throws IOException {
         String zipEntryPath = zipEntry.getName();
         if (zipEntryPath.startsWith("/")) {
             zipEntryPath = zipEntryPath.substring(1);
