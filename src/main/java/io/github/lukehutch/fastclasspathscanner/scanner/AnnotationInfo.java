@@ -42,6 +42,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult.InfoObject;
+import io.github.lukehutch.fastclasspathscanner.utils.TypeParser;
 import io.github.lukehutch.fastclasspathscanner.utils.TypeParser.TypeSignature;
 
 /** Holds metadata about annotations. */
@@ -285,7 +286,8 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
      * Use ReflectionUtils.typeStrToClass() to get a Class<?> reference from this class type string.
      */
     public static class AnnotationClassRef extends InfoObject {
-        private final TypeSignature typeSignature;
+        private final String typeDescriptor;
+        private TypeSignature typeSignature;
         private ScanResult scanResult;
 
         @Override
@@ -293,8 +295,8 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
             this.scanResult = scanResult;
         }
 
-        AnnotationClassRef(final TypeSignature annotationTypeSignature) {
-            this.typeSignature = annotationTypeSignature;
+        AnnotationClassRef(final String classRefTypeDescriptor) {
+            this.typeDescriptor = classRefTypeDescriptor;
         }
 
         /**
@@ -304,6 +306,9 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
          * Use ReflectionUtils.typeStrToClass() to get a Class<?> reference from this class type string.
          */
         public TypeSignature getTypeSignature() {
+            if (typeSignature == null) {
+                typeSignature = TypeParser.parseTypeSignature(typeDescriptor);
+            }
             return typeSignature;
         }
 
@@ -315,17 +320,17 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
          * Use ReflectionUtils.typeStrToClass() to get a Class<?> reference from this class type string.
          */
         public String getTypeStr() {
-            return typeSignature.toString();
+            return getTypeSignature().toString();
         }
 
         /** Get a class reference for a class-reference-typed value used in an annotation parameter. */
         public Class<?> getType() {
-            return typeSignature.instantiate(scanResult);
+            return getTypeSignature().instantiate(scanResult);
         }
 
         @Override
         public int hashCode() {
-            return typeSignature.hashCode();
+            return getTypeSignature().hashCode();
         }
 
         @Override
@@ -333,12 +338,12 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
             if (!(obj instanceof AnnotationClassRef)) {
                 return false;
             }
-            return typeSignature.equals(((AnnotationClassRef) obj).typeSignature);
+            return getTypeSignature().equals(((AnnotationClassRef) obj).getTypeSignature());
         }
 
         @Override
         public String toString() {
-            return typeSignature.toString();
+            return getTypeSignature().toString();
         }
     }
 

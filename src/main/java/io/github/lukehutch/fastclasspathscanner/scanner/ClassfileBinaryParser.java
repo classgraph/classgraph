@@ -42,8 +42,6 @@ import io.github.lukehutch.fastclasspathscanner.scanner.AnnotationInfo.Annotatio
 import io.github.lukehutch.fastclasspathscanner.scanner.AnnotationInfo.AnnotationParamValue;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.MultiMapKeyToSet;
-import io.github.lukehutch.fastclasspathscanner.utils.TypeParser;
-import io.github.lukehutch.fastclasspathscanner.utils.TypeParser.TypeSignature;
 
 /**
  * A classfile binary format parser. Implements its own buffering to avoid the overhead of using DataInputStream.
@@ -521,8 +519,7 @@ class ClassfileBinaryParser implements AutoCloseable {
         case 'c':
             // Return type is AnnotationClassRef (for class references in annotations)
             final String classRefTypeDescriptor = getConstantPoolString(readUnsignedShort());
-            final TypeSignature annotationTypeSignature = TypeParser.parseTypeSignature(classRefTypeDescriptor);
-            return new AnnotationClassRef(annotationTypeSignature);
+            return new AnnotationClassRef(classRefTypeDescriptor);
         case '@':
             // Complex (nested) annotation. Return type is AnnotationInfo.
             return readAnnotation();
