@@ -63,6 +63,8 @@ public class TypeParser {
             return null;
         }
     }
+    
+    // -------------------------------------------------------------------------------------------------------------
 
     /** A type signature for a base type. */
     public static class BaseTypeSignature extends TypeSignature {
@@ -148,6 +150,8 @@ public class TypeParser {
             }
         }
     }
+    
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * A type signature for a reference type. Subclasses are ClassTypeSignature, TypeVariableSignature, and
@@ -178,10 +182,14 @@ public class TypeParser {
             return parseReferenceTypeSignature(parseState);
         }
     }
+    
+    // -------------------------------------------------------------------------------------------------------------
 
     /** A class type or type variable. Subclasses are ClassTypeSignature and TypeVariableSignature. */
     public static abstract class ClassTypeOrTypeVariableSignature extends ReferenceTypeSignature {
     }
+    
+    // -------------------------------------------------------------------------------------------------------------
 
     /** A type argument. */
     public static class TypeArgument {
@@ -279,6 +287,8 @@ public class TypeParser {
             }
         }
     }
+    
+    // -------------------------------------------------------------------------------------------------------------
 
     /** A class type signature. */
     public static class ClassTypeSignature extends ClassTypeOrTypeVariableSignature {
@@ -399,6 +409,8 @@ public class TypeParser {
             }
         }
     }
+    
+    // -------------------------------------------------------------------------------------------------------------
 
     /** A type variable signature. */
     public static class TypeVariableSignature extends ClassTypeOrTypeVariableSignature {
@@ -448,6 +460,8 @@ public class TypeParser {
             }
         }
     }
+    
+    // -------------------------------------------------------------------------------------------------------------
 
     /** An array type. */
     public static class ArrayTypeSignature extends ReferenceTypeSignature {
@@ -518,6 +532,8 @@ public class TypeParser {
             }
         }
     }
+    
+    // -------------------------------------------------------------------------------------------------------------
 
     /** A type parameter. */
     public static class TypeParameter {
@@ -621,6 +637,8 @@ public class TypeParser {
             return typeParams;
         }
     }
+    
+    // -------------------------------------------------------------------------------------------------------------
 
     /** A method signature. */
     public static class MethodSignature {
@@ -789,6 +807,8 @@ public class TypeParser {
                     /* parameterAccessFlags = */ null, /* parameterAnnotationInfo = */ null);
         }
     }
+    
+    // -------------------------------------------------------------------------------------------------------------
 
     /** A class signature. */
     public static class ClassSignature {
@@ -872,6 +892,70 @@ public class TypeParser {
         }
     }
 
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** Convert field or method modifiers into a string representation, e.g. "public static final". */
+    public static String modifiersToString(final int modifiers, final boolean isMethod) {
+        final StringBuilder buf = new StringBuilder();
+        if ((modifiers & Modifier.PUBLIC) != 0) {
+            buf.append("public");
+        } else if ((modifiers & Modifier.PROTECTED) != 0) {
+            buf.append("protected");
+        } else if ((modifiers & Modifier.PRIVATE) != 0) {
+            buf.append("private");
+        }
+        if ((modifiers & Modifier.STATIC) != 0) {
+            if (buf.length() > 0) {
+                buf.append(' ');
+            }
+            buf.append("static");
+        }
+        if ((modifiers & Modifier.ABSTRACT) != 0) {
+            if (buf.length() > 0) {
+                buf.append(' ');
+            }
+            buf.append("abstract");
+        }
+        if ((modifiers & Modifier.SYNCHRONIZED) != 0) {
+            if (buf.length() > 0) {
+                buf.append(' ');
+            }
+            buf.append("synchronized");
+        }
+        if (!isMethod && (modifiers & Modifier.TRANSIENT) != 0) {
+            // TRANSIENT has the same value as VARARGS, since they are mutually exclusive
+            // (TRANSIENT applies only to fields, VARARGS applies only to methods)
+            if (buf.length() > 0) {
+                buf.append(' ');
+            }
+            buf.append("transient");
+        } else if ((modifiers & Modifier.VOLATILE) != 0) {
+            // VOLATILE has the same value as BRIDGE, since they are mutually exclusive
+            // (VOLATILE applies only to fields, BRIDGE applies only to methods)
+            if (buf.length() > 0) {
+                buf.append(' ');
+            }
+            if (!isMethod) {
+                buf.append("volatile");
+            } else {
+                buf.append("bridge");
+            }
+        }
+        if ((modifiers & Modifier.FINAL) != 0) {
+            if (buf.length() > 0) {
+                buf.append(' ');
+            }
+            buf.append("final");
+        }
+        if ((modifiers & Modifier.NATIVE) != 0) {
+            if (buf.length() > 0) {
+                buf.append(' ');
+            }
+            buf.append("native");
+        }
+        return buf.toString();
+    }
+    
     // -------------------------------------------------------------------------------------------------------------
 
     private static class ParseException extends Exception {
@@ -1072,69 +1156,5 @@ public class TypeParser {
             throw new RuntimeException("Unused characters in type signature: " + parseState);
         }
         return typeSignature;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /** Convert field or method modifiers into a string representation, e.g. "public static final". */
-    public static String modifiersToString(final int modifiers, final boolean isMethod) {
-        final StringBuilder buf = new StringBuilder();
-        if ((modifiers & Modifier.PUBLIC) != 0) {
-            buf.append("public");
-        } else if ((modifiers & Modifier.PROTECTED) != 0) {
-            buf.append("protected");
-        } else if ((modifiers & Modifier.PRIVATE) != 0) {
-            buf.append("private");
-        }
-        if ((modifiers & Modifier.STATIC) != 0) {
-            if (buf.length() > 0) {
-                buf.append(' ');
-            }
-            buf.append("static");
-        }
-        if ((modifiers & Modifier.ABSTRACT) != 0) {
-            if (buf.length() > 0) {
-                buf.append(' ');
-            }
-            buf.append("abstract");
-        }
-        if ((modifiers & Modifier.SYNCHRONIZED) != 0) {
-            if (buf.length() > 0) {
-                buf.append(' ');
-            }
-            buf.append("synchronized");
-        }
-        if (!isMethod && (modifiers & Modifier.TRANSIENT) != 0) {
-            // TRANSIENT has the same value as VARARGS, since they are mutually exclusive
-            // (TRANSIENT applies only to fields, VARARGS applies only to methods)
-            if (buf.length() > 0) {
-                buf.append(' ');
-            }
-            buf.append("transient");
-        } else if ((modifiers & Modifier.VOLATILE) != 0) {
-            // VOLATILE has the same value as BRIDGE, since they are mutually exclusive
-            // (VOLATILE applies only to fields, BRIDGE applies only to methods)
-            if (buf.length() > 0) {
-                buf.append(' ');
-            }
-            if (!isMethod) {
-                buf.append("volatile");
-            } else {
-                buf.append("bridge");
-            }
-        }
-        if ((modifiers & Modifier.FINAL) != 0) {
-            if (buf.length() > 0) {
-                buf.append(' ');
-            }
-            buf.append("final");
-        }
-        if ((modifiers & Modifier.NATIVE) != 0) {
-            if (buf.length() > 0) {
-                buf.append(' ');
-            }
-            buf.append("native");
-        }
-        return buf.toString();
     }
 }
