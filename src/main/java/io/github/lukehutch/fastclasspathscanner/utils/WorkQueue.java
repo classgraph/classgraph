@@ -161,8 +161,11 @@ public class WorkQueue<T> implements AutoCloseable {
         // Get next work unit from queue
         while (numWorkUnitsRemaining.get() > 0) {
             T workUnit = null;
+            int counter = 0;
             while (numWorkUnitsRemaining.get() > 0) {
-                interruptionChecker.check();
+                if (++counter > 100000) {
+                    interruptionChecker.check();
+                }
                 // Busy-wait for work units added after the queue is empty, while work units are still being
                 // processed, since the in-process work units may generate other work units.
                 workUnit = workQueue.poll();
@@ -176,6 +179,7 @@ public class WorkQueue<T> implements AutoCloseable {
                 return;
             }
             // Got a work unit -- hold numWorkUnitsRemaining high until work is complete
+            interruptionChecker.check();
             try {
                 // Process the work unit
                 numRunningThreads.incrementAndGet();
@@ -187,6 +191,9 @@ public class WorkQueue<T> implements AutoCloseable {
             } catch (final Exception e) {
                 if (log != null) {
                     log.log("Exception in worker thread", e);
+                }
+                if (e.getCause() instanceof InterruptedException) {
+                    interruptionChecker.interrupt();
                 }
                 throw interruptionChecker.executionException(e);
             } finally {

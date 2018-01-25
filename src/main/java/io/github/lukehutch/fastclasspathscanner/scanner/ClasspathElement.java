@@ -259,7 +259,6 @@ abstract class ClasspathElement {
                         }
                         scanResult.addMatchProcessorException(e);
                     }
-                    interruptionChecker.check();
                 }
             }
             if (subLog != null) {
@@ -307,7 +306,6 @@ abstract class ClasspathElement {
                 // Close classfile InputStream (and any associated ZipEntry); recycle ZipFile if applicable
                 classfileResource.close();
             }
-            interruptionChecker.check();
         }
     }
 

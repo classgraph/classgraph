@@ -36,6 +36,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * has thrown an exception.
  */
 public class InterruptionChecker {
+    private static final long MAX_CHECK_FREQUENCY_NANOS = (long) (0.1 * 1.0e9);
+
+    private long lastCheckTimeNanos = 0L;
     private final AtomicBoolean interrupted = new AtomicBoolean(false);
     private ExecutionException executionException;
 
@@ -49,10 +52,16 @@ public class InterruptionChecker {
      * or has thrown an exception, and if so, return true, else return false.
      */
     public boolean checkAndReturn() {
-        if (Thread.currentThread().isInterrupted()) {
-            interrupt();
+        final long time = System.nanoTime();
+        if (time - lastCheckTimeNanos > MAX_CHECK_FREQUENCY_NANOS) {
+            lastCheckTimeNanos = time;
+            if (Thread.currentThread().isInterrupted()) {
+                interrupt();
+            }
+            return interrupted.get() || executionException != null;
+        } else {
+            return false;
         }
-        return interrupted.get() || executionException != null;
     }
 
     /**

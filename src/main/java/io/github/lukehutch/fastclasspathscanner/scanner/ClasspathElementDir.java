@@ -82,9 +82,8 @@ class ClasspathElementDir extends ClasspathElement {
                         + (path.equals(canonicalPath) ? "" : " ; canonical path: " + canonicalPath));
 
         final HashSet<String> scannedCanonicalPaths = new HashSet<>();
-        final int[] entryIdx = new int[1];
         scanDir(dir, dir, /* ignorePrefixLen = */ dir.getPath().length() + 1, /* inWhitelistedPath = */ false,
-                scannedCanonicalPaths, entryIdx, logNode);
+                scannedCanonicalPaths, logNode);
     }
 
     private ClasspathResource newClasspathResource(final File classpathEltFile,
@@ -130,8 +129,7 @@ class ClasspathElementDir extends ClasspathElement {
 
     /** Recursively scan a directory for file path patterns matching the scan spec. */
     private void scanDir(final File classpathElt, final File dir, final int ignorePrefixLen,
-            final boolean prevInWhitelistedPath, final HashSet<String> scannedCanonicalPaths, final int[] entryIdx,
-            final LogNode log) {
+            final boolean prevInWhitelistedPath, final HashSet<String> scannedCanonicalPaths, final LogNode log) {
         boolean inWhitelistedPath = prevInWhitelistedPath;
         // See if this canonical path has been scanned before, so that recursive scanning doesn't get stuck in an
         // infinite loop due to symlinks
@@ -187,17 +185,12 @@ class ClasspathElementDir extends ClasspathElement {
                 : log.log(canonicalPath, "Scanning subdirectory path: " + dirRelativePath
                         + (dir.getPath().equals(canonicalPath) ? "" : " ; canonical path: " + canonicalPath));
         for (final File fileInDir : filesInDir) {
-            if ((entryIdx[0]++ & 0xff) == 0) {
-                if (interruptionChecker.checkAndReturn()) {
-                    return;
-                }
-            }
             if (fileInDir.isDirectory()) {
                 if (inWhitelistedPath //
                         || matchStatus == ScanSpecPathMatch.ANCESTOR_OF_WHITELISTED_PATH) {
                     // Recurse into subdirectory
                     scanDir(classpathElt, fileInDir, ignorePrefixLen, inWhitelistedPath, scannedCanonicalPaths,
-                            entryIdx, dirLog);
+                            dirLog);
                 }
             } else if (fileInDir.isFile()) {
                 final String fileInDirRelativePath = dirRelativePath.isEmpty() || "/".equals(dirRelativePath)

@@ -544,12 +544,13 @@ public class ScanSpec {
                 classpathElement.callFileMatchProcessors(scanResult, log);
             }
 
+            scanResult.interruptionChecker.check();
+
             // Call any class, interface or annotation MatchProcessors
             if (classMatchers != null) {
                 final LogNode subLog = log == null ? null : log.log("Calling ClassMatchProcessors");
                 for (final ClassMatchProcessorWrapper classMatcher : classMatchers) {
                     classMatcher.lookForMatches(scanResult, subLog);
-                    scanResult.interruptionChecker.check();
                 }
             }
 
@@ -592,7 +593,6 @@ public class ScanSpec {
                                     }
                                     scanResult.addMatchProcessorException(e);
                                 }
-                                scanResult.interruptionChecker.check();
                             }
                         }
                     } else {

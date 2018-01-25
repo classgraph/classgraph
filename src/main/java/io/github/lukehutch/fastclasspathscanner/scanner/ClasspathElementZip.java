@@ -85,10 +85,8 @@ class ClasspathElementZip extends ClasspathElement {
         try {
             zipFileRecycler = nestedJarHandler.getZipFileRecycler(classpathEltZipFile.getPath(), log);
         } catch (final Exception e) {
-            // Stop other threads
-            interruptionChecker.interrupt();
             if (log != null) {
-                log.log("Exception while creating zipfile recycler", e);
+                log.log("Exception while creating zipfile recycler for " + classpathEltZipFile + " : " + e);
             }
             ioExceptionOnOpen = true;
             return;
@@ -263,15 +261,7 @@ class ClasspathElementZip extends ClasspathElement {
         Set<String> loggedNestedClasspathRoots = null;
         String prevParentRelativePath = null;
         ScanSpecPathMatch prevParentMatchStatus = null;
-        int entryIdx = 0;
         for (final Enumeration<? extends ZipEntry> entries = zipFile.entries(); entries.hasMoreElements();) {
-            // Check for interruption every 1024 entries
-            if ((entryIdx++ & 0x3ff) == 0) {
-                if (interruptionChecker.checkAndReturn()) {
-                    return;
-                }
-            }
-
             // Get next ZipEntry
             final ZipEntry zipEntry = entries.nextElement();
 
