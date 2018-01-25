@@ -115,7 +115,7 @@ public class FastManifestParser {
             parseManifest(zipFile, manifestEntry);
         } catch (final IOException e) {
             if (log != null) {
-                log.log("Exception while opening manifest in jarfile " + zipFile, e);
+                log.log("Exception while opening manifest in jarfile " + zipFile + " : " + e);
             }
         }
     }
