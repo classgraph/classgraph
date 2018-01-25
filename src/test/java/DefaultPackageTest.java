@@ -61,5 +61,7 @@ public class DefaultPackageTest {
         assertThat(allClasses).doesNotContain(String.class.getName());
         assertThat(allClasses).contains(BlacklistedSub.class.getName());
         assertThat(allClasses).doesNotContain(ClassInDefaultPackage.class.getName());
+        
+        throw new RuntimeException();
     }
 }
