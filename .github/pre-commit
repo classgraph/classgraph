@@ -1,0 +1,27 @@
+#!/bin/bash
+ 
+# Save the file as <git_directory>/.git/hooks/pre-commit and chmod +x
+
+CWD=`pwd`
+MAIN_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+ECLIPSE=/opt/eclipse/eclipse
+
+# Go to main project dir
+cd $MAIN_DIR/../../
+
+# Run maven test
+MVN_RESULT=$(mvn test 2>&1)
+if [ $? -ne 0 ]; then
+  >&2 echo "Unit test failure"
+  cd $CWD
+  exit 1
+fi
+
+CLEANUP_RESULT==$(${ECLIPSE} -nosplash -application org.eclipse.jdt.core.JavaCodeFormatter -verbose -config .eclipse/code-cleanup-config.xml src 2>&1)
+if [ $? -ne 0 ]; then
+  >&2 echo "Code cleanup failure"
+  cd $CWD
+  exit 1
+fi
+
+cd $CWD
