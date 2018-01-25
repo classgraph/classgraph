@@ -1,25 +1,25 @@
 /*
  * This file is part of FastClasspathScanner.
- * 
+ *
  * Author: Luke Hutchison
- * 
+ *
  * Hosted at: https://github.com/lukehutch/fast-classpath-scanner
- * 
+ *
  * --
  *
  * The MIT License (MIT)
  *
  * Copyright (c) 2016 Luke Hutchison
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
  * limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
  * the Software, and to permit persons to whom the Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in all copies or substantial
  * portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
  * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO
  * EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
@@ -104,23 +104,17 @@ class ClassGraphBuilder {
         }
     }
 
-    /**
-     * Return a sorted list of classes that have a field of the named type.
-     */
+    /** Return a sorted list of classes that have a field of the named type. */
     List<String> getNamesOfClassesWithFieldOfType(final String fieldTypeName) {
         return ClassInfo.getNamesOfClassesWithFieldOfType(fieldTypeName, allClassInfo);
     }
 
-    /**
-     * Return a sorted list of classes that have a method with the named annotation.
-     */
+    /** Return a sorted list of classes that have a method with the named annotation. */
     List<String> getNamesOfClassesWithMethodAnnotation(final String annotationName) {
         return ClassInfo.getNamesOfClassesWithMethodAnnotation(annotationName, allClassInfo);
     }
 
-    /**
-     * Return a sorted list of classes that have a field with the named annotation.
-     */
+    /** Return a sorted list of classes that have a field with the named annotation. */
     List<String> getNamesOfClassesWithFieldAnnotation(final String annotationName) {
         return ClassInfo.getNamesOfClassesWithFieldAnnotation(annotationName, allClassInfo);
     }
@@ -128,16 +122,12 @@ class ClassGraphBuilder {
     // -------------------------------------------------------------------------------------------------------------
     // Interfaces
 
-    /**
-     * Return the sorted unique names of all interface classes found during the scan.
-     */
+    /** Return the sorted unique names of all interface classes found during the scan. */
     List<String> getNamesOfAllInterfaceClasses() {
         return ClassInfo.getNamesOfAllInterfaceClasses(scanSpec, allClassInfo);
     }
 
-    /**
-     * Return the sorted list of names of all subinterfaces of the named interface.
-     */
+    /** Return the sorted list of names of all subinterfaces of the named interface. */
     List<String> getNamesOfSubinterfacesOf(final String interfaceName) {
         final ClassInfo classInfo = classNameToClassInfo.get(interfaceName);
         if (classInfo == null) {
@@ -172,9 +162,7 @@ class ClassGraphBuilder {
     // -------------------------------------------------------------------------------------------------------------
     // Annotations
 
-    /**
-     * Return the sorted unique names of all annotation classes found during the scan.
-     */
+    /** Return the sorted unique names of all annotation classes found during the scan. */
     List<String> getNamesOfAllAnnotationClasses() {
         return ClassInfo.getNamesOfAllAnnotationClasses(scanSpec, allClassInfo);
     }
@@ -192,9 +180,7 @@ class ClassGraphBuilder {
         }
     }
 
-    /**
-     * Return the sorted list of names of all annotations and meta-annotations on the named class.
-     */
+    /** Return the sorted list of names of all annotations and meta-annotations on the named class. */
     List<String> getNamesOfAnnotationsOnClass(final String classOrInterfaceOrAnnotationName) {
         final ClassInfo classInfo = classNameToClassInfo.get(classOrInterfaceOrAnnotationName);
         if (classInfo == null) {

@@ -1,25 +1,25 @@
 /*
  * This file is part of FastClasspathScanner.
- * 
+ *
  * Author: Luke Hutchison
- * 
+ *
  * Hosted at: https://github.com/lukehutch/fast-classpath-scanner
- * 
+ *
  * --
  *
  * The MIT License (MIT)
  *
  * Copyright (c) 2016 Luke Hutchison
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
  * limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
  * the Software, and to permit persons to whom the Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in all copies or substantial
  * portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
  * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO
  * EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
@@ -70,7 +70,8 @@ class ClassfileBinaryParser implements AutoCloseable {
     /**
      * Buffer size for initial read. We can save some time by reading most of the classfile header in a single read
      * at the beginning of the scan.
-     * 
+     *
+     * <p>
      * (If chunk sizes are too small, significant overhead is expended in refilling the buffer. If they are too
      * large, significant overhead is expended in decompressing more of the classfile header than is needed. Testing
      * on a large classpath indicates that the defaults are reasonably optimal.)
@@ -80,9 +81,7 @@ class ClassfileBinaryParser implements AutoCloseable {
     /** Buffer size for classfile reader. */
     private static final int SUBSEQUENT_BUFFER_CHUNK_SIZE = 4096;
 
-    /**
-     * Bytes read from the beginning of the classfile. This array is reused across calls.
-     */
+    /** Bytes read from the beginning of the classfile. This array is reused across calls. */
     private byte[] buf = new byte[INITIAL_BUFFER_CHUNK_SIZE];
 
     /** The current read index in the classfileBytes array. */
@@ -140,9 +139,7 @@ class ClassfileBinaryParser implements AutoCloseable {
         return buf[curr++] & 0xff;
     }
 
-    /**
-     * Read an unsigned byte from the buffer at a specific offset before the current read point.
-     */
+    /** Read an unsigned byte from the buffer at a specific offset before the current read point. */
     @SuppressWarnings("unused")
     private int readUnsignedByte(final int offset) {
         return buf[offset] & 0xff;
@@ -158,9 +155,7 @@ class ClassfileBinaryParser implements AutoCloseable {
         return val;
     }
 
-    /**
-     * Read an unsigned short from the buffer at a specific offset before the current read point.
-     */
+    /** Read an unsigned short from the buffer at a specific offset before the current read point. */
     private int readUnsignedShort(final int offset) {
         return ((buf[offset] & 0xff) << 8) | (buf[offset + 1] & 0xff);
     }
@@ -176,9 +171,7 @@ class ClassfileBinaryParser implements AutoCloseable {
         return val;
     }
 
-    /**
-     * Read an int from the buffer at a specific offset before the current read point.
-     */
+    /** Read an int from the buffer at a specific offset before the current read point. */
     private int readInt(final int offset) throws IOException {
         return ((buf[offset] & 0xff) << 24) | ((buf[offset + 1] & 0xff) << 16) | ((buf[offset + 2] & 0xff) << 8)
                 | (buf[offset + 3] & 0xff);
@@ -197,9 +190,7 @@ class ClassfileBinaryParser implements AutoCloseable {
         return val;
     }
 
-    /**
-     * Read a long from the buffer at a specific offset before the current read point.
-     */
+    /** Read a long from the buffer at a specific offset before the current read point. */
     private long readLong(final int offset) throws IOException {
         return (((long) (((buf[offset] & 0xff) << 24) | ((buf[offset + 1] & 0xff) << 16)
                 | ((buf[offset + 2] & 0xff) << 8) | (buf[offset + 3] & 0xff))) << 32)
@@ -306,7 +297,7 @@ class ClassfileBinaryParser implements AutoCloseable {
 
     /**
      * Get the byte offset within the buffer of a string from the constant pool, or 0 for a null string.
-     * 
+     *
      * @param cpIdx
      *            the constant pool index
      * @param subFieldIdx
@@ -366,7 +357,7 @@ class ClassfileBinaryParser implements AutoCloseable {
 
     /**
      * Get a string from the constant pool.
-     * 
+     *
      * @param cpIdx
      *            the constant pool index
      * @param subFieldIdx
@@ -555,10 +546,12 @@ class ClassfileBinaryParser implements AutoCloseable {
 
     /**
      * Find non-blacklisted type names in the given type descriptor, and add them to the set of field types.
-     * 
+     *
+     * <p>
      * Splits a type param into type pieces, e.g. "Ljava/util/Map<+Lcom/xyz/fig/shape/Shape;Ljava/lang/Integer;>;"
      * => "java/util/Map", "com/xyz/fig/shape/Shape", "java/lang/Integer".
-     * 
+     *
+     * <p>
      * Also removes array prefixes, e.g. "[[[Lcom.xyz.Widget" -> "com.xyz.Widget".
      */
     private void addFieldTypeDescriptorParts(final ClassInfoUnlinked classInfoUnlinked,
@@ -592,7 +585,7 @@ class ClassfileBinaryParser implements AutoCloseable {
      * Directly examine contents of classfile binary header to determine annotations, implemented interfaces, the
      * super-class etc. Creates a new ClassInfo object, and adds it to classNameToClassInfoOut. Assumes classpath
      * masking has already been performed, so that only one class of a given name will be added.
-     * 
+     *
      * @throws InterruptedException
      *             if the operation was interrupted.
      */

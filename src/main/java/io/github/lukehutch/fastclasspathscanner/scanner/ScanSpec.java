@@ -1,25 +1,25 @@
 /*
  * This file is part of FastClasspathScanner.
- * 
+ *
  * Author: Luke Hutchison
- * 
+ *
  * Hosted at: https://github.com/lukehutch/fast-classpath-scanner
- * 
+ *
  * --
  *
  * The MIT License (MIT)
  *
  * Copyright (c) 2016 Luke Hutchison
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
  * limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
  * the Software, and to permit persons to whom the Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in all copies or substantial
  * portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
  * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO
  * EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
@@ -215,14 +215,10 @@ public class ScanSpec {
         return classNameToStaticFinalFieldsToMatch;
     }
 
-    /**
-     * A list of class matchers to call once all classes have been read in from classpath.
-     */
+    /** A list of class matchers to call once all classes have been read in from classpath. */
     private ArrayList<ClassMatchProcessorWrapper> classMatchers;
 
-    /**
-     * A list of file path testers and match processor wrappers to use for file matching.
-     */
+    /** A list of file path testers and match processor wrappers to use for file matching. */
     private final List<FileMatchProcessorWrapper> fileMatchProcessorWrappers = new ArrayList<>();
 
     // -------------------------------------------------------------------------------------------------------------
@@ -478,7 +474,7 @@ public class ScanSpec {
 
     /**
      * Register an extra ClassLoaderHandler.
-     * 
+     *
      * @param classLoaderHandler
      *            The class of the ClassLoaderHandler that can handle those ClassLoaders.
      */
@@ -535,20 +531,15 @@ public class ScanSpec {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /**
-     * Return true if any MatchProcessors have been added.
-     */
+    /** Return true if any MatchProcessors have been added. */
     public boolean hasMatchProcessors() {
         return (fileMatchProcessorWrappers != null && fileMatchProcessorWrappers.size() > 0)
                 || (classMatchers != null && classMatchers.size() > 0)
                 || (fullyQualifiedFieldNameToStaticFinalFieldMatchProcessors != null
                         && !fullyQualifiedFieldNameToStaticFinalFieldMatchProcessors.isEmpty());
-
     }
 
-    /**
-     * Run the MatchProcessors after a scan has completed.
-     */
+    /** Run the MatchProcessors after a scan has completed. */
     public void callMatchProcessors(final ScanResult scanResult) {
         final LogNode log = scanResult.log;
         try {
@@ -730,9 +721,7 @@ public class ScanSpec {
                 && !specificallyBlacklistedClassRelativePaths.contains(relativePath));
     }
 
-    /**
-     * Returns true if the class is specifically blacklisted, or is within a blacklisted package.
-     */
+    /** Returns true if the class is specifically blacklisted, or is within a blacklisted package. */
     boolean classIsBlacklisted(final String className) {
         boolean classIsBlacklisted = false;
         if (specificallyBlacklistedClassNames.contains(className)) {
@@ -748,9 +737,7 @@ public class ScanSpec {
         return classIsBlacklisted;
     }
 
-    /**
-     * Checks that the named class is not blacklisted. Throws IllegalArgumentException otherwise.
-     */
+    /** Checks that the named class is not blacklisted. Throws IllegalArgumentException otherwise. */
     void checkClassIsNotBlacklisted(final String className) {
         if (strictWhitelist && classIsBlacklisted(className)) {
             final boolean isSystemPackage = className.startsWith("java.") || className.startsWith("javax.")
@@ -767,9 +754,7 @@ public class ScanSpec {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /**
-     * Test if a list of jar names contains the requested name, allowing for globs.
-     */
+    /** Test if a list of jar names contains the requested name, allowing for globs. */
     private static boolean containsJarName(final Set<String> jarNames, final List<Pattern> jarNamePatterns,
             final String jarName) {
         final String jarLeafName = JarUtils.leafName(jarName);
@@ -806,7 +791,7 @@ public class ScanSpec {
     /**
      * Call the classloader using Class.forName(className, initializeLoadedClasses, classLoader), for all known
      * ClassLoaders, until one is able to load the class, or until there are no more ClassLoaders to try.
-     * 
+     *
      * @throw MatchProcessorException if LinkageError (including ExceptionInInitializerError) is thrown.
      * @return a reference to the loaded class, or null if the class could not be loaded by its ClassLoader(s).
      */
@@ -930,7 +915,7 @@ public class ScanSpec {
     /**
      * Calls the provided ClassMatchProcessor for all standard classes, interfaces and annotations found in
      * whitelisted packages on the classpath.
-     * 
+     *
      * @param classMatchProcessor
      *            the ClassMatchProcessor to call when a match is found.
      */
@@ -964,7 +949,7 @@ public class ScanSpec {
     /**
      * Calls the provided ClassMatchProcessor for all standard classes (i.e. non-interface, non-annotation classes)
      * found in whitelisted packages on the classpath.
-     * 
+     *
      * @param classMatchProcessor
      *            the ClassMatchProcessor to call when a match is found.
      */
@@ -998,7 +983,7 @@ public class ScanSpec {
     /**
      * Calls the provided ClassMatchProcessor for all interface classes (interface definitions) found in whitelisted
      * packages on the classpath.
-     * 
+     *
      * @param classMatchProcessor
      *            the ClassMatchProcessor to call when a match is found.
      */
@@ -1032,7 +1017,7 @@ public class ScanSpec {
     /**
      * Calls the provided ClassMatchProcessor for all annotation classes (annotation definitions) found in
      * whitelisted packages on the classpath.
-     * 
+     *
      * @param classMatchProcessor
      *            the ClassMatchProcessor to call when a match is found.
      */
@@ -1068,7 +1053,7 @@ public class ScanSpec {
     /**
      * Calls the provided SubclassMatchProcessor if classes are found on the classpath that extend the specified
      * superclass.
-     * 
+     *
      * @param superclass
      *            The superclass to match (i.e. the class that subclasses need to extend to match).
      * @param subclassMatchProcessor
@@ -1110,7 +1095,7 @@ public class ScanSpec {
     /**
      * Calls the provided SubinterfaceMatchProcessor if an interface that extends a given superinterface is found on
      * the classpath.
-     * 
+     *
      * @param superinterface
      *            The superinterface to match (i.e. the interface that subinterfaces need to extend to match).
      * @param subinterfaceMatchProcessor
@@ -1152,7 +1137,7 @@ public class ScanSpec {
     /**
      * Calls the provided InterfaceMatchProcessor for classes on the classpath that implement the specified
      * interface or a subinterface, or whose superclasses implement the specified interface or a sub-interface.
-     * 
+     *
      * @param implementedInterface
      *            The interface that classes need to implement.
      * @param implementingClassMatchProcessor
@@ -1197,7 +1182,7 @@ public class ScanSpec {
      * Calls the provided ClassMatchProcessor for classes on the classpath that have a field of the given type.
      * Matches classes that have fields of the given type, array fields with an element type of the given type, and
      * fields of parameterized type that have a type parameter of the given type.
-     * 
+     *
      * @param fieldType
      *            The type of the field to match..
      * @param classMatchProcessor
@@ -1237,7 +1222,7 @@ public class ScanSpec {
     /**
      * Calls the provided ClassAnnotationMatchProcessor if classes are found on the classpath that have the
      * specified annotation.
-     * 
+     *
      * @param annotation
      *            The class annotation to match.
      * @param classAnnotationMatchProcessor
@@ -1279,7 +1264,7 @@ public class ScanSpec {
     /**
      * Calls the provided MethodAnnotationMatchProcessor if classes are found on the classpath that have one or more
      * methods with the specified annotation.
-     * 
+     *
      * @param annotation
      *            The method annotation to match.
      * @param methodAnnotationMatchProcessor
@@ -1356,7 +1341,7 @@ public class ScanSpec {
     /**
      * Calls the provided FieldAnnotationMatchProcessor if classes are found on the classpath that have one or more
      * fields with the specified annotation.
-     * 
+     *
      * @param annotation
      *            The method annotation to match.
      * @param fieldAnnotationMatchProcessor
@@ -1430,18 +1415,21 @@ public class ScanSpec {
      * Calls the given StaticFinalFieldMatchProcessor if classes are found on the classpath that contain static
      * final fields that match one of a set of fully-qualified field names, e.g.
      * "com.package.ClassName.STATIC_FIELD_NAME".
-     * 
+     *
+     * <p>
      * Field values are obtained from the constant pool in classfiles, not from a loaded class using reflection.
      * This allows you to detect changes to the classpath and then run another scan that picks up the new values of
      * selected static constants without reloading the class. (Class reloading is fraught with issues, see:
      * http://tutorials.jenkov.com/java-reflection/dynamic-class-loading-reloading.html )
-     * 
+     *
+     * <p>
      * Note: Only static final fields with constant-valued literals are matched, not fields with initializer values
      * that are the result of an expression or reference, except for cases where the compiler is able to simplify an
      * expression into a single constant at compiletime, such as in the case of string concatenation.
-     * 
+     *
+     * <p>
      * Note that the visibility of the fields is not checked if ignoreFieldVisibility() was called before scan().
-     * 
+     *
      * @param fullyQualifiedStaticFinalFieldNames
      *            The set of fully-qualified static field names to match.
      * @param staticFinalFieldMatchProcessor
@@ -1462,18 +1450,21 @@ public class ScanSpec {
     /**
      * Calls the given StaticFinalFieldMatchProcessor if classes are found on the classpath that contain static
      * final fields that match a fully-qualified field name, e.g. "com.package.ClassName.STATIC_FIELD_NAME".
-     * 
+     *
+     * <p>
      * Field values are obtained from the constant pool in classfiles, *not* from a loaded class using reflection.
      * This allows you to detect changes to the classpath and then run another scan that picks up the new values of
      * selected static constants without reloading the class. (Class reloading is fraught with issues, see:
      * http://tutorials.jenkov.com/java-reflection/dynamic-class-loading-reloading.html )
-     * 
+     *
+     * <p>
      * Note: Only static final fields with constant-valued literals are matched, not fields with initializer values
      * that are the result of an expression or reference, except for cases where the compiler is able to simplify an
      * expression into a single constant at compiletime, such as in the case of string concatenation.
-     * 
+     *
+     * <p>
      * Note that the visibility of the fields is not checked if ignoreFieldVisibility() was called before scan().
-     * 
+     *
      * @param fullyQualifiedStaticFinalFieldName
      *            The fully-qualified static field name to match
      * @param staticFinalFieldMatchProcessor
@@ -1490,18 +1481,21 @@ public class ScanSpec {
      * Calls the given StaticFinalFieldMatchProcessor if classes are found on the classpath that contain static
      * final fields that match one of a list of fully-qualified field names, e.g.
      * "com.package.ClassName.STATIC_FIELD_NAME".
-     * 
+     *
+     * <p>
      * Field values are obtained from the constant pool in classfiles, *not* from a loaded class using reflection.
      * This allows you to detect changes to the classpath and then run another scan that picks up the new values of
      * selected static constants without reloading the class. (Class reloading is fraught with issues, see:
      * http://tutorials.jenkov.com/java-reflection/dynamic-class-loading-reloading.html )
-     * 
+     *
+     * <p>
      * Note: Only static final fields with constant-valued literals are matched, not fields with initializer values
      * that are the result of an expression or reference, except for cases where the compiler is able to simplify an
      * expression into a single constant at compiletime, such as in the case of string concatenation.
-     * 
+     *
+     * <p>
      * Note that the visibility of the fields is not checked if ignoreFieldVisibility() was called before scan().
-     * 
+     *
      * @param fullyQualifiedStaticFinalFieldNames
      *            The list of fully-qualified static field names to match.
      * @param staticFinalFieldMatchProcessor
@@ -1527,7 +1521,7 @@ public class ScanSpec {
     /**
      * Calls the given FileMatchProcessor if files are found on the classpath with the given regexp pattern in their
      * path.
-     * 
+     *
      * @param pathRegexp
      *            The regexp to match, e.g. "app/templates/.*\\.html"
      * @param fileMatchProcessor
@@ -1554,7 +1548,7 @@ public class ScanSpec {
     /**
      * Calls the given FileMatchProcessor if files are found on the classpath that exactly match the given relative
      * path.
-     * 
+     *
      * @param relativePathToMatch
      *            The complete path to match relative to the classpath entry, e.g.
      *            "app/templates/WidgetTemplate.html"
@@ -1581,7 +1575,7 @@ public class ScanSpec {
     /**
      * Calls the given FileMatchProcessor if files are found on the classpath that exactly match the given path
      * leafname.
-     * 
+     *
      * @param pathLeafToMatch
      *            The complete path leaf to match, e.g. "WidgetTemplate.html"
      * @param fileMatchProcessor
@@ -1609,7 +1603,7 @@ public class ScanSpec {
 
     /**
      * Calls the given FileMatchProcessor if files are found on the classpath that have the given file extension.
-     * 
+     *
      * @param extensionToMatch
      *            The extension to match, e.g. "html" matches "WidgetTemplate.html" and "WIDGET.HTML".
      * @param fileMatchProcessor

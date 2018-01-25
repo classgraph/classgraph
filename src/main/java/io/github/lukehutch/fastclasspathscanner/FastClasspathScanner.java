@@ -1,25 +1,25 @@
 /*
  * This file is part of FastClasspathScanner.
- * 
+ *
  * Author: Luke Hutchison
- * 
+ *
  * Hosted at: https://github.com/lukehutch/fast-classpath-scanner
- * 
+ *
  * --
  *
  * The MIT License (MIT)
  *
  * Copyright (c) 2016 Luke Hutchison
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
  * limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
  * the Software, and to permit persons to whom the Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in all copies or substantial
  * portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
  * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO
  * EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
@@ -68,9 +68,11 @@ import io.github.lukehutch.fastclasspathscanner.utils.VersionFinder;
  * Uber-fast, ultra-lightweight Java classpath scanner. Scans the classpath by parsing the classfile binary format
  * directly rather than by using reflection. (Reflection causes the classloader to load each class, which can take
  * an order of magnitude more time than parsing the classfile directly.)
- * 
+ *
+ * <p>
  * Documentation:
- * 
+ *
+ * <p>
  * https://github.com/lukehutch/fast-classpath-scanner/wiki
  */
 public class FastClasspathScanner {
@@ -105,15 +107,18 @@ public class FastClasspathScanner {
     /**
      * Construct a FastClasspathScanner instance. You can pass a scanning specification to the constructor to
      * describe what should be scanned -- see the docs for info:
-     * 
+     *
+     * <p>
      * https://github.com/lukehutch/fast-classpath-scanner/wiki/2.-Constructor
-     * 
+     *
+     * <p>
      * The scanSpec, if non-empty, prevents irrelevant classpath entries from being unecessarily scanned, which can
      * be time-consuming.
-     * 
+     *
+     * <p>
      * Note that calling the constructor does not start the scan, you must separately call .scan() to perform the
      * actual scan.
-     * 
+     *
      * @param scanSpec
      *            The constructor accepts a list of whitelisted package prefixes / jar names to scan, as well as
      *            blacklisted packages/jars not to scan, where blacklisted entries are prefixed with the '-'
@@ -153,7 +158,7 @@ public class FastClasspathScanner {
     /**
      * Switches on verbose mode for debugging purposes if verbose == true. Call immediately after calling the
      * constructor if you want full log output. Prints debug info to System.err.
-     * 
+     *
      * @param verbose
      *            Whether or not to give verbose output.
      * @return this (for method chaining).
@@ -172,7 +177,7 @@ public class FastClasspathScanner {
     /**
      * Switches on verbose mode for debugging purposes. Call immediately after calling the constructor if you want
      * full log output. Prints debug info to System.err.
-     * 
+     *
      * @return this (for method chaining).
      */
     public FastClasspathScanner verbose() {
@@ -185,7 +190,7 @@ public class FastClasspathScanner {
      * private, package-private and protected fields. This affects finding classes with fields of a given type, as
      * well as matching static final fields with constant initializers, and saving FieldInfo for the class. If
      * false, fields must be public to be indexed/matched.
-     * 
+     *
      * @param ignoreFieldVisibility
      *            Whether or not to ignore the field visibility modifier.
      * @return this (for method chaining).
@@ -200,7 +205,7 @@ public class FastClasspathScanner {
      * package-private and protected fields. This affects finding classes with fields of a given type, as well as
      * matching static final fields with constant initializers, and saving FieldInfo for the class. If false, fields
      * must be public to be indexed/matched.
-     * 
+     *
      * @return this (for method chaining).
      */
     public FastClasspathScanner ignoreFieldVisibility() {
@@ -213,7 +218,7 @@ public class FastClasspathScanner {
      * see private, package-private and protected methods. This affects finding classes that have methods with a
      * given annotation, and also the saving of MethodInfo for the class. If false, methods must be public for the
      * containing classes to be indexed/matched.
-     * 
+     *
      * @param ignoreMethodVisibility
      *            Whether or not to ignore the method visibility modifier.
      * @return this (for method chaining).
@@ -228,7 +233,7 @@ public class FastClasspathScanner {
      * package-private and protected methods. This affects finding classes that have methods with a given
      * annotation, and also the saving of MethodInfo for the class. If false, methods must be public for the
      * containing classes to be indexed/matched.
-     * 
+     *
      * @return this (for method chaining).
      */
     public FastClasspathScanner ignoreMethodVisibility() {
@@ -241,7 +246,7 @@ public class FastClasspathScanner {
      * ScanResult#getClassesWithFieldsOfType(type). (If you add a field type match processor, this method is called
      * for you.) Field type indexing is disabled by default, because it is expensive in terms of time (adding ~10%
      * to the scan time) and memory, and it is not needed for most uses of FastClasspathScanner.
-     * 
+     *
      * @param enableFieldTypeIndexing
      *            Whether or not to enable field type indexing.
      * @return this (for method chaining).
@@ -256,7 +261,7 @@ public class FastClasspathScanner {
      * add a field type match processor, this method is called for you.) Field type indexing is disabled by default,
      * because it is expensive in terms of time (adding ~10% to the scan time) and memory, and it is not needed for
      * most uses of FastClasspathScanner.
-     * 
+     *
      * @return this (for method chaining).
      */
     public FastClasspathScanner enableFieldTypeIndexing() {
@@ -269,7 +274,7 @@ public class FastClasspathScanner {
      * ScanResult#getNamesOfClassesWithMethodAnnotation(annotation). (If you add a method annotation match
      * processor, this method is called for you.) Method annotation indexing is disabled by default, because it is
      * expensive in terms of time, and it is not needed for most uses of FastClasspathScanner.
-     * 
+     *
      * @param enableMethodAnnotationIndexing
      *            Whether or not to enable method annotation indexing.
      * @return this (for method chaining).
@@ -284,7 +289,7 @@ public class FastClasspathScanner {
      * ScanResult#getNamesOfClassesWithMethodAnnotation(annotation). (If you add a method annotation match
      * processor, this method is called for you.) Method annotation indexing is disabled by default, because it is
      * expensive in terms of time, and it is not needed for most uses of FastClasspathScanner.
-     * 
+     *
      * @return this (for method chaining).
      */
     public FastClasspathScanner enableMethodAnnotationIndexing() {
@@ -297,7 +302,7 @@ public class FastClasspathScanner {
      * ScanResult#getNamesOfClassesWithFieldAnnotation(annotation). (If you add a method annotation match processor,
      * this method is called for you.) Method annotation indexing is disabled by default, because it is expensive in
      * terms of time, and it is not needed for most uses of FastClasspathScanner.
-     * 
+     *
      * @return this (for method chaining).
      */
     public FastClasspathScanner enableFieldAnnotationIndexing(final boolean enableFieldAnnotationIndexing) {
@@ -310,7 +315,7 @@ public class FastClasspathScanner {
      * ScanResult#getNamesOfClassesWithFieldAnnotation(annotation). (If you add a method annotation match processor,
      * this method is called for you.) Method annotation indexing is disabled by default, because it is expensive in
      * terms of time, and it is not needed for most uses of FastClasspathScanner.
-     * 
+     *
      * @return this (for method chaining).
      */
     public FastClasspathScanner enableFieldAnnotationIndexing() {
@@ -322,7 +327,7 @@ public class FastClasspathScanner {
      * If enableFieldInfo is true, enables the saving of field info during the scan. This information can be
      * obtained using ClassInfo#getFieldInfo(). By default, field info is not saved, because enabling this option
      * will cause the scan to take somewhat longer and potentially consume a lot more memory.
-     * 
+     *
      * @param enableFieldInfo
      *            If true, save field info while scanning. (Default false.)
      * @return this (for method chaining).
@@ -336,7 +341,7 @@ public class FastClasspathScanner {
      * Enables the saving of field info during the scan. This information can be obtained using
      * ClassInfo#getFieldInfo(). By default, field info is not saved, because enabling this option will cause the
      * scan to take somewhat longer and potentially consume a lot more memory.
-     * 
+     *
      * @return this (for method chaining).
      */
     public FastClasspathScanner enableFieldInfo() {
@@ -347,7 +352,7 @@ public class FastClasspathScanner {
      * If enableMethodInfo is true, enables the saving of method info during the scan. This information can be
      * obtained using ClassInfo#getMethodInfo(). By default, method info is not saved, because enabling this option
      * will cause the scan to take somewhat longer and potentially consume a lot more memory.
-     * 
+     *
      * @param enableMethodInfo
      *            If true, save method info while scanning. (Default false.)
      * @return this (for method chaining).
@@ -361,7 +366,7 @@ public class FastClasspathScanner {
      * Enables the saving of method info during the scan. This information can be obtained using
      * ClassInfo#getMethodInfo(). By default, method info is not saved, because enabling this option will cause the
      * scan to take somewhat longer and potentially consume a lot more memory.
-     * 
+     *
      * @return this (for method chaining).
      */
     public FastClasspathScanner enableMethodInfo() {
@@ -373,7 +378,7 @@ public class FastClasspathScanner {
      * whitelisted. This is needed because if you add the package name "" to the whitelist, that package and all
      * sub-packages will be scanned, which means everything will be scanned. This method makes it possible to
      * whitelist just the toplevel (default) package but not its sub-packages.
-     * 
+     *
      * @param alwaysScanClasspathElementRoot
      *            If true, always scan the classpath element root, regardless of the whitelist or blacklist.
      * @return this (for method chaining).
@@ -394,7 +399,7 @@ public class FastClasspathScanner {
      * whitelisted. This is needed because if you add the package name "" to the whitelist, that package and all
      * sub-packages will be scanned, which means everything will be scanned. This method makes it possible to
      * whitelist just the toplevel (default) package but not its sub-packages.
-     * 
+     *
      * @return this (for method chaining).
      */
     public FastClasspathScanner alwaysScanClasspathElementRoot() {
@@ -406,11 +411,13 @@ public class FastClasspathScanner {
      * based on blacklisted classes, and removes "external" classes from result lists returned by ScanSpec#get...()
      * methods. (External classes are classes outside of whitelisted packages that are directly referred to by
      * classes within whitelisted packages as a superclass, implemented interface or annotation.)
-     * 
+     *
+     * <p>
      * See the following for info on external classes, and strict mode vs. non-strict mode:
-     * 
+     *
+     * <p>
      * https://github.com/lukehutch/fast-classpath-scanner/wiki/2.-Constructor#external-classes
-     * 
+     *
      * @param strictWhitelist
      *            Whether or not to switch to strict mode.
      * @return this (for method chaining).
@@ -425,11 +432,13 @@ public class FastClasspathScanner {
      * classes, and removes "external" classes from result lists returned by ScanSpec#get...() methods. (External
      * classes are classes outside of whitelisted packages that are directly referred to by classes within
      * whitelisted packages as a superclass, implemented interface or annotation.)
-     * 
+     *
+     * <p>
      * See the following for info on external classes, and strict mode vs. non-strict mode:
-     * 
+     *
+     * <p>
      * https://github.com/lukehutch/fast-classpath-scanner/wiki/2.-Constructor#external-classes
-     * 
+     *
      * @return this (for method chaining).
      */
     public FastClasspathScanner strictWhitelist() {
@@ -442,7 +451,7 @@ public class FastClasspathScanner {
      * references to MatchProcessors. If false (the default), matched classes are loaded but not initialized before
      * passing class references to MatchProcessors (meaning classes are instead initialized lazily on first usage of
      * the class).
-     * 
+     *
      * @param initializeLoadedClasses
      *            Whether or not to initialize classes before passing class references to MatchProcessors. (The
      *            default value is false.)
@@ -457,12 +466,13 @@ public class FastClasspathScanner {
      * If true (the default), nested jarfiles (jarfiles within jarfiles, which have to be extracted during scanning
      * in order to be read) are removed from their temporary directory after the scan has completed. If false,
      * temporary files are only removed on JVM exit.
-     * 
+     *
+     * <p>
      * This method should be called if you need to access nested jarfiles (e.g. from a Spring classpath) after
      * scanning has completed. In particular, if you use ClasspathUtils.getClasspathResourceURL() in a
      * FileMatchProcessor and you need to use the returned URLs after scanning has completed, then you should call
      * FastClasspathScanner#removeTemporaryFilesAfterScan(false) before calling scan().
-     * 
+     *
      * @param removeTemporaryFilesAfterScan
      *            Whether or not to remove temporary files after scanning. (The default value is true.)
      * @return this (for method chaining).
@@ -476,7 +486,7 @@ public class FastClasspathScanner {
      * Disable recursive scanning. Causes only toplevel entries within each whitelisted package to be scanned, i.e.
      * sub-packages of whitelisted packages will not be scanned. If no whitelisted packages were provided to the
      * constructor, then only the toplevel directory within each classpath element will be scanned.
-     * 
+     *
      * @return this (for method chaining).
      */
     public FastClasspathScanner disableRecursiveScanning() {
@@ -488,7 +498,7 @@ public class FastClasspathScanner {
      * scanned, i.e. sub-packages of whitelisted packages will not be scanned. If no whitelisted packages were
      * provided to the constructor, then only the toplevel directory within each classpath element will be scanned.
      * If false (the default), whitelisted paths and their subdirectories will be scanned.
-     * 
+     *
      * @param disableRecursiveScanning
      *            Whether or not to disable recursive scanning. (The default value is false.)
      * @return this (for method chaining).
@@ -503,9 +513,10 @@ public class FastClasspathScanner {
     /**
      * Register an extra ClassLoaderHandler. Needed if FastClasspathScanner doesn't know how to extract classpath
      * entries from your runtime environment's ClassLoader. See:
-     * 
+     *
+     * <p>
      * https://github.com/lukehutch/fast-classpath-scanner/wiki/4.-Working-with-nonstandard-ClassLoaders
-     * 
+     *
      * @param classLoaderHandlerClass
      *            The ClassLoaderHandler class to register.
      * @return this (for method chaining).
@@ -519,10 +530,11 @@ public class FastClasspathScanner {
     /**
      * Override the automatically-detected classpath with a custom path, with path elements separated by
      * File.pathSeparatorChar. Causes system ClassLoaders and the java.class.path system property to be ignored.
-     * 
+     *
+     * <p>
      * If this method is called, nothing but the provided classpath will be scanned, i.e. this causes ClassLoaders
      * to be ignored, as well as the java.class.path system property.
-     * 
+     *
      * @param overrideClasspath
      *            The custom classpath to use for scanning, with path elements separated by File.pathSeparatorChar.
      * @return this (for method chaining).
@@ -536,10 +548,11 @@ public class FastClasspathScanner {
      * Override the automatically-detected classpath with a custom path. Causes system ClassLoaders and the
      * java.class.path system property to be ignored. Works for Iterables of any type whose toString() method
      * resolves to a classpath element string, e.g. String, File or Path.
-     * 
+     *
+     * <p>
      * If this method is called, nothing but the provided classpath will be scanned, i.e. this causes ClassLoaders
      * to be ignored, as well as the java.class.path system property.
-     * 
+     *
      * @param overrideClasspathElements
      *            The custom classpath to use for scanning, with path elements separated by File.pathSeparatorChar.
      * @return this (for method chaining).
@@ -557,7 +570,7 @@ public class FastClasspathScanner {
      * Override the automatically-detected classpath with a custom path. Causes system ClassLoaders and the
      * java.class.path system property to be ignored. Works for arrays of any member type whose toString() method
      * resolves to a classpath element string, e.g. String, File or Path.
-     * 
+     *
      * @param overrideClasspathElements
      *            The custom classpath to use for scanning, with path elements separated by File.pathSeparatorChar.
      * @return this (for method chaining).
@@ -573,12 +586,14 @@ public class FastClasspathScanner {
 
     /**
      * Add a ClassLoader to the list of ClassLoaders to scan.
-     * 
+     *
+     * <p>
      * This call is ignored if overrideClasspath() is also called, or if this method is called before
      * overrideClassLoaders().
-     * 
+     *
+     * <p>
      * This call is ignored if overrideClasspath() is called.
-     * 
+     *
      * @param classLoader
      *            The additional ClassLoader to scan.
      * @return this (for method chaining).
@@ -590,9 +605,10 @@ public class FastClasspathScanner {
 
     /**
      * Completely override (and ignore) system ClassLoaders and the java.class.path system property.
-     * 
+     *
+     * <p>
      * This call is ignored if overrideClasspath() is called.
-     * 
+     *
      * @param overrideClassLoaders
      *            The ClassLoaders to scan instead of the automatically-detected ClassLoaders.
      * @return this (for method chaining).
@@ -607,9 +623,10 @@ public class FastClasspathScanner {
     /**
      * Ignore parent classloaders (i.e. only obtain paths to scan from classloader(s), do not also fetch paths from
      * parent classloader(s)).
-     * 
+     *
+     * <p>
      * This call is ignored if overrideClasspath() is called.
-     * 
+     *
      * @param ignoreParentClassLoaders
      *            If true, do not fetch paths from parent classloaders.
      * @return this (for method chaining).
@@ -622,9 +639,10 @@ public class FastClasspathScanner {
     /**
      * Ignore parent classloaders (i.e. only obtain paths to scan from classloader(s), do not also fetch paths from
      * parent classloader(s)).
-     * 
+     *
+     * <p>
      * This call is ignored if overrideClasspath() is called.
-     * 
+     *
      * @return this (for method chaining).
      */
     public FastClasspathScanner ignoreParentClassLoaders() {
@@ -639,15 +657,15 @@ public class FastClasspathScanner {
      * classes in the current context. Uses the technique described by <a href=
      * "http://www.javaworld.com/article/2077344/core-java/find-a-way-out-of-the-classloader-maze.html">Vladimir
      * Roubtsov</a>.
-     * 
+     *
      * <p>
      * Generally this will return exactly one ClassLoader, but if it returns more than one, the classloaders are
      * listed in the order they should be called in until one of them is able to load the named class. If you can
      * call only one ClassLoader, use the first element of the list.
-     * 
+     *
      * <p>
      * If you have overridden the ClassLoader(s), then the override ClassLoader(s) will be returned instead.
-     * 
+     *
      * @return A list of one or more ClassLoaders, out of the system ClassLoader, the current classloader, or the
      *         context classloader (or the override ClassLoaders, if ClassLoaders have been overridden).
      */
@@ -660,7 +678,7 @@ public class FastClasspathScanner {
     /**
      * Calls the provided ClassMatchProcessor for all standard classes, interfaces and annotations found in
      * whitelisted packages on the classpath.
-     * 
+     *
      * @param classMatchProcessor
      *            the ClassMatchProcessor to call when a match is found.
      * @return this (for method chaining).
@@ -673,7 +691,7 @@ public class FastClasspathScanner {
     /**
      * Calls the provided ClassMatchProcessor for all standard classes (i.e. non-interface, non-annotation classes)
      * found in whitelisted packages on the classpath.
-     * 
+     *
      * @param standardClassMatchProcessor
      *            the ClassMatchProcessor to call when a match is found.
      * @return this (for method chaining).
@@ -686,7 +704,7 @@ public class FastClasspathScanner {
     /**
      * Calls the provided ClassMatchProcessor for all interface classes (interface definitions) found in whitelisted
      * packages on the classpath.
-     * 
+     *
      * @param interfaceClassMatchProcessor
      *            the ClassMatchProcessor to call when a match is found.
      * @return this (for method chaining).
@@ -699,7 +717,7 @@ public class FastClasspathScanner {
     /**
      * Calls the provided ClassMatchProcessor for all annotation classes (annotation definitions) found in
      * whitelisted packages on the classpath.
-     * 
+     *
      * @param annotationClassMatchProcessor
      *            the ClassMatchProcessor to call when a match is found.
      * @return this (for method chaining).
@@ -714,7 +732,7 @@ public class FastClasspathScanner {
     /**
      * Calls the provided SubclassMatchProcessor if classes are found on the classpath that extend the specified
      * superclass.
-     * 
+     *
      * @param superclass
      *            The superclass to match (i.e. the class that subclasses need to extend to match).
      * @param subclassMatchProcessor
@@ -732,7 +750,7 @@ public class FastClasspathScanner {
     /**
      * Calls the provided SubinterfaceMatchProcessor if an interface that extends a given superinterface is found on
      * the classpath.
-     * 
+     *
      * @param superinterface
      *            The superinterface to match (i.e. the interface that subinterfaces need to extend to match).
      * @param subinterfaceMatchProcessor
@@ -750,7 +768,7 @@ public class FastClasspathScanner {
     /**
      * Calls the provided InterfaceMatchProcessor for classes on the classpath that implement the specified
      * interface or a subinterface, or whose superclasses implement the specified interface or a sub-interface.
-     * 
+     *
      * @param implementedInterface
      *            The interface that classes need to implement.
      * @param interfaceMatchProcessor
@@ -769,9 +787,10 @@ public class FastClasspathScanner {
      * Calls the provided ClassMatchProcessor for classes on the classpath that have a field of the given type.
      * Matches classes that have fields of the given type, array fields with an element type of the given type, and
      * fields of parameterized type that have a type parameter of the given type.
-     * 
+     *
+     * <p>
      * Calls enableFieldTypeIndexing() for you.
-     * 
+     *
      * @param fieldType
      *            The type of the field to match..
      * @param classMatchProcessor
@@ -790,7 +809,7 @@ public class FastClasspathScanner {
     /**
      * Calls the provided ClassAnnotationMatchProcessor if classes are found on the classpath that have the
      * specified annotation.
-     * 
+     *
      * @param annotation
      *            The class annotation to match.
      * @param classAnnotationMatchProcessor
@@ -808,9 +827,10 @@ public class FastClasspathScanner {
     /**
      * Calls the provided MethodAnnotationMatchProcessor if classes are found on the classpath that have one or more
      * methods with the specified annotation.
-     * 
+     *
+     * <p>
      * Calls enableMethodAnnotationIndexing() for you.
-     * 
+     *
      * @param annotation
      *            The method annotation to match.
      * @param methodAnnotationMatchProcessor
@@ -829,9 +849,10 @@ public class FastClasspathScanner {
     /**
      * Calls the provided FieldAnnotationMatchProcessor if classes are found on the classpath that have one or more
      * fields with the specified annotation.
-     * 
+     *
+     * <p>
      * Calls enableFieldAnnotationIndexing() for you.
-     * 
+     *
      * @param annotation
      *            The field annotation to match.
      * @param fieldAnnotationMatchProcessor
@@ -849,7 +870,7 @@ public class FastClasspathScanner {
 
     /**
      * Set annotation visibility (to match the annotation retention policy).
-     * 
+     *
      * @param annotationVisibility
      *            The annotation visibility: RetentionPolicy.RUNTIME matches only runtime-visible annotations. The
      *            default value, RetentionPolicy.CLASS, matches all annotations (both runtime-visible and
@@ -871,18 +892,21 @@ public class FastClasspathScanner {
      * Calls the given StaticFinalFieldMatchProcessor if classes are found on the classpath that contain static
      * final fields that match one of a set of fully-qualified field names, e.g.
      * "com.package.ClassName.STATIC_FIELD_NAME".
-     * 
+     *
+     * <p>
      * Field values are obtained from the constant pool in classfiles, not from a loaded class using reflection.
      * This allows you to detect changes to the classpath and then run another scan that picks up the new values of
      * selected static constants without reloading the class. (Class reloading is fraught with issues, see:
      * http://tutorials.jenkov.com/java-reflection/dynamic-class-loading-reloading.html )
-     * 
+     *
+     * <p>
      * Note: Only static final fields with constant-valued literals are matched, not fields with initializer values
      * that are the result of an expression or reference, except for cases where the compiler is able to simplify an
      * expression into a single constant at compiletime, such as in the case of string concatenation.
-     * 
+     *
+     * <p>
      * Note that the visibility of the fields is not checked if ignoreFieldVisibility() was called before scan().
-     * 
+     *
      * @param fullyQualifiedStaticFinalFieldNames
      *            The set of fully-qualified static field names to match.
      * @param staticFinalFieldMatchProcessor
@@ -899,18 +923,21 @@ public class FastClasspathScanner {
     /**
      * Calls the given StaticFinalFieldMatchProcessor if classes are found on the classpath that contain static
      * final fields that match a fully-qualified field name, e.g. "com.package.ClassName.STATIC_FIELD_NAME".
-     * 
+     *
+     * <p>
      * Field values are obtained from the constant pool in classfiles, *not* from a loaded class using reflection.
      * This allows you to detect changes to the classpath and then run another scan that picks up the new values of
      * selected static constants without reloading the class. (Class reloading is fraught with issues, see:
      * http://tutorials.jenkov.com/java-reflection/dynamic-class-loading-reloading.html )
-     * 
+     *
+     * <p>
      * Note: Only static final fields with constant-valued literals are matched, not fields with initializer values
      * that are the result of an expression or reference, except for cases where the compiler is able to simplify an
      * expression into a single constant at compiletime, such as in the case of string concatenation.
-     * 
+     *
+     * <p>
      * Note that the visibility of the fields is not checked if ignoreFieldVisibility() was called before scan().
-     * 
+     *
      * @param fullyQualifiedStaticFinalFieldName
      *            The fully-qualified static field name to match
      * @param staticFinalFieldMatchProcessor
@@ -928,18 +955,21 @@ public class FastClasspathScanner {
      * Calls the given StaticFinalFieldMatchProcessor if classes are found on the classpath that contain static
      * final fields that match one of a list of fully-qualified field names, e.g.
      * "com.package.ClassName.STATIC_FIELD_NAME".
-     * 
+     *
+     * <p>
      * Field values are obtained from the constant pool in classfiles, *not* from a loaded class using reflection.
      * This allows you to detect changes to the classpath and then run another scan that picks up the new values of
      * selected static constants without reloading the class. (Class reloading is fraught with issues, see:
      * http://tutorials.jenkov.com/java-reflection/dynamic-class-loading-reloading.html )
-     * 
+     *
+     * <p>
      * Note: Only static final fields with constant-valued literals are matched, not fields with initializer values
      * that are the result of an expression or reference, except for cases where the compiler is able to simplify an
      * expression into a single constant at compiletime, such as in the case of string concatenation.
-     * 
+     *
+     * <p>
      * Note that the visibility of the fields is not checked if ignoreFieldVisibility() was called before scan().
-     * 
+     *
      * @param fullyQualifiedStaticFinalFieldNames
      *            The list of fully-qualified static field names to match.
      * @param staticFinalFieldMatchProcessor
@@ -958,7 +988,7 @@ public class FastClasspathScanner {
     /**
      * Calls the given FilenameMatchProcessor if files are found on the classpath with the given regexp pattern in
      * their path.
-     * 
+     *
      * @param pathRegexp
      *            The regexp to match, e.g. "app/templates/.*\\.html"
      * @param filenameMatchProcessor
@@ -974,7 +1004,7 @@ public class FastClasspathScanner {
     /**
      * Calls the given FileMatchProcessor if files are found on the classpath with the given regexp pattern in their
      * path.
-     * 
+     *
      * @param pathRegexp
      *            The regexp to match, e.g. "app/templates/.*\\.html"
      * @param fileMatchProcessor
@@ -990,7 +1020,7 @@ public class FastClasspathScanner {
     /**
      * Calls the given FileMatchContentsProcessor if files are found on the classpath with the given regexp pattern
      * in their path.
-     * 
+     *
      * @param pathRegexp
      *            The regexp to match, e.g. "app/templates/.*\\.html"
      * @param fileMatchContentsProcessor
@@ -1006,7 +1036,7 @@ public class FastClasspathScanner {
     /**
      * Calls the given FileMatchProcessorWithContext if files are found on the classpath with the given regexp
      * pattern in their path.
-     * 
+     *
      * @param pathRegexp
      *            The regexp to match, e.g. "app/templates/.*\\.html"
      * @param fileMatchProcessorWithContext
@@ -1022,7 +1052,7 @@ public class FastClasspathScanner {
     /**
      * Calls the given FileMatchContentsProcessorWithContext if files are found on the classpath with the given
      * regexp pattern in their path.
-     * 
+     *
      * @param pathRegexp
      *            The regexp to match, e.g. "app/templates/.*\\.html"
      * @param fileMatchContentsProcessorWithContext
@@ -1040,7 +1070,7 @@ public class FastClasspathScanner {
     /**
      * Calls the given FilenameMatchProcessor if files are found on the classpath that exactly match the given
      * relative path.
-     * 
+     *
      * @param relativePathToMatch
      *            The complete path to match relative to the classpath entry, e.g.
      *            "app/templates/WidgetTemplate.html"
@@ -1057,7 +1087,7 @@ public class FastClasspathScanner {
     /**
      * Calls the given FileMatchProcessor if files are found on the classpath that exactly match the given relative
      * path.
-     * 
+     *
      * @param relativePathToMatch
      *            The complete path to match relative to the classpath entry, e.g.
      *            "app/templates/WidgetTemplate.html"
@@ -1074,7 +1104,7 @@ public class FastClasspathScanner {
     /**
      * Calls the given FileMatchContentsProcessor if files are found on the classpath that exactly match the given
      * relative path.
-     * 
+     *
      * @param relativePathToMatch
      *            The complete path to match relative to the classpath entry, e.g.
      *            "app/templates/WidgetTemplate.html"
@@ -1091,7 +1121,7 @@ public class FastClasspathScanner {
     /**
      * Calls the given FileMatchProcessorWithContext if files are found on the classpath that exactly match the
      * given relative path.
-     * 
+     *
      * @param relativePathToMatch
      *            The complete path to match relative to the classpath entry, e.g.
      *            "app/templates/WidgetTemplate.html"
@@ -1108,7 +1138,7 @@ public class FastClasspathScanner {
     /**
      * Calls the given FileMatchContentsProcessorWithContext if files are found on the classpath that exactly match
      * the given relative path.
-     * 
+     *
      * @param relativePathToMatch
      *            The complete path to match relative to the classpath entry, e.g.
      *            "app/templates/WidgetTemplate.html"
@@ -1127,7 +1157,7 @@ public class FastClasspathScanner {
     /**
      * Calls the given FilenameMatchProcessor if files are found on the classpath that exactly match the given path
      * leafname.
-     * 
+     *
      * @param pathLeafToMatch
      *            The complete path leaf to match, e.g. "WidgetTemplate.html"
      * @param filenameMatchProcessor
@@ -1143,7 +1173,7 @@ public class FastClasspathScanner {
     /**
      * Calls the given FileMatchProcessor if files are found on the classpath that exactly match the given path
      * leafname.
-     * 
+     *
      * @param pathLeafToMatch
      *            The complete path leaf to match, e.g. "WidgetTemplate.html"
      * @param fileMatchProcessor
@@ -1159,7 +1189,7 @@ public class FastClasspathScanner {
     /**
      * Calls the given FileMatchContentsProcessor if files are found on the classpath that exactly match the given
      * path leafname.
-     * 
+     *
      * @param pathLeafToMatch
      *            The complete path leaf to match, e.g. "WidgetTemplate.html"
      * @param fileMatchContentsProcessor
@@ -1175,7 +1205,7 @@ public class FastClasspathScanner {
     /**
      * Calls the given FileMatchProcessorWithContext if files are found on the classpath that exactly match the
      * given path leafname.
-     * 
+     *
      * @param pathLeafToMatch
      *            The complete path leaf to match, e.g. "WidgetTemplate.html"
      * @param fileMatchProcessorWithContext
@@ -1191,7 +1221,7 @@ public class FastClasspathScanner {
     /**
      * Calls the given FileMatchContentsProcessorWithContext if files are found on the classpath that exactly match
      * the given path leafname.
-     * 
+     *
      * @param pathLeafToMatch
      *            The complete path leaf to match, e.g. "WidgetTemplate.html"
      * @param fileMatchContentsProcessorWithContext
@@ -1209,7 +1239,7 @@ public class FastClasspathScanner {
     /**
      * Calls the given FilenameMatchProcessor if files are found on the classpath that have the given file
      * extension.
-     * 
+     *
      * @param extensionToMatch
      *            The extension to match, e.g. "html" matches "WidgetTemplate.html" and "WIDGET.HTML".
      * @param filenameMatchProcessor
@@ -1224,7 +1254,7 @@ public class FastClasspathScanner {
 
     /**
      * Calls the given FileMatchProcessor if files are found on the classpath that have the given file extension.
-     * 
+     *
      * @param extensionToMatch
      *            The extension to match, e.g. "html" matches "WidgetTemplate.html" and "WIDGET.HTML".
      * @param fileMatchProcessor
@@ -1239,7 +1269,7 @@ public class FastClasspathScanner {
 
     /**
      * Calls the given FileMatchProcessor if files are found on the classpath that have the given file extension.
-     * 
+     *
      * @param extensionToMatch
      *            The extension to match, e.g. "html" matches "WidgetTemplate.html".
      * @param fileMatchContentsProcessor
@@ -1255,7 +1285,7 @@ public class FastClasspathScanner {
     /**
      * Calls the given FileMatchProcessorWithContext if files are found on the classpath that have the given file
      * extension.
-     * 
+     *
      * @param extensionToMatch
      *            The extension to match, e.g. "html" matches "WidgetTemplate.html" and "WIDGET.HTML".
      * @param fileMatchProcessorWithContext
@@ -1271,7 +1301,7 @@ public class FastClasspathScanner {
     /**
      * Calls the given FileMatchProcessorWithContext if files are found on the classpath that have the given file
      * extension.
-     * 
+     *
      * @param extensionToMatch
      *            The extension to match, e.g. "html" matches "WidgetTemplate.html".
      * @param fileMatchContentsProcessorWithContext
@@ -1289,7 +1319,7 @@ public class FastClasspathScanner {
     /**
      * Asynchronously scans the classpath for matching files, and if scanResultProcessor is non-null, also calls any
      * MatchProcessors if a match is identified.
-     * 
+     *
      * @param executorService
      *            A custom ExecutorService to use for scheduling worker tasks.
      * @param numParallelTasks
@@ -1305,7 +1335,6 @@ public class FastClasspathScanner {
      *            If non-null, specifies a callback to run if an exception is thrown during an asynchronous scan. If
      *            a FailureHandler is provided and an exception is thrown, the resulting Future's get() method will
      *            return null rather than throwing an ExecutionException.
-     * 
      * @return a Future<ScanResult> object, that when resolved using get() yields a new ScanResult object. You can
      *         call cancel(true) on this Future if you want to interrupt the scan.
      */
@@ -1364,7 +1393,7 @@ public class FastClasspathScanner {
     /**
      * Asynchronously scans the classpath for matching files, and if runAsynchronously is true, also calls any
      * MatchProcessors if a match is identified.
-     * 
+     *
      * @param executorService
      *            A custom ExecutorService to use for scheduling worker tasks.
      * @param numParallelTasks
@@ -1410,7 +1439,7 @@ public class FastClasspathScanner {
     /**
      * Asynchronously scans the classpath for matching files, and if runAsynchronously is true, also calls any
      * MatchProcessors if a match is identified.
-     * 
+     *
      * @param executorService
      *            A custom ExecutorService to use for scheduling worker tasks.
      * @param numParallelTasks
@@ -1443,13 +1472,15 @@ public class FastClasspathScanner {
      * result of the returned Future. Uses the provided ExecutorService, and divides the work according to the
      * requested degree of parallelism. This method should be called after all required MatchProcessors have been
      * added.
-     * 
+     *
+     * <p>
      * Note on thread safety: MatchProcessors are all run on a separate thread from the thread that calls this
      * method (although the MatchProcessors are all run on one thread). You will need to add your own
      * synchronization logic if MatchProcessors interact with the main thread. See the following for more info:
-     * 
+     *
+     * <p>
      * https://github.com/lukehutch/fast-classpath-scanner/wiki/1.-Usage#multithreading-issues
-     * 
+     *
      * @param executorService
      *            A custom ExecutorService to use for scheduling worker tasks.
      * @param numParallelTasks
@@ -1472,7 +1503,7 @@ public class FastClasspathScanner {
      * provided ExecutorService, and divides the work according to the requested degree of parallelism. Blocks and
      * waits for the scan to complete before returning a ScanResult. This method should be called after all required
      * MatchProcessors have been added.
-     * 
+     *
      * @param executorService
      *            A custom ExecutorService to use for scheduling worker tasks. This ExecutorService should start
      *            tasks in FIFO order to avoid a deadlock during scan, i.e. be sure to construct the ExecutorService
@@ -1550,7 +1581,7 @@ public class FastClasspathScanner {
      * starts up a new fixed thread pool for scanning, with the requested number of threads. Blocks and waits for
      * the scan to complete before returning a ScanResult. This method should be called after all required
      * MatchProcessors have been added.
-     * 
+     *
      * @param numThreads
      *            The number of worker threads to start up.
      * @throws MatchProcessorException
@@ -1576,7 +1607,7 @@ public class FastClasspathScanner {
      * starts up a new fixed thread pool for scanning, with the default number of threads. Blocks and waits for the
      * scan to complete before returning a ScanResult. This method should be called after all required
      * MatchProcessors have been added.
-     * 
+     *
      * @throws MatchProcessorException
      *             if classloading fails for any of the classes matched by a MatchProcessor, or if a MatchProcessor
      *             throws an exception.
@@ -1599,19 +1630,22 @@ public class FastClasspathScanner {
      * Asynchronously returns the list of all unique File objects representing directories or zip/jarfiles on the
      * classpath, in classloader resolution order. Classpath elements that do not exist are not included in the
      * list.
-     * 
+     *
+     * <p>
      * See the following for info on thread safety:
-     * 
+     *
+     * <p>
      * https://github.com/lukehutch/fast-classpath-scanner/wiki/1.-Usage#multithreading-issues
-     * 
-     * Note that if there are nested jarfiles on the classpath, e.g.
-     * {@code file:///path/to/jar1.jar!/path/to/jar2.jar}, then both FastClasspathScanner#scanAsync() and
+     *
+     * <p>
+     * Note that if there are nested jarfiles on the classpath, e.g. {@code
+     * file:///path/to/jar1.jar!/path/to/jar2.jar}, then both FastClasspathScanner#scanAsync() and
      * FastClasspathScanner#getUniqueClasspathElementsAsync() will cause jar2.jar to be extracted to a temporary
      * file, however FastClasspathScanner#getUniqueClasspathElementsAsync() will not remove this temporary file
      * after the scan (so that the file is still accessible to the caller -- each of the File objects in the
      * returned list of classpath elements should exist). These extracted temporary files are marked for deletion on
      * JVM exit, however.
-     * 
+     *
      * @param executorService
      *            A custom ExecutorService to use for scheduling worker tasks.
      * @param numParallelTasks
@@ -1659,15 +1693,16 @@ public class FastClasspathScanner {
      * classloader resolution order. Classpath elements that do not exist are not included in the list. Blocks until
      * the result can be returned, when all classpath elements have been found and tested to see if they exist in
      * the filesystem.
-     * 
-     * Note that if there are nested jarfiles on the classpath, e.g.
-     * {@code file:///path/to/jar1.jar!/path/to/jar2.jar}, then both FastClasspathScanner#scan() and
+     *
+     * <p>
+     * Note that if there are nested jarfiles on the classpath, e.g. {@code
+     * file:///path/to/jar1.jar!/path/to/jar2.jar}, then both FastClasspathScanner#scan() and
      * FastClasspathScanner#getUniqueClasspathElements() will cause jar2.jar to be extracted to a temporary file,
      * however FastClasspathScanner#getUniqueClasspathElements() will not remove this temporary file after the scan
      * (so that the file is still accessible to the caller -- each of the File objects in the returned list of
      * classpath elements should exist). These extracted temporary files are marked for deletion on JVM exit,
      * however.
-     * 
+     *
      * @param executorService
      *            A custom ExecutorService to use for scheduling worker tasks.
      * @param numParallelTasks
@@ -1710,15 +1745,16 @@ public class FastClasspathScanner {
      * classloader resolution order. Classpath elements that do not exist are not included in the list. Blocks until
      * the result can be returned, when all classpath elements have been found and tested to see if they exist in
      * the filesystem.
-     * 
-     * Note that if there are nested jarfiles on the classpath, e.g.
-     * {@code file:///path/to/jar1.jar!/path/to/jar2.jar}, then both FastClasspathScanner#scan() and
+     *
+     * <p>
+     * Note that if there are nested jarfiles on the classpath, e.g. {@code
+     * file:///path/to/jar1.jar!/path/to/jar2.jar}, then both FastClasspathScanner#scan() and
      * FastClasspathScanner#getUniqueClasspathElements() will cause jar2.jar to be extracted to a temporary file,
      * however FastClasspathScanner#getUniqueClasspathElements() will not remove this temporary file after the scan
      * (so that the file is still accessible to the caller -- each of the File objects in the returned list of
      * classpath elements should exist). These extracted temporary files are marked for deletion on JVM exit,
      * however.
-     * 
+     *
      * @throws ScanInterruptedException
      *             if any of the worker threads are interrupted during the scan (shouldn't happen under normal
      *             circumstances).
@@ -1740,15 +1776,16 @@ public class FastClasspathScanner {
      * classpath string, delineated with the standard path separator character. Classpath elements that do not exist
      * are not included in the path. Blocks until the result can be returned, when all classpath elements have been
      * found and tested to see if they exist in the filesystem.
-     * 
-     * Note that if there are nested jarfiles on the classpath, e.g.
-     * {@code file:///path/to/jar1.jar!/path/to/jar2.jar}, then both FastClasspathScanner#scan() and
+     *
+     * <p>
+     * Note that if there are nested jarfiles on the classpath, e.g. {@code
+     * file:///path/to/jar1.jar!/path/to/jar2.jar}, then both FastClasspathScanner#scan() and
      * FastClasspathScanner#getUniqueClasspathElements() will cause jar2.jar to be extracted to a temporary file,
      * however FastClasspathScanner#getUniqueClasspathElements() will not remove this temporary file after the scan
      * (so that the file is still accessible to the caller -- each of the File objects in the returned list of
      * classpath elements should exist). These extracted temporary files are marked for deletion on JVM exit,
      * however.
-     * 
+     *
      * @throws ScanInterruptedException
      *             if any of the worker threads are interrupted during the scan (shouldn't happen under normal
      *             circumstances).
@@ -1762,19 +1799,22 @@ public class FastClasspathScanner {
     /**
      * Asynchronously returns the list of all unique URLs representing directories or zip/jarfiles on the classpath,
      * in classloader resolution order. Classpath elements that do not exist are not included in the list.
-     * 
+     *
+     * <p>
      * See the following for info on thread safety:
-     * 
+     *
+     * <p>
      * https://github.com/lukehutch/fast-classpath-scanner/wiki/1.-Usage#multithreading-issues
-     * 
-     * Note that if there are nested jarfiles on the classpath, e.g.
-     * {@code file:///path/to/jar1.jar!/path/to/jar2.jar}, then both FastClasspathScanner#scanAsync() and
+     *
+     * <p>
+     * Note that if there are nested jarfiles on the classpath, e.g. {@code
+     * file:///path/to/jar1.jar!/path/to/jar2.jar}, then both FastClasspathScanner#scanAsync() and
      * FastClasspathScanner#getUniqueClasspathElementsAsync() will cause jar2.jar to be extracted to a temporary
      * file, however FastClasspathScanner#getUniqueClasspathElementURLsAsync() will not remove this temporary file
      * after the scan (so that the file is still accessible to the caller -- each of the File objects in the
      * returned list of classpath elements should exist). These extracted temporary files are marked for deletion on
      * JVM exit, however.
-     * 
+     *
      * @param executorService
      *            A custom ExecutorService to use for scheduling worker tasks.
      * @param numParallelTasks
@@ -1823,15 +1863,16 @@ public class FastClasspathScanner {
      * classloader resolution order. Classpath elements that do not exist are not included in the list. Blocks until
      * the result can be returned, when all classpath elements have been found and tested to see if they exist in
      * the filesystem.
-     * 
-     * Note that if there are nested jarfiles on the classpath, e.g.
-     * {@code file:///path/to/jar1.jar!/path/to/jar2.jar}, then both FastClasspathScanner#scan() and
+     *
+     * <p>
+     * Note that if there are nested jarfiles on the classpath, e.g. {@code
+     * file:///path/to/jar1.jar!/path/to/jar2.jar}, then both FastClasspathScanner#scan() and
      * FastClasspathScanner#getUniqueClasspathElements() will cause jar2.jar to be extracted to a temporary file,
      * however FastClasspathScanner#getUniqueClasspathElementURLs() will not remove this temporary file after the
      * scan (so that the file is still accessible to the caller -- each of the File objects in the returned list of
      * classpath elements should exist). These extracted temporary files are marked for deletion on JVM exit,
      * however.
-     * 
+     *
      * @param executorService
      *            A custom ExecutorService to use for scheduling worker tasks.
      * @param numParallelTasks
@@ -1874,15 +1915,16 @@ public class FastClasspathScanner {
      * classloader resolution order. Classpath elements that do not exist are not included in the list. Blocks until
      * the result can be returned, when all classpath elements have been found and tested to see if they exist in
      * the filesystem.
-     * 
-     * Note that if there are nested jarfiles on the classpath, e.g.
-     * {@code file:///path/to/jar1.jar!/path/to/jar2.jar}, then both FastClasspathScanner#scan() and
+     *
+     * <p>
+     * Note that if there are nested jarfiles on the classpath, e.g. {@code
+     * file:///path/to/jar1.jar!/path/to/jar2.jar}, then both FastClasspathScanner#scan() and
      * FastClasspathScanner#getUniqueClasspathElements() will cause jar2.jar to be extracted to a temporary file,
      * however FastClasspathScanner#getUniqueClasspathElementURLs() will not remove this temporary file after the
      * scan (so that the file is still accessible to the caller -- each of the File objects in the returned list of
      * classpath elements should exist). These extracted temporary files are marked for deletion on JVM exit,
      * however.
-     * 
+     *
      * @throws ScanInterruptedException
      *             if any of the worker threads are interrupted during the scan (shouldn't happen under normal
      *             circumstances).

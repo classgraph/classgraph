@@ -1,25 +1,25 @@
 /*
  * This file is part of FastClasspathScanner.
- * 
+ *
  * Author: Luke Hutchison
- * 
+ *
  * Hosted at: https://github.com/lukehutch/fast-classpath-scanner
- * 
+ *
  * --
  *
  * The MIT License (MIT)
  *
  * Copyright (c) 2016 Luke Hutchison
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
  * limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
  * the Software, and to permit persons to whom the Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in all copies or substantial
  * portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
  * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO
  * EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
@@ -43,7 +43,7 @@ public class TypeParser {
      * A type signature for a reference type or base type. Subclasses are ReferenceTypeSignature
      * (ClassTypeSignature, TypeVariableSignature, or ArrayTypeSignature) and BaseTypeSignature.
      */
-    public static abstract class TypeSignature {
+    public abstract static class TypeSignature {
         /**
          * Instantiate the type signature into a class reference. The ScanResult is used to ensure the correct
          * classloader is used to load the class.
@@ -157,7 +157,7 @@ public class TypeParser {
      * A type signature for a reference type. Subclasses are ClassTypeSignature, TypeVariableSignature, and
      * ArrayTypeSignature.
      */
-    public static abstract class ReferenceTypeSignature extends TypeSignature {
+    public abstract static class ReferenceTypeSignature extends TypeSignature {
         private static ReferenceTypeSignature parseReferenceTypeSignature(final ParseState parseState)
                 throws ParseException {
             final ClassTypeSignature classTypeSignature = ClassTypeSignature.parseClassTypeSignature(parseState);
@@ -186,10 +186,8 @@ public class TypeParser {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /**
-     * A class type or type variable. Subclasses are ClassTypeSignature and TypeVariableSignature.
-     */
-    public static abstract class ClassTypeOrTypeVariableSignature extends ReferenceTypeSignature {
+    /** A class type or type variable. Subclasses are ClassTypeSignature and TypeVariableSignature. */
+    public abstract static class ClassTypeOrTypeVariableSignature extends ReferenceTypeSignature {
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -899,9 +897,7 @@ public class TypeParser {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /**
-     * Convert field or method modifiers into a string representation, e.g. "public static final".
-     */
+    /** Convert field or method modifiers into a string representation, e.g. "public static final". */
     public static String modifiersToString(final int modifiers, final boolean isMethod) {
         final StringBuilder buf = new StringBuilder();
         if ((modifiers & Modifier.PUBLIC) != 0) {
@@ -1113,7 +1109,8 @@ public class TypeParser {
 
     /**
      * Parse a class signature.
-     * 
+     *
+     * <p>
      * TODO this is not currently used -- I don't know where this is even used in the classfile format. The JVMS
      * spec section 4.7.9.1 states "A class signature encodes type information about a (possibly generic) class
      * declaration."

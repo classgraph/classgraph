@@ -1,25 +1,25 @@
 /*
  * This file is part of FastClasspathScanner.
- * 
+ *
  * Author: Luke Hutchison
- * 
+ *
  * Hosted at: https://github.com/lukehutch/fast-classpath-scanner
- * 
+ *
  * --
  *
  * The MIT License (MIT)
  *
  * Copyright (c) 2016 Luke Hutchison
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
  * limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
  * the Software, and to permit persons to whom the Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in all copies or substantial
  * portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
  * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO
  * EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
@@ -34,10 +34,12 @@ import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 
 /**
  * A ClassLoader handler.
- * 
+ *
+ * <p>
  * Custom ClassLoaderHandlers can be registered by listing their fully-qualified class name in the file:
  * META-INF/services/io.github.lukehutch.fastclasspathscanner.scanner.classloaderhandler.ClassLoaderHandler
- * 
+ *
+ * <p>
  * However, if you do create a custom ClassLoaderHandler, please consider submitting a patch upstream for
  * incorporation into FastClasspathScanner.
  */
@@ -65,7 +67,7 @@ public interface ClassLoaderHandler {
      * it), and if it can, extract the classpath elements from the ClassLoader and register them with the
      * ClasspathFinder using classpathFinder.addClasspathElement(pathElement) or
      * classpathFinder.addClasspathElements(path).
-     * 
+     *
      * @param scanSpec
      *            the scanning specification, in case it is needed, e.g. this could be used to reduce the number of
      *            classpath elements returned in cases where it is very costly for a given classloader to return the

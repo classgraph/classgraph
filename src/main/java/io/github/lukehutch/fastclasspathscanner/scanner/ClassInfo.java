@@ -1,25 +1,25 @@
 /*
  * This file is part of FastClasspathScanner.
- * 
+ *
  * Author: Luke Hutchison
- * 
+ *
  * Hosted at: https://github.com/lukehutch/fast-classpath-scanner
- * 
+ *
  * --
  *
  * The MIT License (MIT)
  *
  * Copyright (c) 2016 Luke Hutchison
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
  * limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
  * the Software, and to permit persons to whom the Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in all copies or substantial
  * portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
  * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO
  * EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
@@ -92,9 +92,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
      */
     private HashSet<URL> classpathElementURLs;
 
-    /**
-     * The classloaders to try to load this class with before calling a MatchProcessor.
-     */
+    /** The classloaders to try to load this class with before calling a MatchProcessor. */
     private ClassLoader[] classLoaders;
 
     /** The scan spec. */
@@ -156,7 +154,8 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
      * The classpath element URL(s) (classpath root dir or jar) that this class was found within. For Java, this
      * will consist of exactly one entry, so you should generally call the getClasspathElementURL() convenience
      * method instead.
-     * 
+     *
+     * <p>
      * For Scala, it is possible (though not likely) that a class and its companion class will be provided in
      * different jars or different directories, so to be safe, for Scala, you should probably call this method
      * instead.
@@ -168,7 +167,8 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     /**
      * The classpath element URL (classpath root dir or jar) that this class was found within. This will consist of
      * exactly one entry for Java.
-     * 
+     *
+     * <p>
      * (If calling this from Scala, in the rare but possible case that a class and its companion class is split
      * between two jarfiles or directories, this will throw IllegalArgumentException.)
      */
@@ -244,7 +244,8 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
         /**
          * Superclasses of this class, if this is a regular class.
-         * 
+         *
+         * <p>
          * (Should consist of only one entry, or null if superclass is java.lang.Object or unknown).
          */
         SUPERCLASSES,
@@ -258,9 +259,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
         /** Indicates that an inner class is contained within this one. */
         CONTAINS_INNER_CLASS,
 
-        /**
-         * Indicates that an outer class contains this one. (Should only have zero or one entries.)
-         */
+        /** Indicates that an outer class contains this one. (Should only have zero or one entries.) */
         CONTAINED_WITHIN_OUTER_CLASS,
 
         // Interfaces:
@@ -268,7 +267,8 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
         /**
          * Interfaces that this class implements, if this is a regular class, or superinterfaces, if this is an
          * interface.
-         * 
+         *
+         * <p>
          * (May also include annotations, since annotations are interfaces, so you can implement an annotation.)
          */
         IMPLEMENTED_INTERFACES,
@@ -341,9 +341,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
         IMPLEMENTED_INTERFACE,
         /** An annotation. */
         ANNOTATION,
-        /**
-         * An interface or annotation (used since you can actually implement an annotation).
-         */
+        /** An interface or annotation (used since you can actually implement an annotation). */
         INTERFACE_OR_ANNOTATION,
     }
 
@@ -424,9 +422,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
         }
     }
 
-    /**
-     * Get the classes directly related to this ClassInfo object the specified way.
-     */
+    /** Get the classes directly related to this ClassInfo object the specified way. */
     private Set<ClassInfo> getDirectlyRelatedClasses(final RelType relType) {
         final Set<ClassInfo> relatedClassClassInfo = relatedTypeToClassInfoSet.get(relType);
         return relatedClassClassInfo == null ? Collections.<ClassInfo> emptySet() : relatedClassClassInfo;
@@ -757,7 +753,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Get the names of all classes, interfaces and annotations found during the scan, or the empty list if none.
-     * 
+     *
      * @return the sorted unique list of names of all classes, interfaces and annotations found during the scan, or
      *         the empty list if none.
      */
@@ -769,7 +765,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     /**
      * Get the names of all standard (non-interface/annotation) classes found during the scan, or the empty list if
      * none.
-     * 
+     *
      * @return the sorted unique names of all standard (non-interface/annotation) classes found during the scan, or
      *         the empty list if none.
      */
@@ -780,7 +776,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Test whether this class is a standard class (not an annotation or interface).
-     * 
+     *
      * @return true if this class is a standard class (not an annotation or interface).
      */
     public boolean isStandardClass() {
@@ -791,7 +787,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Get the subclasses of this class.
-     * 
+     *
      * @return the set of subclasses of this class, or the empty set if none.
      */
     public Set<ClassInfo> getSubclasses() {
@@ -801,7 +797,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Get the names of subclasses of this class.
-     * 
+     *
      * @return the sorted list of names of the subclasses of this class, or the empty list if none.
      */
     public List<String> getNamesOfSubclasses() {
@@ -810,7 +806,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Test whether this class has the named class as a subclass.
-     * 
+     *
      * @return true if this class has the named class as a subclass.
      */
     public boolean hasSubclass(final String subclassName) {
@@ -821,7 +817,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Get the direct subclasses of this class.
-     * 
+     *
      * @return the set of direct subclasses of this class, or the empty set if none.
      */
     public Set<ClassInfo> getDirectSubclasses() {
@@ -831,7 +827,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Get the names of direct subclasses of this class.
-     * 
+     *
      * @return the sorted list of names of direct subclasses of this class, or the empty list if none.
      */
     public List<String> getNamesOfDirectSubclasses() {
@@ -840,7 +836,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Test whether this class has the named direct subclass.
-     * 
+     *
      * @return true if this class has the named direct subclass.
      */
     public boolean hasDirectSubclass(final String directSubclassName) {
@@ -852,9 +848,10 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     /**
      * Get all direct and indirect superclasses of this class (i.e. the direct superclass(es) of this class, and
      * their superclass(es), all the way up to the top of the class hierarchy).
-     * 
+     *
+     * <p>
      * (Includes the union of all mixin superclass hierarchies in the case of Scala mixins.)
-     * 
+     *
      * @return the set of all superclasses of this class, or the empty set if none.
      */
     public Set<ClassInfo> getSuperclasses() {
@@ -865,9 +862,10 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     /**
      * Get the names of all direct and indirect superclasses of this class (i.e. the direct superclass(es) of this
      * class, and their superclass(es), all the way up to the top of the class hierarchy).
-     * 
+     *
+     * <p>
      * (Includes the union of all mixin superclass hierarchies in the case of Scala mixins.)
-     * 
+     *
      * @return the sorted list of names of all superclasses of this class, or the empty list if none.
      */
     public List<String> getNamesOfSuperclasses() {
@@ -876,7 +874,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Test whether this class extends the named superclass, directly or indirectly.
-     * 
+     *
      * @return true if this class has the named direct or indirect superclass.
      */
     public boolean hasSuperclass(final String superclassName) {
@@ -917,9 +915,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
         return !getInnerClasses().isEmpty();
     }
 
-    /**
-     * Returns the inner classes contained within this class. Returns the empty set if none.
-     */
+    /** Returns the inner classes contained within this class. Returns the empty set if none. */
     public Set<ClassInfo> getInnerClasses() {
         return filterClassInfo(getReachableClasses(RelType.CONTAINS_INNER_CLASS),
                 /* removeExternalClassesIfStrictWhitelist = */ false, scanSpec, ClassType.ALL);
@@ -952,10 +948,11 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Get the direct superclasses of this class.
-     * 
+     *
+     * <p>
      * Typically the returned set will contain zero or one direct superclass(es), but may contain more than one
      * direct superclass in the case of Scala mixins.
-     * 
+     *
      * @return the direct superclasses of this class, or the empty set if none.
      */
     public Set<ClassInfo> getDirectSuperclasses() {
@@ -968,7 +965,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
      * have a superclass (e.g. in the case of interfaces). Throws IllegalArgumentException if there are multiple
      * direct superclasses (e.g. in the case of Scala mixins) -- use getDirectSuperclasses() if you need to deal
      * with mixins.
-     * 
+     *
      * @return the direct superclass of this class, or null if the class does not have a superclass.
      * @throws IllegalArgumentException
      *             if there are multiple direct superclasses of this class (in the case of Scala mixins).
@@ -988,10 +985,11 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Get the names of direct superclasses of this class.
-     * 
+     *
+     * <p>
      * Typically the returned list will contain zero or one direct superclass name(s), but may contain more than one
      * direct superclass name in the case of Scala mixins.
-     * 
+     *
      * @return the direct superclasses of this class, or the empty set if none.
      */
     public List<String> getNamesOfDirectSuperclasses() {
@@ -1003,7 +1001,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
      * class does not have a superclass (e.g. in the case of interfaces). Throws IllegalArgumentException if there
      * are multiple direct superclasses (e.g. in the case of Scala mixins) -- use getNamesOfDirectSuperclasses() if
      * you need to deal with mixins.
-     * 
+     *
      * @return the name of the direct superclass of this class, or null if the class does not have a superclass.
      * @throws IllegalArgumentException
      *             if there are multiple direct superclasses of this class (in the case of Scala mixins).
@@ -1024,10 +1022,11 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Test whether this class directly extends the named superclass.
-     * 
+     *
+     * <p>
      * If this class has multiple direct superclasses (in the case of Scala mixins), returns true if the named
      * superclass is one of the direct superclasses of this class.
-     * 
+     *
      * @param directSuperclassName
      *            The direct superclass name to match. If null, matches classes without a direct superclass (e.g.
      *            interfaces). Note that standard classes that do not extend another class have java.lang.Object as
@@ -1062,13 +1061,15 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     /**
      * Test whether this class is an "implemented interface" (meaning a standard, non-annotation interface, or an
      * annotation that has also been implemented as an interface by some class).
-     * 
+     *
+     * <p>
      * Annotations are interfaces, but you can also implement an annotation, so to we Test whether an interface
      * (even an annotation) is implemented by a class or extended by a subinterface, or (failing that) if it is not
      * an interface but not an annotation.
-     * 
+     *
+     * <p>
      * (This is named "implemented interface" rather than just "interface" to distinguish it from an annotation.)
-     * 
+     *
      * @return true if this class is an "implemented interface".
      */
     public boolean isImplementedInterface() {
@@ -1079,7 +1080,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Get the subinterfaces of this interface.
-     * 
+     *
      * @return the set of subinterfaces of this interface, or the empty set if none.
      */
     public Set<ClassInfo> getSubinterfaces() {
@@ -1091,7 +1092,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Get the names of subinterfaces of this interface.
-     * 
+     *
      * @return the sorted list of names of subinterfaces of this interface, or the empty list if none.
      */
     public List<String> getNamesOfSubinterfaces() {
@@ -1100,7 +1101,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Test whether this class is has the named subinterface.
-     * 
+     *
      * @return true if this class is an interface and has the named subinterface.
      */
     public boolean hasSubinterface(final String subinterfaceName) {
@@ -1111,8 +1112,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Get the direct subinterfaces of this interface.
-     * 
-     * 
+     *
      * @return the set of direct subinterfaces of this interface, or the empty set if none.
      */
     public Set<ClassInfo> getDirectSubinterfaces() {
@@ -1124,7 +1124,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Get the names of direct subinterfaces of this interface.
-     * 
+     *
      * @return the sorted list of names of direct subinterfaces of this interface, or the empty list if none.
      */
     public List<String> getNamesOfDirectSubinterfaces() {
@@ -1133,7 +1133,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Test whether this class is and interface and has the named direct subinterface.
-     * 
+     *
      * @return true if this class is and interface and has the named direct subinterface.
      */
     public boolean hasDirectSubinterface(final String directSubinterfaceName) {
@@ -1144,7 +1144,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Get the superinterfaces of this interface.
-     * 
+     *
      * @return the set of superinterfaces of this interface, or the empty set if none.
      */
     public Set<ClassInfo> getSuperinterfaces() {
@@ -1156,7 +1156,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Get the names of superinterfaces of this interface.
-     * 
+     *
      * @return the sorted list of names of superinterfaces of this interface, or the empty list if none.
      */
     public List<String> getNamesOfSuperinterfaces() {
@@ -1165,7 +1165,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Test whether this class is an interface and has the named superinterface.
-     * 
+     *
      * @return true if this class is an interface and has the named superinterface.
      */
     public boolean hasSuperinterface(final String superinterfaceName) {
@@ -1176,7 +1176,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Get the direct superinterfaces of this interface.
-     * 
+     *
      * @return the set of direct superinterfaces of this interface, or the empty set if none.
      */
     public Set<ClassInfo> getDirectSuperinterfaces() {
@@ -1188,7 +1188,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Get the names of direct superinterfaces of this interface.
-     * 
+     *
      * @return the sorted list of names of direct superinterfaces of this interface, or the empty list if none.
      */
     public List<String> getNamesOfDirectSuperinterfaces() {
@@ -1197,7 +1197,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Test whether this class is an interface and has the named direct superinterface.
-     * 
+     *
      * @return true if this class is an interface and has the named direct superinterface.
      */
     public boolean hasDirectSuperinterface(final String directSuperinterfaceName) {
@@ -1208,7 +1208,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Get the interfaces implemented by this standard class, or by one of its superclasses.
-     * 
+     *
      * @return the set of interfaces implemented by this standard class, or by one of its superclasses. Returns the
      *         empty set if none.
      */
@@ -1230,7 +1230,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Get the interfaces implemented by this standard class, or by one of its superclasses.
-     * 
+     *
      * @return the set of interfaces implemented by this standard class, or by one of its superclasses. Returns the
      *         empty list if none.
      */
@@ -1240,7 +1240,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Test whether this standard class implements the named interface, or by one of its superclasses.
-     * 
+     *
      * @return true this class is a standard class, and it (or one of its superclasses) implements the named
      *         interface.
      */
@@ -1252,7 +1252,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Get the interfaces directly implemented by this standard class.
-     * 
+     *
      * @return the set of interfaces directly implemented by this standard class. Returns the empty set if none.
      */
     public Set<ClassInfo> getDirectlyImplementedInterfaces() {
@@ -1264,7 +1264,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Get the interfaces directly implemented by this standard class, or by one of its superclasses.
-     * 
+     *
      * @return the set of interfaces directly implemented by this standard class, or by one of its superclasses.
      *         Returns the empty list if none.
      */
@@ -1274,7 +1274,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Test whether this standard class directly implements the named interface, or by one of its superclasses.
-     * 
+     *
      * @return true this class is a standard class, and directly implements the named interface.
      */
     public boolean directlyImplementsInterface(final String interfaceName) {
@@ -1285,7 +1285,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Get the classes that implement this interface, and their subclasses.
-     * 
+     *
      * @return the set of classes implementing this interface, or the empty set if none.
      */
     public Set<ClassInfo> getClassesImplementing() {
@@ -1307,7 +1307,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Get the names of classes that implement this interface, and the names of their subclasses.
-     * 
+     *
      * @return the sorted list of names of classes implementing this interface, or the empty list if none.
      */
     public List<String> getNamesOfClassesImplementing() {
@@ -1316,7 +1316,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Test whether this class is implemented by the named class, or by one of its superclasses.
-     * 
+     *
      * @return true if this class is implemented by the named class, or by one of its superclasses.
      */
     public boolean isImplementedByClass(final String className) {
@@ -1327,7 +1327,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Get the classes that directly implement this interface, and their subclasses.
-     * 
+     *
      * @return the set of classes directly implementing this interface, or the empty set if none.
      */
     public Set<ClassInfo> getClassesDirectlyImplementing() {
@@ -1338,7 +1338,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Get the names of classes that directly implement this interface, and the names of their subclasses.
-     * 
+     *
      * @return the sorted list of names of classes directly implementing this interface, or the empty list if none.
      */
     public List<String> getNamesOfClassesDirectlyImplementing() {
@@ -1347,7 +1347,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Test whether this class is directly implemented by the named class, or by one of its superclasses.
-     * 
+     *
      * @return true if this class is directly implemented by the named class, or by one of its superclasses.
      */
     public boolean isDirectlyImplementedByClass(final String className) {
@@ -1369,7 +1369,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Test whether this classInfo is an annotation.
-     * 
+     *
      * @return true if this classInfo is an annotation.
      */
     public boolean isAnnotation() {
@@ -1380,7 +1380,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Get the standard classes and non-annotation interfaces that are annotated by this annotation.
-     * 
+     *
      * @param direct
      *            if true, return only directly-annotated classes.
      * @return the set of standard classes and non-annotation interfaces that are annotated by the annotation
@@ -1415,7 +1415,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Get the standard classes and non-annotation interfaces that are annotated by this annotation.
-     * 
+     *
      * @return the set of standard classes and non-annotation interfaces that are annotated by the annotation
      *         corresponding to this ClassInfo class, or the empty set if none.
      */
@@ -1425,7 +1425,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Get the names of standard classes and non-annotation interfaces that are annotated by this annotation. .
-     * 
+     *
      * @return the sorted list of names of ClassInfo objects for standard classes and non-annotation interfaces that
      *         are annotated by the annotation corresponding to this ClassInfo class, or the empty list if none.
      */
@@ -1442,7 +1442,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Get the standard classes or non-annotation interfaces that are directly annotated with this annotation.
-     * 
+     *
      * @return the set of standard classes or non-annotation interfaces that are directly annotated with this
      *         annotation, or the empty set if none.
      */
@@ -1453,7 +1453,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     /**
      * Get the names of standard classes or non-annotation interfaces that are directly annotated with this
      * annotation.
-     * 
+     *
      * @return the sorted list of names of standard classes or non-annotation interfaces that are directly annotated
      *         with this annotation, or the empty list if none.
      */
@@ -1463,7 +1463,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Test whether this class annotates the named class.
-     * 
+     *
      * @return true if this class annotates the named class.
      */
     public boolean directlyAnnotatesClass(final String directlyAnnotatedClassName) {
@@ -1476,7 +1476,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
      * Get the annotations and meta-annotations on this class. This is equivalent to the reflection call
      * Class#getAnnotations(), except that it does not require calling the classloader, and it returns
      * meta-annotations as well as annotations.
-     * 
+     *
      * @return the set of annotations and meta-annotations on this class or interface, or meta-annotations if this
      *         is an annotation. Returns the empty set if none.
      */
@@ -1489,7 +1489,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
      * Get the names of annotations and meta-annotations on this class. This is equivalent to the reflection call
      * Class#getAnnotations(), except that it does not require calling the classloader, and it returns
      * meta-annotations as well as annotations.
-     * 
+     *
      * @return the sorted list of names of annotations and meta-annotations on this class or interface, or
      *         meta-annotations if this is an annotation. Returns the empty list if none.
      */
@@ -1499,7 +1499,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Test whether this class, interface or annotation has the named class annotation or meta-annotation.
-     * 
+     *
      * @return true if this class, interface or annotation has the named class annotation or meta-annotation.
      */
     public boolean hasAnnotation(final String annotationName) {
@@ -1529,7 +1529,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
      * Get the direct annotations and meta-annotations on this class. This is equivalent to the reflection call
      * Class#getAnnotations(), except that it does not require calling the classloader, and it returns
      * meta-annotations as well as annotations.
-     * 
+     *
      * @return the set of direct annotations and meta-annotations on this class, or the empty set if none.
      */
     public Set<ClassInfo> getDirectAnnotations() {
@@ -1541,7 +1541,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
      * Get the names of direct annotations and meta-annotations on this class. This is equivalent to the reflection
      * call Class#getAnnotations(), except that it does not require calling the classloader, and it returns
      * meta-annotations as well as annotations.
-     * 
+     *
      * @return the sorted list of names of direct annotations and meta-annotations on this class, or the empty list
      *         if none.
      */
@@ -1553,7 +1553,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
      * Test whether this class has the named direct annotation or meta-annotation. (This is equivalent to the
      * reflection call Class#hasAnnotation(), except that it does not require calling the classloader, and it works
      * for meta-annotations as well as Annotatinons.)
-     * 
+     *
      * @return true if this class has the named direct annotation or meta-annotation.
      */
     public boolean hasDirectAnnotation(final String directAnnotationName) {
@@ -1564,7 +1564,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Get the annotations and meta-annotations on this annotation class.
-     * 
+     *
      * @return the set of annotations and meta-annotations, if this is an annotation class, or the empty set if none
      *         (or if this is not an annotation class).
      */
@@ -1576,7 +1576,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Get the names of annotations and meta-annotations on this annotation class.
-     * 
+     *
      * @return the set of annotations and meta-annotations, if this is an annotation class, or the empty list if
      *         none (or if this is not an annotation class).
      */
@@ -1586,7 +1586,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Test whether this is an annotation class and it has the named meta-annotation.
-     * 
+     *
      * @return true if this is an annotation class and it has the named meta-annotation.
      */
     public boolean hasMetaAnnotation(final String metaAnnotationName) {
@@ -1597,7 +1597,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Get the annotations that have this meta-annotation.
-     * 
+     *
      * @return the set of annotations that have this meta-annotation, or the empty set if none.
      */
     public Set<ClassInfo> getAnnotationsWithMetaAnnotation() {
@@ -1608,7 +1608,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Get the names of annotations that have this meta-annotation.
-     * 
+     *
      * @return the sorted list of names of annotations that have this meta-annotation, or the empty list if none.
      */
     public List<String> getNamesOfAnnotationsWithMetaAnnotation() {
@@ -1617,7 +1617,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Test whether this annotation has the named meta-annotation.
-     * 
+     *
      * @return true if this annotation has the named meta-annotation.
      */
     public boolean metaAnnotatesAnnotation(final String annotationName) {
@@ -1628,7 +1628,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Get the annotations that have this direct meta-annotation.
-     * 
+     *
      * @return the set of annotations that have this direct meta-annotation, or the empty set if none.
      */
     public Set<ClassInfo> getAnnotationsWithDirectMetaAnnotation() {
@@ -1639,7 +1639,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Get the names of annotations that have this direct meta-annotation.
-     * 
+     *
      * @return the sorted list of names of annotations that have this direct meta-annotation, or the empty list if
      *         none.
      */
@@ -1649,7 +1649,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Test whether this annotation is directly meta-annotated with the named annotation.
-     * 
+     *
      * @return true if this annotation is directly meta-annotated with the named annotation.
      */
     public boolean hasDirectMetaAnnotation(final String directMetaAnnotationName) {
@@ -1662,16 +1662,16 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     /**
      * Returns information on visible methods of the class that are not constructors. There may be more than one
      * method of a given name with different type signatures, due to overloading.
-     * 
+     *
      * <p>
      * Requires that FastClasspathScanner#enableMethodInfo() be called before scanning, otherwise throws
      * IllegalArgumentException.
-     * 
+     *
      * <p>
      * By default only returns information for public methods, unless FastClasspathScanner#ignoreMethodVisibility()
      * was called before the scan. If method visibility is ignored, the result may include a reference to a private
      * static class initializer block, with a method name of {@code "<clinit>"}.
-     * 
+     *
      * @return the list of MethodInfo objects for visible methods of this class, or the empty list if no methods
      *         were found or visible.
      * @throws IllegalArgumentException
@@ -1700,15 +1700,15 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
      * Returns information on visible constructors of the class. Constructors have the method name of
      * {@code "<init>"}. There may be more than one constructor of a given name with different type signatures, due
      * to overloading.
-     * 
+     *
      * <p>
      * Requires that FastClasspathScanner#enableMethodInfo() be called before scanning, otherwise throws
      * IllegalArgumentException.
-     * 
+     *
      * <p>
      * By default only returns information for public constructors, unless
      * FastClasspathScanner#ignoreMethodVisibility() was called before the scan.
-     * 
+     *
      * @return the list of MethodInfo objects for visible constructors of this class, or the empty list if no
      *         constructors were found or visible.
      * @throws IllegalArgumentException
@@ -1737,17 +1737,17 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
      * Returns information on visible methods and constructors of the class. There may be more than one method or
      * constructor or method of a given name with different type signatures, due to overloading. Constructors have
      * the method name of {@code "<init>"}.
-     * 
+     *
      * <p>
      * Requires that FastClasspathScanner#enableMethodInfo() be called before scanning, otherwise throws
      * IllegalArgumentException.
-     * 
+     *
      * <p>
      * By default only returns information for public methods and constructors, unless
      * FastClasspathScanner#ignoreMethodVisibility() was called before the scan. If method visibility is ignored,
      * the result may include a reference to a private static class initializer block, with a method name of
      * {@code "<clinit>"}.
-     * 
+     *
      * @return the list of MethodInfo objects for visible methods and constructors of this class, or the empty list
      *         if no methods or constructors were found or visible.
      * @throws IllegalArgumentException
@@ -1764,18 +1764,18 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     /**
      * Returns information on the method(s) of the class with the given method name. Constructors have the method
      * name of {@code "<init>"}.
-     * 
+     *
      * <p>
      * Requires that FastClasspathScanner#enableMethodInfo() be called before scanning, otherwise throws
      * IllegalArgumentException.
-     * 
+     *
      * <p>
      * By default only returns information for public methods, unless FastClasspathScanner#ignoreMethodVisibility()
      * was called before the scan.
-     * 
+     *
      * <p>
      * May return info for multiple methods with the same name (with different type signatures).
-     * 
+     *
      * @param methodName
      *            The method name to query.
      * @return a list of MethodInfo objects for the method(s) with the given name, or the empty list if the method
@@ -1807,7 +1807,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Get the direct method direct annotations on this class.
-     * 
+     *
      * @return the set of method direct annotations on this class, or the empty set if none.
      */
     public Set<ClassInfo> getMethodDirectAnnotations() {
@@ -1817,7 +1817,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Get the method annotations or meta-annotations on this class.
-     * 
+     *
      * @return the set of method annotations or meta-annotations on this class, or the empty set if none.
      */
     public Set<ClassInfo> getMethodAnnotations() {
@@ -1827,7 +1827,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Get the names of method direct annotations on this class.
-     * 
+     *
      * @return the sorted list of names of method direct annotations on this class, or the empty list if none.
      */
     public List<String> getNamesOfMethodDirectAnnotations() {
@@ -1836,7 +1836,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Get the names of method annotations or meta-annotations on this class.
-     * 
+     *
      * @return the sorted list of names of method annotations or meta-annotations on this class, or the empty list
      *         if none.
      */
@@ -1846,7 +1846,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Test whether this class has a method with the named method direct annotation.
-     * 
+     *
      * @return true if this class has a method with the named direct annotation.
      */
     public boolean hasMethodWithDirectAnnotation(final String annotationName) {
@@ -1855,7 +1855,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Test whether this class has a method with the named method annotation or meta-annotation.
-     * 
+     *
      * @return true if this class has a method with the named annotation or meta-annotation.
      */
     public boolean hasMethodWithAnnotation(final String annotationName) {
@@ -1866,7 +1866,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Get the classes that have a method with this direct annotation.
-     * 
+     *
      * @return the set of classes that have a method with this direct annotation, or the empty set if none.
      */
     public Set<ClassInfo> getClassesWithDirectMethodAnnotation() {
@@ -1876,7 +1876,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Get the classes that have a method with this annotation or meta-annotation.
-     * 
+     *
      * @return the set of classes that have a method with this annotation or meta-annotation, or the empty set if
      *         none.
      */
@@ -1887,7 +1887,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Get the names of classes that have a method with this direct annotation.
-     * 
+     *
      * @return the sorted list of names of classes that have a method with this direct annotation, or the empty list
      *         if none.
      */
@@ -1897,7 +1897,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Get the names of classes that have a method with this annotation.
-     * 
+     *
      * @return the sorted list of names of classes that have a method with this annotation, or the empty list if
      *         none.
      */
@@ -1907,7 +1907,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Test whether this annotation annotates or meta-annotates a method of the named class.
-     * 
+     *
      * @return true if this annotation annotates a method of the named class.
      */
     public boolean annotatesMethodOfClass(final String className) {
@@ -1916,7 +1916,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Return a sorted list of classes that have a method directly annotated with the named annotation.
-     * 
+     *
      * @return the sorted list of names of classes that have a method with the named direct annotation, or the empty
      *         list if none.
      */
@@ -1944,7 +1944,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Return a sorted list of classes that have a method with the named annotation or meta-annotation.
-     * 
+     *
      * @return the sorted list of names of classes that have a method with the named annotation or meta-annotation,
      *         or the empty list if none.
      */
@@ -1976,7 +1976,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     /**
      * Get the types of this class' fields. Requires FastClasspathScanner#indexFieldTypes() to have been called
      * before scanning.
-     * 
+     *
      * @return the set of field types for this class, or the empty set if none.
      */
     public Set<ClassInfo> getFieldTypes() {
@@ -1988,7 +1988,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     /**
      * Get the names of the types of this class' fields. Requires FastClasspathScanner#indexFieldTypes() to have
      * been called before scanning.
-     * 
+     *
      * @return the sorted list of names of field types, or the empty list if none.
      */
     public List<String> getNamesOfFieldTypes() {
@@ -1997,7 +1997,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Get the list of classes that have a field of the named type.
-     * 
+     *
      * @return the sorted list of names of classes that have a field of the named type.
      */
     static List<String> getNamesOfClassesWithFieldOfType(final String fieldTypeName,
@@ -2024,7 +2024,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Get the constant initializer value for the named static final field, if present.
-     * 
+     *
      * @return the constant initializer value for the named static final field, if present.
      */
     Object getStaticFinalFieldConstantInitializerValue(final String fieldName) {
@@ -2034,15 +2034,15 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Returns information on all visible fields of the class.
-     * 
+     *
      * <p>
      * Requires that FastClasspathScanner#enableFieldInfo() be called before scanning, otherwise throws
      * IllegalArgumentException.
-     * 
+     *
      * <p>
      * By default only returns information for public methods, unless FastClasspathScanner#ignoreFieldVisibility()
      * was called before the scan.
-     * 
+     *
      * @return the list of FieldInfo objects for visible fields of this class, or the empty list if no fields were
      *         found or visible.
      * @throws IllegalArgumentException
@@ -2058,15 +2058,15 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Returns information on a given visible field of the class.
-     * 
+     *
      * <p>
      * Requires that FastClasspathScanner#enableFieldInfo() be called before scanning, otherwise throws
      * IllegalArgumentException.
-     * 
+     *
      * <p>
      * By default only returns information for public fields, unless FastClasspathScanner#ignoreFieldVisibility()
      * was called before the scan.
-     * 
+     *
      * @param fieldName
      *            The field name to query.
      * @return the FieldInfo object for the named field, or null if the field was not found in this class (or is not
@@ -2097,7 +2097,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Get the field annotations on this class.
-     * 
+     *
      * @return the set of field annotations on this class, or the empty set if none.
      */
     public Set<ClassInfo> getFieldAnnotations() {
@@ -2107,7 +2107,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Get the names of field annotations on this class.
-     * 
+     *
      * @return the sorted list of names of field annotations on this class, or the empty list if none.
      */
     public List<String> getNamesOfFieldAnnotations() {
@@ -2116,7 +2116,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Test whether this class has a field with the named field annotation.
-     * 
+     *
      * @return true if this class has a field with the named annotation.
      */
     public boolean hasFieldWithAnnotation(final String annotationName) {
@@ -2127,7 +2127,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Get the classes that have a field with this annotation or meta-annotation.
-     * 
+     *
      * @return the set of classes that have a field with this annotation or meta-annotation, or the empty set if
      *         none.
      */
@@ -2138,7 +2138,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Get the names of classes that have a field with this annotation or meta-annotation.
-     * 
+     *
      * @return the sorted list of names of classes that have a field with this annotation or meta-annotation, or the
      *         empty list if none.
      */
@@ -2148,7 +2148,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Get the classes that have a field with this direct annotation.
-     * 
+     *
      * @return the set of classes that have a field with this direct annotation, or the empty set if none.
      */
     public Set<ClassInfo> getClassesWithDirectFieldAnnotation() {
@@ -2158,7 +2158,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Get the names of classes that have a field with this direct annotation.
-     * 
+     *
      * @return the sorted list of names of classes that have a field with thisdirect annotation, or the empty list
      *         if none.
      */
@@ -2168,7 +2168,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Test whether this annotation annotates a field of the named class.
-     * 
+     *
      * @return true if this annotation annotates a field of the named class.
      */
     public boolean annotatesFieldOfClass(final String className) {
@@ -2177,7 +2177,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Return a sorted list of classes that have a field with the named annotation or meta-annotation.
-     * 
+     *
      * @return the sorted list of names of classes that have a field with the named annotation or meta-annotation,
      *         or the empty list if none.
      */
@@ -2205,7 +2205,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Return a sorted list of classes that have a field with the named annotation or direct annotation.
-     * 
+     *
      * @return the sorted list of names of classes that have a field with the named direct annotation, or the empty
      *         list if none.
      */

@@ -1,25 +1,25 @@
 /*
  * This file is part of FastClasspathScanner.
- * 
+ *
  * Author: Luke Hutchison
- * 
+ *
  * Hosted at: https://github.com/lukehutch/fast-classpath-scanner
- * 
+ *
  * --
  *
  * The MIT License (MIT)
  *
  * Copyright (c) 2016 Luke Hutchison
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
  * limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
  * the Software, and to permit persons to whom the Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in all copies or substantial
  * portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
  * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO
  * EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
@@ -183,9 +183,7 @@ class RelativePath {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /**
-     * Get the ClassLoader(s) that should be used to load classes for this classpath element
-     */
+    /** Get the ClassLoader(s) that should be used to load classes for this classpath element */
     public ClassLoader[] getClassLoaders() {
         return classLoaders;
     }
@@ -212,7 +210,7 @@ class RelativePath {
 
     /**
      * Get the File object for the resolved path.
-     * 
+     *
      * @throws IOException
      *             if the path cannot be canonicalized.
      */
@@ -249,8 +247,8 @@ class RelativePath {
                             // the jar
                             // -- if so, then this is the classpath base for this jarfile
                             if (rootRelativePaths.contains(tail)) {
-
                             }
+
                             zipClasspathBaseDir = tail;
                         }
                     }
@@ -282,9 +280,7 @@ class RelativePath {
         return zipClasspathBaseDir;
     }
 
-    /**
-     * Gets the canonical path of the File object corresponding to the resolved path.
-     */
+    /** Gets the canonical path of the File object corresponding to the resolved path. */
     public String getCanonicalPath(final LogNode log) throws IOException {
         if (!canonicalPathIsCached) {
             final File file = getFile(log);
@@ -317,9 +313,7 @@ class RelativePath {
         return FileUtils.isClassfile(getResolvedPath());
     }
 
-    /**
-     * True if this relative path corresponds to a file or directory that exists.
-     */
+    /** True if this relative path corresponds to a file or directory that exists. */
     private boolean exists(final LogNode log) throws IOException {
         if (!existsIsCached) {
             existsCached = ClasspathUtils.canRead(getFile(log));
@@ -333,7 +327,8 @@ class RelativePath {
     /**
      * True if this relative path is a valid classpath element: that its path can be canonicalized, that it exists,
      * that it is a jarfile or directory, that it is not a blacklisted jar, that it should be scanned, etc.
-     * 
+     *
+     * <p>
      * N.B. this has the side effect of fetching any http(s):// URLs, and/or unzipping any inner jarfiles, to
      * determine if these paths are valid. Any resulting temporary files will be cached.
      */

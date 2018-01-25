@@ -1,25 +1,25 @@
 /*
  * This file is part of FastClasspathScanner.
- * 
+ *
  * Author: Luke Hutchison
- * 
+ *
  * Hosted at: https://github.com/lukehutch/fast-classpath-scanner
- * 
+ *
  * --
  *
  * The MIT License (MIT)
  *
  * Copyright (c) 2017 Luke Hutchison
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
  * limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
  * the Software, and to permit persons to whom the Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in all copies or substantial
  * portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
  * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO
  * EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
@@ -62,9 +62,7 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /**
-     * A wrapper used to pair annotation parameter names with annotation parameter values.
-     */
+    /** A wrapper used to pair annotation parameter names with annotation parameter values. */
     public static class AnnotationParamValue extends InfoObject implements Comparable<AnnotationParamValue> {
         private final String paramName;
         private final Object paramValue;
@@ -100,6 +98,7 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
 
         /**
          * Get the annotation parameter value. May be one of the following types:
+         *
          * <ul>
          * <li>String for string constants
          * <li>A wrapper type, e.g. Integer or Character, for primitive-typed constants
@@ -230,7 +229,7 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
 
         /**
          * Get the enum constant. Causes the ClassLoader to load the enum class.
-         * 
+         *
          * @throw IllegalArgumentException if the class could not be loaded, or the enum constant is invalid.
          */
         public Object getEnumValueRef() throws IllegalArgumentException {
@@ -282,7 +281,8 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
     /**
      * Stores a class descriptor in an annotation as a class type string, e.g. "[[[java/lang/String;" is stored as
      * "String[][][]".
-     * 
+     *
+     * <p>
      * Use ReflectionUtils.typeStrToClass() to get a Class<?> reference from this class type string.
      */
     public static class AnnotationClassRef extends InfoObject {
@@ -300,7 +300,8 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
 
         /**
          * Get the type signature for a type reference used in an annotation parameter.
-         * 
+         *
+         * <p>
          * Use ReflectionUtils.typeStrToClass() to get a Class<?> reference from this class type string.
          */
         public TypeSignature getTypeSignature() {
@@ -310,16 +311,15 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
         /**
          * Get a class type string (e.g. "String[][][]" or "int") for a type reference used in an annotation
          * parameter.
-         * 
+         *
+         * <p>
          * Use ReflectionUtils.typeStrToClass() to get a Class<?> reference from this class type string.
          */
         public String getTypeStr() {
             return typeSignature.toString();
         }
 
-        /**
-         * Get a class reference for a class-reference-typed value used in an annotation parameter.
-         */
+        /** Get a class reference for a class-reference-typed value used in an annotation parameter. */
         public Class<?> getType() {
             return typeSignature.instantiate(scanResult);
         }

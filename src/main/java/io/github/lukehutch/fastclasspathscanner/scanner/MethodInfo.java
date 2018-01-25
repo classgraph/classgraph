@@ -1,25 +1,25 @@
 /*
  * This file is part of FastClasspathScanner.
- * 
+ *
  * Author: Luke Hutchison
- * 
+ *
  * Hosted at: https://github.com/lukehutch/fast-classpath-scanner
- * 
+ *
  * --
  *
  * The MIT License (MIT)
  *
  * Copyright (c) 2016 Luke Hutchison
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
  * limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
  * the Software, and to permit persons to whom the Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in all copies or substantial
  * portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
  * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO
  * EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
@@ -104,8 +104,9 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
     }
 
     /**
-     * Returns true if this method is a constructor. Constructors have the method name {@code "<init>"}. This
-     * returns false for private static class initializer blocks, which are named {@code "<clinit>"}.
+     * Returns true if this method is a constructor. Constructors have the method name {@code
+     * "<init>"}. This returns false for private static class initializer blocks, which are named
+     * {@code "<clinit>"}.
      */
     public boolean isConstructor() {
         return "<init>".equals(methodName);
@@ -130,9 +131,7 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
         return modifiers;
     }
 
-    /**
-     * Returns the internal type descriptor for the method, e.g. "Ljava/lang/String;V".
-     */
+    /** Returns the internal type descriptor for the method, e.g. "Ljava/lang/String;V". */
     public String getTypeDescriptor() {
         return typeDescriptor;
     }
@@ -164,7 +163,7 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
      * Returns the return type for the method as a Class reference. If this is a constructor, the return type will
      * be void.class. Note that this calls Class.forName() on the return type, which will cause the class to be
      * loaded, and possibly initialized. If the class is initialized, this can trigger side effects.
-     * 
+     *
      * @throws IllegalArgumentException
      *             if the return type for the method could not be loaded.
      */
@@ -243,11 +242,11 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
 
     /**
      * Returns the parameter types for the method. If the method has no parameters, returns a zero-sized array.
-     * 
+     *
      * <p>
      * Note that this calls Class.forName() on the parameter types, which will cause the class to be loaded, and
      * possibly initialized. If the class is initialized, this can trigger side effects.
-     * 
+     *
      * @throws IllegalArgumentException
      *             if the parameter types of the method could not be loaded.
      */
@@ -256,16 +255,16 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
     }
 
     /**
-     * Returns the parameter types for the method in string representation, e.g.
-     * {@code ["int", "List<X>", "com.abc.XYZ"]}. If the method has no parameters, returns a zero-sized array.
+     * Returns the parameter types for the method in string representation, e.g. {@code ["int",
+     * "List<X>", "com.abc.XYZ"]}. If the method has no parameters, returns a zero-sized array.
      */
     public String[] getParameterTypeStrs() {
         return toStringArray(getTypeSignature().paramTypes);
     }
 
     /**
-     * Returns the types of exceptions the method may throw, in string representation, e.g.
-     * {@code ["com.abc.BadException", "<X>"]}. If the method throws no exceptions, returns a zero-sized array.
+     * Returns the types of exceptions the method may throw, in string representation, e.g. {@code
+     * ["com.abc.BadException", "<X>"]}. If the method throws no exceptions, returns a zero-sized array.
      */
     public ClassTypeOrTypeVariableSignature[] getThrowsTypeSignatures() {
         return toTypeOrTypeVariableSignatureArray(getTypeSignature().throwsSignatures);
@@ -280,8 +279,8 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
     }
 
     /**
-     * Returns the types of exceptions the method may throw, in string representation, e.g.
-     * {@code ["com.abc.BadException", "<X>"]}. If the method throws no exceptions, returns a zero-sized array.
+     * Returns the types of exceptions the method may throw, in string representation, e.g. {@code
+     * ["com.abc.BadException", "<X>"]}. If the method throws no exceptions, returns a zero-sized array.
      */
     public String[] getThrowsTypeStrs() {
         return toStringArray(getTypeSignature().throwsSignatures);
@@ -295,8 +294,8 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
     }
 
     /**
-     * Returns the type parameters of the method, in string representation, e.g. {@code ["<X>", "<Y>"]}. If the
-     * method has no type parameters, returns a zero-sized array.
+     * Returns the type parameters of the method, in string representation, e.g. {@code ["<X>",
+     * "<Y>"]}. If the method has no type parameters, returns a zero-sized array.
      */
     public String[] getTypeParameterStrs() {
         return toStringArray(getTypeSignature().typeParameters);
@@ -359,7 +358,8 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
     /**
      * Returns the method parameter names, if available (only available in classfiles compiled in JDK8 or above
      * using the -parameters commandline switch), otherwise returns null.
-     * 
+     *
+     * <p>
      * Note that parameters may be unnamed, in which case the corresponding parameter name will be null.
      */
     public String[] getParameterNames() {
@@ -369,8 +369,10 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
     /**
      * Returns the parameter access flags, if available (only available in classfiles compiled in JDK8 or above
      * using the -parameters commandline switch), otherwise returns null.
-     * 
+     *
+     * <p>
      * Flag bits:
+     *
      * <ul>
      * <li>0x0010 (ACC_FINAL): Indicates that the formal parameter was declared final.
      * <li>0x1000 (ACC_SYNTHETIC): Indicates that the formal parameter was not explicitly or implicitly declared in
@@ -445,9 +447,7 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
         return parameterAnnotationInfo;
     }
 
-    /**
-     * Returns the names of annotations on the method, or the empty list if none.
-     */
+    /** Returns the names of annotations on the method, or the empty list if none. */
     public List<String> getAnnotationNames() {
         return Arrays.asList(AnnotationInfo.getUniqueAnnotationNamesSorted(annotationInfo));
     }
@@ -455,7 +455,7 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
     /**
      * Returns a list of Class<?> references for the annotations on this method, or the empty list if none. Note
      * that this calls Class.forName() on the annotation types, which will cause each annotation class to be loaded.
-     * 
+     *
      * @throws IllegalArgumentException
      *             if the annotation type could not be loaded.
      */
@@ -479,9 +479,7 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
         return annotationInfo == null ? Collections.<AnnotationInfo> emptyList() : annotationInfo;
     }
 
-    /**
-     * Test class name, method name and type descriptor for equals().
-     */
+    /** Test class name, method name and type descriptor for equals(). */
     @Override
     public boolean equals(final Object obj) {
         if (this == obj) {

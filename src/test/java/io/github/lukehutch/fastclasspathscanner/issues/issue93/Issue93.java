@@ -29,9 +29,7 @@ public class Issue93 {
     static class RetentionRuntimeAnnotated {
     }
 
-    /**
-     * Test that both CLASS-retained and RUNTIME-retained annotations are visible by default.
-     */
+    /** Test that both CLASS-retained and RUNTIME-retained annotations are visible by default. */
     @Test
     public void classRetentionIsDefault() {
         final ScanResult scanResult = new FastClasspathScanner(PKG).scan();

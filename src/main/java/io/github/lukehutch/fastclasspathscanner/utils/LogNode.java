@@ -1,25 +1,25 @@
 /*
  * This file is part of FastClasspathScanner.
- * 
+ *
  * Author: Luke Hutchison
- * 
+ *
  * Hosted at: https://github.com/lukehutch/fast-classpath-scanner
- * 
+ *
  * --
  *
  * The MIT License (MIT)
  *
  * Copyright (c) 2016 Luke Hutchison
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
  * limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
  * the Software, and to permit persons to whom the Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in all copies or substantial
  * portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
  * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO
  * EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
@@ -59,9 +59,7 @@ public class LogNode {
     /** The stacktrace, if this log entry was due to an exception. */
     private String stackTrace;
 
-    /**
-     * The time between when this log entry was created and addElapsedTime() was called.
-     */
+    /** The time between when this log entry was created and addElapsedTime() was called. */
     private long elapsedTimeNanos;
 
     /** The child nodes of this log node. */
@@ -104,9 +102,7 @@ public class LogNode {
         JarUtils.logJavaInfo(this);
     }
 
-    /**
-     * Append a line to the log output, indenting this log entry according to tree structure.
-     */
+    /** Append a line to the log output, indenting this log entry according to tree structure. */
     private void appendLine(final String timeStampStr, final int indentLevel, final String line,
             final StringBuilder buf) {
         buf.append(timeStampStr);
@@ -195,7 +191,7 @@ public class LogNode {
 
     /**
      * Add a log entry with sort key for deterministic ordering.
-     * 
+     *
      * @return a child log node, which can be used to add sub-entries.
      */
     public LogNode log(final String sortKey, final String msg, final long elapsedTimeNanos, final Throwable e) {
@@ -204,7 +200,7 @@ public class LogNode {
 
     /**
      * Add a log entry with sort key for deterministic ordering.
-     * 
+     *
      * @return a child log node, which can be used to add sub-entries.
      */
     public LogNode log(final String sortKey, final String msg, final long elapsedTimeNanos) {
@@ -213,7 +209,7 @@ public class LogNode {
 
     /**
      * Add a log entry with sort key for deterministic ordering.
-     * 
+     *
      * @return a child log node, which can be used to add sub-entries.
      */
     public LogNode log(final String sortKey, final String msg, final Throwable e) {
@@ -222,7 +218,7 @@ public class LogNode {
 
     /**
      * Add a log entry with sort key for deterministic ordering.
-     * 
+     *
      * @return a child log node, which can be used to add sub-entries.
      */
     public LogNode log(final String sortKey, final String msg) {
@@ -231,7 +227,7 @@ public class LogNode {
 
     /**
      * Add a log entry.
-     * 
+     *
      * @return a child log node, which can be used to add sub-entries.
      */
     public LogNode log(final String msg, final long elapsedTimeNanos, final Throwable e) {
@@ -240,7 +236,7 @@ public class LogNode {
 
     /**
      * Add a log entry.
-     * 
+     *
      * @return a child log node, which can be used to add sub-entries.
      */
     public LogNode log(final String msg, final long elapsedTimeNanos) {
@@ -249,7 +245,7 @@ public class LogNode {
 
     /**
      * Add a log entry.
-     * 
+     *
      * @return a child log node, which can be used to add sub-entries.
      */
     public LogNode log(final String msg, final Throwable e) {
@@ -258,7 +254,7 @@ public class LogNode {
 
     /**
      * Add a log entry.
-     * 
+     *
      * @return a child log node, which can be used to add sub-entries.
      */
     public LogNode log(final String msg) {
@@ -267,7 +263,7 @@ public class LogNode {
 
     /**
      * Add a log entry.
-     * 
+     *
      * @return a child log node, which can be used to add sub-entries.
      */
     public LogNode log(final Throwable e) {

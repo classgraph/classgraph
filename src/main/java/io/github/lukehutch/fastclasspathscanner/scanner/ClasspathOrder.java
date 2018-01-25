@@ -1,25 +1,25 @@
 /*
  * This file is part of FastClasspathScanner.
- * 
+ *
  * Author: Luke Hutchison
- * 
+ *
  * Hosted at: https://github.com/lukehutch/fast-classpath-scanner
- * 
+ *
  * --
  *
  * The MIT License (MIT)
  *
  * Copyright (c) 2016 Luke Hutchison
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
  * limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
  * the Software, and to permit persons to whom the Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in all copies or substantial
  * portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
  * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO
  * EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
@@ -55,7 +55,7 @@ public class ClasspathOrder {
     /**
      * Add a classpath element relative to a base file. May be called by a ClassLoaderHandler to add classpath
      * elements that it knows about. ClassLoaders will be called in order.
-     * 
+     *
      * @param pathElement
      *            the URL or path of the classpath element.
      * @param classLoaders
@@ -64,7 +64,6 @@ public class ClasspathOrder {
      *            the AdditionOrderedSet to add classpath elements to.
      * @param log
      *            the LogNode instance to use if logging in verbose mode.
-     * 
      * @return true (and add the classpath element) if pathElement is not null or empty, otherwise return false.
      */
     public boolean addClasspathElement(final String pathElement, final ClassLoader[] classLoaders,
@@ -134,14 +133,13 @@ public class ClasspathOrder {
     /**
      * Add classpath elements, separated by the system path separator character. May be called by a
      * ClassLoaderHandler to add a path string that it knows about.
-     * 
+     *
      * @param pathStr
      *            the delimited string of URLs or paths of the classpath.
      * @param classLoaders
      *            the ClassLoader(s) that this classpath was obtained from.
      * @param log
      *            the LogNode instance to use if logging in verbose mode.
-     * 
      * @return true (and add the classpath element) if pathElement is not null or empty, otherwise return false.
      */
     public boolean addClasspathElements(final String pathStr, final ClassLoader[] classLoaders, final LogNode log) {
@@ -163,14 +161,13 @@ public class ClasspathOrder {
     /**
      * Add a classpath element relative to a base file. May be called by a ClassLoaderHandler to add classpath
      * elements that it knows about.
-     * 
+     *
      * @param pathElement
      *            the URL or path of the classpath element.
      * @param classLoader
      *            the ClassLoader that this classpath element was obtained from.
      * @param log
      *            the LogNode instance to use if logging in verbose mode.
-     * 
      * @return true (and add the classpath element) if pathElement is not null or empty, otherwise return false.
      */
     public boolean addClasspathElement(final String pathElement, final ClassLoader classLoader, final LogNode log) {
@@ -182,14 +179,13 @@ public class ClasspathOrder {
      * single path, or several paths separated with File.pathSeparator), a List or other Iterable, or an array
      * object. In the case of Iterables and arrays, the elements may be any type whose {@code toString()} method
      * returns a path or URL string (including the {@code URL} and {@code Path} types).
-     * 
+     *
      * @param pathObject
      *            the object containing a classpath string or strings.
      * @param classLoader
      *            the ClassLoader that this classpath was obtained from.
      * @param log
      *            the LogNode instance to use if logging in verbose mode.
-     * 
      * @return true (and add the classpath element) if pathEl)ement is not null or empty, otherwise return false.
      */
     public boolean addClasspathElementObject(final Object pathObject, final ClassLoader classLoader,
@@ -226,14 +222,13 @@ public class ClasspathOrder {
     /**
      * Add classpath elements, separated by the system path separator character. May be called by a
      * ClassLoaderHandler to add a path string that it knows about.
-     * 
+     *
      * @param pathStr
      *            the delimited string of URLs or paths of the classpath.
      * @param classLoader
      *            the ClassLoader that this classpath was obtained from.
      * @param log
      *            the LogNode instance to use if logging in verbose mode.
-     * 
      * @return true (and add the classpath element) if pathEl)ement is not null or empty, otherwise return false.
      */
     public boolean addClasspathElements(final String pathStr, final ClassLoader classLoader, final LogNode log) {
@@ -242,12 +237,11 @@ public class ClasspathOrder {
 
     /**
      * Add all classpath elements in another ClasspathElementOrder after the elements in this order.
-     * 
+     *
      * @param subsequentOrder
      *            the ordering to add after this one.
      * @param log
      *            the LogNode instance to use if logging in verbose mode.
-     * 
      * @return true (and add the classpath element) if pathElement is not null or empty, otherwise return false.
      */
     boolean addClasspathElements(final ClasspathOrder subsequentOrder) {

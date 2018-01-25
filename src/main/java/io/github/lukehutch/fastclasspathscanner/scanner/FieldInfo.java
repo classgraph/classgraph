@@ -1,25 +1,25 @@
 /*
  * This file is part of FastClasspathScanner.
- * 
+ *
  * Author: Luke Hutchison
- * 
+ *
  * Hosted at: https://github.com/lukehutch/fast-classpath-scanner
- * 
+ *
  * --
  *
  * The MIT License (MIT)
  *
  * Copyright (c) 2016 Luke Hutchison
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
  * limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
  * the Software, and to permit persons to whom the Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in all copies or substantial
  * portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
  * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO
  * EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
@@ -135,9 +135,7 @@ public class FieldInfo extends InfoObject implements Comparable<FieldInfo> {
         return modifiers;
     }
 
-    /**
-     * Returns the internal type descriptor for the field, e.g. "Ljava/lang/String;"
-     */
+    /** Returns the internal type descriptor for the field, e.g. "Ljava/lang/String;" */
     public String getTypeDescriptor() {
         return typeDescriptor;
     }
@@ -151,7 +149,7 @@ public class FieldInfo extends InfoObject implements Comparable<FieldInfo> {
      * Returns the Class<?> reference for the field. Note that this calls Class.forName() on the field type, which
      * will cause the class to be loaded, and possibly initialized. If the class is initialized, this can trigger
      * side effects.
-     * 
+     *
      * @throws IllegalArgumentException
      *             if the field type could not be loaded.
      */
@@ -164,16 +162,12 @@ public class FieldInfo extends InfoObject implements Comparable<FieldInfo> {
         return getTypeSignature().toString();
     }
 
-    /**
-     * Returns the constant final initializer value of the field, or null if none.
-     */
+    /** Returns the constant final initializer value of the field, or null if none. */
     public Object getConstFinalValue() {
         return constValue;
     }
 
-    /**
-     * Returns the names of unique annotations on the field, or the empty list if none.
-     */
+    /** Returns the names of unique annotations on the field, or the empty list if none. */
     public List<String> getAnnotationNames() {
         return Arrays.asList(AnnotationInfo.getUniqueAnnotationNamesSorted(annotationInfo));
     }
@@ -181,7 +175,7 @@ public class FieldInfo extends InfoObject implements Comparable<FieldInfo> {
     /**
      * Returns Class references for the unique annotations on this field. Note that this calls Class.forName() on
      * the annotation types, which will cause each annotation class to be loaded.
-     * 
+     *
      * @throws IllegalArgumentException
      *             if the annotation type could not be loaded.
      */

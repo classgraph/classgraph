@@ -1,25 +1,25 @@
 /*
  * This file is part of FastClasspathScanner.
- * 
+ *
  * Author: Luke Hutchison
- * 
+ *
  * Hosted at: https://github.com/lukehutch/fast-classpath-scanner
- * 
+ *
  * --
  *
  * The MIT License (MIT)
  *
  * Copyright (c) 2016 Luke Hutchison
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
  * limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
  * the Software, and to permit persons to whom the Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in all copies or substantial
  * portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
  * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO
  * EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
@@ -45,14 +45,16 @@ import java.util.zip.ZipFile;
 /**
  * Unzip a jarfile within a jarfile to a temporary file on disk. Also handles the download of jars from http(s) URLs
  * to temp files.
- * 
+ *
+ * <p>
  * Somewhat paradoxically, the fastest way to support scanning zipfiles-within-zipfiles is to unzip the inner
  * zipfile to a temporary file on disk, because the inner zipfile can only be read using ZipInputStream, not ZipFile
  * (the ZipFile constructors only take a File argument). ZipInputStream doesn't have methods for reading the zip
  * directory at the beginning of the stream, so using ZipInputStream rather than ZipFile, you have to decompress the
  * entire zipfile to read all the directory entries. However, there may be many non-whitelisted entries in the
  * zipfile, so this could be a lot of wasted work.
- * 
+ *
+ * <p>
  * FastClasspathScanner makes two passes, one to read the zipfile directory, which whitelist and blacklist criteria
  * are applied to (this is a fast operation when using ZipFile), and then an additional pass to read only
  * whitelisted (non-blacklisted) entries. Therefore, in the general case, the ZipFile API is always going to be
@@ -93,8 +95,7 @@ public class NestedJarHandler {
                     throws Exception {
                 final int lastPlingIdx = nestedJarPath.lastIndexOf('!');
                 if (lastPlingIdx < 0) {
-                    // nestedJarPath is a simple file path or URL (i.e. doesn't have any '!'
-                    // sections).
+                    // nestedJarPath is a simple file path or URL (i.e. doesn't have any '!' sections).
                     // This is also the last frame of recursion for the 'else' clause below.
 
                     // If the path starts with "http(s)://", download the jar to a temp file
@@ -235,7 +236,7 @@ public class NestedJarHandler {
 
     /**
      * Get a ZipFile recycler given the (non-nested) canonical path of a jarfile.
-     * 
+     *
      * @return The ZipFile recycler.
      */
     public Recycler<ZipFile, IOException> getZipFileRecycler(final String canonicalPath, final LogNode log)
@@ -251,11 +252,13 @@ public class NestedJarHandler {
     /**
      * Get a File for a given (possibly nested) jarfile path, unzipping the first N-1 segments of an N-segment
      * '!'-delimited path to temporary files, then returning the File reference for the N-th temporary file.
-     * 
+     *
+     * <p>
      * If the path does not contain '!', returns the File represented by the path.
-     * 
+     *
+     * <p>
      * All path segments should end in a jarfile extension, e.g. ".jar" or ".zip".
-     * 
+     *
      * @return An {@code Entry<File, Set<String>>}, where the {@code File} is the innermost jar, and the
      *         {@code Set<String>} is the set of all relative paths of scanning roots within the innermost jar (may
      *         be empty, or may contain strings like "target/classes" or similar). If there was an issue with the
