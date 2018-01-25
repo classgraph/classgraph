@@ -47,6 +47,7 @@ public class FieldInfo extends InfoObject implements Comparable<FieldInfo> {
     private final String fieldName;
     private final int modifiers;
     private final String typeDescriptor;
+    private TypeSignature typeSignature;
     private final Object constValue;
     final List<AnnotationInfo> annotationInfo;
     private ScanResult scanResult;
@@ -142,7 +143,10 @@ public class FieldInfo extends InfoObject implements Comparable<FieldInfo> {
 
     /** Returns the type signature for the field. */
     public TypeSignature getTypeSignature() {
-        return TypeParser.parseTypeSignature(typeDescriptor);
+        if (typeSignature == null) {
+            typeSignature = TypeParser.parseTypeSignature(typeDescriptor);
+        }
+        return typeSignature;
     }
 
     /**
