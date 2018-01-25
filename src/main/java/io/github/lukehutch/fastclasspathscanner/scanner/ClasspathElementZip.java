@@ -181,6 +181,9 @@ class ClasspathElementZip extends ClasspathElement {
         } finally {
             zipFileRecycler.release(zipFile);
         }
+        if (logNode != null) {
+            logNode.addElapsedTime();
+        }
     }
 
     private ClasspathResource newClasspathResource(final File classpathEltFile,

@@ -262,6 +262,9 @@ abstract class ClasspathElement {
                     interruptionChecker.check();
                 }
             }
+            if (subLog != null) {
+                subLog.addElapsedTime();
+            }
         }
     }
 
