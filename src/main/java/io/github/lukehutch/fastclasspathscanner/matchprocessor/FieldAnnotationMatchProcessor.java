@@ -30,7 +30,9 @@ package io.github.lukehutch.fastclasspathscanner.matchprocessor;
 
 import java.lang.reflect.Field;
 
-/** The method to run when a class that has a field with a specified annotation is found on the classpath. */
+/**
+ * The method to run when a class that has a field with a specified annotation is found on the classpath.
+ */
 @FunctionalInterface
 public interface FieldAnnotationMatchProcessor {
     public void processMatch(Class<?> matchingClass, Field matchingField);

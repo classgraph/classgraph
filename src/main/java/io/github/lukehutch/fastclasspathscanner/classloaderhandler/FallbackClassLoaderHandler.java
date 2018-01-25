@@ -33,7 +33,9 @@ import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
 
-/** Fallback ClassLoaderHandler. Tries to get classpath from a range of possible method and field names. */
+/**
+ * Fallback ClassLoaderHandler. Tries to get classpath from a range of possible method and field names.
+ */
 public class FallbackClassLoaderHandler implements ClassLoaderHandler {
     @Override
     public String[] handledClassLoaders() {

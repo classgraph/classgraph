@@ -63,7 +63,7 @@ public class TypeParser {
             return null;
         }
     }
-    
+
     // -------------------------------------------------------------------------------------------------------------
 
     /** A type signature for a base type. */
@@ -150,7 +150,7 @@ public class TypeParser {
             }
         }
     }
-    
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
@@ -178,17 +178,20 @@ public class TypeParser {
 
         private static ReferenceTypeSignature parseClassBound(final ParseState parseState) throws ParseException {
             parseState.expect(':');
-            // May return null if there is no signature after ':' (class bound signature may be empty)
+            // May return null if there is no signature after ':' (class bound signature may
+            // be empty)
             return parseReferenceTypeSignature(parseState);
         }
     }
-    
+
     // -------------------------------------------------------------------------------------------------------------
 
-    /** A class type or type variable. Subclasses are ClassTypeSignature and TypeVariableSignature. */
+    /**
+     * A class type or type variable. Subclasses are ClassTypeSignature and TypeVariableSignature.
+     */
     public static abstract class ClassTypeOrTypeVariableSignature extends ReferenceTypeSignature {
     }
-    
+
     // -------------------------------------------------------------------------------------------------------------
 
     /** A type argument. */
@@ -287,7 +290,7 @@ public class TypeParser {
             }
         }
     }
-    
+
     // -------------------------------------------------------------------------------------------------------------
 
     /** A class type signature. */
@@ -315,7 +318,8 @@ public class TypeParser {
         /** Instantiate class ref. Type arguments are ignored. */
         @Override
         public Class<?> instantiate(final ScanResult scanResult) {
-            // TODO: I'm not sure if this is the right thing to do with suffixes (append them to class name)
+            // TODO: I'm not sure if this is the right thing to do with suffixes (append
+            // them to class name)
             final StringBuilder buf = new StringBuilder();
             buf.append(className);
             for (int i = 0; i < suffixes.size(); i++) {
@@ -377,9 +381,10 @@ public class TypeParser {
                 throws ParseException {
             if (parseState.peek() == 'L') {
                 parseState.next();
-                //            if (parseState.peekMatches("java/lang/") || parseState.peekMatches("java/util/")) {
-                //                parseState.advance(10);
-                //            }
+                // if (parseState.peekMatches("java/lang/") ||
+                // parseState.peekMatches("java/util/")) {
+                // parseState.advance(10);
+                // }
                 if (!parseState.parseIdentifier(/* separator = */ '/', /* separatorReplace = */ '.')) {
                     throw new ParseException();
                 }
@@ -409,7 +414,7 @@ public class TypeParser {
             }
         }
     }
-    
+
     // -------------------------------------------------------------------------------------------------------------
 
     /** A type variable signature. */
@@ -460,7 +465,7 @@ public class TypeParser {
             }
         }
     }
-    
+
     // -------------------------------------------------------------------------------------------------------------
 
     /** An array type. */
@@ -532,7 +537,7 @@ public class TypeParser {
             }
         }
     }
-    
+
     // -------------------------------------------------------------------------------------------------------------
 
     /** A type parameter. */
@@ -637,7 +642,7 @@ public class TypeParser {
             return typeParams;
         }
     }
-    
+
     // -------------------------------------------------------------------------------------------------------------
 
     /** A method signature. */
@@ -807,7 +812,7 @@ public class TypeParser {
                     /* parameterAccessFlags = */ null, /* parameterAnnotationInfo = */ null);
         }
     }
-    
+
     // -------------------------------------------------------------------------------------------------------------
 
     /** A class signature. */
@@ -894,7 +899,9 @@ public class TypeParser {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Convert field or method modifiers into a string representation, e.g. "public static final". */
+    /**
+     * Convert field or method modifiers into a string representation, e.g. "public static final".
+     */
     public static String modifiersToString(final int modifiers, final boolean isMethod) {
         final StringBuilder buf = new StringBuilder();
         if ((modifiers & Modifier.PUBLIC) != 0) {
@@ -955,7 +962,7 @@ public class TypeParser {
         }
         return buf.toString();
     }
-    
+
     // -------------------------------------------------------------------------------------------------------------
 
     private static class ParseException extends Exception {
@@ -1140,7 +1147,8 @@ public class TypeParser {
     public static TypeSignature parseTypeSignature(final String typeDescriptor) {
         final ParseState parseState = new ParseState(typeDescriptor);
         if (parseState.peek() == '(') {
-            // This method is not for method signatures, use parseComplexTypeDescriptor() instead
+            // This method is not for method signatures, use parseComplexTypeDescriptor()
+            // instead
             throw new RuntimeException("Got unexpected method signature");
         }
         TypeSignature typeSignature;

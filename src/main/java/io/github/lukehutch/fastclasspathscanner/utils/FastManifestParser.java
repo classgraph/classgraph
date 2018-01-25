@@ -58,7 +58,8 @@ public class FastManifestParser {
                 final int len = manifest.length();
                 this.isSystemJar = manifest.indexOf("\nImplementation-Title: Java Runtime Environment") > 0
                         || manifest.indexOf("\nSpecification-Title: Java Platform API Specification") > 0;
-                // Manifest files support three different line terminator types, and entries can be split
+                // Manifest files support three different line terminator types, and entries can
+                // be split
                 // across lines with a line terminator followed by a space.
                 final int classPathIdx = manifest.indexOf("\nClass-Path:");
                 if (classPathIdx >= 0) {

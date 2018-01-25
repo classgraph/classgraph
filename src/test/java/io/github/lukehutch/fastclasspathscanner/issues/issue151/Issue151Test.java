@@ -44,7 +44,8 @@ import io.github.lukehutch.fastclasspathscanner.scanner.MethodInfo;
 public class Issue151Test {
     @Test
     public void issue151Test() throws IOException {
-        // Scans io.github.lukehutch.fastclasspathscanner.issues.issue146.CompiledWithJDK8,
+        // Scans
+        // io.github.lukehutch.fastclasspathscanner.issues.issue146.CompiledWithJDK8,
         // which is in src/test/resources
         final String pkg = Issue151Test.class.getPackage().getName();
         final MethodInfo methodInfo = new FastClasspathScanner(pkg) //

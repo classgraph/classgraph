@@ -51,10 +51,14 @@ import io.github.lukehutch.fastclasspathscanner.utils.TypeParser.TypeSignature;
  * sequence, to avoid re-allocating buffer memory.
  */
 class ClassfileBinaryParser implements AutoCloseable {
-    /** The InputStream for the current classfile. Set by each call to readClassInfoFromClassfileHeader(). */
+    /**
+     * The InputStream for the current classfile. Set by each call to readClassInfoFromClassfileHeader().
+     */
     private InputStream inputStream;
 
-    /** The name of the current classfile. Determined early in the call to readClassInfoFromClassfileHeader(). */
+    /**
+     * The name of the current classfile. Determined early in the call to readClassInfoFromClassfileHeader().
+     */
     private String className;
 
     @Override
@@ -76,7 +80,9 @@ class ClassfileBinaryParser implements AutoCloseable {
     /** Buffer size for classfile reader. */
     private static final int SUBSEQUENT_BUFFER_CHUNK_SIZE = 4096;
 
-    /** Bytes read from the beginning of the classfile. This array is reused across calls. */
+    /**
+     * Bytes read from the beginning of the classfile. This array is reused across calls.
+     */
     private byte[] buf = new byte[INITIAL_BUFFER_CHUNK_SIZE];
 
     /** The current read index in the classfileBytes array. */
@@ -134,7 +140,9 @@ class ClassfileBinaryParser implements AutoCloseable {
         return buf[curr++] & 0xff;
     }
 
-    /** Read an unsigned byte from the buffer at a specific offset before the current read point. */
+    /**
+     * Read an unsigned byte from the buffer at a specific offset before the current read point.
+     */
     @SuppressWarnings("unused")
     private int readUnsignedByte(final int offset) {
         return buf[offset] & 0xff;
@@ -150,7 +158,9 @@ class ClassfileBinaryParser implements AutoCloseable {
         return val;
     }
 
-    /** Read an unsigned short from the buffer at a specific offset before the current read point. */
+    /**
+     * Read an unsigned short from the buffer at a specific offset before the current read point.
+     */
     private int readUnsignedShort(final int offset) {
         return ((buf[offset] & 0xff) << 8) | (buf[offset + 1] & 0xff);
     }
@@ -166,7 +176,9 @@ class ClassfileBinaryParser implements AutoCloseable {
         return val;
     }
 
-    /** Read an int from the buffer at a specific offset before the current read point. */
+    /**
+     * Read an int from the buffer at a specific offset before the current read point.
+     */
     private int readInt(final int offset) throws IOException {
         return ((buf[offset] & 0xff) << 24) | ((buf[offset + 1] & 0xff) << 16) | ((buf[offset + 2] & 0xff) << 8)
                 | (buf[offset + 3] & 0xff);
@@ -185,7 +197,9 @@ class ClassfileBinaryParser implements AutoCloseable {
         return val;
     }
 
-    /** Read a long from the buffer at a specific offset before the current read point. */
+    /**
+     * Read a long from the buffer at a specific offset before the current read point.
+     */
     private long readLong(final int offset) throws IOException {
         return (((long) (((buf[offset] & 0xff) << 24) | ((buf[offset + 1] & 0xff) << 16)
                 | ((buf[offset + 2] & 0xff) << 8) | (buf[offset + 3] & 0xff))) << 32)
@@ -371,7 +385,9 @@ class ClassfileBinaryParser implements AutoCloseable {
         return getConstantPoolString(cpIdx, /* subFieldIdx = */ 0);
     }
 
-    /** Get the first UTF8 byte of a string in the constant pool, or '\0' if the string is null or empty. */
+    /**
+     * Get the first UTF8 byte of a string in the constant pool, or '\0' if the string is null or empty.
+     */
     private byte getConstantPoolStringFirstByte(final int cpIdx) {
         final int constantPoolStringOffset = getConstantPoolStringOffset(cpIdx, /* subFieldIdx = */ 0);
         if (constantPoolStringOffset == 0) {
@@ -384,7 +400,9 @@ class ClassfileBinaryParser implements AutoCloseable {
         return buf[constantPoolStringOffset + 2];
     }
 
-    /** Get a string from the constant pool, and interpret it as a class name by replacing '/' with '.'. */
+    /**
+     * Get a string from the constant pool, and interpret it as a class name by replacing '/' with '.'.
+     */
     private String getConstantPoolClassName(final int CpIdx) {
         return getConstantPoolString(CpIdx, /* replaceSlashWithDot = */ true, /* stripLSemicolon = */ false);
     }
@@ -398,7 +416,9 @@ class ClassfileBinaryParser implements AutoCloseable {
         return getConstantPoolString(CpIdx, /* replaceSlashWithDot = */ true, /* stripLSemicolon = */ true);
     }
 
-    /** Compare a string in the constant pool with a given constant, without constructing the String object. */
+    /**
+     * Compare a string in the constant pool with a given constant, without constructing the String object.
+     */
     private boolean constantPoolStringEquals(final int cpIdx, final String otherString) {
         final int strOffset = getConstantPoolStringOffset(cpIdx, /* subFieldIdx = */ 0);
         if (strOffset == 0) {
@@ -553,14 +573,16 @@ class ClassfileBinaryParser implements AutoCloseable {
                         break;
                     }
                 }
-                // Switch '/' package delimiter to '.' (lower overhead than String.replace('/', '.'))
+                // Switch '/' package delimiter to '.' (lower overhead than String.replace('/',
+                // '.'))
                 final char[] typeNameChars = new char[i - typeNameStart];
                 for (int j = typeNameStart; j < i; j++) {
                     final char chr = typeDescriptor.charAt(j);
                     typeNameChars[j - typeNameStart] = chr == '/' ? '.' : chr;
                 }
                 final String typeName = new String(typeNameChars);
-                // Check if the type of this field falls within a non-blacklisted package, and if not, add it
+                // Check if the type of this field falls within a non-blacklisted package, and
+                // if not, add it
                 classInfoUnlinked.addFieldType(typeName);
             }
         }
@@ -579,8 +601,9 @@ class ClassfileBinaryParser implements AutoCloseable {
             final ConcurrentHashMap<String, String> stringInternMap, final LogNode log)
             throws IOException, InterruptedException {
 
-        // This class instance can be reused across scans, to avoid re-allocating the buffer.
-        // Initialize/clear fields for each new run. 
+        // This class instance can be reused across scans, to avoid re-allocating the
+        // buffer.
+        // Initialize/clear fields for each new run.
         this.inputStream = inputStream;
         className = null;
         curr = 0;
@@ -608,7 +631,8 @@ class ClassfileBinaryParser implements AutoCloseable {
         // Read size of constant pool
         final int cpCount = readUnsignedShort();
 
-        // Allocate storage for constant pool, or reuse storage if there's enough left from the previous scan
+        // Allocate storage for constant pool, or reuse storage if there's enough left
+        // from the previous scan
         if (offset == null || offset.length < cpCount) {
             offset = new int[cpCount];
             tag = new int[cpCount];
@@ -638,7 +662,8 @@ class ClassfileBinaryParser implements AutoCloseable {
             case 8: // String
                 // Forward or backward indirect reference to a modified UTF8 entry
                 indirectStringRefs[i] = readUnsignedShort();
-                // (no need to copy bytes over, we use indirectStringRef instead for these fields)
+                // (no need to copy bytes over, we use indirectStringRef instead for these
+                // fields)
                 break;
             case 9: // field ref
             case 10: // method ref
@@ -689,8 +714,10 @@ class ClassfileBinaryParser implements AutoCloseable {
         final String classNamePath = getConstantPoolString(readUnsignedShort());
         final String className = classNamePath.replace('/', '.');
         if ("java.lang.Object".equals(className)) {
-            // Don't process java.lang.Object (it has a null superclass), though you can still search for
-            // classes that are subclasses of java.lang.Object if you add "!" to the scan spec.
+            // Don't process java.lang.Object (it has a null superclass), though you can
+            // still search for
+            // classes that are subclasses of java.lang.Object if you add "!" to the scan
+            // spec.
             return null;
         }
 
@@ -713,7 +740,8 @@ class ClassfileBinaryParser implements AutoCloseable {
         // Superclass name, with slashes replaced with dots
         final String superclassName = getConstantPoolClassName(readUnsignedShort());
 
-        // Create holder object for the class information. This is "unlinked", in the sense that it is
+        // Create holder object for the class information. This is "unlinked", in the
+        // sense that it is
         // not linked to other class info references at this point.
         final ClassInfoUnlinked classInfoUnlinked = new ClassInfoUnlinked(className, classModifierFlags,
                 isInterface, isAnnotation, stringInternMap, classpathElement);
@@ -736,7 +764,8 @@ class ClassfileBinaryParser implements AutoCloseable {
         final boolean matchStaticFinalFields = staticFinalFieldsToMatch != null;
         final int fieldCount = readUnsignedShort();
         for (int i = 0; i < fieldCount; i++) {
-            // Info on modifier flags: http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.5
+            // Info on modifier flags:
+            // http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.5
             final int fieldModifierFlags = readUnsignedShort();
             final boolean isPublicField = ((fieldModifierFlags & 0x0001) == 0x0001);
             final boolean isStaticFinalField = ((fieldModifierFlags & 0x0018) == 0x0018);
@@ -791,7 +820,8 @@ class ClassfileBinaryParser implements AutoCloseable {
                 for (int j = 0; j < attributesCount; j++) {
                     final int attributeNameCpIdx = readUnsignedShort();
                     final int attributeLength = readInt(); // == 2
-                    // See if field name matches one of the requested names for this class, and if it does,
+                    // See if field name matches one of the requested names for this class, and if
+                    // it does,
                     // check if it is initialized with a constant value
                     if ((isMatchedFieldName || scanSpec.enableFieldInfo)
                             && constantPoolStringEquals(attributeNameCpIdx, "ConstantValue")) {
@@ -866,7 +896,8 @@ class ClassfileBinaryParser implements AutoCloseable {
         // Methods
         final int methodCount = readUnsignedShort();
         for (int i = 0; i < methodCount; i++) {
-            // Info on modifier flags: http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.6
+            // Info on modifier flags:
+            // http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.6
             final int methodModifierFlags = readUnsignedShort();
             final boolean isPublicMethod = ((methodModifierFlags & 0x0001) == 0x0001);
             final boolean methodIsVisible = isPublicMethod || scanSpec.ignoreMethodVisibility;
@@ -929,7 +960,8 @@ class ClassfileBinaryParser implements AutoCloseable {
                             }
                         }
                     } else if (constantPoolStringEquals(attributeNameCpIdx, "MethodParameters")) {
-                        // Read method parameters. For Java, these are only produced in JDK8+, and only if
+                        // Read method parameters. For Java, these are only produced in JDK8+, and only
+                        // if
                         // the commandline switch `-parameters` is provided at compiletime.
                         final int paramCount = readUnsignedByte();
                         methodParameterNames = new String[paramCount];
@@ -999,7 +1031,8 @@ class ClassfileBinaryParser implements AutoCloseable {
                 final int enclosingMethodCpIdx = readUnsignedShort();
                 String enclosingMethodName;
                 if (enclosingMethodCpIdx == 0) {
-                    // A cpIdx of 0 (which is an invalid value) is used for anonymous inner classes declared
+                    // A cpIdx of 0 (which is an invalid value) is used for anonymous inner classes
+                    // declared
                     // in class initializer code, e.g. assigned to a class field.
                     enclosingMethodName = "<clinit>";
                 } else {
@@ -1008,7 +1041,8 @@ class ClassfileBinaryParser implements AutoCloseable {
                 }
                 // Link anonymous inner classes into the class with their containing method
                 classInfoUnlinked.addClassContainment(className, innermostEnclosingClassName);
-                // Also store the fully-qualified name of the enclosing method, to mark this as an anonymous
+                // Also store the fully-qualified name of the enclosing method, to mark this as
+                // an anonymous
                 // inner class
                 classInfoUnlinked.addEnclosingMethod(innermostEnclosingClassName + "." + enclosingMethodName);
             } else {

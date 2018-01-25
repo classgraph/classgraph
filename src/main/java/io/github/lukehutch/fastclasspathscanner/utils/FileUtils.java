@@ -36,12 +36,16 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 public class FileUtils {
-    /** Get current dir (without resolving symlinks), and normalize path by calling FastPathResolver.resolve(). */
+    /**
+     * Get current dir (without resolving symlinks), and normalize path by calling FastPathResolver.resolve().
+     */
     public static String getCurrDirPathStr() {
         String currDirPathStr = "";
         try {
-            // The result is moved to currDirPathStr after each step, so we can provide fine-grained debug info
-            // and a best guess at the path, if the current dir doesn't exist (#109), or something goes wrong
+            // The result is moved to currDirPathStr after each step, so we can provide
+            // fine-grained debug info
+            // and a best guess at the path, if the current dir doesn't exist (#109), or
+            // something goes wrong
             // while trying to get the current dir path.
             Path currDirPath = Paths.get("").toAbsolutePath();
             currDirPathStr = currDirPath.toString();
@@ -64,15 +68,17 @@ public class FileUtils {
                 // ZipEntry#getSize() can wrap around to negative for files larger than 2GB
                 // http://bugs.java.com/bugdatabase/view_bug.do?bug_id=6916399
                 || (fileSize < 0
-                        // ZipEntry#getSize() can return -1 for unknown size 
+                        // ZipEntry#getSize() can return -1 for unknown size
                         && fileSize != -1L)) {
             throw new IOException("File larger that 2GB, cannot read contents into a Java array");
         }
 
-        // We can't always trust the fileSize, unfortunately, so we just use it as a hint
+        // We can't always trust the fileSize, unfortunately, so we just use it as a
+        // hint
         final ByteArrayOutputStream baos = new ByteArrayOutputStream(fileSize <= 0 ? 16384 : (int) fileSize);
 
-        // N.B. there is a better solution for this in Java 9, byte[] bytes = inputStream.readAllBytes()
+        // N.B. there is a better solution for this in Java 9, byte[] bytes =
+        // inputStream.readAllBytes()
         final byte[] buf = new byte[4096];
         int totBytesRead = 0;
         for (int bytesRead; (bytesRead = inputStream.read(buf)) != -1;) {

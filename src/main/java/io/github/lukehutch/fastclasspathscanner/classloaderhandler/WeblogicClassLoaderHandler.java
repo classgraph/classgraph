@@ -37,7 +37,7 @@ import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
 public class WeblogicClassLoaderHandler implements ClassLoaderHandler {
     @Override
     public String[] handledClassLoaders() {
-        return new String[] { // 
+        return new String[] { //
                 "weblogic.utils.classloaders.ChangeAwareClassLoader", //
                 "weblogic.utils.classloaders.GenericClassLoader", //
                 "weblogic.utils.classloaders.FilteringClassLoader", //

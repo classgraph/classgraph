@@ -62,7 +62,9 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** A wrapper used to pair annotation parameter names with annotation parameter values. */
+    /**
+     * A wrapper used to pair annotation parameter names with annotation parameter values.
+     */
     public static class AnnotationParamValue extends InfoObject implements Comparable<AnnotationParamValue> {
         private final String paramName;
         private final Object paramValue;
@@ -177,7 +179,8 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
                 }
             }
             // Use toString() order if trying to compare uncomparable types
-            // (this is inefficient, but it's a last-ditch effort to order things consistently)
+            // (this is inefficient, but it's a last-ditch effort to order things
+            // consistently)
             return paramValue.toString().compareTo(o.paramValue.toString());
         }
 
@@ -314,7 +317,9 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
             return typeSignature.toString();
         }
 
-        /** Get a class reference for a class-reference-typed value used in an annotation parameter. */
+        /**
+         * Get a class reference for a class-reference-typed value used in an annotation parameter.
+         */
         public Class<?> getType() {
             return typeSignature.instantiate(scanResult);
         }
@@ -469,7 +474,9 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
 
     private static final String[] EMPTY_STRING_ARRAY = new String[0];
 
-    /** From a collection of AnnotationInfo objects, extract the annotation names, uniquify them, and sort them. */
+    /**
+     * From a collection of AnnotationInfo objects, extract the annotation names, uniquify them, and sort them.
+     */
     public static String[] getUniqueAnnotationNamesSorted(final Collection<AnnotationInfo> annotationInfo) {
         if (annotationInfo == null || annotationInfo.isEmpty()) {
             return EMPTY_STRING_ARRAY;
@@ -487,7 +494,9 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
         return annotationNamesSorted;
     }
 
-    /** From an array of AnnotationInfo objects, extract the annotation names, uniquify them, and sort them. */
+    /**
+     * From an array of AnnotationInfo objects, extract the annotation names, uniquify them, and sort them.
+     */
     public static String[] getUniqueAnnotationNamesSorted(final AnnotationInfo[] annotationInfo) {
         if (annotationInfo == null || annotationInfo.length == 0) {
             return EMPTY_STRING_ARRAY;

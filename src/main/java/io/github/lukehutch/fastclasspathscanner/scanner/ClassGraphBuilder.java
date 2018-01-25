@@ -70,12 +70,16 @@ class ClassGraphBuilder {
     // -------------------------------------------------------------------------------------------------------------
     // Classes
 
-    /** Get the sorted unique names of all classes, interfaces and annotations found during the scan. */
+    /**
+     * Get the sorted unique names of all classes, interfaces and annotations found during the scan.
+     */
     List<String> getNamesOfAllClasses() {
         return ClassInfo.getNamesOfAllClasses(scanSpec, allClassInfo);
     }
 
-    /** Get the sorted unique names of all standard (non-interface/annotation) classes found during the scan. */
+    /**
+     * Get the sorted unique names of all standard (non-interface/annotation) classes found during the scan.
+     */
     List<String> getNamesOfAllStandardClasses() {
         return ClassInfo.getNamesOfAllStandardClasses(scanSpec, allClassInfo);
     }
@@ -124,12 +128,16 @@ class ClassGraphBuilder {
     // -------------------------------------------------------------------------------------------------------------
     // Interfaces
 
-    /** Return the sorted unique names of all interface classes found during the scan. */
+    /**
+     * Return the sorted unique names of all interface classes found during the scan.
+     */
     List<String> getNamesOfAllInterfaceClasses() {
         return ClassInfo.getNamesOfAllInterfaceClasses(scanSpec, allClassInfo);
     }
 
-    /** Return the sorted list of names of all subinterfaces of the named interface. */
+    /**
+     * Return the sorted list of names of all subinterfaces of the named interface.
+     */
     List<String> getNamesOfSubinterfacesOf(final String interfaceName) {
         final ClassInfo classInfo = classNameToClassInfo.get(interfaceName);
         if (classInfo == null) {
@@ -149,7 +157,9 @@ class ClassGraphBuilder {
         }
     }
 
-    /** Return the sorted list of names of all classes implementing the named interface, and their subclasses. */
+    /**
+     * Return the sorted list of names of all classes implementing the named interface, and their subclasses.
+     */
     List<String> getNamesOfClassesImplementing(final String interfaceName) {
         final ClassInfo classInfo = classNameToClassInfo.get(interfaceName);
         if (classInfo == null) {
@@ -162,7 +172,9 @@ class ClassGraphBuilder {
     // -------------------------------------------------------------------------------------------------------------
     // Annotations
 
-    /** Return the sorted unique names of all annotation classes found during the scan. */
+    /**
+     * Return the sorted unique names of all annotation classes found during the scan.
+     */
     List<String> getNamesOfAllAnnotationClasses() {
         return ClassInfo.getNamesOfAllAnnotationClasses(scanSpec, allClassInfo);
     }
@@ -180,7 +192,9 @@ class ClassGraphBuilder {
         }
     }
 
-    /** Return the sorted list of names of all annotations and meta-annotations on the named class. */
+    /**
+     * Return the sorted list of names of all annotations and meta-annotations on the named class.
+     */
     List<String> getNamesOfAnnotationsOnClass(final String classOrInterfaceOrAnnotationName) {
         final ClassInfo classInfo = classNameToClassInfo.get(classOrInterfaceOrAnnotationName);
         if (classInfo == null) {
@@ -190,7 +204,9 @@ class ClassGraphBuilder {
         }
     }
 
-    /** Return the sorted list of names of all annotations and meta-annotations on the named annotation. */
+    /**
+     * Return the sorted list of names of all annotations and meta-annotations on the named annotation.
+     */
     List<String> getNamesOfMetaAnnotationsOnAnnotation(final String annotationName) {
         final ClassInfo classInfo = classNameToClassInfo.get(annotationName);
         if (classInfo == null) {

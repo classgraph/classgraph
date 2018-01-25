@@ -37,7 +37,7 @@ import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 public class Issue107Test {
     @Test
     public void issue107Test() {
-        // Package annotations should have "package-info" as their class name 
+        // Package annotations should have "package-info" as their class name
         final String pkg = Issue107Test.class.getPackage().getName();
         assertThat(new FastClasspathScanner(pkg).scan().getNamesOfClassesWithAnnotation(PackageAnnotation.class))
                 .containsOnly(pkg + ".package-info");

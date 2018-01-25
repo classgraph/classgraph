@@ -50,7 +50,8 @@ public class Issue103Test {
     private static List<String> classesFoundAsync = new ArrayList<>();
 
     static {
-        // Test that synchronous scanning from class initializer is allowed (and does not deadlock)
+        // Test that synchronous scanning from class initializer is allowed (and does
+        // not deadlock)
         try {
             new FastClasspathScanner(Issue103Test.class.getPackage().getName())
                     .matchAllClasses(c -> classesFoundSync.add(c.getName())).strictWhitelist().scan();
@@ -60,7 +61,8 @@ public class Issue103Test {
 
         final ExecutorService es = Executors.newSingleThreadExecutor();
         try {
-            // Test that async scanning is disallowed from class initializer, to prevent deadlock
+            // Test that async scanning is disallowed from class initializer, to prevent
+            // deadlock
             try {
                 new FastClasspathScanner(Issue103Test.class.getPackage().getName())
                         .matchAllClasses(c -> classesFoundAsync.add(c.getName())).strictWhitelist().scanAsync(es, 1)
@@ -69,7 +71,8 @@ public class Issue103Test {
                 exceptionCaughtAsync = true;
             }
 
-            // Test that async scanning with no MatchProcessors allowed from class initializer.
+            // Test that async scanning with no MatchProcessors allowed from class
+            // initializer.
             try {
                 new FastClasspathScanner(Issue103Test.class.getPackage().getName()).strictWhitelist() //
                         .scanAsync(es, 1).get();

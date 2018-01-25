@@ -49,7 +49,8 @@ public class Issue100Test {
         final URL bJarURL = classLoader.getResource(bJarName);
         final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[] { aJarURL, bJarURL });
 
-        // Class issue100.Test with field "a" should mask class of same name with field "b",
+        // Class issue100.Test with field "a" should mask class of same name with field
+        // "b",
         // because "...a.jar" is earlier in classpath than "...b.jar"
         final ArrayList<String> fieldNames1 = new ArrayList<>();
         new FastClasspathScanner("issue100") //
@@ -60,13 +61,18 @@ public class Issue100Test {
                 }).scan();
         assertThat(fieldNames1).containsOnly("a");
 
-        // However, if "...b.jar" is specifically whitelisted, "...a.jar" should not be visible.
-        // Originally, the version of the class in "...a.jar" was supposed to mask the same class
-        // in "...b.jar" (#100). However, this resulted in a slowdown in scan time (#117).
-        // Also, even if "...b.jar" is whitelisted, scanning with a MatchProcessor (which
+        // However, if "...b.jar" is specifically whitelisted, "...a.jar" should not be
+        // visible.
+        // Originally, the version of the class in "...a.jar" was supposed to mask the
+        // same class
+        // in "...b.jar" (#100). However, this resulted in a slowdown in scan time
+        // (#117).
+        // Also, even if "...b.jar" is whitelisted, scanning with a MatchProcessor
+        // (which
         // calls the current classloader) will actually end up loading "...a.jar".
-        // Therefore, the official stance is that using jar whitelisting/blacklisting 
-        // in cases where a class is defined multiple times will result in undefined behavior.
+        // Therefore, the official stance is that using jar whitelisting/blacklisting
+        // in cases where a class is defined multiple times will result in undefined
+        // behavior.
         final ArrayList<String> fieldNames2 = new ArrayList<>();
         new FastClasspathScanner("issue100", "jar:" + bJarName) //
                 .overrideClassLoaders(overrideClassLoader).matchAllClasses(klass -> {

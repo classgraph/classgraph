@@ -36,7 +36,9 @@ import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 
 /** An interface called when the corresponding FilePathTester returns true. */
 public class FileMatchProcessorWrapper {
-    /** An interface used to test whether a file's relative path matches a given specification. */
+    /**
+     * An interface used to test whether a file's relative path matches a given specification.
+     */
     public interface FilePathTester {
         public boolean filePathMatches(final File classpathElt, final String relativePathStr, final LogNode log);
     }

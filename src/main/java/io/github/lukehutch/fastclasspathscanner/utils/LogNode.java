@@ -45,7 +45,9 @@ import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
  * retain a sane order. The order may also be made deterministic by specifying a sort key for log entries.
  */
 public class LogNode {
-    /** The timestamp at which the log node was created (relative to some arbitrary system timepoint). */
+    /**
+     * The timestamp at which the log node was created (relative to some arbitrary system timepoint).
+     */
     private final long timeStampNano = System.nanoTime();
 
     /** The timestamp at which the log node was created, in epoch millis. */
@@ -57,7 +59,9 @@ public class LogNode {
     /** The stacktrace, if this log entry was due to an exception. */
     private String stackTrace;
 
-    /** The time between when this log entry was created and addElapsedTime() was called. */
+    /**
+     * The time between when this log entry was created and addElapsedTime() was called.
+     */
     private long elapsedTimeNanos;
 
     /** The child nodes of this log node. */
@@ -100,7 +104,9 @@ public class LogNode {
         JarUtils.logJavaInfo(this);
     }
 
-    /** Append a line to the log output, indenting this log entry according to tree structure. */
+    /**
+     * Append a line to the log output, indenting this log entry according to tree structure.
+     */
     private void appendLine(final String timeStampStr, final int indentLevel, final String line,
             final StringBuilder buf) {
         buf.append(timeStampStr);
@@ -169,8 +175,10 @@ public class LogNode {
         final String newSortKey = sortKeyPrefix + String.format("-%09d", sortKeyUniqueSuffix.getAndIncrement())
                 + sortKey;
         final LogNode newChild = new LogNode(newSortKey, msg, elapsedTimeNanos, exception);
-        // Make the sort key unique, so that log entries are not clobbered if keys are reused;
-        // increment unique suffix with each new log entry, so that ties are broken in chronological order.
+        // Make the sort key unique, so that log entries are not clobbered if keys are
+        // reused;
+        // increment unique suffix with each new log entry, so that ties are broken in
+        // chronological order.
         children.put(newSortKey, newChild);
         return newChild;
     }

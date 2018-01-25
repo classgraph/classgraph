@@ -113,8 +113,10 @@ public class Scanner implements Callable<ScanResult> {
      */
     private static List<ClasspathElement> findClasspathOrder(final List<RelativePath> rawClasspathElements,
             final RelativePathToElementMap classpathElementMap) throws InterruptedException {
-        // Recurse from toplevel classpath elements to determine a total ordering of classpath elements
-        // (jars with Class-Path entries in their manifest file should have those child resources included
+        // Recurse from toplevel classpath elements to determine a total ordering of
+        // classpath elements
+        // (jars with Class-Path entries in their manifest file should have those child
+        // resources included
         // in-place in the classpath).
         final HashSet<ClasspathElement> visitedClasspathElts = new HashSet<>();
         final ArrayList<ClasspathElement> order = new ArrayList<>();
@@ -129,7 +131,9 @@ public class Scanner implements Callable<ScanResult> {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Holds range limits for chunks of classpath files that need to be scanned in a given classpath element. */
+    /**
+     * Holds range limits for chunks of classpath files that need to be scanned in a given classpath element.
+     */
     private static class ClassfileParserChunk {
         private final ClasspathElement classpathElement;
         private final int classfileStartIdx;
@@ -169,12 +173,18 @@ public class Scanner implements Callable<ScanResult> {
             }
             chunks.add(chunksForClasspathElt);
         }
-        // There should be no overlap between the relative paths in any of the chunks, because classpath masking
-        // has already been applied, so these chunks can be scanned in any order. But since a ZipFile instance
-        // can only be used by one thread at a time, we want to space the chunks for a given ZipFile as far apart
-        // as possible in the work queue to minimize the chance that two threads will try to open the same ZipFile
-        // at the same time, as this will cause a second copy of the ZipFile to have to be opened by the ZipFile
-        // recycler. The combination of chunking and interleaving therefore lets us achieve load leveling without
+        // There should be no overlap between the relative paths in any of the chunks,
+        // because classpath masking
+        // has already been applied, so these chunks can be scanned in any order. But
+        // since a ZipFile instance
+        // can only be used by one thread at a time, we want to space the chunks for a
+        // given ZipFile as far apart
+        // as possible in the work queue to minimize the chance that two threads will
+        // try to open the same ZipFile
+        // at the same time, as this will cause a second copy of the ZipFile to have to
+        // be opened by the ZipFile
+        // recycler. The combination of chunking and interleaving therefore lets us
+        // achieve load leveling without
         // work stealing or other more complex mechanism.
         final List<ClassfileParserChunk> interleavedChunks = new ArrayList<>();
         while (!chunks.isEmpty()) {
@@ -214,8 +224,10 @@ public class Scanner implements Callable<ScanResult> {
             final List<RelativePath> rawClasspathEltPathsDedupd = classpathFinder.getRawClasspathElements();
             final ClassLoader[] classLoaderOrder = classpathFinder.getClassLoaderOrder();
 
-            // In parallel, resolve raw classpath elements to canonical paths, creating a ClasspathElement
-            // singleton for each unique canonical path. Also check jars against jar whitelist/blacklist.a
+            // In parallel, resolve raw classpath elements to canonical paths, creating a
+            // ClasspathElement
+            // singleton for each unique canonical path. Also check jars against jar
+            // whitelist/blacklist.a
             final LogNode preScanLog = classpathFinderLog == null ? null
                     : classpathFinderLog.log("Searching for \"Class-Path:\" entries within manifest files");
             final RelativePathToElementMap classpathElementMap = new RelativePathToElementMap(
@@ -224,7 +236,8 @@ public class Scanner implements Callable<ScanResult> {
                     new WorkUnitProcessor<RelativePath>() {
                         @Override
                         public void processWorkUnit(final RelativePath rawClasspathEltPath) throws Exception {
-                            // Check if classpath element is already in the singleton map -- saves needlessly
+                            // Check if classpath element is already in the singleton map -- saves
+                            // needlessly
                             // repeating work in isValidClasspathElement() and createSingleton()
                             // (need to check for duplicates again, even though we checked above, since
                             // additonal classpath entries can come from Class-Path entries in manifests)
@@ -282,12 +295,15 @@ public class Scanner implements Callable<ScanResult> {
                         }
                     }, interruptionChecker, preScanLog);
 
-            // Determine total ordering of classpath elements, inserting jars referenced in manifest Class-Path
-            // entries in-place into the ordering, if they haven't been listed earlier in the classpath already.
+            // Determine total ordering of classpath elements, inserting jars referenced in
+            // manifest Class-Path
+            // entries in-place into the ordering, if they haven't been listed earlier in
+            // the classpath already.
             final List<ClasspathElement> classpathOrder = findClasspathOrder(rawClasspathEltPathsDedupd,
                     classpathElementMap);
 
-            // Print final classpath element order, after inserting Class-Path entries from manifest files 
+            // Print final classpath element order, after inserting Class-Path entries from
+            // manifest files
             if (classpathFinderLog != null) {
                 final LogNode logNode = classpathFinderLog.log("Final classpath element order:");
                 for (int i = 0; i < classpathOrder.size(); i++) {
@@ -318,7 +334,8 @@ public class Scanner implements Callable<ScanResult> {
                         });
                 LogNode nestedClasspathRootNode = null;
                 for (int i = 0; i < classpathEltResolvedPathToElement.size(); i++) {
-                    // See if each classpath element is a prefix of any others (if so, they will immediately follow
+                    // See if each classpath element is a prefix of any others (if so, they will
+                    // immediately follow
                     // in lexicographic order)
                     final SimpleEntry<String, ClasspathElement> ei = classpathEltResolvedPathToElement.get(i);
                     final String basePath = ei.getKey();
@@ -358,13 +375,15 @@ public class Scanner implements Callable<ScanResult> {
                             }
                         }
                         if (!foundNestedClasspathRoot) {
-                            // After the first non-match, there can be no more prefix matches in the sorted order
+                            // After the first non-match, there can be no more prefix matches in the sorted
+                            // order
                             break;
                         }
                     }
                 }
 
-                // Scan for matching classfiles / files, looking only at filenames / file paths, and not contents
+                // Scan for matching classfiles / files, looking only at filenames / file paths,
+                // and not contents
                 final LogNode pathScanLog = classpathFinderLog == null ? null
                         : classpathFinderLog.log("Scanning filenames within classpath elements");
                 WorkQueue.runWorkQueue(classpathOrder, executorService, numParallelTasks,
@@ -376,11 +395,16 @@ public class Scanner implements Callable<ScanResult> {
                             }
                         }, interruptionChecker, pathScanLog);
 
-                // Implement classpath masking -- if the same relative classfile  path occurs multiple times
-                // in the classpath, ignore (remove) the second and subsequent occurrences. Note that
-                // classpath masking is performed whether or not a jar is whitelisted, and whether or not
-                // jar or dir scanning is enabled, in order to ensure that class references passed into
-                // MatchProcessors are the same as those that would be loaded by standard classloading.
+                // Implement classpath masking -- if the same relative classfile path occurs
+                // multiple times
+                // in the classpath, ignore (remove) the second and subsequent occurrences. Note
+                // that
+                // classpath masking is performed whether or not a jar is whitelisted, and
+                // whether or not
+                // jar or dir scanning is enabled, in order to ensure that class references
+                // passed into
+                // MatchProcessors are the same as those that would be loaded by standard
+                // classloading.
                 // (See bug #100.)
                 final LogNode maskLog = log == null ? null : log.log("Masking classpath files");
                 final HashSet<String> classpathRelativePathsFound = new HashSet<>();
@@ -390,7 +414,8 @@ public class Scanner implements Callable<ScanResult> {
                 }
 
                 // Merge the maps from file to timestamp across all classpath elements
-                // (there will be no overlap in keyspace, since file masking was already performed)
+                // (there will be no overlap in keyspace, since file masking was already
+                // performed)
                 final Map<File, Long> fileToLastModified = new HashMap<>();
                 for (final ClasspathElement classpathElement : classpathOrder) {
                     fileToLastModified.putAll(classpathElement.fileToLastModified);
@@ -432,8 +457,10 @@ public class Scanner implements Callable<ScanResult> {
                 final LogNode classGraphLog = log == null ? null : log.log("Building class graph");
                 final Map<String, ClassInfo> classNameToClassInfo = new HashMap<>();
                 for (final ClassInfoUnlinked c : classInfoUnlinked) {
-                    // Need to do two passes, so that annotation default parameter vals are available when linking
-                    // non-attribute classes. In first pass, link annotations with default parameter vals.
+                    // Need to do two passes, so that annotation default parameter vals are
+                    // available when linking
+                    // non-attribute classes. In first pass, link annotations with default parameter
+                    // vals.
                     if (c.annotationParamDefaultValues != null) {
                         c.link(scanSpec, classNameToClassInfo, classGraphLog);
                     }
@@ -441,7 +468,8 @@ public class Scanner implements Callable<ScanResult> {
                 for (final ClassInfoUnlinked c : classInfoUnlinked) {
                     // In second pass, link everything else.
                     if (c.annotationParamDefaultValues == null) {
-                        // Create ClassInfo object from ClassInfoUnlinked object, and link into class graph
+                        // Create ClassInfo object from ClassInfoUnlinked object, and link into class
+                        // graph
                         c.link(scanSpec, classNameToClassInfo, classGraphLog);
                     }
                 }
@@ -460,7 +488,8 @@ public class Scanner implements Callable<ScanResult> {
                 }
 
             } else {
-                // This is the result of a call to FastClasspathScanner#getUniqueClasspathElementsAsync(), so
+                // This is the result of a call to
+                // FastClasspathScanner#getUniqueClasspathElementsAsync(), so
                 // just create placeholder ScanResult to contain classpathElementFilesOrdered.
                 scanResult = new ScanResult(scanSpec, classpathOrder, classLoaderOrder,
                         /* classGraphBuilder = */ null, /* fileToLastModified = */ null, nestedJarHandler,
@@ -485,7 +514,8 @@ public class Scanner implements Callable<ScanResult> {
                 throw e;
             } else {
                 failureHandler.onFailure(e);
-                // Return null from the Future if a FailureHandler was added and there was an exception
+                // Return null from the Future if a FailureHandler was added and there was an
+                // exception
                 return null;
             }
 

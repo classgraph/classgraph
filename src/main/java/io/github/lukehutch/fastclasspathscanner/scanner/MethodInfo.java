@@ -130,7 +130,9 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
         return modifiers;
     }
 
-    /** Returns the internal type descriptor for the method, e.g. "Ljava/lang/String;V". */
+    /**
+     * Returns the internal type descriptor for the method, e.g. "Ljava/lang/String;V".
+     */
     public String getTypeDescriptor() {
         return typeDescriptor;
     }
@@ -443,7 +445,9 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
         return parameterAnnotationInfo;
     }
 
-    /** Returns the names of annotations on the method, or the empty list if none. */
+    /**
+     * Returns the names of annotations on the method, or the empty list if none.
+     */
     public List<String> getAnnotationNames() {
         return Arrays.asList(AnnotationInfo.getUniqueAnnotationNamesSorted(annotationInfo));
     }

@@ -68,14 +68,16 @@ public class MetaAnnotationTest {
 
     @Test
     public void threeLevels() {
-        //        for (Class<?> c : new Class<?>[] { A.class, B.class, C.class }) {
-        //            System.out.println(c.getSimpleName() + " " + scanner.getNamesOfAnnotationsOnClass(c));
-        //        }
-        //        for (Class<?> c : new Class<?>[] { D.class, E.class, F.class, G.class, H.class, I.class, J.class,
-        //                 K.class, L.class }) {
-        //            System.out.println(c.getSimpleName() + " " +
-        //                     scanner.getNamesOfMetaAnnotationsOnAnnotation(c));
-        //        }
+        // for (Class<?> c : new Class<?>[] { A.class, B.class, C.class }) {
+        // System.out.println(c.getSimpleName() + " " +
+        // scanner.getNamesOfAnnotationsOnClass(c));
+        // }
+        // for (Class<?> c : new Class<?>[] { D.class, E.class, F.class, G.class,
+        // H.class, I.class, J.class,
+        // K.class, L.class }) {
+        // System.out.println(c.getSimpleName() + " " +
+        // scanner.getNamesOfMetaAnnotationsOnAnnotation(c));
+        // }
         assertThat(scanResult.getNamesOfClassesWithAnnotation(L.class)).containsOnly(B.class.getName());
     }
 

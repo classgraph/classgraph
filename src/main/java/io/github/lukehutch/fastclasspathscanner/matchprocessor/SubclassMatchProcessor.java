@@ -28,7 +28,9 @@
  */
 package io.github.lukehutch.fastclasspathscanner.matchprocessor;
 
-/** The method to run when a subclass of a specific class is found on the classpath. */
+/**
+ * The method to run when a subclass of a specific class is found on the classpath.
+ */
 @FunctionalInterface
 public interface SubclassMatchProcessor<T> {
     public void processMatch(Class<? extends T> subclass);

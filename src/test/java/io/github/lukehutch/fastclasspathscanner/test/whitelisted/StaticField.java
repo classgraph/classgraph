@@ -1,7 +1,7 @@
 package io.github.lukehutch.fastclasspathscanner.test.whitelisted;
 
 public class StaticField {
-    // Non-public -- need ignoreFieldVisibility() to match these 
+    // Non-public -- need ignoreFieldVisibility() to match these
     static final String stringField = "Static field contents";
     static final int intField = 3;
     @SuppressWarnings("unused")

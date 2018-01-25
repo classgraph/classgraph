@@ -46,7 +46,9 @@ public class FastPathResolver {
     /** True if we're running on Windows. */
     private static final boolean WINDOWS = File.separatorChar == '\\';
 
-    /** Translate backslashes to forward slashes, optionally removing trailing separator. */
+    /**
+     * Translate backslashes to forward slashes, optionally removing trailing separator.
+     */
     private static void translateSeparator(final String path, final int startIdx, final int endIdx,
             final boolean stripFinalSeparator, final StringBuilder buf) {
         for (int i = startIdx; i < endIdx; i++) {
@@ -84,7 +86,7 @@ public class FastPathResolver {
                 bytes[j] = (byte) ((digit1 << 4) | digit2);
             }
             final String str = new String(bytes, StandardCharsets.UTF_8);
-            // Prevent double escaping issues by translating any escaped separators 
+            // Prevent double escaping issues by translating any escaped separators
             translateSeparator(str, 0, str.length(), false, buf);
         }
     }
@@ -149,7 +151,8 @@ public class FastPathResolver {
             startIdx += 7;
             // Force protocol name to lowercase
             prefix = "http://";
-            // Treat the part after the protocol as an absolute path, so the domain is not treated as a
+            // Treat the part after the protocol as an absolute path, so the domain is not
+            // treated as a
             // directory relative to the current directory.
             isAbsolutePath = true;
             // Don't un-escape percent encoding etc.
@@ -166,7 +169,7 @@ public class FastPathResolver {
             if (WINDOWS) {
                 if (relativePathStr.startsWith("\\\\\\\\", startIdx)
                         || relativePathStr.startsWith("////", startIdx)) {
-                    // Windows UNC URL 
+                    // Windows UNC URL
                     startIdx += 4;
                     prefix = "//";
                     isAbsolutePath = true;
@@ -212,7 +215,8 @@ public class FastPathResolver {
         }
 
         if (resolveBasePath == null || isAbsolutePath) {
-            // There is no base path to resolve against, or path is an absolute path or http(s):// URL
+            // There is no base path to resolve against, or path is an absolute path or
+            // http(s):// URL
             // (ignore the base path)
             return pathStr;
         } else {

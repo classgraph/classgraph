@@ -57,10 +57,14 @@ public class ScanResult {
      */
     private final ClassLoader[] envClassLoaderOrder;
 
-    /** The list of File objects for unique classpath elements (directories or jarfiles). */
+    /**
+     * The list of File objects for unique classpath elements (directories or jarfiles).
+     */
     private final List<File> classpathElementOrderFiles;
 
-    /** The list of URL objects for unique classpath elements (directories or jarfiles). */
+    /**
+     * The list of URL objects for unique classpath elements (directories or jarfiles).
+     */
     private final List<URL> classpathElementOrderURLs;
 
     /** The nested jar handler instance. */
@@ -79,7 +83,9 @@ public class ScanResult {
      */
     final ClassGraphBuilder classGraphBuilder;
 
-    /** Exceptions thrown while loading classes or while calling MatchProcessors on loaded classes. */
+    /**
+     * Exceptions thrown while loading classes or while calling MatchProcessors on loaded classes.
+     */
     private final List<Throwable> matchProcessorExceptions = new ArrayList<>();
 
     /** The interruption checker. */
@@ -88,14 +94,18 @@ public class ScanResult {
     /** The log. */
     final LogNode log;
 
-    /** Used to set ScanResult references in info objects after scan has completed. */
+    /**
+     * Used to set ScanResult references in info objects after scan has completed.
+     */
     static abstract class InfoObject {
         abstract void setScanResult(ScanResult scanResult);
     }
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** The result of a scan. Make sure you call complete() after calling the constructor. */
+    /**
+     * The result of a scan. Make sure you call complete() after calling the constructor.
+     */
     ScanResult(final ScanSpec scanSpec, final List<ClasspathElement> classpathOrder,
             final ClassLoader[] envClassLoaderOrder, final ClassGraphBuilder classGraphBuilder,
             final Map<File, Long> fileToLastModified, final NestedJarHandler nestedJarHandler,
@@ -135,14 +145,17 @@ public class ScanResult {
         if (classLoaders != null) {
             return classLoaders;
         } else {
-            // Default to default classloader order if classpath element didn't have specified classloader(s)
+            // Default to default classloader order if classpath element didn't have
+            // specified classloader(s)
             return envClassLoaderOrder;
         }
     }
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Called if classloading fails, or if a MatchProcessor throws an exception or error. */
+    /**
+     * Called if classloading fails, or if a MatchProcessor throws an exception or error.
+     */
     void addMatchProcessorException(final Throwable e) {
         matchProcessorExceptions.add(e);
     }
@@ -731,11 +744,16 @@ public class ScanResult {
     Class<?> loadClass(final String className, final boolean returnNullIfClassNotFound, final LogNode log)
             throws IllegalArgumentException {
         if (scanSpec.overrideClasspath != null) {
-            // This is for your own good :-)  Too many surprises can result otherwise (e.g. the wrong class
-            // definition being loaded, if a class is defined more than once in the classpath, or a class
-            // not being able to be cast to its superclass, if the class and its superclass are loaded into
-            // different classloaders, possibly due to accidental loading and caching in the non-custom
-            // classloader). Basically if you're overriding the classpath and/or defining custom
+            // This is for your own good :-) Too many surprises can result otherwise (e.g.
+            // the wrong class
+            // definition being loaded, if a class is defined more than once in the
+            // classpath, or a class
+            // not being able to be cast to its superclass, if the class and its superclass
+            // are loaded into
+            // different classloaders, possibly due to accidental loading and caching in the
+            // non-custom
+            // classloader). Basically if you're overriding the classpath and/or defining
+            // custom
             // classloaders, bad things will probably happen at some point!
             throw new IllegalArgumentException(
                     "Cannot load classes from custom classpath, defined using .overrideClasspath(), "

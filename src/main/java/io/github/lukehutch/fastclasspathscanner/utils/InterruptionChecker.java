@@ -69,7 +69,9 @@ public class InterruptionChecker {
         }
     }
 
-    /** Stop all threads that share this InterruptionChecker due to an exception being thrown in one of them. */
+    /**
+     * Stop all threads that share this InterruptionChecker due to an exception being thrown in one of them.
+     */
     public ExecutionException executionException(final Exception e) {
         final ExecutionException newExecutionException = e instanceof ExecutionException ? (ExecutionException) e
                 : new ExecutionException(e);

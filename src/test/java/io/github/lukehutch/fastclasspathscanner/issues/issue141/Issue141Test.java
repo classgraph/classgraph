@@ -47,7 +47,8 @@ public class Issue141Test {
     @Test
     public void issue141Test() throws IOException {
 
-        // resolve and download org.ow2.asm:asm:6.0_BETA (which contains a module-info.class)
+        // resolve and download org.ow2.asm:asm:6.0_BETA (which contains a
+        // module-info.class)
         final File resolvedFile = MavenResolvers.createMavenResolver(null, null).resolve("org.ow2.asm", "asm", null,
                 null, "6.0_BETA");
 

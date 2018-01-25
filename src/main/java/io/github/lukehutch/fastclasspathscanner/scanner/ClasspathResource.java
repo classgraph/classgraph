@@ -77,8 +77,9 @@ public abstract class ClasspathResource {
                     classpathEltFile, pathRelativeToClasspathPrefix);
         } else if (fileMatchProcessor instanceof FileMatchProcessor) {
             try {
-                ((FileMatchProcessor) fileMatchProcessor).processMatch(pathRelativeToClasspathPrefix,
-                        /* inputStream = */ open(), //
+                ((FileMatchProcessor) fileMatchProcessor).processMatch(pathRelativeToClasspathPrefix, /*
+                                                                                                       * inputStream =
+                                                                                                       */ open(), //
                         inputStreamLength);
             } finally {
                 close();

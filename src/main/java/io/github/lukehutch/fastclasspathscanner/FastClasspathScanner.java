@@ -74,7 +74,9 @@ import io.github.lukehutch.fastclasspathscanner.utils.VersionFinder;
  * https://github.com/lukehutch/fast-classpath-scanner/wiki
  */
 public class FastClasspathScanner {
-    /** The scanning specification (whitelisted and blacklisted packages, etc.), as passed into the constructor. */
+    /**
+     * The scanning specification (whitelisted and blacklisted packages, etc.), as passed into the constructor.
+     */
     private final String[] scanSpecArgs;
 
     /** The scanning specification, parsed. */
@@ -1312,8 +1314,10 @@ public class FastClasspathScanner {
             final FailureHandler failureHandler) {
         final ScanSpec scanSpec = getScanSpec();
         if (isAsyncScan && scanSpec.hasMatchProcessors()) {
-            // Disallow MatchProcessors when launched asynchronously from a class initializer, to prevent class
-            // initializer deadlock if any of the MatchProcessors try to refer to the incompletely-initialized
+            // Disallow MatchProcessors when launched asynchronously from a class
+            // initializer, to prevent class
+            // initializer deadlock if any of the MatchProcessors try to refer to the
+            // incompletely-initialized
             // class -- see bug #103.
             try {
                 try {
@@ -1343,7 +1347,8 @@ public class FastClasspathScanner {
                     return executorService.submit(new Callable<ScanResult>() {
                         @Override
                         public ScanResult call() throws Exception {
-                            // Return null from the Future if a FailureHandler was added and there was an exception
+                            // Return null from the Future if a FailureHandler was added and there was an
+                            // exception
                             return null;
                         }
                     });
@@ -1380,8 +1385,10 @@ public class FastClasspathScanner {
             throw new IllegalArgumentException("scanResultProcessor cannot be null");
         }
         if (failureHandler == null) {
-            // The result of the Future<ScanObject> object returned by launchAsyncScan is discarded below,
-            // so we force the addition of a FailureHandler so that exceptions are not silently swallowed.
+            // The result of the Future<ScanObject> object returned by launchAsyncScan is
+            // discarded below,
+            // so we force the addition of a FailureHandler so that exceptions are not
+            // silently swallowed.
             throw new IllegalArgumentException("failureHandler cannot be null");
         }
         // Drop the returned Future<ScanResult>, a ScanResultProcessor is used instead
@@ -1493,7 +1500,8 @@ public class FastClasspathScanner {
             final ScanResult scanResult = scanAsync(executorService, numParallelTasks, /* isAsyncScan = */ false,
                     /* runMatchProcessorsOnWorkerThread = */ false).get();
 
-            // Call MatchProcessors in the same thread as the caller, to avoid deadlock (see bug #103)
+            // Call MatchProcessors in the same thread as the caller, to avoid deadlock (see
+            // bug #103)
             getScanSpec().callMatchProcessors(scanResult);
 
             // Free temporary files
@@ -1615,7 +1623,8 @@ public class FastClasspathScanner {
      */
     public Future<List<File>> getUniqueClasspathElementsAsync(final ExecutorService executorService,
             final int numParallelTasks) {
-        // No need to call disallowCallingFromClassInitializer() here, because no MatchProcessors are run,
+        // No need to call disallowCallingFromClassInitializer() here, because no
+        // MatchProcessors are run,
         // so class initializer deadlock cannot occur.
         final Future<List<File>> classpathElementsFuture;
         try {
@@ -1629,8 +1638,10 @@ public class FastClasspathScanner {
                 public List<File> call() throws Exception {
                     final ScanResult scanResult = scanResultFuture.get();
                     final List<File> uniqueClasspathElements = scanResult.getUniqueClasspathElements();
-                    // N.B. scanResult.freeTempFiles() is *not* called for this method, so that the classpath
-                    // elements resulting from jars within jars are left in place. However, they are cleaned
+                    // N.B. scanResult.freeTempFiles() is *not* called for this method, so that the
+                    // classpath
+                    // elements resulting from jars within jars are left in place. However, they are
+                    // cleaned
                     // up on normal JVM exit.
                     return uniqueClasspathElements;
                 }
@@ -1776,7 +1787,8 @@ public class FastClasspathScanner {
      */
     public Future<List<URL>> getUniqueClasspathElementURLsAsync(final ExecutorService executorService,
             final int numParallelTasks) {
-        // No need to call disallowCallingFromClassInitializer() here, because no MatchProcessors are run,
+        // No need to call disallowCallingFromClassInitializer() here, because no
+        // MatchProcessors are run,
         // so class initializer deadlock cannot occur.
         final Future<List<URL>> classpathElementsFuture;
         try {
@@ -1790,8 +1802,10 @@ public class FastClasspathScanner {
                 public List<URL> call() throws Exception {
                     final ScanResult scanResult = scanResultFuture.get();
                     final List<URL> uniqueClasspathElementURLs = scanResult.getUniqueClasspathElementURLs();
-                    // N.B. scanResult.freeTempFiles() is *not* called for this method, so that the classpath
-                    // elements resulting from jars within jars are left in place. However, they are cleaned
+                    // N.B. scanResult.freeTempFiles() is *not* called for this method, so that the
+                    // classpath
+                    // elements resulting from jars within jars are left in place. However, they are
+                    // cleaned
                     // up on normal JVM exit.
                     return uniqueClasspathElementURLs;
                 }

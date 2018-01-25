@@ -28,7 +28,9 @@
  */
 package io.github.lukehutch.fastclasspathscanner.matchprocessor;
 
-/** The method to run when a class implementing a specific interface is found on the classpath. */
+/**
+ * The method to run when a class implementing a specific interface is found on the classpath.
+ */
 @FunctionalInterface
 public interface ImplementingClassMatchProcessor<T> {
     public void processMatch(Class<? extends T> implementingClass);

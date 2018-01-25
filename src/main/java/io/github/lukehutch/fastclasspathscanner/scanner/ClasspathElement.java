@@ -64,7 +64,9 @@ abstract class ClasspathElement {
      */
     Set<String> nestedClasspathRoots;
 
-    /** True if there was an exception when trying to open this classpath element (e.g. a corrupt ZipFile). */
+    /**
+     * True if there was an exception when trying to open this classpath element (e.g. a corrupt ZipFile).
+     */
     boolean ioExceptionOnOpen;
 
     /**
@@ -91,7 +93,9 @@ abstract class ClasspathElement {
     /** The list of classpath resources that matched for each FileMatchProcessor. */
     protected MultiMapKeyToList<FileMatchProcessorWrapper, ClasspathResource> fileMatches;
 
-    /** The list of whitelisted classfiles found within this classpath resource, if scanFiles is true. */
+    /**
+     * The list of whitelisted classfiles found within this classpath resource, if scanFiles is true.
+     */
     protected List<ClasspathResource> classfileMatches;
 
     /** The map from File to last modified timestamp, if scanFiles is true. */
@@ -117,7 +121,8 @@ abstract class ClasspathElement {
         try {
             return getClasspathElementFile(log).toURI().toURL();
         } catch (final MalformedURLException e) {
-            // Shouldn't happen; File objects should always be able to be turned into URIs and then URLs
+            // Shouldn't happen; File objects should always be able to be turned into URIs
+            // and then URLs
             throw new RuntimeException(e);
         }
     }
@@ -127,12 +132,15 @@ abstract class ClasspathElement {
         try {
             return classpathEltPath.getFile(log);
         } catch (final IOException e) {
-            // Shouldn't happen; files have already been screened for IOException during canonicalization
+            // Shouldn't happen; files have already been screened for IOException during
+            // canonicalization
             throw new RuntimeException(e);
         }
     }
 
-    /** The path for this classpath element, possibly including a '!' jar-internal path suffix. */
+    /**
+     * The path for this classpath element, possibly including a '!' jar-internal path suffix.
+     */
     public String getClasspathElementFilePath() {
         return classpathEltPath.toString();
     }
@@ -192,11 +200,14 @@ abstract class ClasspathElement {
             // Should not happen
             throw new IllegalArgumentException("scanFiles is false");
         }
-        // Take the union of classfile and file match relative paths, since matches can be in both lists
-        // if a user adds a custom file path matcher that matches paths ending in ".class"
+        // Take the union of classfile and file match relative paths, since matches can
+        // be in both lists
+        // if a user adds a custom file path matcher that matches paths ending in
+        // ".class"
         final HashSet<String> maskedRelativePaths = new HashSet<>();
         for (final ClasspathResource res : classfileMatches) {
-            // Don't mask module-info.class, since all modules need this classfile to be read
+            // Don't mask module-info.class, since all modules need this classfile to be
+            // read
             if (!res.pathRelativeToClasspathPrefix.equals("module-info.class")
                     && !res.pathRelativeToClasspathPrefix.endsWith("/module-info.class")) {
                 if (!classpathRelativePathsFound.add(res.pathRelativeToClasspathPrefix)) {
@@ -207,7 +218,8 @@ abstract class ClasspathElement {
             }
         }
         if (!maskedRelativePaths.isEmpty()) {
-            // Replace the lists of matching resources with filtered versions with masked paths removed
+            // Replace the lists of matching resources with filtered versions with masked
+            // paths removed
             final List<ClasspathResource> filteredClassfileMatches = new ArrayList<>();
             for (final ClasspathResource classfileMatch : classfileMatches) {
                 if (!maskedRelativePaths.contains(classfileMatch.pathRelativeToClasspathPrefix)) {
@@ -227,7 +239,9 @@ abstract class ClasspathElement {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Call FileMatchProcessors for any whitelisted matches found within this classpath element. */
+    /**
+     * Call FileMatchProcessors for any whitelisted matches found within this classpath element.
+     */
     void callFileMatchProcessors(final ScanResult scanResult, final LogNode log)
             throws InterruptedException, ExecutionException {
         if (fileMatches != null) {
@@ -263,7 +277,9 @@ abstract class ClasspathElement {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Parse any classfiles for any whitelisted classes found within this classpath element. */
+    /**
+     * Parse any classfiles for any whitelisted classes found within this classpath element.
+     */
     void parseClassfiles(final ClassfileBinaryParser classfileBinaryParser, final int classfileStartIdx,
             final int classfileEndIdx, final ConcurrentHashMap<String, String> stringInternMap,
             final ConcurrentLinkedQueue<ClassInfoUnlinked> classInfoUnlinked, final LogNode log) throws Exception {
@@ -297,7 +313,8 @@ abstract class ClasspathElement {
                 // Re-throw
                 throw e;
             } finally {
-                // Close classfile InputStream (and any associated ZipEntry); recycle ZipFile if applicable
+                // Close classfile InputStream (and any associated ZipEntry); recycle ZipFile if
+                // applicable
                 classfileResource.close();
             }
             interruptionChecker.check();
@@ -309,6 +326,8 @@ abstract class ClasspathElement {
     /** Scan the classpath element */
     public abstract void scanPaths(LogNode log);
 
-    /** Close the classpath element's resources, if needed (this closes and frees any open ZipFiles). */
+    /**
+     * Close the classpath element's resources, if needed (this closes and frees any open ZipFiles).
+     */
     public abstract void close();
 }

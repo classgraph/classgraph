@@ -48,13 +48,17 @@ public class JarUtils {
      */
     private static final String[] UNIX_NON_PATH_SEPARATORS = { //
             "jar:", "file:", "http://", "https://", //
-            // Allow for escaping of ':' characters in paths, which probably goes beyond what the spec
-            // would allow for, but would make sense, since File.separatorChar will never be '\\' when
+            // Allow for escaping of ':' characters in paths, which probably goes beyond
+            // what the spec
+            // would allow for, but would make sense, since File.separatorChar will never be
+            // '\\' when
             // File.pathSeparatorChar is ':'
             "\\:" //
     };
 
-    /** The position of the colon characters in the corresponding UNIX_NON_PATH_SEPARATORS array entry. */
+    /**
+     * The position of the colon characters in the corresponding UNIX_NON_PATH_SEPARATORS array entry.
+     */
     private static final int[] UNIX_NON_PATH_SEPARATOR_COLON_POSITIONS;
 
     static {
@@ -76,11 +80,14 @@ public class JarUtils {
         if (pathStr == null || pathStr.isEmpty()) {
             return new String[0];
         }
-        // The fast path for Windows can skips this special handling (no need to handle these cases if the
+        // The fast path for Windows can skips this special handling (no need to handle
+        // these cases if the
         // path separator is ';')
         if (File.pathSeparatorChar == ':') {
-            // For Linux, don't split on URL protocol boundaries. This will allow for HTTP(S) jars to be
-            // given in java.class.path. (The JRE may not even support them, but we may as well do so.)
+            // For Linux, don't split on URL protocol boundaries. This will allow for
+            // HTTP(S) jars to be
+            // given in java.class.path. (The JRE may not even support them, but we may as
+            // well do so.)
             final Set<Integer> splitPoints = new HashSet<>();
             for (int i = -1;;) {
                 boolean foundNonPathSeparator = false;
@@ -110,7 +117,7 @@ public class JarUtils {
             for (int i = 1; i < splitPointsSorted.size(); i++) {
                 final int idx0 = splitPointsSorted.get(i - 1);
                 final int idx1 = splitPointsSorted.get(i);
-                // Trim, and unescape "\\:" 
+                // Trim, and unescape "\\:"
                 String part = pathStr.substring(idx0 + 1, idx1).trim();
                 part = part.replaceAll("\\\\:", ":");
                 // Remove empty path components
@@ -120,7 +127,8 @@ public class JarUtils {
             }
             return parts.toArray(new String[parts.size()]);
         } else {
-            // For Windows, there is no confusion between the path separator ';' and URL schemes
+            // For Windows, there is no confusion between the path separator ';' and URL
+            // schemes
             // Trim path components, and strip out empty components
             final List<String> partsFiltered = new ArrayList<>();
             for (final String part : pathStr.split(File.pathSeparator)) {
@@ -141,7 +149,8 @@ public class JarUtils {
             buf.append(File.pathSeparatorChar);
         }
         // Escape any rogue path separators, as long as file separator is not '\\'
-        // (on Windows, if there are any extra ';' characters in a path element, there's really nothing
+        // (on Windows, if there are any extra ';' characters in a path element, there's
+        // really nothing
         // we can do to escape them, since they can't be escaped as "\\;")
         final String path = File.separatorChar == '\\' ? pathElt.toString()
                 : pathElt.toString().replaceAll(File.pathSeparator, "\\" + File.pathSeparator);
@@ -180,35 +189,38 @@ public class JarUtils {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    //    /** Returns true if the path ends with a jarfile extension, ignoring case. */
-    //    public static boolean isJar(final String path) {
-    //        final int len = path.length();
-    //        final boolean isJar = path.regionMatches(true, len - 4, ".jar", 0, 4) //
-    //                || path.regionMatches(true, len - 4, ".zip", 0, 4) //
-    //                || path.regionMatches(true, len - 4, ".war", 0, 4) //
-    //                || path.regionMatches(true, len - 4, ".car", 0, 4) //
-    //                || path.regionMatches(true, len - 4, ".ear", 0, 4) //
-    //                || path.regionMatches(true, len - 4, ".sar", 0, 4) //
-    //                || path.regionMatches(true, len - 4, ".har", 0, 4) //
-    //                || path.regionMatches(true, len - 4, ".par", 0, 4) //
-    //                || path.regionMatches(true, len - 6, ".wsjar", 0, 6);
-    //        if (!isJar) {
-    //            // Support URLs of the form "http://domain.com/path/to/jarfile.jar?version=2"
-    //            final int urlParamIdx = path.indexOf('?');
-    //            if (urlParamIdx > 0) {
-    //                return isJar(path.substring(0, urlParamIdx));
-    //            }
-    //        }
-    //        return isJar;
-    //    }
+    // /** Returns true if the path ends with a jarfile extension, ignoring case. */
+    // public static boolean isJar(final String path) {
+    // final int len = path.length();
+    // final boolean isJar = path.regionMatches(true, len - 4, ".jar", 0, 4) //
+    // || path.regionMatches(true, len - 4, ".zip", 0, 4) //
+    // || path.regionMatches(true, len - 4, ".war", 0, 4) //
+    // || path.regionMatches(true, len - 4, ".car", 0, 4) //
+    // || path.regionMatches(true, len - 4, ".ear", 0, 4) //
+    // || path.regionMatches(true, len - 4, ".sar", 0, 4) //
+    // || path.regionMatches(true, len - 4, ".har", 0, 4) //
+    // || path.regionMatches(true, len - 4, ".par", 0, 4) //
+    // || path.regionMatches(true, len - 6, ".wsjar", 0, 6);
+    // if (!isJar) {
+    // // Support URLs of the form "http://domain.com/path/to/jarfile.jar?version=2"
+    // final int urlParamIdx = path.indexOf('?');
+    // if (urlParamIdx > 0) {
+    // return isJar(path.substring(0, urlParamIdx));
+    // }
+    // }
+    // return isJar;
+    // }
 
-    /** Returns the leafname of a path, after first stripping off everything after the first '!', if present. */
+    /**
+     * Returns the leafname of a path, after first stripping off everything after the first '!', if present.
+     */
     public static String leafName(final String path) {
         final int bangIdx = path.indexOf("!");
         final int endIdx = bangIdx >= 0 ? bangIdx : path.length();
         int leafStartIdx = 1 + (File.separatorChar == '/' ? path.lastIndexOf('/', endIdx)
                 : Math.max(path.lastIndexOf('/', endIdx), path.lastIndexOf(File.separatorChar, endIdx)));
-        // In case of temp files (for jars extracted from within jars), remove the temp filename prefix
+        // In case of temp files (for jars extracted from within jars), remove the temp
+        // filename prefix
         // -- see NestedJarHandler.unzipToTempFile()
         int sepIdx = path.indexOf(NestedJarHandler.TEMP_FILENAME_LEAF_SEPARATOR);
         if (sepIdx >= 0) {
@@ -304,7 +316,9 @@ public class JarUtils {
         return RT_JAR_PATH;
     }
 
-    /** Determine whether a given jarfile is in a JRE system directory (jre, jre/lib, jre/lib/ext, etc.). */
+    /**
+     * Determine whether a given jarfile is in a JRE system directory (jre, jre/lib, jre/lib/ext, etc.).
+     */
     public static boolean isJREJar(final String filePath, final LogNode log) {
         for (final String jrePathPrefix : JRE_PATHS) {
             if (filePath.startsWith(jrePathPrefix)) {

@@ -40,7 +40,9 @@ public class AdditionOrderedSet<T> implements Iterable<T> {
     private final HashSet<T> set;
     private final ArrayList<T> list;
 
-    /** Add an element to the set. Returns true if the element was added; false if it was already in the set. */
+    /**
+     * Add an element to the set. Returns true if the element was added; false if it was already in the set.
+     */
     public boolean add(final T elt) {
         if (set.add(elt)) {
             list.add(elt);
@@ -50,7 +52,9 @@ public class AdditionOrderedSet<T> implements Iterable<T> {
         }
     }
 
-    /** Add all items of a list to the set. Returns true if the list changed as a result of the add. */
+    /**
+     * Add all items of a list to the set. Returns true if the list changed as a result of the add.
+     */
     public boolean addAll(final Iterable<T> items) {
         boolean changed = false;
         for (final T item : items) {

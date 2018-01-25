@@ -28,7 +28,9 @@
  */
 package io.github.lukehutch.fastclasspathscanner.scanner;
 
-/** A callback that can be called on scanning failure during an asynchronous scan. */
+/**
+ * A callback that can be called on scanning failure during an asynchronous scan.
+ */
 @FunctionalInterface
 public interface FailureHandler {
     /** Called on scanning failure during an asynchronous scan. */

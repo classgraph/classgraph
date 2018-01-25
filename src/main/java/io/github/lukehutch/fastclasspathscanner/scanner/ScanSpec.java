@@ -81,10 +81,14 @@ public class ScanSpec {
      */
     public final List<String> whitelistedPathsNonRecursive = new ArrayList<>();
 
-    /** Blacklisted package paths with "/" appended. Neither these packages nor any subpackages will be scanned. */
+    /**
+     * Blacklisted package paths with "/" appended. Neither these packages nor any subpackages will be scanned.
+     */
     public final List<String> blacklistedPathPrefixes = new ArrayList<>();
 
-    /** Blacklisted package names with "." appended. Neither these packages nor any subpackages will be scanned. */
+    /**
+     * Blacklisted package names with "." appended. Neither these packages nor any subpackages will be scanned.
+     */
     public final List<String> blacklistedPackagePrefixes = new ArrayList<>();
 
     /** Whitelisted class names, or the empty list if none. */
@@ -105,10 +109,14 @@ public class ScanSpec {
     /** Blacklisted jarfile names. (Leaf filename only.) */
     public final Set<String> blacklistedJars = new HashSet<>();
 
-    /** Whitelisted jarfile names containing a glob('*') character, converted to a regexp. (Leaf filename only.) */
+    /**
+     * Whitelisted jarfile names containing a glob('*') character, converted to a regexp. (Leaf filename only.)
+     */
     public final List<Pattern> whitelistedJarPatterns = new ArrayList<>();
 
-    /** Blacklisted jarfile names containing a glob('*') character, converted to a regexp. (Leaf filename only.) */
+    /**
+     * Blacklisted jarfile names containing a glob('*') character, converted to a regexp. (Leaf filename only.)
+     */
     public final List<Pattern> blacklistedJarPatterns = new ArrayList<>();
 
     // -------------------------------------------------------------------------------------------------------------
@@ -198,17 +206,23 @@ public class ScanSpec {
     private MultiMapKeyToList<String, StaticFinalFieldMatchProcessor> //
     fullyQualifiedFieldNameToStaticFinalFieldMatchProcessors;
 
-    /** A map from className to a list of static final fields to match with StaticFinalFieldMatchProcessors. */
+    /**
+     * A map from className to a list of static final fields to match with StaticFinalFieldMatchProcessors.
+     */
     private MultiMapKeyToSet<String, String> classNameToStaticFinalFieldsToMatch;
 
     public MultiMapKeyToSet<String, String> getClassNameToStaticFinalFieldsToMatch() {
         return classNameToStaticFinalFieldsToMatch;
     }
 
-    /** A list of class matchers to call once all classes have been read in from classpath. */
+    /**
+     * A list of class matchers to call once all classes have been read in from classpath.
+     */
     private ArrayList<ClassMatchProcessorWrapper> classMatchers;
 
-    /** A list of file path testers and match processor wrappers to use for file matching. */
+    /**
+     * A list of file path testers and match processor wrappers to use for file matching.
+     */
     private final List<FileMatchProcessorWrapper> fileMatchProcessorWrappers = new ArrayList<>();
 
     // -------------------------------------------------------------------------------------------------------------
@@ -331,7 +345,8 @@ public class ScanSpec {
                     if (spec.startsWith("/")) {
                         spec = spec.substring(1);
                     }
-                    // See if a class name was specified, rather than a package name. Relies on the Java convention
+                    // See if a class name was specified, rather than a package name. Relies on the
+                    // Java convention
                     // that package names should be lower case and class names should be upper case.
                     boolean isClassName = false;
                     final int lastSlashIdx = specPath.lastIndexOf('/');
@@ -391,7 +406,8 @@ public class ScanSpec {
         if (whitelistedPathPrefixes.isEmpty() && whitelistedPathsNonRecursive.isEmpty()
                 && specificallyWhitelistedClassRelativePaths.isEmpty()) {
             // If no whitelisted package names or class names were given, scan all packages.
-            // Having a whitelisted class name but no whitelisted package name should not trigger the scanning
+            // Having a whitelisted class name but no whitelisted package name should not
+            // trigger the scanning
             // of all packages (Issue #78.)
             whitelistedPathPrefixes.add("/");
         }
@@ -403,14 +419,16 @@ public class ScanSpec {
 
         whitelistedJars.removeAll(blacklistedJars);
         if (!scanJars && !scanDirs) {
-            // Can't disable scanning of everything, so if specified, arbitrarily pick one to re-enable.
+            // Can't disable scanning of everything, so if specified, arbitrarily pick one
+            // to re-enable.
             if (log != null) {
                 log.log("Scanning of jars and dirs are both disabled -- re-enabling scanning of dirs");
             }
             scanDirs = true;
         }
 
-        // Sort the whitelistedPathPrefixes and whitelistedPathsNonRecursive to ensure correct evaluation
+        // Sort the whitelistedPathPrefixes and whitelistedPathsNonRecursive to ensure
+        // correct evaluation
         // (see Issue #167).
         Collections.sort(whitelistedPathPrefixes);
         Collections.sort(whitelistedPathsNonRecursive);
@@ -626,7 +644,9 @@ public class ScanSpec {
         return Pattern.compile("^" + spec.replace(".", "\\.").replace("*", ".*") + "$");
     }
 
-    /** Whether a path is a descendant of a blacklisted path, or an ancestor or descendant of a whitelisted path. */
+    /**
+     * Whether a path is a descendant of a blacklisted path, or an ancestor or descendant of a whitelisted path.
+     */
     enum ScanSpecPathMatch {
         HAS_BLACKLISTED_PATH_PREFIX, HAS_WHITELISTED_PATH_PREFIX, AT_WHITELISTED_PATH, //
         ANCESTOR_OF_WHITELISTED_PATH, AT_WHITELISTED_CLASS_PACKAGE, NOT_WITHIN_WHITELISTED_PATH;
@@ -661,7 +681,8 @@ public class ScanSpec {
         // Ancestor of whitelisted path
 
         if (relativePath.equals("/")) {
-            // The default package is always the ancestor of whitelisted paths (need to keep recursing)
+            // The default package is always the ancestor of whitelisted paths (need to keep
+            // recursing)
             return ScanSpecPathMatch.ANCESTOR_OF_WHITELISTED_PATH;
         }
         for (final String whitelistedPathPrefix : whitelistedPathPrefixes) {
@@ -678,7 +699,8 @@ public class ScanSpec {
         }
         for (final String whitelistedClassPathPrefix : specificallyWhitelistedClassParentRelativePaths) {
             if (whitelistedClassPathPrefix.startsWith(relativePath)) {
-                // The directory is an ancestor of a non-whitelisted package containing a whitelisted class 
+                // The directory is an ancestor of a non-whitelisted package containing a
+                // whitelisted class
                 return ScanSpecPathMatch.ANCESTOR_OF_WHITELISTED_PATH;
             }
         }
@@ -708,7 +730,9 @@ public class ScanSpec {
                 && !specificallyBlacklistedClassRelativePaths.contains(relativePath));
     }
 
-    /** Returns true if the class is specifically blacklisted, or is within a blacklisted package. */
+    /**
+     * Returns true if the class is specifically blacklisted, or is within a blacklisted package.
+     */
     boolean classIsBlacklisted(final String className) {
         boolean classIsBlacklisted = false;
         if (specificallyBlacklistedClassNames.contains(className)) {
@@ -724,7 +748,9 @@ public class ScanSpec {
         return classIsBlacklisted;
     }
 
-    /** Checks that the named class is not blacklisted. Throws IllegalArgumentException otherwise. */
+    /**
+     * Checks that the named class is not blacklisted. Throws IllegalArgumentException otherwise.
+     */
     void checkClassIsNotBlacklisted(final String className) {
         if (strictWhitelist && classIsBlacklisted(className)) {
             final boolean isSystemPackage = className.startsWith("java.") || className.startsWith("javax.")
@@ -741,7 +767,9 @@ public class ScanSpec {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Test if a list of jar names contains the requested name, allowing for globs. */
+    /**
+     * Test if a list of jar names contains the requested name, allowing for globs.
+     */
     private static boolean containsJarName(final Set<String> jarNames, final List<Pattern> jarNamePatterns,
             final String jarName) {
         final String jarLeafName = JarUtils.leafName(jarName);

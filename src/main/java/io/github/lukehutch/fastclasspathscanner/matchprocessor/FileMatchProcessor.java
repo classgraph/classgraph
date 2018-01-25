@@ -33,7 +33,9 @@ import java.io.InputStream;
 
 import io.github.lukehutch.fastclasspathscanner.scanner.matchers.FileMatchProcessorAny;
 
-/** The method to run when a file with a matching path is found on the classpath. */
+/**
+ * The method to run when a file with a matching path is found on the classpath.
+ */
 @FunctionalInterface
 public interface FileMatchProcessor extends FileMatchProcessorAny {
     /**

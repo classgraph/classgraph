@@ -135,7 +135,9 @@ public class FieldInfo extends InfoObject implements Comparable<FieldInfo> {
         return modifiers;
     }
 
-    /** Returns the internal type descriptor for the field, e.g. "Ljava/lang/String;" */
+    /**
+     * Returns the internal type descriptor for the field, e.g. "Ljava/lang/String;"
+     */
     public String getTypeDescriptor() {
         return typeDescriptor;
     }
@@ -162,12 +164,16 @@ public class FieldInfo extends InfoObject implements Comparable<FieldInfo> {
         return getTypeSignature().toString();
     }
 
-    /** Returns the constant final initializer value of the field, or null if none. */
+    /**
+     * Returns the constant final initializer value of the field, or null if none.
+     */
     public Object getConstFinalValue() {
         return constValue;
     }
 
-    /** Returns the names of unique annotations on the field, or the empty list if none. */
+    /**
+     * Returns the names of unique annotations on the field, or the empty list if none.
+     */
     public List<String> getAnnotationNames() {
         return Arrays.asList(AnnotationInfo.getUniqueAnnotationNamesSorted(annotationInfo));
     }
