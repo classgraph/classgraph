@@ -131,10 +131,10 @@ public class NestedJarHandler {
                         return null;
                     }
                     // Handle self-extracting archives (they can be created by Spring-Boot)
-                    final File bareZipfile = stripSFXHeader(canonicalFile, log);
+                    final File bareJarfile = stripSFXHeader(canonicalFile, log);
                     // Return canonical file as the singleton entry for this path
                     final Set<String> rootRelativePaths = new HashSet<>();
-                    return new SimpleEntry<>(bareZipfile, rootRelativePaths);
+                    return new SimpleEntry<>(bareJarfile, rootRelativePaths);
 
                 } else {
                     // This path has one or more '!' sections.
@@ -157,8 +157,8 @@ public class NestedJarHandler {
                         // Only the last item in a '!'-delimited list can be a non-jar path, so the
                         // parent
                         // must always be a jarfile.
-                        final File parentJarfile = parentJarfileAndRootRelativePaths.getKey();
-                        if (parentJarfile == null) {
+                        final File parentJarFile = parentJarfileAndRootRelativePaths.getKey();
+                        if (parentJarFile == null) {
                             // Failed to get parent jarfile
                             return null;
                         }
@@ -171,14 +171,17 @@ public class NestedJarHandler {
                         // extra
                         // recursion if File.getCanonicalFile() is idempotent, which it should be by
                         // definition.
-                        if (!parentJarfile.getPath().equals(parentPath)) {
+                        if (!parentJarFile.getPath().equals(parentPath)) {
                             return nestedPathToJarfileAndRootRelativePathsMap
-                                    .getOrCreateSingleton(parentJarfile.getPath() + "!" + childPath, log);
+                                    .getOrCreateSingleton(parentJarFile.getPath() + "!" + childPath, log);
                         }
+
+                        // Handle self-extracting archives (they can be created by Spring-Boot)
+                        final File bareParentJarFile = stripSFXHeader(parentJarFile, log);
 
                         // Get the ZipFile recycler for the parent jar's canonical path
                         final Recycler<ZipFile, IOException> parentJarRecycler = canonicalPathToZipFileRecyclerMap
-                                .getOrCreateSingleton(parentJarfile.getCanonicalPath(), log);
+                                .getOrCreateSingleton(bareParentJarFile.getCanonicalPath(), log);
                         ZipFile parentZipFile = null;
                         try {
                             // Look up the child path within the parent zipfile
@@ -187,7 +190,7 @@ public class NestedJarHandler {
                             if (childZipEntry == null) {
                                 if (log != null) {
                                     log.log(nestedJarPath, "Child path component " + childPath
-                                            + " does not exist in jarfile " + parentJarfile);
+                                            + " does not exist in jarfile " + bareParentJarFile);
                                 }
                                 return null;
                             }
@@ -196,7 +199,7 @@ public class NestedJarHandler {
                             if (childZipEntry.isDirectory()) {
                                 if (log != null) {
                                     log.log(nestedJarPath,
-                                            "Child path component " + childPath + " in jarfile " + parentJarfile
+                                            "Child path component " + childPath + " in jarfile " + bareParentJarFile
                                                     + " is a directory, not a file -- using as scanning root");
                                 }
                                 // Add directory path to parent jarfile root relative paths set
@@ -336,26 +339,25 @@ public class NestedJarHandler {
      * "PK".)
      */
     private File stripSFXHeader(final File zipfile, final LogNode log) throws IOException {
-        return zipfile;
-        //        final long sfxHeaderBytes = JarUtils.countBytesBeforePKMarker(zipfile);
-        //        if (sfxHeaderBytes == -1L) {
-        //            throw new IOException("Could not find zipfile \"PK\" marker in file " + zipfile);
-        //        } else if (sfxHeaderBytes == 0L) {
-        //            // No self-extracting zipfile header
-        //            return zipfile;
-        //        } else {
-        //            // Need to strip off ZipSFX header (e.g. Bash script prepended by Spring-Boot)
-        //            final File bareZipfile = File.createTempFile("FastClasspathScanner-",
-        //                    TEMP_FILENAME_LEAF_SEPARATOR + JarUtils.leafName(zipfile.getName()));
-        //            bareZipfile.deleteOnExit();
-        //            tempFiles.add(bareZipfile);
-        //            if (log != null) {
-        //                log.log("Zipfile " + zipfile + " contains a self-extracting executable header of " + sfxHeaderBytes
-        //                        + " bytes. Stripping off header to create bare zipfile " + bareZipfile);
-        //            }
-        //            JarUtils.stripSFXHeader(zipfile, sfxHeaderBytes, bareZipfile);
-        //            return bareZipfile;
-        //        }
+        final long sfxHeaderBytes = JarUtils.countBytesBeforePKMarker(zipfile);
+        if (sfxHeaderBytes == -1L) {
+            throw new IOException("Could not find zipfile \"PK\" marker in file " + zipfile);
+        } else if (sfxHeaderBytes == 0L) {
+            // No self-extracting zipfile header
+            return zipfile;
+        } else {
+            // Need to strip off ZipSFX header (e.g. Bash script prepended by Spring-Boot)
+            final File bareZipfile = File.createTempFile("FastClasspathScanner-",
+                    TEMP_FILENAME_LEAF_SEPARATOR + JarUtils.leafName(zipfile.getName()));
+            bareZipfile.deleteOnExit();
+            tempFiles.add(bareZipfile);
+            if (log != null) {
+                log.log("Zipfile " + zipfile + " contains a self-extracting executable header of " + sfxHeaderBytes
+                        + " bytes. Stripping off header to create bare zipfile " + bareZipfile);
+            }
+            JarUtils.stripSFXHeader(zipfile, sfxHeaderBytes, bareZipfile);
+            return bareZipfile;
+        }
     }
 
     /** Delete temporary files and release other resources. */
