@@ -17,11 +17,4 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 
-CLEANUP_RESULT==$(${ECLIPSE} -nosplash -application org.eclipse.jdt.core.JavaCodeFormatter -verbose -config .eclipse/code-cleanup-config.xml src 2>&1)
-if [ $? -ne 0 ]; then
-  >&2 echo "Code cleanup failure"
-  cd $CWD
-  exit 1
-fi
-
 cd $CWD
