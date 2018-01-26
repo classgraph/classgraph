@@ -117,15 +117,25 @@ public class ClasspathOrder {
                 return false;
             }
         } else {
+            LogNode subLog = null;
+            if (log != null) {
+                subLog = log.log("Found classpath element: " + pathElement);
+            }
             final RelativePath classpathEltPath = new RelativePath(ClasspathFinder.currDirPathStr, pathElement,
-                    classLoaders, nestedJarHandler, log);
+                    classLoaders, nestedJarHandler, subLog);
             if (classpathOrder.add(classpathEltPath)) {
-                if (log != null) {
-                    log.log("Found classpath element: " + classpathEltPath);
+                if (subLog != null) {
+                    if (!classpathEltPath.toString().equals(pathElement)) {
+                        subLog.log("Normalized path: " + classpathEltPath);
+                    }
                 }
             } else {
-                if (log != null) {
-                    log.log("Ignoring duplicate classpath element: " + classpathEltPath);
+                if (subLog != null) {
+                    if (!classpathEltPath.toString().equals(pathElement)) {
+                        subLog.log("Ignoring duplicate classpath element: " + classpathEltPath);
+                    } else {
+                        subLog.log("Ignoring duplicate classpath element");
+                    }
                 }
             }
             return true;
