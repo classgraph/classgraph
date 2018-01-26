@@ -70,7 +70,12 @@ public class ClasspathOrder {
             final LogNode log) {
         if (pathElement == null || pathElement.isEmpty()) {
             return false;
-        } else if (pathElement.endsWith("*")) {
+        }
+        LogNode subLog = null;
+        if (log != null) {
+            subLog = log.log("Found classpath element: " + pathElement);
+        }
+        if (pathElement.endsWith("*")) {
             if (pathElement.length() == 1 || //
                     (pathElement.length() > 2 && pathElement.charAt(pathElement.length() - 1) == '*'
                             && (pathElement.charAt(pathElement.length() - 2) == File.separatorChar
@@ -79,48 +84,44 @@ public class ClasspathOrder {
                 // Got wildcard path element (allowable for local classpaths as of JDK 6)
                 try {
                     final File classpathEltParentDir = new RelativePath(ClasspathFinder.currDirPathStr,
-                            pathElement.substring(0, pathElement.length() - 1), classLoaders, nestedJarHandler, log)
-                                    .getFile(log);
+                            pathElement.substring(0, pathElement.length() - 2), classLoaders, nestedJarHandler,
+                            subLog).getFile(subLog);
                     if (!classpathEltParentDir.exists()) {
-                        if (log != null) {
-                            log.log("Directory does not exist for wildcard classpath element: " + pathElement);
+                        if (subLog != null) {
+                            subLog.log("Directory does not exist for wildcard classpath element: " + pathElement);
                         }
                         return false;
                     }
                     if (!classpathEltParentDir.isDirectory()) {
-                        if (log != null) {
-                            log.log("Wildcard classpath element is not a directory: " + pathElement);
+                        if (subLog != null) {
+                            subLog.log("Wildcard classpath element is not a directory: " + pathElement);
                         }
                         return false;
                     }
-                    final LogNode subLog = log == null ? null
-                            : log.log("Including wildcard classpath element: " + pathElement);
+                    final LogNode subSubLog = subLog == null ? null
+                            : subLog.log("Including wildcard classpath element: " + pathElement);
                     for (final File fileInDir : classpathEltParentDir.listFiles()) {
                         final String name = fileInDir.getName();
                         if (!name.equals(".") && !name.equals("..")) {
                             // Add each directory entry as a classpath element
-                            addClasspathElement(fileInDir.getPath(), classLoaders, subLog);
+                            addClasspathElement(fileInDir.getPath(), classLoaders, subSubLog);
                         }
                     }
                     return true;
                 } catch (final IOException e) {
-                    if (log != null) {
-                        log.log("Could not add wildcard classpath element " + pathElement + " : " + e);
+                    if (subLog != null) {
+                        subLog.log("Could not add wildcard classpath element " + pathElement + " : " + e);
                     }
                     return false;
                 }
             } else {
-                if (log != null) {
-                    log.log("Wildcard classpath elements can only end with \"" + File.separatorChar
-                            + "*\", can't have a partial name and then a wildcard: " + pathElement);
+                if (subLog != null) {
+                    subLog.log("Wildcard classpath elements can only end with a leaf of \"*\", "
+                            + "can't have a partial name and then a wildcard: " + pathElement);
                 }
                 return false;
             }
         } else {
-            LogNode subLog = null;
-            if (log != null) {
-                subLog = log.log("Found classpath element: " + pathElement);
-            }
             final RelativePath classpathEltPath = new RelativePath(ClasspathFinder.currDirPathStr, pathElement,
                     classLoaders, nestedJarHandler, subLog);
             if (classpathOrder.add(classpathEltPath)) {
