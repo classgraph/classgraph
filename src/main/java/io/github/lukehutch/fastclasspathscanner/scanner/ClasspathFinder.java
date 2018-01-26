@@ -183,7 +183,7 @@ public class ClasspathFinder {
                 }
             }
             final LogNode overrideLog = classpathFinderLog == null ? null
-                    : classpathFinderLog.log("Overriding classpath");
+                    : classpathFinderLog.log("Overriding classpath with: " + scanSpec.overrideClasspath);
             classpathOrder.addClasspathElements(scanSpec.overrideClasspath, envClassLoaderOrder, overrideLog);
             if (overrideLog != null) {
                 classpathFinderLog
