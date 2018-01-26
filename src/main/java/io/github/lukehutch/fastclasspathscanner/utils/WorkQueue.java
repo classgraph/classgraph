@@ -163,7 +163,7 @@ public class WorkQueue<T> implements AutoCloseable {
             T workUnit = null;
             int counter = 0;
             while (numWorkUnitsRemaining.get() > 0) {
-                if (++counter > 100000) {
+                if (++counter > 100) {
                     interruptionChecker.check();
                 }
                 // Busy-wait for work units added after the queue is empty, while work units are still being
@@ -173,6 +173,7 @@ public class WorkQueue<T> implements AutoCloseable {
                     // Got a work unit
                     break;
                 }
+                Thread.sleep(5);
             }
             if (workUnit == null) {
                 // No work units remaining
