@@ -281,7 +281,7 @@ public class NestedJarHandler {
      * Unzip a ZipEntry to a temporary file, then return the temporary file. The temporary file will be removed when
      * NestedJarHandler#close() is called.
      */
-    public File unzipToTempFile(final ZipFile zipFile, final ZipEntry zipEntry, final LogNode log)
+    private File unzipToTempFile(final ZipFile zipFile, final ZipEntry zipEntry, final LogNode log)
             throws IOException {
         String zipEntryPath = zipEntry.getName();
         if (zipEntryPath.startsWith("/")) {
