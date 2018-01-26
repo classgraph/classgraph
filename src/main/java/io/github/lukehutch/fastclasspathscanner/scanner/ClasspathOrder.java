@@ -73,7 +73,9 @@ public class ClasspathOrder {
         } else if (pathElement.endsWith("*")) {
             if (pathElement.length() == 1 || //
                     (pathElement.length() > 2 && pathElement.charAt(pathElement.length() - 1) == '*'
-                            && pathElement.charAt(pathElement.length() - 2) == File.separatorChar)) {
+                            && (pathElement.charAt(pathElement.length() - 2) == File.separatorChar
+                                    || (File.separatorChar != '/'
+                                            && pathElement.charAt(pathElement.length() - 2) == '/')))) {
                 // Got wildcard path element (allowable for local classpaths as of JDK 6)
                 try {
                     final File classpathEltParentDir = new RelativePath(ClasspathFinder.currDirPathStr,
