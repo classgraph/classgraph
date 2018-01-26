@@ -282,7 +282,7 @@ class RelativePath {
     public String getCanonicalPath(final LogNode log) throws IOException {
         if (!canonicalPathIsCached) {
             final File file = getFile(log);
-            canonicalPathCached = file.getPath();
+            canonicalPathCached = FastPathResolver.resolve(file.getPath());
             canonicalPathIsCached = true;
         }
         return canonicalPathCached;

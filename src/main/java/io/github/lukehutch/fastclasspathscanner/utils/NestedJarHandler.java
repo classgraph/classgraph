@@ -162,9 +162,10 @@ public class NestedJarHandler {
                     // parent paths, by calling getOrCreateSingleton() again using parentJarfile (which has a
                     // canonicalized path). This recursion is guaranteed to terminate after one extra recursion
                     // if File.getCanonicalFile() is idempotent, which it should be by definition.
-                    if (!parentJarFile.getPath().equals(parentPath)) {
+                    final String parentJarFilePath = FastPathResolver.resolve(parentJarFile.getPath());
+                    if (!parentJarFilePath.equals(parentPath)) {
                         return nestedPathToJarfileAndRootRelativePathsMap
-                                .getOrCreateSingleton(parentJarFile.getPath() + "!" + childPath, log);
+                                .getOrCreateSingleton(parentJarFilePath + "!" + childPath, log);
                     }
 
                     // Handle self-extracting archives (they can be created by Spring-Boot)
