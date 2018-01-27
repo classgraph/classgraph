@@ -440,15 +440,15 @@ class ClassfileBinaryParser implements AutoCloseable {
             final int intVal = readInt(offset[cpIdx]);
             switch (fieldTypeDescriptorFirstChar) {
             case 'I':
-                return new Integer(intVal);
+                return Integer.valueOf(intVal);
             case 'S':
-                return new Short((short) intVal);
+                return Short.valueOf((short) intVal);
             case 'C':
-                return new Character((char) intVal);
+                return Character.valueOf((char) intVal);
             case 'B':
-                return new Byte((byte) intVal);
+                return Byte.valueOf((byte) intVal);
             case 'Z':
-                return new Boolean(intVal != 0);
+                return Boolean.valueOf(intVal != 0);
             default:
                 throw new RuntimeException("Unknown Constant_INTEGER type " + fieldTypeDescriptorFirstChar + ", "
                         + "cannot continue reading class. Please report this at "
@@ -456,11 +456,11 @@ class ClassfileBinaryParser implements AutoCloseable {
             }
         }
         case 4: // float
-            return new Float(Float.intBitsToFloat(readInt(offset[cpIdx])));
+            return Float.valueOf(Float.intBitsToFloat(readInt(offset[cpIdx])));
         case 5: // long
-            return new Long(readLong(offset[cpIdx]));
+            return Long.valueOf(readLong(offset[cpIdx]));
         case 6: // double
-            return new Double(Double.longBitsToDouble(readLong(offset[cpIdx])));
+            return Double.valueOf(Double.longBitsToDouble(readLong(offset[cpIdx])));
         default:
             // FastClasspathScanner doesn't currently do anything with the other types
             throw new RuntimeException("Unknown constant pool tag " + tag + ", "
@@ -493,21 +493,21 @@ class ClassfileBinaryParser implements AutoCloseable {
         final int tag = (char) readUnsignedByte();
         switch (tag) {
         case 'B':
-            return new Byte((byte) readInt(offset[readUnsignedShort()]));
+            return Byte.valueOf((byte) readInt(offset[readUnsignedShort()]));
         case 'C':
-            return new Character((char) readInt(offset[readUnsignedShort()]));
+            return Character.valueOf((char) readInt(offset[readUnsignedShort()]));
         case 'D':
-            return new Double(Double.longBitsToDouble(readLong(offset[readUnsignedShort()])));
+            return Double.valueOf(Double.longBitsToDouble(readLong(offset[readUnsignedShort()])));
         case 'F':
-            return new Float(Float.intBitsToFloat(readInt(offset[readUnsignedShort()])));
+        	return Float.valueOf(Float.intBitsToFloat(readInt(offset[readUnsignedShort()])));
         case 'I':
-            return new Integer(readInt(offset[readUnsignedShort()]));
+            return Integer.valueOf(readInt(offset[readUnsignedShort()]));
         case 'J':
-            return new Long(readLong(offset[readUnsignedShort()]));
+            return Long.valueOf(readLong(offset[readUnsignedShort()]));
         case 'S':
-            return new Short((short) readInt(offset[readUnsignedShort()]));
+            return Short.valueOf((short) readInt(offset[readUnsignedShort()]));
         case 'Z':
-            return new Boolean(readInt(offset[readUnsignedShort()]) != 0);
+            return Boolean.valueOf(readInt(offset[readUnsignedShort()]) != 0);
         case 's':
             return getConstantPoolString(readUnsignedShort());
         case 'e': {

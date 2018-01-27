@@ -62,8 +62,9 @@ public class ClasspathFinder {
         ClassLoaderHandler classLoaderHandler = null;
         try {
             // Instantiate a ClassLoaderHandler for each ClassLoader, in case the ClassLoaderHandler has state
-            classLoaderHandler = classLoaderHandlerRegistryEntry.classLoaderHandlerClass.newInstance();
-        } catch (InstantiationException | IllegalAccessException e) {
+            classLoaderHandler = classLoaderHandlerRegistryEntry.classLoaderHandlerClass.getDeclaredConstructor()
+            		.newInstance();
+        } catch (Exception e) {
             if (log != null) {
                 log.log("Could not instantiate "
                         + classLoaderHandlerRegistryEntry.classLoaderHandlerClass.getName(), e);

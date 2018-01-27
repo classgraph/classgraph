@@ -353,13 +353,13 @@ public class FastClasspathScannerTest {
                             assertThat("Static field contents").isEqualTo(fieldConstantValue);
                             break;
                         case "intField":
-                            assertThat(new Integer(3)).isEqualTo(fieldConstantValue);
+                            assertThat(Integer.valueOf(3)).isEqualTo(fieldConstantValue);
                             break;
                         case "boolField":
-                            assertThat(new Boolean(true)).isEqualTo(fieldConstantValue);
+                            assertThat(Boolean.valueOf(true)).isEqualTo(fieldConstantValue);
                             break;
                         case "charField":
-                            assertThat(new Character('y')).isEqualTo(fieldConstantValue);
+                            assertThat(Character.valueOf('y')).isEqualTo(fieldConstantValue);
                             break;
                         case "integerField":
                         case "booleanField":

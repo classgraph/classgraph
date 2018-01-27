@@ -33,6 +33,8 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
 /** Reflection utility methods that can be used by ClassLoaderHandlers. */
+//isAccessible() is deprecated in JDK9 because the name is confusing, not because it is broken
+@SuppressWarnings("deprecation")
 public class ReflectionUtils {
     /**
      * Get the value of the named field in the class of the given object or any of its superclasses. If an exception
@@ -40,7 +42,7 @@ public class ReflectionUtils {
      * wrapping the cause, otherwise this will return null. If passed a null object, returns null unless
      * throwException is true, then throws NullPointerException.
      */
-    public static Object getFieldVal(final Object obj, final String fieldName, final boolean throwException) {
+	public static Object getFieldVal(final Object obj, final String fieldName, final boolean throwException) {
         if (obj != null) {
             for (Class<?> classOrSuperclass = obj.getClass(); classOrSuperclass != null; //
                     classOrSuperclass = classOrSuperclass.getSuperclass()) {

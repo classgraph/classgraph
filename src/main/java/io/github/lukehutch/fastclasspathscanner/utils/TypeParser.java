@@ -957,7 +957,8 @@ public class TypeParser {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    private static class ParseException extends Exception {
+    @SuppressWarnings("serial")
+	private static class ParseException extends Exception {
     }
 
     private static class ParseState {
