@@ -9,7 +9,8 @@ import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 public class Issue80Test {
     @Test
     public void issue80() {
-        assertThat(new FastClasspathScanner("!!", "java.util").scan().getNamesOfAllStandardClasses())
+    	// TODO: this test will fail in JDK9+, because there is no rt.jar
+        assertThat(new FastClasspathScanner("!!", "java.util").verbose().scan().getNamesOfAllStandardClasses())
                 .contains("java.util.ArrayList");
         assertThat(new FastClasspathScanner("java.util").scan().getNamesOfAllStandardClasses()).isEmpty();
     }

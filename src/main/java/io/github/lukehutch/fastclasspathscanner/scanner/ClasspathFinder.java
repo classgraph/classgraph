@@ -197,6 +197,10 @@ public class ClasspathFinder {
             if (!scanSpec.blacklistSystemJars()) {
                 // There should only be zero or one of these.
                 final String rtJarPath = JarUtils.getRtJarPath();
+                if (log != null) {
+                	log.log(rtJarPath == null ? "Could not find path for rt.jar"
+                			: "Adding rt.jar as first classpath element to scan: " + rtJarPath);
+                }
                 if (rtJarPath != null) {
                     // Insert rt.jar as the first entry in the classpath.
                     classpathOrder.addClasspathElement(rtJarPath, envClassLoaderOrder, classpathFinderLog);
