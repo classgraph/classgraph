@@ -42,7 +42,7 @@ public class ReflectionUtils {
      * wrapping the cause, otherwise this will return null. If passed a null object, returns null unless
      * throwException is true, then throws NullPointerException.
      */
-	public static Object getFieldVal(final Object obj, final String fieldName, final boolean throwException) {
+    public static Object getFieldVal(final Object obj, final String fieldName, final boolean throwException) {
         if (obj != null) {
             for (Class<?> classOrSuperclass = obj.getClass(); classOrSuperclass != null; //
                     classOrSuperclass = classOrSuperclass.getSuperclass()) {

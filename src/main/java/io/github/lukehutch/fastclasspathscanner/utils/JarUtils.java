@@ -361,7 +361,7 @@ public class JarUtils {
             if (RT_JAR_PATH != null) {
                 javaLog.log(RT_JAR_PATH);
             } else {
-            	javaLog.log("Could not find rt.jar"); // TODO: this will be true in JDK9+
+                javaLog.log("Could not find rt.jar"); // TODO: this will be true in JDK9+
             }
         }
     }

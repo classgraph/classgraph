@@ -50,6 +50,9 @@ public class TypeParser {
          */
         public abstract Class<?> instantiate(final ScanResult scanResult);
 
+        /** Compare base types, ignoring generic type parameters. */
+        public abstract boolean equalsIgnoringTypeParams(final TypeSignature other);
+
         private static TypeSignature parseJavaTypeSignature(final ParseState parseState) throws ParseException {
             final ReferenceTypeSignature referenceTypeSignature = ReferenceTypeSignature
                     .parseReferenceTypeSignature(parseState);
@@ -109,6 +112,14 @@ public class TypeParser {
         @Override
         public boolean equals(final Object obj) {
             return obj instanceof BaseTypeSignature && ((BaseTypeSignature) obj).baseType.equals(this.baseType);
+        }
+
+        @Override
+        public boolean equalsIgnoringTypeParams(final TypeSignature other) {
+            if (!(other instanceof BaseTypeSignature)) {
+                return false;
+            }
+            return baseType.equals(((BaseTypeSignature) other).baseType);
         }
 
         @Override
@@ -342,6 +353,15 @@ public class TypeParser {
         }
 
         @Override
+        public boolean equalsIgnoringTypeParams(final TypeSignature other) {
+            if (!(other instanceof ClassTypeSignature)) {
+                return false;
+            }
+            final ClassTypeSignature o = (ClassTypeSignature) other;
+            return o.className.equals(this.className) && o.suffixes.equals(this.suffixes);
+        }
+
+        @Override
         public String toString() {
             final StringBuilder buf = new StringBuilder();
             buf.append(className);
@@ -440,6 +460,12 @@ public class TypeParser {
         }
 
         @Override
+        public boolean equalsIgnoringTypeParams(final TypeSignature other) {
+            // This method shouldn't get called, since it is only for comparing concrete types
+            return equals(other);
+        }
+
+        @Override
         public String toString() {
             return typeVariableSignature;
         }
@@ -501,6 +527,11 @@ public class TypeParser {
             }
             final ArrayTypeSignature o = (ArrayTypeSignature) obj;
             return o.elementTypeSignature.equals(this.elementTypeSignature) && o.numArrayDims == this.numArrayDims;
+        }
+
+        @Override
+        public boolean equalsIgnoringTypeParams(final TypeSignature other) {
+            return equals(other);
         }
 
         @Override
@@ -809,6 +840,115 @@ public class TypeParser {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /**
+     * Merge together programmer-view and JDK-internal method type signatures.
+     * 
+     * @param methodTypeSignature
+     *            The programmer-view type signature, with type parameters where possible, and without synthetic or
+     *            mandated parameters.
+     * @param methodTypeSignatureInternal
+     *            The JDK-internal type signature, without type parameters, but including any synthetic or mandated
+     *            parameters, if any.
+     * @param parameterAccessFlags
+     *            The parameter modifiers for parameters in the JDK-internal type signature.
+     * @return A MethodSignature consisting of all information from both type signatures.
+     */
+    public static MethodSignature merge(final MethodSignature methodTypeSignature,
+            final MethodSignature methodTypeSignatureInternal, final int[] parameterAccessFlags) {
+        if (methodTypeSignature == null || methodTypeSignatureInternal == null) {
+            throw new IllegalArgumentException("Signatures must be non-null");
+        }
+        if (!methodTypeSignatureInternal.typeParameters.isEmpty()) {
+            throw new IllegalArgumentException("typeSignatureInternal.typeParameters should be empty");
+        }
+        if (!methodTypeSignatureInternal.resultType.equalsIgnoringTypeParams(methodTypeSignature.resultType)) {
+            throw new IllegalArgumentException("Result types could not be reconciled: "
+                    + methodTypeSignatureInternal.resultType + " vs. " + methodTypeSignature.resultType);
+        }
+        // parameterAccessFlags is only available in classfiles compiled in JDK8 or above using
+        // the -parameters commandline switch, or code compiled with Kotlin or some other language
+        if (parameterAccessFlags != null
+                && parameterAccessFlags.length != methodTypeSignatureInternal.paramTypes.size()) {
+            throw new IllegalArgumentException(
+                    "Parameter arity mismatch between access flags and internal param types");
+        }
+        List<TypeSignature> mergedParamTypes;
+        if (parameterAccessFlags == null) {
+            // If there are no parameter access flags, there must be no difference in the number
+            // of parameters between the JDK-internal and programmer-visible type signature
+            // (i.e. if there are synthetic or mandated parameters, then the classfile should
+            // specify this by adding the parameter modifier flags section to the method
+            // attributes). It's possible this is not always true, so if this exception is
+            // thrown, please report a bug in the GitHub bug tracker.
+            if (methodTypeSignature.paramTypes.size() != methodTypeSignatureInternal.paramTypes.size()) {
+                throw new IllegalArgumentException("Unexpected mismatch in method paramTypes arity");
+            }
+            // Use the programmer-visible paramTypes, since these will have type info if it is available
+            mergedParamTypes = methodTypeSignature.paramTypes;
+        } else {
+            mergedParamTypes = new ArrayList<>(methodTypeSignatureInternal.paramTypes.size());
+            int internalParamIdx = 0;
+            int paramIdx = 0;
+            for (; internalParamIdx < methodTypeSignatureInternal.paramTypes.size(); internalParamIdx++) {
+                // synthetic: 0x1000; mandated: 0x8000
+                if ((parameterAccessFlags[internalParamIdx] & 0x9000) != 0) {
+                    // This parameter is present in JDK-internal type signature, but not in the 
+                    // programmer-visible signature. This should only be true for synthetic and
+                    // mandated types, and they should not have any type parameters, due to type
+                    // erasure.
+                    mergedParamTypes.add(methodTypeSignatureInternal.paramTypes.get(internalParamIdx));
+                } else {
+                    if (paramIdx == methodTypeSignature.paramTypes.size()) {
+                        // Shouldn't happen
+                        throw new IllegalArgumentException(
+                                "Ran out of parameters in programmer-visible type signature");
+                    }
+                    // This parameter should be present in both type signatures, and the types
+                    // should be the same, ignoring any type parameters.
+                    final TypeSignature paramTypeSignature = methodTypeSignature.paramTypes.get(paramIdx++);
+                    final TypeSignature paramTypeSignatureInternal = methodTypeSignatureInternal.paramTypes
+                            .get(internalParamIdx);
+                    if (!paramTypeSignature.equalsIgnoringTypeParams(paramTypeSignatureInternal)) {
+                        throw new IllegalArgumentException(
+                                "Corresponding type parameters in type signatures do not refer to the same bare "
+                                        + "types: " + paramTypeSignature + " [from method signature "
+                                        + methodTypeSignature + "] vs. " + paramTypeSignatureInternal
+                                        + " [from method signature " + methodTypeSignatureInternal + "]");
+                    }
+                    // The programmer-visible parameter should always have more type information, if available
+                    mergedParamTypes.add(paramTypeSignature);
+                }
+            }
+            if (paramIdx < methodTypeSignature.paramTypes.size()) {
+                throw new IllegalArgumentException(
+                        "Parameter arity mismatch between internal and programmer-visible type signature");
+            }
+        }
+        List<ClassTypeOrTypeVariableSignature> mergedThrowsSignatures;
+        if (methodTypeSignature.throwsSignatures.isEmpty()) {
+            mergedThrowsSignatures = methodTypeSignatureInternal.throwsSignatures;
+        } else if (methodTypeSignatureInternal.throwsSignatures.isEmpty()
+                || methodTypeSignature.throwsSignatures.equals(methodTypeSignatureInternal.throwsSignatures)) {
+            mergedThrowsSignatures = methodTypeSignature.throwsSignatures;
+        } else {
+            final AdditionOrderedSet<ClassTypeOrTypeVariableSignature> sigSet = new AdditionOrderedSet<>(
+                    methodTypeSignature.throwsSignatures);
+            sigSet.addAll(methodTypeSignatureInternal.throwsSignatures);
+            mergedThrowsSignatures = sigSet.toList();
+        }
+        return new MethodSignature(
+                // Use the programmer-view of type parameters (the JDK-internal view should have no type params)
+                methodTypeSignature.typeParameters,
+                // Merged parameter types
+                mergedParamTypes,
+                // Use the programmer-view of result type, in case there is a type parameter
+                methodTypeSignature.resultType,
+                // Merged throws signatures
+                mergedThrowsSignatures);
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
     /** A class signature. */
     public static class ClassSignature {
         /** The class type parameters. */
@@ -958,7 +1098,7 @@ public class TypeParser {
     // -------------------------------------------------------------------------------------------------------------
 
     @SuppressWarnings("serial")
-	private static class ParseException extends Exception {
+    private static class ParseException extends Exception {
     }
 
     private static class ParseState {

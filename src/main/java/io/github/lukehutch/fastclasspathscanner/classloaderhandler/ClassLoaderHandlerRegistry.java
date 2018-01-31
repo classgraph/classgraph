@@ -71,8 +71,8 @@ public class ClassLoaderHandlerRegistry {
                 // Instantiate each ClassLoaderHandler in order to call the handledClassLoaders() method (this is
                 // needed because Java doesn't support inherited static interface methods)
                 this.handledClassLoaderNames = classLoaderHandlerClass.getDeclaredConstructor().newInstance()
-                		.handledClassLoaders();
-            } catch (Exception e) {
+                        .handledClassLoaders();
+            } catch (final Exception e) {
                 throw new RuntimeException("Could not instantiate " + classLoaderHandlerClass.getName(), e);
             }
         }

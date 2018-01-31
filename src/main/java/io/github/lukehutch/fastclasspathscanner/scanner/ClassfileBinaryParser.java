@@ -499,7 +499,7 @@ class ClassfileBinaryParser implements AutoCloseable {
         case 'D':
             return Double.valueOf(Double.longBitsToDouble(readLong(offset[readUnsignedShort()])));
         case 'F':
-        	return Float.valueOf(Float.intBitsToFloat(readInt(offset[readUnsignedShort()])));
+            return Float.valueOf(Float.intBitsToFloat(readInt(offset[readUnsignedShort()])));
         case 'I':
             return Integer.valueOf(readInt(offset[readUnsignedShort()]));
         case 'J':
@@ -881,6 +881,7 @@ class ClassfileBinaryParser implements AutoCloseable {
 
             String methodName = null;
             String methodTypeDescriptor = null;
+            String methodTypeSignature = null;
             if (scanSpec.enableMethodInfo || isAnnotation) { // Annotations store defaults in method_info
                 final int methodNameCpIdx = readUnsignedShort();
                 methodName = getConstantPoolString(methodNameCpIdx);
@@ -950,8 +951,7 @@ class ClassfileBinaryParser implements AutoCloseable {
                         }
                     } else if (constantPoolStringEquals(attributeNameCpIdx, "Signature")) {
                         // Add type params to method type signature
-                        final String methodTypeSignature = getConstantPoolString(readUnsignedShort());
-                        methodTypeDescriptor = methodTypeSignature;
+                        methodTypeSignature = getConstantPoolString(readUnsignedShort());
                     } else if (constantPoolStringEquals(attributeNameCpIdx, "AnnotationDefault")) {
                         // Get annotation parameter default values
                         if (annotationParamDefaultValues == null) {
@@ -971,8 +971,8 @@ class ClassfileBinaryParser implements AutoCloseable {
                 }
                 if (scanSpec.enableMethodInfo) {
                     classInfoUnlinked.addMethodInfo(new MethodInfo(className, methodName, methodModifierFlags,
-                            methodTypeDescriptor, methodParameterNames, methodParameterAccessFlags,
-                            methodAnnotationInfo, methodParameterAnnotations));
+                            methodTypeDescriptor, methodTypeSignature, methodParameterNames,
+                            methodParameterAccessFlags, methodAnnotationInfo, methodParameterAnnotations));
                 }
             }
         }
