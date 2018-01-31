@@ -847,7 +847,7 @@ public class TypeParser {
      *            The programmer-view type signature, with type parameters where possible, and without synthetic or
      *            mandated parameters.
      * @param methodTypeSignatureInternal
-     *            The JDK-internal type signature, without type parameters, but including any synthetic or mandated
+     *            The JDK-internal type signature, without type parameters, but including synthetic or mandated
      *            parameters, if any.
      * @param parameterAccessFlags
      *            The parameter modifiers for parameters in the JDK-internal type signature.
