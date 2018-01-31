@@ -36,6 +36,14 @@ import java.lang.reflect.Method;
 //isAccessible() is deprecated in JDK9 because the name is confusing, not because it is broken
 @SuppressWarnings("deprecation")
 public class ReflectionUtils {
+    // This unused method includes a deprecated method call, so that the @SuppressWarnings("deprecation") above
+    // does not give a warning on JDK versions before 9 (where the isAccessible() method is not yet deprecated),
+    // but can still suppress the deprecation warnings for JDK9+. 
+    @SuppressWarnings("unused")
+    private static void unusedMethod() {
+        new Thread().destroy();
+    }
+
     /**
      * Get the value of the named field in the class of the given object or any of its superclasses. If an exception
      * is thrown while trying to read the field, and throwException is true, then IllegalArgumentException is thrown
