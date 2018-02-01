@@ -39,6 +39,7 @@ import java.util.Map;
 import org.junit.Test;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
+import io.github.lukehutch.fastclasspathscanner.scanner.AnnotationInfo;
 import io.github.lukehutch.fastclasspathscanner.scanner.ClassInfo;
 import io.github.lukehutch.fastclasspathscanner.scanner.MethodInfo;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
@@ -49,7 +50,7 @@ public class Issue175Test {
         final ClassLoader classLoader = Issue175Test.class.getClassLoader();
         final String aJarName = "issue175-has-kotlin-enum.zip";
         final URL aJarURL = classLoader.getResource(aJarName);
-        final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
+        final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[]{aJarURL});
 
         final ScanResult result = new FastClasspathScanner("net.corda.core.contracts") //
                 .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().ignoreMethodVisibility()
@@ -69,4 +70,21 @@ public class Issue175Test {
                 "public static net.corda.core.contracts.ComponentGroupEnum[] values()",
                 "public static net.corda.core.contracts.ComponentGroupEnum valueOf(java.lang.String)");
     }
+
+    @Test
+    public void issue175Test2() {
+        final MethodInfo testMethod = new MethodInfo(
+                "Utils",
+                "toSomething",
+                25,
+                "(Lrx/Observable;)Lnet/corda/core/concurrent/CordaFuture;",
+                "<T:Ljava/lang/Object;>(Lrx/Observable<TT;>;)Lnet/corda/core/concurrent/CordaFuture<TT;>;",
+                new String[]{"$receiver"},
+                new int[]{},
+                new ArrayList<>(),
+                new AnnotationInfo[][]{}
+        );
+        System.out.println(testMethod.toString());
+    }
+
 }
