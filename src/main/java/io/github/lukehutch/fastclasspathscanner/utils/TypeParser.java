@@ -354,6 +354,10 @@ public class TypeParser {
 
         @Override
         public boolean equalsIgnoringTypeParams(final TypeSignature other) {
+            if (this.className.equals("java.lang.Object") && other instanceof TypeVariableSignature) {
+                // Type variables become java.lang.Object after type erasure
+                return true;
+            }
             if (!(other instanceof ClassTypeSignature)) {
                 return false;
             }
@@ -434,10 +438,10 @@ public class TypeParser {
     /** A type variable signature. */
     public static class TypeVariableSignature extends ClassTypeOrTypeVariableSignature {
         /** The type variable signature. */
-        public final String typeVariableSignature;
+        public final String typeVariableName;
 
-        public TypeVariableSignature(final String typeVariableSignature) {
-            this.typeVariableSignature = typeVariableSignature;
+        public TypeVariableSignature(final String typeVariableName) {
+            this.typeVariableName = typeVariableName;
         }
 
         @Override
@@ -447,7 +451,7 @@ public class TypeParser {
 
         @Override
         public int hashCode() {
-            return typeVariableSignature.hashCode();
+            return typeVariableName.hashCode();
         }
 
         @Override
@@ -456,18 +460,26 @@ public class TypeParser {
                 return false;
             }
             final TypeVariableSignature o = (TypeVariableSignature) obj;
-            return o.typeVariableSignature.equals(this.typeVariableSignature);
+            return o.typeVariableName.equals(this.typeVariableName);
         }
 
         @Override
         public boolean equalsIgnoringTypeParams(final TypeSignature other) {
-            // This method shouldn't get called, since it is only for comparing concrete types
-            return equals(other);
+            if (other instanceof ClassTypeSignature
+                    && ((ClassTypeSignature) other).className.equals("java.lang.Object")) {
+                // Type variables become java.lang.Object after type erasure
+                return true;
+            }
+            // Technically I think type variables are never equal to each other, due to capturing,
+            // but just compare the variable name for equality here (this should never get
+            // triggered in general, since we only compare type-erased signatures to
+            // non-type-erased signatures currently).
+            return this.equals(other);
         }
 
         @Override
         public String toString() {
-            return typeVariableSignature;
+            return typeVariableName;
         }
 
         private static TypeVariableSignature parseTypeVariableSignature(final ParseState parseState)
@@ -531,7 +543,12 @@ public class TypeParser {
 
         @Override
         public boolean equalsIgnoringTypeParams(final TypeSignature other) {
-            return equals(other);
+            if (!(other instanceof ArrayTypeSignature)) {
+                return false;
+            }
+            final ArrayTypeSignature o = (ArrayTypeSignature) other;
+            return o.elementTypeSignature.equalsIgnoringTypeParams(this.elementTypeSignature)
+                    && o.numArrayDims == this.numArrayDims;
         }
 
         @Override
