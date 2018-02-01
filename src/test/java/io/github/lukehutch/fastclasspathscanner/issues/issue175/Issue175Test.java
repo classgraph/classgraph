@@ -119,5 +119,24 @@ public class Issue175Test {
                 methods.add(method.toString());
             }
         }
+        assertThat(methods).containsOnly(
+                "public static final <V, W> W match(@org.jetbrains.annotations.NotNull mandated "
+                        + "java.util.concurrent.Future<V> $receiver, @org.jetbrains.annotations.NotNull "
+                        + "kotlin.jvm.functions.Function1<? super V, ? extends W> success, "
+                        + "@org.jetbrains.annotations.NotNull kotlin.jvm.functions.Function1<? "
+                        + "super java.lang.Throwable, ? extends W> failure)",
+                "@org.jetbrains.annotations.NotNull public static final <V, W> "
+                        + "net.corda.core.concurrent.CordaFuture<W> firstOf(@org.jetbrains.annotations.NotNull "
+                        + "net.corda.core.concurrent.CordaFuture<? extends V>[] futures, "
+                        + "@org.jetbrains.annotations.NotNull kotlin.jvm.functions.Function1<? super "
+                        + "net.corda.core.concurrent.CordaFuture<? extends V>, ? extends W> handler)",
+                "public static void shortCircuitedTaskFailedMessage$annotations()",
+                "@org.jetbrains.annotations.NotNull public static final <V, W> "
+                        + "net.corda.core.concurrent.CordaFuture<W> firstOf(@org.jetbrains.annotations.NotNull "
+                        + "net.corda.core.concurrent.CordaFuture<? extends V>[] futures, "
+                        + "@org.jetbrains.annotations.NotNull org.slf4j.Logger log, "
+                        + "@org.jetbrains.annotations.NotNull kotlin.jvm.functions.Function1<? super "
+                        + "net.corda.core.concurrent.CordaFuture<? extends V>, ? extends W> handler)",
+                "static void <clinit>()");
     }
 }
