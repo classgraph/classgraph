@@ -39,18 +39,17 @@ import java.util.Map;
 import org.junit.Test;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-import io.github.lukehutch.fastclasspathscanner.scanner.AnnotationInfo;
 import io.github.lukehutch.fastclasspathscanner.scanner.ClassInfo;
 import io.github.lukehutch.fastclasspathscanner.scanner.MethodInfo;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
 
 public class Issue175Test {
     @Test
-    public void issue175Test() {
+    public void testSynthetic() {
         final ClassLoader classLoader = Issue175Test.class.getClassLoader();
         final String aJarName = "issue175-has-kotlin-enum.zip";
         final URL aJarURL = classLoader.getResource(aJarName);
-        final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[]{aJarURL});
+        final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
         final ScanResult result = new FastClasspathScanner("net.corda.core.contracts") //
                 .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().ignoreMethodVisibility()
@@ -72,11 +71,11 @@ public class Issue175Test {
     }
 
     @Test
-    public void issue175Test2() {
+    public void testMandated() {
         final ClassLoader classLoader = Issue175Test.class.getClassLoader();
         final String aJarName = "issue175-parameter-arity-mismatch.zip";
         final URL aJarURL = classLoader.getResource(aJarName);
-        final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[]{aJarURL});
+        final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
         final ScanResult result = new FastClasspathScanner("net.corda.core") //
                 .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().ignoreMethodVisibility()
@@ -91,5 +90,12 @@ public class Issue175Test {
                 methods.add(method.toString());
             }
         }
+        assertThat(methods).containsOnly(
+                "@org.jetbrains.annotations.NotNull public static final <A> rx.Observable<A> toObservable("
+                        + "@org.jetbrains.annotations.NotNull mandated "
+                        + "net.corda.core.concurrent.CordaFuture<? extends A> $receiver)",
+                "@org.jetbrains.annotations.NotNull public static final <T> "
+                        + "net.corda.core.concurrent.CordaFuture<T> toFuture(@org.jetbrains.annotations.NotNull "
+                        + "mandated rx.Observable<T> $receiver)");
     }
 }

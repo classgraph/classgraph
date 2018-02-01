@@ -844,11 +844,11 @@ public class TypeParser {
      * Merge together programmer-view and JDK-internal method type signatures.
      * 
      * @param methodTypeSignature
-     *            The programmer-view type signature, with type parameters where possible, and without synthetic or
-     *            mandated parameters.
+     *            The programmer-view type signature, with type parameters where possible, and without synthetic
+     *            parameters.
      * @param methodTypeSignatureInternal
-     *            The JDK-internal type signature, without type parameters, but including synthetic or mandated
-     *            parameters, if any.
+     *            The JDK-internal type signature, without type parameters, but including synthetic parameters, if
+     *            any.
      * @param parameterAccessFlags
      *            The parameter modifiers for parameters in the JDK-internal type signature.
      * @return A MethodSignature consisting of all information from both type signatures.
@@ -876,10 +876,10 @@ public class TypeParser {
         if (parameterAccessFlags == null) {
             // If there are no parameter access flags, there must be no difference in the number
             // of parameters between the JDK-internal and programmer-visible type signature
-            // (i.e. if there are synthetic or mandated parameters, then the classfile should
-            // specify this by adding the parameter modifier flags section to the method
-            // attributes). It's possible this is not always true, so if this exception is
-            // thrown, please report a bug in the GitHub bug tracker.
+            // (i.e. if there are synthetic parameters, then the classfile should specify
+            // this by adding the parameter modifier flags section to the method attributes).
+            // It's possible this is not always true, so if this exception is thrown, please
+            // report a bug in the GitHub bug tracker.
             if (methodTypeSignature.paramTypes.size() != methodTypeSignatureInternal.paramTypes.size()) {
                 throw new IllegalArgumentException("Unexpected mismatch in method paramTypes arity");
             }
@@ -890,11 +890,10 @@ public class TypeParser {
             int internalParamIdx = 0;
             int paramIdx = 0;
             for (; internalParamIdx < methodTypeSignatureInternal.paramTypes.size(); internalParamIdx++) {
-                // synthetic: 0x1000; mandated: 0x8000
-                if ((parameterAccessFlags[internalParamIdx] & 0x9000) != 0) {
+                if ((parameterAccessFlags[internalParamIdx] & 0x1000) != 0) {
                     // This parameter is present in JDK-internal type signature, but not in the 
-                    // programmer-visible signature. This should only be true for synthetic and
-                    // mandated types, and they should not have any type parameters, due to type
+                    // programmer-visible signature. This should only be true for synthetic
+                    // parameters, and they should not have any type parameters, due to type
                     // erasure.
                     mergedParamTypes.add(methodTypeSignatureInternal.paramTypes.get(internalParamIdx));
                 } else {
