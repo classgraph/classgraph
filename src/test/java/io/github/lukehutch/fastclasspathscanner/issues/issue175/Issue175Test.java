@@ -73,18 +73,23 @@ public class Issue175Test {
 
     @Test
     public void issue175Test2() {
-        final MethodInfo testMethod = new MethodInfo(
-                "Utils",
-                "toSomething",
-                25,
-                "(Lrx/Observable;)Lnet/corda/core/concurrent/CordaFuture;",
-                "<T:Ljava/lang/Object;>(Lrx/Observable<TT;>;)Lnet/corda/core/concurrent/CordaFuture<TT;>;",
-                new String[]{"$receiver"},
-                new int[]{},
-                new ArrayList<>(),
-                new AnnotationInfo[][]{}
-        );
-        System.out.println(testMethod.toString());
-    }
+        final ClassLoader classLoader = Issue175Test.class.getClassLoader();
+        final String aJarName = "issue175-parameter-arity-mismatch.zip";
+        final URL aJarURL = classLoader.getResource(aJarName);
+        final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[]{aJarURL});
 
+        final ScanResult result = new FastClasspathScanner("net.corda.core") //
+                .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().ignoreMethodVisibility()
+                .ignoreFieldVisibility().enableMethodInfo().enableFieldInfo().scan();
+
+        final Map<String, ClassInfo> allInfo = result.getClassNameToClassInfo();
+
+        final List<String> methods = new ArrayList<>();
+        for (final String className : result.getNamesOfAllClasses()) {
+            final ClassInfo classInfo = allInfo.get(className);
+            for (final MethodInfo method : classInfo.getMethodAndConstructorInfo()) {
+                methods.add(method.toString());
+            }
+        }
+    }
 }
