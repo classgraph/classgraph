@@ -98,4 +98,26 @@ public class Issue175Test {
                         + "net.corda.core.concurrent.CordaFuture<T> toFuture(@org.jetbrains.annotations.NotNull "
                         + "mandated rx.Observable<T> $receiver)");
     }
+
+    @Test
+    public void testMismatchedTypes() {
+        final ClassLoader classLoader = Issue175Test.class.getClassLoader();
+        final String aJarName = "issue175-type-signature-mismatch.zip";
+        final URL aJarURL = classLoader.getResource(aJarName);
+        final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
+
+        final ScanResult result = new FastClasspathScanner("net.corda.core") //
+                .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().ignoreMethodVisibility()
+                .ignoreFieldVisibility().enableMethodInfo().enableFieldInfo().scan();
+
+        final Map<String, ClassInfo> allInfo = result.getClassNameToClassInfo();
+
+        final List<String> methods = new ArrayList<>();
+        for (final String className : result.getNamesOfAllClasses()) {
+            final ClassInfo classInfo = allInfo.get(className);
+            for (final MethodInfo method : classInfo.getMethodAndConstructorInfo()) {
+                methods.add(method.toString());
+            }
+        }
+    }
 }
