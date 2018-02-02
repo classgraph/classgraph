@@ -764,7 +764,7 @@ public class TypeParser {
                 if (buf.length() > 0) {
                     buf.append(' ');
                 }
-                buf.append(modifiersToString(modifiers, /* isMethod = */ true));
+                modifiersToString(modifiers, /* isMethod = */ true, buf);
             }
 
             if (!typeParameters.isEmpty()) {
@@ -974,6 +974,45 @@ public class TypeParser {
                 mergedThrowsSignatures);
     }
 
+    /**
+     * Merge together two class type signatures (used for combining base classes and auxiliary classes in Scala).
+     */
+    public static ClassSignature merge(final ClassSignature classSignature0, final ClassSignature classSignature1) {
+        ClassTypeSignature superclassSig;
+        if (classSignature0.superclassSignature.className.equals("java.lang.Object")) {
+            superclassSig = classSignature1.superclassSignature;
+        } else if (classSignature1.superclassSignature.className.equals("java.lang.Object")) {
+            superclassSig = classSignature0.superclassSignature;
+        } else {
+            // A class and its auxiliary class have different superclasses. Really should not happen?? 
+            throw new IllegalArgumentException("A class and its auxiliary class have different superclasses: "
+                    + classSignature0 + " ; " + classSignature1);
+        }
+        List<ClassTypeSignature> allSuperinterfaces;
+        if (classSignature0.superinterfaceSignatures.isEmpty()) {
+            allSuperinterfaces = classSignature1.superinterfaceSignatures;
+        } else if (classSignature1.superinterfaceSignatures.isEmpty()) {
+            allSuperinterfaces = classSignature0.superinterfaceSignatures;
+        } else {
+            final AdditionOrderedSet<ClassTypeSignature> superinterfacesUniq = new AdditionOrderedSet<>(
+                    classSignature0.superinterfaceSignatures);
+            superinterfacesUniq.addAll(classSignature1.superinterfaceSignatures);
+            allSuperinterfaces = superinterfacesUniq.toList();
+        }
+        List<TypeParameter> allTypeParams;
+        if (classSignature0.typeParameters.isEmpty()) {
+            allTypeParams = classSignature1.typeParameters;
+        } else if (classSignature1.typeParameters.isEmpty()) {
+            allTypeParams = classSignature0.typeParameters;
+        } else {
+            final AdditionOrderedSet<TypeParameter> typeParamsUniq = new AdditionOrderedSet<>(
+                    classSignature0.typeParameters);
+            typeParamsUniq.addAll(classSignature1.typeParameters);
+            allTypeParams = typeParamsUniq.toList();
+        }
+        return new ClassSignature(allTypeParams, superclassSig, allSuperinterfaces);
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /** A class signature. */
@@ -1010,10 +1049,11 @@ public class TypeParser {
                     && o.superinterfaceSignatures.equals(this.superinterfaceSignatures);
         }
 
-        public String toString(final int modifiers, final String className) {
+        public String toString(final int modifiers, final boolean isAnnotation, final boolean isInterface,
+                final String className) {
             final StringBuilder buf = new StringBuilder();
             if (modifiers != 0) {
-                buf.append(modifiersToString(modifiers, /* isMethod = */ false));
+                modifiersToString(modifiers, /* isMethod = */ false, buf);
             }
             if (!typeParameters.isEmpty()) {
                 if (buf.length() > 0) {
@@ -1026,26 +1066,31 @@ public class TypeParser {
                     }
                     buf.append(typeParameters.get(i).toString());
                 }
-                buf.append("> ");
+                buf.append('>');
             }
             if (buf.length() > 0) {
                 buf.append(' ');
             }
-            buf.append("class");
+            buf.append(isAnnotation ? "@interface"
+                    : isInterface ? "interface" : (modifiers & 0x4000) != 0 ? "enum" : "class");
             if (className != null) {
                 buf.append(' ');
                 buf.append(className);
             }
             if (superclassSignature != null) {
-                buf.append(" extends");
-                buf.append(superclassSignature.toString());
+                final String superSig = superclassSignature.toString();
+                if (!superSig.equals("java.lang.Object")) {
+                    buf.append(" extends ");
+                    buf.append(superSig);
+                }
             }
             if (!superinterfaceSignatures.isEmpty()) {
                 buf.append(" implements");
                 for (int i = 0; i < superinterfaceSignatures.size(); i++) {
                     if (i > 0) {
-                        buf.append(", ");
+                        buf.append(',');
                     }
+                    buf.append(' ');
                     buf.append(superinterfaceSignatures.get(i).toString());
                 }
             }
@@ -1054,7 +1099,8 @@ public class TypeParser {
 
         @Override
         public String toString() {
-            return toString(/* modifiers = */ 0, /* methodName = */ null);
+            return toString(/* modifiers = */ 0, /* isAnnotation = */ false, /* isInterface = */ false,
+                    /* methodName = */ null);
         }
     }
 
@@ -1063,6 +1109,12 @@ public class TypeParser {
     /** Convert field or method modifiers into a string representation, e.g. "public static final". */
     public static String modifiersToString(final int modifiers, final boolean isMethod) {
         final StringBuilder buf = new StringBuilder();
+        modifiersToString(modifiers, isMethod, buf);
+        return buf.toString();
+    }
+
+    /** Convert field or method modifiers into a string representation, e.g. "public static final". */
+    public static void modifiersToString(final int modifiers, final boolean isMethod, final StringBuilder buf) {
         if ((modifiers & Modifier.PUBLIC) != 0) {
             buf.append("public");
         } else if ((modifiers & Modifier.PROTECTED) != 0) {
@@ -1070,23 +1122,23 @@ public class TypeParser {
         } else if ((modifiers & Modifier.PRIVATE) != 0) {
             buf.append("private");
         }
-        if ((modifiers & Modifier.STATIC) != 0) {
-            if (buf.length() > 0) {
-                buf.append(' ');
-            }
-            buf.append("static");
-        }
         if ((modifiers & Modifier.ABSTRACT) != 0) {
             if (buf.length() > 0) {
                 buf.append(' ');
             }
             buf.append("abstract");
         }
-        if ((modifiers & Modifier.SYNCHRONIZED) != 0) {
+        if ((modifiers & Modifier.STATIC) != 0) {
             if (buf.length() > 0) {
                 buf.append(' ');
             }
-            buf.append("synchronized");
+            buf.append("static");
+        }
+        if ((modifiers & Modifier.FINAL) != 0) {
+            if (buf.length() > 0) {
+                buf.append(' ');
+            }
+            buf.append("final");
         }
         if (!isMethod && (modifiers & Modifier.TRANSIENT) != 0) {
             // TRANSIENT has the same value as VARARGS, since they are mutually exclusive (TRANSIENT applies only to
@@ -1107,11 +1159,18 @@ public class TypeParser {
                 buf.append("bridge");
             }
         }
-        if ((modifiers & Modifier.FINAL) != 0) {
+        if (!isMethod && ((modifiers & 0x1000) != 0)) {
             if (buf.length() > 0) {
                 buf.append(' ');
             }
-            buf.append("final");
+            // For a synthetic class (synthetic method parameters have the synthetic keyword added manually) 
+            buf.append("synthetic");
+        }
+        if ((modifiers & Modifier.SYNCHRONIZED) != 0) {
+            if (buf.length() > 0) {
+                buf.append(' ');
+            }
+            buf.append("synchronized");
         }
         if ((modifiers & Modifier.NATIVE) != 0) {
             if (buf.length() > 0) {
@@ -1119,7 +1178,12 @@ public class TypeParser {
             }
             buf.append("native");
         }
-        return buf.toString();
+        if ((modifiers & Modifier.STRICT) != 0) {
+            if (buf.length() > 0) {
+                buf.append(' ');
+            }
+            buf.append("strictfp");
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -1271,14 +1335,7 @@ public class TypeParser {
         }
     }
 
-    /**
-     * Parse a class signature.
-     *
-     * <p>
-     * TODO this is not currently used -- I don't know where this is even used in the classfile format. The JVMS
-     * spec section 4.7.9.1 states "A class signature encodes type information about a (possibly generic) class
-     * declaration."
-     */
+    /** Parse a class signature. */
     public static ClassSignature parseClassSignature(final String typeDescriptor) {
         final ParseState parseState = new ParseState(typeDescriptor);
         try {

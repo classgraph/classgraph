@@ -47,6 +47,8 @@ import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult.InfoObject;
 import io.github.lukehutch.fastclasspathscanner.utils.AdditionOrderedSet;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.MultiMapKeyToList;
+import io.github.lukehutch.fastclasspathscanner.utils.TypeParser;
+import io.github.lukehutch.fastclasspathscanner.utils.TypeParser.ClassSignature;
 
 /** Holds metadata about a class encountered during a scan. */
 public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
@@ -61,6 +63,12 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /** True if the classfile indicated this is an annotation. */
     private boolean isAnnotation;
+
+    /** The class type descriptor. */
+    private String typeDescriptor;
+
+    /** The class type signature. */
+    private ClassSignature typeSignature;
 
     /** The fully-qualified containing method name, for anonymous inner classes. */
     private String fullyQualifiedContainingMethodName;
@@ -151,6 +159,29 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     }
 
     /**
+     * Get the field modifiers as a string, e.g. "public static final". For the modifier bits, call getModifiers().
+     */
+    public String getModifiersStr() {
+        return TypeParser.modifiersToString(classModifiers, /* isMethod = */ false);
+    }
+
+    /** Get the JVM-internal type descriptor string for the class, if available (else returns null). */
+    public String getTypeDescriptor() {
+        return typeDescriptor;
+    }
+
+    /** Get the type signature for the class, if available (else returns null). */
+    public ClassSignature getTypeSignature() {
+        if (typeDescriptor == null) {
+            return null;
+        }
+        if (typeSignature == null) {
+            typeSignature = TypeParser.parseClassSignature(typeDescriptor);
+        }
+        return typeSignature;
+    }
+
+    /**
      * The classpath element URL(s) (classpath root dir or jar) that this class was found within. For Java, this
      * will consist of exactly one entry, so you should generally call the getClasspathElementURL() convenience
      * method instead.
@@ -222,17 +253,20 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     @Override
     public String toString() {
-        return ((classModifiers & Modifier.PUBLIC) != 0 ? "public " : "") //
-                + ((classModifiers & Modifier.PROTECTED) != 0 ? "protected " : "") //
-                + ((classModifiers & Modifier.PRIVATE) != 0 ? "private " : "") //
-                + ((classModifiers & 0x1000) != 0 ? "synthetic " : "") //
-                + ((classModifiers & Modifier.ABSTRACT) != 0 ? "abstract " : "") //
-                + ((classModifiers & Modifier.STATIC) != 0 ? "static " : "") //
-                + ((classModifiers & Modifier.FINAL) != 0 ? "final " : "") //
-                + ((classModifiers & Modifier.STRICT) != 0 ? "strict " : "") //
-                + (isAnnotation ? "@interface " : isInterface ? "interface " : //
-                        (classModifiers & 0x4000) != 0 ? "enum " : "class ") //
-                + className;
+        final ClassSignature typeSig = getTypeSignature();
+        if (typeSig != null) {
+            return typeSig.toString(classModifiers, isAnnotation, isInterface, className);
+        } else {
+            final StringBuilder buf = new StringBuilder();
+            TypeParser.modifiersToString(classModifiers, /* isMethod = */ false, buf);
+            if (buf.length() > 0) {
+                buf.append(' ');
+            }
+            buf.append(isAnnotation ? "@interface "
+                    : isInterface ? "interface " : (classModifiers & 0x4000) != 0 ? "enum " : "class ");
+            buf.append(className);
+            return buf.toString();
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -649,6 +683,24 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
             this.methodInfo = methodInfoList;
         } else {
             this.methodInfo.addAll(methodInfoList);
+        }
+    }
+
+    /** Add the class type descriptor */
+    void addTypeDescriptor(final String typeDescriptor) {
+        if (this.typeDescriptor == null) {
+            this.typeDescriptor = typeDescriptor;
+        } else {
+            // Merging together a class and an auxiliary class -- merge the type signatures
+            if (this.typeSignature == null) {
+                this.typeSignature = TypeParser.parseClassSignature(this.typeDescriptor);
+            }
+            this.typeSignature = TypeParser.merge(this.typeSignature,
+                    TypeParser.parseClassSignature(typeDescriptor));
+            // Pick the raw type descriptor string that is shortest, it is probably the one for the base class
+            if (this.typeDescriptor.length() > typeDescriptor.length()) {
+                this.typeDescriptor = typeDescriptor;
+            }
         }
     }
 

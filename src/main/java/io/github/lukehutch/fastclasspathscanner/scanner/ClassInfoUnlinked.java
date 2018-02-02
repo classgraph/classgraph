@@ -41,6 +41,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import io.github.lukehutch.fastclasspathscanner.scanner.AnnotationInfo.AnnotationParamValue;
 import io.github.lukehutch.fastclasspathscanner.utils.Join;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
+import io.github.lukehutch.fastclasspathscanner.utils.TypeParser;
 
 /**
  * Class information that has been directly read from the binary classfile, before it is cross-linked with other
@@ -66,6 +67,7 @@ class ClassInfoUnlinked {
     List<FieldInfo> fieldInfoList;
     List<MethodInfo> methodInfoList;
     private final ConcurrentHashMap<String, String> stringInternMap;
+    private String typeDescriptor;
 
     private String intern(final String string) {
         if (string == null) {
@@ -84,6 +86,10 @@ class ClassInfoUnlinked {
         this.isInterface = isInterface;
         this.isAnnotation = isAnnotation;
         this.classpathElement = classpathElement;
+    }
+
+    void addTypeDescriptor(final String typeDescriptor) {
+        this.typeDescriptor = typeDescriptor;
     }
 
     void addSuperclass(final String superclassName) {
@@ -213,6 +219,9 @@ class ClassInfoUnlinked {
         if (methodInfoList != null) {
             classInfo.addMethodInfo(methodInfoList, classNameToClassInfo);
         }
+        if (typeDescriptor != null) {
+            classInfo.addTypeDescriptor(typeDescriptor);
+        }
     }
 
     void logTo(final LogNode log) {
@@ -245,6 +254,10 @@ class ClassInfoUnlinked {
                     fieldInitializers.add(ent.getKey() + " = " + ent.getValue());
                 }
                 subLog.log("Static final field values: " + Join.join(", ", fieldInitializers));
+            }
+            if (typeDescriptor != null) {
+                subLog.log("Class type signature: " + TypeParser.parseClassSignature(typeDescriptor)
+                        .toString(classModifiers, isAnnotation, isInterface, className));
             }
         }
     }
