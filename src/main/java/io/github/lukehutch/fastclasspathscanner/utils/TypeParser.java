@@ -354,8 +354,12 @@ public class TypeParser {
 
         @Override
         public boolean equalsIgnoringTypeParams(final TypeSignature other) {
-            if (this.className.equals("java.lang.Object") && other instanceof TypeVariableSignature) {
-                // Type variables become java.lang.Object after type erasure
+            if (other instanceof TypeVariableSignature) {
+                // Type variables can always be reconciled with a concrete class. This should really
+                // check the bounds of the type signature of the type variable, but that is not
+                // always simple, because sometimes the type variable is defined on the class, not
+                // the method. This equality check is just a spot check for pre- and post-conditions,
+                // so it doesn't matter if it's a bit more lenient than it should be.
                 return true;
             }
             if (!(other instanceof ClassTypeSignature)) {
@@ -465,9 +469,12 @@ public class TypeParser {
 
         @Override
         public boolean equalsIgnoringTypeParams(final TypeSignature other) {
-            if (other instanceof ClassTypeSignature
-                    && ((ClassTypeSignature) other).className.equals("java.lang.Object")) {
-                // Type variables become java.lang.Object after type erasure
+            if (other instanceof ClassTypeSignature) {
+                // Type variables can always be reconciled with a concrete class. This should really
+                // check the bounds of the type signature of the type variable, but that is not
+                // always simple, because sometimes the type variable is defined on the class, not
+                // the method. This equality check is just a spot check for pre- and post-conditions,
+                // so it doesn't matter if it's a bit more lenient than it should be.
                 return true;
             }
             // Technically I think type variables are never equal to each other, due to capturing,
@@ -630,6 +637,9 @@ public class TypeParser {
                     classBoundStr = null;
                 }
             }
+            if (classBoundStr != null || !interfaceBounds.isEmpty()) {
+                buf.append(" extends");
+            }
             if (classBoundStr != null) {
                 buf.append(' ');
                 buf.append(classBoundStr);
@@ -638,6 +648,7 @@ public class TypeParser {
                 if (i > 0 || classBoundStr != null) {
                     buf.append(" &");
                 }
+                buf.append(' ');
                 buf.append(interfaceBounds.get(i).toString());
             }
             return buf.toString();
