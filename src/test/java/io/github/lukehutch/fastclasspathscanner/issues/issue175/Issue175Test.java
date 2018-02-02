@@ -219,4 +219,55 @@ public class Issue175Test {
                 "@org.jetbrains.annotations.NotNull public static final java.util.concurrent.atomic.AtomicInteger access$getSharedUserCount$p(net.corda.testing.node.MockNetwork)",
                 "@org.jetbrains.annotations.NotNull public static final net.corda.testing.node.MockNetwork$sharedServerThread$1 access$getSharedServerThread$p(net.corda.testing.node.MockNetwork)");
     }
+
+
+    @Test
+    public void testAttributeParameterMismatch() {
+        final ClassLoader classLoader = Issue175Test.class.getClassLoader();
+        final String aJarName = "issue175-attribute-parameter-mismatch.zip";
+        final URL aJarURL = classLoader.getResource(aJarName);
+        final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[]{aJarURL});
+
+        final ScanResult result = new FastClasspathScanner("net.corda.core.node.services.vault") //
+                .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().ignoreMethodVisibility()
+                .ignoreFieldVisibility().enableMethodInfo().enableFieldInfo().scan();
+
+        final Map<String, ClassInfo> allInfo = result.getClassNameToClassInfo();
+
+        System.out.println(Integer.toString(allInfo.size()));
+        final List<String> methods = new ArrayList<>();
+        for (final String className : result.getNamesOfAllClasses()) {
+            System.out.println(className);
+            final ClassInfo classInfo = allInfo.get(className);
+            for (final MethodInfo method : classInfo.getMethodAndConstructorInfo()) {
+                System.out.println(method.toString());
+                methods.add(method.toString());
+            }
+        }
+    }
+
+    @Test
+    public void testResultTypeReconciliationIssue() {
+        final ClassLoader classLoader = Issue175Test.class.getClassLoader();
+        final String aJarName = "issue175-result-type-could-not-reconcile.zip";
+        final URL aJarURL = classLoader.getResource(aJarName);
+        final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[]{aJarURL});
+
+        final ScanResult result = new FastClasspathScanner("net.corda.client.jackson") //
+                .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().ignoreMethodVisibility()
+                .ignoreFieldVisibility().enableMethodInfo().enableFieldInfo().scan();
+
+        final Map<String, ClassInfo> allInfo = result.getClassNameToClassInfo();
+
+        System.out.println(Integer.toString(allInfo.size()));
+        final List<String> methods = new ArrayList<>();
+        for (final String className : result.getNamesOfAllClasses()) {
+            System.out.println(className);
+            final ClassInfo classInfo = allInfo.get(className);
+            for (final MethodInfo method : classInfo.getMethodAndConstructorInfo()) {
+                System.out.println(method.toString());
+                methods.add(method.toString());
+            }
+        }
+    }
 }
