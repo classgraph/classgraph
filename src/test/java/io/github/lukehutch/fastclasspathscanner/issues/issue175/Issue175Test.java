@@ -139,4 +139,48 @@ public class Issue175Test {
                         + "net.corda.core.concurrent.CordaFuture<? extends V>, ? extends W> handler)",
                 "static void <clinit>()");
     }
+
+    @Test
+    public void testResultTypesNotReconciled1() {
+        final ClassLoader classLoader = Issue175Test.class.getClassLoader();
+        final String aJarName = "issue175-corresponding-type-parameters-do-not-refer-to-the same-bare-types.zip";
+        final URL aJarURL = classLoader.getResource(aJarName);
+        final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
+
+        final ScanResult result = new FastClasspathScanner("net.corda.core.contracts") //
+                .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().ignoreMethodVisibility()
+                .ignoreFieldVisibility().enableMethodInfo().enableFieldInfo().scan();
+
+        final Map<String, ClassInfo> allInfo = result.getClassNameToClassInfo();
+
+        final List<String> methods = new ArrayList<>();
+        for (final String className : result.getNamesOfAllClasses()) {
+            final ClassInfo classInfo = allInfo.get(className);
+            for (final MethodInfo method : classInfo.getMethodAndConstructorInfo()) {
+                methods.add(method.toString());
+            }
+        }
+    }
+
+    @Test
+    public void testResultTypesNotReconciled2() {
+        final ClassLoader classLoader = Issue175Test.class.getClassLoader();
+        final String aJarName = "issue175-result-types-couldnt-be-reconciled.zip";
+        final URL aJarURL = classLoader.getResource(aJarName);
+        final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
+
+        final ScanResult result = new FastClasspathScanner("net.corda.testing.node") //
+                .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().ignoreMethodVisibility()
+                .ignoreFieldVisibility().enableMethodInfo().enableFieldInfo().scan();
+
+        final Map<String, ClassInfo> allInfo = result.getClassNameToClassInfo();
+
+        final List<String> methods = new ArrayList<>();
+        for (final String className : result.getNamesOfAllClasses()) {
+            final ClassInfo classInfo = allInfo.get(className);
+            for (final MethodInfo method : classInfo.getMethodAndConstructorInfo()) {
+                methods.add(method.toString());
+            }
+        }
+    }
 }
