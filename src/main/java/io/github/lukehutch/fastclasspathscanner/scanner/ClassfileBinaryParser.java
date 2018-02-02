@@ -478,7 +478,7 @@ class ClassfileBinaryParser implements AutoCloseable {
         final int numElementValuePairs = readUnsignedShort();
         List<AnnotationParamValue> paramVals = null;
         if (numElementValuePairs > 0) {
-            paramVals = new ArrayList<>();
+            paramVals = new ArrayList<>(numElementValuePairs);
         }
         for (int i = 0; i < numElementValuePairs; i++) {
             final String paramName = getConstantPoolString(readUnsignedShort()); // skip(2); // element_name_index
@@ -792,9 +792,6 @@ class ClassfileBinaryParser implements AutoCloseable {
                 Object fieldConstValue = null;
                 boolean foundFieldConstValue = false;
                 List<AnnotationInfo> fieldAnnotationInfo = null;
-                if (scanSpec.enableFieldInfo && fieldIsVisible) {
-                    fieldAnnotationInfo = new ArrayList<>(1);
-                }
                 final int attributesCount = readUnsignedShort();
                 for (int j = 0; j < attributesCount; j++) {
                     final int attributeNameCpIdx = readUnsignedShort();
@@ -828,15 +825,16 @@ class ClassfileBinaryParser implements AutoCloseable {
                                             && constantPoolStringEquals(attributeNameCpIdx,
                                                     "RuntimeInvisibleAnnotations")))) {
                         // Read annotation names
-                        final int annotationCount = readUnsignedShort();
-                        for (int k = 0; k < annotationCount; k++) {
+                        final int fieldAnnotationCount = readUnsignedShort();
+                        if (fieldAnnotationInfo == null && fieldAnnotationCount > 0) {
+                            fieldAnnotationInfo = new ArrayList<>(1);
+                        }
+                        for (int k = 0; k < fieldAnnotationCount; k++) {
                             final AnnotationInfo fieldAnnotation = readAnnotation();
                             if (scanSpec.enableFieldAnnotationIndexing) {
                                 classInfoUnlinked.addFieldAnnotation(fieldAnnotation);
                             }
-                            if (fieldAnnotationInfo != null) {
-                                fieldAnnotationInfo.add(fieldAnnotation);
-                            }
+                            fieldAnnotationInfo.add(fieldAnnotation);
                         }
                     } else {
                         // No match, just skip attribute
@@ -896,9 +894,6 @@ class ClassfileBinaryParser implements AutoCloseable {
             AnnotationInfo[][] methodParameterAnnotations = null;
             List<AnnotationParamValue> annotationParamDefaultValues = null;
             List<AnnotationInfo> methodAnnotationInfo = null;
-            if (scanSpec.enableMethodInfo && methodIsVisible) {
-                methodAnnotationInfo = new ArrayList<>(1);
-            }
             if (!methodIsVisible
                     || (!scanSpec.enableMethodInfo && !isAnnotation && !scanSpec.enableMethodAnnotationIndexing)) {
                 // Skip method attributes
@@ -915,15 +910,16 @@ class ClassfileBinaryParser implements AutoCloseable {
                     if (constantPoolStringEquals(attributeNameCpIdx, "RuntimeVisibleAnnotations")
                             || (scanSpec.annotationVisibility == RetentionPolicy.CLASS && constantPoolStringEquals(
                                     attributeNameCpIdx, "RuntimeInvisibleAnnotations"))) {
-                        final int annotationCount = readUnsignedShort();
-                        for (int k = 0; k < annotationCount; k++) {
+                        final int methodAnnotationCount = readUnsignedShort();
+                        if (methodAnnotationInfo == null && methodAnnotationCount > 0) {
+                            methodAnnotationInfo = new ArrayList<>(1);
+                        }
+                        for (int k = 0; k < methodAnnotationCount; k++) {
                             final AnnotationInfo annotationInfo = readAnnotation();
                             if (scanSpec.enableMethodAnnotationIndexing) {
                                 classInfoUnlinked.addMethodAnnotation(annotationInfo);
                             }
-                            if (methodAnnotationInfo != null) {
-                                methodAnnotationInfo.add(annotationInfo);
-                            }
+                            methodAnnotationInfo.add(annotationInfo);
                         }
                     } else if (constantPoolStringEquals(attributeNameCpIdx, "RuntimeVisibleParameterAnnotations")
                             || (scanSpec.annotationVisibility == RetentionPolicy.CLASS && constantPoolStringEquals(
