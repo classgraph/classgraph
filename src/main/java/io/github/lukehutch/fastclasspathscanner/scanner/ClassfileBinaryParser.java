@@ -574,6 +574,8 @@ class ClassfileBinaryParser implements AutoCloseable {
         }
     }
 
+    private static final AnnotationInfo[] NO_ANNOTATIONS = new AnnotationInfo[0];
+
     /**
      * Directly examine contents of classfile binary header to determine annotations, implemented interfaces, the
      * super-class etc. Creates a new ClassInfo object, and adds it to classNameToClassInfoOut. Assumes classpath
@@ -928,7 +930,8 @@ class ClassfileBinaryParser implements AutoCloseable {
                         methodParameterAnnotations = new AnnotationInfo[paramCount][];
                         for (int k = 0; k < paramCount; k++) {
                             final int numAnnotations = readUnsignedShort();
-                            methodParameterAnnotations[k] = new AnnotationInfo[numAnnotations];
+                            methodParameterAnnotations[k] = numAnnotations == 0 ? NO_ANNOTATIONS
+                                    : new AnnotationInfo[numAnnotations];
                             for (int l = 0; l < numAnnotations; l++) {
                                 methodParameterAnnotations[k][l] = readAnnotation();
                             }
