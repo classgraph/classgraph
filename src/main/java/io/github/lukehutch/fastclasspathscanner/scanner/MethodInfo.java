@@ -65,6 +65,7 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
     private final int[] parameterAccessFlagsInternal;
     private int[] parameterAccessFlags;
     final AnnotationInfo[][] parameterAnnotationInfo;
+    private AnnotationInfo[][] parameterAnnotationInfoInternal;
     final List<AnnotationInfo> annotationInfo;
     private ScanResult scanResult;
 
@@ -456,13 +457,13 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
             // Copy modifiers only for entries that are non-synthetic
             int numNonSyntheticParams = 0;
             for (int i = 0; i < parameterAccessFlagsInternal.length; i++) {
-                if ((parameterAccessFlagsInternal[i] & 0x1000) == 0) {
+                if ((parameterAccessFlagsInternal[i] & TypeParser.MODIFIER_SYNTHETIC) == 0) {
                     numNonSyntheticParams++;
                 }
             }
             parameterAccessFlags = new int[numNonSyntheticParams];
             for (int i = 0, j = 0; i < parameterAccessFlagsInternal.length; i++) {
-                if ((parameterAccessFlagsInternal[i] & 0x1000) == 0) {
+                if ((parameterAccessFlagsInternal[i] & TypeParser.MODIFIER_SYNTHETIC) == 0) {
                     parameterAccessFlags[j++] = parameterAccessFlagsInternal[i];
                 }
             }
@@ -555,6 +556,39 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
         return parameterAnnotationInfo;
     }
 
+    private static final AnnotationInfo[] NO_ANNOTATIONS = new AnnotationInfo[0];
+
+    /**
+     * Get the annotation info with indices corresponding to the JVM-internal type signature, i.e. add null entries
+     * in the position of any synthetic parameters, so that these entries are aligned with
+     * parameterAccessFlagsInternal.
+     */
+    private AnnotationInfo[][] getParameterAnnotationInfoInternal() {
+        if (parameterAnnotationInfo == null) {
+            return null;
+        }
+        if (parameterAnnotationInfoInternal == null) {
+            if (parameterAccessFlagsInternal == null
+                    || parameterAccessFlagsInternal.length == parameterAnnotationInfo.length) {
+                return parameterAnnotationInfo;
+            }
+            // There are synthetic parameters, need to pad array
+            parameterAnnotationInfoInternal = new AnnotationInfo[parameterAccessFlagsInternal.length][];
+            int j = 0;
+            for (int i = 0; i < parameterAccessFlagsInternal.length; i++) {
+                parameterAnnotationInfoInternal[i] = //
+                        (parameterAccessFlagsInternal[i] & TypeParser.MODIFIER_SYNTHETIC) == 0 //
+                                ? parameterAnnotationInfo[j++] //
+                                : NO_ANNOTATIONS;
+            }
+            if (j < parameterAnnotationInfo.length) {
+                throw new IllegalArgumentException(
+                        "Parameter arity mismatch in getParameterAnnotationInfoInternal()");
+            }
+        }
+        return parameterAnnotationInfoInternal;
+    }
+
     /** Returns the names of annotations on the method, or the empty list if none. */
     public List<String> getAnnotationNames() {
         return Arrays.asList(AnnotationInfo.getUniqueAnnotationNamesSorted(annotationInfo));
@@ -631,6 +665,6 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
     @Override
     public String toString() {
         return getTypeSignatureUnified().toString(annotationInfo, modifiers, isConstructor(), methodName,
-                isVarArgs(), parameterNames, parameterAccessFlagsInternal, parameterAnnotationInfo);
+                isVarArgs(), parameterNames, parameterAccessFlagsInternal, getParameterAnnotationInfoInternal());
     }
 }

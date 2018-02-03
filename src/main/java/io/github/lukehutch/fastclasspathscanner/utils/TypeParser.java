@@ -39,6 +39,15 @@ import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
 
 /** Reflection utility methods that can be used by ClassLoaderHandlers. */
 public class TypeParser {
+
+    /** The modifier bit for synthetic parameters. */
+    public static final int MODIFIER_SYNTHETIC = 0x1000;
+
+    /** The modifier bit for mandated parameters. */
+    public static final int MODIFIER_MANDATED = 0x8000;
+
+    // -------------------------------------------------------------------------------------------------------------
+
     /**
      * A type signature for a reference type or base type. Subclasses are ReferenceTypeSignature
      * (ClassTypeSignature, TypeVariableSignature, or ArrayTypeSignature) and BaseTypeSignature.
@@ -305,6 +314,8 @@ public class TypeParser {
     public static class ClassTypeSignature extends ClassTypeOrTypeVariableSignature {
         /** The class name. */
         public final String className;
+        /** The class name and suffixes, without type arguments. */
+        private String classNameAndSuffixesWithoutTypeArguments;
         /** The class type arguments. */
         public final List<TypeArgument> typeArguments;
         /** The class type signature suffix(es), or the empty list if no suffixes. */
@@ -352,6 +363,19 @@ public class TypeParser {
                     && o.suffixes.equals(this.suffixes);
         }
 
+        private String getClassNameAndSuffixesWithoutTypeArguments() {
+            if (classNameAndSuffixesWithoutTypeArguments == null) {
+                final StringBuilder buf = new StringBuilder();
+                buf.append(className);
+                for (int i = 0; i < suffixes.size(); i++) {
+                    buf.append('$');
+                    buf.append(suffixes.get(i));
+                }
+                classNameAndSuffixesWithoutTypeArguments = buf.toString();
+            }
+            return classNameAndSuffixesWithoutTypeArguments;
+        }
+
         @Override
         public boolean equalsIgnoringTypeParams(final TypeSignature other) {
             if (other instanceof TypeVariableSignature) {
@@ -366,7 +390,12 @@ public class TypeParser {
                 return false;
             }
             final ClassTypeSignature o = (ClassTypeSignature) other;
-            return o.className.equals(this.className) && o.suffixes.equals(this.suffixes);
+            if (o.suffixes.equals(this.suffixes)) {
+                return o.className.equals(this.className);
+            } else {
+                return o.getClassNameAndSuffixesWithoutTypeArguments()
+                        .equals(this.getClassNameAndSuffixesWithoutTypeArguments());
+            }
         }
 
         @Override
@@ -384,7 +413,7 @@ public class TypeParser {
                 buf.append('>');
             }
             for (int i = 0; i < suffixes.size(); i++) {
-                buf.append(".");
+                buf.append("$");
                 buf.append(suffixes.get(i));
                 final List<TypeArgument> suffixTypeArgs = suffixTypeArguments.get(i);
                 if (!suffixTypeArgs.isEmpty()) {
@@ -807,13 +836,13 @@ public class TypeParser {
                 }
                 if (parameterAccessFlags != null) {
                     final int flag = parameterAccessFlags[i];
-                    if ((flag & 0x0010) != 0) {
+                    if ((flag & Modifier.FINAL) != 0) {
                         buf.append("final ");
                     }
-                    if ((flag & 0x1000) != 0) {
+                    if ((flag & MODIFIER_SYNTHETIC) != 0) {
                         buf.append("synthetic ");
                     }
-                    if ((flag & 0x8000) != 0) {
+                    if ((flag & MODIFIER_MANDATED) != 0) {
                         buf.append("mandated ");
                     }
                 }
@@ -890,6 +919,7 @@ public class TypeParser {
             throw new IllegalArgumentException("typeSignatureInternal.typeParameters should be empty");
         }
         if (!methodTypeSignatureInternal.resultType.equalsIgnoringTypeParams(methodTypeSignature.resultType)) {
+            methodTypeSignatureInternal.resultType.equalsIgnoringTypeParams(methodTypeSignature.resultType);//TODO
             throw new IllegalArgumentException("Result types could not be reconciled: "
                     + methodTypeSignatureInternal.resultType + " vs. " + methodTypeSignature.resultType);
         }
@@ -1159,7 +1189,7 @@ public class TypeParser {
                 buf.append("bridge");
             }
         }
-        if (!isMethod && ((modifiers & 0x1000) != 0)) {
+        if (!isMethod && ((modifiers & MODIFIER_SYNTHETIC) != 0)) {
             if (buf.length() > 0) {
                 buf.append(' ');
             }

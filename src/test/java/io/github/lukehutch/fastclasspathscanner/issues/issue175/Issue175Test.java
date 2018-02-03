@@ -220,13 +220,12 @@ public class Issue175Test {
                 "@org.jetbrains.annotations.NotNull public static final net.corda.testing.node.MockNetwork$sharedServerThread$1 access$getSharedServerThread$p(net.corda.testing.node.MockNetwork)");
     }
 
-
     @Test
     public void testAttributeParameterMismatch() {
         final ClassLoader classLoader = Issue175Test.class.getClassLoader();
         final String aJarName = "issue175-attribute-parameter-mismatch.zip";
         final URL aJarURL = classLoader.getResource(aJarName);
-        final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[]{aJarURL});
+        final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
         final ScanResult result = new FastClasspathScanner("net.corda.core.node.services.vault") //
                 .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().ignoreMethodVisibility()
@@ -234,16 +233,18 @@ public class Issue175Test {
 
         final Map<String, ClassInfo> allInfo = result.getClassNameToClassInfo();
 
-        System.out.println(Integer.toString(allInfo.size()));
         final List<String> methods = new ArrayList<>();
         for (final String className : result.getNamesOfAllClasses()) {
-            System.out.println(className);
             final ClassInfo classInfo = allInfo.get(className);
             for (final MethodInfo method : classInfo.getMethodAndConstructorInfo()) {
-                System.out.println(method.toString());
                 methods.add(method.toString());
             }
         }
+        assertThat(methods).containsOnly("static void <clinit>()",
+                "@org.jetbrains.annotations.NotNull public final java.lang.String getColumnName()",
+                "protected <init>(synthetic java.lang.String $enum$name, synthetic int $enum$ordinal, @org.jetbrains.annotations.NotNull java.lang.String columnName)",
+                "public static net.corda.core.node.services.vault.AttachmentSort$AttachmentSortAttribute[] values()",
+                "public static net.corda.core.node.services.vault.AttachmentSort$AttachmentSortAttribute valueOf(java.lang.String)");
     }
 
     @Test
@@ -251,7 +252,7 @@ public class Issue175Test {
         final ClassLoader classLoader = Issue175Test.class.getClassLoader();
         final String aJarName = "issue175-result-type-could-not-reconcile.zip";
         final URL aJarURL = classLoader.getResource(aJarName);
-        final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[]{aJarURL});
+        final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
         final ScanResult result = new FastClasspathScanner("net.corda.client.jackson") //
                 .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().ignoreMethodVisibility()
@@ -259,15 +260,27 @@ public class Issue175Test {
 
         final Map<String, ClassInfo> allInfo = result.getClassNameToClassInfo();
 
-        System.out.println(Integer.toString(allInfo.size()));
         final List<String> methods = new ArrayList<>();
         for (final String className : result.getNamesOfAllClasses()) {
-            System.out.println(className);
             final ClassInfo classInfo = allInfo.get(className);
             for (final MethodInfo method : classInfo.getMethodAndConstructorInfo()) {
-                System.out.println(method.toString());
                 methods.add(method.toString());
             }
         }
+        assertThat(methods).containsOnly(
+                "@org.jetbrains.annotations.NotNull protected final com.google.common.collect.Multimap<java.lang.String, java.lang.reflect.Method> getMethodMap()",
+                "@org.jetbrains.annotations.NotNull public final java.util.Map<java.lang.String, java.util.List<java.lang.String>> getMethodParamNames()",
+                "@org.jetbrains.annotations.NotNull public java.util.List<java.lang.String> paramNamesFromMethod(@org.jetbrains.annotations.NotNull java.lang.reflect.Method method)",
+                "@org.jetbrains.annotations.NotNull public java.util.List<java.lang.String> paramNamesFromConstructor(@org.jetbrains.annotations.NotNull java.lang.reflect.Constructor<?> ctor)",
+                "@org.jetbrains.annotations.NotNull public final net.corda.client.jackson.StringToMethodCallParser<T>$ParsedMethodCall parse(@org.jetbrains.annotations.Nullable T target, @org.jetbrains.annotations.NotNull java.lang.String command)",
+                "@org.jetbrains.annotations.NotNull public final java.lang.Object[] parseArguments(@org.jetbrains.annotations.NotNull java.lang.String methodNameHint, @org.jetbrains.annotations.NotNull java.util.List<? extends kotlin.Pair<java.lang.String, ? extends java.lang.Class<?>>> parameters, @org.jetbrains.annotations.NotNull java.lang.String args)",
+                "@org.jetbrains.annotations.NotNull public final java.util.Map<java.lang.String, java.lang.String> getAvailableCommands()",
+                "@kotlin.jvm.JvmOverloads public <init>(@org.jetbrains.annotations.NotNull java.lang.Class<? extends T> targetType, @org.jetbrains.annotations.NotNull com.fasterxml.jackson.databind.ObjectMapper om)",
+                "@kotlin.jvm.JvmOverloads public <init>(java.lang.Class, com.fasterxml.jackson.databind.ObjectMapper, int, kotlin.jvm.internal.DefaultConstructorMarker)",
+                "@kotlin.jvm.JvmOverloads public <init>(@org.jetbrains.annotations.NotNull java.lang.Class<? extends T>)",
+                "public <init>(@org.jetbrains.annotations.NotNull kotlin.reflect.KClass<? extends T> targetType)",
+                "static void <clinit>()",
+                "@org.jetbrains.annotations.NotNull public static final java.util.List access$getIgnoredNames$cp()",
+                "@org.jetbrains.annotations.NotNull public static final org.slf4j.Logger access$getLog$cp()");
     }
 }
