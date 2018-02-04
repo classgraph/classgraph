@@ -47,6 +47,7 @@ import io.github.lukehutch.fastclasspathscanner.utils.TypeParser.TypeSignature;
  */
 public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
     private final String className;
+    ClassInfo classInfo;
     private final String methodName;
     private final int modifiers;
     /**
@@ -174,7 +175,8 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
             return getTypeSignatureInternal();
         } else {
             if (methodSignatureHumanReadable == null) {
-                methodSignatureHumanReadable = TypeParser.parseMethodSignature(typeDescriptorHumanReadable);
+                methodSignatureHumanReadable = TypeParser.parseMethodSignature(classInfo,
+                        typeDescriptorHumanReadable);
             }
             return methodSignatureHumanReadable;
         }
@@ -188,7 +190,7 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
      */
     public MethodSignature getTypeSignatureInternal() {
         if (methodSignatureInternal == null) {
-            methodSignatureInternal = TypeParser.parseMethodSignature(typeDescriptorInternal);
+            methodSignatureInternal = TypeParser.parseMethodSignature(classInfo, typeDescriptorInternal);
         }
         return methodSignatureInternal;
     }

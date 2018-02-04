@@ -303,7 +303,7 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
          * Get the type signature for a type reference used in an annotation parameter.
          *
          * <p>
-         * Use ReflectionUtils.typeStrToClass() to get a Class<?> reference from this class type string.
+         * Call getType() to get a Class<?> reference for this class.
          */
         public TypeSignature getTypeSignature() {
             if (typeSignature == null) {

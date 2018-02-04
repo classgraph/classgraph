@@ -678,6 +678,8 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
                     }
                 }
             }
+            // Add back-link from MethodInfo to enclosing ClassInfo instance
+            methodInfo.classInfo = this;
         }
         if (this.methodInfo == null) {
             this.methodInfo = methodInfoList;

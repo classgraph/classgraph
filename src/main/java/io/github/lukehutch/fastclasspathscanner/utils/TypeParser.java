@@ -35,6 +35,7 @@ import java.util.Collections;
 import java.util.List;
 
 import io.github.lukehutch.fastclasspathscanner.scanner.AnnotationInfo;
+import io.github.lukehutch.fastclasspathscanner.scanner.ClassInfo;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
 
 /** Reflection utility methods that can be used by ClassLoaderHandlers. */
@@ -84,6 +85,7 @@ public class TypeParser {
         public final String baseType;
 
         public BaseTypeSignature(final String baseType) {
+            // No need to resolve type parameters for base types, so just set parent context to null
             this.baseType = baseType;
         }
 
@@ -471,6 +473,10 @@ public class TypeParser {
     public static class TypeVariableSignature extends ClassTypeOrTypeVariableSignature {
         /** The type variable signature. */
         public final String typeVariableName;
+        /** The method signature that this type variable is part of. */
+        private MethodSignature methodSignature;
+        /** The class signature that this type variable is part of, or the enclosing class, if this is a method. */
+        private ClassSignature classSignature;
 
         public TypeVariableSignature(final String typeVariableName) {
             this.typeVariableName = typeVariableName;
@@ -493,6 +499,37 @@ public class TypeParser {
             }
             final TypeVariableSignature o = (TypeVariableSignature) obj;
             return o.typeVariableName.equals(this.typeVariableName);
+        }
+
+        /**
+         * Look up a type variable (e.g. "T") in the defining method and/or enclosing class' type parameters, and
+         * returns the type parameter with the same name (e.g. "T extends com.xyz.Cls").
+         * 
+         * @return the type parameter (e.g. "T extends com.xyz.Cls", or simply "T" if the type parameter does not
+         *         have any bounds). Returns null if a type parameter with the same name as the type variable could
+         *         not be found (this should not in general happen, since type variables in successfully-compiled
+         *         code should be able to be linked to the corresponding type parameter).
+         */
+        public TypeParameter getCorrespondingTypeParameter() {
+            if (methodSignature != null) {
+                if (methodSignature.typeParameters != null && !methodSignature.typeParameters.isEmpty()) {
+                    for (final TypeParameter typeParameter : methodSignature.typeParameters) {
+                        if (typeParameter.identifier.equals(this.typeVariableName)) {
+                            return typeParameter;
+                        }
+                    }
+                }
+            }
+            if (classSignature != null) {
+                if (classSignature.typeParameters != null && !classSignature.typeParameters.isEmpty()) {
+                    for (final TypeParameter typeParameter : classSignature.typeParameters) {
+                        if (typeParameter.identifier.equals(this.typeVariableName)) {
+                            return typeParameter;
+                        }
+                    }
+                }
+            }
+            return null;
         }
 
         @Override
@@ -526,7 +563,10 @@ public class TypeParser {
                     throw new ParseException();
                 }
                 parseState.expect(';');
-                return new TypeVariableSignature(parseState.currToken());
+                final TypeVariableSignature typeVariableSignature = new TypeVariableSignature(
+                        parseState.currToken());
+                parseState.addTypeVariableSignature(typeVariableSignature);
+                return typeVariableSignature;
             } else {
                 return null;
             }
@@ -892,6 +932,7 @@ public class TypeParser {
                     /* methodName = */ null, /* isVarArgs = */ false, /* parameterNames = */ null,
                     /* parameterAccessFlags = */ null, /* parameterAnnotationInfo = */ null);
         }
+
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -1225,9 +1266,18 @@ public class TypeParser {
         private final String string;
         private int position;
         private final StringBuilder token = new StringBuilder();
+        private final List<TypeVariableSignature> typeVariableSignatures = new ArrayList<>();
 
         public ParseState(final String string) {
             this.string = string;
+        }
+
+        public void addTypeVariableSignature(final TypeVariableSignature typeVariableSignature) {
+            typeVariableSignatures.add(typeVariableSignature);
+        }
+
+        public List<TypeVariableSignature> getTypeVariableSignatures() {
+            return typeVariableSignatures;
         }
 
         public char getc() {
@@ -1314,8 +1364,16 @@ public class TypeParser {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Parse a method signature. */
+    /**
+     * Parse a method signature (ignores class context, i.e. no ClassInfo needs to be provided -- this means that
+     * type variables cannot be resolved to the matching type parameter).
+     */
     public static MethodSignature parseMethodSignature(final String typeDescriptor) {
+        return parseMethodSignature(/* classInfo = */ null, typeDescriptor);
+    }
+
+    /** Parse a method signature. */
+    public static MethodSignature parseMethodSignature(final ClassInfo classInfo, final String typeDescriptor) {
         final ParseState parseState = new ParseState(typeDescriptor);
         try {
             final List<TypeParameter> typeParameters = TypeParameter.parseTypeParameters(parseState);
@@ -1358,9 +1416,25 @@ public class TypeParser {
             } else {
                 throwsSignatures = Collections.emptyList();
             }
-            return new MethodSignature(typeParameters, paramTypes, resultType, throwsSignatures);
+            if (parseState.hasMore()) {
+                throw new IllegalArgumentException("Extra characters at end of type descriptor: " + parseState);
+            }
+            final MethodSignature methodSignature = new MethodSignature(typeParameters, paramTypes, resultType,
+                    throwsSignatures);
+            // Add back-links from type variable signature to the method signature it is part of,
+            // and to the enclosing class' type signature
+            for (final TypeVariableSignature typeVariableSignature : parseState.getTypeVariableSignatures()) {
+                typeVariableSignature.methodSignature = methodSignature;
+            }
+            if (classInfo != null) {
+                final ClassSignature classSignature = classInfo.getTypeSignature();
+                for (final TypeVariableSignature typeVariableSignature : parseState.getTypeVariableSignatures()) {
+                    typeVariableSignature.classSignature = classSignature;
+                }
+            }
+            return methodSignature;
         } catch (final Exception e) {
-            throw new RuntimeException("Type signature could not be parsed: " + parseState, e);
+            throw new IllegalArgumentException("Type signature could not be parsed: " + parseState, e);
         }
     }
 
@@ -1384,19 +1458,24 @@ public class TypeParser {
             } else {
                 superinterfaceSignatures = Collections.emptyList();
             }
-            return new ClassSignature(typeParameters, superclassSignature, superinterfaceSignatures);
+            if (parseState.hasMore()) {
+                throw new IllegalArgumentException("Extra characters at end of type descriptor: " + parseState);
+            }
+            final ClassSignature classSignature = new ClassSignature(typeParameters, superclassSignature,
+                    superinterfaceSignatures);
+            // Add back-links from type variable signature to the class signature it is part of
+            for (final TypeVariableSignature typeVariableSignature : parseState.getTypeVariableSignatures()) {
+                typeVariableSignature.classSignature = classSignature;
+            }
+            return classSignature;
         } catch (final Exception e) {
-            throw new RuntimeException("Type signature could not be parsed: " + parseState, e);
+            throw new IllegalArgumentException("Type signature could not be parsed: " + parseState, e);
         }
     }
 
     /** Parse a type signature. */
     public static TypeSignature parseTypeSignature(final String typeDescriptor) {
         final ParseState parseState = new ParseState(typeDescriptor);
-        if (parseState.peek() == '(') {
-            // This method is not for method signatures, use parseComplexTypeDescriptor() instead
-            throw new RuntimeException("Got unexpected method signature");
-        }
         TypeSignature typeSignature;
         try {
             typeSignature = TypeSignature.parseJavaTypeSignature(parseState);
@@ -1404,10 +1483,10 @@ public class TypeParser {
                 throw new ParseException();
             }
         } catch (final Exception e) {
-            throw new RuntimeException("Type signature could not be parsed: " + parseState, e);
+            throw new IllegalArgumentException("Type signature could not be parsed: " + parseState, e);
         }
         if (parseState.hasMore()) {
-            throw new RuntimeException("Unused characters in type signature: " + parseState);
+            throw new IllegalArgumentException("Extra characters at end of type descriptor: " + parseState);
         }
         return typeSignature;
     }
