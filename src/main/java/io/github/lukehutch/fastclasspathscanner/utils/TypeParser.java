@@ -523,6 +523,11 @@ public class TypeParser {
         @Override
         public boolean equalsIgnoringTypeParams(final TypeSignature other) {
             if (other instanceof ClassTypeSignature) {
+                if (((ClassTypeSignature) other).className.equals("java.lang.Object")) {
+                    // java.lang.Object can be reconciled with any type, so it can be reconciled with
+                    // any type variable
+                    return true;
+                }
                 // Compare a type variable to a class reference
                 final TypeParameter typeParameter = getCorrespondingTypeParameter();
                 // If the corresponding type parameter cannot be resolved
@@ -536,14 +541,30 @@ public class TypeParser {
                         // to the class by type inference
                         return true;
                     }
-                    if (typeParameter.classBound != null && typeParameter.classBound.equals(other)) {
-                        // T extends X, and X == other
-                        return true;
+                    if (typeParameter.classBound != null) {
+                        if (typeParameter.classBound instanceof ClassTypeSignature) {
+                            if (typeParameter.classBound.equals(other)) {
+                                // T extends X, and X == other
+                                return true;
+                            }
+                        } else if (typeParameter.classBound instanceof TypeVariableSignature) {
+                            // "X" is reconcilable with "Y extends X"
+                            return this.equalsIgnoringTypeParams(typeParameter.classBound);
+                        } else /* if (typeParameter.classBound instanceof ArrayTypeSignature) */ {
+                            return false;
+                        }
                     }
                     for (final ReferenceTypeSignature interfaceBound : typeParameter.interfaceBounds) {
-                        if (interfaceBound.equals(other)) {
-                            // T extends (implements) X, and X == other
-                            return true;
+                        if (interfaceBound instanceof ClassTypeSignature) {
+                            if (interfaceBound.equals(other)) {
+                                // T implements X, and X == other
+                                return true;
+                            }
+                        } else if (interfaceBound instanceof TypeVariableSignature) {
+                            // "X" is reconcilable with "Y implements X"
+                            return this.equalsIgnoringTypeParams(interfaceBound);
+                        } else /* if (interfaceBound instanceof ArrayTypeSignature) */ {
+                            return false;
                         }
                     }
                     // Type variable has a concrete bound that is not reconcilable with 'other'
