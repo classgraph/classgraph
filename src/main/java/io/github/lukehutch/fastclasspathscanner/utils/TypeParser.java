@@ -595,6 +595,21 @@ public class TypeParser {
             return typeVariableName;
         }
 
+        /**
+         * Returns the type variable along with its type bound, if available (e.g. "X extends xyz.Cls"). You can get
+         * this in structured from by calling {@link getCorrespondingTypeParameter()}. Returns just the type
+         * variable if there is no type bound, or if no type bound is known (i.e. if getCorrespondingTypeParameter()
+         * returns null).
+         */
+        public String toStringWithTypeBound() {
+            final TypeParameter typeParameter = getCorrespondingTypeParameter();
+            if (typeParameter == null) {
+                return typeVariableName;
+            } else {
+                return typeParameter.toString();
+            }
+        }
+
         private static TypeVariableSignature parseTypeVariableSignature(final ParseState parseState)
                 throws ParseException {
             final char peek = parseState.peek();
