@@ -337,11 +337,10 @@ public class TypeParser {
         /** Instantiate class ref. Type arguments are ignored. */
         @Override
         public Class<?> instantiate(final ScanResult scanResult) {
-            // TODO: I'm not sure if this is the right thing to do with suffixes (append them to class name)
             final StringBuilder buf = new StringBuilder();
             buf.append(className);
             for (int i = 0; i < suffixes.size(); i++) {
-                buf.append(".");
+                buf.append("$");
                 buf.append(suffixes.get(i));
             }
             final String classNameWithSuffixes = buf.toString();
