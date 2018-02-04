@@ -482,25 +482,6 @@ public class TypeParser {
             this.typeVariableName = typeVariableName;
         }
 
-        @Override
-        public Class<?> instantiate(final ScanResult scanResult) {
-            throw new RuntimeException("Cannot instantiate a type variable");
-        }
-
-        @Override
-        public int hashCode() {
-            return typeVariableName.hashCode();
-        }
-
-        @Override
-        public boolean equals(final Object obj) {
-            if (!(obj instanceof TypeVariableSignature)) {
-                return false;
-            }
-            final TypeVariableSignature o = (TypeVariableSignature) obj;
-            return o.typeVariableName.equals(this.typeVariableName);
-        }
-
         /**
          * Look up a type variable (e.g. "T") in the defining method and/or enclosing class' type parameters, and
          * returns the type parameter with the same name (e.g. "T extends com.xyz.Cls").
@@ -530,6 +511,25 @@ public class TypeParser {
                 }
             }
             return null;
+        }
+
+        @Override
+        public Class<?> instantiate(final ScanResult scanResult) {
+            throw new RuntimeException("Cannot instantiate a type variable");
+        }
+
+        @Override
+        public int hashCode() {
+            return typeVariableName.hashCode();
+        }
+
+        @Override
+        public boolean equals(final Object obj) {
+            if (!(obj instanceof TypeVariableSignature)) {
+                return false;
+            }
+            final TypeVariableSignature o = (TypeVariableSignature) obj;
+            return o.typeVariableName.equals(this.typeVariableName);
         }
 
         @Override
