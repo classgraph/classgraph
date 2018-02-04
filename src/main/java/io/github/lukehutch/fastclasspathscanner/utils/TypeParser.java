@@ -349,6 +349,19 @@ public class TypeParser {
             return scanResult.classNameToClassRef(classNameWithSuffixes);
         }
 
+        private String getClassNameAndSuffixesWithoutTypeArguments() {
+            if (classNameAndSuffixesWithoutTypeArguments == null) {
+                final StringBuilder buf = new StringBuilder();
+                buf.append(className);
+                for (int i = 0; i < suffixes.size(); i++) {
+                    buf.append('$');
+                    buf.append(suffixes.get(i));
+                }
+                classNameAndSuffixesWithoutTypeArguments = buf.toString();
+            }
+            return classNameAndSuffixesWithoutTypeArguments;
+        }
+
         @Override
         public int hashCode() {
             return className.hashCode() + 7 * typeArguments.hashCode() + 15 * suffixes.hashCode();
@@ -364,28 +377,12 @@ public class TypeParser {
                     && o.suffixes.equals(this.suffixes);
         }
 
-        private String getClassNameAndSuffixesWithoutTypeArguments() {
-            if (classNameAndSuffixesWithoutTypeArguments == null) {
-                final StringBuilder buf = new StringBuilder();
-                buf.append(className);
-                for (int i = 0; i < suffixes.size(); i++) {
-                    buf.append('$');
-                    buf.append(suffixes.get(i));
-                }
-                classNameAndSuffixesWithoutTypeArguments = buf.toString();
-            }
-            return classNameAndSuffixesWithoutTypeArguments;
-        }
-
         @Override
         public boolean equalsIgnoringTypeParams(final TypeSignature other) {
             if (other instanceof TypeVariableSignature) {
-                // Type variables can always be reconciled with a concrete class. This should really
-                // check the bounds of the type signature of the type variable, but that is not
-                // always simple, because sometimes the type variable is defined on the class, not
-                // the method. This equality check is just a spot check for pre- and post-conditions,
-                // so it doesn't matter if it's a bit more lenient than it should be.
-                return true;
+                // Compare class type signature to type variable -- the logic for this
+                // is implemented in TypeVariableSignature, and is not duplicated here
+                return ((TypeVariableSignature) other).equalsIgnoringTypeParams(this);
             }
             if (!(other instanceof ClassTypeSignature)) {
                 return false;
@@ -524,29 +521,52 @@ public class TypeParser {
         }
 
         @Override
-        public boolean equals(final Object obj) {
-            if (!(obj instanceof TypeVariableSignature)) {
-                return false;
-            }
-            final TypeVariableSignature o = (TypeVariableSignature) obj;
-            return o.typeVariableName.equals(this.typeVariableName);
-        }
-
-        @Override
         public boolean equalsIgnoringTypeParams(final TypeSignature other) {
             if (other instanceof ClassTypeSignature) {
-                // Type variables can always be reconciled with a concrete class. This should really
-                // check the bounds of the type signature of the type variable, but that is not
-                // always simple, because sometimes the type variable is defined on the class, not
-                // the method. This equality check is just a spot check for pre- and post-conditions,
-                // so it doesn't matter if it's a bit more lenient than it should be.
-                return true;
+                // Compare a type variable to a class reference
+                final TypeParameter typeParameter = getCorrespondingTypeParameter();
+                // If the corresponding type parameter cannot be resolved
+                if (typeParameter == null) {
+                    // Unknown type variables can always be reconciled with a concrete class
+                    return true;
+                } else {
+                    if (typeParameter.classBound == null
+                            && (typeParameter.interfaceBounds == null || typeParameter.interfaceBounds.isEmpty())) {
+                        // If the type parameter has no bounds, just assume the type variable can be reconciled
+                        // to the class by type inference
+                        return true;
+                    }
+                    if (typeParameter.classBound != null && typeParameter.classBound.equals(other)) {
+                        // T extends X, and X == other
+                        return true;
+                    }
+                    for (final ReferenceTypeSignature interfaceBound : typeParameter.interfaceBounds) {
+                        if (interfaceBound.equals(other)) {
+                            // T extends (implements) X, and X == other
+                            return true;
+                        }
+                    }
+                    // Type variable has a concrete bound that is not reconcilable with 'other'
+                    // (we don't follow the class hierarchy to compare the bound against the class reference,
+                    // since the compiler should only use the bound during type erasure, not some other class
+                    // in the class hierarchy)
+                    return false;
+                }
             }
             // Technically I think type variables are never equal to each other, due to capturing,
             // but just compare the variable name for equality here (this should never get
             // triggered in general, since we only compare type-erased signatures to
             // non-type-erased signatures currently).
             return this.equals(other);
+        }
+
+        @Override
+        public boolean equals(final Object obj) {
+            if (!(obj instanceof TypeVariableSignature)) {
+                return false;
+            }
+            final TypeVariableSignature o = (TypeVariableSignature) obj;
+            return o.typeVariableName.equals(this.typeVariableName);
         }
 
         @Override
