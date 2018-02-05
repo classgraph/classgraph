@@ -33,6 +33,7 @@ import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 
 import io.github.lukehutch.fastclasspathscanner.scanner.AnnotationInfo;
 import io.github.lukehutch.fastclasspathscanner.scanner.ClassInfo;
@@ -50,10 +51,21 @@ public class TypeParser {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * A Java type signature. Subclasses are ClassSignature, MethodSignature, and TypeSignature (for types of
+     * fields).
+     */
+    public abstract static class HierarchicalTypeSignature {
+        /** Get the names of all classes referenced in the type signature */
+        public abstract void getAllReferencedClassNames(final Set<String> classNameListOut);
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
      * A type signature for a reference type or base type. Subclasses are ReferenceTypeSignature
      * (ClassTypeSignature, TypeVariableSignature, or ArrayTypeSignature) and BaseTypeSignature.
      */
-    public abstract static class TypeSignature {
+    public abstract static class TypeSignature extends HierarchicalTypeSignature {
         /**
          * Instantiate the type signature into a class reference. The ScanResult is used to ensure the correct
          * classloader is used to load the class.
@@ -87,6 +99,10 @@ public class TypeParser {
         public BaseTypeSignature(final String baseType) {
             // No need to resolve type parameters for base types, so just set parent context to null
             this.baseType = baseType;
+        }
+
+        @Override
+        public void getAllReferencedClassNames(final Set<String> classNameListOut) {
         }
 
         @Override
@@ -214,7 +230,7 @@ public class TypeParser {
     // -------------------------------------------------------------------------------------------------------------
 
     /** A type argument. */
-    public static class TypeArgument {
+    public static class TypeArgument extends HierarchicalTypeSignature {
         /** A type wildcard. */
         public static enum WILDCARD {
             NONE, ANY, EXTENDS, SUPER
@@ -228,6 +244,11 @@ public class TypeParser {
         public TypeArgument(final WILDCARD wildcard, final ReferenceTypeSignature typeSignature) {
             this.wildcard = wildcard;
             this.typeSignature = typeSignature;
+        }
+
+        @Override
+        public void getAllReferencedClassNames(final Set<String> classNameListOut) {
+            typeSignature.getAllReferencedClassNames(classNameListOut);
         }
 
         @Override
@@ -295,7 +316,7 @@ public class TypeParser {
         private static List<TypeArgument> parseTypeArguments(final ParseState parseState) throws ParseException {
             if (parseState.peek() == '<') {
                 parseState.expect('<');
-                final List<TypeArgument> typeArguments = new ArrayList<>();
+                final List<TypeArgument> typeArguments = new ArrayList<>(2);
                 while (parseState.peek() != '>') {
                     if (!parseState.hasMore()) {
                         throw new ParseException();
@@ -336,6 +357,15 @@ public class TypeParser {
             this.suffixTypeArguments = suffixTypeArguments;
         }
 
+        @Override
+        public void getAllReferencedClassNames(final Set<String> classNameListOut) {
+            classNameListOut.add(className);
+            classNameListOut.add(getClassNameAndSuffixesWithoutTypeArguments());
+            for (final TypeArgument typeArgument : typeArguments) {
+                typeArgument.getAllReferencedClassNames(classNameListOut);
+            }
+        }
+
         /** Instantiate class ref. Type arguments are ignored. */
         @Override
         public Class<?> instantiate(final ScanResult scanResult) {
@@ -349,7 +379,12 @@ public class TypeParser {
             return scanResult.classNameToClassRef(classNameWithSuffixes);
         }
 
-        private String getClassNameAndSuffixesWithoutTypeArguments() {
+        /**
+         * Gets a class name with any suffixes (suffixes are for inner class nesting, and are separated by '$'). The
+         * returned name is stripped of any type arguments, e.g. {@code "xyz.Cls<String>$InnerCls<Integer>"} is
+         * returned as {@code "xyz.Cls$InnerCls"}.
+         */
+        public String getClassNameAndSuffixesWithoutTypeArguments() {
             if (classNameAndSuffixesWithoutTypeArguments == null) {
                 final StringBuilder buf = new StringBuilder();
                 buf.append(className);
@@ -411,7 +446,8 @@ public class TypeParser {
                 buf.append('>');
             }
             for (int i = 0; i < suffixes.size(); i++) {
-                buf.append("$");
+                // Use '$' before each suffix
+                buf.append('$');
                 buf.append(suffixes.get(i));
                 final List<TypeArgument> suffixTypeArgs = suffixTypeArguments.get(i);
                 if (!suffixTypeArgs.isEmpty()) {
@@ -432,8 +468,6 @@ public class TypeParser {
                 throws ParseException {
             if (parseState.peek() == 'L') {
                 parseState.next();
-                // if (parseState.peekMatches("java/lang/") || parseState.peekMatches("java/util/")) {
-                // parseState.advance(10); }
                 if (!parseState.parseIdentifier(/* separator = */ '/', /* separatorReplace = */ '.')) {
                     throw new ParseException();
                 }
@@ -471,9 +505,9 @@ public class TypeParser {
         /** The type variable signature. */
         public final String typeVariableName;
         /** The method signature that this type variable is part of. */
-        private MethodSignature methodSignature;
+        private MethodSignature containingMethodSignature;
         /** The class signature that this type variable is part of, or the enclosing class, if this is a method. */
-        private ClassSignature classSignature;
+        private ClassSignature containingClassSignature;
 
         public TypeVariableSignature(final String typeVariableName) {
             this.typeVariableName = typeVariableName;
@@ -489,18 +523,20 @@ public class TypeParser {
          *         code should be able to be linked to the corresponding type parameter).
          */
         public TypeParameter getCorrespondingTypeParameter() {
-            if (methodSignature != null) {
-                if (methodSignature.typeParameters != null && !methodSignature.typeParameters.isEmpty()) {
-                    for (final TypeParameter typeParameter : methodSignature.typeParameters) {
+            if (containingMethodSignature != null) {
+                if (containingMethodSignature.typeParameters != null
+                        && !containingMethodSignature.typeParameters.isEmpty()) {
+                    for (final TypeParameter typeParameter : containingMethodSignature.typeParameters) {
                         if (typeParameter.identifier.equals(this.typeVariableName)) {
                             return typeParameter;
                         }
                     }
                 }
             }
-            if (classSignature != null) {
-                if (classSignature.typeParameters != null && !classSignature.typeParameters.isEmpty()) {
-                    for (final TypeParameter typeParameter : classSignature.typeParameters) {
+            if (containingClassSignature != null) {
+                if (containingClassSignature.typeParameters != null
+                        && !containingClassSignature.typeParameters.isEmpty()) {
+                    for (final TypeParameter typeParameter : containingClassSignature.typeParameters) {
                         if (typeParameter.identifier.equals(this.typeVariableName)) {
                             return typeParameter;
                         }
@@ -508,6 +544,10 @@ public class TypeParser {
                 }
             }
             return null;
+        }
+
+        @Override
+        public void getAllReferencedClassNames(final Set<String> classNameListOut) {
         }
 
         @Override
@@ -643,6 +683,11 @@ public class TypeParser {
             this.numArrayDims = numArrayDims;
         }
 
+        @Override
+        public void getAllReferencedClassNames(final Set<String> classNameListOut) {
+            elementTypeSignature.getAllReferencedClassNames(classNameListOut);
+        }
+
         private static Class<?> arrayify(final Class<?> cls, final int arrayDims) {
             if (arrayDims == 0) {
                 return cls;
@@ -714,8 +759,8 @@ public class TypeParser {
     // -------------------------------------------------------------------------------------------------------------
 
     /** A type parameter. */
-    public static class TypeParameter {
-        /** The type identifier. */
+    public static class TypeParameter extends HierarchicalTypeSignature {
+        /** The type parameter identifier. */
         public final String identifier;
         /** Class bound -- may be null */
         public final ReferenceTypeSignature classBound;
@@ -727,6 +772,16 @@ public class TypeParser {
             this.identifier = identifier;
             this.classBound = classBound;
             this.interfaceBounds = interfaceBounds;
+        }
+
+        @Override
+        public void getAllReferencedClassNames(final Set<String> classNameListOut) {
+            if (classBound != null) {
+                classBound.getAllReferencedClassNames(classNameListOut);
+            }
+            for (final ReferenceTypeSignature typeSignature : interfaceBounds) {
+                typeSignature.getAllReferencedClassNames(classNameListOut);
+            }
         }
 
         @Override
@@ -823,7 +878,7 @@ public class TypeParser {
     // -------------------------------------------------------------------------------------------------------------
 
     /** A method signature. */
-    public static class MethodSignature {
+    public static class MethodSignature extends HierarchicalTypeSignature {
         /** The method type parameters. */
         public final List<TypeParameter> typeParameters;
         /** The method parameter types. */
@@ -839,6 +894,20 @@ public class TypeParser {
             this.paramTypes = paramTypes;
             this.resultType = resultType;
             this.throwsSignatures = throwsSignatures;
+        }
+
+        @Override
+        public void getAllReferencedClassNames(final Set<String> classNameListOut) {
+            for (final TypeParameter typeParameter : typeParameters) {
+                typeParameter.getAllReferencedClassNames(classNameListOut);
+            }
+            for (final TypeSignature typeSignature : paramTypes) {
+                typeSignature.getAllReferencedClassNames(classNameListOut);
+            }
+            resultType.getAllReferencedClassNames(classNameListOut);
+            for (final ClassTypeOrTypeVariableSignature typeSignature : throwsSignatures) {
+                typeSignature.getAllReferencedClassNames(classNameListOut);
+            }
         }
 
         @Override
@@ -1015,7 +1084,6 @@ public class TypeParser {
             throw new IllegalArgumentException("typeSignatureInternal.typeParameters should be empty");
         }
         if (!methodTypeSignatureInternal.resultType.equalsIgnoringTypeParams(methodTypeSignature.resultType)) {
-            methodTypeSignatureInternal.resultType.equalsIgnoringTypeParams(methodTypeSignature.resultType);//TODO
             throw new IllegalArgumentException("Result types could not be reconciled: "
                     + methodTypeSignatureInternal.resultType + " vs. " + methodTypeSignature.resultType);
         }
@@ -1105,9 +1173,11 @@ public class TypeParser {
      */
     public static ClassSignature merge(final ClassSignature classSignature0, final ClassSignature classSignature1) {
         ClassTypeSignature superclassSig;
-        if (classSignature0.superclassSignature.className.equals("java.lang.Object")) {
+        if (classSignature0.superclassSignature == null
+                || classSignature0.superclassSignature.className.equals("java.lang.Object")) {
             superclassSig = classSignature1.superclassSignature;
-        } else if (classSignature1.superclassSignature.className.equals("java.lang.Object")) {
+        } else if (classSignature1.superclassSignature == null
+                || classSignature1.superclassSignature.className.equals("java.lang.Object")) {
             superclassSig = classSignature0.superclassSignature;
         } else {
             // A class and its auxiliary class have different superclasses. Really should not happen?? 
@@ -1142,7 +1212,7 @@ public class TypeParser {
     // -------------------------------------------------------------------------------------------------------------
 
     /** A class signature. */
-    public static class ClassSignature {
+    public static class ClassSignature extends HierarchicalTypeSignature {
         /** The class type parameters. */
         public final List<TypeParameter> typeParameters;
         /** The superclass type. */
@@ -1156,6 +1226,19 @@ public class TypeParser {
             this.typeParameters = typeParameters;
             this.superclassSignature = superclassSignature;
             this.superinterfaceSignatures = superinterfaceSignatures;
+        }
+
+        @Override
+        public void getAllReferencedClassNames(final Set<String> classNameListOut) {
+            for (final TypeParameter typeParameter : typeParameters) {
+                typeParameter.getAllReferencedClassNames(classNameListOut);
+            }
+            if (superclassSignature != null) {
+                superclassSignature.getAllReferencedClassNames(classNameListOut);
+            }
+            for (final ClassTypeSignature typeSignature : superinterfaceSignatures) {
+                typeSignature.getAllReferencedClassNames(classNameListOut);
+            }
         }
 
         @Override
@@ -1480,12 +1563,12 @@ public class TypeParser {
             // Add back-links from type variable signature to the method signature it is part of,
             // and to the enclosing class' type signature
             for (final TypeVariableSignature typeVariableSignature : parseState.getTypeVariableSignatures()) {
-                typeVariableSignature.methodSignature = methodSignature;
+                typeVariableSignature.containingMethodSignature = methodSignature;
             }
             if (classInfo != null) {
                 final ClassSignature classSignature = classInfo.getTypeSignature();
                 for (final TypeVariableSignature typeVariableSignature : parseState.getTypeVariableSignatures()) {
-                    typeVariableSignature.classSignature = classSignature;
+                    typeVariableSignature.containingClassSignature = classSignature;
                 }
             }
             return methodSignature;
@@ -1521,7 +1604,7 @@ public class TypeParser {
                     superinterfaceSignatures);
             // Add back-links from type variable signature to the class signature it is part of
             for (final TypeVariableSignature typeVariableSignature : parseState.getTypeVariableSignatures()) {
-                typeVariableSignature.classSignature = classSignature;
+                typeVariableSignature.containingClassSignature = classSignature;
             }
             return classSignature;
         } catch (final Exception e) {
