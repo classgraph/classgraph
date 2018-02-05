@@ -46,14 +46,9 @@ public class FieldInfo extends InfoObject implements Comparable<FieldInfo> {
     private final String className;
     private final String fieldName;
     private final int modifiers;
-    /** The JVM-internal type descriptor (missing type parameters). */
-    private final String typeDescriptorInternal;
-    private TypeSignature typeSignatureInternal;
-    /**
-     * The human-readable type descriptor (may have type parameter information included, if present and available).
-     */
-    private final String typeDescriptorHumanReadable;
-    private TypeSignature typeSignatureHumanReadable;
+    private final String typeDescriptorStr;
+    private final String typeSignatureStr;
+    private TypeSignature typeSignature;
     private final Object constValue;
     final List<AnnotationInfo> annotationInfo;
     private ScanResult scanResult;
@@ -70,13 +65,13 @@ public class FieldInfo extends InfoObject implements Comparable<FieldInfo> {
     }
 
     public FieldInfo(final String className, final String fieldName, final int modifiers,
-            final String typeDescriptorInternal, final String typeDescriptorHumanReadable, final Object constValue,
+            final String typeDescriptorStr, final String typeSignatureStr, final Object constValue,
             final List<AnnotationInfo> annotationInfo) {
         this.className = className;
         this.fieldName = fieldName;
         this.modifiers = modifiers;
-        this.typeDescriptorInternal = typeDescriptorInternal;
-        this.typeDescriptorHumanReadable = typeDescriptorHumanReadable;
+        this.typeDescriptorStr = typeDescriptorStr;
+        this.typeSignatureStr = typeSignatureStr;
 
         this.constValue = constValue;
         this.annotationInfo = annotationInfo == null || annotationInfo.isEmpty()
@@ -142,50 +137,28 @@ public class FieldInfo extends InfoObject implements Comparable<FieldInfo> {
         return modifiers;
     }
 
-    /**
-     * Returns the internal type descriptor for the field, e.g. "Ljava/lang/String;". This is the internal type
-     * descriptor used by the JVM, so does not include type parameters (due to type erasure). See also
-     * {@link getTypeDescriptor()}.
-     */
-    public String getTypeDescriptorInternal() {
-        return typeDescriptorInternal;
+    /** Returns the type descriptor string for the field, without type parameters, e.g. "Ljava/util/List;". */
+    public String getTypeDescriptorStr() {
+        return typeDescriptorStr;
     }
 
     /**
-     * Returns the type descriptor for the field, e.g. "Ljava/lang/String;". This is a machine-readable type string,
-     * but it presents the programmer's view of the method type, in the sense that type parameters are included if
-     * they are available. See also {@link getTypeDescriptorInternal()}.
+     * Returns the Java type signature string for the method. This is the programmer-visible type signature, in the
+     * sense that type parameters are included if they are available.
      */
-    public String getTypeDescriptor() {
-        if (typeDescriptorHumanReadable == null) {
-            return typeDescriptorInternal;
-        }
-        return typeDescriptorHumanReadable;
+    public String getTypeSignatureStr() {
+        return typeSignatureStr;
     }
 
     /**
-     * Returns the internal Java type signature for the field. This is the internal type signature used by the JVM,
-     * so does not include type parameters (due to type erasure). See also {@link getTypeSignature()}.
-     */
-    public TypeSignature getTypeSignatureInternal() {
-        if (typeSignatureInternal == null) {
-            typeSignatureInternal = TypeSignature.parse(typeDescriptorInternal);
-        }
-        return typeSignatureInternal;
-    }
-
-    /**
-     * Returns the Java type signature for the method. This is the programmer-visible type signature, in the sense
-     * that type parameters are included if they are available. See also {@link getTypeSignatureInternal()}.
+     * Returns the type signature for the field. Attempts to parse the type signature, or if not present, the type
+     * descriptor.
      */
     public TypeSignature getTypeSignature() {
-        if (typeDescriptorHumanReadable == null) {
-            return getTypeSignatureInternal();
+        if (typeSignature == null) {
+            typeSignature = TypeSignature.parse(typeSignatureStr != null ? typeSignatureStr : typeDescriptorStr);
         }
-        if (typeSignatureHumanReadable == null) {
-            typeSignatureHumanReadable = TypeSignature.parse(typeDescriptorHumanReadable);
-        }
-        return typeSignatureHumanReadable;
+        return typeSignature;
     }
 
     /**

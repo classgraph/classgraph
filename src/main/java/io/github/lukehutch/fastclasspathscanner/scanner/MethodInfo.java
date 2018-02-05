@@ -159,8 +159,8 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
     }
 
     /**
-     * Returns the Java type signature for the method. Attempts to parse the type signature, or if not present, the
-     * type descriptor.
+     * Returns the type signature for the method. Attempts to parse the type signature, or if not present, the type
+     * descriptor.
      */
     // TODO: if both are present, compare number of parameters
     public MethodTypeSignature getTypeSignature() {
