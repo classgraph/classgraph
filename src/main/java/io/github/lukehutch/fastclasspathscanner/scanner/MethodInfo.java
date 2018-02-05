@@ -35,8 +35,8 @@ import java.util.Collections;
 import java.util.List;
 
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult.InfoObject;
-import io.github.lukehutch.fastclasspathscanner.typesignature.ClassTypeOrTypeVariableSignature;
-import io.github.lukehutch.fastclasspathscanner.typesignature.MethodSignature;
+import io.github.lukehutch.fastclasspathscanner.typesignature.ClassRefOrTypeVariableSignature;
+import io.github.lukehutch.fastclasspathscanner.typesignature.MethodTypeSignature;
 import io.github.lukehutch.fastclasspathscanner.typesignature.TypeParameter;
 import io.github.lukehutch.fastclasspathscanner.typesignature.TypeSignature;
 import io.github.lukehutch.fastclasspathscanner.typesignature.TypeUtils;
@@ -58,7 +58,7 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
     /** The type signature (may have type parameter information included, if present and available). */
     private final String typeSignatureStr;
     /** The parsed type signature, or if no type signature, the parsed type descriptor. */
-    private MethodSignature typeSignature;
+    private MethodTypeSignature typeSignature;
     private final String[] parameterNames;
     private final int[] parameterModifiers;
     final AnnotationInfo[][] parameterAnnotationInfo;
@@ -163,9 +163,9 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
      * type descriptor.
      */
     // TODO: if both are present, compare number of parameters
-    public MethodSignature getTypeSignature() {
+    public MethodTypeSignature getTypeSignature() {
         if (typeSignature == null) {
-            typeSignature = MethodSignature.parse(classInfo,
+            typeSignature = MethodTypeSignature.parse(classInfo,
                     typeSignatureStr != null ? typeSignatureStr : typeDescriptorStr);
         }
         return typeSignature;
@@ -209,8 +209,8 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
 
     private static final TypeParameter[] EMPTY_TYPE_PARAMETER_ARRAY = new TypeParameter[0];
 
-    private static final ClassTypeOrTypeVariableSignature[] EMPTY_CLASS_TYPE_OR_TYPE_VARIABLE_SIGNATURE_ARRAY //
-            = new ClassTypeOrTypeVariableSignature[0];
+    private static final ClassRefOrTypeVariableSignature[] EMPTY_CLASS_TYPE_OR_TYPE_VARIABLE_SIGNATURE_ARRAY //
+            = new ClassRefOrTypeVariableSignature[0];
 
     private static final Class<?>[] EMPTY_CLASS_REF_ARRAY = new Class<?>[0];
 
@@ -247,12 +247,12 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
         }
     }
 
-    private static ClassTypeOrTypeVariableSignature[] toTypeOrTypeVariableSignatureArray(
-            final List<? extends ClassTypeOrTypeVariableSignature> typeSignatures) {
+    private static ClassRefOrTypeVariableSignature[] toTypeOrTypeVariableSignatureArray(
+            final List<? extends ClassRefOrTypeVariableSignature> typeSignatures) {
         if (typeSignatures.size() == 0) {
             return EMPTY_CLASS_TYPE_OR_TYPE_VARIABLE_SIGNATURE_ARRAY;
         } else {
-            return typeSignatures.toArray(new ClassTypeOrTypeVariableSignature[typeSignatures.size()]);
+            return typeSignatures.toArray(new ClassRefOrTypeVariableSignature[typeSignatures.size()]);
         }
     }
 
@@ -298,7 +298,7 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
      * Returns the types of exceptions the method may throw, in string representation, e.g. {@code
      * ["com.abc.BadException", "<X>"]}. If the method throws no exceptions, returns a zero-sized array.
      */
-    public ClassTypeOrTypeVariableSignature[] getThrowsTypeSignatures() {
+    public ClassRefOrTypeVariableSignature[] getThrowsTypeSignatures() {
         return toTypeOrTypeVariableSignatureArray(getTypeSignature().getThrowsSignatures());
     }
 

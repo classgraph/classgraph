@@ -32,11 +32,11 @@ import java.io.IOException;
 
 import org.junit.Test;
 
-import io.github.lukehutch.fastclasspathscanner.typesignature.MethodSignature;
+import io.github.lukehutch.fastclasspathscanner.typesignature.MethodTypeSignature;
 
 public class Issue159Test {
     @Test
     public void classAnnotationParameters() throws IOException {
-        MethodSignature.parse("()Z");
+        MethodTypeSignature.parse("()Z");
     }
 }

@@ -31,7 +31,7 @@ package io.github.lukehutch.fastclasspathscanner.typesignature;
 import java.util.Set;
 
 /**
- * A Java type signature. Subclasses are ClassSignature, MethodSignature, and TypeSignature (for types of fields).
+ * A Java type signature. Subclasses are ClassTypeSignature, MethodTypeSignature, and TypeSignature.
  */
 public abstract class HierarchicalTypeSignature {
     /** Get the names of all classes referenced in the type signature */

@@ -4,12 +4,12 @@ import io.github.lukehutch.fastclasspathscanner.typesignature.TypeUtils.ParseExc
 import io.github.lukehutch.fastclasspathscanner.typesignature.TypeUtils.ParseState;
 
 /**
- * A type signature for a reference type. Subclasses are ClassTypeSignature, TypeVariableSignature, and
+ * A type signature for a reference type. Subclasses are ClassRefTypeSignature, TypeVariableSignature, and
  * ArrayTypeSignature.
  */
 public abstract class ReferenceTypeSignature extends TypeSignature {
     static ReferenceTypeSignature parseReferenceTypeSignature(final ParseState parseState) throws ParseException {
-        final ClassTypeSignature classTypeSignature = ClassTypeSignature.parse(parseState);
+        final ClassRefTypeSignature classTypeSignature = ClassRefTypeSignature.parse(parseState);
         if (classTypeSignature != null) {
             return classTypeSignature;
         }

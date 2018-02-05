@@ -33,101 +33,66 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
-import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
 import io.github.lukehutch.fastclasspathscanner.typesignature.TypeUtils.ParseException;
 import io.github.lukehutch.fastclasspathscanner.typesignature.TypeUtils.ParseState;
+import io.github.lukehutch.fastclasspathscanner.utils.AdditionOrderedSet;
 
-/** A class type signature. */
-public class ClassTypeSignature extends ClassTypeOrTypeVariableSignature {
-    /** The class name. */
-    final String className;
+/** A class type signature (called "ClassSignature" in the classfile documentation). */
+public class ClassTypeSignature extends HierarchicalTypeSignature {
+    /** The class type parameters. */
+    final List<TypeParameter> typeParameters;
 
-    /** The class name and suffixes, without type arguments. */
-    private String classNameAndSuffixesWithoutTypeArguments;
+    /** The superclass type. */
+    private final ClassRefTypeSignature superclassSignature;
 
-    /** The class type arguments. */
-    private final List<TypeArgument> typeArguments;
+    /** The superinterface signatures. */
+    private final List<ClassRefTypeSignature> superinterfaceSignatures;
 
-    /** The class type signature suffix(es), or the empty list if no suffixes. */
-    private final List<String> suffixes;
+    public ClassTypeSignature(final List<TypeParameter> typeParameters,
+            final ClassRefTypeSignature superclassSignature,
+            final List<ClassRefTypeSignature> superinterfaceSignatures) {
+        this.typeParameters = typeParameters;
+        this.superclassSignature = superclassSignature;
+        this.superinterfaceSignatures = superinterfaceSignatures;
+    }
+
+    /** Get the type parameters for the class. */
+    public List<TypeParameter> getTypeParameters() {
+        return typeParameters;
+    }
 
     /**
-     * The suffix type arguments, one per suffix, or the empty list if no suffixes. The element value will be the
-     * empty list if there is no type argument for a given suffix.
+     * Get the type signature for the superclass (possibly null in the case of java.lang.Object, since it doesn't
+     * have a superclass).
      */
-    private final List<List<TypeArgument>> suffixTypeArguments;
-
-    public ClassTypeSignature(final String className, final List<TypeArgument> typeArguments,
-            final List<String> suffixes, final List<List<TypeArgument>> suffixTypeArguments) {
-        this.className = className;
-        this.typeArguments = typeArguments;
-        this.suffixes = suffixes;
-        this.suffixTypeArguments = suffixTypeArguments;
+    public ClassRefTypeSignature getSuperclassSignature() {
+        return superclassSignature;
     }
 
-    /** Get the name of the base class. */
-    public String getClassName() {
-        return className;
-    }
-
-    /** Get any type arguments of the class. */
-    public List<TypeArgument> getTypeArguments() {
-        return typeArguments;
-    }
-
-    /** Get any suffixes of the class (typically nested inner class names). */
-    public List<String> getSuffixes() {
-        return suffixes;
-    }
-
-    /** Get any type arguments for any suffixes of the class, one list per suffix. */
-    public List<List<TypeArgument>> getSuffixTypeArguments() {
-        return suffixTypeArguments;
+    /**
+     * Get the type signatures of any superinterfaces
+     */
+    public List<ClassRefTypeSignature> getSuperinterfaceSignatures() {
+        return superinterfaceSignatures;
     }
 
     @Override
     public void getAllReferencedClassNames(final Set<String> classNameListOut) {
-        classNameListOut.add(className);
-        classNameListOut.add(getClassNameAndSuffixesWithoutTypeArguments());
-        for (final TypeArgument typeArgument : typeArguments) {
-            typeArgument.getAllReferencedClassNames(classNameListOut);
+        for (final TypeParameter typeParameter : typeParameters) {
+            typeParameter.getAllReferencedClassNames(classNameListOut);
         }
-    }
-
-    /** Instantiate class ref. Type arguments are ignored. */
-    @Override
-    public Class<?> instantiate(final ScanResult scanResult) {
-        final StringBuilder buf = new StringBuilder();
-        buf.append(className);
-        for (int i = 0; i < suffixes.size(); i++) {
-            buf.append("$");
-            buf.append(suffixes.get(i));
+        if (superclassSignature != null) {
+            superclassSignature.getAllReferencedClassNames(classNameListOut);
         }
-        final String classNameWithSuffixes = buf.toString();
-        return scanResult.classNameToClassRef(classNameWithSuffixes);
-    }
-
-    /**
-     * Get the name of the class, along with any suffixes (suffixes are for inner class nesting, and are separated
-     * by '$'). The returned name is stripped of any type arguments, e.g.
-     * {@code "xyz.Cls<String>$InnerCls<Integer>"} is returned as {@code "xyz.Cls$InnerCls"}.
-     */
-    public String getClassNameAndSuffixesWithoutTypeArguments() {
-        if (classNameAndSuffixesWithoutTypeArguments == null) {
-            final StringBuilder buf = new StringBuilder();
-            buf.append(className);
-            for (int i = 0; i < suffixes.size(); i++) {
-                buf.append('$');
-                buf.append(suffixes.get(i));
-            }
-            classNameAndSuffixesWithoutTypeArguments = buf.toString();
+        for (final ClassRefTypeSignature typeSignature : superinterfaceSignatures) {
+            typeSignature.getAllReferencedClassNames(classNameListOut);
         }
-        return classNameAndSuffixesWithoutTypeArguments;
     }
 
     @Override
     public int hashCode() {
-        return className.hashCode() + 7 * typeArguments.hashCode() + 15 * suffixes.hashCode();
+        return typeParameters.hashCode() + superclassSignature.hashCode() * 7
+                + superinterfaceSignatures.hashCode() * 15;
     }
 
     @Override
@@ -136,92 +101,138 @@ public class ClassTypeSignature extends ClassTypeOrTypeVariableSignature {
             return false;
         }
         final ClassTypeSignature o = (ClassTypeSignature) obj;
-        return o.className.equals(this.className) && o.typeArguments.equals(this.typeArguments)
-                && o.suffixes.equals(this.suffixes);
+        return o.typeParameters.equals(this.typeParameters)
+                && o.superclassSignature.equals(this.superclassSignature)
+                && o.superinterfaceSignatures.equals(this.superinterfaceSignatures);
     }
 
-    @Override
-    public boolean equalsIgnoringTypeParams(final TypeSignature other) {
-        if (other instanceof TypeVariableSignature) {
-            // Compare class type signature to type variable -- the logic for this
-            // is implemented in TypeVariableSignature, and is not duplicated here
-            return ((TypeVariableSignature) other).equalsIgnoringTypeParams(this);
-        }
-        if (!(other instanceof ClassTypeSignature)) {
-            return false;
-        }
-        final ClassTypeSignature o = (ClassTypeSignature) other;
-        if (o.suffixes.equals(this.suffixes)) {
-            return o.className.equals(this.className);
-        } else {
-            return o.getClassNameAndSuffixesWithoutTypeArguments()
-                    .equals(this.getClassNameAndSuffixesWithoutTypeArguments());
-        }
-    }
-
-    @Override
-    public String toString() {
+    public String toString(final int modifiers, final boolean isAnnotation, final boolean isInterface,
+            final String className) {
         final StringBuilder buf = new StringBuilder();
-        buf.append(className);
-        if (!typeArguments.isEmpty()) {
+        if (modifiers != 0) {
+            TypeUtils.modifiersToString(modifiers, /* isMethod = */ false, buf);
+        }
+        if (!typeParameters.isEmpty()) {
+            if (buf.length() > 0) {
+                buf.append(' ');
+            }
             buf.append('<');
-            for (int i = 0; i < typeArguments.size(); i++) {
+            for (int i = 0; i < typeParameters.size(); i++) {
                 if (i > 0) {
                     buf.append(", ");
                 }
-                buf.append(typeArguments.get(i).toString());
+                buf.append(typeParameters.get(i).toString());
             }
             buf.append('>');
         }
-        for (int i = 0; i < suffixes.size(); i++) {
-            // Use '$' before each suffix
-            buf.append('$');
-            buf.append(suffixes.get(i));
-            final List<TypeArgument> suffixTypeArgs = suffixTypeArguments.get(i);
-            if (!suffixTypeArgs.isEmpty()) {
-                buf.append('<');
-                for (int j = 0; j < suffixTypeArgs.size(); j++) {
-                    if (j > 0) {
-                        buf.append(", ");
-                    }
-                    buf.append(suffixTypeArgs.get(j).toString());
+        if (buf.length() > 0) {
+            buf.append(' ');
+        }
+        buf.append(isAnnotation ? "@interface"
+                : isInterface ? "interface" : (modifiers & 0x4000) != 0 ? "enum" : "class");
+        if (className != null) {
+            buf.append(' ');
+            buf.append(className);
+        }
+        if (superclassSignature != null) {
+            final String superSig = superclassSignature.toString();
+            if (!superSig.equals("java.lang.Object")) {
+                buf.append(" extends ");
+                buf.append(superSig);
+            }
+        }
+        if (!superinterfaceSignatures.isEmpty()) {
+            buf.append(" implements");
+            for (int i = 0; i < superinterfaceSignatures.size(); i++) {
+                if (i > 0) {
+                    buf.append(',');
                 }
-                buf.append('>');
+                buf.append(' ');
+                buf.append(superinterfaceSignatures.get(i).toString());
             }
         }
         return buf.toString();
     }
 
-    /** Parse a class type signature. */
-    static ClassTypeSignature parse(final ParseState parseState) throws ParseException {
-        if (parseState.peek() == 'L') {
-            parseState.next();
-            if (!parseState.parseIdentifier(/* separator = */ '/', /* separatorReplace = */ '.')) {
-                throw new ParseException();
-            }
-            final String className = parseState.currToken();
-            final List<TypeArgument> typeArguments = TypeArgument.parseList(parseState);
-            List<String> suffixes;
-            List<List<TypeArgument>> suffixTypeArguments;
-            if (parseState.peek() == '.') {
-                suffixes = new ArrayList<>();
-                suffixTypeArguments = new ArrayList<>();
-                while (parseState.peek() == '.') {
-                    parseState.expect('.');
-                    if (!parseState.parseIdentifier(/* separator = */ '/', /* separatorReplace = */ '.')) {
+    @Override
+    public String toString() {
+        return toString(/* modifiers = */ 0, /* isAnnotation = */ false, /* isInterface = */ false,
+                /* methodName = */ null);
+    }
+
+    /**
+     * Merge together two class type signatures (used for combining base classes and auxiliary classes in Scala).
+     */
+    public static ClassTypeSignature merge(final ClassTypeSignature classSignature0,
+            final ClassTypeSignature classSignature1) {
+        ClassRefTypeSignature superclassSig;
+        if (classSignature0.superclassSignature == null
+                || classSignature0.superclassSignature.className.equals("java.lang.Object")) {
+            superclassSig = classSignature1.superclassSignature;
+        } else if (classSignature1.superclassSignature == null
+                || classSignature1.superclassSignature.className.equals("java.lang.Object")) {
+            superclassSig = classSignature0.superclassSignature;
+        } else {
+            // A class and its auxiliary class have different superclasses. Really should not happen?? 
+            throw new IllegalArgumentException("A class and its auxiliary class have different superclasses: "
+                    + classSignature0 + " ; " + classSignature1);
+        }
+        List<ClassRefTypeSignature> allSuperinterfaces;
+        if (classSignature0.superinterfaceSignatures.isEmpty()) {
+            allSuperinterfaces = classSignature1.superinterfaceSignatures;
+        } else if (classSignature1.superinterfaceSignatures.isEmpty()) {
+            allSuperinterfaces = classSignature0.superinterfaceSignatures;
+        } else {
+            final AdditionOrderedSet<ClassRefTypeSignature> superinterfacesUniq = new AdditionOrderedSet<>(
+                    classSignature0.superinterfaceSignatures);
+            superinterfacesUniq.addAll(classSignature1.superinterfaceSignatures);
+            allSuperinterfaces = superinterfacesUniq.toList();
+        }
+        List<TypeParameter> allTypeParams;
+        if (classSignature0.typeParameters.isEmpty()) {
+            allTypeParams = classSignature1.typeParameters;
+        } else if (classSignature1.typeParameters.isEmpty()) {
+            allTypeParams = classSignature0.typeParameters;
+        } else {
+            final AdditionOrderedSet<TypeParameter> typeParamsUniq = new AdditionOrderedSet<>(
+                    classSignature0.typeParameters);
+            typeParamsUniq.addAll(classSignature1.typeParameters);
+            allTypeParams = typeParamsUniq.toList();
+        }
+        return new ClassTypeSignature(allTypeParams, superclassSig, allSuperinterfaces);
+    }
+
+    /** Parse a class signature. */
+    public static ClassTypeSignature parse(final String typeDescriptor) {
+        final ParseState parseState = new ParseState(typeDescriptor);
+        try {
+            final List<TypeParameter> typeParameters = TypeParameter.parseList(parseState);
+            final ClassRefTypeSignature superclassSignature = ClassRefTypeSignature.parse(parseState);
+            List<ClassRefTypeSignature> superinterfaceSignatures;
+            if (parseState.hasMore()) {
+                superinterfaceSignatures = new ArrayList<>();
+                while (parseState.hasMore()) {
+                    final ClassRefTypeSignature superinterfaceSignature = ClassRefTypeSignature.parse(parseState);
+                    if (superinterfaceSignature == null) {
                         throw new ParseException();
                     }
-                    suffixes.add(parseState.currToken());
-                    suffixTypeArguments.add(TypeArgument.parseList(parseState));
+                    superinterfaceSignatures.add(superinterfaceSignature);
                 }
             } else {
-                suffixes = Collections.emptyList();
-                suffixTypeArguments = Collections.emptyList();
+                superinterfaceSignatures = Collections.emptyList();
             }
-            parseState.expect(';');
-            return new ClassTypeSignature(className, typeArguments, suffixes, suffixTypeArguments);
-        } else {
-            return null;
+            if (parseState.hasMore()) {
+                throw new IllegalArgumentException("Extra characters at end of type descriptor: " + parseState);
+            }
+            final ClassTypeSignature classSignature = new ClassTypeSignature(typeParameters, superclassSignature,
+                    superinterfaceSignatures);
+            // Add back-links from type variable signature to the class signature it is part of
+            for (final TypeVariableSignature typeVariableSignature : parseState.getTypeVariableSignatures()) {
+                typeVariableSignature.containingClassSignature = classSignature;
+            }
+            return classSignature;
+        } catch (final Exception e) {
+            throw new IllegalArgumentException("Type signature could not be parsed: " + parseState, e);
         }
     }
 }

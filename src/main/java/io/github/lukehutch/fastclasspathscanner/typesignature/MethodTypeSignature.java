@@ -40,8 +40,8 @@ import io.github.lukehutch.fastclasspathscanner.typesignature.TypeUtils.ParseExc
 import io.github.lukehutch.fastclasspathscanner.typesignature.TypeUtils.ParseState;
 import io.github.lukehutch.fastclasspathscanner.utils.AdditionOrderedSet;
 
-/** A method signature. */
-public class MethodSignature extends HierarchicalTypeSignature {
+/** A method type signature (called "MethodSignature" in the classfile documentation). */
+public class MethodTypeSignature extends HierarchicalTypeSignature {
     /** The method type parameters. */
     final List<TypeParameter> typeParameters;
 
@@ -52,10 +52,10 @@ public class MethodSignature extends HierarchicalTypeSignature {
     private final TypeSignature resultType;
 
     /** The throws type signatures. */
-    private final List<ClassTypeOrTypeVariableSignature> throwsSignatures;
+    private final List<ClassRefOrTypeVariableSignature> throwsSignatures;
 
-    public MethodSignature(final List<TypeParameter> typeParameters, final List<TypeSignature> paramTypes,
-            final TypeSignature resultType, final List<ClassTypeOrTypeVariableSignature> throwsSignatures) {
+    public MethodTypeSignature(final List<TypeParameter> typeParameters, final List<TypeSignature> paramTypes,
+            final TypeSignature resultType, final List<ClassRefOrTypeVariableSignature> throwsSignatures) {
         this.typeParameters = typeParameters;
         this.parameterTypeSignatures = paramTypes;
         this.resultType = resultType;
@@ -78,7 +78,7 @@ public class MethodSignature extends HierarchicalTypeSignature {
     }
 
     /** Get the throws type(s) for the method. */
-    public List<ClassTypeOrTypeVariableSignature> getThrowsSignatures() {
+    public List<ClassRefOrTypeVariableSignature> getThrowsSignatures() {
         return throwsSignatures;
     }
 
@@ -91,7 +91,7 @@ public class MethodSignature extends HierarchicalTypeSignature {
             typeSignature.getAllReferencedClassNames(classNameListOut);
         }
         resultType.getAllReferencedClassNames(classNameListOut);
-        for (final ClassTypeOrTypeVariableSignature typeSignature : throwsSignatures) {
+        for (final ClassRefOrTypeVariableSignature typeSignature : throwsSignatures) {
             typeSignature.getAllReferencedClassNames(classNameListOut);
         }
     }
@@ -104,10 +104,10 @@ public class MethodSignature extends HierarchicalTypeSignature {
 
     @Override
     public boolean equals(final Object obj) {
-        if (!(obj instanceof MethodSignature)) {
+        if (!(obj instanceof MethodTypeSignature)) {
             return false;
         }
-        final MethodSignature o = (MethodSignature) obj;
+        final MethodTypeSignature o = (MethodTypeSignature) obj;
         return o.typeParameters.equals(this.typeParameters)
                 && o.parameterTypeSignatures.equals(this.parameterTypeSignatures)
                 && o.resultType.equals(this.resultType) && o.throwsSignatures.equals(this.throwsSignatures);
@@ -258,8 +258,8 @@ public class MethodSignature extends HierarchicalTypeSignature {
      *            The parameter modifiers for parameters in the JDK-internal type signature.
      * @return A MethodSignature consisting of all information from both type signatures.
      */
-    public static MethodSignature merge(final MethodSignature methodTypeSignature,
-            final MethodSignature methodTypeSignatureInternal, final int[] parameterAccessFlagsInternal) {
+    public static MethodTypeSignature merge(final MethodTypeSignature methodTypeSignature,
+            final MethodTypeSignature methodTypeSignatureInternal, final int[] parameterAccessFlagsInternal) {
         if (methodTypeSignature == null || methodTypeSignatureInternal == null) {
             throw new IllegalArgumentException("Signatures must be non-null");
         }
@@ -333,19 +333,19 @@ public class MethodSignature extends HierarchicalTypeSignature {
                         "Parameter arity mismatch between internal and programmer-visible type signature");
             }
         }
-        List<ClassTypeOrTypeVariableSignature> mergedThrowsSignatures;
+        List<ClassRefOrTypeVariableSignature> mergedThrowsSignatures;
         if (methodTypeSignature.throwsSignatures.isEmpty()) {
             mergedThrowsSignatures = methodTypeSignatureInternal.throwsSignatures;
         } else if (methodTypeSignatureInternal.throwsSignatures.isEmpty()
                 || methodTypeSignature.throwsSignatures.equals(methodTypeSignatureInternal.throwsSignatures)) {
             mergedThrowsSignatures = methodTypeSignature.throwsSignatures;
         } else {
-            final AdditionOrderedSet<ClassTypeOrTypeVariableSignature> sigSet = new AdditionOrderedSet<>(
+            final AdditionOrderedSet<ClassRefOrTypeVariableSignature> sigSet = new AdditionOrderedSet<>(
                     methodTypeSignature.throwsSignatures);
             sigSet.addAll(methodTypeSignatureInternal.throwsSignatures);
             mergedThrowsSignatures = sigSet.toList();
         }
-        return new MethodSignature(
+        return new MethodTypeSignature(
                 // Use the programmer-view of type parameters (the JDK-internal view should have no type params)
                 methodTypeSignature.typeParameters,
                 // Merged parameter types
@@ -360,12 +360,12 @@ public class MethodSignature extends HierarchicalTypeSignature {
      * Parse a method signature (ignores class context, i.e. no ClassInfo needs to be provided -- this means that
      * type variables cannot be resolved to the matching type parameter).
      */
-    public static MethodSignature parse(final String typeDescriptor) {
-        return MethodSignature.parse(/* classInfo = */ null, typeDescriptor);
+    public static MethodTypeSignature parse(final String typeDescriptor) {
+        return MethodTypeSignature.parse(/* classInfo = */ null, typeDescriptor);
     }
 
     /** Parse a method signature. */
-    public static MethodSignature parse(final ClassInfo classInfo, final String typeDescriptor) {
+    public static MethodTypeSignature parse(final ClassInfo classInfo, final String typeDescriptor) {
         final ParseState parseState = new ParseState(typeDescriptor);
         try {
             final List<TypeParameter> typeParameters = TypeParameter.parseList(parseState);
@@ -386,12 +386,12 @@ public class MethodSignature extends HierarchicalTypeSignature {
             if (resultType == null) {
                 throw new ParseException();
             }
-            List<ClassTypeOrTypeVariableSignature> throwsSignatures;
+            List<ClassRefOrTypeVariableSignature> throwsSignatures;
             if (parseState.peek() == '^') {
                 throwsSignatures = new ArrayList<>();
                 while (parseState.peek() == '^') {
                     parseState.expect('^');
-                    final ClassTypeSignature classTypeSignature = ClassTypeSignature.parse(parseState);
+                    final ClassRefTypeSignature classTypeSignature = ClassRefTypeSignature.parse(parseState);
                     if (classTypeSignature != null) {
                         throwsSignatures.add(classTypeSignature);
                     } else {
@@ -409,15 +409,15 @@ public class MethodSignature extends HierarchicalTypeSignature {
             if (parseState.hasMore()) {
                 throw new IllegalArgumentException("Extra characters at end of type descriptor: " + parseState);
             }
-            final MethodSignature methodSignature = new MethodSignature(typeParameters, paramTypes, resultType,
-                    throwsSignatures);
+            final MethodTypeSignature methodSignature = new MethodTypeSignature(typeParameters, paramTypes,
+                    resultType, throwsSignatures);
             // Add back-links from type variable signature to the method signature it is part of,
             // and to the enclosing class' type signature
             for (final TypeVariableSignature typeVariableSignature : parseState.getTypeVariableSignatures()) {
                 typeVariableSignature.containingMethodSignature = methodSignature;
             }
             if (classInfo != null) {
-                final ClassSignature classSignature = classInfo.getTypeSignature();
+                final ClassTypeSignature classSignature = classInfo.getTypeSignature();
                 for (final TypeVariableSignature typeVariableSignature : parseState.getTypeVariableSignatures()) {
                     typeVariableSignature.containingClassSignature = classSignature;
                 }

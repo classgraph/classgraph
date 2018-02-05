@@ -35,15 +35,15 @@ import io.github.lukehutch.fastclasspathscanner.typesignature.TypeUtils.ParseExc
 import io.github.lukehutch.fastclasspathscanner.typesignature.TypeUtils.ParseState;
 
 /** A type variable signature. */
-public class TypeVariableSignature extends ClassTypeOrTypeVariableSignature {
+public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
     /** The type variable name. */
     private final String typeVariableName;
 
     /** The method signature that this type variable is part of. */
-    MethodSignature containingMethodSignature;
+    MethodTypeSignature containingMethodSignature;
 
     /** The class signature that this type variable is part of, or the enclosing class, if this is a method. */
-    ClassSignature containingClassSignature;
+    ClassTypeSignature containingClassSignature;
 
     public TypeVariableSignature(final String typeVariableName) {
         this.typeVariableName = typeVariableName;
@@ -103,8 +103,8 @@ public class TypeVariableSignature extends ClassTypeOrTypeVariableSignature {
 
     @Override
     public boolean equalsIgnoringTypeParams(final TypeSignature other) {
-        if (other instanceof ClassTypeSignature) {
-            if (((ClassTypeSignature) other).className.equals("java.lang.Object")) {
+        if (other instanceof ClassRefTypeSignature) {
+            if (((ClassRefTypeSignature) other).className.equals("java.lang.Object")) {
                 // java.lang.Object can be reconciled with any type, so it can be reconciled with
                 // any type variable
                 return true;
@@ -123,7 +123,7 @@ public class TypeVariableSignature extends ClassTypeOrTypeVariableSignature {
                     return true;
                 }
                 if (typeParameter.classBound != null) {
-                    if (typeParameter.classBound instanceof ClassTypeSignature) {
+                    if (typeParameter.classBound instanceof ClassRefTypeSignature) {
                         if (typeParameter.classBound.equals(other)) {
                             // T extends X, and X == other
                             return true;
@@ -136,7 +136,7 @@ public class TypeVariableSignature extends ClassTypeOrTypeVariableSignature {
                     }
                 }
                 for (final ReferenceTypeSignature interfaceBound : typeParameter.interfaceBounds) {
-                    if (interfaceBound instanceof ClassTypeSignature) {
+                    if (interfaceBound instanceof ClassRefTypeSignature) {
                         if (interfaceBound.equals(other)) {
                             // T implements X, and X == other
                             return true;

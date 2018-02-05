@@ -44,8 +44,8 @@ import java.util.Set;
 
 import io.github.lukehutch.fastclasspathscanner.scanner.AnnotationInfo.AnnotationParamValue;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult.InfoObject;
-import io.github.lukehutch.fastclasspathscanner.typesignature.ClassSignature;
-import io.github.lukehutch.fastclasspathscanner.typesignature.MethodSignature;
+import io.github.lukehutch.fastclasspathscanner.typesignature.ClassTypeSignature;
+import io.github.lukehutch.fastclasspathscanner.typesignature.MethodTypeSignature;
 import io.github.lukehutch.fastclasspathscanner.typesignature.TypeSignature;
 import io.github.lukehutch.fastclasspathscanner.typesignature.TypeUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.AdditionOrderedSet;
@@ -70,7 +70,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     private String typeDescriptor;
 
     /** The class type signature. */
-    private ClassSignature typeSignature;
+    private ClassTypeSignature typeSignature;
 
     /** The fully-qualified containing method name, for anonymous inner classes. */
     private String fullyQualifiedContainingMethodName;
@@ -173,12 +173,12 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     }
 
     /** Get the type signature for the class, if available (else returns null). */
-    public ClassSignature getTypeSignature() {
+    public ClassTypeSignature getTypeSignature() {
         if (typeDescriptor == null) {
             return null;
         }
         if (typeSignature == null) {
-            typeSignature = ClassSignature.parse(typeDescriptor);
+            typeSignature = ClassTypeSignature.parse(typeDescriptor);
         }
         return typeSignature;
     }
@@ -255,7 +255,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     @Override
     public String toString() {
-        final ClassSignature typeSig = getTypeSignature();
+        final ClassTypeSignature typeSig = getTypeSignature();
         if (typeSig != null) {
             return typeSig.toString(classModifiers, isAnnotation, isInterface, className);
         } else {
@@ -686,9 +686,10 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
         } else {
             // Merging together a class and an auxiliary class -- merge the type signatures
             if (this.typeSignature == null) {
-                this.typeSignature = ClassSignature.parse(this.typeDescriptor);
+                this.typeSignature = ClassTypeSignature.parse(this.typeDescriptor);
             }
-            this.typeSignature = ClassSignature.merge(this.typeSignature, ClassSignature.parse(typeDescriptor));
+            this.typeSignature = ClassTypeSignature.merge(this.typeSignature,
+                    ClassTypeSignature.parse(typeDescriptor));
             // Pick the raw type descriptor string that is shortest, it is probably the one for the base class
             if (this.typeDescriptor.length() > typeDescriptor.length()) {
                 this.typeDescriptor = typeDescriptor;
@@ -788,7 +789,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
         final Set<String> referencedClassNames = new HashSet<>();
         if (methodInfo != null) {
             for (final MethodInfo mi : methodInfo) {
-                final MethodSignature methodSig = mi.getTypeSignature();
+                final MethodTypeSignature methodSig = mi.getTypeSignature();
                 if (methodSig != null) {
                     methodSig.getAllReferencedClassNames(referencedClassNames);
                 }
@@ -802,7 +803,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
                 }
             }
         }
-        final ClassSignature classSig = getTypeSignature();
+        final ClassTypeSignature classSig = getTypeSignature();
         if (classSig != null) {
             classSig.getAllReferencedClassNames(referencedClassNames);
         }
@@ -820,7 +821,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
         final Set<String> referencedClassNames = new HashSet<>();
         if (methodInfo != null) {
             for (final MethodInfo mi : methodInfo) {
-                final MethodSignature methodSig = mi.getTypeSignature();
+                final MethodTypeSignature methodSig = mi.getTypeSignature();
                 if (methodSig != null) {
                     methodSig.getAllReferencedClassNames(referencedClassNames);
                 }
@@ -855,7 +856,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
      */
     public Set<String> getClassNamesReferencedInClassTypeDescriptor() {
         final Set<String> referencedClassNames = new HashSet<>();
-        final ClassSignature classSig = getTypeSignature();
+        final ClassTypeSignature classSig = getTypeSignature();
         if (classSig != null) {
             classSig.getAllReferencedClassNames(referencedClassNames);
         }

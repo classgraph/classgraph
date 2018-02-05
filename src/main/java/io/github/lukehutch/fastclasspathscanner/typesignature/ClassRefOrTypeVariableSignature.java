@@ -28,6 +28,6 @@
  */
 package io.github.lukehutch.fastclasspathscanner.typesignature;
 
-/** A class type or type variable. Subclasses are ClassTypeSignature and TypeVariableSignature. */
-public abstract class ClassTypeOrTypeVariableSignature extends ReferenceTypeSignature {
+/** A class type or type variable. Subclasses are ClassRefTypeSignature and TypeVariableSignature. */
+public abstract class ClassRefOrTypeVariableSignature extends ReferenceTypeSignature {
 }
