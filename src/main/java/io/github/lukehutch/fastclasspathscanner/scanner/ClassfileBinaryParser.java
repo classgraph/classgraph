@@ -426,9 +426,9 @@ class ClassfileBinaryParser implements AutoCloseable {
         return true;
     }
 
-    /** Get a constant from the constant pool. */
-    private Object getConstantPoolValue(final int tag, final char fieldTypeDescriptorFirstChar, final int cpIdx)
-            throws IOException {
+    /** Get a field constant from the constant pool. */
+    private Object getFieldConstantPoolValue(final int tag, final char fieldTypeDescriptorFirstChar,
+            final int cpIdx) throws IOException {
         switch (tag) {
         case 1: // Modified UTF8
         case 7: // Class
@@ -745,6 +745,7 @@ class ClassfileBinaryParser implements AutoCloseable {
                 final char fieldTypeDescriptorFirstChar = (char) getConstantPoolStringFirstByte(
                         fieldTypeDescriptorCpIdx);
                 String fieldTypeDescriptor = null;
+                String fieldTypeSignature = null;
                 if (scanSpec.enableFieldInfo) {
                     // Only decode full type descriptor if it is needed
                     fieldTypeDescriptor = getConstantPoolString(fieldTypeDescriptorCpIdx);
@@ -763,7 +764,8 @@ class ClassfileBinaryParser implements AutoCloseable {
                             && constantPoolStringEquals(attributeNameCpIdx, "ConstantValue")) {
                         // http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.7.2
                         final int cpIdx = readUnsignedShort();
-                        fieldConstValue = getConstantPoolValue(tag[cpIdx], fieldTypeDescriptorFirstChar, cpIdx);
+                        fieldConstValue = getFieldConstantPoolValue(tag[cpIdx], fieldTypeDescriptorFirstChar,
+                                cpIdx);
                         // Store static final field match in ClassInfo object
                         if (isMatchedFieldName) {
                             classInfoUnlinked.addFieldConstantValue(fieldName, fieldConstValue);
@@ -771,8 +773,7 @@ class ClassfileBinaryParser implements AutoCloseable {
                         foundFieldConstValue = true;
                     } else if (scanSpec.enableFieldInfo && fieldIsVisible
                             && constantPoolStringEquals(attributeNameCpIdx, "Signature")) {
-                        final String fieldTypeSignature = getConstantPoolString(readUnsignedShort());
-                        fieldTypeDescriptor = fieldTypeSignature;
+                        fieldTypeSignature = getConstantPoolString(readUnsignedShort());
                     } else if ((scanSpec.enableFieldInfo || scanSpec.enableFieldAnnotationIndexing)
                             && (constantPoolStringEquals(attributeNameCpIdx, "RuntimeVisibleAnnotations")
                                     || (scanSpec.annotationVisibility == RetentionPolicy.CLASS
@@ -818,7 +819,7 @@ class ClassfileBinaryParser implements AutoCloseable {
                 }
                 if (scanSpec.enableFieldInfo && fieldIsVisible) {
                     classInfoUnlinked.addFieldInfo(new FieldInfo(className, fieldName, fieldModifierFlags,
-                            fieldTypeDescriptor, fieldConstValue, fieldAnnotationInfo));
+                            fieldTypeDescriptor, fieldTypeSignature, fieldConstValue, fieldAnnotationInfo));
                 }
             }
         }
