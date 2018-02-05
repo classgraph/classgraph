@@ -40,6 +40,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import io.github.lukehutch.fastclasspathscanner.scanner.AnnotationInfo.AnnotationClassRef;
 import io.github.lukehutch.fastclasspathscanner.scanner.AnnotationInfo.AnnotationEnumValue;
 import io.github.lukehutch.fastclasspathscanner.scanner.AnnotationInfo.AnnotationParamValue;
+import io.github.lukehutch.fastclasspathscanner.typesignature.MethodTypeSignature;
+import io.github.lukehutch.fastclasspathscanner.utils.Join;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.MultiMapKeyToSet;
 
@@ -922,6 +924,67 @@ class ClassfileBinaryParser implements AutoCloseable {
                     classInfoUnlinked.addAnnotationParamDefaultValues(annotationParamDefaultValues);
                 }
                 if (scanSpec.enableMethodInfo) {
+
+//                    // DEBUG PRINT STATEMENTS:
+//                    MethodTypeSignature typeDescriptor = MethodTypeSignature.parse(methodTypeDescriptor);
+//                    int n = typeDescriptor.getParameterTypeSignatures().size();
+//                    MethodTypeSignature typeSignature = methodTypeSignature == null ? null
+//                            : MethodTypeSignature.parse(methodTypeSignature);
+//                    if ((typeSignature != null && n != typeSignature.getParameterTypeSignatures().size())
+//                            || (methodParameterNames != null && methodParameterNames.length != n)
+//                            || (methodParameterAccessFlags != null && methodParameterAccessFlags.length != n)
+//                            || (methodParameterAnnotations != null && methodParameterAnnotations.length != n)) {
+//                        String mpa = null;
+//                        if (methodParameterAnnotations != null) {
+//                            StringBuilder buf = new StringBuilder();
+//                            for (int j = 0; j < methodParameterAnnotations.length; j++) {
+//                                if (j > 0) {
+//                                    buf.append(", ");
+//                                }
+//                                buf.append(Arrays.toString(methodParameterAnnotations[j]));
+//                            }
+//                            mpa = buf.toString();
+//                        }
+//                        String mpaf = null;
+//                        if (methodParameterAccessFlags != null) {
+//                            StringBuilder buf = new StringBuilder();
+//                            for (int j = 0; j < methodParameterAccessFlags.length; j++) {
+//                                if (j > 0) {
+//                                    buf.append(", ");
+//                                }
+//                                String af = Integer.toString(methodParameterAccessFlags[j], 16);
+//                                if (af.equals("0")) {
+//                                    af = "0000";
+//                                }
+//                                buf.append("0x" + af);
+//                            }
+//                            mpaf = buf.toString();
+//                        }
+//                        System.out.println("class name: " + className + "\n  method name: " + methodName
+//                                + "\n  method type descriptor: " + //
+//                                methodTypeDescriptor + "\n    type descriptor method params: " + //
+//                                Join.join(", ", typeDescriptor.getParameterTypeSignatures())
+//                                + "\n      type descriptor method param count: " + //
+//                                n + "\n  method signature: " + //
+//                                methodTypeSignature + "\n    type signature method params: " + //
+//                                (typeSignature == null ? "null"
+//                                        : Join.join(", ", typeSignature.getParameterTypeSignatures())
+//                                                + "\n      type signature method param count: " + //
+//                                                typeSignature.getParameterTypeSignatures().size())
+//                                + "\n  parameter names: " + //
+//                                (methodParameterNames == null ? "null"
+//                                        : Join.join(", ", (Object[]) methodParameterNames)
+//                                                + "\n    parameter name count: " + methodParameterNames.length)
+//                                + "\n  parameter annotations: " + //
+//                                (methodParameterAnnotations == null ? "null"
+//                                        : mpa + "\n    parameter annotation count: "
+//                                                + methodParameterAnnotations.length)
+//                                + "\n  parameter access flags: " + //
+//                                (methodParameterAccessFlags == null ? "null"
+//                                        : mpaf + "\n    parameter access flag count: "
+//                                                + methodParameterAccessFlags.length));
+//                    }
+
                     classInfoUnlinked.addMethodInfo(new MethodInfo(className, methodName, methodAnnotationInfo,
                             methodModifierFlags, methodTypeDescriptor, methodTypeSignature, methodParameterNames,
                             methodParameterAccessFlags, methodParameterAnnotations));
