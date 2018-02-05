@@ -287,12 +287,14 @@ public class FieldInfo extends InfoObject implements Comparable<FieldInfo> {
             }
         }
 
-        if (buf.length() > 0) {
-            buf.append(' ');
+        if (modifiers != 0) {
+            if (buf.length() > 0) {
+                buf.append(' ');
+            }
+            TypeParser.modifiersToString(modifiers, /* isMethod = */ false, buf);
         }
-        TypeParser.modifiersToString(modifiers, /* isMethod = */ false, buf);
 
-        if (buf.length() > 0 && buf.charAt(buf.length() - 1) != ' ') {
+        if (buf.length() > 0) {
             buf.append(' ');
         }
         buf.append(getTypeStr());
