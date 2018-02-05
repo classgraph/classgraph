@@ -12,7 +12,6 @@ FastClasspathScanner is an uber-fast, ultra-lightweight classpath scanner for Ja
 * [Find classes that have a specific class annotation or meta-annotation](https://github.com/lukehutch/fast-classpath-scanner/wiki/3.4.-Finding-classes-with-specific-annotations-or-meta-annotations).
 * [Find classes that have methods with a given annotation](https://github.com/lukehutch/fast-classpath-scanner/wiki/3.5-Finding-classes-that-have-methods-or-fields-with-a-given-annotation).
 * [Find classes that have fields with a given annotation](https://github.com/lukehutch/fast-classpath-scanner/wiki/3.5-Finding-classes-that-have-methods-or-fields-with-a-given-annotation).
-* [Find all classes that contain a field of a given type](https://github.com/lukehutch/fast-classpath-scanner/wiki/3.6a.-Finding-classes-with-fields-of-a-given-type) (including identifying fields based on array element type and generic parameter type).
 * Read the constant literal initializer value in a classfile's constant pool for a [specified static final field](https://github.com/lukehutch/fast-classpath-scanner/wiki/3.6b.-Reading-constant-initializer-values-of-static-final-fields).
 * Determine the [containment hierarchy](https://github.com/lukehutch/fast-classpath-scanner/wiki/1.-Usage#getting-information-on-class-containment) between outer classes and inner classes (including anonymous inner classes).
 * Find files (even non-classfiles) anywhere on the classpath that have a [path that matches a given string or regular expression, or with a specific file extension](https://github.com/lukehutch/fast-classpath-scanner/wiki/3.7.-Finding-classpath-files-based-on-filename-pattern).
@@ -57,6 +56,7 @@ JavaDoc for the core classes:
   * Fields:
     * [StaticFinalFieldMatchProcessor](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/matchprocessor/StaticFinalFieldMatchProcessor.html)
   * Files:
+    * [FilenameMatchProcessor](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/matchprocessor/FilenameMatchProcessor.html)
     * [FileMatchProcessor](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/matchprocessor/FileMatchProcessor.html)
     * [FileMatchContentsProcessor](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/matchprocessor/FileMatchContentsProcessor.html)
     * [FileMatchProcessorWithContext](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/matchprocessor/FileMatchProcessorWithContext.html)
