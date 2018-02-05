@@ -283,4 +283,50 @@ public class Issue175Test {
                 "@org.jetbrains.annotations.NotNull public static final java.util.List access$getIgnoredNames$cp()",
                 "@org.jetbrains.annotations.NotNull public static final org.slf4j.Logger access$getLog$cp()");
     }
+
+    @Test
+    public void testParameterArityMismatch() {
+        final ClassLoader classLoader = Issue175Test.class.getClassLoader();
+        final String aJarName = "issue175-missing-bare-types.zip";
+        final URL aJarURL = classLoader.getResource(aJarName);
+        final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
+
+        final ScanResult result = new FastClasspathScanner("net.corda.core.node.services.vault") //
+                .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().ignoreMethodVisibility()
+                .ignoreFieldVisibility().enableMethodInfo().enableFieldInfo().scan();
+
+        final Map<String, ClassInfo> allInfo = result.getClassNameToClassInfo();
+
+        final List<String> methods = new ArrayList<>();
+        for (final String className : result.getNamesOfAllClasses()) {
+            final ClassInfo classInfo = allInfo.get(className);
+            System.out.println(className);
+            for (final MethodInfo method : classInfo.getMethodAndConstructorInfo()) {
+                methods.add(method.toString());
+            }
+        }
+    }
+
+    @Test
+    public void testBareTypeIssue() {
+        final ClassLoader classLoader = Issue175Test.class.getClassLoader();
+        final String aJarName = "issue175-missing-bare-types2.zip";
+        final URL aJarURL = classLoader.getResource(aJarName);
+        final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
+
+        final ScanResult result = new FastClasspathScanner("net.corda.client.jackson") //
+                .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().ignoreMethodVisibility()
+                .ignoreFieldVisibility().enableMethodInfo().enableFieldInfo().scan();
+
+        final Map<String, ClassInfo> allInfo = result.getClassNameToClassInfo();
+
+        final List<String> methods = new ArrayList<>();
+        for (final String className : result.getNamesOfAllClasses()) {
+            final ClassInfo classInfo = allInfo.get(className);
+            for (final MethodInfo method : classInfo.getMethodAndConstructorInfo()) {
+                methods.add(method.toString());
+            }
+        }
+    }
+
 }
