@@ -922,9 +922,9 @@ class ClassfileBinaryParser implements AutoCloseable {
                     classInfoUnlinked.addAnnotationParamDefaultValues(annotationParamDefaultValues);
                 }
                 if (scanSpec.enableMethodInfo) {
-                    classInfoUnlinked.addMethodInfo(new MethodInfo(className, methodName, methodModifierFlags,
-                            methodTypeDescriptor, methodTypeSignature, methodParameterNames,
-                            methodParameterAccessFlags, methodAnnotationInfo, methodParameterAnnotations));
+                    classInfoUnlinked.addMethodInfo(new MethodInfo(className, methodName, methodAnnotationInfo,
+                            methodModifierFlags, methodTypeDescriptor, methodTypeSignature, methodParameterNames,
+                            methodParameterAccessFlags, methodParameterAnnotations));
                 }
             }
         }

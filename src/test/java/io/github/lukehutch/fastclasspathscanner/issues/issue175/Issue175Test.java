@@ -65,8 +65,8 @@ public class Issue175Test {
             }
         }
         assertThat(methods).containsOnly("static void <clinit>()",
-                "protected <init>(synthetic java.lang.String $enum$name, synthetic int $enum$ordinal)",
-                "public static net.corda.core.contracts.ComponentGroupEnum[] values()",
+                // "protected <init>(synthetic java.lang.String $enum$name, synthetic int $enum$ordinal)",
+                "protected <init>()", "public static net.corda.core.contracts.ComponentGroupEnum[] values()",
                 "public static net.corda.core.contracts.ComponentGroupEnum valueOf(java.lang.String)");
     }
 
@@ -242,7 +242,8 @@ public class Issue175Test {
         }
         assertThat(methods).containsOnly("static void <clinit>()",
                 "@org.jetbrains.annotations.NotNull public final java.lang.String getColumnName()",
-                "protected <init>(synthetic java.lang.String $enum$name, synthetic int $enum$ordinal, @org.jetbrains.annotations.NotNull java.lang.String columnName)",
+                // "protected <init>(synthetic java.lang.String $enum$name, synthetic int $enum$ordinal, @org.jetbrains.annotations.NotNull java.lang.String columnName)",
+                "protected <init>(@org.jetbrains.annotations.NotNull java.lang.String)",
                 "public static net.corda.core.node.services.vault.AttachmentSort$AttachmentSortAttribute[] values()",
                 "public static net.corda.core.node.services.vault.AttachmentSort$AttachmentSortAttribute valueOf(java.lang.String)");
     }
@@ -300,11 +301,12 @@ public class Issue175Test {
         final List<String> methods = new ArrayList<>();
         for (final String className : result.getNamesOfAllClasses()) {
             final ClassInfo classInfo = allInfo.get(className);
-            System.out.println(className);
             for (final MethodInfo method : classInfo.getMethodAndConstructorInfo()) {
                 methods.add(method.toString());
             }
         }
+        assertThat(methods).containsOnly(
+                "@org.jetbrains.annotations.NotNull public static <Q extends net.corda.core.node.services.vault.GenericQueryCriteria<Q, ? super P>, P extends net.corda.core.node.services.vault.BaseQueryCriteriaParser<Q, ? super P, ? super S>, S extends net.corda.core.node.services.vault.BaseSort> java.util.Collection<javax.persistence.criteria.Predicate> visit(@org.jetbrains.annotations.NotNull net.corda.core.node.services.vault.GenericQueryCriteria$ChainableQueryCriteria$AndVisitor<Q, ? super P, ? super S>, P)");
     }
 
     @Test
@@ -327,6 +329,12 @@ public class Issue175Test {
                 methods.add(method.toString());
             }
         }
+        assertThat(methods).containsOnly(
+                "@org.jetbrains.annotations.Nullable public final java.lang.Object invoke()",
+                "@org.jetbrains.annotations.Nullable public java.lang.Object call()",
+                "@org.jetbrains.annotations.NotNull public final java.lang.reflect.Method getMethod()",
+                "@org.jetbrains.annotations.NotNull public final java.lang.Object[] getArgs()",
+                "public <init>(@org.jetbrains.annotations.Nullable T, @org.jetbrains.annotations.NotNull java.lang.reflect.Method, @org.jetbrains.annotations.NotNull java.lang.Object[])");
     }
 
 }

@@ -298,7 +298,8 @@ public class MethodSignature extends HierarchicalTypeSignature {
             int paramIdx = 0;
             for (; internalParamIdx < methodTypeSignatureInternal.parameterTypeSignatures
                     .size(); internalParamIdx++) {
-                if ((parameterAccessFlagsInternal[internalParamIdx] & 0x1000) != 0) {
+                if ((parameterAccessFlagsInternal[internalParamIdx]
+                        & (TypeUtils.MODIFIER_SYNTHETIC | TypeUtils.MODIFIER_MANDATED)) != 0) {
                     // This parameter is present in JDK-internal type signature, but not in the 
                     // programmer-visible signature. This should only be true for synthetic
                     // parameters, and they should not have any type parameters, due to type
@@ -314,8 +315,8 @@ public class MethodSignature extends HierarchicalTypeSignature {
                     // should be the same, ignoring any type parameters.
                     final TypeSignature paramTypeSignature = methodTypeSignature.parameterTypeSignatures
                             .get(paramIdx++);
-                    final TypeSignature paramTypeSignatureInternal = methodTypeSignatureInternal.parameterTypeSignatures
-                            .get(internalParamIdx);
+                    final TypeSignature paramTypeSignatureInternal = //
+                            methodTypeSignatureInternal.parameterTypeSignatures.get(internalParamIdx);
                     if (!paramTypeSignature.equalsIgnoringTypeParams(paramTypeSignatureInternal)) {
                         throw new IllegalArgumentException(
                                 "Corresponding type parameters in type signatures do not refer to the same bare "
