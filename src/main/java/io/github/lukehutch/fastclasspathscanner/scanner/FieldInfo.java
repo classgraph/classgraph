@@ -98,8 +98,7 @@ public class FieldInfo extends InfoObject implements Comparable<FieldInfo> {
      * Get the field modifiers as a string, e.g. "public static final". For the modifier bits, call
      * getAccessFlags().
      */
-    // TODO: rename to getModifiersStr()
-    public String getModifiers() {
+    public String getModifierStrs() {
         return TypeParser.modifiersToString(modifiers, /* isMethod = */ false);
     }
 
@@ -139,8 +138,7 @@ public class FieldInfo extends InfoObject implements Comparable<FieldInfo> {
     }
 
     /** Returns the access flags of the field. */
-    // TODO: Rename to getModifiers()
-    public int getAccessFlags() {
+    public int getModifiers() {
         return modifiers;
     }
 
@@ -292,9 +290,9 @@ public class FieldInfo extends InfoObject implements Comparable<FieldInfo> {
         if (buf.length() > 0) {
             buf.append(' ');
         }
-        buf.append(getModifiers());
+        TypeParser.modifiersToString(modifiers, /* isMethod = */ false, buf);
 
-        if (buf.length() > 0) {
+        if (buf.length() > 0 && buf.charAt(buf.length() - 1) != ' ') {
             buf.append(' ');
         }
         buf.append(getTypeStr());
@@ -305,9 +303,10 @@ public class FieldInfo extends InfoObject implements Comparable<FieldInfo> {
         if (constValue != null) {
             buf.append(" = ");
             if (constValue instanceof String) {
-                buf.append("\"" + constValue + "\"");
+                buf.append("\"" + ((String) constValue).replace("\\", "\\\\").replace("\"", "\\\"") + "\"");
             } else if (constValue instanceof Character) {
-                buf.append("'" + constValue + "'");
+                buf.append("'" + ((Character) constValue).toString().replace("\\", "\\\\").replaceAll("'", "\\'")
+                        + "'");
             } else {
                 buf.append(constValue.toString());
             }

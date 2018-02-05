@@ -1076,7 +1076,7 @@ public class TypeParser {
      * @return A MethodSignature consisting of all information from both type signatures.
      */
     public static MethodSignature merge(final MethodSignature methodTypeSignature,
-            final MethodSignature methodTypeSignatureInternal, final int[] parameterAccessFlags) {
+            final MethodSignature methodTypeSignatureInternal, final int[] parameterAccessFlagsInternal) {
         if (methodTypeSignature == null || methodTypeSignatureInternal == null) {
             throw new IllegalArgumentException("Signatures must be non-null");
         }
@@ -1089,13 +1089,13 @@ public class TypeParser {
         }
         // parameterAccessFlags is only available in classfiles compiled in JDK8 or above using
         // the -parameters commandline switch, or code compiled with Kotlin or some other language
-        if (parameterAccessFlags != null
-                && parameterAccessFlags.length != methodTypeSignatureInternal.paramTypes.size()) {
+        if (parameterAccessFlagsInternal != null
+                && parameterAccessFlagsInternal.length != methodTypeSignatureInternal.paramTypes.size()) {
             throw new IllegalArgumentException(
                     "Parameter arity mismatch between access flags and internal param types");
         }
         List<TypeSignature> mergedParamTypes;
-        if (parameterAccessFlags == null) {
+        if (parameterAccessFlagsInternal == null) {
             // If there are no parameter access flags, there must be no difference in the number
             // of parameters between the JDK-internal and programmer-visible type signature
             // (i.e. if there are synthetic parameters, then the classfile should specify
@@ -1112,7 +1112,7 @@ public class TypeParser {
             int internalParamIdx = 0;
             int paramIdx = 0;
             for (; internalParamIdx < methodTypeSignatureInternal.paramTypes.size(); internalParamIdx++) {
-                if ((parameterAccessFlags[internalParamIdx] & 0x1000) != 0) {
+                if ((parameterAccessFlagsInternal[internalParamIdx] & 0x1000) != 0) {
                     // This parameter is present in JDK-internal type signature, but not in the 
                     // programmer-visible signature. This should only be true for synthetic
                     // parameters, and they should not have any type parameters, due to type

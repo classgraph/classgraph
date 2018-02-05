@@ -115,9 +115,8 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
      * Get the method modifiers as a string, e.g. "public static final". For the modifier bits, call
      * getAccessFlags().
      */
-    // TODO: Rename to getModifiersStr()
-    public String getModifiers() {
-        return TypeParser.modifiersToString(getAccessFlags(), /* isMethod = */ true);
+    public String getModifiersStr() {
+        return TypeParser.modifiersToString(getModifiers(), /* isMethod = */ true);
     }
 
     /**
@@ -143,8 +142,7 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
     }
 
     /** Returns the access flags of the method. */
-    // TODO: Rename to getModifiers()
-    public int getAccessFlags() {
+    public int getModifiers() {
         return modifiers;
     }
 
@@ -210,7 +208,7 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
             return getTypeSignature();
         } else {
             return TypeParser.merge(getTypeSignature(), getTypeSignatureInternal(),
-                    getParameterAccessFlagsInternal());
+                    getParameterModifiersInternal());
         }
     }
 
@@ -454,8 +452,7 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
      * </ul>
      * 
      */
-    // TODO: Rename to getParameterModifiers()
-    public int[] getParameterAccessFlags() {
+    public int[] getParameterModifiers() {
         if (parameterAccessFlagsInternal == null) {
             return null;
         } else if (parameterAccessFlags == null) {
@@ -497,8 +494,7 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
      * parameter is mandated by a language specification, so all compilers for the language must emit it.)
      * </ul>
      */
-    // TODO: Rename to getParameterModifiersInternal()
-    public int[] getParameterAccessFlagsInternal() {
+    public int[] getParameterModifiersInternal() {
         return parameterAccessFlagsInternal;
     }
 
@@ -506,8 +502,7 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
      * Returns the parameter modifiers as a string (e.g. ["final", ""], if available (only available in classfiles
      * compiled in JDK8 or above using the -parameters commandline switch), otherwise returns null.
      */
-    // TODO: Rename to getParameterModifierStrs()
-    public String[] getParameterModifiers() {
+    public String[] getParameterModifierStrs() {
         if (parameterAccessFlagsInternal == null) {
             return null;
         }
