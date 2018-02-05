@@ -52,6 +52,9 @@ public class TypeUtils {
         private final List<TypeVariableSignature> typeVariableSignatures = new ArrayList<>();
 
         public ParseState(final String string) {
+            if (string == null) {
+                throw new IllegalArgumentException("Cannot parse null string");
+            }
             this.string = string;
         }
 
