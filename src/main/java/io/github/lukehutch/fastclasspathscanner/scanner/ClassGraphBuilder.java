@@ -28,6 +28,7 @@
  */
 package io.github.lukehutch.fastclasspathscanner.scanner;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -102,11 +103,6 @@ class ClassGraphBuilder {
         } else {
             return classInfo.getNamesOfSuperclasses();
         }
-    }
-
-    /** Return a sorted list of classes that have a field of the named type. */
-    List<String> getNamesOfClassesWithFieldOfType(final String fieldTypeName) {
-        return ClassInfo.getNamesOfClassesWithFieldOfType(fieldTypeName, allClassInfo);
     }
 
     /** Return a sorted list of classes that have a method with the named annotation. */
@@ -226,6 +222,17 @@ class ClassGraphBuilder {
         return className.substring(0, dotIdx + 1) + "\\n" + className.substring(dotIdx + 1);
     }
 
+    private List<ClassInfo> lookup(final Set<String> classNames) {
+        final List<ClassInfo> classInfoNodes = new ArrayList<>();
+        for (final String className : classNames) {
+            final ClassInfo classInfo = classNameToClassInfo.get(className);
+            if (classInfo != null) {
+                classInfoNodes.add(classInfo);
+            }
+        }
+        return classInfoNodes;
+    }
+
     /**
      * Generates a .dot file which can be fed into GraphViz for layout and visualization of the class graph. The
      * sizeX and sizeY parameters are the image output size to use (in inches) when GraphViz is asked to render the
@@ -279,10 +286,18 @@ class ClassGraphBuilder {
                 buf.append("  \"" + label(classNode) + "\" -> \"" + label(implementedInterfaceNode)
                         + "\" [arrowhead=diamond]\n");
             }
-            for (final ClassInfo fieldTypeNode : classNode.getFieldTypes()) {
-                // class --[] whitelisted field type
+            for (final ClassInfo fieldTypeNode : lookup(
+                    classNode.getClassNamesReferencedInFieldTypeDescriptors())) {
+                // class --[ ] field type (open box)
                 buf.append("  \"" + label(fieldTypeNode) + "\" -> \"" + label(classNode)
                         + "\" [arrowtail=obox, dir=back]\n");
+            }
+            for (final ClassInfo fieldTypeNode : lookup(
+                    classNode.getClassNamesReferencedInMethodTypeDescriptors())) {
+                // class --[X] method type (filled box)
+                // TODO: update legend to show this new relationship type
+                buf.append("  \"" + label(fieldTypeNode) + "\" -> \"" + label(classNode)
+                        + "\" [arrowtail=box, dir=back]\n");
             }
         }
         for (final ClassInfo interfaceNode : interfaceNodes) {

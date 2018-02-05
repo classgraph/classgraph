@@ -320,37 +320,6 @@ public class ScanResult {
     }
 
     /**
-     * Get the names of classes that have a field of the named type, or that have the given type as a type
-     * parameter.
-     *
-     * @param fieldTypeName
-     *            the name of the field type.
-     * @return The sorted list of the names of classes with a field of the named type, or the empty list if none.
-     */
-    public List<String> getNamesOfClassesWithFieldOfType(final String fieldTypeName) {
-        scanSpec.checkClassIsNotBlacklisted(fieldTypeName);
-        if (!scanSpec.enableFieldTypeIndexing) {
-            throw new IllegalArgumentException(
-                    "Please call FastClasspathScanner#enableFieldTypeIndexing() before calling scan() -- "
-                            + "field type indexing is disabled by default for efficiency");
-        }
-        return classGraphBuilder.getNamesOfClassesWithFieldOfType(fieldTypeName);
-    }
-
-    /**
-     * Get the names of classes that have a field of the given type, or that have the given type as a type
-     * parameter.
-     *
-     * @param fieldType
-     *            the field type.
-     * @return The sorted list of the names of classes with a field of the given type, or the empty list if none.
-     */
-    public List<String> getNamesOfClassesWithFieldOfType(final Class<?> fieldType) {
-        final String fieldTypeName = fieldType.getName();
-        return getNamesOfClassesWithFieldOfType(fieldTypeName);
-    }
-
-    /**
      * Get the names of classes that have a method with an annotation of the named type.
      *
      * @param annotationName

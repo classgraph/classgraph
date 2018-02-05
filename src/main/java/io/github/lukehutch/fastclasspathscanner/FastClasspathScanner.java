@@ -242,34 +242,6 @@ public class FastClasspathScanner {
     }
 
     /**
-     * If enableFieldTypeIndexing is true, enables field type indexing, which allows you to call
-     * ScanResult#getClassesWithFieldsOfType(type). (If you add a field type match processor, this method is called
-     * for you.) Field type indexing is disabled by default, because it is expensive in terms of time (adding ~10%
-     * to the scan time) and memory, and it is not needed for most uses of FastClasspathScanner.
-     *
-     * @param enableFieldTypeIndexing
-     *            Whether or not to enable field type indexing.
-     * @return this (for method chaining).
-     */
-    public FastClasspathScanner enableFieldTypeIndexing(final boolean enableFieldTypeIndexing) {
-        getScanSpec().enableFieldTypeIndexing = enableFieldTypeIndexing;
-        return this;
-    }
-
-    /**
-     * Enables field type indexing, which allows you to call ScanResult#getClassesWithFieldsOfType(type). (If you
-     * add a field type match processor, this method is called for you.) Field type indexing is disabled by default,
-     * because it is expensive in terms of time (adding ~10% to the scan time) and memory, and it is not needed for
-     * most uses of FastClasspathScanner.
-     *
-     * @return this (for method chaining).
-     */
-    public FastClasspathScanner enableFieldTypeIndexing() {
-        enableFieldTypeIndexing(true);
-        return this;
-    }
-
-    /**
      * If enableMethodAnnotationIndexing is true, enables method annotation indexing, which allows you to call
      * ScanResult#getNamesOfClassesWithMethodAnnotation(annotation). (If you add a method annotation match
      * processor, this method is called for you.) Method annotation indexing is disabled by default, because it is
@@ -778,29 +750,6 @@ public class FastClasspathScanner {
     public <T> FastClasspathScanner matchClassesImplementing(final Class<T> implementedInterface,
             final ImplementingClassMatchProcessor<T> interfaceMatchProcessor) {
         getScanSpec().matchClassesImplementing(implementedInterface, interfaceMatchProcessor);
-        return this;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Calls the provided ClassMatchProcessor for classes on the classpath that have a field of the given type.
-     * Matches classes that have fields of the given type, array fields with an element type of the given type, and
-     * fields of parameterized type that have a type parameter of the given type.
-     *
-     * <p>
-     * Calls enableFieldTypeIndexing() for you.
-     *
-     * @param fieldType
-     *            The type of the field to match..
-     * @param classMatchProcessor
-     *            the ClassMatchProcessor to call when a match is found.
-     * @return this (for method chaining).
-     */
-    public <T> FastClasspathScanner matchClassesWithFieldOfType(final Class<T> fieldType,
-            final ClassMatchProcessor classMatchProcessor) {
-        enableFieldTypeIndexing();
-        getScanSpec().matchClassesWithFieldOfType(fieldType, classMatchProcessor);
         return this;
     }
 

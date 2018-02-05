@@ -49,6 +49,8 @@ import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.MultiMapKeyToList;
 import io.github.lukehutch.fastclasspathscanner.utils.TypeParser;
 import io.github.lukehutch.fastclasspathscanner.utils.TypeParser.ClassSignature;
+import io.github.lukehutch.fastclasspathscanner.utils.TypeParser.MethodSignature;
+import io.github.lukehutch.fastclasspathscanner.utils.TypeParser.TypeSignature;
 
 /** Holds metadata about a class encountered during a scan. */
 public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
@@ -286,9 +288,6 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
         /** Subclasses of this class, if this is a regular class. */
         SUBCLASSES,
-
-        /** The types of fields of regular classes, if this is a regular class. */
-        FIELD_TYPES,
 
         /** Indicates that an inner class is contained within this one. */
         CONTAINS_INNER_CLASS,
@@ -617,14 +616,6 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
         this.fullyQualifiedContainingMethodName = fullyQualifiedContainingMethodName;
     }
 
-    /** Add a field type. */
-    void addFieldType(final String fieldTypeName, final Map<String, ClassInfo> classNameToClassInfo) {
-        final String fieldTypeBaseName = scalaBaseClassName(fieldTypeName);
-        final ClassInfo fieldTypeClassInfo = getOrCreateClassInfo(fieldTypeBaseName, /* classModifiers = */ 0,
-                scanSpec, classNameToClassInfo);
-        this.addRelatedClass(RelType.FIELD_TYPES, fieldTypeClassInfo);
-    }
-
     /** Add a static final field's constant initializer value. */
     void addStaticFinalFieldConstantInitializerValue(final String fieldName, final Object constValue) {
         if (this.staticFinalFieldNameToConstantInitializerValue == null) {
@@ -786,6 +777,93 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
         classInfo.isInterface |= isInterface;
         classInfo.isAnnotation |= isAnnotation;
         return classInfo;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Get the names of any classes (other than this class itself) referenced in this class' type descriptor, or the
+     * type descriptors of fields or methods (if field or method info is recorded).
+     */
+    public Set<String> getClassNamesReferencedInAnyTypeDescriptor() {
+        final Set<String> referencedClassNames = new HashSet<>();
+        if (methodInfo != null) {
+            for (final MethodInfo mi : methodInfo) {
+                final MethodSignature methodSig = mi.getTypeSignature();
+                if (methodSig != null) {
+                    methodSig.getAllReferencedClassNames(referencedClassNames);
+                }
+            }
+        }
+        if (fieldInfo != null) {
+            for (final FieldInfo fi : fieldInfo) {
+                final TypeSignature fieldSig = fi.getTypeSignature();
+                if (fieldSig != null) {
+                    fieldSig.getAllReferencedClassNames(referencedClassNames);
+                }
+            }
+        }
+        final ClassSignature classSig = getTypeSignature();
+        if (classSig != null) {
+            classSig.getAllReferencedClassNames(referencedClassNames);
+        }
+        // Remove self-reference, and any reference to java.lang.Object
+        referencedClassNames.remove(className);
+        referencedClassNames.remove("java.lang.Object");
+        return referencedClassNames;
+    }
+
+    /**
+     * Get the names of any classes referenced in the type descriptors of this class' methods (if method info is
+     * recorded).
+     */
+    public Set<String> getClassNamesReferencedInMethodTypeDescriptors() {
+        final Set<String> referencedClassNames = new HashSet<>();
+        if (methodInfo != null) {
+            for (final MethodInfo mi : methodInfo) {
+                final MethodSignature methodSig = mi.getTypeSignature();
+                if (methodSig != null) {
+                    methodSig.getAllReferencedClassNames(referencedClassNames);
+                }
+            }
+        }
+        // Remove any reference to java.lang.Object
+        referencedClassNames.remove("java.lang.Object");
+        return referencedClassNames;
+    }
+
+    /**
+     * Get the names of any classes referenced in the type descriptors of this class' fields (if field info is
+     * recorded).
+     */
+    public Set<String> getClassNamesReferencedInFieldTypeDescriptors() {
+        final Set<String> referencedClassNames = new HashSet<>();
+        if (fieldInfo != null) {
+            for (final FieldInfo fi : fieldInfo) {
+                final TypeSignature fieldSig = fi.getTypeSignature();
+                if (fieldSig != null) {
+                    fieldSig.getAllReferencedClassNames(referencedClassNames);
+                }
+            }
+        }
+        // Remove any reference to java.lang.Object
+        referencedClassNames.remove("java.lang.Object");
+        return referencedClassNames;
+    }
+
+    /**
+     * Get the names of any classes (other than this class itself) referenced in the type descriptor of this class.
+     */
+    public Set<String> getClassNamesReferencedInClassTypeDescriptor() {
+        final Set<String> referencedClassNames = new HashSet<>();
+        final ClassSignature classSig = getTypeSignature();
+        if (classSig != null) {
+            classSig.getAllReferencedClassNames(referencedClassNames);
+        }
+        // Remove self-reference, and any reference to java.lang.Object
+        referencedClassNames.remove(className);
+        referencedClassNames.remove("java.lang.Object");
+        return referencedClassNames;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -2008,53 +2086,6 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     // -------------------------------------------------------------------------------------------------------------
     // Fields
-
-    /**
-     * Get the types of this class' fields. Requires FastClasspathScanner#indexFieldTypes() to have been called
-     * before scanning.
-     *
-     * @return the set of field types for this class, or the empty set if none.
-     */
-    public Set<ClassInfo> getFieldTypes() {
-        return !isStandardClass() ? Collections.<ClassInfo> emptySet()
-                : filterClassInfo(getDirectlyRelatedClasses(RelType.FIELD_TYPES),
-                        /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.ALL);
-    }
-
-    /**
-     * Get the names of the types of this class' fields. Requires FastClasspathScanner#indexFieldTypes() to have
-     * been called before scanning.
-     *
-     * @return the sorted list of names of field types, or the empty list if none.
-     */
-    public List<String> getNamesOfFieldTypes() {
-        return getClassNames(getFieldTypes());
-    }
-
-    /**
-     * Get the list of classes that have a field of the named type.
-     *
-     * @return the sorted list of names of classes that have a field of the named type.
-     */
-    static List<String> getNamesOfClassesWithFieldOfType(final String fieldTypeName,
-            final Set<ClassInfo> allClassInfo) {
-        // This method will not likely be used for a large number of different field types, so perform a linear
-        // search on each invocation, rather than building an index on classpath scan (so we don't slow down more
-        // common methods).
-        final ArrayList<String> namesOfClassesWithFieldOfType = new ArrayList<>();
-        for (final ClassInfo classInfo : allClassInfo) {
-            for (final ClassInfo fieldType : classInfo.getDirectlyRelatedClasses(RelType.FIELD_TYPES)) {
-                if (fieldType.className.equals(fieldTypeName)) {
-                    namesOfClassesWithFieldOfType.add(classInfo.className);
-                    break;
-                }
-            }
-        }
-        if (!namesOfClassesWithFieldOfType.isEmpty()) {
-            Collections.sort(namesOfClassesWithFieldOfType);
-        }
-        return namesOfClassesWithFieldOfType;
-    }
 
     /**
      * Get the constant initializer value for the named static final field, if present.

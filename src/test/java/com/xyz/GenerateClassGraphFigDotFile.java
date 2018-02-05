@@ -7,7 +7,6 @@ public class GenerateClassGraphFigDotFile {
         System.out.println(new FastClasspathScanner("com.xyz.fig") //
                 .strictWhitelist() //
                 .ignoreFieldVisibility() //
-                .enableFieldTypeIndexing() //
                 .scan() //
                 .generateClassGraphDotFile(9.2f, 8.0f));
     }

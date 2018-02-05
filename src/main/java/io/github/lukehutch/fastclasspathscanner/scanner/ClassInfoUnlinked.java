@@ -31,11 +31,9 @@ package io.github.lukehutch.fastclasspathscanner.scanner;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import io.github.lukehutch.fastclasspathscanner.scanner.AnnotationInfo.AnnotationParamValue;
@@ -58,7 +56,6 @@ class ClassInfoUnlinked {
     private List<AnnotationInfo> classAnnotations;
     private List<AnnotationInfo> methodAnnotations;
     private List<AnnotationInfo> fieldAnnotations;
-    private Set<String> fieldTypes;
     private Map<String, Object> staticFinalFieldValues;
     private String fullyQualifiedContainingMethodName;
     private List<SimpleEntry<String, String>> classContainmentEntries;
@@ -124,13 +121,6 @@ class ClassInfoUnlinked {
         fieldAnnotations.add(fieldAnnotation);
     }
 
-    void addFieldType(final String fieldTypeName) {
-        if (fieldTypes == null) {
-            fieldTypes = new HashSet<>();
-        }
-        fieldTypes.add(intern(fieldTypeName));
-    }
-
     void addFieldConstantValue(final String fieldName, final Object staticFinalFieldValue) {
         if (staticFinalFieldValues == null) {
             staticFinalFieldValues = new HashMap<>();
@@ -194,11 +184,6 @@ class ClassInfoUnlinked {
                 classInfo.addFieldAnnotation(fieldAnnotation, classNameToClassInfo);
             }
         }
-        if (fieldTypes != null) {
-            for (final String fieldTypeName : fieldTypes) {
-                classInfo.addFieldType(fieldTypeName, classNameToClassInfo);
-            }
-        }
         if (staticFinalFieldValues != null) {
             for (final Entry<String, Object> ent : staticFinalFieldValues.entrySet()) {
                 classInfo.addStaticFinalFieldConstantInitializerValue(ent.getKey(), ent.getValue());
@@ -244,9 +229,6 @@ class ClassInfoUnlinked {
             }
             if (fieldAnnotations != null) {
                 subLog.log("Field annotations: " + Join.join(", ", fieldAnnotations));
-            }
-            if (fieldTypes != null) {
-                subLog.log("Field types: " + Join.join(", ", fieldTypes));
             }
             if (staticFinalFieldValues != null) {
                 final List<String> fieldInitializers = new ArrayList<>();

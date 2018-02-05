@@ -127,9 +127,6 @@ public class ScanSpec {
     /** True if directories on the classpath should be scanned. */
     public boolean scanDirs = true;
 
-    /** If true, index types of fields. */
-    public boolean enableFieldTypeIndexing;
-
     /** If true, index method annotations. */
     public boolean enableMethodAnnotationIndexing;
 
@@ -884,16 +881,6 @@ public class ScanSpec {
         return className;
     }
 
-    /**
-     * Check a class is in a whitelisted package. Returns the name of the class if it is in a whitelisted package,
-     * otherwise throws an IllegalArgumentException.
-     */
-    private String getClassName(final Class<?> cls) {
-        final String className = cls.getName();
-        checkClassIsNotBlacklisted(className);
-        return className;
-    }
-
     // -------------------------------------------------------------------------------------------------------------
 
     /** Add a ClassMatcher. */
@@ -1162,47 +1149,6 @@ public class ScanSpec {
                     } catch (final Throwable e) {
                         if (subLog != null) {
                             subLog.log("Exception while processing match for class " + implementingClassName, e);
-                        }
-                        scanResult.addMatchProcessorException(e);
-                    }
-                }
-            }
-        });
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Calls the provided ClassMatchProcessor for classes on the classpath that have a field of the given type.
-     * Matches classes that have fields of the given type, array fields with an element type of the given type, and
-     * fields of parameterized type that have a type parameter of the given type.
-     *
-     * @param fieldType
-     *            The type of the field to match..
-     * @param classMatchProcessor
-     *            the ClassMatchProcessor to call when a match is found.
-     */
-    public <T> void matchClassesWithFieldOfType(final Class<T> fieldType,
-            final ClassMatchProcessor classMatchProcessor) {
-        addClassMatcher(new ClassMatchProcessorWrapper() {
-            @Override
-            public void lookForMatches(final ScanResult scanResult, final LogNode log) {
-                final String fieldTypeName = getClassName(fieldType);
-                for (final String className : scanResult.getNamesOfClassesWithFieldOfType(fieldTypeName)) {
-                    LogNode subLog = null;
-                    if (log != null) {
-                        subLog = log.log("Matched class with field of type " + fieldTypeName + ": " + className);
-                    }
-                    try {
-                        // Call classloader
-                        final Class<?> cls = loadClassForMatchProcessor(className, scanResult, log);
-                        // Process match
-                        if (cls != null) {
-                            classMatchProcessor.processMatch(cls);
-                        }
-                    } catch (final Throwable e) {
-                        if (subLog != null) {
-                            subLog.log("Exception while processing match for class " + fieldTypeName, e);
                         }
                         scanResult.addMatchProcessorException(e);
                     }

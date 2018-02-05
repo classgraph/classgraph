@@ -539,41 +539,6 @@ class ClassfileBinaryParser implements AutoCloseable {
         }
     }
 
-    /**
-     * Find non-blacklisted type names in the given type descriptor, and add them to the set of field types.
-     *
-     * <p>
-     * Splits a type param into type pieces, e.g. "Ljava/util/Map<+Lcom/xyz/fig/shape/Shape;Ljava/lang/Integer;>;"
-     * => "java/util/Map", "com/xyz/fig/shape/Shape", "java/lang/Integer".
-     *
-     * <p>
-     * Also removes array prefixes, e.g. "[[[Lcom.xyz.Widget" -> "com.xyz.Widget".
-     */
-    private void addFieldTypeDescriptorParts(final ClassInfoUnlinked classInfoUnlinked,
-            final String typeDescriptor) {
-        for (int i = 0; i < typeDescriptor.length(); i++) {
-            char c = typeDescriptor.charAt(i);
-            if (c == 'L') {
-                final int typeNameStart = ++i;
-                for (; i < typeDescriptor.length(); i++) {
-                    c = typeDescriptor.charAt(i);
-                    if (c == '<' || c == ';') {
-                        break;
-                    }
-                }
-                // Switch '/' package delimiter to '.' (lower overhead than String.replace('/', '.'))
-                final char[] typeNameChars = new char[i - typeNameStart];
-                for (int j = typeNameStart; j < i; j++) {
-                    final char chr = typeDescriptor.charAt(j);
-                    typeNameChars[j - typeNameStart] = chr == '/' ? '.' : chr;
-                }
-                final String typeName = new String(typeNameChars);
-                // Check if the type of this field falls within a non-blacklisted package, and if not, add it
-                classInfoUnlinked.addFieldType(typeName);
-            }
-        }
-    }
-
     private static final AnnotationInfo[] NO_ANNOTATIONS = new AnnotationInfo[0];
 
     /**
@@ -754,7 +719,7 @@ class ClassfileBinaryParser implements AutoCloseable {
             final boolean matchThisStaticFinalField = matchStaticFinalFields && isStaticFinalField
                     && fieldIsVisible;
             if (!fieldIsVisible || //
-                    (!scanSpec.enableFieldInfo && (!scanSpec.enableFieldTypeIndexing && !matchThisStaticFinalField)
+                    (!scanSpec.enableFieldInfo && !matchThisStaticFinalField
                             && !scanSpec.enableFieldAnnotationIndexing)) {
                 // Skip field
                 readUnsignedShort(); // fieldNameCpIdx
@@ -785,12 +750,6 @@ class ClassfileBinaryParser implements AutoCloseable {
                     fieldTypeDescriptor = getConstantPoolString(fieldTypeDescriptorCpIdx);
                 }
 
-                // Check if the type of this field falls within a non-blacklisted package, and if so, record the
-                // field and its type
-                if (scanSpec.enableFieldTypeIndexing && fieldIsVisible) {
-                    addFieldTypeDescriptorParts(classInfoUnlinked, getConstantPoolString(fieldTypeDescriptorCpIdx));
-                }
-
                 Object fieldConstValue = null;
                 boolean foundFieldConstValue = false;
                 List<AnnotationInfo> fieldAnnotationInfo = null;
@@ -810,17 +769,10 @@ class ClassfileBinaryParser implements AutoCloseable {
                             classInfoUnlinked.addFieldConstantValue(fieldName, fieldConstValue);
                         }
                         foundFieldConstValue = true;
-                    } else if ((scanSpec.enableFieldTypeIndexing || scanSpec.enableFieldInfo) && fieldIsVisible
+                    } else if (scanSpec.enableFieldInfo && fieldIsVisible
                             && constantPoolStringEquals(attributeNameCpIdx, "Signature")) {
                         final String fieldTypeSignature = getConstantPoolString(readUnsignedShort());
                         fieldTypeDescriptor = fieldTypeSignature;
-                        if (scanSpec.enableFieldTypeIndexing) {
-                            // Check if the type signature of this field falls within a non-blacklisted package, and
-                            // if so, record the field type. The type signature contains type parameters, whereas
-                            // the type descriptor does not.
-                            addFieldTypeDescriptorParts(classInfoUnlinked, fieldTypeSignature);
-                            // Add type params to field type signature
-                        }
                     } else if ((scanSpec.enableFieldInfo || scanSpec.enableFieldAnnotationIndexing)
                             && (constantPoolStringEquals(attributeNameCpIdx, "RuntimeVisibleAnnotations")
                                     || (scanSpec.annotationVisibility == RetentionPolicy.CLASS
