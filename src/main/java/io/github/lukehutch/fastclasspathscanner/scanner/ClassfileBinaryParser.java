@@ -40,6 +40,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import io.github.lukehutch.fastclasspathscanner.scanner.AnnotationInfo.AnnotationClassRef;
 import io.github.lukehutch.fastclasspathscanner.scanner.AnnotationInfo.AnnotationEnumValue;
 import io.github.lukehutch.fastclasspathscanner.scanner.AnnotationInfo.AnnotationParamValue;
+//import io.github.lukehutch.fastclasspathscanner.typesignature.MethodTypeSignature;
+//import io.github.lukehutch.fastclasspathscanner.utils.Join;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.MultiMapKeyToSet;
 
@@ -925,13 +927,31 @@ class ClassfileBinaryParser implements AutoCloseable {
 
 //                    // DEBUG PRINT STATEMENTS:
 //                    MethodTypeSignature typeDescriptor = MethodTypeSignature.parse(methodTypeDescriptor);
-//                    int n = typeDescriptor.getParameterTypeSignatures().size();
+//                    int numDescParams = typeDescriptor.getParameterTypeSignatures().size();
 //                    MethodTypeSignature typeSignature = methodTypeSignature == null ? null
 //                            : MethodTypeSignature.parse(methodTypeSignature);
-//                    if ((typeSignature != null && n != typeSignature.getParameterTypeSignatures().size())
-//                            || (methodParameterNames != null && methodParameterNames.length != n)
-//                            || (methodParameterAccessFlags != null && methodParameterAccessFlags.length != n)
-//                            || (methodParameterAnnotations != null && methodParameterAnnotations.length != n)) {
+//                    int numSigParams = typeSignature == null ? 0
+//                            : typeSignature.getParameterTypeSignatures().size();
+//                    int numSyntheticParams = 0;
+//                    int numMandatedParams = 0;
+//                    if (methodParameterAccessFlags != null) {
+//                        for (int j = 0; j < methodParameterAccessFlags.length; j++) {
+//                            if ((methodParameterAccessFlags[j] & 0x1000) != 0) {
+//                                numSyntheticParams++;
+//                            }
+//                            if ((methodParameterAccessFlags[j] & 0x8000) != 0) {
+//                                numMandatedParams++;
+//                            }
+//                        }
+//                    }
+//                    if ((typeSignature != null && numDescParams != numSigParams)
+//                            || (typeSignature != null && methodParameterAccessFlags != null
+//                                    && (numSigParams + numSyntheticParams + numMandatedParams != numDescParams))
+//                            || (methodParameterNames != null && methodParameterNames.length != numDescParams)
+//                            || (methodParameterAccessFlags != null
+//                                    && methodParameterAccessFlags.length != numDescParams)
+//                            || (methodParameterAnnotations != null
+//                                    && methodParameterAnnotations.length != numDescParams)) {
 //                        String mpa = null;
 //                        if (methodParameterAnnotations != null) {
 //                            StringBuilder buf = new StringBuilder();
@@ -958,30 +978,32 @@ class ClassfileBinaryParser implements AutoCloseable {
 //                            }
 //                            mpaf = buf.toString();
 //                        }
-//                        System.out.println("class name: " + className + "\n  method name: " + methodName
-//                                + "\n  method type descriptor: " + //
-//                                methodTypeDescriptor + "\n    type descriptor method params: "
-//                                + Join.join(", ", typeDescriptor.getParameterTypeSignatures())
-//                                + "\n      type descriptor method param count: " + //
-//                                n + "\n  method signature: " + //
-//                                methodTypeSignature + "\n    type signature method params: "
+//                        System.out.println("\nArity mismatch for class: " + className + "\n  method name: " + methodName
+//                                + "\n  method type descriptor: " + methodTypeDescriptor //
+//                                + "\n    " + numDescParams + " type descriptor method param(s): "
+//                                + Join.join(", ", typeDescriptor.getParameterTypeSignatures()) + "\n    "
+//                                + (methodParameterNames == null ? "?" : methodParameterNames.length)
+//                                + " parameter name(s): "
+//                                + (methodParameterNames == null ? "null"
+//                                        : Join.join(", ", (Object[]) methodParameterNames)) //
+//                                + "\n    "
+//                                + (methodParameterAccessFlags == null ? "?" : methodParameterAccessFlags.length)
+//                                + " parameter access flag(s): "
+//                                + (methodParameterAccessFlags == null ? "null" : mpaf) //
+//                                + "\n      " + numSyntheticParams
+//                                + " synthetic param(s)" //
+//                                + "\n      " + numMandatedParams
+//                                + " mandated param(s)" //
+//                                + "\n  method signature: " + methodTypeSignature // 
+//                                + "\n    "
+//                                + (typeSignature == null ? "?" : typeSignature.getParameterTypeSignatures().size())
+//                                + " type signature method param(s): "
 //                                + (typeSignature == null ? "null"
-//                                        : Join.join(", ", typeSignature.getParameterTypeSignatures())
-//                                                + "\n      type signature method param count: "
-//                                                + typeSignature.getParameterTypeSignatures().size())
-//                                + "\n  parameter names: " + //
-//                                (methodParameterNames == null ? "null"
-//                                        : Join.join(", ", (Object[]) methodParameterNames)
-//                                                + "\n    parameter name count: " + methodParameterNames.length)
-//                                + "\n  parameter access flags: " + //
-//                                (methodParameterAccessFlags == null ? "null"
-//                                        : mpaf + "\n    parameter access flag count: "
-//                                                + methodParameterAccessFlags.length) //
-//                                + "\n  parameter annotations: " + //
-//                                (methodParameterAnnotations == null ? "null"
-//                                        : mpa + "\n    parameter annotation count: "
-//                                                + methodParameterAnnotations.length)
-//                        );
+//                                        : Join.join(", ", typeSignature.getParameterTypeSignatures())) //
+//                                + "\n    "
+//                                + (methodParameterAnnotations == null ? "?" : methodParameterAnnotations.length)
+//                                + " parameter annotation(s): "
+//                                + (methodParameterAnnotations == null ? "null" : mpa));
 //                    }
 
                     classInfoUnlinked.addMethodInfo(new MethodInfo(className, methodName, methodAnnotationInfo,
