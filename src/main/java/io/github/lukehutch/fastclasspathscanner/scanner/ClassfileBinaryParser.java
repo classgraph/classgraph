@@ -960,27 +960,28 @@ class ClassfileBinaryParser implements AutoCloseable {
 //                        }
 //                        System.out.println("class name: " + className + "\n  method name: " + methodName
 //                                + "\n  method type descriptor: " + //
-//                                methodTypeDescriptor + "\n    type descriptor method params: " + //
-//                                Join.join(", ", typeDescriptor.getParameterTypeSignatures())
+//                                methodTypeDescriptor + "\n    type descriptor method params: "
+//                                + Join.join(", ", typeDescriptor.getParameterTypeSignatures())
 //                                + "\n      type descriptor method param count: " + //
 //                                n + "\n  method signature: " + //
-//                                methodTypeSignature + "\n    type signature method params: " + //
-//                                (typeSignature == null ? "null"
+//                                methodTypeSignature + "\n    type signature method params: "
+//                                + (typeSignature == null ? "null"
 //                                        : Join.join(", ", typeSignature.getParameterTypeSignatures())
-//                                                + "\n      type signature method param count: " + //
-//                                                typeSignature.getParameterTypeSignatures().size())
+//                                                + "\n      type signature method param count: "
+//                                                + typeSignature.getParameterTypeSignatures().size())
 //                                + "\n  parameter names: " + //
 //                                (methodParameterNames == null ? "null"
 //                                        : Join.join(", ", (Object[]) methodParameterNames)
 //                                                + "\n    parameter name count: " + methodParameterNames.length)
+//                                + "\n  parameter access flags: " + //
+//                                (methodParameterAccessFlags == null ? "null"
+//                                        : mpaf + "\n    parameter access flag count: "
+//                                                + methodParameterAccessFlags.length) //
 //                                + "\n  parameter annotations: " + //
 //                                (methodParameterAnnotations == null ? "null"
 //                                        : mpa + "\n    parameter annotation count: "
 //                                                + methodParameterAnnotations.length)
-//                                + "\n  parameter access flags: " + //
-//                                (methodParameterAccessFlags == null ? "null"
-//                                        : mpaf + "\n    parameter access flag count: "
-//                                                + methodParameterAccessFlags.length));
+//                        );
 //                    }
 
                     classInfoUnlinked.addMethodInfo(new MethodInfo(className, methodName, methodAnnotationInfo,
