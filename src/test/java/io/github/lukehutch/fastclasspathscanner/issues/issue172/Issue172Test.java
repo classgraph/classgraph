@@ -4,11 +4,11 @@ import java.io.IOException;
 
 import org.junit.Test;
 
-import io.github.lukehutch.fastclasspathscanner.utils.TypeParser;
+import io.github.lukehutch.fastclasspathscanner.typesignature.MethodSignature;
 
 public class Issue172Test {
     @Test
     public void classAnnotationParameters() throws IOException {
-        TypeParser.parseMethodSignature("<T:Ljava/lang/Object;>(Lcom/xyz/TestC<TT;>;)Lcom/xyz/TestB<TT;>;");
+        MethodSignature.parse("<T:Ljava/lang/Object;>(Lcom/xyz/TestC<TT;>;)Lcom/xyz/TestB<TT;>;");
     }
 }

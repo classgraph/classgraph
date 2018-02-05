@@ -37,9 +37,9 @@ import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 
 import io.github.lukehutch.fastclasspathscanner.scanner.AnnotationInfo.AnnotationParamValue;
+import io.github.lukehutch.fastclasspathscanner.typesignature.ClassSignature;
 import io.github.lukehutch.fastclasspathscanner.utils.Join;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
-import io.github.lukehutch.fastclasspathscanner.utils.TypeParser;
 
 /**
  * Class information that has been directly read from the binary classfile, before it is cross-linked with other
@@ -238,8 +238,8 @@ class ClassInfoUnlinked {
                 subLog.log("Static final field values: " + Join.join(", ", fieldInitializers));
             }
             if (typeDescriptor != null) {
-                subLog.log("Class type signature: " + TypeParser.parseClassSignature(typeDescriptor)
-                        .toString(classModifiers, isAnnotation, isInterface, className));
+                subLog.log("Class type signature: " + ClassSignature.parse(typeDescriptor).toString(classModifiers,
+                        isAnnotation, isInterface, className));
             }
         }
     }

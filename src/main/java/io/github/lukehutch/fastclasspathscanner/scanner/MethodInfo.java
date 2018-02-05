@@ -35,11 +35,11 @@ import java.util.Collections;
 import java.util.List;
 
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult.InfoObject;
-import io.github.lukehutch.fastclasspathscanner.utils.TypeParser;
-import io.github.lukehutch.fastclasspathscanner.utils.TypeParser.ClassTypeOrTypeVariableSignature;
-import io.github.lukehutch.fastclasspathscanner.utils.TypeParser.MethodSignature;
-import io.github.lukehutch.fastclasspathscanner.utils.TypeParser.TypeParameter;
-import io.github.lukehutch.fastclasspathscanner.utils.TypeParser.TypeSignature;
+import io.github.lukehutch.fastclasspathscanner.typesignature.ClassTypeOrTypeVariableSignature;
+import io.github.lukehutch.fastclasspathscanner.typesignature.MethodSignature;
+import io.github.lukehutch.fastclasspathscanner.typesignature.TypeParameter;
+import io.github.lukehutch.fastclasspathscanner.typesignature.TypeSignature;
+import io.github.lukehutch.fastclasspathscanner.typesignature.TypeUtils;
 
 /**
  * Holds metadata about methods of a class encountered during a scan. All values are taken directly out of the
@@ -116,7 +116,7 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
      * getAccessFlags().
      */
     public String getModifiersStr() {
-        return TypeParser.modifiersToString(getModifiers(), /* isMethod = */ true);
+        return TypeUtils.modifiersToString(getModifiers(), /* isMethod = */ true);
     }
 
     /**
@@ -176,7 +176,7 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
      */
     public MethodSignature getTypeSignatureInternal() {
         if (typeSignatureInternal == null) {
-            typeSignatureInternal = TypeParser.parseMethodSignature(classInfo, typeDescriptorInternal);
+            typeSignatureInternal = MethodSignature.parse(classInfo, typeDescriptorInternal);
         }
         return typeSignatureInternal;
     }
@@ -191,7 +191,7 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
             return getTypeSignatureInternal();
         }
         if (typeSignatureHumanReadable == null) {
-            typeSignatureHumanReadable = TypeParser.parseMethodSignature(classInfo, typeDescriptorHumanReadable);
+            typeSignatureHumanReadable = MethodSignature.parse(classInfo, typeDescriptorHumanReadable);
         }
         return typeSignatureHumanReadable;
     }
@@ -207,24 +207,24 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
         } else if (getTypeSignatureInternal() == null) {
             return getTypeSignature();
         } else {
-            return TypeParser.merge(getTypeSignature(), getTypeSignatureInternal(),
+            return MethodSignature.merge(getTypeSignature(), getTypeSignatureInternal(),
                     getParameterModifiersInternal());
         }
     }
 
     /**
-     * Returns the return type signature for the method. If this is a constructor, the returned type will be void.
+     * Returns the result type signature for the method. If this is a constructor, the returned type will be void.
      */
-    public TypeSignature getReturnTypeSignature() {
-        return getTypeSignature().resultType;
+    public TypeSignature getResultTypeSignature() {
+        return getTypeSignature().getResultType();
     }
 
     /**
-     * Returns the return type for the method in string representation, e.g. "char[]". If this is a constructor, the
+     * Returns the result type for the method in string representation, e.g. "char[]". If this is a constructor, the
      * returned type will be "void".
      */
-    public String getReturnTypeStr() {
-        return getReturnTypeSignature().toString();
+    public String getResultTypeStr() {
+        return getResultTypeSignature().toString();
     }
 
     /**
@@ -235,8 +235,8 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
      * @throws IllegalArgumentException
      *             if the return type for the method could not be loaded.
      */
-    public Class<?> getReturnType() throws IllegalArgumentException {
-        return getReturnTypeSignature().instantiate(scanResult);
+    public Class<?> getResultType() throws IllegalArgumentException {
+        return getResultTypeSignature().instantiate(scanResult);
     }
 
     private static final String[] EMPTY_STRING_ARRAY = new String[0];
@@ -305,7 +305,7 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
      * array.
      */
     public TypeSignature[] getParameterTypeSignatures() {
-        return toTypeSignatureArray(getTypeSignature().paramTypes);
+        return toTypeSignatureArray(getTypeSignature().getParameterTypeSignatures());
     }
 
     /**
@@ -319,7 +319,7 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
      *             if the parameter types of the method could not be loaded.
      */
     public Class<?>[] getParameterTypes() throws IllegalArgumentException {
-        return toClassRefs(getTypeSignature().paramTypes, scanResult);
+        return toClassRefs(getTypeSignature().getParameterTypeSignatures(), scanResult);
     }
 
     /**
@@ -327,7 +327,7 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
      * "List<X>", "com.abc.XYZ"]}. If the method has no parameters, returns a zero-sized array.
      */
     public String[] getParameterTypeStrs() {
-        return toStringArray(getTypeSignature().paramTypes);
+        return toStringArray(getTypeSignature().getParameterTypeSignatures());
     }
 
     /**
@@ -335,7 +335,7 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
      * ["com.abc.BadException", "<X>"]}. If the method throws no exceptions, returns a zero-sized array.
      */
     public ClassTypeOrTypeVariableSignature[] getThrowsTypeSignatures() {
-        return toTypeOrTypeVariableSignatureArray(getTypeSignature().throwsSignatures);
+        return toTypeOrTypeVariableSignatureArray(getTypeSignature().getThrowsSignatures());
     }
 
     /**
@@ -343,7 +343,7 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
      * zero-sized array.
      */
     public Class<?>[] getThrowsTypes() {
-        return toClassRefs(getTypeSignature().throwsSignatures, scanResult);
+        return toClassRefs(getTypeSignature().getThrowsSignatures(), scanResult);
     }
 
     /**
@@ -351,14 +351,14 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
      * ["com.abc.BadException", "<X>"]}. If the method throws no exceptions, returns a zero-sized array.
      */
     public String[] getThrowsTypeStrs() {
-        return toStringArray(getTypeSignature().throwsSignatures);
+        return toStringArray(getTypeSignature().getThrowsSignatures());
     }
 
     /**
      * Returns the type parameters of the method. If the method has no type parameters, returns a zero-sized array.
      */
     public TypeParameter[] getTypeParameters() {
-        return toTypeParameterArray(getTypeSignature().typeParameters);
+        return toTypeParameterArray(getTypeSignature().getTypeParameters());
     }
 
     /**
@@ -366,7 +366,7 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
      * "<Y>"]}. If the method has no type parameters, returns a zero-sized array.
      */
     public String[] getTypeParameterStrs() {
-        return toStringArray(getTypeSignature().typeParameters);
+        return toStringArray(getTypeSignature().getTypeParameters());
     }
 
     /** Returns true if this method is public. */
@@ -459,13 +459,13 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
             // Copy modifiers only for entries that are non-synthetic
             int numNonSyntheticParams = 0;
             for (int i = 0; i < parameterAccessFlagsInternal.length; i++) {
-                if ((parameterAccessFlagsInternal[i] & TypeParser.MODIFIER_SYNTHETIC) == 0) {
+                if ((parameterAccessFlagsInternal[i] & TypeUtils.MODIFIER_SYNTHETIC) == 0) {
                     numNonSyntheticParams++;
                 }
             }
             parameterAccessFlags = new int[numNonSyntheticParams];
             for (int i = 0, j = 0; i < parameterAccessFlagsInternal.length; i++) {
-                if ((parameterAccessFlagsInternal[i] & TypeParser.MODIFIER_SYNTHETIC) == 0) {
+                if ((parameterAccessFlagsInternal[i] & TypeUtils.MODIFIER_SYNTHETIC) == 0) {
                     parameterAccessFlags[j++] = parameterAccessFlagsInternal[i];
                 }
             }
@@ -508,7 +508,7 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
         }
         final String[] parameterModifierStrs = new String[parameterAccessFlagsInternal.length];
         for (int i = 0; i < parameterAccessFlagsInternal.length; i++) {
-            parameterModifierStrs[i] = TypeParser.modifiersToString(parameterAccessFlagsInternal[i],
+            parameterModifierStrs[i] = TypeUtils.modifiersToString(parameterAccessFlagsInternal[i],
                     /* isMethod = */ false);
         }
         return parameterModifierStrs;
@@ -577,7 +577,7 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
             int j = 0;
             for (int i = 0; i < parameterAccessFlagsInternal.length; i++) {
                 parameterAnnotationInfoInternal[i] = //
-                        (parameterAccessFlagsInternal[i] & TypeParser.MODIFIER_SYNTHETIC) == 0 //
+                        (parameterAccessFlagsInternal[i] & TypeUtils.MODIFIER_SYNTHETIC) == 0 //
                                 ? parameterAnnotationInfo[j++] //
                                 : NO_ANNOTATIONS;
             }

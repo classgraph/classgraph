@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2016 Luke Hutchison
+ * Copyright (c) 2018 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -26,17 +26,14 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.lukehutch.fastclasspathscanner.issues.issue159;
+package io.github.lukehutch.fastclasspathscanner.typesignature;
 
-import java.io.IOException;
+import java.util.Set;
 
-import org.junit.Test;
-
-import io.github.lukehutch.fastclasspathscanner.typesignature.MethodSignature;
-
-public class Issue159Test {
-    @Test
-    public void classAnnotationParameters() throws IOException {
-        MethodSignature.parse("()Z");
-    }
+/**
+ * A Java type signature. Subclasses are ClassSignature, MethodSignature, and TypeSignature (for types of fields).
+ */
+public abstract class HierarchicalTypeSignature {
+    /** Get the names of all classes referenced in the type signature */
+    public abstract void getAllReferencedClassNames(final Set<String> classNameListOut);
 }

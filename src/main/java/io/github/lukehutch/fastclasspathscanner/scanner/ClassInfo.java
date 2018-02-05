@@ -44,13 +44,13 @@ import java.util.Set;
 
 import io.github.lukehutch.fastclasspathscanner.scanner.AnnotationInfo.AnnotationParamValue;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult.InfoObject;
+import io.github.lukehutch.fastclasspathscanner.typesignature.ClassSignature;
+import io.github.lukehutch.fastclasspathscanner.typesignature.MethodSignature;
+import io.github.lukehutch.fastclasspathscanner.typesignature.TypeSignature;
+import io.github.lukehutch.fastclasspathscanner.typesignature.TypeUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.AdditionOrderedSet;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.MultiMapKeyToList;
-import io.github.lukehutch.fastclasspathscanner.utils.TypeParser;
-import io.github.lukehutch.fastclasspathscanner.utils.TypeParser.ClassSignature;
-import io.github.lukehutch.fastclasspathscanner.utils.TypeParser.MethodSignature;
-import io.github.lukehutch.fastclasspathscanner.utils.TypeParser.TypeSignature;
 
 /** Holds metadata about a class encountered during a scan. */
 public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
@@ -164,7 +164,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
      * Get the field modifiers as a string, e.g. "public static final". For the modifier bits, call getModifiers().
      */
     public String getModifiersStr() {
-        return TypeParser.modifiersToString(classModifiers, /* isMethod = */ false);
+        return TypeUtils.modifiersToString(classModifiers, /* isMethod = */ false);
     }
 
     /** Get the JVM-internal type descriptor string for the class, if available (else returns null). */
@@ -178,7 +178,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
             return null;
         }
         if (typeSignature == null) {
-            typeSignature = TypeParser.parseClassSignature(typeDescriptor);
+            typeSignature = ClassSignature.parse(typeDescriptor);
         }
         return typeSignature;
     }
@@ -260,7 +260,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
             return typeSig.toString(classModifiers, isAnnotation, isInterface, className);
         } else {
             final StringBuilder buf = new StringBuilder();
-            TypeParser.modifiersToString(classModifiers, /* isMethod = */ false, buf);
+            TypeUtils.modifiersToString(classModifiers, /* isMethod = */ false, buf);
             if (buf.length() > 0) {
                 buf.append(' ');
             }
@@ -686,10 +686,9 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
         } else {
             // Merging together a class and an auxiliary class -- merge the type signatures
             if (this.typeSignature == null) {
-                this.typeSignature = TypeParser.parseClassSignature(this.typeDescriptor);
+                this.typeSignature = ClassSignature.parse(this.typeDescriptor);
             }
-            this.typeSignature = TypeParser.merge(this.typeSignature,
-                    TypeParser.parseClassSignature(typeDescriptor));
+            this.typeSignature = ClassSignature.merge(this.typeSignature, ClassSignature.parse(typeDescriptor));
             // Pick the raw type descriptor string that is shortest, it is probably the one for the base class
             if (this.typeDescriptor.length() > typeDescriptor.length()) {
                 this.typeDescriptor = typeDescriptor;

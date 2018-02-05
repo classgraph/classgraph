@@ -35,8 +35,8 @@ import java.util.Collections;
 import java.util.List;
 
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult.InfoObject;
-import io.github.lukehutch.fastclasspathscanner.utils.TypeParser;
-import io.github.lukehutch.fastclasspathscanner.utils.TypeParser.TypeSignature;
+import io.github.lukehutch.fastclasspathscanner.typesignature.TypeSignature;
+import io.github.lukehutch.fastclasspathscanner.typesignature.TypeUtils;
 
 /**
  * Holds metadata about fields of a class encountered during a scan. All values are taken directly out of the
@@ -99,7 +99,7 @@ public class FieldInfo extends InfoObject implements Comparable<FieldInfo> {
      * getAccessFlags().
      */
     public String getModifierStrs() {
-        return TypeParser.modifiersToString(modifiers, /* isMethod = */ false);
+        return TypeUtils.modifiersToString(modifiers, /* isMethod = */ false);
     }
 
     /** Returns true if this field is public. */
@@ -169,7 +169,7 @@ public class FieldInfo extends InfoObject implements Comparable<FieldInfo> {
      */
     public TypeSignature getTypeSignatureInternal() {
         if (typeSignatureInternal == null) {
-            typeSignatureInternal = TypeParser.parseTypeSignature(typeDescriptorInternal);
+            typeSignatureInternal = TypeSignature.parse(typeDescriptorInternal);
         }
         return typeSignatureInternal;
     }
@@ -183,7 +183,7 @@ public class FieldInfo extends InfoObject implements Comparable<FieldInfo> {
             return getTypeSignatureInternal();
         }
         if (typeSignatureHumanReadable == null) {
-            typeSignatureHumanReadable = TypeParser.parseTypeSignature(typeDescriptorHumanReadable);
+            typeSignatureHumanReadable = TypeSignature.parse(typeDescriptorHumanReadable);
         }
         return typeSignatureHumanReadable;
     }
@@ -291,7 +291,7 @@ public class FieldInfo extends InfoObject implements Comparable<FieldInfo> {
             if (buf.length() > 0) {
                 buf.append(' ');
             }
-            TypeParser.modifiersToString(modifiers, /* isMethod = */ false, buf);
+            TypeUtils.modifiersToString(modifiers, /* isMethod = */ false, buf);
         }
 
         if (buf.length() > 0) {
