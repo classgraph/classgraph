@@ -925,7 +925,7 @@ class ClassfileBinaryParser implements AutoCloseable {
                 }
                 if (scanSpec.enableMethodInfo) {
 
-//                    // DEBUG PRINT STATEMENTS:
+//                    // TODO: DEBUG PRINT STATEMENTS:
 //                    MethodTypeSignature typeDescriptor = MethodTypeSignature.parse(methodTypeDescriptor);
 //                    int numDescParams = typeDescriptor.getParameterTypeSignatures().size();
 //                    MethodTypeSignature typeSignature = methodTypeSignature == null ? null
@@ -944,14 +944,23 @@ class ClassfileBinaryParser implements AutoCloseable {
 //                            }
 //                        }
 //                    }
-//                    if ((typeSignature != null && numDescParams != numSigParams)
+//                    if ( // 1. If type signature is provided, and has a different number of parameters than
+//                         // type descriptor, then access flags must be provided
+//                    (typeSignature != null && numDescParams != numSigParams && methodParameterAccessFlags == null)
+//                            // 2. If MethodParameters is provided, then its length must be the same as type desc
+//                            || (methodParameterAccessFlags != null
+//                                    && numDescParams != methodParameterAccessFlags.length)
+//                            // 3. If type signature is provided, and has a different number of parameters
+//                            // than type descriptor, then there must be one synthetic or mandated param
+//                            // for each parameter in the difference between them
 //                            || (typeSignature != null && methodParameterAccessFlags != null
 //                                    && (numSigParams + numSyntheticParams + numMandatedParams != numDescParams))
-//                            || (methodParameterNames != null && methodParameterNames.length != numDescParams)
-//                            || (methodParameterAccessFlags != null
-//                                    && methodParameterAccessFlags.length != numDescParams)
+//                            // 4. If there are annotations, the number should match the number of descriptor params
+//                            // (although for Kotlin, sometimes they match the number of signature params, not the
+//                            // number of descriptor params)
 //                            || (methodParameterAnnotations != null
-//                                    && methodParameterAnnotations.length != numDescParams)) {
+//                                    && (methodParameterAnnotations.length != numDescParams
+//                                            || methodParameterAnnotations.length != numSigParams))) {
 //                        String mpa = null;
 //                        if (methodParameterAnnotations != null) {
 //                            StringBuilder buf = new StringBuilder();
@@ -978,32 +987,32 @@ class ClassfileBinaryParser implements AutoCloseable {
 //                            }
 //                            mpaf = buf.toString();
 //                        }
-//                        System.out.println("\nArity mismatch for class: " + className + "\n  method name: " + methodName
-//                                + "\n  method type descriptor: " + methodTypeDescriptor //
-//                                + "\n    " + numDescParams + " type descriptor method param(s): "
-//                                + Join.join(", ", typeDescriptor.getParameterTypeSignatures()) + "\n    "
-//                                + (methodParameterNames == null ? "?" : methodParameterNames.length)
-//                                + " parameter name(s): "
+//                        System.out.println("\nArity mismatch:" //
+//                                + "\n\n  class name: " + className //
+//                                + "\n\n  method name: " + methodName //
+//                                + "\n\n  type descriptor: " + methodTypeDescriptor //
+//                                + "\n    " + numDescParams + " type descriptor params: "
+//                                + Join.join(", ", typeDescriptor.getParameterTypeSignatures()) //
+//                                + "\n\n  type signature: " + methodTypeSignature // 
+//                                + "\n    "
+//                                + (typeSignature == null ? "?" : typeSignature.getParameterTypeSignatures().size())
+//                                + " type signature params: "
+//                                + (typeSignature == null ? "null"
+//                                        : Join.join(", ", typeSignature.getParameterTypeSignatures())) //
+//                                + "\n\n  param attributes:"
+//                                + "\n    "
+//                                + (methodParameterAnnotations == null ? "?" : methodParameterAnnotations.length)
+//                                + " param annotations: " + (methodParameterAnnotations == null ? "null" : mpa) //
+//                                + "\n    " + (methodParameterNames == null ? "?" : methodParameterNames.length)
+//                                + " param names: "
 //                                + (methodParameterNames == null ? "null"
 //                                        : Join.join(", ", (Object[]) methodParameterNames)) //
 //                                + "\n    "
 //                                + (methodParameterAccessFlags == null ? "?" : methodParameterAccessFlags.length)
-//                                + " parameter access flag(s): "
-//                                + (methodParameterAccessFlags == null ? "null" : mpaf) //
-//                                + "\n      " + numSyntheticParams
-//                                + " synthetic param(s)" //
-//                                + "\n      " + numMandatedParams
-//                                + " mandated param(s)" //
-//                                + "\n  method signature: " + methodTypeSignature // 
-//                                + "\n    "
-//                                + (typeSignature == null ? "?" : typeSignature.getParameterTypeSignatures().size())
-//                                + " type signature method param(s): "
-//                                + (typeSignature == null ? "null"
-//                                        : Join.join(", ", typeSignature.getParameterTypeSignatures())) //
-//                                + "\n    "
-//                                + (methodParameterAnnotations == null ? "?" : methodParameterAnnotations.length)
-//                                + " parameter annotation(s): "
-//                                + (methodParameterAnnotations == null ? "null" : mpa));
+//                                + " param access flags: " + (methodParameterAccessFlags == null ? "null" : mpaf) //
+//                                + "\n      " + numSyntheticParams + " synthetic params" //
+//                                + "\n      " + numMandatedParams + " mandated params" //
+//                        );
 //                    }
 
                     classInfoUnlinked.addMethodInfo(new MethodInfo(className, methodName, methodAnnotationInfo,
