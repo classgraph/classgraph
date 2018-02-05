@@ -55,14 +55,14 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
      * method parameters).
      */
     private final String typeDescriptorInternal;
-    private MethodSignature methodSignatureInternal;
+    private MethodSignature typeSignatureInternal;
     /**
      * The human-readable type descriptor (may have type parameter information included, if present and available,
      * and includes types for mandated method parameters, but does not include types for synthetic method
      * parameters).
      */
     private final String typeDescriptorHumanReadable;
-    private MethodSignature methodSignatureHumanReadable;
+    private MethodSignature typeSignatureHumanReadable;
 
     private final String[] parameterNames;
     private final int[] parameterAccessFlagsInternal;
@@ -177,10 +177,10 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
      * {@link getTypeSignatureUnified()}.
      */
     public MethodSignature getTypeSignatureInternal() {
-        if (methodSignatureInternal == null) {
-            methodSignatureInternal = TypeParser.parseMethodSignature(classInfo, typeDescriptorInternal);
+        if (typeSignatureInternal == null) {
+            typeSignatureInternal = TypeParser.parseMethodSignature(classInfo, typeDescriptorInternal);
         }
-        return methodSignatureInternal;
+        return typeSignatureInternal;
     }
 
     /**
@@ -192,10 +192,10 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
         if (typeDescriptorHumanReadable == null) {
             return getTypeSignatureInternal();
         }
-        if (methodSignatureHumanReadable == null) {
-            methodSignatureHumanReadable = TypeParser.parseMethodSignature(classInfo, typeDescriptorHumanReadable);
+        if (typeSignatureHumanReadable == null) {
+            typeSignatureHumanReadable = TypeParser.parseMethodSignature(classInfo, typeDescriptorHumanReadable);
         }
-        return methodSignatureHumanReadable;
+        return typeSignatureHumanReadable;
     }
 
     /**
