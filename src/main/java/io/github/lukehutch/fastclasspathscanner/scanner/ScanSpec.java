@@ -193,6 +193,14 @@ public class ScanSpec {
      */
     public boolean disableRecursiveScanning = false;
 
+    /**
+     * If true, exceptions thrown inside MatchProcessors are not re-thrown wrapped in a MatchProcessorException at
+     * the end of the scan, and the exceptions can be fetched using ScanResult.getMatchProcessorExceptions(). If
+     * false, at the end of a scan, if ScanResult.getMatchProcessorExceptions() returns a non-empty list,
+     * MatchProcessorException is thrown to the caller.
+     */
+    public boolean suppressMatchProcessorExceptions = false;
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
@@ -601,9 +609,9 @@ public class ScanSpec {
                 }
             }
             final List<Throwable> matchProcessorExceptions = scanResult.getMatchProcessorExceptions();
-            if (matchProcessorExceptions.size() > 0) {
-                // If one or more non-IO exceptions were thrown outside of FastClasspathScanner, throw
-                // MatchProcessorException
+            if (!suppressMatchProcessorExceptions && matchProcessorExceptions.size() > 0) {
+                // If one or more exceptions were thrown outside of FastClasspathScanner, and exceptions are
+                // not being suppressed, throw MatchProcessorException
                 if (log != null) {
                     log.log("Number of exceptions raised during classloading and/or while calling "
                             + "MatchProcessors: " + matchProcessorExceptions.size());

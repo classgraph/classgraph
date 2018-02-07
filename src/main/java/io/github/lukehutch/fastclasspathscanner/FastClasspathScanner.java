@@ -625,6 +625,30 @@ public class FastClasspathScanner {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Causes exceptions thrown inside MatchProcessors to not be re-thrown, wrapped in a MatchProcessorException, at
+     * the end of a synchronous scan. Instead, any thrown exceptions can be fetched using
+     * ScanResult.getMatchProcessorExceptions().
+     */
+    public FastClasspathScanner suppressMatchProcessorExceptions() {
+        suppressMatchProcessorExceptions(true);
+        return this;
+    }
+
+    /**
+     * If suppressMatchProcessorExceptions is true, exceptions thrown inside MatchProcessors are not re-thrown
+     * wrapped in a MatchProcessorException at the end of a synchronous scan, and any thrown exceptions can be
+     * fetched using ScanResult.getMatchProcessorExceptions(). If suppressMatchProcessorExceptions is false, at the
+     * end of a synchronous scan, if ScanResult.getMatchProcessorExceptions() returns a non-empty list,
+     * MatchProcessorException is thrown to the caller.
+     */
+    public FastClasspathScanner suppressMatchProcessorExceptions(boolean suppressMatchProcessorExceptions) {
+        getScanSpec().suppressMatchProcessorExceptions = suppressMatchProcessorExceptions;
+        return this;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
      * Find the classloader or classloaders most likely to represent the order that classloaders are used to resolve
      * classes in the current context. Uses the technique described by <a href=
      * "http://www.javaworld.com/article/2077344/core-java/find-a-way-out-of-the-classloader-maze.html">Vladimir
@@ -1458,7 +1482,10 @@ public class FastClasspathScanner {
      *            classpath scanning. Ideally the ExecutorService will have at least this many threads available.
      * @throws MatchProcessorException
      *             if classloading fails for any of the classes matched by a MatchProcessor, or if a MatchProcessor
-     *             throws an exception.
+     *             throws an exception. If {@link FastClasspathScanner#suppressMatchProcessorExceptions()} is called
+     *             before {@link FastClasspathScanner#scan()}, then {@link MatchProcessorException} will not be
+     *             thrown at the end of scanning, and instead, any exceptions that were thrown by MatchProcessors
+     *             can be fetched using {@link ScanResult#getMatchProcessorExceptions()}.
      * @throws ScanInterruptedException
      *             if any of the worker threads are interrupted during the scan. If you care about thread
      *             interruption, you should catch this exception. If you don't plan to interrupt the scan, you
@@ -1529,7 +1556,10 @@ public class FastClasspathScanner {
      *            The number of worker threads to start up.
      * @throws MatchProcessorException
      *             if classloading fails for any of the classes matched by a MatchProcessor, or if a MatchProcessor
-     *             throws an exception.
+     *             throws an exception. If {@link FastClasspathScanner#suppressMatchProcessorExceptions()} is called
+     *             before {@link FastClasspathScanner#scan()}, then {@link MatchProcessorException} will not be
+     *             thrown at the end of scanning, and instead, any exceptions that were thrown by MatchProcessors
+     *             can be fetched using {@link ScanResult#getMatchProcessorExceptions()}.
      * @throws ScanInterruptedException
      *             if any of the worker threads are interrupted during the scan (shouldn't happen under normal
      *             circumstances).
@@ -1553,7 +1583,10 @@ public class FastClasspathScanner {
      *
      * @throws MatchProcessorException
      *             if classloading fails for any of the classes matched by a MatchProcessor, or if a MatchProcessor
-     *             throws an exception.
+     *             throws an exception. If {@link FastClasspathScanner#suppressMatchProcessorExceptions()} is called
+     *             before {@link FastClasspathScanner#scan()}, then {@link MatchProcessorException} will not be
+     *             thrown at the end of scanning, and instead, any exceptions that were thrown by MatchProcessors
+     *             can be fetched using {@link ScanResult#getMatchProcessorExceptions()}.
      * @throws ScanInterruptedException
      *             if any of the worker threads are interrupted during the scan (shouldn't happen under normal
      *             circumstances).

@@ -36,12 +36,14 @@ import org.junit.Test;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchProcessor;
+import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
 
 public class Issue183Test {
     @Test
-    public void testSynthetic() {
+    public void testIOExceptionThrown() {
         try {
-            new FastClasspathScanner(Issue183Test.class.getPackage().getName()).disableRecursiveScanning()
+            new FastClasspathScanner(Issue183Test.class.getPackage().getName()) //
+                    .disableRecursiveScanning()
                     .matchFilenamePattern(".*", (FileMatchProcessor) (relativePath, inputStream, lengthBytes) -> {
                         throw new IOException("bombed");
                     }).scan();
@@ -49,5 +51,22 @@ public class Issue183Test {
         } catch (final Exception e) {
             assertThat(e.getCause().toString()).isEqualTo("java.io.IOException: bombed");
         }
+    }
+
+    @Test
+    public void testSuppressMatchProcessorExceptions() {
+        ScanResult scanResult = null;
+        try {
+            scanResult = new FastClasspathScanner(Issue183Test.class.getPackage().getName()) //
+                    .disableRecursiveScanning() //
+                    .suppressMatchProcessorExceptions()
+                    .matchFilenamePattern(".*", (FileMatchProcessor) (relativePath, inputStream, lengthBytes) -> {
+                        throw new IOException("bombed");
+                    }).scan();
+        } catch (final Exception e) {
+            throw new RuntimeException("Exception should not have been thrown");
+        }
+        assertThat(scanResult.getMatchProcessorExceptions().get(0).toString())
+                .isEqualTo("java.io.IOException: bombed");
     }
 }
