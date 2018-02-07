@@ -67,6 +67,8 @@ public abstract class ClasspathResource {
         return inputStreamLength;
     }
 
+    // TODO: turn FileMatchProcessors into abstract classes, and factor this dispatch out into a method of
+    // FileMatchProcessorAny
     public void processFileMatch(final FileMatchProcessorAny fileMatchProcessor, final LogNode log)
             throws IOException {
         if (fileMatchProcessor instanceof FilenameMatchProcessor) {
@@ -75,43 +77,79 @@ public abstract class ClasspathResource {
                     classpathEltFile, pathRelativeToClasspathPrefix);
         } else if (fileMatchProcessor instanceof FileMatchProcessor) {
             try {
-                ((FileMatchProcessor) fileMatchProcessor).processMatch(pathRelativeToClasspathPrefix, /*
-                                                                                                       * inputStream =
-                                                                                                       */
-                        open(), //
-                        inputStreamLength);
+                InputStream inputStream = null;
+                try {
+                    inputStream = open();
+                } catch (final IOException e) {
+                    if (log != null) {
+                        log.log("Exception while opening file " + this + ": " + e);
+                    }
+                }
+                if (inputStream != null) {
+                    ((FileMatchProcessor) fileMatchProcessor).processMatch(pathRelativeToClasspathPrefix,
+                            inputStream, inputStreamLength);
+                }
             } finally {
                 close();
             }
         } else if (fileMatchProcessor instanceof FileMatchProcessorWithContext) {
             try {
-                ((FileMatchProcessorWithContext) fileMatchProcessor).processMatch(classpathEltFile,
-                        pathRelativeToClasspathPrefix, //
-                        /* inputStream = */ open(), //
-                        inputStreamLength);
-            } finally {
-                close();
-            }
-        } else if (fileMatchProcessor instanceof FileMatchContentsProcessor) {
-            try {
-                ((FileMatchContentsProcessor) fileMatchProcessor).processMatch(pathRelativeToClasspathPrefix,
-                        FileUtils.readAllBytes(/* inputStream = */ open(), //
-                                inputStreamLength, log));
-            } finally {
-                close();
-            }
-        } else if (fileMatchProcessor instanceof FileMatchContentsProcessorWithContext) {
-            try {
-                ((FileMatchContentsProcessorWithContext) fileMatchProcessor).processMatch(classpathEltFile,
-                        pathRelativeToClasspathPrefix, //
-                        FileUtils.readAllBytes(/* inputStream = */ open(), //
-                                inputStreamLength, log));
+                InputStream inputStream = null;
+                try {
+                    inputStream = open();
+                } catch (final IOException e) {
+                    if (log != null) {
+                        log.log("Exception while opening file " + this + ": " + e);
+                    }
+                }
+                if (inputStream != null) {
+                    ((FileMatchProcessorWithContext) fileMatchProcessor).processMatch(classpathEltFile,
+                            pathRelativeToClasspathPrefix, //
+                            inputStream, //
+                            inputStreamLength);
+                }
             } finally {
                 close();
             }
         } else {
-            throw new RuntimeException(
-                    "Unknown FileMatchProcessor type " + fileMatchProcessor.getClass().getName());
+            if (fileMatchProcessor instanceof FileMatchContentsProcessor) {
+                try {
+                    byte[] fileContent = null;
+                    try {
+                        fileContent = FileUtils.readAllBytes(/* inputStream = */ open(), inputStreamLength, log);
+                    } catch (final IOException e) {
+                        if (log != null) {
+                            log.log("Exception while opening file " + this + ": " + e);
+                        }
+                    }
+                    if (fileContent != null) {
+                        ((FileMatchContentsProcessor) fileMatchProcessor)
+                                .processMatch(pathRelativeToClasspathPrefix, fileContent);
+                    }
+                } finally {
+                    close();
+                }
+            } else if (fileMatchProcessor instanceof FileMatchContentsProcessorWithContext) {
+                try {
+                    byte[] fileContent = null;
+                    try {
+                        fileContent = FileUtils.readAllBytes(/* inputStream = */ open(), inputStreamLength, log);
+                    } catch (final IOException e) {
+                        if (log != null) {
+                            log.log("Exception while opening file " + this + ": " + e);
+                        }
+                    }
+                    if (fileContent != null) {
+                        ((FileMatchContentsProcessorWithContext) fileMatchProcessor).processMatch(classpathEltFile,
+                                pathRelativeToClasspathPrefix, fileContent);
+                    }
+                } finally {
+                    close();
+                }
+            } else {
+                throw new RuntimeException(
+                        "Unknown FileMatchProcessor type " + fileMatchProcessor.getClass().getName());
+            }
         }
     }
 

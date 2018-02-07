@@ -153,6 +153,10 @@ public class ScanResult {
      *
      * @return A list of Throwables thrown while MatchProcessors were running.
      */
+    // TODO: currently, if a match processor exception is thrown, FastClasspathScanner throws an exception 
+    // once scanning is finished. This means that ScanResult is never actually returned. Need to add a
+    // configuration option for suppressing warnings, so that the exceptions list can be fetched from
+    // ScanResult on exit.
     public List<Throwable> getMatchProcessorExceptions() {
         return matchProcessorExceptions;
     }
