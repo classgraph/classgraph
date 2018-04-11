@@ -36,6 +36,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.google.common.escape.Escaper;
+import com.google.common.html.HtmlEscapers;
+
 import io.github.lukehutch.fastclasspathscanner.scanner.ClassInfo.ClassType;
 
 /** Builds the class graph, and provides methods for querying it. */
@@ -221,6 +224,71 @@ class ClassGraphBuilder {
         }
         return className.substring(0, dotIdx + 1) + "\\n" + className.substring(dotIdx + 1);
     }
+    private static String labelShort(final ClassInfo node) {
+        final String className = node.getClassName();
+        final int dotIdx = className.lastIndexOf('.');
+        if (dotIdx < 0) {
+            return className;
+        }
+        return className.substring(0, dotIdx + 1) +  className.substring(dotIdx + 1);
+    }
+    private static String labelFull(final ClassInfo node) {
+        Escaper es = HtmlEscapers.htmlEscaper();
+        StringBuilder buf = new StringBuilder();
+        buf.append("<");
+        buf.append("<TABLE border='1' cellborder='0' cellspacing='1'>");
+        final String className = node.getClassName();
+        final int dotIdx = className.lastIndexOf('.');
+        if (dotIdx < 0) {
+            buf.append("<TR><TD>" + es.escape(className) + "</TD></TR>");
+        }
+        else
+        {
+            buf.append("<TR><TD>" + es.escape(className.substring(0, dotIdx + 1)) + "</TD></TR><TR><TD><B>" + es.escape(className.substring(dotIdx + 1)) + "</B></TD></TR>");
+        }
+
+        if(node.fieldInfo != null && node.fieldInfo.size() > 0)
+        {
+            buf.append("<TR><TD cellpadding='0'>");
+            buf.append("<TABLE border='1' cellborder='0'>");
+            for(FieldInfo fi : node.fieldInfo)
+            {
+                buf.append("<TR><TD align='left'>&#43;").append(es.escape(fi.getFieldName())).append("&#58; ").append(es.escape(fi.getTypeStr())).append("</TD></TR>");
+            }
+            buf.append("</TABLE>");
+            buf.append("</TD></TR>");
+        }
+        if(node.methodInfo != null && node.methodInfo.size() > 0)
+        {
+            buf.append("<TR><TD cellpadding='0'>");
+            buf.append("<TABLE border='1' cellborder='0'>");
+            for(MethodInfo mi : node.methodInfo)
+            {
+                StringBuilder params = new StringBuilder();
+                if(mi.getParameterNames() != null && mi.getParameterTypes() != null) {
+                    String[] names=  mi.getParameterNames();
+                    String[] types = mi.getParameterTypeStrs();
+                    boolean first = true;
+                    for(int i = 0; i < mi.getNumParameters(); i++)
+                    {
+                        if(first)
+                        {
+                            first = false;
+                            params.append(es.escape(names[i])).append("&#58; ").append(es.escape(types[i]));
+                        }
+                        params.append(", ").append(es.escape(names[i])).append("&#58; ").append(es.escape(types[i]));
+                    }
+                }
+
+                buf.append("<TR><TD align='left'>&#43;").append(es.escape(mi.getMethodName())).append("&#40;").append(params.toString()).append("&#41;").append("&#58; ").append(es.escape(mi.getResultTypeStr())).append("</TD></TR>");
+            }
+            buf.append("</TABLE>");
+            buf.append("</TD></TR>");
+        }
+        buf.append("</TABLE>");
+        buf.append(">");
+        return buf.toString();
+    }
 
     private List<ClassInfo> lookup(final Set<String> classNames) {
         final List<ClassInfo> classInfoNodes = new ArrayList<>();
@@ -255,79 +323,156 @@ class ClassGraphBuilder {
         final Set<ClassInfo> annotationNodes = ClassInfo.filterClassInfo(allClassInfo,
                 /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.ANNOTATION);
 
-        buf.append("\nnode[shape=box,style=filled,fillcolor=\"#fff2b6\"];\n");
-        for (final ClassInfo node : standardClassNodes) {
-            if (!node.getClassName().equals("java.lang.Object")) {
-                buf.append("  \"" + label(node) + "\"\n");
-            }
-        }
-
-        buf.append("\nnode[shape=diamond,style=filled,fillcolor=\"#b6e7ff\"];\n");
-        for (final ClassInfo node : interfaceNodes) {
-            buf.append("  \"" + label(node) + "\"\n");
-        }
-
-        buf.append("\nnode[shape=oval,style=filled,fillcolor=\"#f3c9ff\"];\n");
-        for (final ClassInfo node : annotationNodes) {
-            buf.append("  \"" + label(node) + "\"\n");
-        }
-
-        buf.append("\n");
-        for (final ClassInfo classNode : standardClassNodes) {
-            final ClassInfo directSuperclassNode = classNode.getDirectSuperclass();
-            if (directSuperclassNode != null) {
-                // class --> superclass
-                if (!directSuperclassNode.getClassName().equals("java.lang.Object")) {
-                    buf.append("  \"" + label(classNode) + "\" -> \"" + label(directSuperclassNode) + "\"\n");
+        if (this.scanSpec.enableFieldInfo || this.scanSpec.enableMethodInfo) {
+            for (final ClassInfo node : standardClassNodes) {
+                if (!node.getClassName().equals("java.lang.Object")) {
+                    buf.append("\n").append("\"").append(labelShort(node)).append("\"").append("[shape=box,style=filled,fillcolor=\"#fff2b6\",label=").append(labelFull(node)).append("];\n");
                 }
             }
-            for (final ClassInfo implementedInterfaceNode : classNode.getDirectlyImplementedInterfaces()) {
-                // class --<> implemented interface
-                buf.append("  \"" + label(classNode) + "\" -> \"" + label(implementedInterfaceNode)
-                        + "\" [arrowhead=diamond]\n");
+
+            for (final ClassInfo node : interfaceNodes) {
+                buf.append("\n").append("\"").append(labelShort(node)).append("\"").append("[shape=diamond,style=filled,fillcolor=\"#b6e7ff\",label=").append(labelFull(node)).append("];\n");
             }
-            for (final ClassInfo fieldTypeNode : lookup(
-                    classNode.getClassNamesReferencedInFieldTypeDescriptors())) {
-                // class --[ ] field type (open box)
-                buf.append("  \"" + label(fieldTypeNode) + "\" -> \"" + label(classNode)
-                        + "\" [arrowtail=obox, dir=back]\n");
+
+            for (final ClassInfo node : annotationNodes) {
+                buf.append("\n").append("\"").append(labelShort(node)).append("\"").append("[shape=oval,style=filled,fillcolor=\"#f3c9ff\",label=").append(labelFull(node)).append("];\n");
             }
-            for (final ClassInfo fieldTypeNode : lookup(
-                    classNode.getClassNamesReferencedInMethodTypeDescriptors())) {
-                // class --[X] method type (filled box)
-                // TODO: update legend to show this new relationship type
-                buf.append("  \"" + label(fieldTypeNode) + "\" -> \"" + label(classNode)
-                        + "\" [arrowtail=box, dir=back]\n");
+
+
+            buf.append("\n");
+            for (final ClassInfo classNode : standardClassNodes) {
+                final ClassInfo directSuperclassNode = classNode.getDirectSuperclass();
+                if (directSuperclassNode != null) {
+                    // class --> superclass
+                    if (!directSuperclassNode.getClassName().equals("java.lang.Object")) {
+                        buf.append("  \"" + labelShort(classNode) + "\" -> \"" + labelShort(directSuperclassNode) + "\"\n");
+                    }
+                }
+                for (final ClassInfo implementedInterfaceNode : classNode.getDirectlyImplementedInterfaces()) {
+                    // class --<> implemented interface
+                    buf.append("  \"" + labelShort(classNode) + "\" -> \"" + labelShort(implementedInterfaceNode)
+                            + "\" [arrowhead=diamond]\n");
+                }
+                for (final ClassInfo fieldTypeNode : lookup(
+                        classNode.getClassNamesReferencedInFieldTypeDescriptors())) {
+                    // class --[ ] field type (open box)
+                    buf.append("  \"" + labelShort(fieldTypeNode) + "\" -> \"" + labelShort(classNode)
+                            + "\" [arrowtail=obox, dir=back]\n");
+                }
+                for (final ClassInfo fieldTypeNode : lookup(
+                        classNode.getClassNamesReferencedInMethodTypeDescriptors())) {
+                    // class --[X] method type (filled box)
+                    // TODO: update legend to show this new relationship type
+                    buf.append("  \"" + labelShort(fieldTypeNode) + "\" -> \"" + labelShort(classNode)
+                            + "\" [arrowtail=box, dir=back]\n");
+                }
             }
-        }
-        for (final ClassInfo interfaceNode : interfaceNodes) {
-            for (final ClassInfo superinterfaceNode : interfaceNode.getDirectSuperinterfaces()) {
-                // interface --<> superinterface
-                buf.append("  \"" + label(interfaceNode) + "\" -> \"" + label(superinterfaceNode)
-                        + "\" [arrowhead=diamond]\n");
+            for (final ClassInfo interfaceNode : interfaceNodes) {
+                for (final ClassInfo superinterfaceNode : interfaceNode.getDirectSuperinterfaces()) {
+                    // interface --<> superinterface
+                    buf.append("  \"" + labelShort(interfaceNode) + "\" -> \"" + labelShort(superinterfaceNode)
+                            + "\" [arrowhead=diamond]\n");
+                }
             }
-        }
-        for (final ClassInfo annotationNode : annotationNodes) {
-            for (final ClassInfo annotatedClassNode : annotationNode.getClassesWithDirectAnnotation()) {
-                // annotated class --o annotation
-                buf.append("  \"" + label(annotatedClassNode) + "\" -> \"" + label(annotationNode)
-                        + "\" [arrowhead=dot]\n");
+            for (final ClassInfo annotationNode : annotationNodes) {
+                for (final ClassInfo annotatedClassNode : annotationNode.getClassesWithDirectAnnotation()) {
+                    // annotated class --o annotation
+                    buf.append("  \"" + labelShort(annotatedClassNode) + "\" -> \"" + labelShort(annotationNode)
+                            + "\" [arrowhead=dot]\n");
+                }
+                for (final ClassInfo annotatedClassNode : annotationNode.getAnnotationsWithDirectMetaAnnotation()) {
+                    // annotation --o meta-annotation
+                    buf.append("  \"" + labelShort(annotatedClassNode) + "\" -> \"" + labelShort(annotationNode)
+                            + "\" [arrowhead=dot]\n");
+                }
+                for (final ClassInfo classWithMethodAnnotationNode : annotationNode
+                        .getClassesWithDirectMethodAnnotation()) {
+                    // class with method annotation --o method annotation
+                    buf.append("  \"" + labelShort(classWithMethodAnnotationNode) + "\" -> \"" + labelShort(annotationNode)
+                            + "\" [arrowhead=odot]\n");
+                }
+                for (final ClassInfo classWithMethodAnnotationNode : annotationNode.getClassesWithFieldAnnotation()) {
+                    // class with field annotation --o method annotation
+                    buf.append("  \"" + labelShort(classWithMethodAnnotationNode) + "\" -> \"" + labelShort(annotationNode)
+                            + "\" [arrowhead=odot]\n");
+                }
             }
-            for (final ClassInfo annotatedClassNode : annotationNode.getAnnotationsWithDirectMetaAnnotation()) {
-                // annotation --o meta-annotation
-                buf.append("  \"" + label(annotatedClassNode) + "\" -> \"" + label(annotationNode)
-                        + "\" [arrowhead=dot]\n");
+        } else {
+            buf.append("\nnode[shape=box,style=filled,fillcolor=\"#fff2b6\"];\n");
+            for (final ClassInfo node : standardClassNodes) {
+                if (!node.getClassName().equals("java.lang.Object")) {
+                    buf.append("  \"" + label(node) + "\"\n");
+                }
             }
-            for (final ClassInfo classWithMethodAnnotationNode : annotationNode
-                    .getClassesWithDirectMethodAnnotation()) {
-                // class with method annotation --o method annotation
-                buf.append("  \"" + label(classWithMethodAnnotationNode) + "\" -> \"" + label(annotationNode)
-                        + "\" [arrowhead=odot]\n");
+
+            buf.append("\nnode[shape=diamond,style=filled,fillcolor=\"#b6e7ff\"];\n");
+            for (final ClassInfo node : interfaceNodes) {
+                buf.append("  \"" + label(node) + "\"\n");
             }
-            for (final ClassInfo classWithMethodAnnotationNode : annotationNode.getClassesWithFieldAnnotation()) {
-                // class with field annotation --o method annotation
-                buf.append("  \"" + label(classWithMethodAnnotationNode) + "\" -> \"" + label(annotationNode)
-                        + "\" [arrowhead=odot]\n");
+
+            buf.append("\nnode[shape=oval,style=filled,fillcolor=\"#f3c9ff\"];\n");
+            for (final ClassInfo node : annotationNodes) {
+                buf.append("  \"" + label(node) + "\"\n");
+            }
+
+
+            buf.append("\n");
+            for (final ClassInfo classNode : standardClassNodes) {
+                final ClassInfo directSuperclassNode = classNode.getDirectSuperclass();
+                if (directSuperclassNode != null) {
+                    // class --> superclass
+                    if (!directSuperclassNode.getClassName().equals("java.lang.Object")) {
+                        buf.append("  \"" + label(classNode) + "\" -> \"" + label(directSuperclassNode) + "\"\n");
+                    }
+                }
+                for (final ClassInfo implementedInterfaceNode : classNode.getDirectlyImplementedInterfaces()) {
+                    // class --<> implemented interface
+                    buf.append("  \"" + label(classNode) + "\" -> \"" + label(implementedInterfaceNode)
+                            + "\" [arrowhead=diamond]\n");
+                }
+                for (final ClassInfo fieldTypeNode : lookup(
+                        classNode.getClassNamesReferencedInFieldTypeDescriptors())) {
+                    // class --[ ] field type (open box)
+                    buf.append("  \"" + label(fieldTypeNode) + "\" -> \"" + label(classNode)
+                            + "\" [arrowtail=obox, dir=back]\n");
+                }
+                for (final ClassInfo fieldTypeNode : lookup(
+                        classNode.getClassNamesReferencedInMethodTypeDescriptors())) {
+                    // class --[X] method type (filled box)
+                    // TODO: update legend to show this new relationship type
+                    buf.append("  \"" + label(fieldTypeNode) + "\" -> \"" + label(classNode)
+                            + "\" [arrowtail=box, dir=back]\n");
+                }
+            }
+            for (final ClassInfo interfaceNode : interfaceNodes) {
+                for (final ClassInfo superinterfaceNode : interfaceNode.getDirectSuperinterfaces()) {
+                    // interface --<> superinterface
+                    buf.append("  \"" + label(interfaceNode) + "\" -> \"" + label(superinterfaceNode)
+                            + "\" [arrowhead=diamond]\n");
+                }
+            }
+            for (final ClassInfo annotationNode : annotationNodes) {
+                for (final ClassInfo annotatedClassNode : annotationNode.getClassesWithDirectAnnotation()) {
+                    // annotated class --o annotation
+                    buf.append("  \"" + label(annotatedClassNode) + "\" -> \"" + label(annotationNode)
+                            + "\" [arrowhead=dot]\n");
+                }
+                for (final ClassInfo annotatedClassNode : annotationNode.getAnnotationsWithDirectMetaAnnotation()) {
+                    // annotation --o meta-annotation
+                    buf.append("  \"" + label(annotatedClassNode) + "\" -> \"" + label(annotationNode)
+                            + "\" [arrowhead=dot]\n");
+                }
+                for (final ClassInfo classWithMethodAnnotationNode : annotationNode
+                        .getClassesWithDirectMethodAnnotation()) {
+                    // class with method annotation --o method annotation
+                    buf.append("  \"" + label(classWithMethodAnnotationNode) + "\" -> \"" + label(annotationNode)
+                            + "\" [arrowhead=odot]\n");
+                }
+                for (final ClassInfo classWithMethodAnnotationNode : annotationNode.getClassesWithFieldAnnotation()) {
+                    // class with field annotation --o method annotation
+                    buf.append("  \"" + label(classWithMethodAnnotationNode) + "\" -> \"" + label(annotationNode)
+                            + "\" [arrowhead=odot]\n");
+                }
             }
         }
         buf.append("}");

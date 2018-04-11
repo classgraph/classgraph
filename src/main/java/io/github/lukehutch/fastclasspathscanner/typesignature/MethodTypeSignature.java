@@ -85,14 +85,17 @@ public class MethodTypeSignature extends HierarchicalTypeSignature {
     @Override
     public void getAllReferencedClassNames(final Set<String> classNameListOut) {
         for (final TypeParameter typeParameter : typeParameters) {
-            typeParameter.getAllReferencedClassNames(classNameListOut);
+            if(typeParameter != null)
+                typeParameter.getAllReferencedClassNames(classNameListOut);
         }
         for (final TypeSignature typeSignature : parameterTypeSignatures) {
-            typeSignature.getAllReferencedClassNames(classNameListOut);
+            if(typeSignature != null)
+                typeSignature.getAllReferencedClassNames(classNameListOut);
         }
         resultType.getAllReferencedClassNames(classNameListOut);
         for (final ClassRefOrTypeVariableSignature typeSignature : throwsSignatures) {
-            typeSignature.getAllReferencedClassNames(classNameListOut);
+            if(typeSignature != null)
+                typeSignature.getAllReferencedClassNames(classNameListOut);
         }
     }
 

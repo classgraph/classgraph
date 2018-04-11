@@ -170,7 +170,10 @@ public class FieldInfo extends InfoObject implements Comparable<FieldInfo> {
      *             if the field type could not be loaded.
      */
     public Class<?> getType() throws IllegalArgumentException {
-        return getTypeSignature().instantiate(scanResult);
+        if(getTypeSignature() != null)
+            return getTypeSignature().instantiate(scanResult);
+        else
+            return Object.class;
     }
 
     /** Returns the type of the field, in string representation (e.g. "int[][]"). */
