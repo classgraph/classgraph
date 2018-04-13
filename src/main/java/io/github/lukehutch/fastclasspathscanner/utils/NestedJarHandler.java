@@ -178,7 +178,21 @@ public class NestedJarHandler {
                     try {
                         // Look up the child path within the parent zipfile
                         parentZipFile = parentJarRecycler.acquire();
-                        final ZipEntry childZipEntry = parentZipFile.getEntry(childPath);
+                        ZipEntry childZipEntry;
+                        if (childPath.endsWith("/")) {
+                            childZipEntry = parentZipFile.getEntry(childPath);
+                        } else {
+                            // Try appending "/" to childPath when fetching the ZipEntry. This will return
+                            // the correct directory entry in buggy versions of the JRE, rather than returning
+                            // a non-directory entry for directories (Bug #171). See:
+                            // http://www.oracle.com/technetwork/java/javase/8u144-relnotes-3838694.html
+                            childZipEntry = parentZipFile.getEntry(childPath + "/");
+                            if (childZipEntry == null) {
+                                // If there was no directory entry ending in "/", then look up the childPath
+                                // without the appended "/".
+                                childZipEntry = parentZipFile.getEntry(childPath);
+                            }
+                        }
                         if (childZipEntry == null) {
                             if (log != null) {
                                 log.log(nestedJarPath, "Child path component " + childPath
