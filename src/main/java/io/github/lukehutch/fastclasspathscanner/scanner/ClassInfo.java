@@ -175,6 +175,69 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
         return TypeUtils.modifiersToString(classModifiers, /* isMethod = */ false);
     }
 
+    /**
+     * Test whether this ClassInfo corresponds to a public class.
+     *
+     * @return true if this ClassInfo corresponds to a public class.
+     */
+    public boolean isPublic() {
+        return (classModifiers & Modifier.PUBLIC) != 0;
+    }
+
+    /**
+     * Test whether this ClassInfo corresponds to an abstract class.
+     *
+     * @return true if this ClassInfo corresponds to an abstract class.
+     */
+    public boolean isAbstract() {
+        return (classModifiers & 0x400) != 0;
+    }
+
+    /**
+     * Test whether this ClassInfo corresponds to a synthetic class.
+     *
+     * @return true if this ClassInfo corresponds to a synthetic class.
+     */
+    public boolean isSynthetic() {
+        return (classModifiers & 0x1000) != 0;
+    }
+
+    /**
+     * Test whether this ClassInfo corresponds to a final class.
+     *
+     * @return true if this ClassInfo corresponds to a final class.
+     */
+    public boolean isFinal() {
+        return (classModifiers & Modifier.FINAL) != 0;
+    }
+
+    /**
+     * Test whether this ClassInfo corresponds to an annotation.
+     *
+     * @return true if this ClassInfo corresponds to an annotation.
+     */
+    public boolean isAnnotation() {
+        return isAnnotation;
+    }
+
+    /**
+     * Test whether this ClassInfo corresponds to an interface.
+     *
+     * @return true if this ClassInfo corresponds to an interface.
+     */
+    public boolean isInterface() {
+        return isInterface;
+    }
+
+    /**
+     * Test whether this ClassInfo corresponds to an enum.
+     *
+     * @return true if this ClassInfo corresponds to an enum.
+     */
+    public boolean isEnum() {
+        return (classModifiers & 0x4000) != 0;
+    }
+
     /** Get the JVM-internal type descriptor string for the class, if available (else returns null). */
     public String getTypeDescriptor() {
         return typeDescriptor;
@@ -1491,15 +1554,6 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     static List<String> getNamesOfAllAnnotationClasses(final ScanSpec scanSpec, final Set<ClassInfo> allClassInfo) {
         return getClassNames(filterClassInfo(allClassInfo, /* removeExternalClassesIfStrictWhitelist = */ true,
                 scanSpec, ClassType.ANNOTATION));
-    }
-
-    /**
-     * Test whether this classInfo is an annotation.
-     *
-     * @return true if this classInfo is an annotation.
-     */
-    public boolean isAnnotation() {
-        return isAnnotation;
     }
 
     // -------------
