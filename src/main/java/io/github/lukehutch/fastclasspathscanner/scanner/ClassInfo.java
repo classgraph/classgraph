@@ -126,9 +126,12 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     /** For annotations, the default values of parameters. */
     List<AnnotationParamValue> annotationDefaultParamValues;
 
+    private ScanResult scanResult;
+
     /** Sets back-reference to scan result after scan is complete. */
     @Override
     void setScanResult(final ScanResult scanResult) {
+        this.scanResult = scanResult;
         if (annotationInfo != null) {
             for (final AnnotationInfo ai : annotationInfo) {
                 ai.setScanResult(scanResult);
@@ -153,6 +156,11 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     /** Get the name of this class. */
     public String getClassName() {
         return className;
+    }
+
+    /** Get a class reference for this class. Calls the classloader. */
+    public Class<?> getClassRef() {
+        return scanResult.classNameToClassRef(className);
     }
 
     /** Get the class modifier flags, e.g. Modifier.PUBLIC */
