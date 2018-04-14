@@ -768,7 +768,10 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
         }
     }
 
-    /** Add annotation default values. */
+    /**
+     * Add annotation default values. (Only called in the case of annotation class definitions, when the annotation
+     * has default parameter values.)
+     */
     void addAnnotationParamDefaultValues(final List<AnnotationParamValue> paramNamesAndValues) {
         if (this.annotationDefaultParamValues == null) {
             this.annotationDefaultParamValues = paramNamesAndValues;
