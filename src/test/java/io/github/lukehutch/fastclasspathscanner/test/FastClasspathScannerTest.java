@@ -369,8 +369,7 @@ public class FastClasspathScannerTest {
     @Test
     public void generateGraphVizFile() {
         assertThat(new FastClasspathScanner(ROOT_PACKAGE).scan().generateClassGraphDotFile(20, 20))
-                .contains("\"io.github.lukehutch.fastclasspathscanner.test.whitelisted.\\nClsSub\" "
-                        + "-> \"io.github.lukehutch.fastclasspathscanner.test.whitelisted.\\nCls\"");
+                .contains("\"" + ClsSub.class.getName() + "\" -> \"" + Cls.class.getName() + "\"");
     }
 
     @Test
