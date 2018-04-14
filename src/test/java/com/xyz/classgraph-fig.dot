@@ -5,42 +5,41 @@ rankdir="BT";
 overlap=false;
 splines=true;
 pack=true;
+graph [fontname = "Courier, Regular"]node [fontname = "Courier, Regular"]edge [fontname = "Courier, Regular"]
+"com.xyz.fig.shape.Triangle"[shape=box,style=filled,fillcolor="#fff2b6",label=<<table border='0' cellborder='0' cellspacing='1'><tr><td>public synchronized class</td></tr><tr><td><b>com.xyz.fig.shape.</b></td></tr><tr><td><font point-size='24'><b>Triangle</b></font></td></tr><tr><td colspan='3' bgcolor='#ccc191'><font point-size='12'><b>FIELDS</b></font></td></tr><tr><td cellpadding='0'><table border='0' cellborder='0'><tr><td align='right' valign='top'> private float</td><td align='left' valign='top'><b>edgeLen</b></td></tr><tr><td align='right' valign='top'> private float</td><td align='left' valign='top'><b>rotation</b></td></tr></table></td></tr><tr><td cellpadding='0'><table border='0' cellborder='0'><tr><td colspan='3' bgcolor='#ccc191'><font point-size='12'><b>METHODS</b></font></td></tr><tr><td align='right' valign='top'> public <b>&lt;constructor&gt;</b></td><td align='left' valign='top'><b>Triangle</b>&nbsp;</td><td align='left' valign='top'>(float <B>x</B>, float <B>y</B>, float <B>edgeLen</B>, float <B>rotation</B>)</td></tr><tr><td align='right' valign='top'> public float</td><td align='left' valign='top'><b>getEdgeLen</b>&nbsp;</td><td align='left' valign='top'>()</td></tr><tr><td align='right' valign='top'> public float</td><td align='left' valign='top'><b>getRotation</b>&nbsp;</td><td align='left' valign='top'>()</td></tr><tr><td align='right' valign='top'> public void</td><td align='left' valign='top'><b>draw</b>&nbsp;</td><td align='left' valign='top'>(java.awt.Graphics2D <B>f</B>)</td></tr></table></td></tr></table>>];
 
-node[shape=box,style=filled,fillcolor="#fff2b6"];
-  "com.xyz.fig.shape.\nShapeImpl"
-  "com.xyz.fig.\nFigure"
-  "com.xyz.fig.shape.\nSquare"
-  "com.xyz.fig.shape.\nTriangle"
-  "com.xyz.fig.shape.\nCircle"
-  "com.xyz.fig.\nEditableFigure"
-  "com.xyz.fig.\nUneditableFigure"
-  "com.xyz.fig.shape.\nDiamond"
+"com.xyz.fig.SceneGraph"[shape=box,style=filled,fillcolor="#fff2b6",label=<<table border='0' cellborder='0' cellspacing='1'><tr><td>public synchronized class</td></tr><tr><td><b>com.xyz.fig.</b></td></tr><tr><td><font point-size='24'><b>SceneGraph</b></font></td></tr><tr><td colspan='3' bgcolor='#ccc191'><font point-size='12'><b>FIELDS</b></font></td></tr><tr><td cellpadding='0'><table border='0' cellborder='0'><tr><td align='right' valign='top'> java.util.ArrayList&lt;com.xyz.fig.shape.Shape&gt;</td><td align='left' valign='top'><b>shapes</b></td></tr></table></td></tr><tr><td cellpadding='0'><table border='0' cellborder='0'><tr><td colspan='3' bgcolor='#ccc191'><font point-size='12'><b>METHODS</b></font></td></tr><tr><td align='right' valign='top'> public <b>&lt;constructor&gt;</b></td><td align='left' valign='top'><b>SceneGraph</b>&nbsp;</td><td align='left' valign='top'>()</td></tr><tr><td align='right' valign='top'> public void</td><td align='left' valign='top'><b>addShape</b>&nbsp;</td><td align='left' valign='top'>(com.xyz.fig.shape.Shape <B>shape</B>)</td></tr><tr><td align='right' valign='top'> public void</td><td align='left' valign='top'><b>draw</b>&nbsp;</td><td align='left' valign='top'>(java.awt.Graphics2D <B>g</B>)</td></tr></table></td></tr></table>>];
 
-node[shape=diamond,style=filled,fillcolor="#b6e7ff"];
-  "com.xyz.fig.\nRenderable"
-  "com.xyz.fig.\nSerializable"
-  "com.xyz.fig.\nSaveable"
-  "com.xyz.fig.shape.\nShape"
-  "com.xyz.fig.\nUIEventListener"
+"com.xyz.fig.shape.ShapeImpl"[shape=box,style=filled,fillcolor="#fff2b6",label=<<table border='0' cellborder='0' cellspacing='1'><tr><td>public abstract synchronized class</td></tr><tr><td><b>com.xyz.fig.shape.</b></td></tr><tr><td><font point-size='24'><b>ShapeImpl</b></font></td></tr><tr><td colspan='3' bgcolor='#ccc191'><font point-size='12'><b>FIELDS</b></font></td></tr><tr><td cellpadding='0'><table border='0' cellborder='0'><tr><td align='right' valign='top'> private float</td><td align='left' valign='top'><b>x</b></td></tr><tr><td align='right' valign='top'> private float</td><td align='left' valign='top'><b>y</b></td></tr></table></td></tr><tr><td cellpadding='0'><table border='0' cellborder='0'><tr><td colspan='3' bgcolor='#ccc191'><font point-size='12'><b>METHODS</b></font></td></tr><tr><td align='right' valign='top'> public <b>&lt;constructor&gt;</b></td><td align='left' valign='top'><b>ShapeImpl</b>&nbsp;</td><td align='left' valign='top'>(float <B>x</B>, float <B>y</B>)</td></tr><tr><td align='right' valign='top'> public float</td><td align='left' valign='top'><b>getX</b>&nbsp;</td><td align='left' valign='top'>()</td></tr><tr><td align='right' valign='top'> public float</td><td align='left' valign='top'><b>getY</b>&nbsp;</td><td align='left' valign='top'>()</td></tr><tr><td align='right' valign='top'> public abstract void</td><td align='left' valign='top'><b>draw</b>&nbsp;</td><td align='left' valign='top'>(java.awt.Graphics2D <B>f</B>)</td></tr></table></td></tr></table>>];
 
-node[shape=oval,style=filled,fillcolor="#f3c9ff"];
-  "com.xyz.fig.\nUIWidget"
-  "com.xyz.fig.\nUIElement"
+"com.xyz.fig.Figure"[shape=box,style=filled,fillcolor="#fff2b6",label=<<table border='0' cellborder='0' cellspacing='1'><tr><td>public synchronized class</td></tr><tr><td><b>com.xyz.fig.</b></td></tr><tr><td><font point-size='24'><b>Figure</b></font></td></tr><tr><td colspan='3' bgcolor='#ccc191'><font point-size='12'><b>ANNOTATIONS</b></font></td></tr><tr><td align='center' valign='top'>@com.xyz.fig.UIWidget</td></tr><tr><td colspan='3' bgcolor='#ccc191'><font point-size='12'><b>FIELDS</b></font></td></tr><tr><td cellpadding='0'><table border='0' cellborder='0'><tr><td align='right' valign='top'> com.xyz.fig.SceneGraph</td><td align='left' valign='top'><b>sceneGraph</b></td></tr></table></td></tr><tr><td cellpadding='0'><table border='0' cellborder='0'><tr><td colspan='3' bgcolor='#ccc191'><font point-size='12'><b>METHODS</b></font></td></tr><tr><td align='right' valign='top'> public <b>&lt;constructor&gt;</b></td><td align='left' valign='top'><b>Figure</b>&nbsp;</td><td align='left' valign='top'>()</td></tr><tr><td align='right' valign='top'> public void</td><td align='left' valign='top'><b>addShape</b>&nbsp;</td><td align='left' valign='top'>(com.xyz.fig.shape.Shape <B>shape</B>)</td></tr><tr><td align='right' valign='top'> public void</td><td align='left' valign='top'><b>draw</b>&nbsp;</td><td align='left' valign='top'>(java.awt.Graphics2D <B>g</B>)</td></tr></table></td></tr></table>>];
 
-  "com.xyz.fig.shape.\nShapeImpl" -> "com.xyz.fig.shape.\nShape" [arrowhead=diamond]
-  "com.xyz.fig.shape.\nShapeImpl" -> "com.xyz.fig.\nRenderable" [arrowhead=diamond]
-  "com.xyz.fig.\nFigure" -> "com.xyz.fig.\nRenderable" [arrowhead=diamond]
-  "com.xyz.fig.\nFigure" -> "com.xyz.fig.\nSaveable" [arrowhead=diamond]
-  "com.xyz.fig.shape.\nShape" -> "com.xyz.fig.\nFigure" [arrowtail=obox, dir=back]
-  "com.xyz.fig.shape.\nSquare" -> "com.xyz.fig.shape.\nShapeImpl"
-  "com.xyz.fig.shape.\nTriangle" -> "com.xyz.fig.shape.\nShapeImpl"
-  "com.xyz.fig.shape.\nCircle" -> "com.xyz.fig.shape.\nShapeImpl"
-  "com.xyz.fig.\nEditableFigure" -> "com.xyz.fig.\nFigure"
-  "com.xyz.fig.\nEditableFigure" -> "com.xyz.fig.\nUIEventListener" [arrowhead=diamond]
-  "com.xyz.fig.\nUneditableFigure" -> "com.xyz.fig.\nFigure"
-  "com.xyz.fig.shape.\nDiamond" -> "com.xyz.fig.shape.\nShapeImpl"
-  "com.xyz.fig.\nSaveable" -> "com.xyz.fig.\nSerializable" [arrowhead=diamond]
-  "com.xyz.fig.shape.\nShape" -> "com.xyz.fig.\nRenderable" [arrowhead=diamond]
-  "com.xyz.fig.\nUIWidget" -> "com.xyz.fig.\nUIElement" [arrowhead=dot]
-  "com.xyz.fig.\nFigure" -> "com.xyz.fig.\nUIWidget" [arrowhead=dot]
+"com.xyz.fig.shape.Circle"[shape=box,style=filled,fillcolor="#fff2b6",label=<<table border='0' cellborder='0' cellspacing='1'><tr><td>public synchronized class</td></tr><tr><td><b>com.xyz.fig.shape.</b></td></tr><tr><td><font point-size='24'><b>Circle</b></font></td></tr><tr><td colspan='3' bgcolor='#ccc191'><font point-size='12'><b>FIELDS</b></font></td></tr><tr><td cellpadding='0'><table border='0' cellborder='0'><tr><td align='right' valign='top'> private float</td><td align='left' valign='top'><b>r</b></td></tr></table></td></tr><tr><td cellpadding='0'><table border='0' cellborder='0'><tr><td colspan='3' bgcolor='#ccc191'><font point-size='12'><b>METHODS</b></font></td></tr><tr><td align='right' valign='top'> public <b>&lt;constructor&gt;</b></td><td align='left' valign='top'><b>Circle</b>&nbsp;</td><td align='left' valign='top'>(float <B>x</B>, float <B>y</B>, float <B>r</B>)</td></tr><tr><td align='right' valign='top'> public float</td><td align='left' valign='top'><b>getR</b>&nbsp;</td><td align='left' valign='top'>()</td></tr><tr><td align='right' valign='top'> public void</td><td align='left' valign='top'><b>draw</b>&nbsp;</td><td align='left' valign='top'>(java.awt.Graphics2D <B>f</B>)</td></tr></table></td></tr></table>>];
+
+"com.xyz.fig.shape.Square"[shape=box,style=filled,fillcolor="#fff2b6",label=<<table border='0' cellborder='0' cellspacing='1'><tr><td>public synchronized class</td></tr><tr><td><b>com.xyz.fig.shape.</b></td></tr><tr><td><font point-size='24'><b>Square</b></font></td></tr><tr><td colspan='3' bgcolor='#ccc191'><font point-size='12'><b>FIELDS</b></font></td></tr><tr><td cellpadding='0'><table border='0' cellborder='0'><tr><td align='right' valign='top'> private float</td><td align='left' valign='top'><b>size</b></td></tr></table></td></tr><tr><td cellpadding='0'><table border='0' cellborder='0'><tr><td colspan='3' bgcolor='#ccc191'><font point-size='12'><b>METHODS</b></font></td></tr><tr><td align='right' valign='top'> public <b>&lt;constructor&gt;</b></td><td align='left' valign='top'><b>Square</b>&nbsp;</td><td align='left' valign='top'>(float <B>x</B>, float <B>y</B>, float <B>size</B>)</td></tr><tr><td align='right' valign='top'> public float</td><td align='left' valign='top'><b>getSize</b>&nbsp;</td><td align='left' valign='top'>()</td></tr><tr><td align='right' valign='top'> public void</td><td align='left' valign='top'><b>draw</b>&nbsp;</td><td align='left' valign='top'>(java.awt.Graphics2D <B>f</B>)</td></tr></table></td></tr></table>>];
+
+"com.xyz.fig.shape.Diamond"[shape=box,style=filled,fillcolor="#fff2b6",label=<<table border='0' cellborder='0' cellspacing='1'><tr><td>public synchronized class</td></tr><tr><td><b>com.xyz.fig.shape.</b></td></tr><tr><td><font point-size='24'><b>Diamond</b></font></td></tr><tr><td colspan='3' bgcolor='#ccc191'><font point-size='12'><b>FIELDS</b></font></td></tr><tr><td cellpadding='0'><table border='0' cellborder='0'><tr><td align='right' valign='top'> private float</td><td align='left' valign='top'><b>w</b></td></tr><tr><td align='right' valign='top'> private float</td><td align='left' valign='top'><b>h</b></td></tr></table></td></tr><tr><td cellpadding='0'><table border='0' cellborder='0'><tr><td colspan='3' bgcolor='#ccc191'><font point-size='12'><b>METHODS</b></font></td></tr><tr><td align='right' valign='top'> public <b>&lt;constructor&gt;</b></td><td align='left' valign='top'><b>Diamond</b>&nbsp;</td><td align='left' valign='top'>(float <B>x</B>, float <B>y</B>, float <B>w</B>, float <B>h</B>)</td></tr><tr><td align='right' valign='top'> public float</td><td align='left' valign='top'><b>getW</b>&nbsp;</td><td align='left' valign='top'>()</td></tr><tr><td align='right' valign='top'> public float</td><td align='left' valign='top'><b>getH</b>&nbsp;</td><td align='left' valign='top'>()</td></tr><tr><td align='right' valign='top'> public void</td><td align='left' valign='top'><b>draw</b>&nbsp;</td><td align='left' valign='top'>(java.awt.Graphics2D <B>f</B>)</td></tr></table></td></tr></table>>];
+
+"com.xyz.fig.shape.Shape"[shape=diamond,style=filled,fillcolor="#b6e7ff",label=<<table border='0' cellborder='0' cellspacing='1'><tr><td>public abstract interface</td></tr><tr><td><b>com.xyz.fig.shape.</b></td></tr><tr><td><font point-size='24'><b>Shape</b></font></td></tr></table>>];
+
+"com.xyz.fig.Drawable"[shape=diamond,style=filled,fillcolor="#b6e7ff",label=<<table border='0' cellborder='0' cellspacing='1'><tr><td>public abstract interface</td></tr><tr><td><b>com.xyz.fig.</b></td></tr><tr><td><font point-size='24'><b>Drawable</b></font></td></tr><tr><td cellpadding='0'><table border='0' cellborder='0'><tr><td colspan='3' bgcolor='#91b8cc'><font point-size='12'><b>METHODS</b></font></td></tr><tr><td align='right' valign='top'> public abstract void</td><td align='left' valign='top'><b>draw</b>&nbsp;</td><td align='left' valign='top'>(java.awt.Graphics2D <B>f</B>)</td></tr></table></td></tr></table>>];
+
+"com.xyz.fig.UIWidget"[shape=oval,style=filled,fillcolor="#f3c9ff",label=<<table border='0' cellborder='0' cellspacing='1'><tr><td>public abstract @interface</td></tr><tr><td><b>com.xyz.fig.</b></td></tr><tr><td><font point-size='24'><b>UIWidget</b></font></td></tr><tr><td colspan='3' bgcolor='#c2a0cc'><font point-size='12'><b>ANNOTATIONS</b></font></td></tr><tr><td align='center' valign='top'>@com.xyz.fig.UIElement</td></tr><tr><td align='center' valign='top'>@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)</td></tr></table>>];
+
+"com.xyz.fig.UIElement"[shape=oval,style=filled,fillcolor="#f3c9ff",label=<<table border='0' cellborder='0' cellspacing='1'><tr><td>public abstract @interface</td></tr><tr><td><b>com.xyz.fig.</b></td></tr><tr><td><font point-size='24'><b>UIElement</b></font></td></tr><tr><td colspan='3' bgcolor='#c2a0cc'><font point-size='12'><b>ANNOTATIONS</b></font></td></tr><tr><td align='center' valign='top'>@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)</td></tr></table>>];
+
+  "com.xyz.fig.shape.Triangle" -> "com.xyz.fig.shape.ShapeImpl" [arrowsize=2.5]
+  "com.xyz.fig.SceneGraph" -> "com.xyz.fig.Drawable" [arrowhead=diamond, arrowsize=2.5]
+  "com.xyz.fig.shape.Shape" -> "com.xyz.fig.SceneGraph" [arrowtail=obox, arrowsize=2.5, dir=back]
+  "com.xyz.fig.shape.Shape" -> "com.xyz.fig.SceneGraph" [arrowtail=box, arrowsize=2.5, dir=back]
+  "com.xyz.fig.shape.ShapeImpl" -> "com.xyz.fig.shape.Shape" [arrowhead=diamond, arrowsize=2.5]
+  "com.xyz.fig.Figure" -> "com.xyz.fig.Drawable" [arrowhead=diamond, arrowsize=2.5]
+  "com.xyz.fig.SceneGraph" -> "com.xyz.fig.Figure" [arrowtail=obox, arrowsize=2.5, dir=back]
+  "com.xyz.fig.shape.Shape" -> "com.xyz.fig.Figure" [arrowtail=box, arrowsize=2.5, dir=back]
+  "com.xyz.fig.shape.Circle" -> "com.xyz.fig.shape.ShapeImpl" [arrowsize=2.5]
+  "com.xyz.fig.shape.Square" -> "com.xyz.fig.shape.ShapeImpl" [arrowsize=2.5]
+  "com.xyz.fig.shape.Diamond" -> "com.xyz.fig.shape.ShapeImpl" [arrowsize=2.5]
+  "com.xyz.fig.shape.Shape" -> "com.xyz.fig.Drawable" [arrowhead=diamond, arrowsize=2.5]
+  "com.xyz.fig.Figure" -> "com.xyz.fig.UIWidget" [arrowhead=dot, arrowsize=2.5]
+  "com.xyz.fig.UIWidget" -> "com.xyz.fig.UIElement" [arrowhead=dot, arrowsize=2.5]
 }

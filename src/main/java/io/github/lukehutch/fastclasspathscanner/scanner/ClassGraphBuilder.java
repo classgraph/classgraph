@@ -46,6 +46,8 @@ class ClassGraphBuilder {
     private final Set<ClassInfo> allClassInfo;
     private final Map<String, ClassLoader[]> classNameToClassLoaders = new HashMap<>();
 
+    private static final int PARAM_WRAP_WIDTH = 40;
+
     /** Builds the class graph, and provides methods for querying it. */
     ClassGraphBuilder(final ScanSpec scanSpec, final Map<String, ClassInfo> classNameToClassInfo) {
         this.scanSpec = scanSpec;
@@ -217,13 +219,23 @@ class ClassGraphBuilder {
         buf.append("[shape=" + shape + ",style=filled,fillcolor=\"#" + boxBgColor + "\",label=");
         buf.append("<");
         buf.append("<table border='0' cellborder='0' cellspacing='1'>");
+
+        // Class modifiers
+        buf.append("<tr><td>" + ci.getModifiersStr() + " "
+                + (ci.isEnum() ? "enum"
+                        : ci.isAnnotation() ? "@interface" : ci.isInterface() ? "interface" : "class")
+                + "</td></tr>");
+
+        // Package name
         final String className = ci.getClassName();
         final int dotIdx = className.lastIndexOf('.');
         if (dotIdx > 0) {
-            buf.append("<tr><td>");
+            buf.append("<tr><td><b>");
             GraphvizUtils.htmlEncode(className.substring(0, dotIdx + 1), buf);
-            buf.append("</td></tr>");
+            buf.append("</b></td></tr>");
         }
+
+        // Class name
         buf.append("<tr><td><font point-size='24'><b>");
         GraphvizUtils.htmlEncode(className.substring(dotIdx + 1), buf);
         buf.append("</b></font></td></tr>");
@@ -240,7 +252,7 @@ class ClassGraphBuilder {
         // Class annotations
         if (ci.annotationInfo != null && ci.annotationInfo.size() > 0) {
             buf.append("<tr><td colspan='3' bgcolor='" + darkerColor
-                    + "'><font point-size='12'><b>CLASS ANNOTATIONS</b></font></td></tr>");
+                    + "'><font point-size='12'><b>ANNOTATIONS</b></font></td></tr>");
             for (final AnnotationInfo ai : ci.annotationInfo) {
                 buf.append("<tr>");
                 buf.append("<td align='center' valign='top'>");
@@ -341,24 +353,59 @@ class ClassGraphBuilder {
                     } else {
                         GraphvizUtils.htmlEncode(mi.getMethodName(), buf);
                     }
-                    buf.append("</b>");
+                    buf.append("</b>&nbsp;");
                     buf.append("</td>");
 
                     // Method parameters
                     buf.append("<td align='left' valign='top'>");
                     buf.append('(');
-                    if (mi.getParameterNames() != null && mi.getParameterTypes() != null
-                            && mi.getNumParameters() != 0) {
-                        final String[] names = mi.getParameterNames();
-                        final String[] types = mi.getParameterTypeStrs();
-                        for (int i = 0; i < mi.getNumParameters(); i++) {
+                    if (mi.getParameterTypes() != null && mi.getNumParameters() != 0) {
+                        final AnnotationInfo[][] annotationInfoForParam = mi.getParameterAnnotationInfo();
+                        final String[] typeOfParam = mi.getParameterTypeStrs();
+                        final String[] nameOfParam = mi.getParameterNames();
+                        for (int i = 0, wrapPos = 0; i < mi.getNumParameters(); i++) {
                             if (i > 0) {
-                                buf.append(",</td></tr><tr><td></td><td></td><td align='left' valign='top'>");
+                                buf.append(", ");
+                                wrapPos += 2;
                             }
-                            GraphvizUtils.htmlEncode(types[i], buf);
-                            if (names != null && names[i] != null) {
-                                buf.append("<B>");
-                                GraphvizUtils.htmlEncode(names[i], buf);
+                            if (wrapPos > PARAM_WRAP_WIDTH) {
+                                buf.append("</td></tr><tr><td></td><td></td><td align='left' valign='top'>");
+                                wrapPos = 0;
+                            }
+
+                            // Param annotation
+                            if (annotationInfoForParam != null && annotationInfoForParam[i] != null) {
+                                for (final AnnotationInfo ai : annotationInfoForParam[i]) {
+                                    final String ais = ai.toString();
+                                    if (!ais.isEmpty()) {
+                                        if (buf.charAt(buf.length() - 1) != ' ') {
+                                            buf.append(' ');
+                                        }
+                                        GraphvizUtils.htmlEncode(ais, buf);
+                                        wrapPos += 1 + ais.length();
+                                        if (wrapPos > PARAM_WRAP_WIDTH) {
+                                            buf.append(
+                                                    "</td></tr><tr><td></td><td></td><td align='left' valign='top'>");
+                                            wrapPos = 0;
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Param type
+                            GraphvizUtils.htmlEncode(typeOfParam[i], buf);
+                            wrapPos += typeOfParam[i].length();
+
+                            if (wrapPos > PARAM_WRAP_WIDTH) {
+                                buf.append("</td></tr><tr><td></td><td></td><td align='left' valign='top'>");
+                                wrapPos = 0;
+                            }
+
+                            // Param name
+                            if (nameOfParam != null && nameOfParam[i] != null) {
+                                buf.append(" <B>");
+                                GraphvizUtils.htmlEncode(nameOfParam[i], buf);
+                                wrapPos += 1 + nameOfParam[i].length();
                                 buf.append("</B>");
                             }
                         }
@@ -405,17 +452,20 @@ class ClassGraphBuilder {
 
         final Set<ClassInfo> standardClassNodes = ClassInfo.filterClassInfo(allClassInfo,
                 /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.STANDARD_CLASS);
+        final ClassInfo objectClass = classNameToClassInfo.get("java.lang.Object");
+        if (objectClass != null) {
+            // java.lang.Object should never be shown
+            standardClassNodes.remove(objectClass);
+        }
         final Set<ClassInfo> interfaceNodes = ClassInfo.filterClassInfo(allClassInfo,
                 /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.IMPLEMENTED_INTERFACE);
         final Set<ClassInfo> annotationNodes = ClassInfo.filterClassInfo(allClassInfo,
                 /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.ANNOTATION);
 
         for (final ClassInfo node : standardClassNodes) {
-            if (!node.getClassName().equals("java.lang.Object")) {
-                buf.append("\n").append("\"").append(node.getClassName()).append("\"");
-                labelClassNodeHTML(node, "box", "fff2b6", buf);
-                buf.append(";\n");
-            }
+            buf.append("\n").append("\"").append(node.getClassName()).append("\"");
+            labelClassNodeHTML(node, "box", "fff2b6", buf);
+            buf.append(";\n");
         }
 
         for (final ClassInfo node : interfaceNodes) {
@@ -440,16 +490,14 @@ class ClassGraphBuilder {
             final ClassInfo directSuperclassNode = classNode.getDirectSuperclass();
             if (directSuperclassNode != null && allVisibleNodes.contains(directSuperclassNode)) {
                 // class --> superclass
-                if (!directSuperclassNode.getClassName().equals("java.lang.Object")) {
-                    buf.append("  \"" + classNode.getClassName() + "\" -> \"" + directSuperclassNode.getClassName()
-                            + "\"\n");
-                }
+                buf.append("  \"" + classNode.getClassName() + "\" -> \"" + directSuperclassNode.getClassName()
+                        + "\" [arrowsize=2.5]\n");
             }
             for (final ClassInfo implementedInterfaceNode : classNode.getDirectlyImplementedInterfaces()) {
                 if (allVisibleNodes.contains(implementedInterfaceNode)) {
                     // class --<> implemented interface
                     buf.append("  \"" + classNode.getClassName() + "\" -> \""
-                            + implementedInterfaceNode.getClassName() + "\" [arrowhead=diamond]\n");
+                            + implementedInterfaceNode.getClassName() + "\" [arrowhead=diamond, arrowsize=2.5]\n");
                 }
             }
             for (final ClassInfo fieldTypeNode : lookup(
@@ -457,16 +505,15 @@ class ClassGraphBuilder {
                 if (allVisibleNodes.contains(fieldTypeNode)) {
                     // class --[ ] field type (open box)
                     buf.append("  \"" + fieldTypeNode.getClassName() + "\" -> \"" + classNode.getClassName()
-                            + "\" [arrowtail=obox, dir=back]\n");
+                            + "\" [arrowtail=obox, arrowsize=2.5, dir=back]\n");
                 }
             }
             for (final ClassInfo fieldTypeNode : lookup(
                     classNode.getClassNamesReferencedInMethodTypeDescriptors())) {
                 if (allVisibleNodes.contains(fieldTypeNode)) {
-                    // class --[X] method type (filled box)
-                    // TODO: update legend to show this new relationship type
+                    // class --[#] method type (filled box)
                     buf.append("  \"" + fieldTypeNode.getClassName() + "\" -> \"" + classNode.getClassName()
-                            + "\" [arrowtail=box, dir=back]\n");
+                            + "\" [arrowtail=box, arrowsize=2.5, dir=back]\n");
                 }
             }
         }
@@ -475,7 +522,7 @@ class ClassGraphBuilder {
                 if (allVisibleNodes.contains(superinterfaceNode)) {
                     // interface --<> superinterface
                     buf.append("  \"" + interfaceNode.getClassName() + "\" -> \""
-                            + superinterfaceNode.getClassName() + "\" [arrowhead=diamond]\n");
+                            + superinterfaceNode.getClassName() + "\" [arrowhead=diamond, arrowsize=2.5]\n");
                 }
             }
         }
@@ -484,14 +531,14 @@ class ClassGraphBuilder {
                 if (allVisibleNodes.contains(annotatedClassNode)) {
                     // annotated class --o annotation
                     buf.append("  \"" + annotatedClassNode.getClassName() + "\" -> \""
-                            + annotationNode.getClassName() + "\" [arrowhead=dot]\n");
+                            + annotationNode.getClassName() + "\" [arrowhead=dot, arrowsize=2.5]\n");
                 }
             }
             for (final ClassInfo annotatedClassNode : annotationNode.getAnnotationsWithDirectMetaAnnotation()) {
                 if (allVisibleNodes.contains(annotatedClassNode)) {
                     // annotation --o meta-annotation
                     buf.append("  \"" + annotatedClassNode.getClassName() + "\" -> \""
-                            + annotationNode.getClassName() + "\" [arrowhead=dot]\n");
+                            + annotationNode.getClassName() + "\" [arrowhead=dot, arrowsize=2.5]\n");
                 }
             }
             for (final ClassInfo classWithMethodAnnotationNode : annotationNode
@@ -499,14 +546,14 @@ class ClassGraphBuilder {
                 if (allVisibleNodes.contains(classWithMethodAnnotationNode)) {
                     // class with method annotation --o method annotation
                     buf.append("  \"" + classWithMethodAnnotationNode.getClassName() + "\" -> \""
-                            + annotationNode.getClassName() + "\" [arrowhead=odot]\n");
+                            + annotationNode.getClassName() + "\" [arrowhead=odot, arrowsize=2.5]\n");
                 }
             }
             for (final ClassInfo classWithMethodAnnotationNode : annotationNode.getClassesWithFieldAnnotation()) {
                 if (allVisibleNodes.contains(classWithMethodAnnotationNode)) {
                     // class with field annotation --o method annotation
                     buf.append("  \"" + classWithMethodAnnotationNode.getClassName() + "\" -> \""
-                            + annotationNode.getClassName() + "\" [arrowhead=odot]\n");
+                            + annotationNode.getClassName() + "\" [arrowhead=odot, arrowsize=2.5]\n");
                 }
             }
         }

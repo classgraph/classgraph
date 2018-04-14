@@ -1,6 +1,6 @@
 package com.xyz.fig.shape;
 
-import com.xyz.fig.Renderable;
+import com.xyz.fig.Drawable;
 
-public interface Shape extends Renderable {
+public interface Shape extends Drawable {
 }

@@ -13,11 +13,11 @@
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    width="145.35352mm"
-   height="107.49545mm"
-   viewBox="0 0 412.02571 304.55734"
+   height="116.75732mm"
+   viewBox="0 0 412.02571 330.79816"
    id="svg2"
    version="1.1"
-   inkscape:version="0.91 r13725"
+   inkscape:version="0.92.2 (5c3e80d, 2017-08-06)"
    sodipodi:docname="classgraph-fig-legend.svg"
    inkscape:export-filename="/home/luke/Work/fast-classpath-scanner.repo/src/test/java/com/xyz/classgraph-fig-legend.png"
    inkscape:export-xdpi="116.64"
@@ -30,7 +30,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title />
+        <dc:title></dc:title>
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -46,34 +46,41 @@
      inkscape:pageopacity="0"
      inkscape:pageshadow="2"
      inkscape:window-width="2560"
-     inkscape:window-height="1501"
+     inkscape:window-height="1538"
      id="namedview258"
      showgrid="false"
      fit-margin-top="0"
      fit-margin-left="0"
      fit-margin-right="0"
      fit-margin-bottom="0"
-     inkscape:zoom="2.0053263"
-     inkscape:cx="75.184099"
-     inkscape:cy="136.98524"
+     inkscape:zoom="1.8102632"
+     inkscape:cx="157.65491"
+     inkscape:cy="164.52839"
      inkscape:window-x="0"
-     inkscape:window-y="28"
+     inkscape:window-y="0"
      inkscape:window-maximized="1"
      inkscape:current-layer="svg2"
      units="mm" />
+  <rect
+     style="opacity:1;fill:#fdfdfd;fill-opacity:1;stroke:#000000;stroke-width:1.16727293;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+     id="rect4394"
+     width="410.85843"
+     height="329.79834"
+     x="0.58363646"
+     y="0.50655198" />
   <g
      id="g4745"
-     transform="translate(-1.5607084,59.072498)">
+     transform="translate(-1.5607085,59.063883)">
     <g
        id="g4880"
-       transform="matrix(0.96592583,0.25881905,-0.25881905,0.96592583,16.833327,0.83152542)">
+       transform="rotate(15,5.258631,64.346668)">
       <path
          d="M 28.442865,75.621883 C 36.181694,67.883055 46.610068,57.454681 55.41085,48.653899"
          id="path135"
          inkscape:connector-curvature="0"
          style="fill:none;stroke:#000000;stroke-width:0.6728;stroke-miterlimit:4;stroke-dasharray:none" />
       <polygon
-         points="634.5,-82.9227 638,-92.9227 641.5,-82.9228 634.5,-82.9227 "
+         points="641.5,-82.9228 634.5,-82.9227 638,-92.9227 "
          id="polygon137"
          style="fill:#000000;stroke:#000000"
          transform="matrix(0.47547486,0.47547486,-0.47547486,0.47547486,-287.12281,-215.51838)" />
@@ -81,19 +88,18 @@
   </g>
   <text
      xml:space="preserve"
-     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:10.14247513px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:0%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
      x="88.215271"
-     y="131.51979"
-     id="text4761"
-     sodipodi:linespacing="125%"><tspan
+     y="131.51117"
+     id="text4761"><tspan
        sodipodi:role="line"
        x="88.215271"
-       y="131.51979"
+       y="131.51117"
        id="tspan4228"
-       style="font-size:9.5px">Connects a class to its superclass (&quot;extends&quot;)</tspan></text>
+       style="font-size:9.5px;line-height:1.25">Connects a class to its superclass (&quot;extends&quot;)</tspan></text>
   <g
      id="g4741"
-     transform="matrix(0.96592583,0.25881905,-0.25881905,0.96592583,23.628958,63.787494)">
+     transform="rotate(15,-230.40986,121.62931)">
     <path
        style="fill:none;stroke:#000000;stroke-width:0.6728;stroke-miterlimit:4;stroke-dasharray:none"
        inkscape:connector-curvature="0"
@@ -104,13 +110,13 @@
        transform="matrix(0.47547486,0.47547486,-0.47547486,0.47547486,-121.68579,177.26564)"
        style="fill:#000000;stroke:#000000"
        id="polygon233"
-       points="86.0001,-285.797 90,-291.797 86,-297.797 82,-291.797 86.0001,-285.797 " />
+       points="86,-297.797 82,-291.797 86.0001,-285.797 90,-291.797 " />
   </g>
   <flowRoot
      xml:space="preserve"
      id="flowRoot4775"
-     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:10.14247513px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-     transform="translate(-25.039125,-41.72432)"><flowRegion
+     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:0.01%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+     transform="translate(-25.039125,-41.732935)"><flowRegion
        id="flowRegion4777"><rect
          id="rect4779"
          width="307.95654"
@@ -118,8 +124,8 @@
          x="113.26343"
          y="193.5518" /></flowRegion><flowPara
        id="flowPara4781"
-       style="font-size:9.5px">Connects a class to its implemented interfaces (&quot;implements&quot;), or an interface to its superinterfaces (&quot;extends&quot;)</flowPara></flowRoot>  <g
-     transform="matrix(0.96592583,0.25881905,-0.25881905,0.96592583,35.280335,58.617122)"
+       style="font-size:9.5px;line-height:1.25">Connects a class to its implemented interfaces (&quot;implements&quot;), or an interface to its superinterfaces (&quot;extends&quot;)</flowPara></flowRoot>  <g
+     transform="rotate(15,-204.94773,163.29462)"
      id="g4876">
     <path
        style="fill:none;stroke:#000000;stroke-width:0.67242301"
@@ -127,7 +133,7 @@
        id="path103"
        d="m 28.514894,151.24546 c 7.430723,-7.43072 18.352857,-18.35286 27.414452,-27.41445" />
     <circle
-       transform="matrix(0.70710678,0.70710678,-0.70710678,0.70710678,0,0)"
+       transform="rotate(45)"
        style="fill:#000000;stroke:#000000;stroke-width:0.67242301"
        r="2.689692"
        id="ellipse105"
@@ -135,10 +141,10 @@
        cx="127.10976" />
   </g>
   <flowRoot
-     transform="matrix(0.67616504,0,0,0.67616504,-14.419188,130.84746)"
+     transform="matrix(0.67616504,0,0,0.67616504,-14.419188,130.83884)"
      xml:space="preserve"
      id="flowRoot4775-1"
-     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:15px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"><flowRegion
+     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:0.01%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"><flowRegion
        id="flowRegion4777-3"><rect
          id="rect4779-6"
          width="464.48816"
@@ -146,18 +152,18 @@
          x="151.78995"
          y="84.384247" /></flowRegion><flowPara
        id="flowPara4781-2"
-       style="font-size:14.04982471px">Connects a class to its annotations (&quot;is annotated with&quot;), or an</flowPara><flowPara
+       style="font-size:14.04982471px;line-height:1.25">Connects a class to its annotations (&quot;is annotated with&quot;), or an</flowPara><flowPara
        id="flowPara4807"
-       style="font-size:14.04982471px">annotation to its meta-annotations (&quot;is meta-annotated with&quot;)</flowPara></flowRoot>  <g
+       style="font-size:14.04982471px;line-height:1.25">annotation to its meta-annotations (&quot;is meta-annotated with&quot;)</flowPara></flowRoot>  <g
      id="g4308"
-     transform="translate(-0.25830709,0.90993596)">
+     transform="translate(-0.25830715,0.90132067)">
     <path
        style="fill:none;stroke:#000000;stroke-width:0.67242301"
        inkscape:connector-curvature="0"
        id="path103-7"
        d="m 23.936709,246.89452 c 9.10074,-5.25431 22.477569,-12.97743 33.57571,-19.38494" />
     <circle
-       transform="matrix(0.5,0.86602541,-0.86602541,0.5,0,0)"
+       transform="rotate(60)"
        style="fill:none;stroke:#000000;stroke-width:0.67242301"
        r="2.689692"
        id="ellipse105-5"
@@ -165,10 +171,10 @@
        cx="225.78528" />
   </g>
   <flowRoot
-     transform="translate(9.9867543,243.47303)"
+     transform="translate(9.9867542,243.46441)"
      xml:space="preserve"
      id="flowRoot4775-1-35"
-     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:10.14247608px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"><flowRegion
+     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:0.01%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"><flowRegion
        id="flowRegion4777-3-6"><rect
          id="rect4779-6-2"
          width="314.07065"
@@ -176,11 +182,11 @@
          x="78.227837"
          y="-19.852638" /></flowRegion><flowPara
        id="flowPara4807-1"
-       style="font-size:9.5px">Connects a class to its method annotations</flowPara><flowPara
-       style="font-size:9.5px"
+       style="font-size:9.5px;line-height:1.25">Connects a class to its method annotations</flowPara><flowPara
+       style="font-size:9.5px;line-height:1.25"
        id="flowPara4284">(&quot;has a method that is annotated with&quot;)</flowPara></flowRoot>  <g
      id="g4304"
-     transform="translate(-0.63681275,-0.46686454)">
+     transform="translate(-0.63681281,0.05344171)">
     <path
        style="fill:none;stroke:#000000;stroke-width:0.6728;stroke-miterlimit:4;stroke-dasharray:none"
        inkscape:connector-curvature="0"
@@ -191,13 +197,13 @@
        transform="matrix(0.66282136,0.11322776,0.11322776,-0.66282136,-200.83436,97.422618)"
        style="fill:none;stroke:#000000"
        id="polygon87"
-       points="431.716,-200.371 429.056,-207.916 421.511,-205.256 424.171,-197.711 431.716,-200.371 " />
+       points="431.716,-200.371 429.056,-207.916 421.511,-205.256 424.171,-197.711 " />
   </g>
   <flowRoot
      xml:space="preserve"
      id="flowRoot4775-1-3"
-     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:10.14247513px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-     transform="translate(-25.038637,-15.519978)"><flowRegion
+     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:0.01%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+     transform="translate(-25.038637,-7.0658492)"><flowRegion
        id="flowRegion4777-3-4"><rect
          id="rect4779-6-7"
          width="313.56113"
@@ -205,14 +211,14 @@
          x="113.25352"
          y="274.49338" /></flowRegion><flowPara
        id="flowPara4807-3"
-       style="font-size:9.5px">Connects a class to the types of its fields (&quot;has field of type&quot;) [this is the only arrow type to point downwards]</flowPara></flowRoot>  <g
+       style="font-size:9.5px;line-height:1.25">Class has field of indicated type</flowPara></flowRoot>  <g
      id="g4434"
-     transform="translate(-14.33892,23.236991)">
+     transform="translate(-14.33892,23.228376)">
     <g
        transform="translate(13.931583,121.25399)"
        id="g4866">
       <polygon
-         points="294,-131 208,-131 208,-93 294,-93 294,-131 "
+         points="208,-93 294,-93 294,-131 208,-131 "
          id="polygon53"
          style="fill:#fff2b6;fill-opacity:1;stroke:#000000;stroke-width:0.85708636;stroke-miterlimit:4;stroke-dasharray:none"
          transform="matrix(0.78498506,0,0,0.78498506,-139.9407,3.076681)" />
@@ -221,30 +227,33 @@
          y="-87.396851"
          font-size="14.00"
          id="text55"
-         style="font-size:9.41392231px;font-family:Times, serif;text-anchor:middle">com.xyz.</text>
+         style="font-size:9.41392231px;line-height:0%;font-family:Times, serif;text-anchor:middle">com.xyz.</text>
       <text
          x="57.090553"
          y="-77.310516"
          font-size="14.00"
          id="text57"
-         style="font-size:9.41392231px;font-family:Times, serif;text-anchor:middle">MyClass</text>
+         style="font-size:9.41392231px;line-height:0%;font-family:Times, serif;text-anchor:middle">
+        <tspan
+           style="font-weight:bold"
+           id="tspan919">MyClass</tspan>
+      </text>
     </g>
     <text
-       sodipodi:linespacing="125%"
        id="text4749"
        y="68.637955"
        x="54.659218"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:10.14247513px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:0%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
        xml:space="preserve"><tspan
          y="68.637955"
          x="54.659218"
          id="tspan4751"
          sodipodi:role="line"
-         style="font-size:9.5px">A class</tspan></text>
+         style="font-size:9.5px;line-height:1.25">A class</tspan></text>
   </g>
   <g
      id="g4318"
-     transform="translate(-49.968198,23.161966)">
+     transform="translate(-49.968198,23.153351)">
     <g
        transform="translate(338.99228,127.7081)"
        id="g4702">
@@ -260,77 +269,98 @@
          y="-92.317871"
          font-size="14.00"
          id="text247"
-         style="font-size:9.41392231px;font-family:Times, serif;text-anchor:middle">com.xyz.</text>
+         style="font-size:9.41392231px;line-height:0%;font-family:Times, serif;text-anchor:middle">com.xyz.</text>
       <text
          x="52.973785"
          y="-82.231529"
          font-size="14.00"
          id="text249"
-         style="font-size:9.41392231px;font-family:Times, serif;text-anchor:middle">MyAnnotation</text>
+         style="font-size:9.41392231px;line-height:0%;font-family:Times, serif;text-anchor:middle">
+        <tspan
+           style="font-weight:bold"
+           id="tspan923">MyAnnotation</tspan>
+      </text>
     </g>
     <text
-       sodipodi:linespacing="125%"
        id="text4757"
        y="70.171028"
        x="358.83667"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:10.14247513px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:0%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
        xml:space="preserve"><tspan
          y="70.171028"
          x="358.83667"
          id="tspan4759"
          sodipodi:role="line"
-         style="font-size:9.5px">An annotation</tspan></text>
+         style="font-size:9.5px;line-height:1.25">An annotation</tspan></text>
   </g>
-  <g
-     id="g4871"
-     transform="translate(142.1302,96.727119)">
-    <polygon
-       transform="matrix(0.50403884,0,0,0.50403884,13.743214,134.32429)"
-       style="fill:#b6e7ff;fill-opacity:1;stroke:#000000;stroke-width:1.33481777;stroke-miterlimit:4;stroke-dasharray:none"
-       id="polygon222"
-       points="86,-374 86,-374 1.42109e-14,-336 86,-298 172,-336 " />
-    <text
-       style="font-size:9.41392231px;font-family:Times, serif;text-anchor:middle"
-       id="text224"
-       font-size="14.00"
-       y="-37.595474"
-       x="57.090557">com.xyz.</text>
-    <text
-       style="font-size:9.41392231px;font-family:Times, serif;text-anchor:middle"
-       id="text226"
-       font-size="14.00"
-       y="-27.509129"
-       x="57.090557">MyInterface</text>
-  </g>
+  <polygon
+     points="86,-374 1.42109e-14,-336 86,-298 172,-336 "
+     id="polygon222"
+     style="fill:#b6e7ff;fill-opacity:1;stroke:#000000;stroke-width:1.33481777;stroke-miterlimit:4;stroke-dasharray:none"
+     transform="matrix(0.57280144,0,0,0.50403884,149.95983,231.04279)" />
+  <text
+     x="199.22076"
+     y="59.123032"
+     font-size="14.00"
+     id="text224"
+     style="font-size:9.41392231px;line-height:0%;font-family:Times, serif;text-anchor:middle">com.xyz.</text>
+  <text
+     x="199.22076"
+     y="69.209373"
+     font-size="14.00"
+     id="text226"
+     style="font-size:9.41392231px;line-height:0%;font-family:Times, serif;text-anchor:middle">
+    <tspan
+       id="tspan921"
+       style="font-weight:bold">MyInterface</tspan>
+  </text>
   <text
      xml:space="preserve"
-     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:10.14247513px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:0%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
      x="170.4633"
-     y="93.950005"
-     id="text4753"
-     sodipodi:linespacing="125%"><tspan
-       style="font-size:9.5px"
+     y="93.941391"
+     id="text4753"><tspan
+       style="font-size:9.5px;line-height:1.25"
        sodipodi:role="line"
        id="tspan4755"
        x="170.4633"
-       y="93.950005">An interface</tspan></text>
+       y="93.941391">An interface</tspan></text>
   <text
      xml:space="preserve"
-     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:10.14247513px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:0%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
      x="140.71333"
-     y="24.361698"
-     id="text4761-7"
-     sodipodi:linespacing="125%"><tspan
+     y="24.353083"
+     id="text4761-7"><tspan
        sodipodi:role="line"
        x="140.71333"
-       y="24.361698"
+       y="24.353083"
        id="tspan4228-6"
-       style="font-weight:bold">Class Graph Legend:</tspan></text>
-  <rect
-     style="opacity:1;fill:none;fill-opacity:1;stroke:#000000;stroke-width:1.11999989;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
-     id="rect4394"
-     width="410.9057"
-     height="303.59149"
-     x="0.56"
-     y="0.49153078" />
-</svg>
+       style="font-weight:bold;font-size:10.14247513px;line-height:1.25">Class Graph Legend:</tspan></text>
+  <g
+     id="g4304-7"
+     transform="translate(-0.63681281,32.77303)">
+    <path
+       style="fill:none;stroke:#000000;stroke-width:0.6728;stroke-miterlimit:4;stroke-dasharray:none"
+       inkscape:connector-curvature="0"
+       id="path85-8"
+       d="m 24.503099,260.47333 32.299836,18.50434"
+       sodipodi:nodetypes="cc" />
+    <polygon
+       transform="matrix(0.66282136,0.11322776,0.11322776,-0.66282136,-200.83436,97.422618)"
+       style="fill:#000000;fill-opacity:1;stroke:#000000"
+       id="polygon87-5"
+       points="429.056,-207.916 421.511,-205.256 424.171,-197.711 431.716,-200.371 " />
+  </g>
+  <flowRoot
+     xml:space="preserve"
+     id="flowRoot4775-1-3-4"
+     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:0.01%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+     transform="translate(-25.038637,25.889835)"><flowRegion
+       id="flowRegion4777-3-4-1"><rect
+         id="rect4779-6-7-8"
+         width="313.56113"
+         height="31.770845"
+         x="113.25352"
+         y="274.49338" /></flowRegion><flowPara
+       style="font-size:9.5px;line-height:1.25"
+       id="flowPara915">Class has method parameter or method return of indicated type</flowPara></flowRoot></svg>
