@@ -451,9 +451,7 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
         return h;
     }
 
-    @Override
-    public String toString() {
-        final StringBuilder buf = new StringBuilder();
+    public void toString(final StringBuilder buf) {
         buf.append("@" + annotationName);
         if (annotationParamValues != null) {
             buf.append('(');
@@ -470,6 +468,12 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
             }
             buf.append(')');
         }
+    }
+
+    @Override
+    public String toString() {
+        final StringBuilder buf = new StringBuilder();
+        toString(buf);
         return buf.toString();
     }
 

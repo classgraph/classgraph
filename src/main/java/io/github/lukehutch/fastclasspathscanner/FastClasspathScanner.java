@@ -641,7 +641,7 @@ public class FastClasspathScanner {
      * end of a synchronous scan, if ScanResult.getMatchProcessorExceptions() returns a non-empty list,
      * MatchProcessorException is thrown to the caller.
      */
-    public FastClasspathScanner suppressMatchProcessorExceptions(boolean suppressMatchProcessorExceptions) {
+    public FastClasspathScanner suppressMatchProcessorExceptions(final boolean suppressMatchProcessorExceptions) {
         getScanSpec().suppressMatchProcessorExceptions = suppressMatchProcessorExceptions;
         return this;
     }

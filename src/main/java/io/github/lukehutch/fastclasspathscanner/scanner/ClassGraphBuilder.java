@@ -36,10 +36,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import com.google.common.escape.Escaper;
-import com.google.common.html.HtmlEscapers;
-
 import io.github.lukehutch.fastclasspathscanner.scanner.ClassInfo.ClassType;
+import io.github.lukehutch.fastclasspathscanner.utils.GraphvizUtils;
 
 /** Builds the class graph, and provides methods for querying it. */
 class ClassGraphBuilder {
@@ -224,68 +222,162 @@ class ClassGraphBuilder {
         }
         return className.substring(0, dotIdx + 1) + "\\n" + className.substring(dotIdx + 1);
     }
+
     private static String labelShort(final ClassInfo node) {
         final String className = node.getClassName();
         final int dotIdx = className.lastIndexOf('.');
         if (dotIdx < 0) {
             return className;
         }
-        return className.substring(0, dotIdx + 1) +  className.substring(dotIdx + 1);
+        return className.substring(0, dotIdx + 1) + className.substring(dotIdx + 1);
     }
-    private static String labelFull(final ClassInfo node) {
-        Escaper es = HtmlEscapers.htmlEscaper();
-        StringBuilder buf = new StringBuilder();
+
+    private String labelFull(final ClassInfo node, final String boxBgColor) {
+        final StringBuilder buf = new StringBuilder();
         buf.append("<");
-        buf.append("<TABLE border='1' cellborder='0' cellspacing='1'>");
+        buf.append("<table border='0' cellborder='0' cellspacing='1'>");
         final String className = node.getClassName();
         final int dotIdx = className.lastIndexOf('.');
-        if (dotIdx < 0) {
-            buf.append("<TR><TD>" + es.escape(className) + "</TD></TR>");
+        if (dotIdx > 0) {
+            buf.append("<tr><td>");
+            GraphvizUtils.htmlEncode(className.substring(0, dotIdx + 1), buf);
+            buf.append("</td></tr>");
         }
-        else
-        {
-            buf.append("<TR><TD>" + es.escape(className.substring(0, dotIdx + 1)) + "</TD></TR><TR><TD><B>" + es.escape(className.substring(dotIdx + 1)) + "</B></TD></TR>");
-        }
+        buf.append("<tr><td><font point-size='20'><b>");
+        GraphvizUtils.htmlEncode(className.substring(dotIdx + 1), buf);
+        buf.append("</b></font></td></tr>");
 
-        if(node.fieldInfo != null && node.fieldInfo.size() > 0)
-        {
-            buf.append("<TR><TD cellpadding='0'>");
-            buf.append("<TABLE border='1' cellborder='0'>");
-            for(FieldInfo fi : node.fieldInfo)
-            {
-                buf.append("<TR><TD align='left'>&#43;").append(es.escape(fi.getFieldName())).append("&#58; ").append(es.escape(fi.getTypeStr())).append("</TD></TR>");
-            }
-            buf.append("</TABLE>");
-            buf.append("</TD></TR>");
-        }
-        if(node.methodInfo != null && node.methodInfo.size() > 0)
-        {
-            buf.append("<TR><TD cellpadding='0'>");
-            buf.append("<TABLE border='1' cellborder='0'>");
-            for(MethodInfo mi : node.methodInfo)
-            {
-                StringBuilder params = new StringBuilder();
-                if(mi.getParameterNames() != null && mi.getParameterTypes() != null) {
-                    String[] names=  mi.getParameterNames();
-                    String[] types = mi.getParameterTypeStrs();
-                    boolean first = true;
-                    for(int i = 0; i < mi.getNumParameters(); i++)
-                    {
-                        if(first)
-                        {
-                            first = false;
-                            params.append(es.escape(names[i])).append("&#58; ").append(es.escape(types[i]));
-                        }
-                        params.append(", ").append(es.escape(names[i])).append("&#58; ").append(es.escape(types[i]));
+        // Create a color that matches the containing box color, but is darker
+        final float darkness = 0.8f;
+        final int r = (int) (Integer.parseInt(boxBgColor.substring(0, 2), 16) * darkness);
+        final int g = (int) (Integer.parseInt(boxBgColor.substring(2, 4), 16) * darkness);
+        final int b = (int) (Integer.parseInt(boxBgColor.substring(4, 6), 16) * darkness);
+        final String darkerColor = String.format("#%s%s%s%s%s%s", Integer.toString(r >> 4, 16),
+                Integer.toString(r & 0xf, 16), Integer.toString(g >> 4, 16), Integer.toString(g & 0xf, 16),
+                Integer.toString(b >> 4, 16), Integer.toString(b & 0xf, 16));
+
+        // Fields
+        if (node.fieldInfo != null && node.fieldInfo.size() > 0) {
+            buf.append("<tr><td colspan='3' bgcolor='" + darkerColor + "'><font point-size='12'><b>"
+                    + (scanSpec.ignoreFieldVisibility ? "" : "PUBLIC ") + "FIELDS</b></font></td></tr>");
+            buf.append("<tr><td cellpadding='0'>");
+            buf.append("<table border='0' cellborder='0'>");
+            for (final FieldInfo fi : node.fieldInfo) {
+                buf.append("<tr>");
+                buf.append("<td align='right' valign='top'>");
+
+                // Field Annotations
+                for (final AnnotationInfo ai : fi.getAnnotationInfo()) {
+                    if (buf.charAt(buf.length() - 1) != ' ') {
+                        buf.append(' ');
                     }
+                    GraphvizUtils.htmlEncode(ai.toString(), buf);
                 }
 
-                buf.append("<TR><TD align='left'>&#43;").append(es.escape(mi.getMethodName())).append("&#40;").append(params.toString()).append("&#41;").append("&#58; ").append(es.escape(mi.getResultTypeStr())).append("</TD></TR>");
+                // Field modifiers
+                if (scanSpec.ignoreFieldVisibility) {
+                    if (buf.charAt(buf.length() - 1) != ' ') {
+                        buf.append(' ');
+                    }
+                    buf.append(fi.getModifierStr());
+                }
+
+                // Field type
+                if (buf.charAt(buf.length() - 1) != ' ') {
+                    buf.append(' ');
+                }
+                GraphvizUtils.htmlEncode(fi.getTypeStr(), buf);
+                buf.append("</td>");
+
+                // Field name
+                buf.append("<td align='left' valign='top'><b>");
+                GraphvizUtils.htmlEncode(fi.getFieldName(), buf);
+                buf.append("</b></td></tr>");
             }
-            buf.append("</TABLE>");
-            buf.append("</TD></TR>");
+            buf.append("</table>");
+            buf.append("</td></tr>");
         }
-        buf.append("</TABLE>");
+
+        // Methods
+        if (node.methodInfo != null && node.methodInfo.size() > 0) {
+            buf.append("<tr><td cellpadding='0'>");
+            buf.append("<table border='0' cellborder='0'>");
+            buf.append("<tr><td colspan='3' bgcolor='" + darkerColor + "'><font point-size='12'><b>"
+                    + (scanSpec.ignoreMethodVisibility ? "" : "PUBLIC ") + "METHODS</b></font></td></tr>");
+            for (final MethodInfo mi : node.methodInfo) {
+                // Don't list static initializer blocks
+                if (!mi.getMethodName().equals("<clinit>")) {
+                    buf.append("<tr>");
+
+                    // Method annotations
+                    buf.append("<td align='right' valign='top'>");
+                    for (final AnnotationInfo ai : mi.getAnnotationInfo()) {
+                        if (buf.charAt(buf.length() - 1) != ' ') {
+                            buf.append(' ');
+                        }
+                        GraphvizUtils.htmlEncode(ai.toString(), buf);
+                    }
+
+                    // Method modifiers
+                    if (scanSpec.ignoreMethodVisibility) {
+                        if (buf.charAt(buf.length() - 1) != ' ') {
+                            buf.append(' ');
+                        }
+                        buf.append(mi.getModifiersStr());
+                    }
+
+                    // Method return type
+                    if (buf.charAt(buf.length() - 1) != ' ') {
+                        buf.append(' ');
+                    }
+                    if (!mi.getMethodName().equals("<init>")) {
+                        // Don't list return type for constructors
+                        GraphvizUtils.htmlEncode(mi.getResultTypeStr(), buf);
+                    } else {
+                        buf.append("<b>&lt;constructor&gt;</b>");
+                    }
+                    buf.append("</td>");
+
+                    // Method name
+                    buf.append("<td align='left' valign='top'>");
+                    buf.append("<b>");
+                    if (mi.getMethodName().equals("<init>")) {
+                        // Show class name for constructors
+                        GraphvizUtils.htmlEncode(
+                                mi.getClassName().substring(mi.getClassName().lastIndexOf('.') + 1), buf);
+                    } else {
+                        GraphvizUtils.htmlEncode(mi.getMethodName(), buf);
+                    }
+                    buf.append("</b>");
+                    buf.append("</td>");
+
+                    // Method parameters
+                    buf.append("<td align='left' valign='top'>");
+                    buf.append('(');
+                    if (mi.getParameterNames() != null && mi.getParameterTypes() != null
+                            && mi.getNumParameters() != 0) {
+                        final String[] names = mi.getParameterNames();
+                        final String[] types = mi.getParameterTypeStrs();
+                        for (int i = 0; i < mi.getNumParameters(); i++) {
+                            if (i > 0) {
+                                buf.append(",</td></tr><tr><td></td><td></td><td align='left' valign='top'>");
+                            }
+                            GraphvizUtils.htmlEncode(types[i], buf);
+                            if (names != null && names[i] != null) {
+                                buf.append("<B>");
+                                GraphvizUtils.htmlEncode(names[i], buf);
+                                buf.append("</B>");
+                            }
+                        }
+                    }
+                    buf.append(')');
+                    buf.append("</td></tr>");
+                }
+            }
+            buf.append("</table>");
+            buf.append("</td></tr>");
+        }
+        buf.append("</table>");
         buf.append(">");
         return buf.toString();
     }
@@ -315,6 +407,9 @@ class ClassGraphBuilder {
         buf.append("overlap=false;\n");
         buf.append("splines=true;\n");
         buf.append("pack=true;\n");
+        buf.append("graph [fontname = \"Courier, Regular\"]");
+        buf.append("node [fontname = \"Courier, Regular\"]");
+        buf.append("edge [fontname = \"Courier, Regular\"]");
 
         final Set<ClassInfo> standardClassNodes = ClassInfo.filterClassInfo(allClassInfo,
                 /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.STANDARD_CLASS);
@@ -326,18 +421,23 @@ class ClassGraphBuilder {
         if (this.scanSpec.enableFieldInfo || this.scanSpec.enableMethodInfo) {
             for (final ClassInfo node : standardClassNodes) {
                 if (!node.getClassName().equals("java.lang.Object")) {
-                    buf.append("\n").append("\"").append(labelShort(node)).append("\"").append("[shape=box,style=filled,fillcolor=\"#fff2b6\",label=").append(labelFull(node)).append("];\n");
+                    buf.append("\n").append("\"").append(labelShort(node)).append("\"")
+                            .append("[shape=box,style=filled,fillcolor=\"#fff2b6\",label=")
+                            .append(labelFull(node, "fff2b6")).append("];\n");
                 }
             }
 
             for (final ClassInfo node : interfaceNodes) {
-                buf.append("\n").append("\"").append(labelShort(node)).append("\"").append("[shape=diamond,style=filled,fillcolor=\"#b6e7ff\",label=").append(labelFull(node)).append("];\n");
+                buf.append("\n").append("\"").append(labelShort(node)).append("\"")
+                        .append("[shape=diamond,style=filled,fillcolor=\"#b6e7ff\",label=")
+                        .append(labelFull(node, "b6e7ff")).append("];\n");
             }
 
             for (final ClassInfo node : annotationNodes) {
-                buf.append("\n").append("\"").append(labelShort(node)).append("\"").append("[shape=oval,style=filled,fillcolor=\"#f3c9ff\",label=").append(labelFull(node)).append("];\n");
+                buf.append("\n").append("\"").append(labelShort(node)).append("\"")
+                        .append("[shape=oval,style=filled,fillcolor=\"#f3c9ff\",label=")
+                        .append(labelFull(node, "f3c9ff")).append("];\n");
             }
-
 
             buf.append("\n");
             for (final ClassInfo classNode : standardClassNodes) {
@@ -345,7 +445,8 @@ class ClassGraphBuilder {
                 if (directSuperclassNode != null) {
                     // class --> superclass
                     if (!directSuperclassNode.getClassName().equals("java.lang.Object")) {
-                        buf.append("  \"" + labelShort(classNode) + "\" -> \"" + labelShort(directSuperclassNode) + "\"\n");
+                        buf.append("  \"" + labelShort(classNode) + "\" -> \"" + labelShort(directSuperclassNode)
+                                + "\"\n");
                     }
                 }
                 for (final ClassInfo implementedInterfaceNode : classNode.getDirectlyImplementedInterfaces()) {
@@ -388,13 +489,14 @@ class ClassGraphBuilder {
                 for (final ClassInfo classWithMethodAnnotationNode : annotationNode
                         .getClassesWithDirectMethodAnnotation()) {
                     // class with method annotation --o method annotation
-                    buf.append("  \"" + labelShort(classWithMethodAnnotationNode) + "\" -> \"" + labelShort(annotationNode)
-                            + "\" [arrowhead=odot]\n");
+                    buf.append("  \"" + labelShort(classWithMethodAnnotationNode) + "\" -> \""
+                            + labelShort(annotationNode) + "\" [arrowhead=odot]\n");
                 }
-                for (final ClassInfo classWithMethodAnnotationNode : annotationNode.getClassesWithFieldAnnotation()) {
+                for (final ClassInfo classWithMethodAnnotationNode : annotationNode
+                        .getClassesWithFieldAnnotation()) {
                     // class with field annotation --o method annotation
-                    buf.append("  \"" + labelShort(classWithMethodAnnotationNode) + "\" -> \"" + labelShort(annotationNode)
-                            + "\" [arrowhead=odot]\n");
+                    buf.append("  \"" + labelShort(classWithMethodAnnotationNode) + "\" -> \""
+                            + labelShort(annotationNode) + "\" [arrowhead=odot]\n");
                 }
             }
         } else {
@@ -414,7 +516,6 @@ class ClassGraphBuilder {
             for (final ClassInfo node : annotationNodes) {
                 buf.append("  \"" + label(node) + "\"\n");
             }
-
 
             buf.append("\n");
             for (final ClassInfo classNode : standardClassNodes) {
@@ -468,7 +569,8 @@ class ClassGraphBuilder {
                     buf.append("  \"" + label(classWithMethodAnnotationNode) + "\" -> \"" + label(annotationNode)
                             + "\" [arrowhead=odot]\n");
                 }
-                for (final ClassInfo classWithMethodAnnotationNode : annotationNode.getClassesWithFieldAnnotation()) {
+                for (final ClassInfo classWithMethodAnnotationNode : annotationNode
+                        .getClassesWithFieldAnnotation()) {
                     // class with field annotation --o method annotation
                     buf.append("  \"" + label(classWithMethodAnnotationNode) + "\" -> \"" + label(annotationNode)
                             + "\" [arrowhead=odot]\n");

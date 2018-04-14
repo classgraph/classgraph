@@ -85,17 +85,20 @@ public class MethodTypeSignature extends HierarchicalTypeSignature {
     @Override
     public void getAllReferencedClassNames(final Set<String> classNameListOut) {
         for (final TypeParameter typeParameter : typeParameters) {
-            if(typeParameter != null)
+            if (typeParameter != null) {
                 typeParameter.getAllReferencedClassNames(classNameListOut);
+            }
         }
         for (final TypeSignature typeSignature : parameterTypeSignatures) {
-            if(typeSignature != null)
+            if (typeSignature != null) {
                 typeSignature.getAllReferencedClassNames(classNameListOut);
+            }
         }
         resultType.getAllReferencedClassNames(classNameListOut);
         for (final ClassRefOrTypeVariableSignature typeSignature : throwsSignatures) {
-            if(typeSignature != null)
+            if (typeSignature != null) {
                 typeSignature.getAllReferencedClassNames(classNameListOut);
+            }
         }
     }
 
@@ -125,6 +128,8 @@ public class MethodTypeSignature extends HierarchicalTypeSignature {
             final String[] parameterNames, final int[] parameterAccessFlags,
             final AnnotationInfo[][] parameterAnnotationInfo) {
 
+        final StringBuilder buf = new StringBuilder();
+
         if ((parameterNames != null && parameterTypeSignatures.size() != parameterNames.length)
                 || (parameterAccessFlags != null && parameterTypeSignatures.size() != parameterAccessFlags.length)
                 || (parameterAnnotationInfo != null
@@ -133,14 +138,12 @@ public class MethodTypeSignature extends HierarchicalTypeSignature {
             throw new RuntimeException("Parameter number mismatch");
         }
 
-        final StringBuilder buf = new StringBuilder();
-
         if (annotationInfo != null) {
             for (final AnnotationInfo annotation : annotationInfo) {
                 if (buf.length() > 0) {
                     buf.append(' ');
                 }
-                buf.append(annotation.toString());
+                annotation.toString(buf);
             }
         }
 
@@ -160,9 +163,10 @@ public class MethodTypeSignature extends HierarchicalTypeSignature {
                 if (i > 0) {
                     buf.append(", ");
                 }
-                buf.append(typeParameters.get(i).toString());
+                final String typeParamStr = typeParameters.get(i).toString();
+                buf.append(typeParamStr);
             }
-            buf.append(">");
+            buf.append('>');
         }
 
         if (!isConstructor) {
@@ -185,7 +189,7 @@ public class MethodTypeSignature extends HierarchicalTypeSignature {
             if (parameterAnnotationInfo != null) {
                 final AnnotationInfo[] annotationInfoForParameter = parameterAnnotationInfo[i];
                 for (int j = 0; j < annotationInfoForParameter.length; j++) {
-                    buf.append(annotationInfoForParameter[j].toString());
+                    annotationInfoForParameter[j].toString(buf);
                     buf.append(' ');
                 }
             }
@@ -400,7 +404,7 @@ public class MethodTypeSignature extends HierarchicalTypeSignature {
                     } else {
                         final TypeVariableSignature typeVariableSignature = TypeVariableSignature.parse(parseState);
                         if (typeVariableSignature != null) {
-                            throwsSignatures.add(classTypeSignature);
+                            throwsSignatures.add(typeVariableSignature);
                         } else {
                             throw new ParseException();
                         }

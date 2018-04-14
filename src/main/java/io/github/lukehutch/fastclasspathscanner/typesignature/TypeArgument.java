@@ -66,8 +66,9 @@ public class TypeArgument extends HierarchicalTypeSignature {
 
     @Override
     public void getAllReferencedClassNames(final Set<String> classNameListOut) {
-        if(typeSignature != null)
-        typeSignature.getAllReferencedClassNames(classNameListOut);
+        if (typeSignature != null) {
+            typeSignature.getAllReferencedClassNames(classNameListOut);
+        }
     }
 
     @Override
