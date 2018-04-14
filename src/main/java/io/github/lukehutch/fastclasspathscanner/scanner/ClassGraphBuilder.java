@@ -212,11 +212,12 @@ class ClassGraphBuilder {
     // -------------------------------------------------------------------------------------------------------------
     // Class graph visualization
 
-    private String labelClassNode(final ClassInfo node, final String boxBgColor) {
-        final StringBuilder buf = new StringBuilder();
+    private void labelClassNodeHTML(final ClassInfo ci, final String shape, final String boxBgColor,
+            final StringBuilder buf) {
+        buf.append("[shape=" + shape + ",style=filled,fillcolor=\"#" + boxBgColor + "\",label=");
         buf.append("<");
         buf.append("<table border='0' cellborder='0' cellspacing='1'>");
-        final String className = node.getClassName();
+        final String className = ci.getClassName();
         final int dotIdx = className.lastIndexOf('.');
         if (dotIdx > 0) {
             buf.append("<tr><td>");
@@ -227,7 +228,7 @@ class ClassGraphBuilder {
         GraphvizUtils.htmlEncode(className.substring(dotIdx + 1), buf);
         buf.append("</b></font></td></tr>");
 
-        // Create a color that matches the containing box color, but is darker
+        // Create a color that matches the box background color, but is darker
         final float darkness = 0.8f;
         final int r = (int) (Integer.parseInt(boxBgColor.substring(0, 2), 16) * darkness);
         final int g = (int) (Integer.parseInt(boxBgColor.substring(2, 4), 16) * darkness);
@@ -236,13 +237,25 @@ class ClassGraphBuilder {
                 Integer.toString(r & 0xf, 16), Integer.toString(g >> 4, 16), Integer.toString(g & 0xf, 16),
                 Integer.toString(b >> 4, 16), Integer.toString(b & 0xf, 16));
 
+        // Class annotations
+        if (ci.annotationInfo != null && ci.annotationInfo.size() > 0) {
+            buf.append("<tr><td colspan='3' bgcolor='" + darkerColor
+                    + "'><font point-size='12'><b>CLASS ANNOTATIONS</b></font></td></tr>");
+            for (final AnnotationInfo ai : ci.annotationInfo) {
+                buf.append("<tr>");
+                buf.append("<td align='center' valign='top'>");
+                GraphvizUtils.htmlEncode(ai.toString(), buf);
+                buf.append("</td></tr>");
+            }
+        }
+
         // Fields
-        if (node.fieldInfo != null && node.fieldInfo.size() > 0) {
+        if (ci.fieldInfo != null && ci.fieldInfo.size() > 0) {
             buf.append("<tr><td colspan='3' bgcolor='" + darkerColor + "'><font point-size='12'><b>"
                     + (scanSpec.ignoreFieldVisibility ? "" : "PUBLIC ") + "FIELDS</b></font></td></tr>");
             buf.append("<tr><td cellpadding='0'>");
             buf.append("<table border='0' cellborder='0'>");
-            for (final FieldInfo fi : node.fieldInfo) {
+            for (final FieldInfo fi : ci.fieldInfo) {
                 buf.append("<tr>");
                 buf.append("<td align='right' valign='top'>");
 
@@ -279,12 +292,12 @@ class ClassGraphBuilder {
         }
 
         // Methods
-        if (node.methodInfo != null && node.methodInfo.size() > 0) {
+        if (ci.methodInfo != null && ci.methodInfo.size() > 0) {
             buf.append("<tr><td cellpadding='0'>");
             buf.append("<table border='0' cellborder='0'>");
             buf.append("<tr><td colspan='3' bgcolor='" + darkerColor + "'><font point-size='12'><b>"
                     + (scanSpec.ignoreMethodVisibility ? "" : "PUBLIC ") + "METHODS</b></font></td></tr>");
-            for (final MethodInfo mi : node.methodInfo) {
+            for (final MethodInfo mi : ci.methodInfo) {
                 // Don't list static initializer blocks
                 if (!mi.getMethodName().equals("<clinit>")) {
                     buf.append("<tr>");
@@ -358,8 +371,7 @@ class ClassGraphBuilder {
             buf.append("</td></tr>");
         }
         buf.append("</table>");
-        buf.append(">");
-        return buf.toString();
+        buf.append(">]");
     }
 
     private List<ClassInfo> lookup(final Set<String> classNames) {
@@ -400,22 +412,22 @@ class ClassGraphBuilder {
 
         for (final ClassInfo node : standardClassNodes) {
             if (!node.getClassName().equals("java.lang.Object")) {
-                buf.append("\n").append("\"").append(node).append("\"")
-                        .append("[shape=box,style=filled,fillcolor=\"#fff2b6\",label=")
-                        .append(labelClassNode(node, "fff2b6")).append("];\n");
+                buf.append("\n").append("\"").append(node.getClassName()).append("\"");
+                labelClassNodeHTML(node, "box", "fff2b6", buf);
+                buf.append(";\n");
             }
         }
 
         for (final ClassInfo node : interfaceNodes) {
-            buf.append("\n").append("\"").append(node).append("\"")
-                    .append("[shape=diamond,style=filled,fillcolor=\"#b6e7ff\",label=")
-                    .append(labelClassNode(node, "b6e7ff")).append("];\n");
+            buf.append("\n").append("\"").append(node.getClassName()).append("\"");
+            labelClassNodeHTML(node, "diamond", "b6e7ff", buf);
+            buf.append(";\n");
         }
 
         for (final ClassInfo node : annotationNodes) {
-            buf.append("\n").append("\"").append(node).append("\"")
-                    .append("[shape=oval,style=filled,fillcolor=\"#f3c9ff\",label=")
-                    .append(labelClassNode(node, "f3c9ff")).append("];\n");
+            buf.append("\n").append("\"").append(node.getClassName()).append("\"");
+            labelClassNodeHTML(node, "oval", "f3c9ff", buf);
+            buf.append(";\n");
         }
 
         buf.append("\n");
