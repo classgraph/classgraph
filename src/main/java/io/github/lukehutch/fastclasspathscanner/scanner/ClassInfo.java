@@ -629,6 +629,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
             this.annotationInfo = new ArrayList<>();
         }
         this.annotationInfo.add(classAnnotationInfo);
+        annotationClassInfo.classModifiers |= 0x2000; // Modifier.ANNOTATION
         classAnnotationInfo.addDefaultValues(annotationClassInfo.annotationDefaultParamValues);
         this.addRelatedClass(RelType.CLASS_ANNOTATIONS, annotationClassInfo);
         annotationClassInfo.addRelatedClass(RelType.CLASSES_WITH_CLASS_ANNOTATION, this);
@@ -641,6 +642,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
                 scalaBaseClassName(methodAnnotationInfo.annotationName), ANNOTATION_CLASS_MODIFIER, scanSpec,
                 classNameToClassInfo);
         annotationClassInfo.isAnnotation = true;
+        annotationClassInfo.classModifiers |= 0x2000; // Modifier.ANNOTATION
         methodAnnotationInfo.addDefaultValues(annotationClassInfo.annotationDefaultParamValues);
         this.addRelatedClass(RelType.METHOD_ANNOTATIONS, annotationClassInfo);
         annotationClassInfo.addRelatedClass(RelType.CLASSES_WITH_METHOD_ANNOTATION, this);
@@ -653,6 +655,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
                 scalaBaseClassName(fieldAnnotationInfo.annotationName), ANNOTATION_CLASS_MODIFIER, scanSpec,
                 classNameToClassInfo);
         annotationClassInfo.isAnnotation = true;
+        annotationClassInfo.classModifiers |= 0x2000; // Modifier.ANNOTATION
         fieldAnnotationInfo.addDefaultValues(annotationClassInfo.annotationDefaultParamValues);
         this.addRelatedClass(RelType.FIELD_ANNOTATIONS, annotationClassInfo);
         annotationClassInfo.addRelatedClass(RelType.CLASSES_WITH_FIELD_ANNOTATION, this);
@@ -663,6 +666,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
         final ClassInfo interfaceClassInfo = getOrCreateClassInfo(scalaBaseClassName(interfaceName),
                 /* classModifiers = */ Modifier.INTERFACE, scanSpec, classNameToClassInfo);
         interfaceClassInfo.isInterface = true;
+        interfaceClassInfo.classModifiers |= Modifier.INTERFACE;
         this.addRelatedClass(RelType.IMPLEMENTED_INTERFACES, interfaceClassInfo);
         interfaceClassInfo.addRelatedClass(RelType.CLASSES_IMPLEMENTING, this);
     }
