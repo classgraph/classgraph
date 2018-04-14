@@ -89,11 +89,17 @@ public class FieldInfo extends InfoObject implements Comparable<FieldInfo> {
         return fieldName;
     }
 
+    /** Deprecated, use getModifierStr() instead. */
+    @Deprecated
+    public String getModifierStrs() {
+        return getModifierStr();
+    }
+
     /**
      * Get the field modifiers as a string, e.g. "public static final". For the modifier bits, call
      * getAccessFlags().
      */
-    public String getModifierStrs() {
+    public String getModifierStr() {
         return TypeUtils.modifiersToString(modifiers, /* isMethod = */ false);
     }
 
@@ -170,10 +176,11 @@ public class FieldInfo extends InfoObject implements Comparable<FieldInfo> {
      *             if the field type could not be loaded.
      */
     public Class<?> getType() throws IllegalArgumentException {
-        if(getTypeSignature() != null)
+        if (getTypeSignature() != null) {
             return getTypeSignature().instantiate(scanResult);
-        else
+        } else {
             return Object.class;
+        }
     }
 
     /** Returns the type of the field, in string representation (e.g. "int[][]"). */
