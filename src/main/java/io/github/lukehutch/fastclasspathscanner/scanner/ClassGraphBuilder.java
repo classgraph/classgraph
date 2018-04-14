@@ -430,15 +430,15 @@ class ClassGraphBuilder {
             buf.append(";\n");
         }
 
-        final Set<ClassInfo> allVisibleClassInfo = new HashSet<>();
-        allVisibleClassInfo.addAll(standardClassNodes);
-        allVisibleClassInfo.addAll(interfaceNodes);
-        allVisibleClassInfo.addAll(annotationNodes);
+        final Set<ClassInfo> allVisibleNodes = new HashSet<>();
+        allVisibleNodes.addAll(standardClassNodes);
+        allVisibleNodes.addAll(interfaceNodes);
+        allVisibleNodes.addAll(annotationNodes);
 
         buf.append("\n");
         for (final ClassInfo classNode : standardClassNodes) {
             final ClassInfo directSuperclassNode = classNode.getDirectSuperclass();
-            if (directSuperclassNode != null && allVisibleClassInfo.contains(directSuperclassNode)) {
+            if (directSuperclassNode != null && allVisibleNodes.contains(directSuperclassNode)) {
                 // class --> superclass
                 if (!directSuperclassNode.getClassName().equals("java.lang.Object")) {
                     buf.append("  \"" + classNode.getClassName() + "\" -> \"" + directSuperclassNode.getClassName()
@@ -446,7 +446,7 @@ class ClassGraphBuilder {
                 }
             }
             for (final ClassInfo implementedInterfaceNode : classNode.getDirectlyImplementedInterfaces()) {
-                if (allVisibleClassInfo.contains(implementedInterfaceNode)) {
+                if (allVisibleNodes.contains(implementedInterfaceNode)) {
                     // class --<> implemented interface
                     buf.append("  \"" + classNode.getClassName() + "\" -> \""
                             + implementedInterfaceNode.getClassName() + "\" [arrowhead=diamond]\n");
@@ -454,7 +454,7 @@ class ClassGraphBuilder {
             }
             for (final ClassInfo fieldTypeNode : lookup(
                     classNode.getClassNamesReferencedInFieldTypeDescriptors())) {
-                if (allVisibleClassInfo.contains(fieldTypeNode)) {
+                if (allVisibleNodes.contains(fieldTypeNode)) {
                     // class --[ ] field type (open box)
                     buf.append("  \"" + fieldTypeNode.getClassName() + "\" -> \"" + classNode.getClassName()
                             + "\" [arrowtail=obox, dir=back]\n");
@@ -462,7 +462,7 @@ class ClassGraphBuilder {
             }
             for (final ClassInfo fieldTypeNode : lookup(
                     classNode.getClassNamesReferencedInMethodTypeDescriptors())) {
-                if (allVisibleClassInfo.contains(fieldTypeNode)) {
+                if (allVisibleNodes.contains(fieldTypeNode)) {
                     // class --[X] method type (filled box)
                     // TODO: update legend to show this new relationship type
                     buf.append("  \"" + fieldTypeNode.getClassName() + "\" -> \"" + classNode.getClassName()
@@ -472,7 +472,7 @@ class ClassGraphBuilder {
         }
         for (final ClassInfo interfaceNode : interfaceNodes) {
             for (final ClassInfo superinterfaceNode : interfaceNode.getDirectSuperinterfaces()) {
-                if (allVisibleClassInfo.contains(superinterfaceNode)) {
+                if (allVisibleNodes.contains(superinterfaceNode)) {
                     // interface --<> superinterface
                     buf.append("  \"" + interfaceNode.getClassName() + "\" -> \""
                             + superinterfaceNode.getClassName() + "\" [arrowhead=diamond]\n");
@@ -481,14 +481,14 @@ class ClassGraphBuilder {
         }
         for (final ClassInfo annotationNode : annotationNodes) {
             for (final ClassInfo annotatedClassNode : annotationNode.getClassesWithDirectAnnotation()) {
-                if (allVisibleClassInfo.contains(annotatedClassNode)) {
+                if (allVisibleNodes.contains(annotatedClassNode)) {
                     // annotated class --o annotation
                     buf.append("  \"" + annotatedClassNode.getClassName() + "\" -> \""
                             + annotationNode.getClassName() + "\" [arrowhead=dot]\n");
                 }
             }
             for (final ClassInfo annotatedClassNode : annotationNode.getAnnotationsWithDirectMetaAnnotation()) {
-                if (allVisibleClassInfo.contains(annotatedClassNode)) {
+                if (allVisibleNodes.contains(annotatedClassNode)) {
                     // annotation --o meta-annotation
                     buf.append("  \"" + annotatedClassNode.getClassName() + "\" -> \""
                             + annotationNode.getClassName() + "\" [arrowhead=dot]\n");
@@ -496,14 +496,14 @@ class ClassGraphBuilder {
             }
             for (final ClassInfo classWithMethodAnnotationNode : annotationNode
                     .getClassesWithDirectMethodAnnotation()) {
-                if (allVisibleClassInfo.contains(classWithMethodAnnotationNode)) {
+                if (allVisibleNodes.contains(classWithMethodAnnotationNode)) {
                     // class with method annotation --o method annotation
                     buf.append("  \"" + classWithMethodAnnotationNode.getClassName() + "\" -> \""
                             + annotationNode.getClassName() + "\" [arrowhead=odot]\n");
                 }
             }
             for (final ClassInfo classWithMethodAnnotationNode : annotationNode.getClassesWithFieldAnnotation()) {
-                if (allVisibleClassInfo.contains(classWithMethodAnnotationNode)) {
+                if (allVisibleNodes.contains(classWithMethodAnnotationNode)) {
                     // class with field annotation --o method annotation
                     buf.append("  \"" + classWithMethodAnnotationNode.getClassName() + "\" -> \""
                             + annotationNode.getClassName() + "\" [arrowhead=odot]\n");
