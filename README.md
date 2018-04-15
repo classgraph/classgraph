@@ -21,7 +21,9 @@ FastClasspathScanner is an uber-fast, ultra-lightweight classpath scanner for Ja
 * [Generate a GraphViz .dot file](https://github.com/lukehutch/fast-classpath-scanner/wiki/3.9.-Generating-a-GraphViz-dot-file-from-the-classgraph) from the class graph for visualization purposes, as shown below. A class graph visualization depicts connections between classes, interfaces, annotations and meta-annotations, and connections between classes and the types of their fields.
 
 <p align="center">
-  <img src="https://github.com/lukehutch/fast-classpath-scanner/blob/master/src/test/java/com/xyz/classgraph-fig.png" alt="Class graph visualization"/>
+  <a href="https://raw.githubusercontent.com/lukehutch/fast-classpath-scanner/master/src/test/java/com/xyz/classgraph-fig.png">
+    <img src="https://github.com/lukehutch/fast-classpath-scanner/blob/master/src/test/java/com/xyz/classgraph-fig.png" alt="Class graph visualization"/>
+  </a>
 </p>
 
 ## Status
