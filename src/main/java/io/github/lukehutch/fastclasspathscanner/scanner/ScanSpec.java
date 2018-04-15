@@ -46,6 +46,7 @@ import java.util.regex.Pattern;
 
 import io.github.lukehutch.fastclasspathscanner.MatchProcessorException;
 import io.github.lukehutch.fastclasspathscanner.classloaderhandler.ClassLoaderHandler;
+import io.github.lukehutch.fastclasspathscanner.classloaderhandler.ClassLoaderHandlerRegistry;
 import io.github.lukehutch.fastclasspathscanner.classloaderhandler.ClassLoaderHandlerRegistry.ClassLoaderHandlerRegistryEntry;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.ClassAnnotationMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.ClassMatchProcessor;
@@ -1574,5 +1575,24 @@ public class ScanSpec {
                 return matched;
             }
         }, fileMatchProcessor));
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Get the list of all ClassLoaderHandlerRegistryEntry objects for user-defined ClassLoaderHandlers, followed by
+     * the defaults in the ClassLoaderHandlerRegistry.
+     */
+    List<ClassLoaderHandlerRegistryEntry> getAllClassLoaderHandlerRegistryEntries() {
+        // Get all manually-added ClassLoaderHandlers (these are added before the default ClassLoaderHandlers,
+        // so that the behavior of the defaults can be overridden)
+        List<ClassLoaderHandlerRegistryEntry> allClassLoaderHandlerRegistryEntries;
+        if (extraClassLoaderHandlers.isEmpty()) {
+            allClassLoaderHandlerRegistryEntries = ClassLoaderHandlerRegistry.DEFAULT_CLASS_LOADER_HANDLERS;
+        } else {
+            allClassLoaderHandlerRegistryEntries = new ArrayList<>(extraClassLoaderHandlers);
+            allClassLoaderHandlerRegistryEntries.addAll(ClassLoaderHandlerRegistry.DEFAULT_CLASS_LOADER_HANDLERS);
+        }
+        return allClassLoaderHandlerRegistryEntries;
     }
 }

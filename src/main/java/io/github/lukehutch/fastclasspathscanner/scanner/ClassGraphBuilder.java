@@ -315,6 +315,7 @@ class ClassGraphBuilder {
                     buf.append("<tr>");
 
                     // Method annotations
+                    // TODO: wrap this cell if the contents get too long
                     buf.append("<td align='right' valign='top'>");
                     for (final AnnotationInfo ai : mi.getAnnotationInfo()) {
                         if (buf.charAt(buf.length() - 1) != ' ') {

@@ -31,6 +31,8 @@ package io.github.lukehutch.fastclasspathscanner.classloaderhandler;
 import java.util.Arrays;
 import java.util.List;
 
+import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
+
 /** The registry for ClassLoaderHandler classes. */
 public class ClassLoaderHandlerRegistry {
     /**
@@ -41,6 +43,7 @@ public class ClassLoaderHandlerRegistry {
             // ClassLoaderHandlers for other ClassLoaders that are handled by FastClasspathScanner
             new ClassLoaderHandlerRegistryEntry(AntClassLoaderHandler.class),
             new ClassLoaderHandlerRegistryEntry(EquinoxClassLoaderHandler.class),
+            new ClassLoaderHandlerRegistryEntry(EquinoxContextFinderClassLoaderHandler.class),
             new ClassLoaderHandlerRegistryEntry(FelixClassLoaderHandler.class),
             new ClassLoaderHandlerRegistryEntry(JBossClassLoaderHandler.class),
             new ClassLoaderHandlerRegistryEntry(WeblogicClassLoaderHandler.class),
@@ -74,6 +77,19 @@ public class ClassLoaderHandlerRegistry {
                         .handledClassLoaders();
             } catch (final Exception e) {
                 throw new RuntimeException("Could not instantiate " + classLoaderHandlerClass.getName(), e);
+            }
+        }
+
+        /** Instantiate a ClassLoaderHandler, or return null if the class could not be instantiated. */
+        public ClassLoaderHandler instantiate(final LogNode log) {
+            try {
+                // Instantiate a ClassLoaderHandler
+                return classLoaderHandlerClass.getDeclaredConstructor().newInstance();
+            } catch (final Exception e) {
+                if (log != null) {
+                    log.log("Could not instantiate " + classLoaderHandlerClass.getName(), e);
+                }
+                return null;
             }
         }
     }
