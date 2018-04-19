@@ -30,6 +30,7 @@ package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -253,7 +254,14 @@ class ClassGraphBuilder {
         if (ci.annotationInfo != null && ci.annotationInfo.size() > 0) {
             buf.append("<tr><td colspan='3' bgcolor='" + darkerColor
                     + "'><font point-size='12'><b>ANNOTATIONS</b></font></td></tr>");
-            for (final AnnotationInfo ai : ci.annotationInfo) {
+            final List<AnnotationInfo> annotationInfoSorted = new ArrayList<>(ci.annotationInfo);
+            Collections.sort(annotationInfoSorted, new Comparator<AnnotationInfo>() {
+                @Override
+                public int compare(AnnotationInfo a1, AnnotationInfo a2) {
+                    return a1.getAnnotationName().compareTo(a2.getAnnotationName());
+                }
+            });
+            for (final AnnotationInfo ai : annotationInfoSorted) {
                 buf.append("<tr>");
                 buf.append("<td align='center' valign='top'>");
                 GraphvizUtils.htmlEncode(ai.toString(), buf);
@@ -267,7 +275,14 @@ class ClassGraphBuilder {
                     + (scanSpec.ignoreFieldVisibility ? "" : "PUBLIC ") + "FIELDS</b></font></td></tr>");
             buf.append("<tr><td cellpadding='0'>");
             buf.append("<table border='0' cellborder='0'>");
-            for (final FieldInfo fi : ci.fieldInfo) {
+            final List<FieldInfo> fieldInfoSorted = new ArrayList<>(ci.fieldInfo);
+            Collections.sort(fieldInfoSorted, new Comparator<FieldInfo>() {
+                @Override
+                public int compare(FieldInfo f1, FieldInfo f2) {
+                    return f1.getFieldName().compareTo(f2.getFieldName());
+                }
+            });
+            for (final FieldInfo fi : fieldInfoSorted) {
                 buf.append("<tr>");
                 buf.append("<td align='right' valign='top'>");
 
@@ -309,7 +324,14 @@ class ClassGraphBuilder {
             buf.append("<table border='0' cellborder='0'>");
             buf.append("<tr><td colspan='3' bgcolor='" + darkerColor + "'><font point-size='12'><b>"
                     + (scanSpec.ignoreMethodVisibility ? "" : "PUBLIC ") + "METHODS</b></font></td></tr>");
-            for (final MethodInfo mi : ci.methodInfo) {
+            final List<MethodInfo> methodInfoSorted = new ArrayList<>(ci.methodInfo);
+            Collections.sort(methodInfoSorted, new Comparator<MethodInfo>() {
+                @Override
+                public int compare(MethodInfo f1, MethodInfo f2) {
+                    return f1.getMethodName().compareTo(f2.getMethodName());
+                }
+            });
+            for (final MethodInfo mi : methodInfoSorted) {
                 // Don't list static initializer blocks
                 if (!mi.getMethodName().equals("<clinit>")) {
                     buf.append("<tr>");
