@@ -163,7 +163,7 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
     /**
      * Merge together two class type signatures (used for combining base classes and auxiliary classes in Scala).
      */
-    public static ClassTypeSignature merge(final ClassTypeSignature classSignature0,
+    public static ClassTypeSignature merge(final String className, final ClassTypeSignature classSignature0,
             final ClassTypeSignature classSignature1) {
         ClassRefTypeSignature superclassSig;
         if (classSignature0.superclassSignature == null
@@ -174,8 +174,9 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
             superclassSig = classSignature0.superclassSignature;
         } else {
             // A class and its auxiliary class have different superclasses. Really should not happen?? 
-            throw new IllegalArgumentException("A class and its auxiliary class have different superclasses: "
-                    + classSignature0 + " ; " + classSignature1);
+            throw new IllegalArgumentException(
+                    "Class " + className + " and its auxiliary class have different superclasses: "
+                            + classSignature0 + " ; " + classSignature1);
         }
         List<ClassRefTypeSignature> allSuperinterfaces;
         if (classSignature0.superinterfaceSignatures.isEmpty()) {

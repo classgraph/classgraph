@@ -763,7 +763,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
             if (this.typeSignature == null) {
                 this.typeSignature = ClassTypeSignature.parse(this.typeDescriptor);
             }
-            this.typeSignature = ClassTypeSignature.merge(this.typeSignature,
+            this.typeSignature = ClassTypeSignature.merge(className, this.typeSignature,
                     ClassTypeSignature.parse(typeDescriptor));
             // Pick the raw type descriptor string that is shortest, it is probably the one for the base class
             if (this.typeDescriptor.length() > typeDescriptor.length()) {
