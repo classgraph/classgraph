@@ -64,7 +64,7 @@ class ClassInfoUnlinked {
     List<FieldInfo> fieldInfoList;
     List<MethodInfo> methodInfoList;
     private final ConcurrentHashMap<String, String> stringInternMap;
-    private String typeDescriptor;
+    private String typeSignature;
 
     private String intern(final String string) {
         if (string == null) {
@@ -85,8 +85,8 @@ class ClassInfoUnlinked {
         this.classpathElement = classpathElement;
     }
 
-    void addTypeDescriptor(final String typeDescriptor) {
-        this.typeDescriptor = typeDescriptor;
+    void addTypeSignature(final String typeSignature) {
+        this.typeSignature = typeSignature;
     }
 
     void addSuperclass(final String superclassName) {
@@ -204,8 +204,8 @@ class ClassInfoUnlinked {
         if (methodInfoList != null) {
             classInfo.addMethodInfo(methodInfoList, classNameToClassInfo);
         }
-        if (typeDescriptor != null) {
-            classInfo.addTypeDescriptor(typeDescriptor);
+        if (typeSignature != null) {
+            classInfo.addTypeSignature(typeSignature);
         }
     }
 
@@ -237,8 +237,8 @@ class ClassInfoUnlinked {
                 }
                 subLog.log("Static final field values: " + Join.join(", ", fieldInitializers));
             }
-            if (typeDescriptor != null) {
-                subLog.log("Class type signature: " + ClassTypeSignature.parse(typeDescriptor)
+            if (typeSignature != null) {
+                subLog.log("Class type descriptor: " + ClassTypeSignature.parse(typeSignature)
                         .toString(classModifiers, isAnnotation, isInterface, className));
             }
         }

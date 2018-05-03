@@ -957,8 +957,8 @@ class ClassfileBinaryParser implements AutoCloseable {
                     skip(2); // inner_class_access_flags
                 }
             } else if (constantPoolStringEquals(attributeNameCpIdx, "Signature")) {
-                // Get class type descriptor, including type variables
-                classInfoUnlinked.addTypeDescriptor(getConstantPoolString(readUnsignedShort()));
+                // Get class type signature, including type variables
+                classInfoUnlinked.addTypeSignature(getConstantPoolString(readUnsignedShort()));
             } else if (constantPoolStringEquals(attributeNameCpIdx, "EnclosingMethod")) {
                 final String innermostEnclosingClassName = getConstantPoolClassName(readUnsignedShort());
                 final int enclosingMethodCpIdx = readUnsignedShort();

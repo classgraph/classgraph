@@ -66,10 +66,10 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     /** True if the classfile indicated this is an annotation. */
     private boolean isAnnotation;
 
-    /** The class type descriptor. */
-    private String typeDescriptor;
+    /** The class type signature string. */
+    private String typeSignatureStr;
 
-    /** The class type signature. */
+    /** The class type signature, parsed. */
     private ClassTypeSignature typeSignature;
 
     /** The fully-qualified containing method name, for anonymous inner classes. */
@@ -81,18 +81,6 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
      * also must be a whitelisted (and non-blacklisted) class in a whitelisted (and non-blacklisted) package.
      */
     private boolean classfileScanned;
-
-    /**
-     * Used to keep track of whether the classfile of a Scala companion object class (with name ending in "$") has
-     * been read, since these classes need to be merged into the base class.
-     */
-    private boolean companionObjectClassfileScanned;
-
-    /**
-     * Used to keep track of whether the classfile of a Scala trait method class (with name ending in "$class") has
-     * been read, since these classes need to be merged into the base class.
-     */
-    private boolean traitMethodClassfileScanned;
 
     /**
      * The classpath element URL(s) (classpath root dir or jar) that this class was found within. Generally this
@@ -238,18 +226,20 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
         return (classModifiers & 0x4000) != 0;
     }
 
-    /** Get the JVM-internal type descriptor string for the class, if available (else returns null). */
-    public String getTypeDescriptor() {
-        return typeDescriptor;
+    /**
+     * Get the type signature for the class, including generic type parameters, if available (else returns null).
+     */
+    public String getTypeSignatureStr() {
+        return typeSignatureStr;
     }
 
     /** Get the type signature for the class, if available (else returns null). */
     public ClassTypeSignature getTypeSignature() {
-        if (typeDescriptor == null) {
+        if (typeSignature == null) {
             return null;
         }
         if (typeSignature == null) {
-            typeSignature = ClassTypeSignature.parse(typeDescriptor);
+            typeSignature = ClassTypeSignature.parse(typeSignatureStr);
         }
         return typeSignature;
     }
@@ -584,17 +574,6 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
         return classInfoSet.add(classInfo);
     }
 
-    /** Strip Scala auxiliary class suffixes from class name. */
-    private static String scalaBaseClassName(final String className) {
-        if (className != null && className.endsWith("$")) {
-            return className.substring(0, className.length() - 1);
-        } else if (className != null && className.endsWith("$class")) {
-            return className.substring(0, className.length() - 6);
-        } else {
-            return className;
-        }
-    }
-
     /**
      * Get a ClassInfo object, or create it if it doesn't exist. N.B. not threadsafe, so ClassInfo objects should
      * only ever be constructed by a single thread.
@@ -611,8 +590,8 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     /** Add a superclass to this class. */
     void addSuperclass(final String superclassName, final Map<String, ClassInfo> classNameToClassInfo) {
         if (superclassName != null) {
-            final ClassInfo superclassClassInfo = getOrCreateClassInfo(scalaBaseClassName(superclassName),
-                    /* classModifiers = */ 0, scanSpec, classNameToClassInfo);
+            final ClassInfo superclassClassInfo = getOrCreateClassInfo(superclassName, /* classModifiers = */ 0,
+                    scanSpec, classNameToClassInfo);
             this.addRelatedClass(RelType.SUPERCLASSES, superclassClassInfo);
             superclassClassInfo.addRelatedClass(RelType.SUBCLASSES, this);
         }
@@ -621,9 +600,8 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     /** Add an annotation to this class. */
     void addClassAnnotation(final AnnotationInfo classAnnotationInfo,
             final Map<String, ClassInfo> classNameToClassInfo) {
-        final ClassInfo annotationClassInfo = getOrCreateClassInfo(
-                scalaBaseClassName(classAnnotationInfo.annotationName), ANNOTATION_CLASS_MODIFIER, scanSpec,
-                classNameToClassInfo);
+        final ClassInfo annotationClassInfo = getOrCreateClassInfo(classAnnotationInfo.annotationName,
+                ANNOTATION_CLASS_MODIFIER, scanSpec, classNameToClassInfo);
         annotationClassInfo.isAnnotation = true;
         if (this.annotationInfo == null) {
             this.annotationInfo = new ArrayList<>();
@@ -638,9 +616,8 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     /** Add a method annotation to this class. */
     void addMethodAnnotation(final AnnotationInfo methodAnnotationInfo,
             final Map<String, ClassInfo> classNameToClassInfo) {
-        final ClassInfo annotationClassInfo = getOrCreateClassInfo(
-                scalaBaseClassName(methodAnnotationInfo.annotationName), ANNOTATION_CLASS_MODIFIER, scanSpec,
-                classNameToClassInfo);
+        final ClassInfo annotationClassInfo = getOrCreateClassInfo(methodAnnotationInfo.annotationName,
+                ANNOTATION_CLASS_MODIFIER, scanSpec, classNameToClassInfo);
         annotationClassInfo.isAnnotation = true;
         annotationClassInfo.classModifiers |= 0x2000; // Modifier.ANNOTATION
         methodAnnotationInfo.addDefaultValues(annotationClassInfo.annotationDefaultParamValues);
@@ -651,9 +628,8 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     /** Add a field annotation to this class. */
     void addFieldAnnotation(final AnnotationInfo fieldAnnotationInfo,
             final Map<String, ClassInfo> classNameToClassInfo) {
-        final ClassInfo annotationClassInfo = getOrCreateClassInfo(
-                scalaBaseClassName(fieldAnnotationInfo.annotationName), ANNOTATION_CLASS_MODIFIER, scanSpec,
-                classNameToClassInfo);
+        final ClassInfo annotationClassInfo = getOrCreateClassInfo(fieldAnnotationInfo.annotationName,
+                ANNOTATION_CLASS_MODIFIER, scanSpec, classNameToClassInfo);
         annotationClassInfo.isAnnotation = true;
         annotationClassInfo.classModifiers |= 0x2000; // Modifier.ANNOTATION
         fieldAnnotationInfo.addDefaultValues(annotationClassInfo.annotationDefaultParamValues);
@@ -663,7 +639,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /** Add an implemented interface to this class. */
     void addImplementedInterface(final String interfaceName, final Map<String, ClassInfo> classNameToClassInfo) {
-        final ClassInfo interfaceClassInfo = getOrCreateClassInfo(scalaBaseClassName(interfaceName),
+        final ClassInfo interfaceClassInfo = getOrCreateClassInfo(interfaceName,
                 /* classModifiers = */ Modifier.INTERFACE, scanSpec, classNameToClassInfo);
         interfaceClassInfo.isInterface = true;
         interfaceClassInfo.classModifiers |= Modifier.INTERFACE;
@@ -754,20 +730,14 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
         }
     }
 
-    /** Add the class type descriptor */
-    void addTypeDescriptor(final String typeDescriptor) {
-        if (this.typeDescriptor == null) {
-            this.typeDescriptor = typeDescriptor;
+    /** Add the class type signature, including type params */
+    void addTypeSignature(final String typeSignatureStr) {
+        if (this.typeSignatureStr == null) {
+            this.typeSignatureStr = typeSignatureStr;
         } else {
-            // Merging together a class and an auxiliary class -- merge the type signatures
-            if (this.typeSignature == null) {
-                this.typeSignature = ClassTypeSignature.parse(this.typeDescriptor);
-            }
-            this.typeSignature = ClassTypeSignature.merge(className, this.typeSignature,
-                    ClassTypeSignature.parse(typeDescriptor));
-            // Pick the raw type descriptor string that is shortest, it is probably the one for the base class
-            if (this.typeDescriptor.length() > typeDescriptor.length()) {
-                this.typeDescriptor = typeDescriptor;
+            if (typeSignatureStr != null && !this.typeSignatureStr.equals(typeSignatureStr)) {
+                throw new RuntimeException("Trying to merge two classes with different type signatures for class "
+                        + className + ": " + this.typeSignatureStr + " ; " + typeSignatureStr);
             }
         }
     }
@@ -791,20 +761,12 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     static ClassInfo addScannedClass(final String className, final int classModifiers, final boolean isInterface,
             final boolean isAnnotation, final ScanSpec scanSpec, final Map<String, ClassInfo> classNameToClassInfo,
             final ClasspathElement classpathElement, final LogNode log) {
-        // Handle Scala auxiliary classes (companion objects ending in "$" and trait methods classes ending in
-        // "$class")
-        final boolean isCompanionObjectClass = className.endsWith("$");
-        final boolean isTraitMethodClass = className.endsWith("$class");
-        final boolean isNonAuxClass = !isCompanionObjectClass && !isTraitMethodClass;
-        final String classBaseName = scalaBaseClassName(className);
         ClassInfo classInfo;
-        if (classNameToClassInfo.containsKey(classBaseName)) {
+        if (classNameToClassInfo.containsKey(className)) {
             // Merge into base ClassInfo object that was already allocated, rather than the new one
-            classInfo = classNameToClassInfo.get(classBaseName);
+            classInfo = classNameToClassInfo.get(className);
             // Class base name has been seen before, check if we're just merging scala aux classes together
-            if (isNonAuxClass && classInfo.classfileScanned
-                    || isCompanionObjectClass && classInfo.companionObjectClassfileScanned
-                    || isTraitMethodClass && classInfo.traitMethodClassfileScanned) {
+            if (classInfo.classfileScanned) {
                 // The same class was encountered more than once in a single jarfile -- should not happen. However,
                 // actually there is no restriction for paths within a zipfile to be unique (!!), and in fact
                 // zipfiles in the wild do contain the same classfiles multiple times with the same exact path,
@@ -818,8 +780,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
             classInfo.classModifiers |= classModifiers;
         } else {
             // This is the first time this class has been seen, add it
-            classNameToClassInfo.put(classBaseName,
-                    classInfo = new ClassInfo(classBaseName, classModifiers, scanSpec));
+            classNameToClassInfo.put(className, classInfo = new ClassInfo(className, classModifiers, scanSpec));
         }
 
         // Remember which classpath element(s) the class was found in, for classloading
@@ -843,15 +804,9 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
             classInfo.classLoaders = classLoaderOrder.toArray(new ClassLoader[classLoaderOrder.size()]);
         }
 
-        // Mark the appropriate class type as scanned (aux classes all need to be merged into a single ClassInfo
-        // object for Scala, but we only want to use the first instance of a given class on the classpath).
-        if (isTraitMethodClass) {
-            classInfo.traitMethodClassfileScanned = true;
-        } else if (isCompanionObjectClass) {
-            classInfo.companionObjectClassfileScanned = true;
-        } else {
-            classInfo.classfileScanned = true;
-        }
+        // Mark the classfile as scanned
+        classInfo.classfileScanned = true;
+
         classInfo.isInterface |= isInterface;
         classInfo.isAnnotation |= isAnnotation;
         return classInfo;

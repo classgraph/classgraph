@@ -28,12 +28,15 @@
  */
 package io.github.lukehutch.fastclasspathscanner.issues.issue193;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.StrictAssertions.assertThat;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.junit.Test;
 import org.ops4j.pax.url.mvn.MavenResolvers;
@@ -43,22 +46,23 @@ import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 public class Issue193Test {
     @Test
     public void issue193Test() throws IOException {
-
-        // resolve and download scala-library
+        // Resolve and download scala-library
         final File resolvedFile = MavenResolvers.createMavenResolver(null, null).resolve("org.scala-lang",
                 "scala-library", null, null, "2.12.1");
-
-        //
         assertThat(resolvedFile).isFile();
 
-        // create a new custom class loader
+        // Create a new custom class loader
         final ClassLoader classLoader = new URLClassLoader(new URL[] { resolvedFile.toURI().toURL() }, null);
 
-        // scan the classpath
-        try {
-            new FastClasspathScanner().overrideClassLoaders(classLoader).scan();
-        } catch (final Exception e) {
-            // TODO: remove this try-catch once this bug is fixed
-        }
+        // Scan the classpath -- used to throw an exception for Stack, since companion object inherits
+        // from different class
+        final List<String> classes = new ArrayList<>();
+        new FastClasspathScanner("scala.collection.immutable").strictWhitelist().overrideClassLoaders(classLoader)
+                .matchAllClasses(c -> {
+                    if (c.getName().endsWith("$")) {
+                        classes.add(c.getName());
+                    }
+                }).scan();
+        assertThat(classes).contains("scala.collection.immutable.Stack$");
     }
 }

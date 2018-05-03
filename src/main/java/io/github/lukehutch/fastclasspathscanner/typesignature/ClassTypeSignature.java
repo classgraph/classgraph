@@ -35,7 +35,6 @@ import java.util.Set;
 
 import io.github.lukehutch.fastclasspathscanner.typesignature.TypeUtils.ParseException;
 import io.github.lukehutch.fastclasspathscanner.typesignature.TypeUtils.ParseState;
-import io.github.lukehutch.fastclasspathscanner.utils.AdditionOrderedSet;
 
 /** A class type signature (called "ClassSignature" in the classfile documentation). */
 public class ClassTypeSignature extends HierarchicalTypeSignature {
@@ -158,49 +157,6 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
     public String toString() {
         return toString(/* modifiers = */ 0, /* isAnnotation = */ false, /* isInterface = */ false,
                 /* methodName = */ null);
-    }
-
-    /**
-     * Merge together two class type signatures (used for combining base classes and auxiliary classes in Scala).
-     */
-    public static ClassTypeSignature merge(final String className, final ClassTypeSignature classSignature0,
-            final ClassTypeSignature classSignature1) {
-        ClassRefTypeSignature superclassSig;
-        if (classSignature0.superclassSignature == null
-                || classSignature0.superclassSignature.className.equals("java.lang.Object")) {
-            superclassSig = classSignature1.superclassSignature;
-        } else if (classSignature1.superclassSignature == null
-                || classSignature1.superclassSignature.className.equals("java.lang.Object")) {
-            superclassSig = classSignature0.superclassSignature;
-        } else {
-            // A class and its auxiliary class have different superclasses. Really should not happen?? 
-            throw new IllegalArgumentException(
-                    "Class " + className + " and its auxiliary class have different superclasses: "
-                            + classSignature0 + " ; " + classSignature1);
-        }
-        List<ClassRefTypeSignature> allSuperinterfaces;
-        if (classSignature0.superinterfaceSignatures.isEmpty()) {
-            allSuperinterfaces = classSignature1.superinterfaceSignatures;
-        } else if (classSignature1.superinterfaceSignatures.isEmpty()) {
-            allSuperinterfaces = classSignature0.superinterfaceSignatures;
-        } else {
-            final AdditionOrderedSet<ClassRefTypeSignature> superinterfacesUniq = new AdditionOrderedSet<>(
-                    classSignature0.superinterfaceSignatures);
-            superinterfacesUniq.addAll(classSignature1.superinterfaceSignatures);
-            allSuperinterfaces = superinterfacesUniq.toList();
-        }
-        List<TypeParameter> allTypeParams;
-        if (classSignature0.typeParameters.isEmpty()) {
-            allTypeParams = classSignature1.typeParameters;
-        } else if (classSignature1.typeParameters.isEmpty()) {
-            allTypeParams = classSignature0.typeParameters;
-        } else {
-            final AdditionOrderedSet<TypeParameter> typeParamsUniq = new AdditionOrderedSet<>(
-                    classSignature0.typeParameters);
-            typeParamsUniq.addAll(classSignature1.typeParameters);
-            allTypeParams = typeParamsUniq.toList();
-        }
-        return new ClassTypeSignature(allTypeParams, superclassSig, allSuperinterfaces);
     }
 
     /** Parse a class signature. */
