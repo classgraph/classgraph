@@ -847,7 +847,7 @@ class ClassfileBinaryParser implements AutoCloseable {
             }
             final int attributesCount = readUnsignedShort();
             String[] methodParameterNames = null;
-            int[] methodParameterAccessFlags = null;
+            int[] methodParameterModifiers = null;
             AnnotationInfo[][] methodParameterAnnotations = null;
             List<AnnotationParamValue> annotationParamDefaultValues = null;
             List<AnnotationInfo> methodAnnotationInfo = null;
@@ -896,12 +896,12 @@ class ClassfileBinaryParser implements AutoCloseable {
                         // commandline switch `-parameters` is provided at compiletime.
                         final int paramCount = readUnsignedByte();
                         methodParameterNames = new String[paramCount];
-                        methodParameterAccessFlags = new int[paramCount];
+                        methodParameterModifiers = new int[paramCount];
                         for (int k = 0; k < paramCount; k++) {
                             final int cpIdx = readUnsignedShort();
                             // If the constant pool index is zero, then the parameter is unnamed => use null
                             methodParameterNames[k] = cpIdx == 0 ? null : getConstantPoolString(cpIdx);
-                            methodParameterAccessFlags[k] = readUnsignedShort();
+                            methodParameterModifiers[k] = readUnsignedShort();
                         }
                     } else if (constantPoolStringEquals(attributeNameCpIdx, "Signature")) {
                         // Add type params to method type signature
@@ -924,100 +924,9 @@ class ClassfileBinaryParser implements AutoCloseable {
                     classInfoUnlinked.addAnnotationParamDefaultValues(annotationParamDefaultValues);
                 }
                 if (scanSpec.enableMethodInfo) {
-
-                    //                    // TODO: DEBUG PRINT STATEMENTS:
-                    //                    MethodTypeSignature typeDescriptor = MethodTypeSignature.parse(methodTypeDescriptor);
-                    //                    int numDescParams = typeDescriptor.getParameterTypeSignatures().size();
-                    //                    MethodTypeSignature typeSignature = methodTypeSignature == null ? null
-                    //                            : MethodTypeSignature.parse(methodTypeSignature);
-                    //                    int numSigParams = typeSignature == null ? 0
-                    //                            : typeSignature.getParameterTypeSignatures().size();
-                    //                    int numSyntheticParams = 0;
-                    //                    int numMandatedParams = 0;
-                    //                    if (methodParameterAccessFlags != null) {
-                    //                        for (int j = 0; j < methodParameterAccessFlags.length; j++) {
-                    //                            if ((methodParameterAccessFlags[j] & 0x1000) != 0) {
-                    //                                numSyntheticParams++;
-                    //                            }
-                    //                            if ((methodParameterAccessFlags[j] & 0x8000) != 0) {
-                    //                                numMandatedParams++;
-                    //                            }
-                    //                        }
-                    //                    }
-                    //                    if ( // 1. If type signature is provided, and has a different number of parameters than
-                    //                         // type descriptor, then access flags must be provided
-                    //                    (typeSignature != null && numDescParams != numSigParams && methodParameterAccessFlags == null)
-                    //                            // 2. If MethodParameters is provided, then its length must be the same as type desc
-                    //                            || (methodParameterAccessFlags != null
-                    //                                    && numDescParams != methodParameterAccessFlags.length)
-                    //                            // 3. If type signature is provided, and has a different number of parameters
-                    //                            // than type descriptor, then there must be one synthetic or mandated param
-                    //                            // for each parameter in the difference between them
-                    //                            || (typeSignature != null && methodParameterAccessFlags != null
-                    //                                    && (numSigParams + numSyntheticParams + numMandatedParams != numDescParams))
-                    //                            // 4. If there are annotations, the number should match the number of descriptor params
-                    //                            // (although for Kotlin, sometimes they match the number of signature params, not the
-                    //                            // number of descriptor params)
-                    //                            || (methodParameterAnnotations != null
-                    //                                    && (methodParameterAnnotations.length != numDescParams
-                    //                                            || methodParameterAnnotations.length != numSigParams))) {
-                    //                        String mpa = null;
-                    //                        if (methodParameterAnnotations != null) {
-                    //                            StringBuilder buf = new StringBuilder();
-                    //                            for (int j = 0; j < methodParameterAnnotations.length; j++) {
-                    //                                if (j > 0) {
-                    //                                    buf.append(", ");
-                    //                                }
-                    //                                buf.append(Arrays.toString(methodParameterAnnotations[j]));
-                    //                            }
-                    //                            mpa = buf.toString();
-                    //                        }
-                    //                        String mpaf = null;
-                    //                        if (methodParameterAccessFlags != null) {
-                    //                            StringBuilder buf = new StringBuilder();
-                    //                            for (int j = 0; j < methodParameterAccessFlags.length; j++) {
-                    //                                if (j > 0) {
-                    //                                    buf.append(", ");
-                    //                                }
-                    //                                String af = Integer.toString(methodParameterAccessFlags[j], 16);
-                    //                                if (af.equals("0")) {
-                    //                                    af = "0000";
-                    //                                }
-                    //                                buf.append("0x" + af);
-                    //                            }
-                    //                            mpaf = buf.toString();
-                    //                        }
-                    //                        System.out.println("\nArity mismatch:" //
-                    //                                + "\n\n  class name: " + className //
-                    //                                + "\n\n  method name: " + methodName //
-                    //                                + "\n\n  type descriptor: " + methodTypeDescriptor //
-                    //                                + "\n    " + numDescParams + " type descriptor params: "
-                    //                                + Join.join(", ", typeDescriptor.getParameterTypeSignatures()) //
-                    //                                + "\n\n  type signature: " + methodTypeSignature // 
-                    //                                + "\n    "
-                    //                                + (typeSignature == null ? "?" : typeSignature.getParameterTypeSignatures().size())
-                    //                                + " type signature params: "
-                    //                                + (typeSignature == null ? "null"
-                    //                                        : Join.join(", ", typeSignature.getParameterTypeSignatures())) //
-                    //                                + "\n\n  param attributes:"
-                    //                                + "\n    "
-                    //                                + (methodParameterAnnotations == null ? "?" : methodParameterAnnotations.length)
-                    //                                + " param annotations: " + (methodParameterAnnotations == null ? "null" : mpa) //
-                    //                                + "\n    " + (methodParameterNames == null ? "?" : methodParameterNames.length)
-                    //                                + " param names: "
-                    //                                + (methodParameterNames == null ? "null"
-                    //                                        : Join.join(", ", (Object[]) methodParameterNames)) //
-                    //                                + "\n    "
-                    //                                + (methodParameterAccessFlags == null ? "?" : methodParameterAccessFlags.length)
-                    //                                + " param access flags: " + (methodParameterAccessFlags == null ? "null" : mpaf) //
-                    //                                + "\n      " + numSyntheticParams + " synthetic params" //
-                    //                                + "\n      " + numMandatedParams + " mandated params" //
-                    //                        );
-                    //                    }
-
                     classInfoUnlinked.addMethodInfo(new MethodInfo(className, methodName, methodAnnotationInfo,
                             methodModifierFlags, methodTypeDescriptor, methodTypeSignature, methodParameterNames,
-                            methodParameterAccessFlags, methodParameterAnnotations));
+                            methodParameterModifiers, methodParameterAnnotations));
                 }
             }
         }

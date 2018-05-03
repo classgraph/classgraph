@@ -28,13 +28,11 @@
  */
 package io.github.lukehutch.fastclasspathscanner.typesignature;
 
-import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
-import io.github.lukehutch.fastclasspathscanner.scanner.AnnotationInfo;
 import io.github.lukehutch.fastclasspathscanner.scanner.ClassInfo;
 import io.github.lukehutch.fastclasspathscanner.typesignature.TypeUtils.ParseException;
 import io.github.lukehutch.fastclasspathscanner.typesignature.TypeUtils.ParseState;
@@ -119,45 +117,11 @@ public class MethodTypeSignature extends HierarchicalTypeSignature {
                 && o.resultType.equals(this.resultType) && o.throwsSignatures.equals(this.throwsSignatures);
     }
 
-    /**
-     * Get a string representation of the method. Note that constructors are named {@code "<init>"}, and private
-     * static class initializer blocks are named {@code "<clinit>"}.
-     */
-    public String toString(final List<AnnotationInfo> annotationInfo, final int modifiers,
-            final boolean isConstructor, final String methodName, final boolean isVarArgs,
-            final String[] parameterNames, final int[] parameterAccessFlags,
-            final AnnotationInfo[][] parameterAnnotationInfo) {
-
+    @Override
+    public String toString() {
         final StringBuilder buf = new StringBuilder();
 
-        if ((parameterNames != null && parameterTypeSignatures.size() != parameterNames.length)
-                || (parameterAccessFlags != null && parameterTypeSignatures.size() != parameterAccessFlags.length)
-                || (parameterAnnotationInfo != null
-                        && parameterTypeSignatures.size() != parameterAnnotationInfo.length)) {
-            // Should not happen
-            throw new RuntimeException("Parameter number mismatch");
-        }
-
-        if (annotationInfo != null) {
-            for (final AnnotationInfo annotation : annotationInfo) {
-                if (buf.length() > 0) {
-                    buf.append(' ');
-                }
-                annotation.toString(buf);
-            }
-        }
-
-        if (modifiers != 0) {
-            if (buf.length() > 0) {
-                buf.append(' ');
-            }
-            TypeUtils.modifiersToString(modifiers, /* isMethod = */ true, buf);
-        }
-
         if (!typeParameters.isEmpty()) {
-            if (buf.length() > 0) {
-                buf.append(' ');
-            }
             buf.append('<');
             for (int i = 0; i < typeParameters.size(); i++) {
                 if (i > 0) {
@@ -169,67 +133,17 @@ public class MethodTypeSignature extends HierarchicalTypeSignature {
             buf.append('>');
         }
 
-        if (!isConstructor) {
-            if (buf.length() > 0) {
-                buf.append(' ');
-            }
-            buf.append(resultType.toString());
+        if (buf.length() > 0) {
+            buf.append(' ');
         }
+        buf.append(resultType.toString());
 
-        buf.append(' ');
-        if (methodName != null) {
-            buf.append(methodName);
-        }
-
-        buf.append('(');
+        buf.append(" (");
         for (int i = 0; i < parameterTypeSignatures.size(); i++) {
             if (i > 0) {
                 buf.append(", ");
             }
-            if (parameterAnnotationInfo != null) {
-                final AnnotationInfo[] annotationInfoForParameter = parameterAnnotationInfo[i];
-                for (int j = 0; j < annotationInfoForParameter.length; j++) {
-                    annotationInfoForParameter[j].toString(buf);
-                    buf.append(' ');
-                }
-            }
-            if (parameterAccessFlags != null) {
-                final int flag = parameterAccessFlags[i];
-                if ((flag & Modifier.FINAL) != 0) {
-                    buf.append("final ");
-                }
-                if ((flag & TypeUtils.MODIFIER_SYNTHETIC) != 0) {
-                    buf.append("synthetic ");
-                }
-                if ((flag & TypeUtils.MODIFIER_MANDATED) != 0) {
-                    buf.append("mandated ");
-                }
-            }
-
-            final TypeSignature paramType = parameterTypeSignatures.get(i);
-            if (isVarArgs && (i == parameterTypeSignatures.size() - 1)) {
-                // Show varargs params correctly
-                if (!(paramType instanceof ArrayTypeSignature)) {
-                    throw new IllegalArgumentException(
-                            "Got non-array type for last parameter of varargs method " + methodName);
-                }
-                final ArrayTypeSignature arrayType = (ArrayTypeSignature) paramType;
-                if (arrayType.numArrayDims == 0) {
-                    throw new IllegalArgumentException(
-                            "Got a zero-dimension array type for last parameter of varargs method " + methodName);
-                }
-                // Replace last "[]" with "..."
-                buf.append(new ArrayTypeSignature(arrayType.elementTypeSignature, arrayType.numArrayDims - 1)
-                        .toString());
-                buf.append("...");
-            } else {
-                buf.append(paramType.toString());
-            }
-            if (parameterNames != null) {
-                final String paramName = parameterNames[i];
-                buf.append(' ');
-                buf.append(paramName == null ? "_unnamed_param_" + i : paramName);
-            }
+            buf.append(parameterTypeSignatures.get(i).toString());
         }
         buf.append(')');
 
@@ -243,13 +157,6 @@ public class MethodTypeSignature extends HierarchicalTypeSignature {
             }
         }
         return buf.toString();
-    }
-
-    @Override
-    public String toString() {
-        return toString(/* annotationInfo = */ null, /* modifiers = */ 0, /* isConstructor = */ false,
-                /* methodName = */ null, /* isVarArgs = */ false, /* parameterNames = */ null,
-                /* parameterAccessFlags = */ null, /* parameterAnnotationInfo = */ null);
     }
 
     /**

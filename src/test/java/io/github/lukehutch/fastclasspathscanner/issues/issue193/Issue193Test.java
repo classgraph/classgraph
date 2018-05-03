@@ -57,7 +57,7 @@ public class Issue193Test {
         // scan the classpath
         try {
             new FastClasspathScanner().overrideClassLoaders(classLoader).scan();
-        } catch (Exception e) {
+        } catch (final Exception e) {
             // TODO: remove this try-catch once this bug is fixed
         }
     }

@@ -257,7 +257,7 @@ class ClassGraphBuilder {
             final List<AnnotationInfo> annotationInfoSorted = new ArrayList<>(ci.annotationInfo);
             Collections.sort(annotationInfoSorted, new Comparator<AnnotationInfo>() {
                 @Override
-                public int compare(AnnotationInfo a1, AnnotationInfo a2) {
+                public int compare(final AnnotationInfo a1, final AnnotationInfo a2) {
                     return a1.getAnnotationName().compareTo(a2.getAnnotationName());
                 }
             });
@@ -278,7 +278,7 @@ class ClassGraphBuilder {
             final List<FieldInfo> fieldInfoSorted = new ArrayList<>(ci.fieldInfo);
             Collections.sort(fieldInfoSorted, new Comparator<FieldInfo>() {
                 @Override
-                public int compare(FieldInfo f1, FieldInfo f2) {
+                public int compare(final FieldInfo f1, final FieldInfo f2) {
                     return f1.getFieldName().compareTo(f2.getFieldName());
                 }
             });
@@ -327,7 +327,7 @@ class ClassGraphBuilder {
             final List<MethodInfo> methodInfoSorted = new ArrayList<>(ci.methodInfo);
             Collections.sort(methodInfoSorted, new Comparator<MethodInfo>() {
                 @Override
-                public int compare(MethodInfo f1, MethodInfo f2) {
+                public int compare(final MethodInfo f1, final MethodInfo f2) {
                     return f1.getMethodName().compareTo(f2.getMethodName());
                 }
             });
