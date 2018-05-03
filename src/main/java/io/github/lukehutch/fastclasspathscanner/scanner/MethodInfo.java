@@ -800,17 +800,6 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
      */
     @Override
     public String toString() {
-
-        //        final List<AnnotationInfo> annotationInfo, final int modifiers,
-        //            final boolean isConstructor, final String methodName, final boolean isVarArgs,
-        //            final String[] parameterNames, final int[] parameterAccessFlags,
-        //            final AnnotationInfo[][] parameterAnnotationInfo) {
-
-        //        final List<AnnotationInfo> annotationInfo = getAnnotationInfo();
-
-        //        getModifiers(), isConstructor(), methodName,
-        //                isVarArgs(), getParameterNames(), getParameterModifiers(), getParameterAnnotationInfo()
-
         final MethodTypeSignature methodType = getTypeSignatureOrTypeDescriptor();
 
         final StringBuilder buf = new StringBuilder();
