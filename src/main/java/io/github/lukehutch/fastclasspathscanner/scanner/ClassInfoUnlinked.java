@@ -238,7 +238,7 @@ class ClassInfoUnlinked {
                 subLog.log("Static final field values: " + Join.join(", ", fieldInitializers));
             }
             if (typeSignature != null) {
-                subLog.log("Class type descriptor: " + ClassTypeSignature.parse(typeSignature)
+                subLog.log("Class type signature: " + ClassTypeSignature.parse(typeSignature)
                         .toString(classModifiers, isAnnotation, isInterface, className));
             }
         }
