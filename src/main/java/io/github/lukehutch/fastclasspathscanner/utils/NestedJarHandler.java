@@ -69,7 +69,8 @@ public class NestedJarHandler {
 
     public static final String TEMP_FILENAME_LEAF_SEPARATOR = "---";
 
-    public NestedJarHandler(final InterruptionChecker interruptionChecker, final LogNode log) {
+    public NestedJarHandler(final boolean stripSFXHeader, final InterruptionChecker interruptionChecker,
+            final LogNode log) {
         this.interruptionChecker = interruptionChecker;
 
         // Set up a singleton map from canonical path to ZipFile recycler
@@ -131,7 +132,7 @@ public class NestedJarHandler {
                         return null;
                     }
                     // Handle self-extracting archives (they can be created by Spring-Boot)
-                    final File bareJarfile = stripSFXHeader(canonicalFile, log);
+                    final File bareJarfile = stripSFXHeader ? stripSFXHeader(canonicalFile, log) : canonicalFile;
                     // Return canonical file as the singleton entry for this path
                     final Set<String> rootRelativePaths = new HashSet<>();
                     return new SimpleEntry<>(bareJarfile, rootRelativePaths);

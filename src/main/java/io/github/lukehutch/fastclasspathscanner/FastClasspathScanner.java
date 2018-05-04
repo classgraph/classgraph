@@ -480,6 +480,23 @@ public class FastClasspathScanner {
         return this;
     }
 
+    /**
+     * Manually strip the self extracting executable header from zipfiles (i.e. anything before the magic marker
+     * "PK", e.g. a Bash script added by Spring-Boot). Slightly increases scanning time, since zipfiles have to be
+     * opened twice (once as a byte stream, to check if there is an SFX header, then once as a ZipFile, for
+     * decompression).
+     * 
+     * Should only be needed in rare cases, where you are dealing with jarfiles with prepended (ZipSFX) headers,
+     * where your JVM does not already automatically skip forward to the first "PK" marker (Oracle JVM on Linux does
+     * this automatically).
+     * 
+     * @return this (for method chaining).
+     */
+    public FastClasspathScanner stripZipSFXHeaders() {
+        getScanSpec().stripSFXHeader = true;
+        return this;
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
