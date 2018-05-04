@@ -36,7 +36,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 
@@ -255,8 +254,8 @@ abstract class ClasspathElement {
 
     /** Parse any classfiles for any whitelisted classes found within this classpath element. */
     void parseClassfiles(final ClassfileBinaryParser classfileBinaryParser, final int classfileStartIdx,
-            final int classfileEndIdx, final ConcurrentHashMap<String, String> stringInternMap,
-            final ConcurrentLinkedQueue<ClassInfoUnlinked> classInfoUnlinked, final LogNode log) throws Exception {
+            final int classfileEndIdx, final ConcurrentLinkedQueue<ClassInfoUnlinked> classInfoUnlinked,
+            final LogNode log) throws Exception {
         for (int i = classfileStartIdx; i < classfileEndIdx; i++) {
             final ClasspathResource classfileResource = classfileMatches.get(i);
             try {
@@ -266,7 +265,7 @@ abstract class ClasspathElement {
                         .readClassInfoFromClassfileHeader(this, classfileResource.pathRelativeToClasspathPrefix,
                                 // Open classfile as an InputStream
                                 /* inputStream = */ classfileResource.open(), //
-                                scanSpec, stringInternMap, logNode);
+                                scanSpec, logNode);
                 // If class was successfully read, output new ClassInfoUnlinked object
                 if (thisClassInfoUnlinked != null) {
                     classInfoUnlinked.add(thisClassInfoUnlinked);

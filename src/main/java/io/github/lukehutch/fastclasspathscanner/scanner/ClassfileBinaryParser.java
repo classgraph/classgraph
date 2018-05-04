@@ -35,7 +35,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
 import io.github.lukehutch.fastclasspathscanner.scanner.AnnotationInfo.AnnotationClassRef;
 import io.github.lukehutch.fastclasspathscanner.scanner.AnnotationInfo.AnnotationEnumValue;
@@ -552,8 +551,7 @@ class ClassfileBinaryParser implements AutoCloseable {
      *             if the operation was interrupted.
      */
     ClassInfoUnlinked readClassInfoFromClassfileHeader(final ClasspathElement classpathElement,
-            final String relativePath, final InputStream inputStream, final ScanSpec scanSpec,
-            final ConcurrentHashMap<String, String> stringInternMap, final LogNode log)
+            final String relativePath, final InputStream inputStream, final ScanSpec scanSpec, final LogNode log)
             throws IOException, InterruptedException {
 
         // This class instance can be reused across scans, to avoid re-allocating the buffer. Initialize/clear
@@ -693,7 +691,7 @@ class ClassfileBinaryParser implements AutoCloseable {
         // Create holder object for the class information. This is "unlinked", in the sense that it is not linked to
         // other class info references at this point.
         final ClassInfoUnlinked classInfoUnlinked = new ClassInfoUnlinked(className, classModifierFlags,
-                isInterface, isAnnotation, stringInternMap, classpathElement);
+                isInterface, isAnnotation, classpathElement);
 
         // Connect class to superclass
         classInfoUnlinked.addSuperclass(superclassName);

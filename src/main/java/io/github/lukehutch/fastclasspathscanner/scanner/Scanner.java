@@ -39,7 +39,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -397,7 +396,6 @@ public class Scanner implements Callable<ScanResult> {
                 // Scan classfile binary headers in parallel
                 final ConcurrentLinkedQueue<ClassInfoUnlinked> classInfoUnlinked = //
                         new ConcurrentLinkedQueue<>();
-                final ConcurrentHashMap<String, String> stringInternMap = new ConcurrentHashMap<>();
                 final LogNode classfileScanLog = log == null ? null : log.log("Scanning classfile binary headers");
                 try (final Recycler<ClassfileBinaryParser, RuntimeException> classfileBinaryParserRecycler = //
                         new Recycler<ClassfileBinaryParser, RuntimeException>() {
@@ -416,8 +414,8 @@ public class Scanner implements Callable<ScanResult> {
                                     try {
                                         classfileBinaryParser = classfileBinaryParserRecycler.acquire();
                                         chunk.classpathElement.parseClassfiles(classfileBinaryParser,
-                                                chunk.classfileStartIdx, chunk.classfileEndIdx, stringInternMap,
-                                                classInfoUnlinked, classfileScanLog);
+                                                chunk.classfileStartIdx, chunk.classfileEndIdx, classInfoUnlinked,
+                                                classfileScanLog);
                                     } finally {
                                         classfileBinaryParserRecycler.release(classfileBinaryParser);
                                         classfileBinaryParser = null;

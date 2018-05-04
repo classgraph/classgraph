@@ -34,7 +34,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.concurrent.ConcurrentHashMap;
 
 import io.github.lukehutch.fastclasspathscanner.scanner.AnnotationInfo.AnnotationParamValue;
 import io.github.lukehutch.fastclasspathscanner.typesignature.ClassTypeSignature;
@@ -63,22 +62,11 @@ class ClassInfoUnlinked {
     private final ClasspathElement classpathElement;
     List<FieldInfo> fieldInfoList;
     List<MethodInfo> methodInfoList;
-    private final ConcurrentHashMap<String, String> stringInternMap;
     private String typeSignature;
 
-    private String intern(final String string) {
-        if (string == null) {
-            return null;
-        }
-        final String oldValue = stringInternMap.putIfAbsent(string, string);
-        return oldValue == null ? string : oldValue;
-    }
-
     ClassInfoUnlinked(final String className, final int classModifiers, final boolean isInterface,
-            final boolean isAnnotation, final ConcurrentHashMap<String, String> stringInternMap,
-            final ClasspathElement classpathElement) {
-        this.stringInternMap = stringInternMap;
-        this.className = intern(className);
+            final boolean isAnnotation, final ClasspathElement classpathElement) {
+        this.className = (className);
         this.classModifiers = classModifiers;
         this.isInterface = isInterface;
         this.isAnnotation = isAnnotation;
@@ -90,14 +78,14 @@ class ClassInfoUnlinked {
     }
 
     void addSuperclass(final String superclassName) {
-        this.superclassName = intern(superclassName);
+        this.superclassName = superclassName;
     }
 
     void addImplementedInterface(final String interfaceName) {
         if (implementedInterfaces == null) {
             implementedInterfaces = new ArrayList<>();
         }
-        implementedInterfaces.add(intern(interfaceName));
+        implementedInterfaces.add(interfaceName);
     }
 
     void addClassAnnotation(final AnnotationInfo classAnnotation) {
@@ -125,7 +113,7 @@ class ClassInfoUnlinked {
         if (staticFinalFieldValues == null) {
             staticFinalFieldValues = new HashMap<>();
         }
-        staticFinalFieldValues.put(intern(fieldName), staticFinalFieldValue);
+        staticFinalFieldValues.put(fieldName, staticFinalFieldValue);
     }
 
     void addFieldInfo(final FieldInfo fieldInfo) {
