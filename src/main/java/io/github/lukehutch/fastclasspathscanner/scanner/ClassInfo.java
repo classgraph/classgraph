@@ -779,7 +779,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
             classNameToClassInfo.put(className, classInfo = new ClassInfo(className, classModifiers, scanSpec));
         }
 
-        // Remember which classpath element(s) the class was found in, for classloading
+        // Remember which classpath element (zipfile / classpath root directory) the class was found in
         if (classInfo.classpathElementFile == null) {
             classInfo.classpathElementFile = classpathElement.getClasspathElementFile(log);
         } else {
@@ -788,7 +788,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
                     + " -- ClassInfo.getClasspathElementFile() will only return the first of these");
         }
 
-        // Remember which classpath element(s) the class was found in, for classloading
+        // Remember which classloader handles the class was found in, for classloading
         final ClassLoader[] classLoaders = classpathElement.getClassLoaders();
         if (classInfo.classLoaders == null) {
             classInfo.classLoaders = classLoaders;
