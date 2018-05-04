@@ -86,7 +86,6 @@ public class TypeUtils {
             position++;
         }
 
-        @SuppressWarnings("unused")
         public void advance(final int n) {
             position += n;
         }
@@ -103,7 +102,6 @@ public class TypeUtils {
             }
         }
 
-        @SuppressWarnings("unused")
         public void appendToToken(final String str) {
             token.append(str);
         }
