@@ -28,7 +28,9 @@
  */
 package io.github.lukehutch.fastclasspathscanner.scanner;
 
+import java.io.File;
 import java.lang.reflect.Modifier;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
@@ -36,7 +38,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -82,13 +83,11 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
      */
     private boolean classfileScanned;
 
-    /**
-     * The classpath element URL(s) (classpath root dir or jar) that this class was found within. Generally this
-     * will consist of exactly one entry, however it's possible for Scala that a class and its companion class will
-     * be provided in different jars, so we need to be able to support multiple classpath roots per class, so that
-     * classloading can find the class wherever it is, in order to provide MatchProcessors with a class reference.
-     */
-    private HashSet<URL> classpathElementURLs;
+    /** The classpath element file (classpath root dir or jar) that this class was found within. */
+    private File classpathElementFile;
+
+    /** The classpath element URL (classpath root dir or jar) that this class was found within. */
+    private URL classpathElementURL;
 
     /** The classloaders to try to load this class with before calling a MatchProcessor. */
     private ClassLoader[] classLoaders;
@@ -245,40 +244,37 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     }
 
     /**
-     * The classpath element URL(s) (classpath root dir or jar) that this class was found within. For Java, this
-     * will consist of exactly one entry, so you should generally call the getClasspathElementURL() convenience
-     * method instead.
-     *
-     * <p>
-     * For Scala, it is possible (though not likely) that a class and its companion class will be provided in
-     * different jars or different directories, so to be safe, for Scala, you should probably call this method
-     * instead.
+     * The classpath element URL (classpath root dir or jar) that this class was found within. This will consist of
+     * exactly one entry, so you should call the getClasspathElementURL() method instead.
      */
+    @Deprecated
     public Set<URL> getClasspathElementURLs() {
-        return classpathElementURLs;
+        final Set<URL> urls = new HashSet<>();
+        urls.add(getClasspathElementURL());
+        return urls;
     }
 
     /**
-     * The classpath element URL (classpath root dir or jar) that this class was found within. This will consist of
-     * exactly one entry for Java.
-     *
-     * <p>
-     * (If calling this from Scala, in the rare but possible case that a class and its companion class is split
-     * between two jarfiles or directories, this will throw IllegalArgumentException.)
+     * The classpath element URL (classpath root dir or jar) that this class was found within.
+     * 
+     * N.B. it is much faster to call getClasspathElementFile() -- the conversion of a File into a URL is actually
+     * quite time consuming.
      */
     public URL getClasspathElementURL() {
-        final Iterator<URL> iter = classpathElementURLs.iterator();
-        if (!iter.hasNext()) {
-            // Should not happen
-            throw new IllegalArgumentException("classpathElementURLs set is empty");
-        }
-        final URL classpathElementURL = iter.next();
-        if (iter.hasNext()) {
-            throw new IllegalArgumentException("Class " + className
-                    + " has multiple classpath URLs (need to call getClasspathElementURLs() instead): "
-                    + classpathElementURLs);
+        if (classpathElementURL == null) {
+            try {
+                classpathElementURL = getClasspathElementFile().toURI().toURL();
+            } catch (final MalformedURLException e) {
+                // Shouldn't happen; File objects should always be able to be turned into URIs and then URLs
+                throw new RuntimeException(e);
+            }
         }
         return classpathElementURL;
+    }
+
+    /** The classpath element file (classpath root dir or jar) that this class was found within. */
+    public File getClasspathElementFile() {
+        return classpathElementFile;
     }
 
     /** Get the ClassLoader(s) to use when trying to load the class. */
@@ -772,8 +768,8 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
                 // zipfiles in the wild do contain the same classfiles multiple times with the same exact path,
                 // e.g.: xmlbeans-2.6.0.jar!org/apache/xmlbeans/xml/stream/Location.class
                 if (log != null) {
-                    log.log("Encountered class with same exact path more than once in the same jarfile: "
-                            + className + " (merging info from all copies of the classfile)");
+                    log.log("Encountered class " + className
+                            + " more than once in the classpath; merging info from all copies of the classfile");
                 }
             }
             // Merge modifiers
@@ -784,10 +780,13 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
         }
 
         // Remember which classpath element(s) the class was found in, for classloading
-        if (classInfo.classpathElementURLs == null) {
-            classInfo.classpathElementURLs = new HashSet<>();
+        if (classInfo.classpathElementFile == null) {
+            classInfo.classpathElementFile = classpathElement.getClasspathElementFile(log);
+        } else {
+            log.log("Encountered class " + className + " in multiple different classpath elements: "
+                    + classInfo.classpathElementFile + " ; " + classpathElement.getClasspathElementFile(log)
+                    + " -- ClassInfo.getClasspathElementFile() will only return the first of these");
         }
-        classInfo.classpathElementURLs.add(classpathElement.getClasspathElementURL(log));
 
         // Remember which classpath element(s) the class was found in, for classloading
         final ClassLoader[] classLoaders = classpathElement.getClassLoaders();

@@ -30,8 +30,6 @@ package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -114,16 +112,6 @@ abstract class ClasspathElement {
     @Override
     public String toString() {
         return getClasspathElementFilePath();
-    }
-
-    /** Return the classpath element's URL */
-    public URL getClasspathElementURL(final LogNode log) {
-        try {
-            return getClasspathElementFile(log).toURI().toURL();
-        } catch (final MalformedURLException e) {
-            // Shouldn't happen; File objects should always be able to be turned into URIs and then URLs
-            throw new RuntimeException(e);
-        }
     }
 
     /** Return the classpath element's file (directory or jarfile) */

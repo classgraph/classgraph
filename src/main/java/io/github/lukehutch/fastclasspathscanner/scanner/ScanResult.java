@@ -29,6 +29,7 @@
 package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import java.io.File;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -59,9 +60,6 @@ public class ScanResult {
 
     /** The list of File objects for unique classpath elements (directories or jarfiles). */
     private final List<File> classpathElementOrderFiles;
-
-    /** The list of URL objects for unique classpath elements (directories or jarfiles). */
-    private final List<URL> classpathElementOrderURLs;
 
     /** The nested jar handler instance. */
     private final NestedJarHandler nestedJarHandler;
@@ -104,10 +102,8 @@ public class ScanResult {
         this.classpathOrder = classpathOrder;
         this.envClassLoaderOrder = envClassLoaderOrder;
         this.classpathElementOrderFiles = new ArrayList<>();
-        this.classpathElementOrderURLs = new ArrayList<>();
         for (final ClasspathElement classpathElement : classpathOrder) {
             classpathElementOrderFiles.add(classpathElement.getClasspathElementFile(log));
-            classpathElementOrderURLs.add(classpathElement.getClasspathElementURL(log));
         }
         this.fileToLastModified = fileToLastModified;
         this.classGraphBuilder = classGraphBuilder;
@@ -190,6 +186,15 @@ public class ScanResult {
      * @return The unique classpath element URLs.
      */
     public List<URL> getUniqueClasspathElementURLs() {
+        final List<URL> classpathElementOrderURLs = new ArrayList<>(classpathElementOrderFiles.size());
+        for (final File classpathElementFile : classpathElementOrderFiles) {
+            try {
+                classpathElementOrderURLs.add(classpathElementFile.toURI().toURL());
+            } catch (final MalformedURLException e) {
+                // Shouldn't happen; File objects should always be able to be turned into URIs and then URLs
+                throw new RuntimeException(e);
+            }
+        }
         return classpathElementOrderURLs;
     }
 
