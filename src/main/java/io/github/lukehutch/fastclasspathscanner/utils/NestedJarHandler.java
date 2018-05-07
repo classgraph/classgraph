@@ -155,7 +155,7 @@ public class NestedJarHandler {
                     // always be a jarfile.
                     final File parentJarFile = parentJarfileAndRootRelativePaths.getKey();
                     if (parentJarFile == null) {
-                        // Failed to get parent jarfile
+                        // Failed to get topmost jarfile, e.g. file not found
                         return null;
                     }
 
@@ -165,16 +165,15 @@ public class NestedJarHandler {
                     // if File.getCanonicalFile() is idempotent, which it should be by definition.
                     final String parentJarFilePath = FastPathResolver.resolve(parentJarFile.getPath());
                     if (!parentJarFilePath.equals(parentPath)) {
+                        // The path normalization process changed the path -- return a mapping
+                        // to the NestedJarHandler resolution of the normalized path 
                         return nestedPathToJarfileAndRootRelativePathsMap
                                 .getOrCreateSingleton(parentJarFilePath + "!" + childPath, log);
                     }
 
-                    // Handle self-extracting archives (they can be created by Spring-Boot)
-                    final File bareParentJarFile = stripSFXHeader(parentJarFile, log);
-
                     // Get the ZipFile recycler for the parent jar's canonical path
                     final Recycler<ZipFile, IOException> parentJarRecycler = canonicalPathToZipFileRecyclerMap
-                            .getOrCreateSingleton(bareParentJarFile.getCanonicalPath(), log);
+                            .getOrCreateSingleton(parentJarFile.getCanonicalPath(), log);
                     ZipFile parentZipFile = null;
                     try {
                         // Look up the child path within the parent zipfile
@@ -197,7 +196,7 @@ public class NestedJarHandler {
                         if (childZipEntry == null) {
                             if (log != null) {
                                 log.log(nestedJarPath, "Child path component " + childPath
-                                        + " does not exist in jarfile " + bareParentJarFile);
+                                        + " does not exist in jarfile " + parentJarFile);
                             }
                             return null;
                         }
@@ -205,9 +204,8 @@ public class NestedJarHandler {
                         // Make sure path component is a file, not a directory (can't unzip directories)
                         if (childZipEntry.isDirectory()) {
                             if (log != null) {
-                                log.log(nestedJarPath,
-                                        "Child path component " + childPath + " in jarfile " + bareParentJarFile
-                                                + " is a directory, not a file -- using as scanning root");
+                                log.log(nestedJarPath, "Child path component " + childPath + " in jarfile "
+                                        + parentJarFile + " is a directory, not a file -- using as scanning root");
                             }
                             // Add directory path to parent jarfile root relative paths set
                             parentJarfileAndRootRelativePaths.getValue().add(childPath);
@@ -218,9 +216,22 @@ public class NestedJarHandler {
                         // Unzip the child zipfile to a temporary file
                         final File childTempFile = unzipToTempFile(parentZipFile, childZipEntry, log);
 
-                        // Return the child temp zipfile as a new entry
-                        final Set<String> rootRelativePaths = new HashSet<>();
-                        return new SimpleEntry<>(childTempFile, rootRelativePaths);
+                        try {
+                            // Handle self-extracting archives (can be created by Spring-Boot)
+                            final File bareChildTempFile = stripSFXHeader ? stripSFXHeader(childTempFile, log)
+                                    : childTempFile;
+
+                            // Return the child temp zipfile as a new entry
+                            final Set<String> rootRelativePaths = new HashSet<>();
+                            return new SimpleEntry<>(bareChildTempFile, rootRelativePaths);
+
+                        } catch (final IOException e) {
+                            // Thrown if the extracted file did not have a "PK" header
+                            if (log != null) {
+                                log.log(nestedJarPath, "File does not appear to be a zipfile: " + childPath);
+                            }
+                            return null;
+                        }
 
                     } finally {
                         parentJarRecycler.release(parentZipFile);
@@ -324,8 +335,12 @@ public class NestedJarHandler {
     }
 
     /**
-     * Strip self-extracting archive header from zipfile, if present. (Simply strips everything before the first
-     * "PK".)
+     * Strip self-extracting archive ("ZipSFX") header from zipfile, if present. (Simply strips everything before
+     * the first "PK".)
+     * 
+     * @return The zipfile with the ZipSFX header removed
+     * @throws IOException
+     *             if the file does not appear to be a zipfile (i.e. if no "PK" marker is found).
      */
     private File stripSFXHeader(final File zipfile, final LogNode log) throws IOException {
         final long sfxHeaderBytes = JarUtils.countBytesBeforePKMarker(zipfile);
