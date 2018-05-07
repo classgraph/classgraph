@@ -56,11 +56,10 @@ public class ClasspathOrder {
     }
 
     /** Test to see if a RelativePath has been filtered out by the user. */
-    public boolean filter(final RelativePath classpathElement) {
+    private boolean filter(final String classpathElementPath) {
         if (scanSpec.classpathElementFilters != null) {
-            final String resolvedPath = classpathElement.getResolvedPath();
             for (final ClasspathElementFilter filter : scanSpec.classpathElementFilters) {
-                if (!filter.includeClasspathElement(resolvedPath)) {
+                if (!filter.includeClasspathElement(classpathElementPath)) {
                     return false;
                 }
             }
@@ -100,17 +99,21 @@ public class ClasspathOrder {
                                             && pathElement.charAt(pathElement.length() - 2) == '/')))) {
                 // Got wildcard path element (allowable for local classpaths as of JDK 6)
                 try {
-                    final RelativePath classpathEltParentDirPath = new RelativePath(ClasspathFinder.currDirPathStr,
-                            pathElement.substring(0, pathElement.length() - 2), classLoaders, nestedJarHandler,
-                            subLog);
+                    final RelativePath classpathEltParentDirRelativePath = new RelativePath(
+                            ClasspathFinder.currDirPathStr, pathElement.substring(0, pathElement.length() - 2),
+                            classLoaders, nestedJarHandler, subLog);
+                    final String classpathEltParentDirPath = classpathEltParentDirRelativePath.getResolvedPath();
+                    if (log != null && !pathElement.equals(classpathEltParentDirPath)) {
+                        log.log("Normalizing path to: " + pathElement);
+                    }
                     if (!filter(classpathEltParentDirPath)) {
                         if (log != null) {
                             log.log("Classpath element did not match filter criterion, skipping: "
-                                    + classpathEltParentDirPath);
+                                    + classpathEltParentDirRelativePath);
                         }
                         return false;
                     }
-                    final File classpathEltParentDir = classpathEltParentDirPath.getFile(subLog);
+                    final File classpathEltParentDir = classpathEltParentDirRelativePath.getFile(subLog);
                     if (!classpathEltParentDir.exists()) {
                         if (subLog != null) {
                             subLog.log("Directory does not exist for wildcard classpath element: " + pathElement);
@@ -147,25 +150,30 @@ public class ClasspathOrder {
                 return false;
             }
         } else {
-            final RelativePath classpathEltPath = new RelativePath(ClasspathFinder.currDirPathStr, pathElement,
-                    classLoaders, nestedJarHandler, subLog);
+            final RelativePath classpathEltRelativePath = new RelativePath(ClasspathFinder.currDirPathStr,
+                    pathElement, classLoaders, nestedJarHandler, subLog);
+            final String classpathEltPath = classpathEltRelativePath.getResolvedPath();
+            if (log != null && !pathElement.equals(classpathEltPath)) {
+                log.log("Normalizing path to: " + pathElement);
+            }
             if (!filter(classpathEltPath)) {
                 if (log != null) {
-                    log.log("Classpath element did not match filter criterion, skipping: " + classpathEltPath);
+                    log.log("Classpath element did not match filter criterion, skipping: "
+                            + classpathEltRelativePath);
                 }
                 return false;
             }
-            if (classpathOrder.add(classpathEltPath)) {
+            if (classpathOrder.add(classpathEltRelativePath)) {
                 if (subLog != null) {
-                    if (!classpathEltPath.toString().equals(pathElement)) {
-                        subLog.log("Normalized path: " + classpathEltPath);
+                    if (!classpathEltRelativePath.toString().equals(pathElement)) {
+                        subLog.log("Normalized path: " + classpathEltRelativePath);
                     }
                 }
                 return true;
             } else {
                 if (subLog != null) {
-                    if (!classpathEltPath.toString().equals(pathElement)) {
-                        subLog.log("Ignoring duplicate classpath element: " + classpathEltPath);
+                    if (!classpathEltRelativePath.toString().equals(pathElement)) {
+                        subLog.log("Ignoring duplicate classpath element: " + classpathEltRelativePath);
                     } else {
                         subLog.log("Ignoring duplicate classpath element");
                     }
