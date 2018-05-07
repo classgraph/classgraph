@@ -222,30 +222,35 @@ abstract class ClasspathElement {
     void callFileMatchProcessors(final ScanResult scanResult, final LogNode log)
             throws InterruptedException, ExecutionException {
         if (fileMatches != null) {
-            final LogNode subLog = log == null ? null
-                    : log.log("Calling FileMatchProcessors for classpath element " + this);
-            for (final Entry<FileMatchProcessorWrapper, List<ClasspathResource>> ent : fileMatches.entrySet()) {
-                final FileMatchProcessorWrapper fileMatchProcessorWrapper = ent.getKey();
-                for (final ClasspathResource fileMatchResource : ent.getValue()) {
-                    try {
-                        final LogNode logNode = subLog == null ? null
-                                : subLog.log("Calling MatchProcessor for matching file " + fileMatchResource);
-                        // Process the file match (may call fileMatchResource.open())
-                        fileMatchProcessorWrapper.processMatch(fileMatchResource, subLog);
-                        if (logNode != null) {
-                            logNode.addElapsedTime();
+            final Set<Entry<FileMatchProcessorWrapper, List<ClasspathResource>>> fileMatchesSet = fileMatches
+                    .entrySet();
+            if (!fileMatchesSet.isEmpty()) {
+                final LogNode subLog = log == null ? null
+                        : log.log("Calling FileMatchProcessors for classpath element " + this);
+                for (final Entry<FileMatchProcessorWrapper, List<ClasspathResource>> ent : fileMatchesSet) {
+                    final FileMatchProcessorWrapper fileMatchProcessorWrapper = ent.getKey();
+                    for (final ClasspathResource fileMatchResource : ent.getValue()) {
+                        try {
+                            final LogNode logNode = subLog == null ? null
+                                    : subLog.log("Calling MatchProcessor for matching file " + fileMatchResource);
+                            // Process the file match (may call fileMatchResource.open())
+                            fileMatchProcessorWrapper.processMatch(fileMatchResource, subLog);
+                            if (logNode != null) {
+                                logNode.addElapsedTime();
+                            }
+                        } catch (final Throwable e) {
+                            if (subLog != null) {
+                                subLog.log(
+                                        "Exception while calling FileMatchProcessor for file " + fileMatchResource,
+                                        e);
+                            }
+                            scanResult.addMatchProcessorException(e);
                         }
-                    } catch (final Throwable e) {
-                        if (subLog != null) {
-                            subLog.log("Exception while calling FileMatchProcessor for file " + fileMatchResource,
-                                    e);
-                        }
-                        scanResult.addMatchProcessorException(e);
                     }
                 }
-            }
-            if (subLog != null) {
-                subLog.addElapsedTime();
+                if (subLog != null) {
+                    subLog.addElapsedTime();
+                }
             }
         }
     }
@@ -259,7 +264,9 @@ abstract class ClasspathElement {
         for (int i = classfileStartIdx; i < classfileEndIdx; i++) {
             final ClasspathResource classfileResource = classfileMatches.get(i);
             try {
-                final LogNode logNode = log == null ? null : log.log("Parsing classfile " + classfileResource);
+                final LogNode logNode = log == null ? null
+                        : log.log(classfileResource.pathRelativeToClasspathPrefix,
+                                "Parsing classfile " + classfileResource);
                 // Parse classpath binary format, creating a ClassInfoUnlinked object
                 final ClassInfoUnlinked thisClassInfoUnlinked = classfileBinaryParser
                         .readClassInfoFromClassfileHeader(this, classfileResource.pathRelativeToClasspathPrefix,

@@ -163,7 +163,6 @@ class ClasspathElementZip extends ClasspathElement {
         final LogNode logNode = log == null ? null
                 : log.log(canonicalPath, "Scanning jarfile classpath entry " + classpathEltPath
                         + (path.equals(canonicalPath) ? "" : " ; canonical path: " + canonicalPath));
-
         ZipFile zipFile = null;
         try {
             try {
@@ -328,9 +327,8 @@ class ClasspathElementZip extends ClasspathElement {
                 }
             }
 
-            if (log != null) {
-                log.log("Found whitelisted file: " + relativePath);
-            }
+            final LogNode subLog = log == null ? null
+                    : log.log(relativePath, "Found whitelisted file: " + relativePath);
 
             // Store relative paths of any classfiles encountered
             if (FileUtils.isClassfile(relativePath)) {
@@ -341,7 +339,7 @@ class ClasspathElementZip extends ClasspathElement {
             // Match file paths against path patterns
             for (final FileMatchProcessorWrapper fileMatchProcessorWrapper : //
             scanSpec.getFileMatchProcessorWrappers()) {
-                if (fileMatchProcessorWrapper.filePathMatches(zipFileFile, relativePath, log)) {
+                if (fileMatchProcessorWrapper.filePathMatches(zipFileFile, relativePath, subLog)) {
                     // File's relative path matches. Don't use the last modified time from the individual zipEntry
                     // objects, we use the last modified time for the zipfile itself instead.
                     fileMatches.put(fileMatchProcessorWrapper, newClasspathResource(zipFileFile,

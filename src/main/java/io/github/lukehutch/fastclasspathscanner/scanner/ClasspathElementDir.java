@@ -84,6 +84,9 @@ class ClasspathElementDir extends ClasspathElement {
         final HashSet<String> scannedCanonicalPaths = new HashSet<>();
         scanDir(dir, dir, /* ignorePrefixLen = */ dir.getPath().length() + 1, /* inWhitelistedPath = */ false,
                 scannedCanonicalPaths, logNode);
+        if (logNode != null) {
+            logNode.addElapsedTime();
+        }
     }
 
     private ClasspathResource newClasspathResource(final File classpathEltFile,
@@ -191,6 +194,9 @@ class ClasspathElementDir extends ClasspathElement {
                     // Recurse into subdirectory
                     scanDir(classpathElt, fileInDir, ignorePrefixLen, inWhitelistedPath, scannedCanonicalPaths,
                             dirLog);
+                    if (dirLog != null) {
+                        dirLog.addElapsedTime();
+                    }
                 }
             } else if (fileInDir.isFile()) {
                 final String fileInDirRelativePath = dirRelativePath.isEmpty() || "/".equals(dirRelativePath)
@@ -206,9 +212,9 @@ class ClasspathElementDir extends ClasspathElement {
                     continue;
                 }
 
-                if (dirLog != null) {
-                    dirLog.log("Found whitelisted file: " + fileInDirRelativePath);
-                }
+                final LogNode subLog = dirLog == null ? null
+                        : dirLog.log(fileInDirRelativePath, "Found whitelisted file: " + fileInDirRelativePath);
+
                 fileToLastModified.put(fileInDir, fileInDir.lastModified());
 
                 // Store relative paths of any classfiles encountered
@@ -220,7 +226,7 @@ class ClasspathElementDir extends ClasspathElement {
                 // Match file paths against path patterns
                 for (final FileMatchProcessorWrapper fileMatchProcessorWrapper : //
                 scanSpec.getFileMatchProcessorWrappers()) {
-                    if (fileMatchProcessorWrapper.filePathMatches(classpathElt, fileInDirRelativePath, dirLog)) {
+                    if (fileMatchProcessorWrapper.filePathMatches(classpathElt, fileInDirRelativePath, subLog)) {
                         // File's relative path matches.
                         fileMatches.put(fileMatchProcessorWrapper, newClasspathResource(classpathElt,
                                 fileInDirRelativePath, fileInDirRelativePath, fileInDir));
@@ -234,9 +240,6 @@ class ClasspathElementDir extends ClasspathElement {
             // need to timestamp ancestors of whitelisted directories, in case a new directory is added that matches
             // whitelist criteria.
             fileToLastModified.put(dir, dir.lastModified());
-        }
-        if (log != null) {
-            log.addElapsedTime();
         }
     }
 

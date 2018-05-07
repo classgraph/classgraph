@@ -424,6 +424,9 @@ public class Scanner implements Callable<ScanResult> {
                                 }
                             }, interruptionChecker, classfileScanLog);
                 }
+                if (classfileScanLog != null) {
+                    classfileScanLog.addElapsedTime();
+                }
 
                 // Build the class graph: convert ClassInfoUnlinked to linked ClassInfo objects.
                 final LogNode classGraphLog = log == null ? null : log.log("Building class graph");
