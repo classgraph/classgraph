@@ -189,8 +189,8 @@ public class ClasspathFinder {
         // Get environment ClassLoader order
         envClassLoaderOrder = ClassLoaderFinder.findEnvClassLoaders(scanSpec, classpathFinderLog);
 
-        final ClasspathOrder classpathOrder = new ClasspathOrder(nestedJarHandler);
-        final ClasspathOrder ignoredClasspathOrder = new ClasspathOrder(nestedJarHandler);
+        final ClasspathOrder classpathOrder = new ClasspathOrder(scanSpec, nestedJarHandler);
+        final ClasspathOrder ignoredClasspathOrder = new ClasspathOrder(scanSpec, nestedJarHandler);
 
         if (scanSpec.overrideClasspath != null) {
             // Manual classpath override

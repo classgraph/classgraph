@@ -44,6 +44,7 @@ import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.regex.Pattern;
 
+import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner.ClasspathElementFilter;
 import io.github.lukehutch.fastclasspathscanner.MatchProcessorException;
 import io.github.lukehutch.fastclasspathscanner.classloaderhandler.ClassLoaderHandler;
 import io.github.lukehutch.fastclasspathscanner.classloaderhandler.ClassLoaderHandlerRegistry;
@@ -245,6 +246,9 @@ public class ScanSpec {
 
     /** If non-null, specifies a classpath to override the default one. */
     public String overrideClasspath;
+
+    /** If non-null, a list of filter operations to apply to classpath elements. */
+    public List<ClasspathElementFilter> classpathElementFilters;
 
     /** Manually-registered ClassLoaderHandlers. */
     public final ArrayList<ClassLoaderHandlerRegistryEntry> extraClassLoaderHandlers = new ArrayList<>();
@@ -503,6 +507,17 @@ public class ScanSpec {
      */
     public void overrideClasspath(final String overrideClasspath) {
         this.overrideClasspath = overrideClasspath;
+    }
+
+    /**
+     * Add a classpath element filter. The provided ClasspathElementFilter should return true if the path string
+     * passed to it is a path you want to scan.
+     */
+    public void filterClasspathElements(final ClasspathElementFilter classpathElementFilter) {
+        if (this.classpathElementFilters == null) {
+            this.classpathElementFilters = new ArrayList<>(2);
+        }
+        this.classpathElementFilters.add(classpathElementFilter);
     }
 
     /**

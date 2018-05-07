@@ -574,6 +574,32 @@ public class FastClasspathScanner {
     }
 
     /**
+     * Add a classpath element filter. The includeClasspathElement method should return true if the path string
+     * passed to it is a path you want to scan.
+     */
+    @FunctionalInterface
+    public interface ClasspathElementFilter {
+        /**
+         * @param classpathElementString
+         *            The path string of a classpath element, normalized so that the path separator is '/'. This
+         *            will usually be a file path, but could be a URL, or it could be a path for a nested jar, where
+         *            the paths are separated using '!', in Java convention. "jar:" and/or "file:" will have been
+         *            stripped from the beginning, if they were present in the classpath.
+         * @return true if the path string passed is a path you want to scan.
+         */
+        public boolean includeClasspathElement(String classpathElementString);
+    }
+
+    /**
+     * Add a classpath element filter. The provided ClasspathElementFilter should return true if the path string
+     * passed to it is a path you want to scan.
+     */
+    public FastClasspathScanner filterClasspathElements(final ClasspathElementFilter classpathElementFilter) {
+        getScanSpec().filterClasspathElements(classpathElementFilter);
+        return this;
+    }
+
+    /**
      * Add a ClassLoader to the list of ClassLoaders to scan.
      *
      * <p>

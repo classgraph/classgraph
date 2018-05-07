@@ -32,6 +32,7 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Array;
 
+import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner.ClasspathElementFilter;
 import io.github.lukehutch.fastclasspathscanner.utils.AdditionOrderedSet;
 import io.github.lukehutch.fastclasspathscanner.utils.JarUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
@@ -39,17 +40,32 @@ import io.github.lukehutch.fastclasspathscanner.utils.NestedJarHandler;
 
 /** A class to find the unique ordered classpath elements. */
 public class ClasspathOrder {
+    final ScanSpec scanSpec;
     final NestedJarHandler nestedJarHandler;
 
     private final AdditionOrderedSet<RelativePath> classpathOrder = new AdditionOrderedSet<>();
 
-    ClasspathOrder(final NestedJarHandler nestedJarHandler) {
+    ClasspathOrder(final ScanSpec scanSpec, final NestedJarHandler nestedJarHandler) {
+        this.scanSpec = scanSpec;
         this.nestedJarHandler = nestedJarHandler;
     }
 
     /** Get the order of classpath elements. */
     public AdditionOrderedSet<RelativePath> get() {
         return classpathOrder;
+    }
+
+    /** Test to see if a RelativePath has been filtered out by the user. */
+    public boolean filter(final RelativePath classpathElement) {
+        if (scanSpec.classpathElementFilters != null) {
+            final String resolvedPath = classpathElement.getResolvedPath();
+            for (final ClasspathElementFilter filter : scanSpec.classpathElementFilters) {
+                if (!filter.includeClasspathElement(resolvedPath)) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     /**
@@ -64,7 +80,8 @@ public class ClasspathOrder {
      *            the AdditionOrderedSet to add classpath elements to.
      * @param log
      *            the LogNode instance to use if logging in verbose mode.
-     * @return true (and add the classpath element) if pathElement is not null or empty, otherwise return false.
+     * @return true (and add the classpath element) if pathElement is not null, empty, nonexistent, or filtered out
+     *         by user-specified criteria, otherwise return false.
      */
     public boolean addClasspathElement(final String pathElement, final ClassLoader[] classLoaders,
             final LogNode log) {
@@ -83,9 +100,17 @@ public class ClasspathOrder {
                                             && pathElement.charAt(pathElement.length() - 2) == '/')))) {
                 // Got wildcard path element (allowable for local classpaths as of JDK 6)
                 try {
-                    final File classpathEltParentDir = new RelativePath(ClasspathFinder.currDirPathStr,
+                    final RelativePath classpathEltParentDirPath = new RelativePath(ClasspathFinder.currDirPathStr,
                             pathElement.substring(0, pathElement.length() - 2), classLoaders, nestedJarHandler,
-                            subLog).getFile(subLog);
+                            subLog);
+                    if (!filter(classpathEltParentDirPath)) {
+                        if (log != null) {
+                            log.log("Classpath element did not match filter criterion, skipping: "
+                                    + classpathEltParentDirPath);
+                        }
+                        return false;
+                    }
+                    final File classpathEltParentDir = classpathEltParentDirPath.getFile(subLog);
                     if (!classpathEltParentDir.exists()) {
                         if (subLog != null) {
                             subLog.log("Directory does not exist for wildcard classpath element: " + pathElement);
@@ -124,12 +149,19 @@ public class ClasspathOrder {
         } else {
             final RelativePath classpathEltPath = new RelativePath(ClasspathFinder.currDirPathStr, pathElement,
                     classLoaders, nestedJarHandler, subLog);
+            if (!filter(classpathEltPath)) {
+                if (log != null) {
+                    log.log("Classpath element did not match filter criterion, skipping: " + classpathEltPath);
+                }
+                return false;
+            }
             if (classpathOrder.add(classpathEltPath)) {
                 if (subLog != null) {
                     if (!classpathEltPath.toString().equals(pathElement)) {
                         subLog.log("Normalized path: " + classpathEltPath);
                     }
                 }
+                return true;
             } else {
                 if (subLog != null) {
                     if (!classpathEltPath.toString().equals(pathElement)) {
@@ -138,8 +170,8 @@ public class ClasspathOrder {
                         subLog.log("Ignoring duplicate classpath element");
                     }
                 }
+                return false;
             }
-            return true;
         }
     }
 
