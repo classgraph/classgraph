@@ -257,8 +257,9 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     /**
      * The classpath element URL (classpath root dir or jar) that this class was found within.
      * 
-     * N.B. it is much faster to call getClasspathElementFile() -- the conversion of a File into a URL is actually
-     * quite time consuming.
+     * N.B. Classpath elements are handled as File objects internally. It is much faster to call
+     * getClasspathElementFile() -- the conversion of a File into a URL (via File#toURI()#toURL()) is actually quite
+     * time consuming.
      */
     public URL getClasspathElementURL() {
         if (classpathElementURL == null) {
