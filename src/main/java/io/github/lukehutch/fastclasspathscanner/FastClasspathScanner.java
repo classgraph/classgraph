@@ -274,7 +274,9 @@ public class FastClasspathScanner {
      * ScanResult#getNamesOfClassesWithFieldAnnotation(annotation). (If you add a method annotation match processor,
      * this method is called for you.) Method annotation indexing is disabled by default, because it is expensive in
      * terms of time, and it is not needed for most uses of FastClasspathScanner.
-     *
+     * 
+     * @param enableFieldAnnotationIndexing
+     *            Whether to enable field annotation indexing.
      * @return this (for method chaining).
      */
     public FastClasspathScanner enableFieldAnnotationIndexing(final boolean enableFieldAnnotationIndexing) {
@@ -593,6 +595,11 @@ public class FastClasspathScanner {
     /**
      * Add a classpath element filter. The provided ClasspathElementFilter should return true if the path string
      * passed to it is a path you want to scan.
+     * 
+     * @param classpathElementFilter
+     *            The filter function to use. This function should return true if the classpath element path should
+     *            be scanned, and false if not.
+     * @return this (for method chaining).
      */
     public FastClasspathScanner filterClasspathElements(final ClasspathElementFilter classpathElementFilter) {
         getScanSpec().filterClasspathElements(classpathElementFilter);
@@ -671,6 +678,8 @@ public class FastClasspathScanner {
      * Causes exceptions thrown inside MatchProcessors to not be re-thrown, wrapped in a MatchProcessorException, at
      * the end of a synchronous scan. Instead, any thrown exceptions can be fetched using
      * ScanResult.getMatchProcessorExceptions().
+     * 
+     * @return this (for method chaining).
      */
     public FastClasspathScanner suppressMatchProcessorExceptions() {
         suppressMatchProcessorExceptions(true);
@@ -683,6 +692,9 @@ public class FastClasspathScanner {
      * fetched using ScanResult.getMatchProcessorExceptions(). If suppressMatchProcessorExceptions is false, at the
      * end of a synchronous scan, if ScanResult.getMatchProcessorExceptions() returns a non-empty list,
      * MatchProcessorException is thrown to the caller.
+     * 
+     * @param suppressMatchProcessorExceptions Whether to suppress MatchProcessorExceptions.
+     * @return this (for method chaining).
      */
     public FastClasspathScanner suppressMatchProcessorExceptions(final boolean suppressMatchProcessorExceptions) {
         getScanSpec().suppressMatchProcessorExceptions = suppressMatchProcessorExceptions;

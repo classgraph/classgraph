@@ -178,8 +178,11 @@ public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
 
     /**
      * Returns the type variable along with its type bound, if available (e.g. "X extends xyz.Cls"). You can get
-     * this in structured from by calling {@link getCorrespondingTypeParameter()}. Returns just the type variable if
-     * there is no type bound, or if no type bound is known (i.e. if getCorrespondingTypeParameter() returns null).
+     * this in structured from by calling {@link #getCorrespondingTypeParameter()}. Returns just the type variable
+     * if there is no type bound, or if no type bound is known (i.e. if getCorrespondingTypeParameter() returns
+     * null).
+     * 
+     * @return The string representation.
      */
     public String toStringWithTypeBound() {
         final TypeParameter typeParameter = getCorrespondingTypeParameter();

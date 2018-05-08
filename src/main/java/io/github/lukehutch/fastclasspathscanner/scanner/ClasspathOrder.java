@@ -75,8 +75,6 @@ public class ClasspathOrder {
      *            the URL or path of the classpath element.
      * @param classLoaders
      *            the ClassLoader(s) that this classpath element was obtained from.
-     * @param classpathElementOrderOut
-     *            the AdditionOrderedSet to add classpath elements to.
      * @param log
      *            the LogNode instance to use if logging in verbose mode.
      * @return true (and add the classpath element) if pathElement is not null, empty, nonexistent, or filtered out

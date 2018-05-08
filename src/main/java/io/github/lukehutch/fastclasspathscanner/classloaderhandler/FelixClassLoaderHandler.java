@@ -42,8 +42,7 @@ import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
  * Custom Class Loader Handler for OSGi Felix ClassLoader.
  *
  * <p>
- * The handler adds the bundle jar and all assocaited Bundle-Claspath jars into the {@link ClasspathFinder} scan
- * classpath.
+ * The handler adds the bundle jar and all assocaited Bundle-Claspath jars into the classpath to be scanned.
  *
  * @author elrufaie
  */

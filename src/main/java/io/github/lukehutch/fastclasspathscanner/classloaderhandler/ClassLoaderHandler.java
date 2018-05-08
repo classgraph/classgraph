@@ -44,7 +44,11 @@ import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
  * incorporation into FastClasspathScanner.
  */
 public interface ClassLoaderHandler {
-    /** The fully-qualified names of handled classloader classes. */
+    /**
+     * The fully-qualified names of handled classloader classes.
+     * 
+     * @return The names of ClassLoaders that this ClassLoaderHandler can handle.
+     */
     public String[] handledClassLoaders();
 
     /**
@@ -52,13 +56,20 @@ public interface ClassLoaderHandler {
      * ClassLoaders, but this can be overridden by some ClassLoaders, e.g. WebSphere).
      */
     public enum DelegationOrder {
-        PARENT_FIRST, PARENT_LAST;
+        /** Delegate to parent before handling in child. */
+        PARENT_FIRST,
+        /** Handle classloading in child before delegating to parent. */
+        PARENT_LAST;
     }
 
     /**
      * The delegation order configuration for a given ClassLoader instance (this is usually PARENT_FIRST for most
      * ClassLoaders, since you don't generally want to be able to override system classes with user classes, but
      * this can be overridden by some ClassLoaders, e.g. WebSphere).
+     * 
+     * @param classLoaderInstance
+     *            The ClassLoader to get the delegation order for.
+     * @return The delegation order for the given ClassLoader.
      */
     public DelegationOrder getDelegationOrder(ClassLoader classLoaderInstance);
 
@@ -82,6 +93,8 @@ public interface ClassLoaderHandler {
      *            The ClasspathOrder to register any discovered classpath elements with.
      * @param log
      *            A logger instance -- if this is non-null, write debug information using log.log("message").
+     * @throws Exception
+     *             If anything goes wrong while fetching classpath elements.
      */
     public void handle(ScanSpec scanSpec, final ClassLoader classLoader, final ClasspathOrder classpathOrderOut,
             LogNode log) throws Exception;

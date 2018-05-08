@@ -33,6 +33,11 @@ import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
 
+/**
+ * Handle the WebSphere traditonal ClassLoaders.
+ * 
+ * @author lukehutch
+ */
 public class WebsphereTraditionalClassLoaderHandler implements ClassLoaderHandler {
     @Override
     public String[] handledClassLoaders() {

@@ -35,6 +35,11 @@ import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
 
+/**
+ * Handle the OSGi DefaultClassLoader.
+ * 
+ * @author lukehutch
+ */
 public class OSGiDefaultClassLoaderHandler implements ClassLoaderHandler {
     @Override
     public String[] handledClassLoaders() {

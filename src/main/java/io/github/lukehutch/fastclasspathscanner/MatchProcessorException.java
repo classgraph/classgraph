@@ -55,12 +55,22 @@ public class MatchProcessorException extends RuntimeException {
         this.exceptions = exceptions;
     }
 
-    /** Get all the exceptions thrown by a MatchProcessor during the scan. */
+    /**
+     * Get all the exceptions thrown by a MatchProcessor during the scan.
+     * 
+     * @return The list of exceptions.
+     */
     public List<Throwable> getExceptions() {
         return exceptions == null ? Collections.<Throwable> emptyList() : exceptions;
     }
 
-    /** Create a MatchProcessorException */
+    /**
+     * Create a MatchProcessorException
+     * 
+     * @param exceptions
+     *            The list of Throwables (Exceptions or Errors) that were thrown by the MatchProcessor.
+     * @return A new MatchProcessorException.
+     */
     public static MatchProcessorException newInstance(final List<Throwable> exceptions) {
         if (exceptions.size() == 1) {
             final Throwable throwable = exceptions.get(0);
@@ -85,7 +95,13 @@ public class MatchProcessorException extends RuntimeException {
         }
     }
 
-    /** Create a MatchProcessorException. */
+    /**
+     * Create a MatchProcessorException.
+     * 
+     * @param throwable
+     *            The Throwable (Exception or Error) that was thrown.
+     * @return a new MatchProcessorException.
+     */
     public static MatchProcessorException newInstance(final Throwable throwable) {
         if (throwable instanceof Exception) {
             return new MatchProcessorException(Arrays.asList(throwable), (Exception) throwable);

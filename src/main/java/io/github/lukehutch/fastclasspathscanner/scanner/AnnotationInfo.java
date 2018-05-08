@@ -229,7 +229,7 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
         /**
          * Get the enum constant. Causes the ClassLoader to load the enum class.
          *
-         * @throw IllegalArgumentException if the class could not be loaded, or the enum constant is invalid.
+         * @throws IllegalArgumentException if the class could not be loaded, or the enum constant is invalid.
          */
         public Object getEnumValueRef() throws IllegalArgumentException {
             final Class<?> classRef = scanResult.classNameToClassRef(className);

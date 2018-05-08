@@ -57,7 +57,7 @@ public class ClassLoaderHandlerRegistry {
             // Java 7/8 support (list last, as fallback)
             new ClassLoaderHandlerRegistryEntry(URLClassLoaderHandler.class));
 
-    // Do not need to add FallbackClassLoaderHandler to the above list
+    /** The fallback ClassLoaderHandler. Do not need to add FallbackClassLoaderHandler to the above list. */
     public static final ClassLoaderHandlerRegistryEntry FALLBACK_CLASS_LOADER_HANDLER = //
             new ClassLoaderHandlerRegistryEntry(FallbackClassLoaderHandler.class);
 
@@ -65,9 +65,15 @@ public class ClassLoaderHandlerRegistry {
      * A list of fully-qualified ClassLoader class names paired with the ClassLoaderHandler that can handle them.
      */
     public static class ClassLoaderHandlerRegistryEntry {
+        /** The names of handled ClassLoaders. */
         public final String[] handledClassLoaderNames;
+        /** The ClassLoader class.. */
         public final Class<? extends ClassLoaderHandler> classLoaderHandlerClass;
 
+        /**
+         * @param classLoaderHandlerClass
+         *            The ClassLoaderHandler class.
+         */
         public ClassLoaderHandlerRegistryEntry(final Class<? extends ClassLoaderHandler> classLoaderHandlerClass) {
             this.classLoaderHandlerClass = classLoaderHandlerClass;
             try {
@@ -80,7 +86,13 @@ public class ClassLoaderHandlerRegistry {
             }
         }
 
-        /** Instantiate a ClassLoaderHandler, or return null if the class could not be instantiated. */
+        /**
+         * Instantiate a ClassLoaderHandler, or return null if the class could not be instantiated.
+         * 
+         * @param log
+         *            The log.
+         * @return The ClassLoaderHandler instance.
+         */
         public ClassLoaderHandler instantiate(final LogNode log) {
             try {
                 // Instantiate a ClassLoaderHandler

@@ -54,7 +54,6 @@ public class GraphvizUtils {
      *            The string to escape to make HTML-safe.
      * @param turnNewlineIntoBreak
      *            If true, turn '\n' into a break element in the output.
-     * @return The sanitized/escaped HTML-safe string.
      */
     public static void htmlEncode(final CharSequence unsafeStr, final boolean turnNewlineIntoBreak,
             final StringBuilder buf) {
@@ -142,7 +141,6 @@ public class GraphvizUtils {
      * 
      * @param unsafeStr
      *            The string to escape to make HTML-safe.
-     * @return The sanitized/escaped HTML-safe string.
      */
     public static void htmlEncode(final CharSequence unsafeStr, final StringBuilder buf) {
         htmlEncode(unsafeStr, /* turnNewlineIntoBreak = */ false, buf);
