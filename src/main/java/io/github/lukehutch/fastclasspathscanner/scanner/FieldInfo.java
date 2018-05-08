@@ -216,6 +216,21 @@ public class FieldInfo extends InfoObject implements Comparable<FieldInfo> {
     }
 
     /**
+     * Returns the parsed type descriptor for the field, if available.
+     * 
+     * @return The parsed type descriptor for the field, if available, else returns null.
+     */
+    public TypeSignature getTypeDescriptor() {
+        if (typeDescriptorStr == null) {
+            return null;
+        }
+        if (typeDescriptor == null) {
+            typeDescriptor = TypeSignature.parse(typeDescriptorStr);
+        }
+        return typeDescriptor;
+    }
+
+    /**
      * Returns the low-level internal type signature string for the method, possibly with type parameters.
      * 
      * @return The low-level internal type descriptor for the field.
@@ -237,21 +252,6 @@ public class FieldInfo extends InfoObject implements Comparable<FieldInfo> {
             typeSignature = TypeSignature.parse(typeSignatureStr);
         }
         return typeSignature;
-    }
-
-    /**
-     * Returns the parsed type descriptor for the field, if available.
-     * 
-     * @return The parsed type descriptor for the field, if available, else returns null.
-     */
-    public TypeSignature getTypeDescriptor() {
-        if (typeDescriptorStr == null) {
-            return null;
-        }
-        if (typeDescriptor == null) {
-            typeDescriptor = TypeSignature.parse(typeDescriptorStr);
-        }
-        return typeDescriptor;
     }
 
     /**
