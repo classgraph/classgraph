@@ -310,7 +310,7 @@ class ClassGraphBuilder {
                 if (buf.charAt(buf.length() - 1) != ' ') {
                     buf.append(' ');
                 }
-                GraphvizUtils.htmlEncode(fi.getTypeStr(), buf);
+                GraphvizUtils.htmlEncode(fi.getTypeSignatureOrTypeDescriptor().toString(), buf);
                 buf.append("</td>");
 
                 // Field name

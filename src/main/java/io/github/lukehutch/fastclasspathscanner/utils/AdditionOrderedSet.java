@@ -35,6 +35,9 @@ import java.util.List;
 
 /**
  * A simplified set that has O(1) add time, but also preserves a list of elements in the order they were added.
+ * 
+ * @param <T>
+ *            The element type
  */
 public class AdditionOrderedSet<T> implements Iterable<T> {
     private final HashSet<T> set;
@@ -42,6 +45,10 @@ public class AdditionOrderedSet<T> implements Iterable<T> {
 
     /**
      * Add an element to the set. Returns true if the element was added; false if it was already in the set.
+     * 
+     * @param elt
+     *            The element to add to the set.
+     * @return True, if the element was not previously in the set, else false.
      */
     public boolean add(final T elt) {
         if (set.add(elt)) {
@@ -54,6 +61,10 @@ public class AdditionOrderedSet<T> implements Iterable<T> {
 
     /**
      * Add all items of a list to the set. Returns true if the list changed as a result of the add.
+     * 
+     * @param items
+     *            The items to add to the set.
+     * @return True, if at least one element was not previously in the set, else false.
      */
     public boolean addAll(final Iterable<T> items) {
         boolean changed = false;
@@ -63,24 +74,48 @@ public class AdditionOrderedSet<T> implements Iterable<T> {
         return changed;
     }
 
+    /**
+     * Test if the set contains the given element.
+     * 
+     * @param elt
+     *            The element to test for.
+     * @return True, if the element is in the set.
+     */
     public boolean contains(final T elt) {
         return set.contains(elt);
     }
 
-    /** Get the elements in addition order (i.e. in the order they were added) */
+    /**
+     * Get the elements in addition order (i.e. in the order they were added)
+     * 
+     * @return The set, in addition order.
+     */
     public List<T> toList() {
         return list;
     }
 
+    /** Create a new set, with initialSize 16. */
     public AdditionOrderedSet() {
         this(16);
     }
 
+    /**
+     * Create a new set with the specified initialSize.
+     * 
+     * @param initialSize
+     *            The initialSize to allocate for the set.
+     */
     public AdditionOrderedSet(final int initialSize) {
         set = new HashSet<>(initialSize);
         list = new ArrayList<>(initialSize);
     }
 
+    /**
+     * Create a new set, adding the specified elements in order.
+     * 
+     * @param elts
+     *            The elements to add.
+     */
     public AdditionOrderedSet(final List<T> elts) {
         this(elts.size());
         for (final T elt : elts) {
@@ -88,6 +123,12 @@ public class AdditionOrderedSet<T> implements Iterable<T> {
         }
     }
 
+    /**
+     * Create a new set, adding the specified elements in order.
+     * 
+     * @param elts
+     *            The elements to add.
+     */
     public AdditionOrderedSet(final T[] elts) {
         this(elts.length);
         for (final T elt : elts) {
@@ -95,10 +136,22 @@ public class AdditionOrderedSet<T> implements Iterable<T> {
         }
     }
 
+    /**
+     * Deduplicate a list, keeping the elements in the same relative order.
+     * 
+     * @param list
+     *            The list to deduplicate.
+     * @return The deduplicated list.
+     */
     public static <T> List<T> dedup(final List<T> list) {
         return new AdditionOrderedSet<>(list).toList();
     }
 
+    /**
+     * The number of elements in the set.
+     * 
+     * @return The number of elements in the set.
+     */
     public int size() {
         return list.size();
     }

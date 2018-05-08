@@ -51,6 +51,16 @@ public class MethodTypeSignature extends HierarchicalTypeSignature {
     /** The throws type signatures. */
     private final List<ClassRefOrTypeVariableSignature> throwsSignatures;
 
+    /**
+     * @param typeParameters
+     *            The type parameters for the method.
+     * @param paramTypes
+     *            The parameter types for the method.
+     * @param resultType
+     *            The result type for the method.
+     * @param throwsSignatures
+     *            The throws signatures for the method.
+     */
     public MethodTypeSignature(final List<TypeParameter> typeParameters, final List<TypeSignature> paramTypes,
             final TypeSignature resultType, final List<ClassRefOrTypeVariableSignature> throwsSignatures) {
         this.typeParameters = typeParameters;
@@ -59,22 +69,38 @@ public class MethodTypeSignature extends HierarchicalTypeSignature {
         this.throwsSignatures = throwsSignatures;
     }
 
-    /** Get the type parameters for the method. */
+    /**
+     * Get the type parameters for the method.
+     * 
+     * @return The type parameters for the method.
+     */
     public List<TypeParameter> getTypeParameters() {
         return typeParameters;
     }
 
-    /** Get the type signatures of the method parameters. */
+    /**
+     * Get the type signatures of the method parameters.
+     * 
+     * @return The parameter types for the method, as {@link TypeSignature} parsed type objects.
+     */
     public List<TypeSignature> getParameterTypeSignatures() {
         return parameterTypeSignatures;
     }
 
-    /** Get the result type for the method. */
+    /**
+     * Get the result type for the method.
+     * 
+     * @return The result type for the method, as a {@link TypeSignature} parsed type object.
+     */
     public TypeSignature getResultType() {
         return resultType;
     }
 
-    /** Get the throws type(s) for the method. */
+    /**
+     * Get the throws type(s) for the method.
+     * 
+     * @return The throws types for the method, as {@link TypeSignature} parsed type objects.
+     */
     public List<ClassRefOrTypeVariableSignature> getThrowsSignatures() {
         return throwsSignatures;
     }
@@ -161,12 +187,24 @@ public class MethodTypeSignature extends HierarchicalTypeSignature {
     /**
      * Parse a method signature (ignores class context, i.e. no ClassInfo needs to be provided -- this means that
      * type variables cannot be resolved to the matching type parameter).
+     * 
+     * @param typeDescriptor
+     *            The low-level internal method type descriptor or type signature to parse.
+     * @return The parsed type signature of the method.
      */
     public static MethodTypeSignature parse(final String typeDescriptor) {
         return MethodTypeSignature.parse(/* classInfo = */ null, typeDescriptor);
     }
 
-    /** Parse a method signature. */
+    /**
+     * Parse a method signature.
+     * 
+     * @param classInfo
+     *            The {@link ClassInfo} of the containing class.
+     * @param typeDescriptor
+     *            The type descriptor of the method.
+     * @return The parsed method type signature.
+     */
     public static MethodTypeSignature parse(final ClassInfo classInfo, final String typeDescriptor) {
         final ParseState parseState = new ParseState(typeDescriptor);
         try {

@@ -46,9 +46,10 @@ public class FieldInfo extends InfoObject implements Comparable<FieldInfo> {
     private final String className;
     private final String fieldName;
     private final int modifiers;
-    private final String typeDescriptorStr;
     private final String typeSignatureStr;
+    private final String typeDescriptorStr;
     private TypeSignature typeSignature;
+    private TypeSignature typeDescriptor;
     private final Object constValue;
     final List<AnnotationInfo> annotationInfo;
     private ScanResult scanResult;
@@ -64,6 +65,22 @@ public class FieldInfo extends InfoObject implements Comparable<FieldInfo> {
         }
     }
 
+    /**
+     * @param className
+     *            The class the field is defined within.
+     * @param fieldName
+     *            The name of the field.
+     * @param modifiers
+     *            The field modifiers.
+     * @param typeDescriptorStr
+     *            The field type descriptor.
+     * @param typeSignatureStr
+     *            The field type signature.
+     * @param constValue
+     *            The static constant value the field is initialized to, if any.
+     * @param annotationInfo
+     *            {@link AnnotationInfo} for any annotations on the field.
+     */
     public FieldInfo(final String className, final String fieldName, final int modifiers,
             final String typeDescriptorStr, final String typeSignatureStr, final Object constValue,
             final List<AnnotationInfo> annotationInfo) {
@@ -79,129 +96,217 @@ public class FieldInfo extends InfoObject implements Comparable<FieldInfo> {
                 : annotationInfo;
     }
 
-    /** Get the name of the class this method is part of. */
+    /**
+     * Get the name of the class this field is defined within.
+     * 
+     * @return The name of the class this field is defined within.
+     */
     public String getClassName() {
         return className;
     }
 
-    /** Returns the name of the field. */
+    /**
+     * Returns the name of the field.
+     * 
+     * @return The name of the field.
+     */
     public String getFieldName() {
         return fieldName;
     }
 
-    /** Deprecated, use getModifierStr() instead. */
+    /**
+     * Deprecated, use getModifierStr() instead.
+     * 
+     * @return The modifiers as a string.
+     */
     @Deprecated
     public String getModifierStrs() {
         return getModifierStr();
     }
 
     /**
-     * Get the field modifiers as a string, e.g. "public static final". For the modifier bits, call
-     * getAccessFlags().
+     * Get the field modifiers as a string, e.g. "public static final". For the modifier bits, call getModifiers().
+     * 
+     * @return The field modifiers, as a string.
      */
     public String getModifierStr() {
         return TypeUtils.modifiersToString(modifiers, /* isMethod = */ false);
     }
 
-    /** Returns true if this field is public. */
+    /**
+     * Returns true if this field is public.
+     * 
+     * @return True if the field is public.
+     */
     public boolean isPublic() {
         return Modifier.isPublic(modifiers);
     }
 
-    /** Returns true if this field is private. */
+    /**
+     * Returns true if this field is private.
+     * 
+     * @return True if the field is private.
+     */
     public boolean isPrivate() {
         return Modifier.isPrivate(modifiers);
     }
 
-    /** Returns true if this field is protected. */
+    /**
+     * Returns true if this field is protected.
+     * 
+     * @return True if the field is protected.
+     */
     public boolean isProtected() {
         return Modifier.isProtected(modifiers);
     }
 
-    /** Returns true if this field is package-private. */
+    /**
+     * Returns true if this field is package-private.
+     * 
+     * @return True if the field is package-private.
+     */
     public boolean isPackagePrivate() {
         return !isPublic() && !isPrivate() && !isProtected();
     }
 
-    /** Returns true if this field is static. */
+    /**
+     * Returns true if this field is static.
+     * 
+     * @return True if the field is static.
+     */
     public boolean isStatic() {
         return Modifier.isStatic(modifiers);
     }
 
-    /** Returns true if this field is final. */
+    /**
+     * Returns true if this field is final.
+     * 
+     * @return True if the field is final.
+     */
     public boolean isFinal() {
         return Modifier.isFinal(modifiers);
     }
 
-    /** Returns true if this field is a transient field. */
+    /**
+     * Returns true if this field is a transient field.
+     * 
+     * @return True if the field is transient.
+     */
     public boolean isTransient() {
         return Modifier.isTransient(modifiers);
     }
 
-    /** Returns the access flags of the field. */
+    /**
+     * Returns the modifier bits for the field.
+     * 
+     * @return The modifier bits.
+     */
     public int getModifiers() {
         return modifiers;
     }
 
-    /** Returns the type descriptor string for the field, without type parameters, e.g. "Ljava/util/List;". */
+    /**
+     * Returns the low-level internal type descriptor string for the field, without type parameters, e.g.
+     * "Ljava/util/List;".
+     * 
+     * @return The low-level type descriptor for the field.
+     */
     public String getTypeDescriptorStr() {
         return typeDescriptorStr;
     }
 
     /**
-     * Returns the Java type signature string for the method. This is the programmer-visible type signature, in the
-     * sense that type parameters are included if they are available.
+     * Returns the low-level internal type signature string for the method, possibly with type parameters.
+     * 
+     * @return The low-level internal type descriptor for the field.
      */
     public String getTypeSignatureStr() {
         return typeSignatureStr;
     }
 
     /**
-     * Returns the type signature for the field. Attempts to parse the type signature, or if not present, the type
-     * descriptor.
+     * Returns the parsed type signature for the field, if available.
+     * 
+     * @return The parsed type signature for the field, if available, else returns null.
      */
     public TypeSignature getTypeSignature() {
+        if (typeSignatureStr == null) {
+            return null;
+        }
         if (typeSignature == null) {
-            typeSignature = TypeSignature.parse(typeSignatureStr != null ? typeSignatureStr : typeDescriptorStr);
+            typeSignature = TypeSignature.parse(typeSignatureStr);
         }
         return typeSignature;
     }
 
     /**
-     * Returns the Class<?> reference for the field. Note that this calls Class.forName() on the field type, which
-     * will cause the class to be loaded, and possibly initialized. If the class is initialized, this can trigger
-     * side effects.
-     *
+     * Returns the parsed type descriptor for the field, if available.
+     * 
+     * @return The parsed type descriptor for the field, if available, else returns null.
+     */
+    public TypeSignature getTypeDescriptor() {
+        if (typeDescriptorStr == null) {
+            return null;
+        }
+        if (typeDescriptor == null) {
+            typeDescriptor = TypeSignature.parse(typeDescriptorStr);
+        }
+        return typeDescriptor;
+    }
+
+    /**
+     * Returns the parsed type signature for the field, possibly including type parameters. If the type signature is
+     * null, indicating that no type signature information is available for this field, returns the parsed type
+     * descriptor instead.
+     * 
+     * @return The parsed type signature for the field, or if not available, the parsed type descriptor for the
+     *         field.
+     */
+    public TypeSignature getTypeSignatureOrTypeDescriptor() {
+        final TypeSignature typeSig = getTypeSignature();
+        if (typeSig != null) {
+            return typeSig;
+        } else {
+            return getTypeDescriptor();
+        }
+    }
+
+    /**
+     * Returns the {@code Class<?>} reference for the field. Note that this calls Class.forName() on the field type,
+     * which will cause the class to be loaded, and possibly initialized. If the class is initialized, this can
+     * trigger side effects.
+     * 
+     * @return The{@code Class<?>} reference for the field.
      * @throws IllegalArgumentException
      *             if the field type could not be loaded.
      */
     public Class<?> getType() throws IllegalArgumentException {
-        if (getTypeSignature() != null) {
-            return getTypeSignature().instantiate(scanResult);
-        } else {
-            return Object.class;
-        }
+        return getTypeDescriptor().instantiate(scanResult);
     }
 
-    /** Returns the type of the field, in string representation (e.g. "int[][]"). */
-    public String getTypeStr() {
-        return getTypeSignature().toString();
-    }
-
-    /** Returns the constant final initializer value of the field, or null if none. */
+    /**
+     * Returns the constant final initializer value of the field.
+     * 
+     * @return The constant final initializer value of the field, or null if none.
+     */
     public Object getConstFinalValue() {
         return constValue;
     }
 
-    /** Returns the names of unique annotations on the field, or the empty list if none. */
+    /**
+     * Returns the names of unique annotations on the field.
+     * 
+     * @return The names of unique annotations on the field, or the empty list if none.
+     */
     public List<String> getAnnotationNames() {
         return Arrays.asList(AnnotationInfo.getUniqueAnnotationNamesSorted(annotationInfo));
     }
 
     /**
-     * Returns Class references for the unique annotations on this field. Note that this calls Class.forName() on
-     * the annotation types, which will cause each annotation class to be loaded.
+     * Returns {@code Class<?>} references for the unique annotations on this field. Note that this calls
+     * Class.forName() on the annotation types, which will cause each annotation class to be loaded.
      *
+     * @return {@code Class<?>} references for the unique annotations on this field.
      * @throws IllegalArgumentException
      *             if the annotation type could not be loaded.
      */
@@ -219,7 +324,10 @@ public class FieldInfo extends InfoObject implements Comparable<FieldInfo> {
 
     /**
      * Get a list of annotations on this field, along with any annotation parameter values, wrapped in
-     * AnnotationInfo objects, or the empty list if none.
+     * {@link AnnotationInfo} objects.
+     * 
+     * @return A list of annotations on this field, along with any annotation parameter values, wrapped in
+     *         {@link AnnotationInfo} objects, or the empty list if none.
      */
     public List<AnnotationInfo> getAnnotationInfo() {
         return annotationInfo == null ? Collections.<AnnotationInfo> emptyList() : annotationInfo;
@@ -280,7 +388,7 @@ public class FieldInfo extends InfoObject implements Comparable<FieldInfo> {
         if (buf.length() > 0) {
             buf.append(' ');
         }
-        buf.append(getTypeStr());
+        buf.append(getTypeSignatureOrTypeDescriptor().toString());
 
         buf.append(' ');
         buf.append(fieldName);

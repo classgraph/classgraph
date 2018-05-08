@@ -30,6 +30,11 @@ package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import io.github.lukehutch.fastclasspathscanner.typesignature.TypeSignature;
 
+/**
+ * Information on the parameters of a method.
+ * 
+ * @author lukehutch
+ */
 public class MethodParameterInfo {
     private final AnnotationInfo[] annotationInfo;
     private final int modifiers;
@@ -37,6 +42,18 @@ public class MethodParameterInfo {
     private final TypeSignature typeSignature;
     private final String name;
 
+    /**
+     * @param annotationInfo
+     *            {@link AnnotationInfo} for any annotations on this method parameter.
+     * @param modifiers
+     *            The method parameter modifiers.
+     * @param typeDescriptor
+     *            The method parameter type descriptor.
+     * @param typeSignature
+     *            The method parameter type signature.
+     * @param name
+     *            The method parameter name.
+     */
     public MethodParameterInfo(final AnnotationInfo[] annotationInfo, final int modifiers,
             final TypeSignature typeDescriptor, final TypeSignature typeSignature, final String name) {
         this.name = name;
@@ -49,6 +66,8 @@ public class MethodParameterInfo {
     /**
      * Method parameter name. May be null, for unnamed parameters (e.g. synthetic parameters), or if compiled for
      * JDK version lower than 8, or if compiled for JDK version 8+ but without the commandline switch `-parameters`.
+     * 
+     * @return The method parameter name.
      */
     public String getName() {
         return name;
@@ -57,18 +76,26 @@ public class MethodParameterInfo {
     /**
      * Method parameter modifiers. May be zero, if no modifier bits set, or if compiled for JDK version lower than
      * 8, or if compiled for JDK version 8+ but without the commandline switch `-parameters`.
+     * 
+     * @return The method parameter modifiers.
      */
     public int getModifiers() {
         return modifiers;
     }
 
-    /** Method parameter type descriptor. */
+    /**
+     * Method parameter type descriptor.
+     * 
+     * @return The method type descriptor.
+     */
     public TypeSignature getTypeDescriptor() {
         return typeDescriptor;
     }
 
     /**
      * Method parameter type signature, or if not available, method type descriptor.
+     * 
+     * @return The method type signature, if present, otherwise the method type descriptor.
      */
     public TypeSignature getTypeSignatureOrTypeDescriptor() {
         return typeSignature != null ? typeSignature : typeDescriptor;
@@ -77,12 +104,18 @@ public class MethodParameterInfo {
     /**
      * Method parameter type signature, possibly including generic type information (or null if no type signature
      * information available for this parameter).
+     * 
+     * @return The method type signature, if available, else null.
      */
     public TypeSignature getTypeSignature() {
         return typeSignature;
     }
 
-    /** Method parameter annotation info (or null if no annotations). */
+    /**
+     * Method parameter annotation info (or null if no annotations).
+     * 
+     * @return {@link AnnotationInfo} for any annotations on this method parameter.
+     */
     public AnnotationInfo[] getAnnotationInfo() {
         return annotationInfo;
     }

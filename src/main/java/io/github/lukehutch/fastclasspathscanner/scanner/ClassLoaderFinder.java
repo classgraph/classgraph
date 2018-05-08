@@ -66,7 +66,15 @@ public class ClassLoaderFinder {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** A class to find the unique ordered classpath elements. */
+    /**
+     * A class to find the unique ordered classpath elements.
+     * 
+     * @param scanSpec
+     *            The scan spec.
+     * @param log
+     *            The log.
+     * @return The list of classloaders for this environment.
+     */
     public static ClassLoader[] findEnvClassLoaders(final ScanSpec scanSpec, final LogNode log) {
         AdditionOrderedSet<ClassLoader> classLoadersUnique;
         LogNode classLoadersFoundLog = null;
