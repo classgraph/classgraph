@@ -31,5 +31,11 @@ package io.github.lukehutch.fastclasspathscanner.matchprocessor;
 /** The method to run when a class with a specified annotation is found on the classpath. */
 @FunctionalInterface
 public interface ClassAnnotationMatchProcessor {
+    /**
+     * Process an annotation class match.
+     * 
+     * @param classWithAnnotation
+     *            The annotation class to process.
+     */
     public void processMatch(Class<?> classWithAnnotation);
 }

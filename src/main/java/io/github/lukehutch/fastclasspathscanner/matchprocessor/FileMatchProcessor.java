@@ -46,6 +46,8 @@ public interface FileMatchProcessor extends FileMatchProcessorAny {
      *            need to close this InputStream before returning, it is closed by the caller.
      * @param lengthBytes
      *            The length of the InputStream in bytes.
+     * @throws IOException
+     *             If anything goes wrong while processing the file.
      */
     public void processMatch(String relativePath, InputStream inputStream, long lengthBytes) throws IOException;
 }

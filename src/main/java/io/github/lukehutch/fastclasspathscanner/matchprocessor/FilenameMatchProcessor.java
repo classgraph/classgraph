@@ -48,6 +48,8 @@ public interface FilenameMatchProcessor extends FileMatchProcessorAny {
      *            The classpath element that contained the match (a jarfile or directory).
      * @param relativePath
      *            The path of the matching file relative to the classpath element that contained the match.
+     * @throws IOException
+     *             If anything goes wrong while processing the file.
      */
     public void processMatch(File classpathElt, String relativePath) throws IOException;
 }

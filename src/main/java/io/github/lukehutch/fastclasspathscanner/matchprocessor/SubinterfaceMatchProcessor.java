@@ -28,8 +28,19 @@
  */
 package io.github.lukehutch.fastclasspathscanner.matchprocessor;
 
-/** The method to run when a matching subinterface is found on the classpath. */
+/**
+ * The method to run when a matching subinterface is found on the classpath.
+ * 
+ * @param <T>
+ *            The type of the superclass.
+ */
 @FunctionalInterface
 public interface SubinterfaceMatchProcessor<T> {
+    /**
+     * Process a subinterface match.
+     * 
+     * @param subinterface
+     *            The subinterface class to process.
+     */
     public void processMatch(Class<? extends T> subinterface);
 }

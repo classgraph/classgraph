@@ -35,5 +35,13 @@ import java.lang.reflect.Field;
  */
 @FunctionalInterface
 public interface FieldAnnotationMatchProcessor {
+    /**
+     * Process a field annotation match.
+     * 
+     * @param matchingClass
+     *            The matching class.
+     * @param matchingField
+     *            The matching field.
+     */
     public void processMatch(Class<?> matchingClass, Field matchingField);
 }

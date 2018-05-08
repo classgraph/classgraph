@@ -33,14 +33,17 @@ import java.lang.reflect.Executable;
 /**
  * The method to run when a class that has a method or constructor with a specified annotation is found on the
  * classpath.
- *
- * @param matchingClass
- *            the matching class.
- * @param matchingMethodOrConstructor
- *            the Method or Constructor that has the annotation. (Executable is the superclass of both Method and
- *            Constructor.)
  */
 @FunctionalInterface
 public interface MethodAnnotationMatchProcessor {
+    /**
+     * Process a method annotation match.
+     * 
+     * @param matchingClass
+     *            the matching class.
+     * @param matchingMethodOrConstructor
+     *            the Method or Constructor that has the annotation. (Executable is the superclass of both Method
+     *            and Constructor.)
+     */
     public void processMatch(Class<?> matchingClass, Executable matchingMethodOrConstructor);
 }

@@ -35,15 +35,18 @@ package io.github.lukehutch.fastclasspathscanner.matchprocessor;
  *
  * <p>
  * https://github.com/lukehutch/fast-classpath-scanner/wiki/3.5.-Reading-constant-initializer-values-of-static-final-fields
- *
- * @param className
- *            The class name, e.g. "com.package.ClassName".
- * @param fieldName
- *            The field name, e.g. "STATIC_FIELD_NAME".
- * @param fieldConstantValue
- *            The field's constant literal value, read directly from the classfile's constant pool.
  */
 @FunctionalInterface
 public interface StaticFinalFieldMatchProcessor {
+    /**
+     * Process a static final field match.
+     * 
+     * @param className
+     *            The class name, e.g. "com.package.ClassName".
+     * @param fieldName
+     *            The field name, e.g. "STATIC_FIELD_NAME".
+     * @param fieldConstantValue
+     *            The field's constant literal value, read directly from the classfile's constant pool.
+     */
     public void processMatch(String className, String fieldName, Object fieldConstantValue);
 }

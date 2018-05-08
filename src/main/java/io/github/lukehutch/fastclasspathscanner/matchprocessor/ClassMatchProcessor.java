@@ -33,5 +33,11 @@ package io.github.lukehutch.fastclasspathscanner.matchprocessor;
  */
 @FunctionalInterface
 public interface ClassMatchProcessor {
+    /**
+     * Process a class match.
+     * 
+     * @param classRef
+     *            The class to process.
+     */
     public void processMatch(Class<?> classRef);
 }

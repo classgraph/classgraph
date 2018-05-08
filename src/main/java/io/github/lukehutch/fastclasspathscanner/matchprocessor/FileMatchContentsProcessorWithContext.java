@@ -49,6 +49,8 @@ public interface FileMatchContentsProcessorWithContext extends FileMatchProcesso
      *            The path of the matching file relative to the classpath element that contained the match.
      * @param fileContents
      *            A byte array containing the file contents.
+     * @throws IOException
+     *             If anything goes wrong while processing the file.
      */
     public void processMatch(File classpathElt, String relativePath, byte[] fileContents) throws IOException;
 }
