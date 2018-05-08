@@ -386,11 +386,9 @@ class ClassGraphBuilder {
                     // Method parameters
                     buf.append("<td align='left' valign='top'>");
                     buf.append('(');
-                    if (mi.getParameterTypes() != null && mi.getNumParameters() != 0) {
-                        final AnnotationInfo[][] annotationInfoForParam = mi.getParameterAnnotationInfo();
-                        final String[] typeOfParam = mi.getParameterTypeStrs();
-                        final String[] nameOfParam = mi.getParameterNames();
-                        for (int i = 0, wrapPos = 0; i < mi.getNumParameters(); i++) {
+                    if (mi.getNumParameters() != 0) {
+                        final MethodParameterInfo[] paramInfo = mi.getParameterInfo();
+                        for (int i = 0, wrapPos = 0; i < paramInfo.length; i++) {
                             if (i > 0) {
                                 buf.append(", ");
                                 wrapPos += 2;
@@ -401,8 +399,9 @@ class ClassGraphBuilder {
                             }
 
                             // Param annotation
-                            if (annotationInfoForParam != null && annotationInfoForParam[i] != null) {
-                                for (final AnnotationInfo ai : annotationInfoForParam[i]) {
+                            final AnnotationInfo[] paramAnnotationInfo = paramInfo[i].getAnnotationInfo();
+                            if (paramAnnotationInfo != null) {
+                                for (final AnnotationInfo ai : paramAnnotationInfo) {
                                     final String ais = ai.toString();
                                     if (!ais.isEmpty()) {
                                         if (buf.charAt(buf.length() - 1) != ' ') {
@@ -420,14 +419,16 @@ class ClassGraphBuilder {
                             }
 
                             // Param type
-                            GraphvizUtils.htmlEncode(typeOfParam[i], buf);
-                            wrapPos += typeOfParam[i].length();
+                            final String paramTypeStr = paramInfo[i].getTypeSignatureOrTypeDescriptor().toString();
+                            GraphvizUtils.htmlEncode(paramTypeStr, buf);
+                            wrapPos += paramTypeStr.length();
 
                             // Param name
-                            if (nameOfParam != null && nameOfParam[i] != null) {
+                            final String paramName = paramInfo[i].getName();
+                            if (paramName != null) {
                                 buf.append(" <B>");
-                                GraphvizUtils.htmlEncode(nameOfParam[i], buf);
-                                wrapPos += 1 + nameOfParam[i].length();
+                                GraphvizUtils.htmlEncode(paramName, buf);
+                                wrapPos += 1 + paramName.length();
                                 buf.append("</B>");
                             }
                         }

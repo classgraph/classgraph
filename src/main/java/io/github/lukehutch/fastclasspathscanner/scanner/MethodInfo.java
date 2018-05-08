@@ -96,7 +96,7 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
     final AnnotationInfo[][] parameterAnnotationInfo;
 
     /** Aligned method parameter info */
-    private List<MethodParameterInfo> methodParameterInfo;
+    private MethodParameterInfo[] methodParameterInfo;
 
     private ScanResult scanResult;
 
@@ -224,19 +224,6 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
     }
 
     /**
-     * Returns the parsed type signature for the method, possibly including type parameters. If this returns null,
-     * indicating that no type signature information is available for this method, call getTypeDescriptor() instead.
-     * 
-     * @return The parsed type signature for the method, or null if not available.
-     */
-    public MethodTypeSignature getTypeSignature() {
-        if (typeSignature == null && typeSignatureStr != null) {
-            typeSignature = MethodTypeSignature.parse(classInfo, typeSignatureStr);
-        }
-        return typeSignature;
-    }
-
-    /**
      * Returns the parsed type descriptor for the method, which will not include type parameters. If you need
      * generic type parameters, call getTypeSignature() instead.
      * 
@@ -247,6 +234,19 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
             typeDescriptor = MethodTypeSignature.parse(classInfo, typeDescriptorStr);
         }
         return typeDescriptor;
+    }
+
+    /**
+     * Returns the parsed type signature for the method, possibly including type parameters. If this returns null,
+     * indicating that no type signature information is available for this method, call getTypeDescriptor() instead.
+     * 
+     * @return The parsed type signature for the method, or null if not available.
+     */
+    public MethodTypeSignature getTypeSignature() {
+        if (typeSignature == null && typeSignatureStr != null) {
+            typeSignature = MethodTypeSignature.parse(classInfo, typeSignatureStr);
+        }
+        return typeSignature;
     }
 
     /**
@@ -375,8 +375,6 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
 
     private static final String[] EMPTY_STRING_ARRAY = new String[0];
 
-    private static final TypeSignature[] EMPTY_TYPE_SIGNATURE_ARRAY = new TypeSignature[0];
-
     private static final TypeParameter[] EMPTY_TYPE_PARAMETER_ARRAY = new TypeParameter[0];
 
     private static final ClassRefOrTypeVariableSignature[] EMPTY_CLASS_TYPE_OR_TYPE_VARIABLE_SIGNATURE_ARRAY //
@@ -411,11 +409,15 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
         }
     }
 
-    private static TypeSignature[] toTypeSignatureArray(final List<? extends TypeSignature> typeSignatures) {
-        if (typeSignatures.size() == 0) {
-            return EMPTY_TYPE_SIGNATURE_ARRAY;
+    private static Class<?>[] toClassRefs(final TypeSignature[] typeDescriptors, final ScanResult scanResult) {
+        if (typeDescriptors.length == 0) {
+            return EMPTY_CLASS_REF_ARRAY;
         } else {
-            return typeSignatures.toArray(new TypeSignature[typeSignatures.size()]);
+            final Class<?>[] classRefArray = new Class<?>[typeDescriptors.length];
+            for (int i = 0; i < typeDescriptors.length; i++) {
+                classRefArray[i] = typeDescriptors[i].instantiate(scanResult);
+            }
+            return classRefArray;
         }
     }
 
@@ -443,7 +445,7 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
      * 
      * @return The {@link MethodParameterInfo} objects for the method parameters, one per parameter.
      */
-    public List<MethodParameterInfo> getParameterInfo() {
+    public MethodParameterInfo[] getParameterInfo() {
         if (methodParameterInfo == null) {
             // Get params from the type descriptor, and from the type signature if available
             final List<TypeSignature> paramTypeDescriptors = getTypeDescriptor().getParameterTypeSignatures();
@@ -538,13 +540,13 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
             }
 
             // Generate MethodParameterInfo entries
-            methodParameterInfo = new ArrayList<>(numParams);
+            methodParameterInfo = new MethodParameterInfo[numParams];
             for (int i = 0; i < numParams; i++) {
-                methodParameterInfo.add(new MethodParameterInfo(
+                methodParameterInfo[i] = new MethodParameterInfo(
                         paramAnnotationInfoAligned == null ? null : paramAnnotationInfoAligned[i],
                         paramModifiersAligned == null ? 0 : paramModifiersAligned[i], paramTypeDescriptors.get(i),
                         paramTypeSignaturesAligned == null ? null : paramTypeSignaturesAligned.get(i),
-                        paramNamesAligned == null ? null : paramNamesAligned[i]));
+                        paramNamesAligned == null ? null : paramNamesAligned[i]);
             }
         }
         return methodParameterInfo;
@@ -557,41 +559,7 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
      */
     public int getNumParameters() {
         // return getTypeSignature().getParameterTypeSignatures().size();
-        return getParameterInfo().size();
-    }
-
-    /**
-     * Get the type descriptor for each parameter.
-     * 
-     * Note that it is always faster to call {@link #getParameterInfo()} and get the parameter information from the
-     * returned list of {@link MethodParameterInfo} objects, since this method calls that to compile its results.
-     */
-    private List<TypeSignature> getParamTypeDescriptors() {
-        final List<MethodParameterInfo> parameterInfo = getParameterInfo();
-        final List<TypeSignature> paramTypeDescriptors = new ArrayList<>(parameterInfo.size());
-        for (int i = 0; i < parameterInfo.size(); i++) {
-            final MethodParameterInfo paramInfo = parameterInfo.get(i);
-            final TypeSignature typeDesc = paramInfo.getTypeDescriptor();
-            paramTypeDescriptors.add(typeDesc);
-        }
-        return paramTypeDescriptors;
-    }
-
-    /**
-     * Get the type signature for each parameter, or the type descriptor if there is no type signature.
-     * 
-     * Note that it is always faster to call {@link #getParameterInfo()} and get the parameter information from the
-     * returned list of {@link MethodParameterInfo} objects, since this method calls that to compile its results.
-     */
-    private List<TypeSignature> getParamTypeSignaturesOrTypeDescriptors() {
-        final List<MethodParameterInfo> parameterInfo = getParameterInfo();
-        final List<TypeSignature> paramTypeSignatures = new ArrayList<>(parameterInfo.size());
-        for (int i = 0; i < parameterInfo.size(); i++) {
-            final MethodParameterInfo paramInfo = parameterInfo.get(i);
-            final TypeSignature typeSig = paramInfo.getTypeSignature();
-            paramTypeSignatures.add(typeSig == null ? paramInfo.getTypeDescriptor() : typeSig);
-        }
-        return paramTypeSignatures;
+        return getParameterInfo().length;
     }
 
     /**
@@ -611,20 +579,14 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
     public Class<?>[] getParameterTypes() throws IllegalArgumentException {
         // Can't instantiate type signatures, since they may have type variables.
         // Therefore, we use type descriptors, which are the result of type erasure.
-        return toClassRefs(getParamTypeDescriptors(), scanResult);
-    }
-
-    /**
-     * Returns the parameter types for the method in string representation, e.g. {@code ["int",
-     * "List<X>", "com.abc.XYZ"]}. If the method has no parameters, returns a zero-sized array.
-     *
-     * Note that it is always faster to call {@link #getParameterInfo()} and get the parameter information from the
-     * returned list of {@link MethodParameterInfo} objects, since this method calls that to compile its results.
-     * 
-     * @return The method parameter types, as an array of Strings.
-     */
-    public String[] getParameterTypeStrs() {
-        return toStringArray(getParamTypeSignaturesOrTypeDescriptors());
+        final MethodParameterInfo[] parameterInfo = getParameterInfo();
+        final TypeSignature[] paramTypeDescriptors = new TypeSignature[parameterInfo.length];
+        for (int i = 0; i < parameterInfo.length; i++) {
+            final MethodParameterInfo paramInfo = parameterInfo[i];
+            final TypeSignature typeDesc = paramInfo.getTypeDescriptor();
+            paramTypeDescriptors[i] = typeDesc;
+        }
+        return toClassRefs(paramTypeDescriptors, scanResult);
     }
 
     /**
@@ -637,7 +599,14 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
      * @return The method parameter types, as an array of parsed type signatures.
      */
     public TypeSignature[] getParameterTypeSignatures() {
-        return toTypeSignatureArray(getParamTypeSignaturesOrTypeDescriptors());
+        final MethodParameterInfo[] parameterInfo = getParameterInfo();
+        final TypeSignature[] paramTypeSignaturesOrTypeDescriptors = new TypeSignature[parameterInfo.length];
+        for (int i = 0; i < parameterInfo.length; i++) {
+            final MethodParameterInfo paramInfo = parameterInfo[i];
+            final TypeSignature typeSig = paramInfo.getTypeSignature();
+            paramTypeSignaturesOrTypeDescriptors[i] = typeSig == null ? paramInfo.getTypeDescriptor() : typeSig;
+        }
+        return paramTypeSignaturesOrTypeDescriptors;
     }
 
     /**
@@ -652,10 +621,10 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
      * @return The method parameter names, as an array of Strings, or null if parameter names are not available.
      */
     public String[] getParameterNames() {
-        final List<MethodParameterInfo> parameterInfo = getParameterInfo();
+        final MethodParameterInfo[] parameterInfo = getParameterInfo();
         boolean hasNames = false;
-        for (int i = 0; i < parameterInfo.size(); i++) {
-            if (parameterInfo.get(i).getName() != null) {
+        for (int i = 0; i < parameterInfo.length; i++) {
+            if (parameterInfo[i].getName() != null) {
                 hasNames = true;
                 break;
             }
@@ -664,9 +633,9 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
             // No name info
             return null;
         }
-        final String[] paramNames = new String[parameterInfo.size()];
-        for (int i = 0; i < parameterInfo.size(); i++) {
-            paramNames[i] = parameterInfo.get(i).getName();
+        final String[] paramNames = new String[parameterInfo.length];
+        for (int i = 0; i < parameterInfo.length; i++) {
+            paramNames[i] = parameterInfo[i].getName();
         }
         return paramNames;
     }
@@ -696,10 +665,10 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
      *         available.
      */
     public int[] getParameterModifiers() {
-        final List<MethodParameterInfo> parameterInfo = getParameterInfo();
+        final MethodParameterInfo[] parameterInfo = getParameterInfo();
         boolean hasNames = false;
-        for (int i = 0; i < parameterInfo.size(); i++) {
-            if (parameterInfo.get(i).getName() != null) {
+        for (int i = 0; i < parameterInfo.length; i++) {
+            if (parameterInfo[i].getName() != null) {
                 hasNames = true;
                 break;
             }
@@ -709,9 +678,9 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
             // (this is needed to distinguish between no info, and all-zero modifiers)
             return null;
         }
-        final int[] paramMods = new int[parameterInfo.size()];
-        for (int i = 0; i < parameterInfo.size(); i++) {
-            paramMods[i] = parameterInfo.get(i).getModifiers();
+        final int[] paramMods = new int[parameterInfo.length];
+        for (int i = 0; i < parameterInfo.length; i++) {
+            paramMods[i] = parameterInfo[i].getModifiers();
         }
         return paramMods;
     }
@@ -750,10 +719,10 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
      *         parameter annotations are present.
      */
     public AnnotationInfo[][] getParameterAnnotationInfo() {
-        final List<MethodParameterInfo> parameterInfo = getParameterInfo();
+        final MethodParameterInfo[] parameterInfo = getParameterInfo();
         boolean hasAnnotations = false;
-        for (int i = 0; i < parameterInfo.size(); i++) {
-            final AnnotationInfo[] annInfo = parameterInfo.get(i).getAnnotationInfo();
+        for (int i = 0; i < parameterInfo.length; i++) {
+            final AnnotationInfo[] annInfo = parameterInfo[i].getAnnotationInfo();
             if (annInfo != null && annInfo.length > 0) {
                 hasAnnotations = true;
                 break;
@@ -762,9 +731,9 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
         if (!hasAnnotations) {
             return null;
         }
-        final AnnotationInfo[][] annotationInfo = new AnnotationInfo[parameterInfo.size()][];
-        for (int i = 0; i < parameterInfo.size(); i++) {
-            annotationInfo[i] = parameterInfo.get(i).getAnnotationInfo();
+        final AnnotationInfo[][] annotationInfo = new AnnotationInfo[parameterInfo.length][];
+        for (int i = 0; i < parameterInfo.length; i++) {
+            annotationInfo[i] = parameterInfo[i].getAnnotationInfo();
             if (annotationInfo[i] == null) {
                 annotationInfo[i] = EMPTY_ANNOTATION_INFO_ARRAY;
             }
@@ -1050,18 +1019,18 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
 
         // If at least one param is named, then use placeholder names for unnamed params,
         // otherwise don't show names for any params
-        final List<MethodParameterInfo> allParamInfo = getParameterInfo();
+        final MethodParameterInfo[] allParamInfo = getParameterInfo();
         boolean hasParamNames = false;
-        for (int i = 0, numParams = allParamInfo.size(); i < numParams; i++) {
-            if (allParamInfo.get(i).getName() != null) {
+        for (int i = 0, numParams = allParamInfo.length; i < numParams; i++) {
+            if (allParamInfo[i].getName() != null) {
                 hasParamNames = true;
                 break;
             }
         }
 
         buf.append('(');
-        for (int i = 0, numParams = allParamInfo.size(); i < numParams; i++) {
-            final MethodParameterInfo paramInfo = allParamInfo.get(i);
+        for (int i = 0, numParams = allParamInfo.length; i < numParams; i++) {
+            final MethodParameterInfo paramInfo = allParamInfo[i];
             if (i > 0) {
                 buf.append(", ");
             }
