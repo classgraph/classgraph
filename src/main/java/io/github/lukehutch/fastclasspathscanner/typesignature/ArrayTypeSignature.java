@@ -43,17 +43,31 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
     /** The number of array dimensions. */
     final int numArrayDims;
 
+    /**
+     * @param elementTypeSignature
+     *            The type signature of the array elements.
+     * @param numArrayDims
+     *            The number of array dimensions.
+     */
     public ArrayTypeSignature(final TypeSignature elementTypeSignature, final int numArrayDims) {
         this.elementTypeSignature = elementTypeSignature;
         this.numArrayDims = numArrayDims;
     }
 
-    /** Get the type signature of the array elements. */
+    /**
+     * Get the type signature of the array elements.
+     * 
+     * @return The type signature of the array elements.
+     */
     public TypeSignature getElementTypeSignature() {
         return elementTypeSignature;
     }
 
-    /** Get the number of dimensions of the array. */
+    /**
+     * Get the number of dimensions of the array.
+     * 
+     * @return The number of dimensions of the array.
+     */
     public int getNumArrayDims() {
         return numArrayDims;
     }

@@ -45,11 +45,19 @@ public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
     /** The class signature that this type variable is part of, or the enclosing class, if this is a method. */
     ClassTypeSignature containingClassSignature;
 
+    /**
+     * @param typeVariableName
+     *            The type variable name.
+     */
     public TypeVariableSignature(final String typeVariableName) {
         this.typeVariableName = typeVariableName;
     }
 
-    /** Get the name of the type variable. */
+    /**
+     * Get the name of the type variable.
+     * 
+     * @return The type variable name.
+     */
     public String getTypeVariableName() {
         return typeVariableName;
     }

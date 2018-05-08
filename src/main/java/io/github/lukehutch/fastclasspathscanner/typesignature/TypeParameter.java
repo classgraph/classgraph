@@ -47,6 +47,14 @@ public class TypeParameter extends HierarchicalTypeSignature {
     /** Interface bounds -- may be empty */
     final List<ReferenceTypeSignature> interfaceBounds;
 
+    /**
+     * @param identifier
+     *            The type parameter identifier.
+     * @param classBound
+     *            The type parameter class bound.
+     * @param interfaceBounds
+     *            The type parameter interface bound.
+     */
     public TypeParameter(final String identifier, final ReferenceTypeSignature classBound,
             final List<ReferenceTypeSignature> interfaceBounds) {
         this.identifier = identifier;
@@ -54,17 +62,29 @@ public class TypeParameter extends HierarchicalTypeSignature {
         this.interfaceBounds = interfaceBounds;
     }
 
-    /** Get the type parameter identifier. */
+    /**
+     * Get the type parameter identifier.
+     * 
+     * @return The type parameter identifier.
+     */
     public String getIdentifier() {
         return identifier;
     }
 
-    /** Get the class bound, which may be null. */
+    /**
+     * Get the type parameter class bound.
+     * 
+     * @return The type parameter class bound. May be null.
+     */
     public ReferenceTypeSignature getClassBound() {
         return classBound;
     }
 
-    /** Get the interface bound(s), which may be the empty list. */
+    /**
+     * Get the type parameter interface bound(s).
+     * 
+     * @return Get the type parameter interface bound(s), which may be the empty list.
+     */
     public List<ReferenceTypeSignature> getInterfaceBounds() {
         return interfaceBounds;
     }
@@ -128,6 +148,7 @@ public class TypeParameter extends HierarchicalTypeSignature {
         return buf.toString();
     }
 
+    /** Parse a {@link TypeParameter}. */
     private static TypeParameter parse(final ParseState parseState) throws ParseException {
         if (!parseState.parseIdentifier()) {
             throw new ParseException();
@@ -153,6 +174,7 @@ public class TypeParameter extends HierarchicalTypeSignature {
         return new TypeParameter(identifier, classBound, interfaceBounds);
     }
 
+    /** Parse a list of {@link TypeParameter}s. */
     static List<TypeParameter> parseList(final ParseState parseState) throws ParseException {
         if (parseState.peek() != '<') {
             return Collections.emptyList();

@@ -57,6 +57,16 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
      */
     private final List<List<TypeArgument>> suffixTypeArguments;
 
+    /**
+     * @param className
+     *            The class name.
+     * @param typeArguments
+     *            The class type arguments.
+     * @param suffixes
+     *            The class suffixes (for inner classes)
+     * @param suffixTypeArguments
+     *            The suffix type arguments.
+     */
     public ClassRefTypeSignature(final String className, final List<TypeArgument> typeArguments,
             final List<String> suffixes, final List<List<TypeArgument>> suffixTypeArguments) {
         this.className = className;
@@ -65,22 +75,38 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
         this.suffixTypeArguments = suffixTypeArguments;
     }
 
-    /** Get the name of the base class. */
+    /**
+     * Get the name of the base class.
+     * 
+     * @return The base class name.
+     */
     public String getClassName() {
         return className;
     }
 
-    /** Get any type arguments of the class. */
+    /**
+     * Get any type arguments of the base class.
+     * 
+     * @return The type arguments for the base class.
+     */
     public List<TypeArgument> getTypeArguments() {
         return typeArguments;
     }
 
-    /** Get any suffixes of the class (typically nested inner class names). */
+    /**
+     * Get any suffixes of the class (typically nested inner class names).
+     * 
+     * @return The class suffixes (for inner classes).
+     */
     public List<String> getSuffixes() {
         return suffixes;
     }
 
-    /** Get any type arguments for any suffixes of the class, one list per suffix. */
+    /**
+     * Get any type arguments for any suffixes of the class, one list per suffix.
+     * 
+     * @return The type arguments for the inner classes, one list per suffix.
+     */
     public List<List<TypeArgument>> getSuffixTypeArguments() {
         return suffixTypeArguments;
     }
@@ -111,6 +137,8 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
      * Get the name of the class, along with any suffixes (suffixes are for inner class nesting, and are separated
      * by '$'). The returned name is stripped of any type arguments, e.g.
      * {@code "xyz.Cls<String>$InnerCls<Integer>"} is returned as {@code "xyz.Cls$InnerCls"}.
+     * 
+     * @return The name of the class and suffixes without type arguments.
      */
     public String getClassNameAndSuffixesWithoutTypeArguments() {
         if (classNameAndSuffixesWithoutTypeArguments == null) {

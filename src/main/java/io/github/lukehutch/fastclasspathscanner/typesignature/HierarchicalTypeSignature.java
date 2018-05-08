@@ -34,6 +34,11 @@ import java.util.Set;
  * A Java type signature. Subclasses are ClassTypeSignature, MethodTypeSignature, and TypeSignature.
  */
 public abstract class HierarchicalTypeSignature {
-    /** Get the names of all classes referenced in the type signature */
+    /**
+     * Get the names of all classes referenced in the type signature
+     * 
+     * @param classNameListOut
+     *            The set to store class names in.
+     */
     public abstract void getAllReferencedClassNames(final Set<String> classNameListOut);
 }

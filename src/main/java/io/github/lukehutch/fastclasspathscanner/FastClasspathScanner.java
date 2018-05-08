@@ -654,7 +654,7 @@ public class FastClasspathScanner {
      * @return this (for method chaining).
      */
     public FastClasspathScanner ignoreParentClassLoaders(final boolean ignoreParentClassLoaders) {
-        getScanSpec().ignoreParentClassLoaders(ignoreParentClassLoaders);
+        getScanSpec().ignoreParentClassLoaders = ignoreParentClassLoaders;
         return this;
     }
 
@@ -668,7 +668,7 @@ public class FastClasspathScanner {
      * @return this (for method chaining).
      */
     public FastClasspathScanner ignoreParentClassLoaders() {
-        getScanSpec().ignoreParentClassLoaders(true);
+        getScanSpec().ignoreParentClassLoaders = true;
         return this;
     }
 

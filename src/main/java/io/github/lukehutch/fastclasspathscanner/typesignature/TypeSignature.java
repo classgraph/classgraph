@@ -40,10 +40,20 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
     /**
      * Instantiate the type signature into a class reference. The ScanResult is used to ensure the correct
      * classloader is used to load the class.
+     * 
+     * @param scanResult
+     *            The scan result.
+     * @return The instantiation of the type signature as a {@code Class<?>}.
      */
     public abstract Class<?> instantiate(final ScanResult scanResult);
 
-    /** Compare base types, ignoring generic type parameters. */
+    /**
+     * Compare base types, ignoring generic type parameters.
+     * 
+     * @param other
+     *            the other {@link TypeSignature} to compare to.
+     * @return True if the two {@link TypeSignature} objects are equal, ignoring type parameters.
+     */
     public abstract boolean equalsIgnoringTypeParams(final TypeSignature other);
 
     /** Parse a type signature. */
@@ -60,7 +70,13 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
         return null;
     }
 
-    /** Parse a type signature. */
+    /**
+     * Parse a type signature.
+     * 
+     * @param typeDescriptor
+     *            The type descriptor or type signature to parse.
+     * @return The parsed type descriptor or type signature.
+     */
     public static TypeSignature parse(final String typeDescriptor) {
         final ParseState parseState = new ParseState(typeDescriptor);
         TypeSignature typeSignature;

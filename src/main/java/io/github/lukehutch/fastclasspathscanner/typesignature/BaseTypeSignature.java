@@ -38,12 +38,19 @@ public class BaseTypeSignature extends TypeSignature {
     /** A base type, such as "int", "float", or "void". */
     private final String baseType;
 
+    /**
+     * @param baseType
+     *            the base type
+     */
     public BaseTypeSignature(final String baseType) {
-        // No need to resolve type parameters for base types, so just set parent context to null
         this.baseType = baseType;
     }
 
-    /** Get the base type, such as "int", "float", or "void". */
+    /**
+     * Get the base type, such as "int", "float", or "void".
+     * 
+     * @return The base type.
+     */
     public String getBaseType() {
         return baseType;
     }

@@ -47,6 +47,14 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
     /** The superinterface signatures. */
     private final List<ClassRefTypeSignature> superinterfaceSignatures;
 
+    /**
+     * @param typeParameters
+     *            The class type parameters.
+     * @param superclassSignature
+     *            The superclass signature.
+     * @param superinterfaceSignatures
+     *            The superinterface signature(s).
+     */
     public ClassTypeSignature(final List<TypeParameter> typeParameters,
             final ClassRefTypeSignature superclassSignature,
             final List<ClassRefTypeSignature> superinterfaceSignatures) {
@@ -55,14 +63,20 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
         this.superinterfaceSignatures = superinterfaceSignatures;
     }
 
-    /** Get the type parameters for the class. */
+    /**
+     * Get the type parameters for the class.
+     * 
+     * @return The type parameters for the class.
+     */
     public List<TypeParameter> getTypeParameters() {
         return typeParameters;
     }
 
     /**
-     * Get the type signature for the superclass (possibly null in the case of java.lang.Object, since it doesn't
-     * have a superclass).
+     * Get the type signature for the superclass (possibly null in the case of {@link java.lang.Object}, since it
+     * doesn't have a superclass).
+     * 
+     * @return The type signature for the superclass, or null if no superclass (i.e. for {@link java.lang.Object}).
      */
     public ClassRefTypeSignature getSuperclassSignature() {
         return superclassSignature;
@@ -70,6 +84,8 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
 
     /**
      * Get the type signatures of any superinterfaces
+     * 
+     * @return The type signatures of any superinterfaces.
      */
     public List<ClassRefTypeSignature> getSuperinterfaceSignatures() {
         return superinterfaceSignatures;
@@ -105,6 +121,19 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
                 && o.superinterfaceSignatures.equals(this.superinterfaceSignatures);
     }
 
+    /**
+     * Render into String form.
+     * 
+     * @param modifiers
+     *            The class modifiers.
+     * @param isAnnotation
+     *            True if the class is an annotation.
+     * @param isInterface
+     *            True if the class is an interface.
+     * @param className
+     *            The class name
+     * @return The String representation.
+     */
     public String toString(final int modifiers, final boolean isAnnotation, final boolean isInterface,
             final String className) {
         final StringBuilder buf = new StringBuilder();
@@ -159,7 +188,13 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
                 /* methodName = */ null);
     }
 
-    /** Parse a class signature. */
+    /**
+     * Parse a class type signature or class type descriptor.
+     * 
+     * @param typeDescriptor
+     *            The class type signature or class type descriptor to parse.
+     * @return The parsed class type signature or class type descriptor.
+     */
     public static ClassTypeSignature parse(final String typeDescriptor) {
         final ParseState parseState = new ParseState(typeDescriptor);
         try {

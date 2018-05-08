@@ -32,6 +32,11 @@ import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Utilities for parsing Java type descriptors and type signatures.
+ * 
+ * @author lukehutch
+ */
 public class TypeUtils {
     /** The modifier bit for synthetic parameters. */
     public static final int MODIFIER_SYNTHETIC = 0x1000;
@@ -77,7 +82,6 @@ public class TypeUtils {
             return position == string.length() ? '\0' : string.charAt(position);
         }
 
-        @SuppressWarnings("unused")
         public boolean peekMatches(final String strMatch) {
             return string.regionMatches(position, strMatch, 0, strMatch.length());
         }
@@ -110,7 +114,11 @@ public class TypeUtils {
             token.append(c);
         }
 
-        /** Get the current token, and reset the token to empty. */
+        /**
+         * Get the current token, and reset the token to empty.
+         * 
+         * @return The current token. Resets the current token to empty.
+         */
         public String currToken() {
             final String tok = token.toString();
             token.setLength(0);
@@ -148,14 +156,31 @@ public class TypeUtils {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Convert field or method modifiers into a string representation, e.g. "public static final". */
+    /**
+     * Convert modifiers into a string representation, e.g. "public static final".
+     * 
+     * @param modifiers
+     *            The field, method or class modifiers.
+     * @param isMethod
+     *            True if this is a method, false if this is a field or class.
+     * @return The modifiers, as a string.
+     */
     public static String modifiersToString(final int modifiers, final boolean isMethod) {
         final StringBuilder buf = new StringBuilder();
         modifiersToString(modifiers, isMethod, buf);
         return buf.toString();
     }
 
-    /** Convert field or method modifiers into a string representation, e.g. "public static final". */
+    /**
+     * Convert modifiers into a string representation, e.g. "public static final".
+     * 
+     * @param modifiers
+     *            The field or method modifiers.
+     * @param isMethod
+     *            True if this is a method, false if this is a field or class.
+     * @param buf
+     *            The buffer to write the result into.
+     */
     public static void modifiersToString(final int modifiers, final boolean isMethod, final StringBuilder buf) {
         if ((modifiers & Modifier.PUBLIC) != 0) {
             buf.append("public");

@@ -218,6 +218,11 @@ public class ScanSpec {
      */
     private MultiMapKeyToSet<String, String> classNameToStaticFinalFieldsToMatch;
 
+    /**
+     * Get the map from class name to static final fields to match.
+     * 
+     * @return The map from class name to static final fields to match.
+     */
     public MultiMapKeyToSet<String, String> getClassNameToStaticFinalFieldsToMatch() {
         return classNameToStaticFinalFieldsToMatch;
     }
@@ -287,11 +292,16 @@ public class ScanSpec {
     /**
      * Parses the scanning specification that was passed to the FastClasspathScanner constructor, and finds all
      * ClassLoaders.
+     * 
+     * @param scanSpecFields
+     *            The scan spec fields, passed into the FastClasspathScanner constructor.
+     * @param log
+     *            The log.
      */
-    public ScanSpec(final String[] scanSpec, final LogNode log) {
+    public ScanSpec(final String[] scanSpecFields, final LogNode log) {
         final HashSet<String> uniqueWhitelistedPathPrefixes = new HashSet<>();
         final HashSet<String> uniqueBlacklistedPathPrefixes = new HashSet<>();
-        for (final String scanSpecEntry : scanSpec) {
+        for (final String scanSpecEntry : scanSpecFields) {
             String spec = scanSpecEntry;
             if ("!".equals(scanSpecEntry)) {
                 blacklistSystemPackages = false;
@@ -504,6 +514,9 @@ public class ScanSpec {
      * Override the automatically-detected classpath with a custom search path. You can specify multiple elements,
      * separated by File.pathSeparatorChar. If this method is called, nothing but the provided classpath will be
      * scanned, i.e. causes ClassLoaders to be ignored, as well as the java.class.path system property.
+     * 
+     * @param overrideClasspath
+     *            The classpath to scan.
      */
     public void overrideClasspath(final String overrideClasspath) {
         this.overrideClasspath = overrideClasspath;
@@ -512,6 +525,10 @@ public class ScanSpec {
     /**
      * Add a classpath element filter. The provided ClasspathElementFilter should return true if the path string
      * passed to it is a path you want to scan.
+     * 
+     * @param classpathElementFilter
+     *            The classpath element filter to apply to all discovered classpath elements, to decide which should
+     *            be scanned.
      */
     public void filterClasspathElements(final ClasspathElementFilter classpathElementFilter) {
         if (this.classpathElementFilters == null) {
@@ -523,6 +540,9 @@ public class ScanSpec {
     /**
      * Add a ClassLoader to the list of ClassLoaders to scan. (This only works if overrideClasspath() is not
      * called.)
+     * 
+     * @param classLoader
+     *            The classloader to add.
      */
     public void addClassLoader(final ClassLoader classLoader) {
         if (this.addedClassLoaders == null) {
@@ -536,6 +556,9 @@ public class ScanSpec {
     /**
      * Completely override the list of ClassLoaders to scan. (This only works if overrideClasspath() is not called.)
      * Causes the java.class.path system property to be ignored.
+     * 
+     * @param overrideClassLoaders
+     *            The classloaders to override the default context classloaders with.
      */
     public void overrideClassLoaders(final ClassLoader... overrideClassLoaders) {
         this.addedClassLoaders = null;
@@ -554,13 +577,13 @@ public class ScanSpec {
         }
     }
 
-    public void ignoreParentClassLoaders(final boolean ignoreParentClassloaders) {
-        this.ignoreParentClassLoaders = ignoreParentClassloaders;
-    }
-
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Return true if any MatchProcessors have been added. */
+    /**
+     * Return true if any MatchProcessors have been added.
+     * 
+     * @return True if any MatchProcessors have been added.
+     */
     public boolean hasMatchProcessors() {
         return (fileMatchProcessorWrappers != null && fileMatchProcessorWrappers.size() > 0)
                 || (classMatchers != null && classMatchers.size() > 0)
@@ -568,7 +591,12 @@ public class ScanSpec {
                         && !fullyQualifiedFieldNameToStaticFinalFieldMatchProcessors.isEmpty());
     }
 
-    /** Run the MatchProcessors after a scan has completed. */
+    /**
+     * Run the MatchProcessors after a scan has completed.
+     * 
+     * @param scanResult
+     *            The {@link ScanResult}.
+     */
     public void callMatchProcessors(final ScanResult scanResult) {
         final LogNode log = scanResult.log;
         try {

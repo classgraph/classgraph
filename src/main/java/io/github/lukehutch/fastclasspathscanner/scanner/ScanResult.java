@@ -125,6 +125,10 @@ public class ScanResult {
     /**
      * Find the classloader(s) for the named class. Typically there will only be one ClassLoader returned. However,
      * if more than one is returned, they should be called in turn until one is able to load the class.
+     * 
+     * @param className
+     *            The class name.
+     * @return The classloader(s) for the named class.
      */
     public ClassLoader[] getClassLoadersForClass(final String className) {
         final ClassLoader[] classLoaders = classGraphBuilder.getClassNameToClassLoaders().get(className);
@@ -869,6 +873,9 @@ public class ScanResult {
     /**
      * Free any temporary files created by extracting jars from within jars. By default, temporary files are removed
      * at the end of a scan, after MatchProcessors have completed, so this typically does not need to be called.
+     * 
+     * @param log
+     *            The log.
      */
     public void freeTempFiles(final LogNode log) {
         nestedJarHandler.close(log);

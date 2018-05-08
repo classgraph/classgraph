@@ -40,7 +40,14 @@ import io.github.lukehutch.fastclasspathscanner.typesignature.TypeUtils.ParseSta
 public class TypeArgument extends HierarchicalTypeSignature {
     /** A type wildcard. */
     public static enum WILDCARD {
-        NONE, ANY, EXTENDS, SUPER
+        /** No wildcard. */
+        NONE,
+        /** The '?' wildcard */
+        ANY,
+        /** extends */
+        EXTENDS,
+        /** super */
+        SUPER
     };
 
     /** A wildcard type. */
@@ -49,17 +56,31 @@ public class TypeArgument extends HierarchicalTypeSignature {
     /** Type signature (will be null if wildcard == ANY). */
     private final ReferenceTypeSignature typeSignature;
 
+    /**
+     * @param wildcard
+     *            The wildcard type
+     * @param typeSignature
+     *            The type signature
+     */
     public TypeArgument(final TypeArgument.WILDCARD wildcard, final ReferenceTypeSignature typeSignature) {
         this.wildcard = wildcard;
         this.typeSignature = typeSignature;
     }
 
-    /** Get the type wildcard, which is one of {NONE, ANY, EXTENDS, SUPER}. */
+    /**
+     * Get the type wildcard, which is one of {NONE, ANY, EXTENDS, SUPER}.
+     * 
+     * @return The type wildcard.
+     */
     public TypeArgument.WILDCARD getWildcard() {
         return wildcard;
     }
 
-    /** Get the type signature associated with the wildcard (or null, if the wildcard is ANY). */
+    /**
+     * Get the type signature associated with the wildcard (or null, if the wildcard is ANY).
+     * 
+     * @return The type signature.
+     */
     public ReferenceTypeSignature getTypeSignature() {
         return typeSignature;
     }
