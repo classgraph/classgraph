@@ -67,7 +67,11 @@ class ClassGraphBuilder {
         return classNameToClassInfo;
     }
 
-    /** Get a map from class name to ClassLoader(s) for the class. */
+    /**
+     * Get a map from class name to ClassLoader(s) for the class.
+     * 
+     * @return The map.
+     */
     public Map<String, ClassLoader[]> getClassNameToClassLoaders() {
         return classNameToClassLoaders;
     }
@@ -360,7 +364,7 @@ class ClassGraphBuilder {
                     }
                     if (!mi.getMethodName().equals("<init>")) {
                         // Don't list return type for constructors
-                        GraphvizUtils.htmlEncode(mi.getResultTypeStr(), buf);
+                        GraphvizUtils.htmlEncode(mi.getResultType().toString(), buf);
                     } else {
                         buf.append("<b>&lt;constructor&gt;</b>");
                     }
@@ -419,11 +423,6 @@ class ClassGraphBuilder {
                             GraphvizUtils.htmlEncode(typeOfParam[i], buf);
                             wrapPos += typeOfParam[i].length();
 
-                            if (wrapPos > PARAM_WRAP_WIDTH) {
-                                buf.append("</td></tr><tr><td></td><td></td><td align='left' valign='top'>");
-                                wrapPos = 0;
-                            }
-
                             // Param name
                             if (nameOfParam != null && nameOfParam[i] != null) {
                                 buf.append(" <B>");
@@ -469,9 +468,9 @@ class ClassGraphBuilder {
         buf.append("overlap=false;\n");
         buf.append("splines=true;\n");
         buf.append("pack=true;\n");
-        buf.append("graph [fontname = \"Courier, Regular\"]");
-        buf.append("node [fontname = \"Courier, Regular\"]");
-        buf.append("edge [fontname = \"Courier, Regular\"]");
+        buf.append("graph [fontname = \"Courier, Regular\"]\n");
+        buf.append("node [fontname = \"Courier, Regular\"]\n");
+        buf.append("edge [fontname = \"Courier, Regular\"]\n");
 
         final Set<ClassInfo> standardClassNodes = ClassInfo.filterClassInfo(allClassInfo,
                 /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.STANDARD_CLASS);
@@ -486,19 +485,19 @@ class ClassGraphBuilder {
                 /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.ANNOTATION);
 
         for (final ClassInfo node : standardClassNodes) {
-            buf.append("\n").append("\"").append(node.getClassName()).append("\"");
+            buf.append("\"").append(node.getClassName()).append("\"");
             labelClassNodeHTML(node, "box", "fff2b6", buf);
             buf.append(";\n");
         }
 
         for (final ClassInfo node : interfaceNodes) {
-            buf.append("\n").append("\"").append(node.getClassName()).append("\"");
+            buf.append("\"").append(node.getClassName()).append("\"");
             labelClassNodeHTML(node, "diamond", "b6e7ff", buf);
             buf.append(";\n");
         }
 
         for (final ClassInfo node : annotationNodes) {
-            buf.append("\n").append("\"").append(node.getClassName()).append("\"");
+            buf.append("\"").append(node.getClassName()).append("\"");
             labelClassNodeHTML(node, "oval", "f3c9ff", buf);
             buf.append(";\n");
         }

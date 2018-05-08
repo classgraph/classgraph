@@ -140,23 +140,37 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Get the name of this class. */
+    /**
+     * Get the name of this class.
+     * 
+     * @return The class name.
+     */
     public String getClassName() {
         return className;
     }
 
-    /** Get a class reference for this class. Calls the classloader. */
+    /**
+     * Get a class reference for this class. Calls the classloader.
+     * 
+     * @return The class reference.
+     */
     public Class<?> getClassRef() {
         return scanResult.classNameToClassRef(className);
     }
 
-    /** Get the class modifier flags, e.g. Modifier.PUBLIC */
+    /**
+     * Get the class modifier flags, e.g. Modifier.PUBLIC
+     * 
+     * @return The class modifiers.
+     */
     public int getClassModifiers() {
         return classModifiers;
     }
 
     /**
-     * Get the field modifiers as a string, e.g. "public static final". For the modifier bits, call getModifiers().
+     * Get the field modifiers as a String, e.g. "public static final". For the modifier bits, call getModifiers().
+     * 
+     * @return The class modifiers, in String format.
      */
     public String getModifiersStr() {
         return TypeUtils.modifiersToString(classModifiers, /* isMethod = */ false);
@@ -226,13 +240,20 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     }
 
     /**
-     * Get the type signature for the class, including generic type parameters, if available (else returns null).
+     * Get the low-level Java type signature for the class, including generic type parameters, if available (else
+     * returns null).
+     * 
+     * @return The type signature, in string format
      */
     public String getTypeSignatureStr() {
         return typeSignatureStr;
     }
 
-    /** Get the type signature for the class, if available (else returns null). */
+    /**
+     * Get the type signature for the class, if available (else returns null).
+     * 
+     * @return The class type signature.
+     */
     public ClassTypeSignature getTypeSignature() {
         if (typeSignature == null) {
             return null;
@@ -246,6 +267,8 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     /**
      * The classpath element URL (classpath root dir or jar) that this class was found within. This will consist of
      * exactly one entry, so you should call the getClasspathElementURL() method instead.
+     * 
+     * @return The classpath element URL, stored in a set.
      */
     @Deprecated
     public Set<URL> getClasspathElementURLs() {
@@ -260,6 +283,8 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
      * N.B. Classpath elements are handled as File objects internally. It is much faster to call
      * getClasspathElementFile() -- the conversion of a File into a URL (via File#toURI()#toURL()) is actually quite
      * time consuming.
+     * 
+     * @return The classpath element, as a URL.
      */
     public URL getClasspathElementURL() {
         if (classpathElementURL == null) {
@@ -273,12 +298,21 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
         return classpathElementURL;
     }
 
-    /** The classpath element file (classpath root dir or jar) that this class was found within. */
+    /**
+     * The classpath element file (classpath root dir or jar) that this class was found within.
+     * 
+     * @return The classpath element, as a File.
+     */
     public File getClasspathElementFile() {
         return classpathElementFile;
     }
 
-    /** Get the ClassLoader(s) to use when trying to load the class. */
+    /**
+     * Get the ClassLoader(s) to use when trying to load the class. Typically there will only be one. If there is
+     * more than one, they will be listed in the order they should be called, until one is able to load the class.
+     * 
+     * @return The Classloader(s) to use when trying to load the class.
+     */
     public ClassLoader[] getClassLoaders() {
         return classLoaders;
     }
@@ -496,8 +530,12 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     }
 
     /**
-     * Get the sorted list of the names of classes given a collection of ClassInfo objects. (Class names are not
-     * deduplicated.)
+     * Get the sorted list of the names of classes given a collection of {@link ClassInfo} objects. (Class names are
+     * not deduplicated.)
+     * 
+     * @param classInfoColl
+     *            The collection of {@link ClassInfo} objects.
+     * @return The names of classes in the collection.
      */
     public static List<String> getClassNames(final Collection<ClassInfo> classInfoColl) {
         if (classInfoColl.isEmpty()) {
@@ -817,6 +855,8 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     /**
      * Get the names of any classes (other than this class itself) referenced in this class' type descriptor, or the
      * type descriptors of fields or methods (if field or method info is recorded).
+     * 
+     * @return The names of the referenced classes.
      */
     public Set<String> getClassNamesReferencedInAnyTypeDescriptor() {
         final Set<String> referencedClassNames = new HashSet<>();
@@ -849,6 +889,8 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     /**
      * Get the names of any classes referenced in the type descriptors of this class' methods (if method info is
      * recorded).
+     * 
+     * @return The names of the referenced classes.
      */
     public Set<String> getClassNamesReferencedInMethodTypeDescriptors() {
         final Set<String> referencedClassNames = new HashSet<>();
@@ -868,6 +910,8 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     /**
      * Get the names of any classes referenced in the type descriptors of this class' fields (if field info is
      * recorded).
+     * 
+     * @return The names of the referenced classes.
      */
     public Set<String> getClassNamesReferencedInFieldTypeDescriptors() {
         final Set<String> referencedClassNames = new HashSet<>();
@@ -886,6 +930,8 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Get the names of any classes (other than this class itself) referenced in the type descriptor of this class.
+     * 
+     * @return The names of the referenced classes.
      */
     public Set<String> getClassNamesReferencedInClassTypeDescriptor() {
         final Set<String> referencedClassNames = new HashSet<>();
@@ -957,7 +1003,9 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Test whether this class has the named class as a subclass.
-     *
+     * 
+     * @param subclassName
+     *            The name of the subclass.
      * @return true if this class has the named class as a subclass.
      */
     public boolean hasSubclass(final String subclassName) {
@@ -987,7 +1035,9 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Test whether this class has the named direct subclass.
-     *
+     * 
+     * @param directSubclassName
+     *            The name of the direct subclass.
      * @return true if this class has the named direct subclass.
      */
     public boolean hasDirectSubclass(final String directSubclassName) {
@@ -1025,7 +1075,9 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Test whether this class extends the named superclass, directly or indirectly.
-     *
+     * 
+     * @param superclassName
+     *            The name of the superclass.
      * @return true if this class has the named direct or indirect superclass.
      */
     public boolean hasSuperclass(final String superclassName) {
@@ -1035,6 +1087,8 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     /**
      * Returns true if this is an inner class (call isAnonymousInnerClass() to test if this is an anonymous inner
      * class). If true, the containing class can be determined by calling getOuterClasses() or getOuterClassNames().
+     * 
+     * @return True if this class is an inner class.
      */
     public boolean isInnerClass() {
         return !getOuterClasses().isEmpty();
@@ -1043,6 +1097,8 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     /**
      * Returns the containing outer classes, for inner classes. Note that all containing outer classes are returned,
      * not just the innermost containing outer class. Returns the empty set if this is not an inner class.
+     * 
+     * @return The set of containing outer classes.
      */
     public Set<ClassInfo> getOuterClasses() {
         return filterClassInfo(getReachableClasses(RelType.CONTAINED_WITHIN_OUTER_CLASS),
@@ -1053,6 +1109,8 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
      * Returns the names of the containing outer classes, for inner classes. Note that all containing outer classes
      * are returned, not just the innermost containing outer class. Returns the empty list if this is not an inner
      * class.
+     * 
+     * @return The name of containing outer classes.
      */
     public List<String> getOuterClassName() {
         return getClassNames(getOuterClasses());
@@ -1061,12 +1119,18 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     /**
      * Returns true if this class contains inner classes. If true, the inner classes can be determined by calling
      * getInnerClasses() or getInnerClassNames().
+     * 
+     * @return True if this is an outer class.
      */
     public boolean isOuterClass() {
         return !getInnerClasses().isEmpty();
     }
 
-    /** Returns the inner classes contained within this class. Returns the empty set if none. */
+    /**
+     * Returns the inner classes contained within this class. Returns the empty set if none.
+     * 
+     * @return The set of inner classes within this class.
+     */
     public Set<ClassInfo> getInnerClasses() {
         return filterClassInfo(getReachableClasses(RelType.CONTAINS_INNER_CLASS),
                 /* removeExternalClassesIfStrictWhitelist = */ false, scanSpec, ClassType.ALL);
@@ -1074,6 +1138,8 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Returns the names of inner classes contained within this class. Returns the empty list if none.
+     * 
+     * @return The names of inner classes within this class.
      */
     public List<String> getInnerClassNames() {
         return getClassNames(getInnerClasses());
@@ -1082,6 +1148,8 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     /**
      * Returns true if this is an anonymous inner class. If true, the name of the containing method can be obtained
      * by calling getFullyQualifiedContainingMethodName().
+     * 
+     * @return True if this is an anonymous inner class.
      */
     public boolean isAnonymousInnerClass() {
         return fullyQualifiedContainingMethodName != null;
@@ -1090,6 +1158,8 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     /**
      * Get fully-qualified containing method name (i.e. fully qualified classname, followed by dot, followed by
      * method name, for the containing method that creates an anonymous inner class.
+     * 
+     * @return The fully-qualified method name of the method that this anonymous inner class was defined within.
      */
     public String getFullyQualifiedContainingMethodName() {
         return fullyQualifiedContainingMethodName;
@@ -1253,6 +1323,8 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     /**
      * Test whether this class is has the named subinterface.
      *
+     * @param subinterfaceName
+     *            The name of the subinterface.
      * @return true if this class is an interface and has the named subinterface.
      */
     public boolean hasSubinterface(final String subinterfaceName) {
@@ -1284,7 +1356,9 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Test whether this class is and interface and has the named direct subinterface.
-     *
+     * 
+     * @param directSubinterfaceName
+     *            The name of the direct subinterface.
      * @return true if this class is and interface and has the named direct subinterface.
      */
     public boolean hasDirectSubinterface(final String directSubinterfaceName) {
@@ -1316,7 +1390,9 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Test whether this class is an interface and has the named superinterface.
-     *
+     * 
+     * @param superinterfaceName
+     *            The name of the superinterface.
      * @return true if this class is an interface and has the named superinterface.
      */
     public boolean hasSuperinterface(final String superinterfaceName) {
@@ -1348,7 +1424,9 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Test whether this class is an interface and has the named direct superinterface.
-     *
+     * 
+     * @param directSuperinterfaceName
+     *            The name of the direct superinterface.
      * @return true if this class is an interface and has the named direct superinterface.
      */
     public boolean hasDirectSuperinterface(final String directSuperinterfaceName) {
@@ -1392,6 +1470,8 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     /**
      * Test whether this standard class implements the named interface, or by one of its superclasses.
      *
+     * @param interfaceName
+     *            The name of the interface.
      * @return true this class is a standard class, and it (or one of its superclasses) implements the named
      *         interface.
      */
@@ -1426,6 +1506,8 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     /**
      * Test whether this standard class directly implements the named interface, or by one of its superclasses.
      *
+     * @param interfaceName
+     *            The name of the interface.
      * @return true this class is a standard class, and directly implements the named interface.
      */
     public boolean directlyImplementsInterface(final String interfaceName) {
@@ -1467,7 +1549,9 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Test whether this class is implemented by the named class, or by one of its superclasses.
-     *
+     * 
+     * @param className
+     *            The name of the class.
      * @return true if this class is implemented by the named class, or by one of its superclasses.
      */
     public boolean isImplementedByClass(final String className) {
@@ -1499,6 +1583,8 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     /**
      * Test whether this class is directly implemented by the named class, or by one of its superclasses.
      *
+     * @param className
+     *            The name of the class.
      * @return true if this class is directly implemented by the named class, or by one of its superclasses.
      */
     public boolean isDirectlyImplementedByClass(final String className) {
@@ -1575,7 +1661,13 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
         return getClassNames(getClassesWithAnnotation());
     }
 
-    /** Test whether this class annotates the named class. */
+    /**
+     * Test whether this class annotates the named class.
+     * 
+     * @param annotatedClassName
+     *            The name of the annotated class.
+     * @return True if this class annotates the named class.
+     */
     public boolean annotatesClass(final String annotatedClassName) {
         return getNamesOfClassesWithAnnotation().contains(annotatedClassName);
     }
@@ -1604,9 +1696,11 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     }
 
     /**
-     * Test whether this class annotates the named class.
+     * Test whether this class directly annotates the named class.
      *
-     * @return true if this class annotates the named class.
+     * @param directlyAnnotatedClassName
+     *            The name of the directly annotated class.
+     * @return true if this class directly annotates the named class.
      */
     public boolean directlyAnnotatesClass(final String directlyAnnotatedClassName) {
         return getNamesOfClassesWithDirectAnnotation().contains(directlyAnnotatedClassName);
@@ -1642,6 +1736,8 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     /**
      * Test whether this class, interface or annotation has the named class annotation or meta-annotation.
      *
+     * @param annotationName
+     *            The name of the annotation.
      * @return true if this class, interface or annotation has the named class annotation or meta-annotation.
      */
     public boolean hasAnnotation(final String annotationName) {
@@ -1650,7 +1746,10 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Get a list of annotations on this method, along with any annotation parameter values, wrapped in
-     * AnnotationInfo objects, or the empty list if none.
+     * {@link AnnotationInfo} objects, or the empty list if none.
+     * 
+     * @return A list of {@link AnnotationInfo} objects for the annotations on this method, or the empty list if
+     *         none.
      */
     public List<AnnotationInfo> getAnnotationInfo() {
         return annotationInfo == null ? Collections.<AnnotationInfo> emptyList() : annotationInfo;
@@ -1659,6 +1758,9 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     /**
      * Get a list of the default parameter values, if this is an annotation, and it has default parameter values.
      * Otherwise returns the empty list.
+     * 
+     * @return If this is an annotation class, the list of {@link AnnotationParamValue} objects for each of the
+     *         default parameter values for this annotation, otherwise the empty list.
      */
     public List<AnnotationParamValue> getAnnotationDefaultParamValues() {
         return annotationDefaultParamValues == null ? Collections.<AnnotationParamValue> emptyList()
@@ -1696,6 +1798,8 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
      * reflection call Class#hasAnnotation(), except that it does not require calling the classloader, and it works
      * for meta-annotations as well as Annotatinons.)
      *
+     * @param directAnnotationName
+     *            The name of the direct annotation.
      * @return true if this class has the named direct annotation or meta-annotation.
      */
     public boolean hasDirectAnnotation(final String directAnnotationName) {
@@ -1729,6 +1833,8 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     /**
      * Test whether this is an annotation class and it has the named meta-annotation.
      *
+     * @param metaAnnotationName
+     *            The meta-annotation name.
      * @return true if this is an annotation class and it has the named meta-annotation.
      */
     public boolean hasMetaAnnotation(final String metaAnnotationName) {
@@ -1760,6 +1866,8 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     /**
      * Test whether this annotation has the named meta-annotation.
      *
+     * @param annotationName
+     *            The annotation name.
      * @return true if this annotation has the named meta-annotation.
      */
     public boolean metaAnnotatesAnnotation(final String annotationName) {
@@ -1792,6 +1900,8 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     /**
      * Test whether this annotation is directly meta-annotated with the named annotation.
      *
+     * @param directMetaAnnotationName
+     *            The direct meta-annotation name.
      * @return true if this annotation is directly meta-annotated with the named annotation.
      */
     public boolean hasDirectMetaAnnotation(final String directMetaAnnotationName) {
@@ -1989,6 +2099,8 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     /**
      * Test whether this class has a method with the named method direct annotation.
      *
+     * @param annotationName
+     *            The annotation name.
      * @return true if this class has a method with the named direct annotation.
      */
     public boolean hasMethodWithDirectAnnotation(final String annotationName) {
@@ -1998,6 +2110,8 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     /**
      * Test whether this class has a method with the named method annotation or meta-annotation.
      *
+     * @param annotationName
+     *            The annotation name.
      * @return true if this class has a method with the named annotation or meta-annotation.
      */
     public boolean hasMethodWithAnnotation(final String annotationName) {
@@ -2050,6 +2164,8 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     /**
      * Test whether this annotation annotates or meta-annotates a method of the named class.
      *
+     * @param className
+     *            The class name.
      * @return true if this annotation annotates a method of the named class.
      */
     public boolean annotatesMethodOfClass(final String className) {
@@ -2206,6 +2322,8 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     /**
      * Test whether this class has a field with the named field annotation.
      *
+     * @param annotationName
+     *            The annotation name.
      * @return true if this class has a field with the named annotation.
      */
     public boolean hasFieldWithAnnotation(final String annotationName) {
@@ -2258,6 +2376,8 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     /**
      * Test whether this annotation annotates a field of the named class.
      *
+     * @param className
+     *            The class name.
      * @return true if this annotation annotates a field of the named class.
      */
     public boolean annotatesFieldOfClass(final String className) {

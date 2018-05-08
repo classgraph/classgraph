@@ -67,6 +67,12 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
         private final String paramName;
         private final Object paramValue;
 
+        /**
+         * @param paramName
+         *            The annotation paramater name.
+         * @param paramValue
+         *            The annotation parameter value.
+         */
         public AnnotationParamValue(final String paramName, final Object paramValue) {
             this.paramName = paramName;
             this.paramValue = paramValue;
@@ -91,24 +97,30 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
             }
         }
 
-        /** Get the annotation parameter name. */
+        /**
+         * Get the annotation parameter name.
+         * 
+         * @return The annotation parameter name.
+         */
         public String getParamName() {
             return paramName;
         }
 
         /**
-         * Get the annotation parameter value. May be one of the following types:
-         *
-         * <ul>
-         * <li>String for string constants
-         * <li>A wrapper type, e.g. Integer or Character, for primitive-typed constants
-         * <li>Object[] for array types (and then the array element type may be one of the types in this list)
-         * <li>AnnotationEnumValue, for enum constants (this wraps the enum class and the string name of the
-         * constant)
-         * <li>AnnotationClassRef, for Class references within annotations (this wraps the name of the referenced
-         * class)
-         * <li>AnnotationInfo, for nested annotations
-         * </ul>
+         * Get the annotation parameter value.
+         * 
+         * @return The annotation parameter value. May be one of the following types:
+         *         <ul>
+         *         <li>String for string constants
+         *         <li>A wrapper type, e.g. Integer or Character, for primitive-typed constants
+         *         <li>{@link Object}[] for array types (and then the array element type may be one of the types in
+         *         this list)
+         *         <li>{@link AnnotationEnumValue}, for enum constants (this wraps the enum class and the string
+         *         name of the constant)
+         *         <li>{@link AnnotationClassRef}, for Class references within annotations (this wraps the name of
+         *         the referenced class)
+         *         <li>{@link AnnotationInfo}, for nested annotations
+         *         </ul>
          */
         public Object getParamValue() {
             return paramValue;
@@ -206,6 +218,12 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
         final String constName;
         private ScanResult scanResult;
 
+        /**
+         * @param className
+         *            The enum class name.
+         * @param constName
+         *            The enum const name.
+         */
         public AnnotationEnumValue(final String className, final String constName) {
             this.className = className;
             this.constName = constName;
@@ -216,20 +234,30 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
             this.scanResult = scanResult;
         }
 
-        /** Get the class name of the enum. */
+        /**
+         * Get the class name of the enum.
+         * 
+         * @return The name of the enum class.
+         */
         public String getClassName() {
             return className;
         }
 
-        /** Get the name of the enum constant. */
+        /**
+         * Get the name of the enum constant.
+         * 
+         * @return The name of the enum constant.
+         */
         public String getConstName() {
             return constName;
         }
 
         /**
          * Get the enum constant. Causes the ClassLoader to load the enum class.
-         *
-         * @throws IllegalArgumentException if the class could not be loaded, or the enum constant is invalid.
+         * 
+         * @return A ref to the enum constant value.
+         * @throws IllegalArgumentException
+         *             if the class could not be loaded, or the enum constant is invalid.
          */
         public Object getEnumValueRef() throws IllegalArgumentException {
             final Class<?> classRef = scanResult.classNameToClassRef(className);
@@ -303,6 +331,8 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
          *
          * <p>
          * Call getType() to get a Class<?> reference for this class.
+         * 
+         * @return The type signature of the annotation class ref.
          */
         public TypeSignature getTypeSignature() {
             if (typeSignature == null) {
@@ -312,17 +342,10 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
         }
 
         /**
-         * Get a class type string (e.g. "String[][][]" or "int") for a type reference used in an annotation
-         * parameter.
-         *
-         * <p>
-         * Use ReflectionUtils.typeStrToClass() to get a Class<?> reference from this class type string.
+         * Get a class reference for a class-reference-typed value used in an annotation parameter.
+         * 
+         * @return The type signature of the annotation class ref, as a {@code Class<?>} reference.
          */
-        public String getTypeStr() {
-            return getTypeSignature().toString();
-        }
-
-        /** Get a class reference for a class-reference-typed value used in an annotation parameter. */
         public Class<?> getType() {
             return getTypeSignature().instantiate(scanResult);
         }
@@ -348,6 +371,12 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /**
+     * @param annotationName
+     *            The name of the annotation.
+     * @param annotationParamValues
+     *            The annotation parameter values, or null if none.
+     */
     public AnnotationInfo(final String annotationName, final List<AnnotationParamValue> annotationParamValues) {
         this.annotationName = annotationName;
         // Sort the annotation parameter values into order for consistency
@@ -358,8 +387,11 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
     }
 
     /**
-     * Add a set of default values from an annotation class to a concrete annotation. The defaults are overwritten
-     * by any annotation values with the same name in the concrete annotation.
+     * Add a set of default values, stored in an annotation class' classfile, to a concrete instance of that
+     * annotation. The defaults are overwritten by any annotation parameter values in the concrete annotation.
+     * 
+     * @param defaultAnnotationParamValues
+     *            the default parameter values for the annotation.
      */
     void addDefaultValues(final List<AnnotationParamValue> defaultAnnotationParamValues) {
         if (defaultAnnotationParamValues != null && !defaultAnnotationParamValues.isEmpty()) {
@@ -385,17 +417,29 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
         }
     }
 
-    /** Get the name of the annotation. */
+    /**
+     * Get the name of the annotation.
+     * 
+     * @return The annotation name.
+     */
     public String getAnnotationName() {
         return annotationName;
     }
 
-    /** Get a class reference for the annotation. */
+    /**
+     * Get a class reference for the annotation.
+     * 
+     * @return The annotation type, as a {@code Class<?>} reference.
+     */
     public Class<?> getAnnotationType() {
         return scanResult.classNameToClassRef(annotationName);
     }
 
-    /** Get the parameter value of the annotation. */
+    /**
+     * Get the parameter value of the annotation.
+     * 
+     * @return The annotation parameter values.
+     */
     public List<AnnotationParamValue> getAnnotationParamValues() {
         return annotationParamValues;
     }
@@ -451,6 +495,12 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
         return h;
     }
 
+    /**
+     * Render as a string, into a StringBuilder buffer.
+     * 
+     * @param buf
+     *            The buffer.
+     */
     public void toString(final StringBuilder buf) {
         buf.append("@" + annotationName);
         if (annotationParamValues != null) {
@@ -483,6 +533,10 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
 
     /**
      * From a collection of AnnotationInfo objects, extract the annotation names, uniquify them, and sort them.
+     * 
+     * @param annotationInfo
+     *            The annotation info.
+     * @return The sorted, uniquified annotation names.
      */
     public static String[] getUniqueAnnotationNamesSorted(final Collection<AnnotationInfo> annotationInfo) {
         if (annotationInfo == null || annotationInfo.isEmpty()) {
@@ -503,6 +557,10 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
 
     /**
      * From an array of AnnotationInfo objects, extract the annotation names, uniquify them, and sort them.
+     * 
+     * @param annotationInfo
+     *            The annotation info.
+     * @return The sorted, uniquified annotation names.
      */
     public static String[] getUniqueAnnotationNamesSorted(final AnnotationInfo[] annotationInfo) {
         if (annotationInfo == null || annotationInfo.length == 0) {
