@@ -220,7 +220,7 @@ class ClassGraphBuilder {
     // Class graph visualization
 
     private void labelClassNodeHTML(final ClassInfo ci, final String shape, final String boxBgColor,
-            final StringBuilder buf) {
+            final boolean showFields, final boolean showMethods, final StringBuilder buf) {
         buf.append("[shape=" + shape + ",style=filled,fillcolor=\"#" + boxBgColor + "\",label=");
         buf.append("<");
         buf.append("<table border='0' cellborder='0' cellspacing='1'>");
@@ -274,7 +274,7 @@ class ClassGraphBuilder {
         }
 
         // Fields
-        if (ci.fieldInfo != null && ci.fieldInfo.size() > 0) {
+        if (showFields && ci.fieldInfo != null && ci.fieldInfo.size() > 0) {
             buf.append("<tr><td colspan='3' bgcolor='" + darkerColor + "'><font point-size='12'><b>"
                     + (scanSpec.ignoreFieldVisibility ? "" : "PUBLIC ") + "FIELDS</b></font></td></tr>");
             buf.append("<tr><td cellpadding='0'>");
@@ -323,7 +323,7 @@ class ClassGraphBuilder {
         }
 
         // Methods
-        if (ci.methodInfo != null && ci.methodInfo.size() > 0) {
+        if (showMethods && ci.methodInfo != null && ci.methodInfo.size() > 0) {
             buf.append("<tr><td cellpadding='0'>");
             buf.append("<table border='0' cellborder='0'>");
             buf.append("<tr><td colspan='3' bgcolor='" + darkerColor + "'><font point-size='12'><b>"
@@ -459,7 +459,8 @@ class ClassGraphBuilder {
      * sizeX and sizeY parameters are the image output size to use (in inches) when GraphViz is asked to render the
      * .dot file.
      */
-    String generateClassGraphDotFile(final float sizeX, final float sizeY) {
+    String generateClassGraphDotFile(final float sizeX, final float sizeY, final boolean showFields,
+            final boolean showMethods) {
         final StringBuilder buf = new StringBuilder();
         buf.append("digraph {\n");
         buf.append("size=\"" + sizeX + "," + sizeY + "\";\n");
@@ -486,19 +487,19 @@ class ClassGraphBuilder {
 
         for (final ClassInfo node : standardClassNodes) {
             buf.append("\"").append(node.getClassName()).append("\"");
-            labelClassNodeHTML(node, "box", "fff2b6", buf);
+            labelClassNodeHTML(node, "box", "fff2b6", showFields, showMethods, buf);
             buf.append(";\n");
         }
 
         for (final ClassInfo node : interfaceNodes) {
             buf.append("\"").append(node.getClassName()).append("\"");
-            labelClassNodeHTML(node, "diamond", "b6e7ff", buf);
+            labelClassNodeHTML(node, "diamond", "b6e7ff", showFields, showMethods, buf);
             buf.append(";\n");
         }
 
         for (final ClassInfo node : annotationNodes) {
             buf.append("\"").append(node.getClassName()).append("\"");
-            labelClassNodeHTML(node, "oval", "f3c9ff", buf);
+            labelClassNodeHTML(node, "oval", "f3c9ff", showFields, showMethods, buf);
             buf.append(";\n");
         }
 
