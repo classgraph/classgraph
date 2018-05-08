@@ -36,7 +36,6 @@ import java.util.Set;
 import io.github.lukehutch.fastclasspathscanner.scanner.ClassInfo;
 import io.github.lukehutch.fastclasspathscanner.typesignature.TypeUtils.ParseException;
 import io.github.lukehutch.fastclasspathscanner.typesignature.TypeUtils.ParseState;
-import io.github.lukehutch.fastclasspathscanner.utils.AdditionOrderedSet;
 
 /** A method type signature (called "MethodSignature" in the classfile documentation). */
 public class MethodTypeSignature extends HierarchicalTypeSignature {
@@ -157,117 +156,6 @@ public class MethodTypeSignature extends HierarchicalTypeSignature {
             }
         }
         return buf.toString();
-    }
-
-    /**
-     * Merge together programmer-view and JDK-internal method type signatures.
-     * 
-     * @param methodTypeSignature
-     *            The programmer-view type signature, with type parameters where possible, and without synthetic
-     *            parameters.
-     * @param methodTypeSignatureInternal
-     *            The JDK-internal type signature, without type parameters, but including synthetic parameters, if
-     *            any.
-     * @param parameterAccessFlags
-     *            The parameter modifiers for parameters in the JDK-internal type signature.
-     * @return A MethodSignature consisting of all information from both type signatures.
-     */
-    public static MethodTypeSignature merge(final MethodTypeSignature methodTypeSignature,
-            final MethodTypeSignature methodTypeSignatureInternal, final int[] parameterAccessFlagsInternal) {
-        if (methodTypeSignature == null || methodTypeSignatureInternal == null) {
-            throw new IllegalArgumentException("Signatures must be non-null");
-        }
-        if (!methodTypeSignatureInternal.typeParameters.isEmpty()) {
-            throw new IllegalArgumentException("typeSignatureInternal.typeParameters should be empty");
-        }
-        if (!methodTypeSignatureInternal.resultType.equalsIgnoringTypeParams(methodTypeSignature.resultType)) {
-            throw new IllegalArgumentException("Result types could not be reconciled: "
-                    + methodTypeSignatureInternal.resultType + " vs. " + methodTypeSignature.resultType);
-        }
-        // parameterAccessFlags is only available in classfiles compiled in JDK8 or above using
-        // the -parameters commandline switch, or code compiled with Kotlin or some other language
-        if (parameterAccessFlagsInternal != null
-                && parameterAccessFlagsInternal.length != methodTypeSignatureInternal.parameterTypeSignatures
-                        .size()) {
-            throw new IllegalArgumentException(
-                    "Parameter arity mismatch between access flags and internal param types");
-        }
-        List<TypeSignature> mergedParamTypes;
-        if (parameterAccessFlagsInternal == null) {
-            // If there are no parameter access flags, there must be no difference in the number
-            // of parameters between the JDK-internal and programmer-visible type signature
-            // (i.e. if there are synthetic parameters, then the classfile should specify
-            // this by adding the parameter modifier flags section to the method attributes).
-            // It's possible this is not always true, so if this exception is thrown, please
-            // report a bug in the GitHub bug tracker.
-            if (methodTypeSignature.parameterTypeSignatures
-                    .size() != methodTypeSignatureInternal.parameterTypeSignatures.size()) {
-                throw new IllegalArgumentException("Unexpected mismatch in method paramTypes arity");
-            }
-            // Use the programmer-visible paramTypes, since these will have type info if it is available
-            mergedParamTypes = methodTypeSignature.parameterTypeSignatures;
-        } else {
-            mergedParamTypes = new ArrayList<>(methodTypeSignatureInternal.parameterTypeSignatures.size());
-            int internalParamIdx = 0;
-            int paramIdx = 0;
-            for (; internalParamIdx < methodTypeSignatureInternal.parameterTypeSignatures
-                    .size(); internalParamIdx++) {
-                if ((parameterAccessFlagsInternal[internalParamIdx]
-                        & (TypeUtils.MODIFIER_SYNTHETIC | TypeUtils.MODIFIER_MANDATED)) != 0) {
-                    // This parameter is present in JDK-internal type signature, but not in the 
-                    // programmer-visible signature. This should only be true for synthetic
-                    // parameters, and they should not have any type parameters, due to type
-                    // erasure.
-                    mergedParamTypes.add(methodTypeSignatureInternal.parameterTypeSignatures.get(internalParamIdx));
-                } else {
-                    if (paramIdx == methodTypeSignature.parameterTypeSignatures.size()) {
-                        // Shouldn't happen
-                        throw new IllegalArgumentException(
-                                "Ran out of parameters in programmer-visible type signature");
-                    }
-                    // This parameter should be present in both type signatures, and the types
-                    // should be the same, ignoring any type parameters.
-                    final TypeSignature paramTypeSignature = methodTypeSignature.parameterTypeSignatures
-                            .get(paramIdx++);
-                    final TypeSignature paramTypeSignatureInternal = //
-                            methodTypeSignatureInternal.parameterTypeSignatures.get(internalParamIdx);
-                    if (!paramTypeSignature.equalsIgnoringTypeParams(paramTypeSignatureInternal)) {
-                        throw new IllegalArgumentException(
-                                "Corresponding type parameters in type signatures do not refer to the same bare "
-                                        + "types: " + paramTypeSignature + " [from method signature "
-                                        + methodTypeSignature + "] vs. " + paramTypeSignatureInternal
-                                        + " [from method signature " + methodTypeSignatureInternal + "]");
-                    }
-                    // The programmer-visible parameter should always have more type information, if available
-                    mergedParamTypes.add(paramTypeSignature);
-                }
-            }
-            if (paramIdx < methodTypeSignature.parameterTypeSignatures.size()) {
-                throw new IllegalArgumentException(
-                        "Parameter arity mismatch between internal and programmer-visible type signature");
-            }
-        }
-        List<ClassRefOrTypeVariableSignature> mergedThrowsSignatures;
-        if (methodTypeSignature.throwsSignatures.isEmpty()) {
-            mergedThrowsSignatures = methodTypeSignatureInternal.throwsSignatures;
-        } else if (methodTypeSignatureInternal.throwsSignatures.isEmpty()
-                || methodTypeSignature.throwsSignatures.equals(methodTypeSignatureInternal.throwsSignatures)) {
-            mergedThrowsSignatures = methodTypeSignature.throwsSignatures;
-        } else {
-            final AdditionOrderedSet<ClassRefOrTypeVariableSignature> sigSet = new AdditionOrderedSet<>(
-                    methodTypeSignature.throwsSignatures);
-            sigSet.addAll(methodTypeSignatureInternal.throwsSignatures);
-            mergedThrowsSignatures = sigSet.toList();
-        }
-        return new MethodTypeSignature(
-                // Use the programmer-view of type parameters (the JDK-internal view should have no type params)
-                methodTypeSignature.typeParameters,
-                // Merged parameter types
-                mergedParamTypes,
-                // Use the programmer-view of result type, in case there is a type parameter
-                methodTypeSignature.resultType,
-                // Merged throws signatures
-                mergedThrowsSignatures);
     }
 
     /**
