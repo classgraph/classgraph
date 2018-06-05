@@ -76,6 +76,8 @@ JavaDoc for the core classes:
 
 Feel free to subscribe to the [FastClasspathScanner-Users](https://groups.google.com/d/forum/fastclasspathscanner-users) email list for updates, or to ask questions.
 
+There is also a [Gitter room](https://gitter.im/fast-classpath-scanner/Lobby) for discussion of FCS.
+
 ## Downloading
 
 ### Maven dependency
