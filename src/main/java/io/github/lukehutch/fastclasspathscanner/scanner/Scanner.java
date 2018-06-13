@@ -38,6 +38,7 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
@@ -208,11 +209,13 @@ public class Scanner implements Callable<ScanResult> {
         try {
             final long scanStart = System.nanoTime();
 
-            // Get raw classpath elements
+            // Get modules and raw classpath elements
             final LogNode getRawElementsLog = classpathFinderLog == null ? null
                     : classpathFinderLog.log("Getting raw classpath elements");
             final ClasspathFinder classpathFinder = new ClasspathFinder(scanSpec, nestedJarHandler,
                     getRawElementsLog);
+            final Set<Object> systemModules = classpathFinder.getSystemModules();
+            final Set<Object> nonSystemModules = classpathFinder.getNonSystemModules();
             final List<RelativePath> rawClasspathEltPathsDedupd = classpathFinder.getRawClasspathElements();
             final ClassLoader[] classLoaderOrder = classpathFinder.getClassLoaderOrder();
 

@@ -722,7 +722,7 @@ public class FastClasspathScanner {
      *         context classloader (or the override ClassLoaders, if ClassLoaders have been overridden).
      */
     public ClassLoader[] findBestClassLoader() {
-        return ClassLoaderFinder.findEnvClassLoaders(getScanSpec(), log);
+        return ClassLoaderFinder.findEnvClassLoaders(getScanSpec(), log).classLoaders;
     }
 
     // -------------------------------------------------------------------------------------------------------------

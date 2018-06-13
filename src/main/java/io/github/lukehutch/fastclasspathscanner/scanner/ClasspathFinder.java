@@ -31,11 +31,13 @@ package io.github.lukehutch.fastclasspathscanner.scanner;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import io.github.lukehutch.fastclasspathscanner.classloaderhandler.ClassLoaderHandler;
 import io.github.lukehutch.fastclasspathscanner.classloaderhandler.ClassLoaderHandler.DelegationOrder;
 import io.github.lukehutch.fastclasspathscanner.classloaderhandler.ClassLoaderHandlerRegistry;
 import io.github.lukehutch.fastclasspathscanner.classloaderhandler.ClassLoaderHandlerRegistry.ClassLoaderHandlerRegistryEntry;
+import io.github.lukehutch.fastclasspathscanner.scanner.ClassLoaderFinder.EnvClassLoadersAndModules;
 import io.github.lukehutch.fastclasspathscanner.utils.AdditionOrderedSet;
 import io.github.lukehutch.fastclasspathscanner.utils.FileUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.JarUtils;
@@ -47,7 +49,7 @@ public class ClasspathFinder {
     static final String currDirPathStr = FileUtils.getCurrDirPathStr();
 
     private final List<RelativePath> rawClasspathElements;
-    private final ClassLoader[] envClassLoaderOrder;
+    private final EnvClassLoadersAndModules envClassLoadersAndModules;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -187,7 +189,7 @@ public class ClasspathFinder {
         final LogNode classpathFinderLog = log == null ? null : log.log("Finding ClassLoaders");
 
         // Get environment ClassLoader order
-        envClassLoaderOrder = ClassLoaderFinder.findEnvClassLoaders(scanSpec, classpathFinderLog);
+        envClassLoadersAndModules = ClassLoaderFinder.findEnvClassLoaders(scanSpec, classpathFinderLog);
 
         final ClasspathOrder classpathOrder = new ClasspathOrder(scanSpec, nestedJarHandler);
         final ClasspathOrder ignoredClasspathOrder = new ClasspathOrder(scanSpec, nestedJarHandler);
@@ -203,7 +205,8 @@ public class ClasspathFinder {
             }
             final LogNode overrideLog = classpathFinderLog == null ? null
                     : classpathFinderLog.log("Overriding classpath with: " + scanSpec.overrideClasspath);
-            classpathOrder.addClasspathElements(scanSpec.overrideClasspath, envClassLoaderOrder, overrideLog);
+            classpathOrder.addClasspathElements(scanSpec.overrideClasspath, envClassLoadersAndModules.classLoaders,
+                    overrideLog);
             if (overrideLog != null) {
                 classpathFinderLog
                         .log("WARNING: when the classpath is overridden, there is no guarantee that the classes "
@@ -222,7 +225,8 @@ public class ClasspathFinder {
                 }
                 if (rtJarPath != null) {
                     // Insert rt.jar as the first entry in the classpath.
-                    classpathOrder.addClasspathElement(rtJarPath, envClassLoaderOrder, classpathFinderLog);
+                    classpathOrder.addClasspathElement(rtJarPath, envClassLoadersAndModules.classLoaders,
+                            classpathFinderLog);
                 }
             }
 
@@ -230,7 +234,8 @@ public class ClasspathFinder {
                     .getAllClassLoaderHandlerRegistryEntries();
             if (classpathFinderLog != null) {
                 final LogNode classLoaderHandlerLog = classpathFinderLog.log("ClassLoaderHandlers:");
-                for (final ClassLoaderHandlerRegistryEntry classLoaderHandlerEntry : allClassLoaderHandlerRegistryEntries) {
+                for (final ClassLoaderHandlerRegistryEntry classLoaderHandlerEntry : //
+                allClassLoaderHandlerRegistryEntries) {
                     classLoaderHandlerLog.log(classLoaderHandlerEntry.classLoaderHandlerClass.getName());
                 }
             }
@@ -240,7 +245,7 @@ public class ClasspathFinder {
             final List<SimpleEntry<ClassLoader, ClassLoaderHandler>> classLoaderAndHandlerOrder = new ArrayList<>();
             final List<SimpleEntry<ClassLoader, ClassLoaderHandler>> ignoredClassLoaderAndHandlerOrder = //
                     new ArrayList<>();
-            for (final ClassLoader envClassLoader : envClassLoaderOrder) {
+            for (final ClassLoader envClassLoader : envClassLoadersAndModules.classLoaders) {
                 if (!scanSpec.blacklistSystemJars()
                         || !envClassLoader.getClass().getName().startsWith("sun.misc.Launcher$ExtClassLoader")) {
                     findClassLoaderHandlerForClassLoaderAndParents(scanSpec, envClassLoader,
@@ -296,9 +301,10 @@ public class ClasspathFinder {
                             : classpathFinderLog.log("Getting classpath entries from java.class.path");
                     for (final String pathElement : pathElements) {
                         if (!ignoredClasspathOrder.get().contains(new RelativePath(currDirPathStr, pathElement,
-                                envClassLoaderOrder, nestedJarHandler, log))) {
+                                envClassLoadersAndModules.classLoaders, nestedJarHandler, log))) {
                             // pathElement is not also listed in an ignored parent classloader
-                            classpathOrder.addClasspathElement(pathElement, envClassLoaderOrder, sysPropLog);
+                            classpathOrder.addClasspathElement(pathElement, envClassLoadersAndModules.classLoaders,
+                                    sysPropLog);
                         } else {
                             // pathElement is also listed in an ignored parent classloader, ignore it (Issue #169)
                             if (sysPropLog != null) {
@@ -323,6 +329,16 @@ public class ClasspathFinder {
      * Get the order in which ClassLoaders are called to load classes. (Usually consists of one element only.)
      */
     public ClassLoader[] getClassLoaderOrder() {
-        return envClassLoaderOrder;
+        return envClassLoadersAndModules.classLoaders;
+    }
+
+    /** Get the system modules, as {@code Set<ModuleReference>}, if running under JDK9+, else null. */
+    public Set<Object> getSystemModules() {
+        return envClassLoadersAndModules.systemModules;
+    }
+
+    /** Get the non-system modules, as {@code Set<ModuleReference>}, if running under JDK9+, else null. */
+    public Set<Object> getNonSystemModules() {
+        return envClassLoadersAndModules.nonSystemModules;
     }
 }

@@ -33,9 +33,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.utils.AdditionOrderedSet;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
+import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
 
 /** A class to find the unique ordered classpath elements. */
 public class ClassLoaderFinder {
@@ -66,6 +66,88 @@ public class ClassLoaderFinder {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /** Get ModuleReferences from a Layer Configuration. */
+    private static void findModuleReferences(final Object /* Configuration */ configuration,
+            final Set<Object> /* Set<ModuleReference> */ moduleReferencesOut) {
+        final Set<?> /* Set<ResolvedModule> */ modules = (Set<?>) ReflectionUtils.invokeMethod(configuration,
+                "modules", /* throwException = */ false);
+        if (modules != null) {
+            // Get ModuleReferences from layer configuration
+            for (final Object /* ResolvedModule */ module : modules) {
+                final Object /* ModuleReference */ moduleReference = ReflectionUtils.invokeMethod(module,
+                        "reference", /* throwException = */ false);
+                if (moduleReference != null) {
+                    moduleReferencesOut.add(moduleReference);
+                }
+            }
+            // Recurse to parent layer configurations
+            final List<?> /* List<Configuration> */ parents = (List<?>) ReflectionUtils.invokeMethod(configuration,
+                    "parents", /* throwException = */ false);
+            if (parents != null) {
+                for (final Object /* Configuration */ parent : parents) {
+                    if (parent != null) {
+                        findModuleReferences(parent, moduleReferencesOut);
+                    }
+                }
+            }
+        }
+    }
+
+    /** Get ModuleReferences from a Class reference. */
+    private static void findModuleReferences(final Class<?> cls,
+            final Set<Object> /* Set<ModuleReference> */ moduleReferencesOut) {
+        final Object /* Module */ module = ReflectionUtils.invokeMethod(cls, "getModule",
+                /* throwException = */ false);
+        if (module != null) {
+            final Object /* ModuleLayer */ layer = ReflectionUtils.invokeMethod(module, "getLayer",
+                    /* throwException = */ false);
+            if (layer != null) {
+                final Object /* Configuration */ configuration = ReflectionUtils.invokeMethod(layer,
+                        "configuration", /* throwException = */ false);
+                if (configuration != null) {
+                    findModuleReferences(configuration, moduleReferencesOut);
+                }
+            }
+        }
+    }
+
+    /** Find system modules, or return null if not running on JDK9+. */
+    private static Set<Object> findSystemModules() {
+        // Find system module references
+        Set<Object> /* Set<ModuleReference> */ systemModules = null;
+        try {
+            final Class<?> moduleFinder = Class.forName("java.lang.module.ModuleFinder");
+            if (moduleFinder != null) {
+                final Object systemModuleFinder = ReflectionUtils.invokeStaticMethod(moduleFinder, "ofSystem",
+                        /* throwException = */ false);
+                if (systemModuleFinder != null) {
+                    @SuppressWarnings("unchecked")
+                    final Set<Object> sysMods = (Set<Object>) ReflectionUtils.invokeMethod(systemModuleFinder,
+                            "findAll", /* throwException = */ true);
+                    systemModules = sysMods;
+                }
+            }
+        } catch (final Exception e) {
+            // Not running on JDK9+
+        }
+        return systemModules;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    public static class EnvClassLoadersAndModules {
+        public ClassLoader[] classLoaders;
+        public Set<Object> systemModules;
+        public Set<Object> nonSystemModules;
+
+        public EnvClassLoadersAndModules(final ClassLoader[] classLoaders, final Set<Object> systemModules,
+                final Set<Object> nonSystemModules) {
+            this.classLoaders = classLoaders;
+            this.systemModules = systemModules;
+            this.nonSystemModules = nonSystemModules;
+        }
+    }
+
     /**
      * A class to find the unique ordered classpath elements.
      * 
@@ -73,11 +155,14 @@ public class ClassLoaderFinder {
      *            The scan spec.
      * @param log
      *            The log.
-     * @return The list of classloaders for this environment.
+     * @return The list of classloaders for this environment, and any system and non-system modules that are
+     *         discovered (in JDK9+).
      */
-    public static ClassLoader[] findEnvClassLoaders(final ScanSpec scanSpec, final LogNode log) {
+    public static EnvClassLoadersAndModules findEnvClassLoaders(final ScanSpec scanSpec, final LogNode log) {
         AdditionOrderedSet<ClassLoader> classLoadersUnique;
         LogNode classLoadersFoundLog = null;
+        Set<Object> systemModules = null;
+        Set<Object> nonSystemModules = null;
         if (scanSpec.overrideClassLoaders == null) {
             // ClassLoaders were not overridden
 
@@ -94,6 +179,16 @@ public class ClassLoaderFinder {
                 classLoadersUnique.add(systemClassLoader);
             }
 
+            // There is one more classloader in JDK9+, the platform classloader (used for handling extensions),
+            // see: http://openjdk.java.net/jeps/261#Class-loaders
+            // The method call to get it is ClassLoader.getPlatformClassLoader()
+            // However, since it's not possible to get URLs from this classloader, and it is the parent of
+            // the application classloader returned by ClassLoader.getSystemClassLoader() (so is delegated to
+            // by the application classloader), there is no point adding it here.
+
+            // Module references (for JDK9+ / Project Jigsaw)
+            final Set<Object> moduleReferences = new HashSet<>();
+
             // Get caller classloader
             if (CALLER_RESOLVER == null) {
                 if (log != null) {
@@ -109,24 +204,30 @@ public class ClassLoaderFinder {
                                 + CallerResolver.class.getSimpleName() + "#getClassContext() returned null");
                     }
                 } else {
-                    final String fcsPkgPrefix = FastClasspathScanner.class.getPackage().getName() + ".";
-                    int fcsIdx;
-                    for (fcsIdx = callStack.length - 1; fcsIdx >= 0; --fcsIdx) {
-                        if (callStack[fcsIdx].getName().startsWith(fcsPkgPrefix)) {
-                            break;
+                    for (int i = callStack.length - 1; i >= 0; --i) {
+                        final ClassLoader callerClassLoader = callStack[i].getClassLoader();
+                        if (callerClassLoader != null) {
+                            classLoadersUnique.add(callerClassLoader);
                         }
-                    }
-                    if (fcsIdx < 0 || fcsIdx == callStack.length - 1) {
-                        // Should not happen
-                        throw new RuntimeException("Could not find caller of " + fcsPkgPrefix + "* in call stack");
-                    }
-
-                    // Get the caller's current classloader
-                    final ClassLoader callStackClassLoader = callStack[fcsIdx + 1].getClassLoader();
-                    if (callStackClassLoader != null) {
-                        classLoadersUnique.add(callStackClassLoader);
+                        // Find module references (for JDK9+)
+                        findModuleReferences(callStack[i], moduleReferences);
                     }
                 }
+            }
+
+            // Find system module references
+            systemModules = findSystemModules();
+
+            // Find non-system modules
+            if (systemModules == null) {
+                if (!moduleReferences.isEmpty()) {
+                    // Should not happen
+                    throw new RuntimeException(
+                            "Failed to find system modules, but found modules through CallerResolver");
+                }
+            } else {
+                nonSystemModules = new HashSet<>(moduleReferences);
+                nonSystemModules.removeAll(systemModules);
             }
 
             // Get context classloader
@@ -168,6 +269,23 @@ public class ClassLoaderFinder {
                 classLoadersFoundLog.log("" + cl);
             }
         }
-        return classLoaderFinalOrder.toArray(new ClassLoader[classLoaderFinalOrder.size()]);
+
+        // Log any identified modules
+        if (systemModules != null && log != null) {
+            final LogNode subLog = log.log("Found system modules:");
+            for (final Object m : systemModules) {
+                subLog.log(m.toString());
+            }
+        }
+        if (nonSystemModules != null && log != null) {
+            final LogNode subLog = log.log("Found non-system modules:");
+            for (final Object m : nonSystemModules) {
+                subLog.log(m.toString());
+            }
+        }
+
+        return new EnvClassLoadersAndModules(
+                classLoaderFinalOrder.toArray(new ClassLoader[classLoaderFinalOrder.size()]), systemModules,
+                nonSystemModules);
     }
 }
