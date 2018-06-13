@@ -40,14 +40,14 @@ import io.github.lukehutch.fastclasspathscanner.typesignature.TypeUtils.ParseSta
 public class TypeArgument extends HierarchicalTypeSignature {
     /** A type wildcard. */
     public static enum WILDCARD {
-        /** No wildcard. */
-        NONE,
-        /** The '?' wildcard */
-        ANY,
-        /** extends */
-        EXTENDS,
-        /** super */
-        SUPER
+    /** No wildcard. */
+    NONE,
+    /** The '?' wildcard */
+    ANY,
+    /** extends */
+    EXTENDS,
+    /** super */
+    SUPER
     };
 
     /** A wildcard type. */
