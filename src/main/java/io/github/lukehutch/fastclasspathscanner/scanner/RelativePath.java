@@ -38,6 +38,7 @@ import io.github.lukehutch.fastclasspathscanner.utils.FastPathResolver;
 import io.github.lukehutch.fastclasspathscanner.utils.FileUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.JarUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
+import io.github.lukehutch.fastclasspathscanner.utils.ModuleRef;
 import io.github.lukehutch.fastclasspathscanner.utils.NestedJarHandler;
 
 /**
@@ -74,6 +75,17 @@ class RelativePath {
     private boolean isHttpURL;
     /** True if isHttpURL has been set. */
     private boolean isHttpURLIsCached;
+
+    /** True if the resolved path is a jrt:/ URL. */
+    private boolean isJrtURL;
+    /** True if isJrtURL has been set. */
+    private boolean isJrtURLIsCached;
+
+    /**
+     * If this URL is the location of a module (whether a jrt:/ URL or a file:// URL), this is the ModuleRef for the
+     * module.
+     */
+    private ModuleRef moduleRef;
 
     /** The canonical file for the relative path. */
     private File fileCached;
@@ -127,6 +139,19 @@ class RelativePath {
         } else {
             this.relativePath = relativePath;
         }
+    }
+
+    /** A relative path for a module (in JDK9+). */
+    public RelativePath(final ModuleRef moduleRef, final LogNode log) {
+        if (moduleRef == null) {
+            throw new IllegalArgumentException("moduleRef cannot be null");
+        }
+        this.moduleRef = moduleRef;
+        this.classLoaders = new ClassLoader[] { moduleRef.getClassLoader() };
+        this.relativePath = moduleRef.getModuleLocation().toString();
+        this.pathToResolveAgainst = "";
+        this.nestedJarHandler = null;
+        this.log = log;
     }
 
     /** Hash based on canonical path. */
@@ -208,6 +233,21 @@ class RelativePath {
         return isHttpURL;
     }
 
+    /** Returns true if the path is a jrt:/ URL. */
+    public boolean isJrtURL() {
+        if (!isJrtURLIsCached) {
+            final String resolvedPath = getResolvedPath();
+            isJrtURL = resolvedPath.regionMatches(/* ignoreCase = */ true, 0, "jrt:/", 0, 5);
+            isJrtURLIsCached = true;
+        }
+        return isJrtURL;
+    }
+
+    /** Returns the ModuleRef for this module, if this RelativePath corresponds to a module (in JDK9+). */
+    public ModuleRef getModuleRef() {
+        return moduleRef;
+    }
+
     /**
      * Get the File object for the resolved path.
      *
@@ -220,6 +260,11 @@ class RelativePath {
             if (path == null) {
                 throw new IOException(
                         "Path " + relativePath + " could not be resolved relative to " + pathToResolveAgainst);
+            }
+
+            if (isJrtURL) {
+                // jrt:/ URLs don't correspond to file paths
+                throw new IOException("Cannot use jrt:/ URL for non-module classpath entry " + relativePath);
             }
 
             final File pathFile = new File(path);
@@ -333,6 +378,10 @@ class RelativePath {
     public boolean isValidClasspathElement(final ScanSpec scanSpec, final LogNode log) throws InterruptedException {
         // Get absolute URI and File for classpathElt
         final String path = getResolvedPath();
+        if (isJrtURL || moduleRef != null) {
+            // Modules are always valid
+            return true;
+        }
         try {
             if (!exists(log)) {
                 if (log != null) {

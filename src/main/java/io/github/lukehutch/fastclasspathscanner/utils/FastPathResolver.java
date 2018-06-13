@@ -101,7 +101,7 @@ public class FastPathResolver {
             final int len = path.length();
             final StringBuilder buf = new StringBuilder();
             if (!hasPercent || isHttpURL) {
-                // Fast path -- no '%' or is http(s) URL, don't do regexp matching
+                // Fast path -- no '%' or is http(s):// or jrt:/ URL, don't do regexp matching
                 translateSeparator(path, 0, len, /* stripFinalSeparator = */ true, buf);
                 return buf.toString();
             } else {
@@ -136,7 +136,7 @@ public class FastPathResolver {
 
         String prefix = "";
         boolean isAbsolutePath = false;
-        boolean isHttpURL = false;
+        boolean isHttpOrJRTURL = false;
 
         // Ignore "jar:", we look for ".jar" on the end of filenames instead
         int startIdx = 0;
@@ -152,13 +152,19 @@ public class FastPathResolver {
             // relative to the current directory.
             isAbsolutePath = true;
             // Don't un-escape percent encoding etc.
-            isHttpURL = true;
+            isHttpOrJRTURL = true;
         } else if (relativePathStr.regionMatches(true, startIdx, "https://", 0, 8)) {
             // Detect https://
             startIdx += 8;
             prefix = "https://";
             isAbsolutePath = true;
-            isHttpURL = true;
+            isHttpOrJRTURL = true;
+        } else if (relativePathStr.regionMatches(true, startIdx, "jrt:/", 0, 5)) {
+            // Detect jrt:/
+            startIdx += 5;
+            prefix = "jrt:/";
+            isAbsolutePath = true;
+            isHttpOrJRTURL = true;
         } else if (relativePathStr.regionMatches(true, startIdx, "file:", 0, 5)) {
             // Strip off any "file:" prefix from relative path
             startIdx += 5;
@@ -205,7 +211,7 @@ public class FastPathResolver {
 
         // Normalize the path, then add any UNC prefix
         String pathStr = normalizePath(startIdx == 0 ? relativePathStr : relativePathStr.substring(startIdx),
-                isHttpURL);
+                isHttpOrJRTURL);
         if (!prefix.isEmpty()) {
             pathStr = prefix + pathStr;
         }

@@ -31,7 +31,6 @@ package io.github.lukehutch.fastclasspathscanner.scanner;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
 import io.github.lukehutch.fastclasspathscanner.classloaderhandler.ClassLoaderHandler;
 import io.github.lukehutch.fastclasspathscanner.classloaderhandler.ClassLoaderHandler.DelegationOrder;
@@ -42,6 +41,7 @@ import io.github.lukehutch.fastclasspathscanner.utils.AdditionOrderedSet;
 import io.github.lukehutch.fastclasspathscanner.utils.FileUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.JarUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
+import io.github.lukehutch.fastclasspathscanner.utils.ModuleRef;
 import io.github.lukehutch.fastclasspathscanner.utils.NestedJarHandler;
 
 /** A class to find the unique ordered classpath elements. */
@@ -332,13 +332,13 @@ public class ClasspathFinder {
         return envClassLoadersAndModules.classLoaders;
     }
 
-    /** Get the system modules, as {@code Set<ModuleReference>}, if running under JDK9+, else null. */
-    public Set<Object> getSystemModules() {
-        return envClassLoadersAndModules.systemModules;
+    /** Get ModuleRefs for the system modules, if running under JDK9+, else null. */
+    public List<ModuleRef> getSystemModuleRefs() {
+        return envClassLoadersAndModules.systemModuleRefs;
     }
 
-    /** Get the non-system modules, as {@code Set<ModuleReference>}, if running under JDK9+, else null. */
-    public Set<Object> getNonSystemModules() {
-        return envClassLoadersAndModules.nonSystemModules;
+    /** Get ModuleRefs for the non-system modules, if running under JDK9+, else null. */
+    public List<ModuleRef> getNonSystemModuleRefs() {
+        return envClassLoadersAndModules.nonSystemModuleRefs;
     }
 }

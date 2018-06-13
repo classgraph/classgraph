@@ -38,7 +38,6 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
@@ -46,6 +45,7 @@ import java.util.concurrent.ExecutorService;
 
 import io.github.lukehutch.fastclasspathscanner.utils.InterruptionChecker;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
+import io.github.lukehutch.fastclasspathscanner.utils.ModuleRef;
 import io.github.lukehutch.fastclasspathscanner.utils.NestedJarHandler;
 import io.github.lukehutch.fastclasspathscanner.utils.Recycler;
 import io.github.lukehutch.fastclasspathscanner.utils.WorkQueue;
@@ -214,10 +214,12 @@ public class Scanner implements Callable<ScanResult> {
                     : classpathFinderLog.log("Getting raw classpath elements");
             final ClasspathFinder classpathFinder = new ClasspathFinder(scanSpec, nestedJarHandler,
                     getRawElementsLog);
-            final Set<Object> systemModules = classpathFinder.getSystemModules();
-            final Set<Object> nonSystemModules = classpathFinder.getNonSystemModules();
             final List<RelativePath> rawClasspathEltPathsDedupd = classpathFinder.getRawClasspathElements();
             final ClassLoader[] classLoaderOrder = classpathFinder.getClassLoaderOrder();
+
+            // Module sets (non-null on JDK9+)
+            final List<ModuleRef> systemModules = classpathFinder.getSystemModuleRefs();
+            final List<ModuleRef> nonSystemModules = classpathFinder.getNonSystemModuleRefs();
 
             // In parallel, resolve raw classpath elements to canonical paths, creating a ClasspathElement singleton
             // for each unique canonical path. Also check jars against jar whitelist/blacklist.a
