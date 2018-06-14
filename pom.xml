@@ -5,7 +5,7 @@
 
 	<groupId>io.github.lukehutch</groupId>
 	<artifactId>fast-classpath-scanner</artifactId>
-	<version>2.22-SNAPSHOT</version>
+	<version>3.0.0</version>
 	<name>FastClasspathScanner</name>
 
 	<description>
@@ -155,8 +155,10 @@
 					<artifactId>maven-compiler-plugin</artifactId>
 					<version>3.7.0</version>
 					<configuration>
-						<source>1.8</source>
+						<source>1.7</source>
 						<target>1.7</target>
+						<testSource>1.8</testSource>
+						<testTarget>1.8</testTarget>
 					</configuration>
 				</plugin>
 				<plugin>
@@ -253,7 +255,7 @@
 		<connection>scm:git:git@github.com:lukehutch/fast-classpath-scanner.git</connection>
 		<developerConnection>scm:git:git@github.com:lukehutch/fast-classpath-scanner.git</developerConnection>
 		<url>https://github.com/lukehutch/fast-classpath-scanner</url>
-		<tag>fast-classpath-scanner-2.8.1</tag>
+		<tag>fast-classpath-scanner-3.0.0</tag>
 	</scm>
 	<url>https://github.com/lukehutch/fast-classpath-scanner</url>
 
@@ -290,8 +292,10 @@
 							<groupId>org.apache.maven.plugins</groupId>
 							<artifactId>maven-compiler-plugin</artifactId>
 							<configuration>
-								<source>1.8</source>
+								<source>1.7</source>
 								<target>1.7</target>
+								<testSource>1.8</testSource>
+								<testTarget>1.8</testTarget>
 							</configuration>
 							<executions>
 								<execution>
