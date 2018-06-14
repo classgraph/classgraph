@@ -2,21 +2,19 @@ package io.github.lukehutch.fastclasspathscanner.issues.issue38;
 
 import java.lang.annotation.Annotation;
 
-import javax.inject.Named;
-
 @SuppressWarnings("all")
-public class ImplementsNamed implements Named {
+public class ImplementsSuppressWarnings implements SuppressWarnings {
     @Override
     public Class<? extends Annotation> annotationType() {
-        return ImplementsNamed.class;
+        return ImplementsSuppressWarnings.class;
     }
 
     @Override
-    public String value() {
+    public String[] value() {
         return null;
     }
 
-    @Named
-    public static class AnnotatedByNamed {
+    @SuppressWarnings("")
+    public static class AnnotatedBySuppressWarnings {
     }
 }

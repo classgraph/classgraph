@@ -2,12 +2,9 @@ package io.github.lukehutch.fastclasspathscanner.issues;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import javax.inject.Named;
-
 import org.junit.Test;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-import io.github.lukehutch.fastclasspathscanner.issues.issue38.ImplementsNamed;
 import io.github.lukehutch.fastclasspathscanner.test.external.ExternalSuperclass;
 import io.github.lukehutch.fastclasspathscanner.test.internal.InternalExtendsExternal;
 import io.github.lukehutch.fastclasspathscanner.test.whitelisted.Impl1;
@@ -17,17 +14,6 @@ public class IssuesTest {
     @Test
     public void testIssuesScan() {
         new FastClasspathScanner("io.github.lukehutch.fastclasspathscanner.issues").scan();
-    }
-
-    @Test
-    public void testImplementsNamed() {
-        assertThat(new FastClasspathScanner().scan().getNamesOfClassesImplementing(Named.class))
-                .contains(ImplementsNamed.class.getName());
-    }
-
-    @Test(expected = IllegalArgumentException.class)
-    public void testImplementsNamedStrict() {
-        new FastClasspathScanner().strictWhitelist().scan().getNamesOfClassesImplementing(Named.class);
     }
 
     @Test(expected = IllegalArgumentException.class)
