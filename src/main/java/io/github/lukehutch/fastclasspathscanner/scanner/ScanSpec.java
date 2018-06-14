@@ -28,7 +28,6 @@
  */
 package io.github.lukehutch.fastclasspathscanner.scanner;
 
-import java.io.File;
 import java.lang.annotation.Annotation;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.reflect.Constructor;
@@ -1536,8 +1535,7 @@ public class ScanSpec {
             private final Pattern pattern = Pattern.compile(pathRegexp);
 
             @Override
-            public boolean filePathMatches(final File classpathElt, final String relativePathStr,
-                    final LogNode log) {
+            public boolean filePathMatches(final String relativePathStr, final LogNode log) {
                 final boolean matched = pattern.matcher(relativePathStr).matches();
                 if (matched && log != null) {
                     log.log("File " + relativePathStr + " matched filename pattern " + pathRegexp);
@@ -1563,8 +1561,7 @@ public class ScanSpec {
             final FileMatchProcessorAny fileMatchProcessor) {
         fileMatchProcessorWrappers.add(new FileMatchProcessorWrapper(new FilePathTester() {
             @Override
-            public boolean filePathMatches(final File classpathElt, final String relativePathStr,
-                    final LogNode log) {
+            public boolean filePathMatches(final String relativePathStr, final LogNode log) {
                 final boolean matched = relativePathStr.equals(relativePathToMatch);
                 if (matched && log != null) {
                     log.log("Matched filename path " + relativePathToMatch);
@@ -1591,8 +1588,7 @@ public class ScanSpec {
             private final String leafToMatch = pathLeafToMatch.substring(pathLeafToMatch.lastIndexOf('/') + 1);
 
             @Override
-            public boolean filePathMatches(final File classpathElt, final String relativePathStr,
-                    final LogNode log) {
+            public boolean filePathMatches(final String relativePathStr, final LogNode log) {
                 final String relativePathLeaf = relativePathStr.substring(relativePathStr.lastIndexOf('/') + 1);
                 final boolean matched = relativePathLeaf.equals(leafToMatch);
                 if (matched && log != null) {
@@ -1619,7 +1615,7 @@ public class ScanSpec {
             final int extLen = extensionToMatch.length();
 
             @Override
-            public boolean filePathMatches(final File classpathElt, final String relativePath, final LogNode log) {
+            public boolean filePathMatches(final String relativePath, final LogNode log) {
                 final int relativePathLen = relativePath.length();
                 final int extIdx = relativePathLen - extLen;
                 final boolean matched = relativePathLen > extLen + 1 && relativePath.charAt(extIdx - 1) == '.'

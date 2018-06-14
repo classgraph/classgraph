@@ -45,7 +45,6 @@ import java.util.concurrent.ExecutorService;
 
 import io.github.lukehutch.fastclasspathscanner.utils.InterruptionChecker;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
-import io.github.lukehutch.fastclasspathscanner.utils.ModuleRef;
 import io.github.lukehutch.fastclasspathscanner.utils.NestedJarHandler;
 import io.github.lukehutch.fastclasspathscanner.utils.Recycler;
 import io.github.lukehutch.fastclasspathscanner.utils.WorkQueue;
@@ -209,17 +208,34 @@ public class Scanner implements Callable<ScanResult> {
         try {
             final long scanStart = System.nanoTime();
 
-            // Get modules and raw classpath elements
+            // Get classpath finder
             final LogNode getRawElementsLog = classpathFinderLog == null ? null
                     : classpathFinderLog.log("Getting raw classpath elements");
             final ClasspathFinder classpathFinder = new ClasspathFinder(scanSpec, nestedJarHandler,
                     getRawElementsLog);
-            final List<RelativePath> rawClasspathEltPathsDedupd = classpathFinder.getRawClasspathElements();
             final ClassLoader[] classLoaderOrder = classpathFinder.getClassLoaderOrder();
+            final List<RelativePath> rawClasspathEltOrder = new ArrayList<>();
 
-            // Module sets (non-null on JDK9+)
-            final List<ModuleRef> systemModules = classpathFinder.getSystemModuleRefs();
+            // Add modules to start of classpath order (in JDK9+)
+            if (!scanSpec.blacklistSystemJars && !scanSpec.blacklistSystemPackages) {
+                final List<ModuleRef> systemModules = classpathFinder.getSystemModuleRefs();
+                if (systemModules != null) {
+                    for (final ModuleRef systemModule : systemModules) {
+                        rawClasspathEltOrder
+                                .add(new RelativePath(systemModule, nestedJarHandler, getRawElementsLog));
+                    }
+                }
+            }
             final List<ModuleRef> nonSystemModules = classpathFinder.getNonSystemModuleRefs();
+            if (nonSystemModules != null) {
+                for (final ModuleRef nonSystemModule : nonSystemModules) {
+                    rawClasspathEltOrder
+                            .add(new RelativePath(nonSystemModule, nestedJarHandler, getRawElementsLog));
+                }
+            }
+
+            // Add non-module classpath elements to classpath order
+            rawClasspathEltOrder.addAll(classpathFinder.getRawClasspathElements());
 
             // In parallel, resolve raw classpath elements to canonical paths, creating a ClasspathElement singleton
             // for each unique canonical path. Also check jars against jar whitelist/blacklist.a
@@ -227,7 +243,7 @@ public class Scanner implements Callable<ScanResult> {
                     : classpathFinderLog.log("Searching for \"Class-Path:\" entries within manifest files");
             final RelativePathToElementMap classpathElementMap = new RelativePathToElementMap(
                     enableRecursiveScanning, scanSpec, nestedJarHandler, interruptionChecker);
-            WorkQueue.runWorkQueue(rawClasspathEltPathsDedupd, executorService, numParallelTasks,
+            WorkQueue.runWorkQueue(rawClasspathEltOrder, executorService, numParallelTasks,
                     new WorkUnitProcessor<RelativePath>() {
                         @Override
                         public void processWorkUnit(final RelativePath rawClasspathEltPath) throws Exception {
@@ -271,9 +287,11 @@ public class Scanner implements Callable<ScanResult> {
                                         classpathElementMap.createSingleton(rawClasspathEltPath, preScanLog);
                                     }
                                 } catch (final Exception e) {
-                                    // Could not create singleton, probably due to path canonicalization problem
-                                    preScanLog.log("Classpath element " + rawClasspathEltPath + " is not valid ("
-                                            + e + ") -- skipping");
+                                    if (preScanLog != null) {
+                                        // Could not create singleton, probably due to path canonicalization problem
+                                        preScanLog.log("Classpath element " + rawClasspathEltPath
+                                                + " is not valid (" + e + ") -- skipping");
+                                    }
                                 }
                             }
                         }
@@ -289,7 +307,7 @@ public class Scanner implements Callable<ScanResult> {
 
             // Determine total ordering of classpath elements, inserting jars referenced in manifest Class-Path
             // entries in-place into the ordering, if they haven't been listed earlier in the classpath already.
-            final List<ClasspathElement> classpathOrder = findClasspathOrder(rawClasspathEltPathsDedupd,
+            final List<ClasspathElement> classpathOrder = findClasspathOrder(rawClasspathEltOrder,
                     classpathElementMap);
 
             // Print final classpath element order, after inserting Class-Path entries from manifest files

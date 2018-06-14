@@ -38,7 +38,6 @@ import io.github.lukehutch.fastclasspathscanner.utils.FastPathResolver;
 import io.github.lukehutch.fastclasspathscanner.utils.FileUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.JarUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
-import io.github.lukehutch.fastclasspathscanner.utils.ModuleRef;
 import io.github.lukehutch.fastclasspathscanner.utils.NestedJarHandler;
 
 /**
@@ -142,15 +141,15 @@ class RelativePath {
     }
 
     /** A relative path for a module (in JDK9+). */
-    public RelativePath(final ModuleRef moduleRef, final LogNode log) {
+    public RelativePath(final ModuleRef moduleRef, final NestedJarHandler nestedJarHandler, final LogNode log) {
         if (moduleRef == null) {
             throw new IllegalArgumentException("moduleRef cannot be null");
         }
         this.moduleRef = moduleRef;
         this.classLoaders = new ClassLoader[] { moduleRef.getClassLoader() };
-        this.relativePath = moduleRef.getModuleLocation().toString();
         this.pathToResolveAgainst = "";
-        this.nestedJarHandler = null;
+        this.nestedJarHandler = nestedJarHandler;
+        this.relativePath = moduleRef.getModuleLocationStr();
         this.log = log;
     }
 

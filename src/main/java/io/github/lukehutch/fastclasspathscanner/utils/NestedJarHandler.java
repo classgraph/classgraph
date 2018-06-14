@@ -43,6 +43,9 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
+import io.github.lukehutch.fastclasspathscanner.scanner.ModuleRef;
+import io.github.lukehutch.fastclasspathscanner.scanner.ModuleRef.ModuleReaderProxy;
+
 /**
  * Unzip a jarfile within a jarfile to a temporary file on disk. Also handles the download of jars from http(s) URLs
  * to temp files.
@@ -65,6 +68,8 @@ public class NestedJarHandler {
     private final ConcurrentLinkedDeque<File> tempFiles = new ConcurrentLinkedDeque<>();
     private final SingletonMap<String, Entry<File, Set<String>>> nestedPathToJarfileAndRootRelativePathsMap;
     private final SingletonMap<String, Recycler<ZipFile, IOException>> canonicalPathToZipFileRecyclerMap;
+    private final SingletonMap<ModuleRef, Recycler<ModuleReaderProxy, IOException>> //
+    moduleReaderProxyToModuleReaderRecyclerMap;
     private final InterruptionChecker interruptionChecker;
 
     public static final String TEMP_FILENAME_LEAF_SEPARATOR = "---";
@@ -86,6 +91,21 @@ public class NestedJarHandler {
                 };
             }
         };
+
+        // Set up a singleton map from ModuleRef object to ModuleReaderProxy recycler
+        this.moduleReaderProxyToModuleReaderRecyclerMap = //
+                new SingletonMap<ModuleRef, Recycler<ModuleReaderProxy, IOException>>() {
+                    @Override
+                    public Recycler<ModuleReaderProxy, IOException> newInstance(final ModuleRef moduleRef,
+                            final LogNode log) throws Exception {
+                        return new Recycler<ModuleReaderProxy, IOException>() {
+                            @Override
+                            public ModuleReaderProxy newInstance() throws IOException {
+                                return moduleRef.open();
+                            }
+                        };
+                    }
+                };
 
         // Create a singleton map from path to zipfile File, in order to eliminate repeatedly unzipping the same
         // file when there are multiple jars-within-jars that need unzipping to temporary files.
@@ -249,6 +269,16 @@ public class NestedJarHandler {
     public Recycler<ZipFile, IOException> getZipFileRecycler(final String canonicalPath, final LogNode log)
             throws Exception {
         return canonicalPathToZipFileRecyclerMap.getOrCreateSingleton(canonicalPath, log);
+    }
+
+    /**
+     * Get a ModuleReaderProxy recycler given a ModuleRef.
+     *
+     * @return The ModuleReaderProxy recycler.
+     */
+    public Recycler<ModuleReaderProxy, IOException> getModuleReaderProxyRecycler(final ModuleRef moduleRef,
+            final LogNode log) throws Exception {
+        return moduleReaderProxyToModuleReaderRecyclerMap.getOrCreateSingleton(moduleRef, log);
     }
 
     /**

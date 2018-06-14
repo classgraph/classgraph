@@ -141,13 +141,17 @@ abstract class ClasspathElement {
             final ScanSpec scanSpec, final NestedJarHandler nestedJarHandler,
             final WorkQueue<RelativePath> workQueue, final InterruptionChecker interruptionChecker,
             final LogNode log) {
-        boolean isDir;
-        String canonicalPath;
-        File file;
+        boolean isModule = false;
+        boolean isDir = false;
+        String resolvedPath = null;
+        File file = null;
         try {
-            file = classpathRelativePath.getFile(log);
-            isDir = classpathRelativePath.isDirectory(log);
-            canonicalPath = classpathRelativePath.getCanonicalPath(log);
+            resolvedPath = classpathRelativePath.getResolvedPath();
+            isModule = classpathRelativePath.getModuleRef() != null;
+            if (!isModule) {
+                file = classpathRelativePath.getFile(log);
+                isDir = classpathRelativePath.isDirectory(log);
+            }
         } catch (final IOException e) {
             if (log != null) {
                 log.log("Exception while trying to canonicalize path " + classpathRelativePath.getResolvedPath(),
@@ -155,16 +159,29 @@ abstract class ClasspathElement {
             }
             return null;
         }
-        final LogNode logNode = log == null ? null
-                : log.log(canonicalPath, "Scanning " + (isDir ? "directory " : "jarfile ") + "classpath entry "
-                        + classpathRelativePath
-                        + (file.getPath().equals(canonicalPath) ? "" : " ; canonical path: " + canonicalPath));
-        final ClasspathElement newInstance = isDir
-                ? new ClasspathElementDir(classpathRelativePath, scanSpec, scanFiles, interruptionChecker, logNode)
-                : new ClasspathElementZip(classpathRelativePath, scanSpec, scanFiles, nestedJarHandler, workQueue,
-                        interruptionChecker, logNode);
-        if (logNode != null) {
-            logNode.addElapsedTime();
+        LogNode subLog = null;
+        if (log != null) {
+            String canonicalPath;
+            try {
+                canonicalPath = classpathRelativePath.getCanonicalPath(log);
+            } catch (final Exception e) {
+                canonicalPath = resolvedPath;
+            }
+            subLog = log.log(resolvedPath, "Scanning " + (isModule ? "module" : isDir ? "directory" : "jarfile")
+                    + " classpath entry " + classpathRelativePath + (isModule ? ""
+                            : (file.getPath().equals(canonicalPath) ? "" : " ; canonical path: " + canonicalPath)));
+        }
+
+        // Dispatch to appropriate constructor
+        final ClasspathElement newInstance = isModule
+                ? new ClasspathElementModule(classpathRelativePath, scanSpec, scanFiles, nestedJarHandler,
+                        interruptionChecker, subLog)
+                : isDir ? new ClasspathElementDir(classpathRelativePath, scanSpec, scanFiles, interruptionChecker,
+                        subLog)
+                        : new ClasspathElementZip(classpathRelativePath, scanSpec, scanFiles, nestedJarHandler,
+                                workQueue, interruptionChecker, subLog);
+        if (subLog != null) {
+            subLog.addElapsedTime();
         }
         return newInstance;
     }

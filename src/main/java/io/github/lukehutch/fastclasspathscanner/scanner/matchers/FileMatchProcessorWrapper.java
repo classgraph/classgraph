@@ -28,7 +28,6 @@
  */
 package io.github.lukehutch.fastclasspathscanner.scanner.matchers;
 
-import java.io.File;
 import java.io.IOException;
 
 import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathResource;
@@ -38,7 +37,7 @@ import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 public class FileMatchProcessorWrapper {
     /** An interface used to test whether a file's relative path matches a given specification. */
     public interface FilePathTester {
-        public boolean filePathMatches(final File classpathElt, final String relativePathStr, final LogNode log);
+        public boolean filePathMatches(final String relativePathStr, final LogNode log);
     }
 
     private final FilePathTester filePathTester;
@@ -50,8 +49,8 @@ public class FileMatchProcessorWrapper {
         this.fileMatchProcessor = fileMatchProcessor;
     }
 
-    public boolean filePathMatches(final File classpathElt, final String relativePathStr, final LogNode log) {
-        return filePathTester.filePathMatches(classpathElt, relativePathStr, log);
+    public boolean filePathMatches(final String relativePathStr, final LogNode log) {
+        return filePathTester.filePathMatches(relativePathStr, log);
     }
 
     public void processMatch(final ClasspathResource classpathResource, final LogNode log) throws IOException {

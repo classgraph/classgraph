@@ -339,14 +339,15 @@ class ClasspathElementZip extends ClasspathElement {
             // Match file paths against path patterns
             for (final FileMatchProcessorWrapper fileMatchProcessorWrapper : //
             scanSpec.getFileMatchProcessorWrappers()) {
-                if (fileMatchProcessorWrapper.filePathMatches(zipFileFile, relativePath, subLog)) {
-                    // File's relative path matches. Don't use the last modified time from the individual zipEntry
-                    // objects, we use the last modified time for the zipfile itself instead.
+                if (fileMatchProcessorWrapper.filePathMatches(relativePath, subLog)) {
+                    // File's relative path matches.
                     fileMatches.put(fileMatchProcessorWrapper, newClasspathResource(zipFileFile,
                             requiredPrefix + relativePath, relativePath, zipEntry));
                 }
             }
         }
+        // Don't use the last modified time from the individual zipEntry
+        // objects, we use the last modified time for the zipfile itself instead.
         fileToLastModified.put(zipFileFile, zipFileFile.lastModified());
     }
 

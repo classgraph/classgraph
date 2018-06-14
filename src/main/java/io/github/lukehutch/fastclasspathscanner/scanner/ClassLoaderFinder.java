@@ -36,7 +36,6 @@ import java.util.Set;
 
 import io.github.lukehutch.fastclasspathscanner.utils.AdditionOrderedSet;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
-import io.github.lukehutch.fastclasspathscanner.utils.ModuleRef;
 
 /** A class to find the unique ordered classpath elements. */
 public class ClassLoaderFinder {

@@ -36,6 +36,7 @@ import io.github.lukehutch.fastclasspathscanner.scanner.matchers.FileMatchProces
 /** The method to run when a file with a matching path is found on the classpath. */
 @FunctionalInterface
 public interface FileMatchContentsProcessorWithContext extends FileMatchProcessorAny {
+    // TODO: update API so that module context can be passed in for modules, rather than a classpathElt file 
     /**
      * Process a file with a matching filename or path.
      *
@@ -44,7 +45,8 @@ public interface FileMatchContentsProcessorWithContext extends FileMatchProcesso
      * ClasspathUtils.getClasspathResourceURL(classpathElt, relativePath)
      *
      * @param classpathElt
-     *            The classpath element that contained the match (a jarfile or directory).
+     *            The classpath element that contained the match (a jarfile or directory). If null, the classpath
+     *            element was a module.
      * @param relativePath
      *            The path of the matching file relative to the classpath element that contained the match.
      * @param fileContents

@@ -501,4 +501,13 @@ public class ReflectionUtils {
         return null;
     }
 
+    /** Call Class.forName(className), but return null if any exception is thrown. */
+    public static Class<?> classForNameOrNull(final String className) {
+        try {
+            return Class.forName(className);
+        } catch (final Exception e) {
+            return null;
+        }
+    }
+
 }

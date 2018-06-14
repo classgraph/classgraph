@@ -31,6 +31,7 @@ package io.github.lukehutch.fastclasspathscanner.utils;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.ByteBuffer;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -93,5 +94,38 @@ public class FileUtils {
     public static boolean isClassfile(final String path) {
         final int len = path.length();
         return len > 6 && path.regionMatches(true, len - 6, ".class", 0, 6);
+    }
+
+    /**
+     * InputStream for backed by a ByteBuffer. From:
+     * https://stackoverflow.com/questions/4332264/wrapping-a-bytebuffer-with-an-inputstream/6603018#6603018
+     * 
+     * Don't forget to close or release the ByteBuffer when the InputStream is closed, if needed.
+     */
+    public static class ByteBufferBackedInputStream extends InputStream {
+        private final ByteBuffer buf;
+
+        public ByteBufferBackedInputStream(final ByteBuffer buf) {
+            this.buf = buf;
+        }
+
+        @Override
+        public int read() throws IOException {
+            if (!buf.hasRemaining()) {
+                return -1;
+            }
+            return buf.get() & 0xFF;
+        }
+
+        @Override
+        public int read(final byte[] bytes, final int off, int len) throws IOException {
+            if (!buf.hasRemaining()) {
+                return -1;
+            }
+
+            len = Math.min(len, buf.remaining());
+            buf.get(bytes, off, len);
+            return len;
+        }
     }
 }

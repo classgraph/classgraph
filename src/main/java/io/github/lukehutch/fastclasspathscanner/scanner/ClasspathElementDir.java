@@ -226,7 +226,7 @@ class ClasspathElementDir extends ClasspathElement {
                 // Match file paths against path patterns
                 for (final FileMatchProcessorWrapper fileMatchProcessorWrapper : //
                 scanSpec.getFileMatchProcessorWrappers()) {
-                    if (fileMatchProcessorWrapper.filePathMatches(classpathElt, fileInDirRelativePath, subLog)) {
+                    if (fileMatchProcessorWrapper.filePathMatches(fileInDirRelativePath, subLog)) {
                         // File's relative path matches.
                         fileMatches.put(fileMatchProcessorWrapper, newClasspathResource(classpathElt,
                                 fileInDirRelativePath, fileInDirRelativePath, fileInDir));
