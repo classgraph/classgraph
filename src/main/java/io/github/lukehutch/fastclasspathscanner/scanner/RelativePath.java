@@ -156,11 +156,7 @@ class RelativePath {
     /** Hash based on canonical path. */
     @Override
     public int hashCode() {
-        try {
-            return getCanonicalPath(log).hashCode() + zipClasspathBaseDir.hashCode() * 57;
-        } catch (final IOException e) {
-            return 0;
-        }
+        return relativePath.hashCode() + 31 * zipClasspathBaseDir.hashCode();
     }
 
     /** Return true based on equality of canonical paths. */
