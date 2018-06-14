@@ -366,9 +366,10 @@ public class JarUtils {
         }
     }
 
-    /** Return true if the given module name is a system module */
-    public static boolean isSystemModule(final String moduleName) {
-        return moduleName.startsWith("java.") || moduleName.startsWith("jdk.") || moduleName.startsWith("javafx.")
-                || moduleName.startsWith("oracle.");
+    /** Return true if the given package name or module name corresponds to a system package or module */
+    public static boolean isSystemPackageOrModule(final String packageOrModuleName) {
+        return packageOrModuleName.startsWith("java.") || packageOrModuleName.startsWith("javax.")
+                || packageOrModuleName.startsWith("javafx.") || packageOrModuleName.startsWith("jdk.")
+                || packageOrModuleName.startsWith("oracle.") || packageOrModuleName.startsWith("sun.");
     }
 }

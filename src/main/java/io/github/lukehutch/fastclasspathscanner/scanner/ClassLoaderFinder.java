@@ -51,13 +51,16 @@ public class ClassLoaderFinder {
             // ("createSecurityManager"):
             CALLER_RESOLVER = new CallerResolver();
         } catch (final SecurityException e) {
-            // Handled in findAllClassLoaders()
         }
     }
 
-    // Using a SecurityManager gets around the fact that Oracle removed sun.reflect.Reflection.getCallerClass, see:
-    // https://www.infoq.com/news/2013/07/Oracle-Removes-getCallerClass
-    // http://www.javaworld.com/article/2077344/core-java/find-a-way-out-of-the-classloader-maze.html
+    /**
+     * Using a SecurityManager gets around the fact that Oracle removed sun.reflect.Reflection.getCallerClass, see:
+     * 
+     * https://www.infoq.com/news/2013/07/Oracle-Removes-getCallerClass
+     *
+     * http://www.javaworld.com/article/2077344/core-java/find-a-way-out-of-the-classloader-maze.html
+     */
     private static final class CallerResolver extends SecurityManager {
         @Override
         protected Class<?>[] getClassContext() {
@@ -164,7 +167,7 @@ public class ClassLoaderFinder {
                 nonSystemModules = new ArrayList<>();
                 for (final ModuleRef moduleRef : allModuleRefsList) {
                     if (!systemModulesSet.contains(moduleRef)) {
-                        if (JarUtils.isSystemModule(moduleRef.getModuleName())) {
+                        if (JarUtils.isSystemPackageOrModule(moduleRef.getModuleName())) {
                             systemModulesSet.add(moduleRef);
                         } else {
                             nonSystemModules.add(moduleRef);

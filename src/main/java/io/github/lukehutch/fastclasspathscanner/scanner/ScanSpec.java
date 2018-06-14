@@ -794,8 +794,7 @@ public class ScanSpec {
     /** Checks that the named class is not blacklisted. Throws IllegalArgumentException otherwise. */
     void checkClassIsNotBlacklisted(final String className) {
         if (strictWhitelist && classIsBlacklisted(className)) {
-            final boolean isSystemPackage = className.startsWith("java.") || className.startsWith("javax.")
-                    || className.startsWith("sun.");
+            final boolean isSystemPackage = JarUtils.isSystemPackageOrModule(className);
             throw new IllegalArgumentException("Can't scan for " + className + ", it is in a blacklisted "
                     + (!isSystemPackage ? "package" : "system package")
                     + ", and and strictWhitelist() was called before scan()."

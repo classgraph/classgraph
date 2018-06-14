@@ -349,7 +349,11 @@ public class ModuleRef implements Comparable<ModuleRef> {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Return the layer and all parent layers of a given class, in DFS order. */
+    /**
+     * Return the layer and all parent layers of a given class, in DFS order. This same ordering is used in the JDK
+     * to get a list of modules in resolution order. However, it's probably not actually correct, since it is a
+     * preorder traversal, not a postorder traversal (so it doesn't produce a topological ordering).
+     */
     private static List<Object> /* List<ModuleLayer> */ getAllModuleLayers(final Class<?> cls) {
         final Object /* Module */ module = ReflectionUtils.invokeMethod(cls, "getModule",
                 /* throwException = */ false);
@@ -419,8 +423,10 @@ public class ModuleRef implements Comparable<ModuleRef> {
      */
     public static List<ModuleRef> findModuleRefs(final Class<?>[] callStack) {
         final AdditionOrderedSet<ModuleRef> moduleReferences = new AdditionOrderedSet<>();
-        // TODO: Should callstack modules be added top-down or bottom-up?
-        for (int i = callStack.length - 1; i >= 0; --i) {
+        // Add modules bottom-up (lower-level layers before higher-level layers), so that if the same class
+        // is defined in two modules, the definition in the lower level will override the definition in
+        // the higher level. (Not 
+        for (int i = 0; i < callStack.length; i++) {
             findModuleRefs(callStack[i], moduleReferences);
         }
         return moduleReferences.toList();
