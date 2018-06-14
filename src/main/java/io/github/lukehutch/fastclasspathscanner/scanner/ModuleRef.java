@@ -172,7 +172,7 @@ public class ModuleRef implements Comparable<ModuleRef> {
         if (scheme == null) {
             return false;
         }
-        return scheme.equalsIgnoreCase("jrt:/");
+        return !scheme.equalsIgnoreCase("file");
     }
 
     /**
@@ -182,20 +182,21 @@ public class ModuleRef implements Comparable<ModuleRef> {
     public String getModuleLocationStr() {
         if (moduleLocationStr == null && moduleLocation != null) {
             moduleLocationStr = moduleLocation.toString();
-
         }
         return moduleLocationStr;
     }
 
     /**
      * Returns the module location as a File, i.e. {@code new File(moduleReference.location())}. Returns null for
-     * modules that do not have a location. Returns a file that does not exist for "jrt:/" (system) module
-     * locations.
+     * modules that do not have a location, or for system ("jrt:/") modules.
      */
     public File getModuleLocationFile() {
         if (moduleLocationFile == null && moduleLocation != null) {
-            moduleLocationFile = new File(moduleLocation);
-
+            if (!isSystemModule()) {
+                moduleLocationFile = new File(moduleLocation);
+            } else {
+                return null;
+            }
         }
         return moduleLocationFile;
     }

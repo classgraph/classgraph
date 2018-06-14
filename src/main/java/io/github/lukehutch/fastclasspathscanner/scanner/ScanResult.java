@@ -58,9 +58,6 @@ public class ScanResult {
      */
     private final ClassLoader[] envClassLoaderOrder;
 
-    /** The list of File objects for unique classpath elements (directories or jarfiles). */
-    private final List<File> classpathElementOrderFiles;
-
     /** The nested jar handler instance. */
     private final NestedJarHandler nestedJarHandler;
 
@@ -101,10 +98,6 @@ public class ScanResult {
         this.scanSpec = scanSpec;
         this.classpathOrder = classpathOrder;
         this.envClassLoaderOrder = envClassLoaderOrder;
-        this.classpathElementOrderFiles = new ArrayList<>();
-        for (final ClasspathElement classpathElement : classpathOrder) {
-            classpathElementOrderFiles.add(classpathElement.getClasspathElementFile(log));
-        }
         this.fileToLastModified = fileToLastModified;
         this.classGraphBuilder = classGraphBuilder;
         this.nestedJarHandler = nestedJarHandler;
@@ -170,6 +163,18 @@ public class ScanResult {
      * @return The unique classpath elements.
      */
     public List<File> getUniqueClasspathElements() {
+        final List<File> classpathElementOrderFiles = new ArrayList<>();
+        for (final ClasspathElement classpathElement : classpathOrder) {
+            final ModuleRef modRef = classpathElement.getClasspathElementModuleRef();
+            if (modRef != null) {
+                if (!modRef.isSystemModule()) {
+                    // Add module files when they don't have a "jrt:/" scheme
+                    classpathElementOrderFiles.add(modRef.getModuleLocationFile());
+                }
+            } else {
+                classpathElementOrderFiles.add(classpathElement.getClasspathElementFile(log));
+            }
+        }
         return classpathElementOrderFiles;
     }
 
@@ -190,13 +195,22 @@ public class ScanResult {
      * @return The unique classpath element URLs.
      */
     public List<URL> getUniqueClasspathElementURLs() {
-        final List<URL> classpathElementOrderURLs = new ArrayList<>(classpathElementOrderFiles.size());
-        for (final File classpathElementFile : classpathElementOrderFiles) {
-            try {
-                classpathElementOrderURLs.add(classpathElementFile.toURI().toURL());
-            } catch (final MalformedURLException e) {
-                // Shouldn't happen; File objects should always be able to be turned into URIs and then URLs
-                throw new RuntimeException(e);
+        final List<URL> classpathElementOrderURLs = new ArrayList<>();
+        for (final ClasspathElement classpathElement : classpathOrder) {
+            final ModuleRef modRef = classpathElement.getClasspathElementModuleRef();
+            if (modRef != null) {
+                // Add module URLs whether or not they have a "jrt:/" scheme
+                try {
+                    classpathElementOrderURLs.add(modRef.getModuleLocation().toURL());
+                } catch (final MalformedURLException e) {
+                    // Skip malformed URLs (shouldn't happen)
+                }
+            } else {
+                try {
+                    classpathElementOrderURLs.add(classpathElement.getClasspathElementFile(log).toURI().toURL());
+                } catch (final MalformedURLException e) {
+                    // Shouldn't happen
+                }
             }
         }
         return classpathElementOrderURLs;
