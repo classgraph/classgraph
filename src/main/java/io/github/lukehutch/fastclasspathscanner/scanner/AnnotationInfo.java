@@ -310,7 +310,7 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
      * "String[][][]".
      *
      * <p>
-     * Use ReflectionUtils.typeStrToClass() to get a Class<?> reference from this class type string.
+     * Use ReflectionUtils.typeStrToClass() to get a {@code Class<?>} reference from this class type string.
      */
     public static class AnnotationClassRef extends InfoObject {
         private final String typeDescriptor;
@@ -330,7 +330,7 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
          * Get the type signature for a type reference used in an annotation parameter.
          *
          * <p>
-         * Call getType() to get a Class<?> reference for this class.
+         * Call getType() to get a {@code Class<?>} reference for this class.
          * 
          * @return The type signature of the annotation class ref.
          */
