@@ -46,7 +46,7 @@ public class Issue148Test {
     @Test
     public void issue148Test() throws IOException {
         final String pkg = Issue148Test.class.getPackage().getName();
-        final Map<String, ClassInfo> classNameToClassInfo = new FastClasspathScanner(pkg).scan()
+        final Map<String, ClassInfo> classNameToClassInfo = new FastClasspathScanner(pkg).strictWhitelist().scan()
                 .getClassNameToClassInfo();
 
         final List<ClassInfo> classInfoSorted = new ArrayList<>(classNameToClassInfo.values());
