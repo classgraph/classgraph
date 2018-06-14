@@ -895,10 +895,10 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
     }
 
     /**
-     * Returns a list of Class<?> references for the annotations on this method. Note that this calls
+     * Returns a list of {@code Class<?>} references for the annotations on this method. Note that this calls
      * Class.forName() on the annotation types, which will cause each annotation class to be loaded.
      * 
-     * @return a list of Class<?> references for the annotations on this method, or the empty list if none.
+     * @return a list of {@code Class<?>} references for the annotations on this method, or the empty list if none.
      * @throws IllegalArgumentException
      *             if the annotation type could not be loaded.
      */
