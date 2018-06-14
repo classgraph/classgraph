@@ -182,7 +182,7 @@
 					<!-- This plugin doesn't work inside pluginManagement, for some reason -->
 					<groupId>org.sonatype.plugins</groupId>
 					<artifactId>nexus-staging-maven-plugin</artifactId>
-					<version>1.6.8</version>
+					<version>1.6.3</version>
 					<extensions>true</extensions>
 					<configuration>
 						<serverId>ossrh</serverId>
