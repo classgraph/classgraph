@@ -1,6 +1,6 @@
 # FastClasspathScanner
 
-FastClasspathScanner is an uber-fast, ultra-lightweight classpath scanner and annotation processor for Java, Scala and other JVM languages. FastClasspathScanner has been [carefully optimized](https://github.com/lukehutch/fast-classpath-scanner/wiki#how-fast-is-fastclasspathscanner). The project is stable and actively maintained.
+FastClasspathScanner is an uber-fast, ultra-lightweight classpath scanner, module scanner, and annotation processor for Java, Scala, Kotlin and other JVM languages. FastClasspathScanner can scan both the traditional classpath and the Java module path (Project Jigsaw / JDK 9+), but is backwards compatible with JDK 7 and JDK 8. FastClasspathScanner has been [carefully optimized](https://github.com/lukehutch/fast-classpath-scanner/wiki#how-fast-is-fastclasspathscanner). The project is stable and actively maintained.
 
 **What is classpath scanning?** Classpath scanning involves scanning directories and jar/zip files on the classpath to find files (especially classfiles) that meet certain criteria. In many ways, classpath scanning offers the *inverse of the Java class API and/or reflection:* for example, the Java class API can tell you the superclass of a given class, or give you the list of annotations on a class; classpath scanning can find all subclasses of a given class, or find all classes that are annotated with a given annotation.
 
@@ -28,7 +28,7 @@ FastClasspathScanner is an uber-fast, ultra-lightweight classpath scanner and an
 
 ## Status
 
-FastClasspathScanner is stable, feature complete, optimized, and (at time of writing) has no known bugs, although there are some feature requests, e.g. adding Java 9 support. Every effort is made to fix bugs quickly when they are reported.
+FastClasspathScanner is stable, feature complete, and optimized. Every effort is made to fix bugs quickly when they are reported.
 
 [![Build Status](https://travis-ci.org/lukehutch/fast-classpath-scanner.png?branch=master)](https://travis-ci.org/lukehutch/fast-classpath-scanner)
 
