@@ -240,7 +240,7 @@ public class ModuleRef implements Comparable<ModuleRef> {
 
         ModuleReaderProxy(final ModuleRef moduleRef) throws IOException {
             try {
-                moduleReader = (AutoCloseable) ReflectionUtils.invokeMethod(moduleRef, "open",
+                moduleReader = (AutoCloseable) ReflectionUtils.invokeMethod(moduleRef.getModuleReference(), "open",
                         /* throwException = */ true);
                 if (moduleReader == null) {
                     throw new IllegalArgumentException("moduleReference.open() should not return null");
@@ -255,12 +255,13 @@ public class ModuleRef implements Comparable<ModuleRef> {
             moduleReader.close();
         }
 
-        /** Class<Collector> collectorsClass = Class.forName("java.util.stream.Collectors"); */
-        private static Class<?> collectorsClass;
+        /** Class<Collector> collectorClass = Class.forName("java.util.stream.Collector"); */
+        private static Class<?> collectorClass;
         /** Collector<Object, ?, List<Object>> collectorsToList = Collectors.toList(); */
         private static Object collectorsToList;
         static {
-            collectorsClass = ReflectionUtils.classForNameOrNull("java.util.stream.Collectors");
+            collectorClass = ReflectionUtils.classForNameOrNull("java.util.stream.Collector");
+            final Class<?> collectorsClass = ReflectionUtils.classForNameOrNull("java.util.stream.Collectors");
             if (collectorsClass != null) {
                 collectorsToList = ReflectionUtils.invokeStaticMethod(collectorsClass, "toList",
                         /* throwException = */ true);
@@ -286,7 +287,7 @@ public class ModuleRef implements Comparable<ModuleRef> {
             if (resourcesStream == null) {
                 throw new IllegalArgumentException("Could not call moduleReader.list()");
             }
-            final Object resourcesList = ReflectionUtils.invokeMethod(resourcesStream, "collect", collectorsClass,
+            final Object resourcesList = ReflectionUtils.invokeMethod(resourcesStream, "collect", collectorClass,
                     collectorsToList, /* throwException = */ true);
             if (resourcesList == null) {
                 throw new IllegalArgumentException(

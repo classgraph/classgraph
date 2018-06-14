@@ -186,7 +186,8 @@ class ClasspathElementZip extends ClasspathElement {
     private ClasspathResource newClasspathResource(final File classpathEltFile,
             final String pathRelativeToClasspathElt, final String pathRelativeToClasspathPrefix,
             final ZipEntry zipEntry) {
-        return new ClasspathResource(classpathEltFile, pathRelativeToClasspathElt, pathRelativeToClasspathPrefix) {
+        return new ClasspathResource(classpathEltFile, /* moduleRef = */ null, pathRelativeToClasspathElt,
+                pathRelativeToClasspathPrefix) {
             ZipFile zipFile = null;
             InputStream inputStream = null;
 

@@ -186,19 +186,9 @@ class RelativePath {
     }
 
     /** Return the canonical path. */
-    public String toString(final LogNode log) {
-        try {
-            return zipClasspathBaseDir.isEmpty() ? getCanonicalPath(log)
-                    : getCanonicalPath(log) + "!" + zipClasspathBaseDir;
-        } catch (final IOException e) {
-            return getResolvedPath();
-        }
-    }
-
-    /** Return the canonical path. */
     @Override
     public String toString() {
-        return toString(log);
+        return zipClasspathBaseDir.isEmpty() ? getResolvedPath() : getResolvedPath() + "!" + zipClasspathBaseDir;
     }
 
     // -------------------------------------------------------------------------------------------------------------

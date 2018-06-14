@@ -92,7 +92,8 @@ class ClasspathElementDir extends ClasspathElement {
     private ClasspathResource newClasspathResource(final File classpathEltFile,
             final String pathRelativeToClasspathElt, final String pathRelativeToClasspathPrefix,
             final File relativePathFile) {
-        return new ClasspathResource(classpathEltFile, pathRelativeToClasspathElt, pathRelativeToClasspathPrefix) {
+        return new ClasspathResource(classpathEltFile, /* moduleRef = */ null, pathRelativeToClasspathElt,
+                pathRelativeToClasspathPrefix) {
             InputStream inputStream = null;
 
             @Override

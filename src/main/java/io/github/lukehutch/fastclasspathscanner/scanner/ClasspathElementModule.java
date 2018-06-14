@@ -105,7 +105,8 @@ class ClasspathElementModule extends ClasspathElement {
     }
 
     private ClasspathResource newClasspathResource(final String moduleResourcePath) {
-        return new ClasspathResource(/* classpathEltFile = */ null, moduleResourcePath, moduleResourcePath) {
+        return new ClasspathResource(/* classpathEltFile = */ null, moduleRef, moduleResourcePath,
+                moduleResourcePath) {
             private ModuleReaderProxy moduleReaderProxy = null;
             private InputStream inputStream = null;
             private ByteBuffer byteBuffer = null;
@@ -129,7 +130,7 @@ class ClasspathElementModule extends ClasspathElement {
                     // them in an InputStream. (Maybe wrap InputStream in a ByteBuffer instead).
                     byteBuffer = moduleReaderProxy.read(moduleResourcePath);
                     inputStream = new ByteBufferBackedInputStream(byteBuffer);
-                    
+
                     inputStreamLength = byteBuffer.remaining();
                     return inputStream;
                 } catch (final Exception e) {

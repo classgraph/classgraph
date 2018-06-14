@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.Set;
 
 import io.github.lukehutch.fastclasspathscanner.utils.AdditionOrderedSet;
+import io.github.lukehutch.fastclasspathscanner.utils.JarUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 
 /** A class to find the unique ordered classpath elements. */
@@ -159,10 +160,15 @@ public class ClassLoaderFinder {
                             "Failed to find system modules, but found modules through CallerResolver");
                 }
             } else {
+                systemModules = new ArrayList<>(systemModulesSet);
                 nonSystemModules = new ArrayList<>();
                 for (final ModuleRef moduleRef : allModuleRefsList) {
                     if (!systemModulesSet.contains(moduleRef)) {
-                        nonSystemModules.add(moduleRef);
+                        if (JarUtils.isSystemModule(moduleRef.getModuleName())) {
+                            systemModulesSet.add(moduleRef);
+                        } else {
+                            nonSystemModules.add(moduleRef);
+                        }
                     }
                 }
                 systemModules = new ArrayList<>(systemModulesSet);

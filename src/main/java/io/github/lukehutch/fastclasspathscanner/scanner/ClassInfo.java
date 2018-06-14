@@ -83,8 +83,17 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
      */
     private boolean classfileScanned;
 
-    /** The classpath element file (classpath root dir or jar) that this class was found within. */
+    /**
+     * The classpath element file (classpath root dir or jar) that this class was found within, or null if this
+     * class was found in a module.
+     */
     private File classpathElementFile;
+
+    /**
+     * The classpath element module that this class was found within, or null if this class was found within a
+     * directory or jar.
+     */
+    private ModuleRef classpathElementModuleRef;
 
     /** The classpath element URL (classpath root dir or jar) that this class was found within. */
     private URL classpathElementURL;
@@ -278,18 +287,22 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     }
 
     /**
-     * The classpath element URL (classpath root dir or jar) that this class was found within.
+     * The classpath element URL (for a classpath root dir, jar or module) that this class was found within.
      * 
      * N.B. Classpath elements are handled as File objects internally. It is much faster to call
-     * getClasspathElementFile() -- the conversion of a File into a URL (via File#toURI()#toURL()) is actually quite
-     * time consuming.
+     * getClasspathElementFile() and/or getClasspathElementModule() -- the conversion of a File into a URL (via
+     * File#toURI()#toURL()) is time consuming.
      * 
      * @return The classpath element, as a URL.
      */
     public URL getClasspathElementURL() {
         if (classpathElementURL == null) {
             try {
-                classpathElementURL = getClasspathElementFile().toURI().toURL();
+                if (classpathElementModuleRef != null) {
+                    classpathElementURL = classpathElementModuleRef.getModuleLocation().toURL();
+                } else {
+                    classpathElementURL = getClasspathElementFile().toURI().toURL();
+                }
             } catch (final MalformedURLException e) {
                 // Shouldn't happen; File objects should always be able to be turned into URIs and then URLs
                 throw new RuntimeException(e);
@@ -299,12 +312,23 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     }
 
     /**
-     * The classpath element file (classpath root dir or jar) that this class was found within.
+     * The classpath element file (classpath root dir or jar) that this class was found within, or null if this
+     * class was found in a module.
      * 
      * @return The classpath element, as a File.
      */
     public File getClasspathElementFile() {
         return classpathElementFile;
+    }
+
+    /**
+     * The classpath element module that this class was found within, or null if this class was found in a directory
+     * or jar.
+     * 
+     * @return The classpath element, as a ModuleRef.
+     */
+    public ModuleRef getClasspathElementModuleRef() {
+        return classpathElementModuleRef;
     }
 
     /**
@@ -818,13 +842,22 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
             classNameToClassInfo.put(className, classInfo = new ClassInfo(className, classModifiers, scanSpec));
         }
 
-        // Remember which classpath element (zipfile / classpath root directory) the class was found in
-        if (classInfo.classpathElementFile == null) {
-            classInfo.classpathElementFile = classpathElement.getClasspathElementFile(log);
-        } else {
+        // Remember which classpath element (zipfile / classpath root directory / module) the class was found in
+        final ModuleRef modRef = classpathElement.getClasspathElementModuleRef();
+        final File file = classpathElement.getClasspathElementFile(log);
+        if ((classInfo.classpathElementModuleRef != null && modRef != null
+                && !classInfo.classpathElementModuleRef.equals(modRef))
+                || (classInfo.classpathElementFile != null && file != null
+                        && !classInfo.classpathElementFile.equals(modRef))) {
             log.log("Encountered class " + className + " in multiple different classpath elements: "
-                    + classInfo.classpathElementFile + " ; " + classpathElement.getClasspathElementFile(log)
+                    + classInfo.classpathElementFile + " ; " + file
                     + " -- ClassInfo.getClasspathElementFile() will only return the first of these");
+        }
+        if (classInfo.classpathElementModuleRef == null) {
+            classInfo.classpathElementModuleRef = modRef;
+        }
+        if (classInfo.classpathElementFile == null) {
+            classInfo.classpathElementFile = file;
         }
 
         // Remember which classloader handles the class was found in, for classloading

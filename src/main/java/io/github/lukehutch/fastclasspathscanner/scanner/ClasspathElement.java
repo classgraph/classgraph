@@ -113,8 +113,11 @@ abstract class ClasspathElement {
         return getClasspathElementFilePath();
     }
 
-    /** Return the classpath element's file (directory or jarfile) */
+    /** Return the classpath element's file (directory or jarfile), or null if this is a module. */
     public File getClasspathElementFile(final LogNode log) {
+        if (classpathEltPath.getModuleRef() != null) {
+            return null;
+        }
         try {
             return classpathEltPath.getFile(log);
         } catch (final IOException e) {
@@ -131,6 +134,11 @@ abstract class ClasspathElement {
     /** Get the ClassLoader(s) to use when trying to load the class. */
     public ClassLoader[] getClassLoaders() {
         return classpathEltPath.getClassLoaders();
+    }
+
+    /** Get the ModuleRef for the classpath element, if this is a module, otherwise returns null. */
+    public ModuleRef getClasspathElementModuleRef() {
+        return classpathEltPath.getModuleRef();
     }
 
     /**
@@ -163,7 +171,7 @@ abstract class ClasspathElement {
         if (log != null) {
             String canonicalPath;
             try {
-                canonicalPath = classpathRelativePath.getCanonicalPath(log);
+                canonicalPath = isModule ? resolvedPath : classpathRelativePath.getCanonicalPath(log);
             } catch (final Exception e) {
                 canonicalPath = resolvedPath;
             }

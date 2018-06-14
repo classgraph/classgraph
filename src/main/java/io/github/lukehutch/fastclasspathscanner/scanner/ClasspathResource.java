@@ -44,21 +44,25 @@ import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 
 /** The combination of a classpath element and a relative path within this classpath element. */
 public abstract class ClasspathResource {
+    // TODO: moduleRef and classpathEltFile are mutually exclusive -- should probably create subclasses
     public final File classpathEltFile;
+    public final ModuleRef moduleRef;
     public final String pathRelativeToClasspathElt;
     public final String pathRelativeToClasspathPrefix;
     public long inputStreamLength;
 
-    protected ClasspathResource(final File classpathEltFile, final String pathRelativeToClasspathElt,
-            final String pathRelativeToClasspathPrefix) {
+    protected ClasspathResource(final File classpathEltFile, final ModuleRef moduleRef,
+            final String pathRelativeToClasspathElt, final String pathRelativeToClasspathPrefix) {
         this.classpathEltFile = classpathEltFile;
+        this.moduleRef = moduleRef;
         this.pathRelativeToClasspathElt = pathRelativeToClasspathElt;
         this.pathRelativeToClasspathPrefix = pathRelativeToClasspathPrefix;
     }
 
     @Override
     public String toString() {
-        return ClasspathUtils.getClasspathResourceURL(classpathEltFile, pathRelativeToClasspathElt).toString();
+        return moduleRef != null ? "[module " + moduleRef.getModuleName() + "]/" + pathRelativeToClasspathElt
+                : ClasspathUtils.getClasspathResourceURL(classpathEltFile, pathRelativeToClasspathElt).toString();
     }
 
     public abstract InputStream open() throws IOException;
