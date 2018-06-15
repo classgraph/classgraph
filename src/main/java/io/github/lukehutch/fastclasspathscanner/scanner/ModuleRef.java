@@ -348,7 +348,7 @@ public class ModuleRef implements Comparable<ModuleRef> {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Get all visible ModuleReferences in all layers, given a Class reference. */
+    /** Get all visible ModuleReferences in a list of layers. */
     private static List<ModuleRef> findModuleRefs(final List<Object> layers) {
         final AdditionOrderedSet<ModuleRef> moduleRefs = new AdditionOrderedSet<>();
         for (final Object /* ModuleLayer */ layer : layers) {
@@ -364,7 +364,9 @@ public class ModuleRef implements Comparable<ModuleRef> {
                     for (final Object /* ResolvedModule */ module : modules) {
                         final Object /* ModuleReference */ ref = ReflectionUtils.invokeMethod(module, "reference",
                                 /* throwException = */ true);
-                        modulesInLayer.add(new ModuleRef(ref, layer));
+                        if (ref != null) {
+                            modulesInLayer.add(new ModuleRef(ref, layer));
+                        }
                     }
                     // Sort modules in layer by name
                     Collections.sort(modulesInLayer);
@@ -383,17 +385,17 @@ public class ModuleRef implements Comparable<ModuleRef> {
      */
     private static void findLayerOrder(final Object /* ModuleLayer */ layer,
             final Set<Object> /* Set<ModuleLayer> */ visited,
-            final LinkedList<Object> /* LinkedList<ModuleLayer> */ allLayersOut) {
+            final LinkedList<Object> /* LinkedList<ModuleLayer> */ layersOut) {
         if (visited.add(layer)) {
             @SuppressWarnings("unchecked")
             final List<Object> /* List<ModuleLayer> */ parents = (List<Object>) ReflectionUtils.invokeMethod(layer,
                     "parents", /* throwException = */ true);
             if (parents != null) {
                 for (int i = 0; i < parents.size(); i++) {
-                    findLayerOrder(parents.get(i), visited, allLayersOut);
+                    findLayerOrder(parents.get(i), visited, layersOut);
                 }
             }
-            allLayersOut.push(layer);
+            layersOut.push(layer);
         }
     }
 
@@ -407,13 +409,13 @@ public class ModuleRef implements Comparable<ModuleRef> {
             final Object /* Module */ module = ReflectionUtils.invokeMethod(callStack[i], "getModule",
                     /* throwException = */ false);
             if (module != null) {
-                final Object /* ModuleLayer */ clsLayer = ReflectionUtils.invokeMethod(module, "getLayer",
+                final Object /* ModuleLayer */ layer = ReflectionUtils.invokeMethod(module, "getLayer",
                         /* throwException = */ true);
-                if (clsLayer != null) {
+                if (layer != null) {
                     if (layers == null) {
                         layers = new LinkedList<>();
                     }
-                    findLayerOrder(clsLayer, visited, layers);
+                    findLayerOrder(layer, visited, layers);
                 }
             }
         }
