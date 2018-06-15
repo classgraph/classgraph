@@ -349,35 +349,6 @@ public class ModuleRef implements Comparable<ModuleRef> {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Get all visible ModuleReferences in a list of layers. */
-    private static List<ModuleRef> findModuleRefs(final Deque<Object> layers) {
-        final AdditionOrderedSet<ModuleRef> moduleRefs = new AdditionOrderedSet<>();
-        for (final Object /* ModuleLayer */ layer : layers) {
-            final Object /* Configuration */ cfg = ReflectionUtils.invokeMethod(layer, "configuration",
-                    /* throwException = */ true);
-            if (cfg != null) {
-                // Get ModuleReferences from layer configuration
-                @SuppressWarnings("unchecked")
-                final Set<Object> /* Set<ResolvedModule> */ modules = (Set<Object>) ReflectionUtils
-                        .invokeMethod(cfg, "modules", /* throwException = */ true);
-                if (modules != null) {
-                    final List<ModuleRef> modulesInLayer = new ArrayList<>();
-                    for (final Object /* ResolvedModule */ module : modules) {
-                        final Object /* ModuleReference */ ref = ReflectionUtils.invokeMethod(module, "reference",
-                                /* throwException = */ true);
-                        if (ref != null) {
-                            modulesInLayer.add(new ModuleRef(ref, layer));
-                        }
-                    }
-                    // Sort modules in layer by name
-                    Collections.sort(modulesInLayer);
-                    moduleRefs.addAll(modulesInLayer);
-                }
-            }
-        }
-        return moduleRefs.toList();
-    }
-
     /**
      * Recursively find the topological sort order of ancestral layers. The JDK (as of 10.0.0.1) uses a broken DFS
      * ordering for layer resolution in ModuleLayer#layers() and Configuration#configurations(), but I reported this
@@ -420,6 +391,35 @@ public class ModuleRef implements Comparable<ModuleRef> {
                 }
             }
         }
-        return layers == null ? Collections.<ModuleRef> emptyList() : findModuleRefs(layers);
+        if (layers != null) {
+            // Find modules in the ordered layers
+            final AdditionOrderedSet<ModuleRef> moduleRefs = new AdditionOrderedSet<>();
+            for (final Object /* ModuleLayer */ layer : layers) {
+                final Object /* Configuration */ cfg = ReflectionUtils.invokeMethod(layer, "configuration",
+                        /* throwException = */ true);
+                if (cfg != null) {
+                    // Get ModuleReferences from layer configuration
+                    @SuppressWarnings("unchecked")
+                    final Set<Object> /* Set<ResolvedModule> */ modules = (Set<Object>) ReflectionUtils
+                            .invokeMethod(cfg, "modules", /* throwException = */ true);
+                    if (modules != null) {
+                        final List<ModuleRef> modulesInLayer = new ArrayList<>();
+                        for (final Object /* ResolvedModule */ module : modules) {
+                            final Object /* ModuleReference */ ref = ReflectionUtils.invokeMethod(module,
+                                    "reference", /* throwException = */ true);
+                            if (ref != null) {
+                                modulesInLayer.add(new ModuleRef(ref, layer));
+                            }
+                        }
+                        // Sort modules in layer by name
+                        Collections.sort(modulesInLayer);
+                        moduleRefs.addAll(modulesInLayer);
+                    }
+                }
+            }
+            return moduleRefs.toList();
+        } else {
+            return Collections.<ModuleRef> emptyList();
+        }
     }
 }
