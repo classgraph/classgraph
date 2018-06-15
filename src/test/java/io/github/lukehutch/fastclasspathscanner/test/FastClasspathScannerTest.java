@@ -380,14 +380,13 @@ public class FastClasspathScannerTest {
     @Test
     public void getManifest() throws Exception {
         final AtomicBoolean foundManifest = new AtomicBoolean();
-        new FastClasspathScanner("META-INF")
-                .matchFilenamePathLeaf("MANIFEST.MF", new FileMatchProcessor() {
-                    @Override
-                    public void processMatch(final String relativePath, final InputStream inputStream,
-                            final long lengthBytes) throws IOException {
-                        foundManifest.set(true);
-                    }
-                }).scan();
+        new FastClasspathScanner("META-INF").matchFilenamePathLeaf("MANIFEST.MF", new FileMatchProcessor() {
+            @Override
+            public void processMatch(final String relativePath, final InputStream inputStream,
+                    final long lengthBytes) throws IOException {
+                foundManifest.set(true);
+            }
+        }).scan();
         assertThat(foundManifest.get()).isTrue();
     }
 }
