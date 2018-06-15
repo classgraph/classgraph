@@ -397,22 +397,6 @@ public class ModuleRef implements Comparable<ModuleRef> {
         }
     }
 
-    /** Get all visible ModuleReferences in all layers, given a Class reference. */
-    public static List<ModuleRef> findModuleRefs(final Class<?> cls) {
-        LinkedList<Object> /* List<ModuleLayer> */ layers = null;
-        final Object /* Module */ module = ReflectionUtils.invokeMethod(cls, "getModule",
-                /* throwException = */ false);
-        if (module != null) {
-            final Object /* ModuleLayer */ clsLayer = ReflectionUtils.invokeMethod(module, "getLayer",
-                    /* throwException = */ true);
-            if (clsLayer != null) {
-                layers = new LinkedList<>();
-                findLayerOrder(clsLayer, new HashSet<>(), layers);
-            }
-        }
-        return layers == null ? Collections.<ModuleRef> emptyList() : findModuleRefs(layers);
-    }
-
     /**
      * Get all visible ModuleReferences in all layers, given an array of stack frame {@code Class<?>} references.
      */
