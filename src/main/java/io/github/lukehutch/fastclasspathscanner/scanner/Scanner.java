@@ -213,12 +213,14 @@ public class Scanner implements Callable<ScanResult> {
                     : classpathFinderLog.log("Getting raw classpath elements");
             final ClasspathFinder classpathFinder = new ClasspathFinder(scanSpec, nestedJarHandler,
                     getRawElementsLog);
-            final ClassLoader[] classLoaderOrder = classpathFinder.getClassLoaderOrder();
+            final ClassLoaderAndModuleFinder classLoaderAndModuleFinder = classpathFinder
+                    .getClassLoaderAndModuleFinder();
+            final ClassLoader[] classLoaderOrder = classLoaderAndModuleFinder.getClassLoaders();
             final List<RelativePath> rawClasspathEltOrder = new ArrayList<>();
 
             // Add modules to start of classpath order (in JDK9+)
             if (!scanSpec.blacklistSystemJars && !scanSpec.blacklistSystemPackages) {
-                final List<ModuleRef> systemModules = classpathFinder.getSystemModuleRefs();
+                final List<ModuleRef> systemModules = classLoaderAndModuleFinder.getSystemModuleRefs();
                 if (systemModules != null) {
                     for (final ModuleRef systemModule : systemModules) {
                         rawClasspathEltOrder
@@ -226,7 +228,7 @@ public class Scanner implements Callable<ScanResult> {
                     }
                 }
             }
-            final List<ModuleRef> nonSystemModules = classpathFinder.getNonSystemModuleRefs();
+            final List<ModuleRef> nonSystemModules = classLoaderAndModuleFinder.getNonSystemModuleRefs();
             if (nonSystemModules != null) {
                 for (final ModuleRef nonSystemModule : nonSystemModules) {
                     rawClasspathEltOrder

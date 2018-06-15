@@ -29,7 +29,6 @@
 package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -39,7 +38,28 @@ import io.github.lukehutch.fastclasspathscanner.utils.JarUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 
 /** A class to find the unique ordered classpath elements. */
-public class ClassLoaderFinder {
+public class ClassLoaderAndModuleFinder {
+    private final ClassLoader[] classLoaders;
+    private final List<ModuleRef> systemModuleRefs;
+    private final List<ModuleRef> nonSystemModuleRefs;
+
+    /** Get context classloader, and any other classloader that is not an ancestor of context classloader. */
+    public ClassLoader[] getClassLoaders() {
+        return classLoaders;
+    }
+
+    /** Get system modules as ModuleRef wrappers, or null if no modules were found (e.g. on JDK 7 or 8). */
+    public List<ModuleRef> getSystemModuleRefs() {
+        return systemModuleRefs;
+    }
+
+    /** Get non-system modules as ModuleRef wrappers, or null if no modules were found (e.g. on JDK 7 or 8). */
+    public List<ModuleRef> getNonSystemModuleRefs() {
+        return nonSystemModuleRefs;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
     /**
      * Used for resolving the classes in the call stack. Requires RuntimePermission("createSecurityManager").
      */
@@ -70,19 +90,6 @@ public class ClassLoaderFinder {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    public static class EnvClassLoadersAndModules {
-        public final ClassLoader[] classLoaders;
-        public final List<ModuleRef> systemModuleRefs;
-        public final List<ModuleRef> nonSystemModuleRefs;
-
-        public EnvClassLoadersAndModules(final ClassLoader[] classLoaders, final List<ModuleRef> systemModuleRefs,
-                final List<ModuleRef> nonSystemModuleRefs) {
-            this.classLoaders = classLoaders;
-            this.systemModuleRefs = systemModuleRefs;
-            this.nonSystemModuleRefs = nonSystemModuleRefs;
-        }
-    }
-
     /**
      * A class to find the unique ordered classpath elements.
      * 
@@ -93,12 +100,11 @@ public class ClassLoaderFinder {
      * @return The list of classloaders for this environment, and any system and non-system modules that are
      *         discovered (in JDK9+).
      */
-
-    public static EnvClassLoadersAndModules findEnvClassLoaders(final ScanSpec scanSpec, final LogNode log) {
+    public ClassLoaderAndModuleFinder(final ScanSpec scanSpec, final LogNode log) {
         AdditionOrderedSet<ClassLoader> classLoadersUnique;
         LogNode classLoadersFoundLog = null;
-        List<ModuleRef> systemModules = null;
-        List<ModuleRef> nonSystemModules = null;
+        List<ModuleRef> systemModuleRefs = null;
+        List<ModuleRef> nonSystemModuleRefs = null;
         if (scanSpec.overrideClassLoaders == null) {
             // ClassLoaders were not overridden
 
@@ -122,13 +128,10 @@ public class ClassLoaderFinder {
             // the application classloader returned by ClassLoader.getSystemClassLoader() (so is delegated to
             // by the application classloader), there is no point adding it here.
 
-            // Module references (for JDK9+ / Project Jigsaw)
-            List<ModuleRef> allModuleRefsList = null;
-
             // Get caller classloader
             if (CALLER_RESOLVER == null) {
                 if (log != null) {
-                    log.log(ClassLoaderFinder.class.getSimpleName() + " could not create "
+                    log.log(ClassLoaderAndModuleFinder.class.getSimpleName() + " could not create "
                             + CallerResolver.class.getSimpleName() + ", current SecurityManager does not grant "
                             + "RuntimePermission(\"createSecurityManager\")");
                 }
@@ -136,7 +139,7 @@ public class ClassLoaderFinder {
                 final Class<?>[] callStack = CALLER_RESOLVER.getClassContext();
                 if (callStack == null) {
                     if (log != null) {
-                        log.log(ClassLoaderFinder.class.getSimpleName() + ": "
+                        log.log(ClassLoaderAndModuleFinder.class.getSimpleName() + ": "
                                 + CallerResolver.class.getSimpleName() + "#getClassContext() returned null");
                     }
                 } else {
@@ -148,35 +151,19 @@ public class ClassLoaderFinder {
                         }
                     }
                     // Find module references for classes on callstack (for JDK9+)
-                    allModuleRefsList = ModuleRef.findModuleRefs(callStack);
-                }
-            }
+                    final List<ModuleRef> allModuleRefsList = ModuleRef.findModuleRefs(callStack);
 
-            // Find system module references -- Set<Entry<ModuleReference, ModuleLayer>>
-            final Set<ModuleRef> systemModulesSet = ModuleRef.findSystemModuleRefs();
-
-            // Find non-system modules
-            if (systemModulesSet == null) {
-                if (!allModuleRefsList.isEmpty()) {
-                    // Should not happen
-                    throw new RuntimeException(
-                            "Failed to find system modules, but found modules through CallerResolver");
-                }
-            } else {
-                systemModules = new ArrayList<>(systemModulesSet);
-                nonSystemModules = new ArrayList<>();
-                for (final ModuleRef moduleRef : allModuleRefsList) {
-                    if (!systemModulesSet.contains(moduleRef)) {
+                    // Split modules into system modules and non-system modules
+                    systemModuleRefs = new ArrayList<>();
+                    nonSystemModuleRefs = new ArrayList<>();
+                    for (final ModuleRef moduleRef : allModuleRefsList) {
                         if (JarUtils.isInSystemPackageOrModule(moduleRef.getModuleName())) {
-                            systemModulesSet.add(moduleRef);
+                            systemModuleRefs.add(moduleRef);
                         } else {
-                            nonSystemModules.add(moduleRef);
+                            nonSystemModuleRefs.add(moduleRef);
                         }
                     }
                 }
-                systemModules = new ArrayList<>(systemModulesSet);
-                // Sort system modules by name
-                Collections.sort(systemModules);
             }
 
             // Get context classloader
@@ -221,22 +208,26 @@ public class ClassLoaderFinder {
 
         // Log any identified modules
         if (log != null) {
-            if (systemModules != null) {
-                final LogNode subLog = log.log("Found system modules:");
-                for (final ModuleRef moduleRef : systemModules) {
-                    subLog.log(moduleRef.toString());
+            final LogNode sysSubLog = log.log("Found system modules:");
+            if (systemModuleRefs != null && !systemModuleRefs.isEmpty()) {
+                for (final ModuleRef moduleRef : systemModuleRefs) {
+                    sysSubLog.log(moduleRef.toString());
                 }
+            } else {
+                sysSubLog.log("[None]");
             }
-            if (nonSystemModules != null && !nonSystemModules.isEmpty()) {
-                final LogNode subLog = log.log("Found non-system modules:");
-                for (final ModuleRef moduleRef : nonSystemModules) {
-                    subLog.log(moduleRef.toString());
+            final LogNode nonSysSubLog = log.log("Found non-system modules:");
+            if (nonSystemModuleRefs != null && !nonSystemModuleRefs.isEmpty()) {
+                for (final ModuleRef moduleRef : nonSystemModuleRefs) {
+                    nonSysSubLog.log(moduleRef.toString());
                 }
+            } else {
+                nonSysSubLog.log("[None]");
             }
         }
 
-        return new EnvClassLoadersAndModules(
-                classLoaderFinalOrder.toArray(new ClassLoader[classLoaderFinalOrder.size()]), systemModules,
-                nonSystemModules);
+        this.classLoaders = classLoaderFinalOrder.toArray(new ClassLoader[classLoaderFinalOrder.size()]);
+        this.systemModuleRefs = systemModuleRefs;
+        this.nonSystemModuleRefs = nonSystemModuleRefs;
     }
 }

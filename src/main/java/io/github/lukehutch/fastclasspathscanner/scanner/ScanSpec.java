@@ -245,7 +245,7 @@ public class ScanSpec {
     public List<ClassLoader> overrideClassLoaders;
 
     /** The ClassLoader finder. */
-    public ClassLoaderFinder classLoaderFinder;
+    public ClassLoaderAndModuleFinder classLoaderFinder;
 
     /** If non-null, specifies a classpath to override the default one. */
     public String overrideClasspath;

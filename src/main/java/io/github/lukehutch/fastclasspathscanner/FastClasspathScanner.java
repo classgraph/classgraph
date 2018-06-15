@@ -53,7 +53,7 @@ import io.github.lukehutch.fastclasspathscanner.matchprocessor.MethodAnnotationM
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.StaticFinalFieldMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubclassMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubinterfaceMatchProcessor;
-import io.github.lukehutch.fastclasspathscanner.scanner.ClassLoaderFinder;
+import io.github.lukehutch.fastclasspathscanner.scanner.ClassLoaderAndModuleFinder;
 import io.github.lukehutch.fastclasspathscanner.scanner.FailureHandler;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanResultProcessor;
@@ -766,7 +766,7 @@ public class FastClasspathScanner {
      *         context classloader (or the override ClassLoaders, if ClassLoaders have been overridden).
      */
     public ClassLoader[] findBestClassLoader() {
-        return ClassLoaderFinder.findEnvClassLoaders(getScanSpec(), log).classLoaders;
+        return new ClassLoaderAndModuleFinder(getScanSpec(), log).getClassLoaders();
     }
 
     // -------------------------------------------------------------------------------------------------------------
