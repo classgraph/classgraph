@@ -307,7 +307,6 @@ public class ScanResult {
      * @return The sorted list of the names of matching subclasses, or the empty list if none.
      */
     public List<String> getNamesOfSubclassesOf(final String superclassName) {
-        scanSpec.checkClassIsNotBlacklisted(superclassName);
         return classGraphBuilder.getNamesOfSubclassesOf(superclassName);
     }
 
@@ -330,7 +329,6 @@ public class ScanResult {
      * @return The sorted list of the names of superclasses of the named subclass, or the empty list if none.
      */
     public List<String> getNamesOfSuperclassesOf(final String subclassName) {
-        scanSpec.checkClassIsNotBlacklisted(subclassName);
         return classGraphBuilder.getNamesOfSuperclassesOf(subclassName);
     }
 
@@ -355,7 +353,6 @@ public class ScanResult {
      *         the empty list if none.
      */
     public List<String> getNamesOfClassesWithMethodAnnotation(final String annotationName) {
-        scanSpec.checkClassIsNotBlacklisted(annotationName);
         if (!scanSpec.enableMethodAnnotationIndexing) {
             throw new IllegalArgumentException(
                     "Please call FastClasspathScanner#enableMethodAnnotationIndexing() before calling scan() -- "
@@ -385,7 +382,6 @@ public class ScanResult {
      *         the empty list if none.
      */
     public List<String> getNamesOfClassesWithFieldAnnotation(final String annotationName) {
-        scanSpec.checkClassIsNotBlacklisted(annotationName);
         if (!scanSpec.enableFieldAnnotationIndexing) {
             throw new IllegalArgumentException(
                     "Please call FastClasspathScanner#enableFieldAnnotationIndexing() before calling scan() -- "
@@ -427,7 +423,6 @@ public class ScanResult {
      * @return The sorted list of the names of all subinterfaces of the named interface, or the empty list if none.
      */
     public List<String> getNamesOfSubinterfacesOf(final String interfaceName) {
-        scanSpec.checkClassIsNotBlacklisted(interfaceName);
         return classGraphBuilder.getNamesOfSubinterfacesOf(interfaceName);
     }
 
@@ -450,7 +445,6 @@ public class ScanResult {
      * @return The sorted list of the names of superinterfaces of the named subinterface, or the empty list if none.
      */
     public List<String> getNamesOfSuperinterfacesOf(final String subInterfaceName) {
-        scanSpec.checkClassIsNotBlacklisted(subInterfaceName);
         return classGraphBuilder.getNamesOfSuperinterfacesOf(subInterfaceName);
     }
 
@@ -475,7 +469,6 @@ public class ScanResult {
      *         none.
      */
     public List<String> getNamesOfClassesImplementing(final String interfaceName) {
-        scanSpec.checkClassIsNotBlacklisted(interfaceName);
         return classGraphBuilder.getNamesOfClassesImplementing(interfaceName);
     }
 
@@ -550,7 +543,6 @@ public class ScanResult {
      *         annotation during the scan, or the empty list if none.
      */
     public List<String> getNamesOfClassesWithAnnotation(final String annotationName) {
-        scanSpec.checkClassIsNotBlacklisted(annotationName);
         return classGraphBuilder.getNamesOfClassesWithAnnotation(annotationName);
     }
 
@@ -637,7 +629,6 @@ public class ScanResult {
      *         list if none.
      */
     public List<String> getNamesOfAnnotationsOnClass(final String className) {
-        scanSpec.checkClassIsNotBlacklisted(className);
         return classGraphBuilder.getNamesOfAnnotationsOnClass(className);
     }
 
@@ -662,7 +653,6 @@ public class ScanResult {
      *         none.
      */
     public List<String> getNamesOfAnnotationsWithMetaAnnotation(final String metaAnnotationName) {
-        scanSpec.checkClassIsNotBlacklisted(metaAnnotationName);
         return classGraphBuilder.getNamesOfAnnotationsWithMetaAnnotation(metaAnnotationName);
     }
 

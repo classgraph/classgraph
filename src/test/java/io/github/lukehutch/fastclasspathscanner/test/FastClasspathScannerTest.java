@@ -192,7 +192,7 @@ public class FastClasspathScannerTest {
 
     @Test
     public void testWhitelistedWithoutExceptionWithStrictWhitelist() throws Exception {
-        final ScanResult scanResult = new FastClasspathScanner(WHITELIST_PACKAGE).strictWhitelist().scan();
+        final ScanResult scanResult = new FastClasspathScanner(WHITELIST_PACKAGE).scan();
         assertThat(scanResult.getNamesOfSuperclassesOf(Whitelisted.class)).isEmpty();
         assertThat(scanResult.getNamesOfSubclassesOf(Whitelisted.class)).isEmpty();
         assertThat(scanResult.getNamesOfSuperinterfacesOf(WhitelistedInterface.class)).isEmpty();
@@ -201,7 +201,7 @@ public class FastClasspathScannerTest {
 
     @Test
     public void testWhitelistedWithoutExceptionWithoutStrictWhitelist() throws Exception {
-        final ScanResult scanResult = new FastClasspathScanner(WHITELIST_PACKAGE).scan();
+        final ScanResult scanResult = new FastClasspathScanner(WHITELIST_PACKAGE).enableExternalClasses().scan();
         assertThat(scanResult.getNamesOfSuperclassesOf(Whitelisted.class))
                 .containsExactly(BlacklistedSuperclass.class.getName());
     }
@@ -234,14 +234,14 @@ public class FastClasspathScannerTest {
 
     @Test
     public void testNonWhitelistedAnnotationReturnedWithoutStrictWhitelist() throws Exception {
-        final ScanResult scanResult = new FastClasspathScanner(WHITELIST_PACKAGE).scan();
+        final ScanResult scanResult = new FastClasspathScanner(WHITELIST_PACKAGE).enableExternalClasses().scan();
         assertThat(scanResult.getNamesOfAnnotationsOnClass(Whitelisted.class))
                 .containsOnly(BlacklistedAnnotation.class.getName());
     }
 
     @Test
     public void testNonWhitelistedAnnotationNotReturnedWithStrictWhitelist() throws Exception {
-        final ScanResult scanResult = new FastClasspathScanner(WHITELIST_PACKAGE).strictWhitelist().scan();
+        final ScanResult scanResult = new FastClasspathScanner(WHITELIST_PACKAGE).scan();
         assertThat(scanResult.getNamesOfAnnotationsOnClass(Whitelisted.class)).isEmpty();
     }
 

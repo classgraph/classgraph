@@ -18,12 +18,13 @@ public class Issue88 {
     public void exceptionsArePropagated() {
         final AtomicInteger callCounter = new AtomicInteger(0);
         try {
-            new FastClasspathScanner().matchClassesWithMethodAnnotation(Test.class, (cls, method) -> {
-                if (cls.getName().equals(Issue88.class.getName())) {
-                    callCounter.incrementAndGet();
-                    throw new RuntimeException("Wham!");
-                }
-            }).scan();
+            new FastClasspathScanner(Issue88.class.getPackage().getName())
+                    .matchClassesWithMethodAnnotation(Test.class, (cls, method) -> {
+                        if (cls.getName().equals(Issue88.class.getName())) {
+                            callCounter.incrementAndGet();
+                            throw new RuntimeException("Wham!");
+                        }
+                    }).scan();
             throw new RuntimeException("Would have expected to get an exception here");
         } catch (final Exception e) {
             assertThat(e.getMessage())
@@ -43,11 +44,12 @@ public class Issue88 {
     public void infiniteRecursion() {
         boolean exceptionThrown = false;
         try {
-            new FastClasspathScanner().matchClassesWithMethodAnnotation(Test.class, (cls, method) -> {
-                if (cls == Issue88.class && method.getName().equals("infiniteRecursion")) {
-                    rec();
-                }
-            }).scan();
+            new FastClasspathScanner(Issue88.class.getPackage().getName())
+                    .matchClassesWithMethodAnnotation(Test.class, (cls, method) -> {
+                        if (cls == Issue88.class && method.getName().equals("infiniteRecursion")) {
+                            rec();
+                        }
+                    }).scan();
         } catch (final MatchProcessorException e) {
             exceptionThrown = e.getExceptions().iterator().next().toString().equals("java.lang.StackOverflowError");
         }

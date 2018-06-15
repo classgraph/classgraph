@@ -46,7 +46,7 @@ public class Issue148Test {
     @Test
     public void issue148Test() throws IOException {
         final String pkg = Issue148Test.class.getPackage().getName();
-        final Map<String, ClassInfo> classNameToClassInfo = new FastClasspathScanner(pkg).strictWhitelist().scan()
+        final Map<String, ClassInfo> classNameToClassInfo = new FastClasspathScanner(pkg).scan()
                 .getClassNameToClassInfo();
 
         final List<ClassInfo> classInfoSorted = new ArrayList<>(classNameToClassInfo.values());
@@ -81,8 +81,6 @@ public class Issue148Test {
                         + "O1$SI|true false false|[]|[O1]|null\n" //
                         + "O2|false false true|[O2$1, O2$2]|[]|null\n" //
                         + "O2$1|true true false|[]|[O2]|O2.<clinit>\n" //
-                        + "O2$2|true true false|[]|[O2]|O2.<init>\n" //
-                        + "java.lang.Object|false false false|[]|[]|null\n" //
-                        + "java.util.Comparator|false false false|[]|[]|null\n");
+                        + "O2$2|true true false|[]|[O2]|O2.<init>\n");
     }
 }

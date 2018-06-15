@@ -147,12 +147,11 @@ public class ScanSpec {
     public boolean enableMethodInfo;
 
     /**
-     * If true, remove "external" classes from consideration (i.e. classes outside of whitelisted packages that are
-     * referred to by classes within whitelisted packages, e.g. as a superclass). This affects both the ability to
-     * use an external classname as a matching criterion, and whether external classes are returned to the user by
-     * ScanResult methods.
+     * If true, allow external classes (classes outside of whitelisted packages) to be returned in the ScanResult,
+     * if they are directly referred to by a whitelisted class, as a superclass, implemented interface or
+     * annotation. Disabled by default.
      */
-    public boolean strictWhitelist;
+    public boolean enableExternalClasses;
 
     /**
      * True if JRE system jarfiles (rt.jar etc.) should not be scanned. By default, these are not scanned. This can
@@ -403,9 +402,9 @@ public class ScanSpec {
 
         if (blacklistSystemPackages) {
             // Blacklist Java types by default
-            uniqueBlacklistedPathPrefixes.add("java/");
-            uniqueBlacklistedPathPrefixes.add("javax/");
-            uniqueBlacklistedPathPrefixes.add("sun/");
+            for (final String prefix : JarUtils.SYSTEM_PACKAGE_PATH_PREFIXES) {
+                uniqueBlacklistedPathPrefixes.add(prefix);
+            }
         }
         blacklistedPathPrefixes.addAll(uniqueBlacklistedPathPrefixes);
 
@@ -791,20 +790,6 @@ public class ScanSpec {
         return classIsBlacklisted;
     }
 
-    /** Checks that the named class is not blacklisted. Throws IllegalArgumentException otherwise. */
-    void checkClassIsNotBlacklisted(final String className) {
-        if (strictWhitelist && classIsBlacklisted(className)) {
-            final boolean isSystemPackage = JarUtils.isSystemPackageOrModule(className);
-            throw new IllegalArgumentException("Can't scan for " + className + ", it is in a blacklisted "
-                    + (!isSystemPackage ? "package" : "system package")
-                    + ", and and strictWhitelist() was called before scan()."
-                    + (!isSystemPackage ? ""
-                            : "You can override this by adding \"!\" or \"!!\" to the "
-                                    + "scan spec to disable system package blacklisting or system jar "
-                                    + "blacklisting respectively (see the docs)"));
-        }
-    }
-
     // -------------------------------------------------------------------------------------------------------------
 
     /** Test if a list of jar names contains the requested name, allowing for globs. */
@@ -869,7 +854,6 @@ public class ScanSpec {
      */
     String getAnnotationName(final Class<?> annotation) {
         final String annotationName = annotation.getName();
-        checkClassIsNotBlacklisted(annotationName);
         if (!annotation.isAnnotation()) {
             throw new IllegalArgumentException(annotationName + " is not an annotation");
         }
@@ -894,7 +878,6 @@ public class ScanSpec {
      */
     String getInterfaceName(final Class<?> iface) {
         final String ifaceName = iface.getName();
-        checkClassIsNotBlacklisted(ifaceName);
         if (!iface.isInterface()) {
             throw new IllegalArgumentException(ifaceName + " is not an interface");
         }
@@ -919,7 +902,6 @@ public class ScanSpec {
      */
     String getClassOrInterfaceName(final Class<?> classOrInterface) {
         final String classOrIfaceName = classOrInterface.getName();
-        checkClassIsNotBlacklisted(classOrIfaceName);
         if (classOrInterface.isAnnotation()) {
             throw new IllegalArgumentException(
                     classOrIfaceName + " is an annotation, not a regular class or interface");
@@ -934,7 +916,6 @@ public class ScanSpec {
      */
     String getStandardClassName(final Class<?> cls) {
         final String className = cls.getName();
-        checkClassIsNotBlacklisted(className);
         if (cls.isAnnotation()) {
             throw new IllegalArgumentException(className + " is an annotation, not a standard class");
         } else if (cls.isInterface()) {

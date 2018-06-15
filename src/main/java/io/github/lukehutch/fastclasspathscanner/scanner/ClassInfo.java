@@ -50,6 +50,7 @@ import io.github.lukehutch.fastclasspathscanner.typesignature.MethodTypeSignatur
 import io.github.lukehutch.fastclasspathscanner.typesignature.TypeSignature;
 import io.github.lukehutch.fastclasspathscanner.typesignature.TypeUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.AdditionOrderedSet;
+import io.github.lukehutch.fastclasspathscanner.utils.JarUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.MultiMapKeyToList;
 
@@ -81,7 +82,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
      * another class' classfile as a superclass/superinterface/annotation. If classfileScanned is true, then this
      * also must be a whitelisted (and non-blacklisted) class in a whitelisted (and non-blacklisted) package.
      */
-    private boolean classfileScanned;
+    boolean classfileScanned;
 
     /**
      * The classpath element file (classpath root dir or jar) that this class was found within, or null if this
@@ -540,11 +541,13 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
                 // Check whether class should be visible in results
                 final boolean isExternal = !classInfo.classfileScanned;
                 final boolean isBlacklisted = scanSpec.classIsBlacklisted(classInfo.className);
-                final boolean isWhitelisted = !isExternal && !isBlacklisted;
-                final boolean removeExternalClasses = removeExternalClassesIfStrictWhitelist
-                        && scanSpec.strictWhitelist;
-                final boolean isVisibleExternal = isExternal && !removeExternalClasses && !isBlacklisted;
-                if (isWhitelisted || isVisibleExternal) {
+                final boolean isSystemClass = JarUtils.isInSystemPackageOrModule(classInfo.className);
+                final boolean includeExternalClasses = scanSpec.enableExternalClasses
+                        || !removeExternalClassesIfStrictWhitelist;
+                final boolean notExternalOrIncludeExternal = !isExternal || includeExternalClasses;
+                if (notExternalOrIncludeExternal //
+                        && !isBlacklisted
+                        && (!isSystemClass || !scanSpec.blacklistSystemJars || !scanSpec.blacklistSystemPackages)) {
                     // Class passed filter criteria
                     classInfoSetFiltered.add(classInfo);
                 }
@@ -1021,8 +1024,10 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
      * @return the set of subclasses of this class, or the empty set if none.
      */
     public Set<ClassInfo> getSubclasses() {
+        // Make an exception for querying all subclasses of java.lang.Object
         return filterClassInfo(getReachableClasses(RelType.SUBCLASSES),
-                /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.ALL);
+                /* removeExternalClassesIfStrictWhitelist = */ !className.equals("java.lang.Object"), scanSpec,
+                ClassType.ALL);
     }
 
     /**
@@ -1053,8 +1058,10 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
      * @return the set of direct subclasses of this class, or the empty set if none.
      */
     public Set<ClassInfo> getDirectSubclasses() {
+        // Make an exception for querying all direct subclasses of java.lang.Object
         return filterClassInfo(getDirectlyRelatedClasses(RelType.SUBCLASSES),
-                /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.ALL);
+                /* removeExternalClassesIfStrictWhitelist = */ !className.equals("java.lang.Object"), scanSpec,
+                ClassType.ALL);
     }
 
     /**

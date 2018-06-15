@@ -167,7 +167,7 @@ public class ClassLoaderFinder {
                 nonSystemModules = new ArrayList<>();
                 for (final ModuleRef moduleRef : allModuleRefsList) {
                     if (!systemModulesSet.contains(moduleRef)) {
-                        if (JarUtils.isSystemPackageOrModule(moduleRef.getModuleName())) {
+                        if (JarUtils.isInSystemPackageOrModule(moduleRef.getModuleName())) {
                             systemModulesSet.add(moduleRef);
                         } else {
                             nonSystemModules.add(moduleRef);

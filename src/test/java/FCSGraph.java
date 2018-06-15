@@ -11,7 +11,6 @@ public class FCSGraph {
                         .ignoreMethodVisibility() //
                         .enableFieldInfo() //
                         .ignoreFieldVisibility() //
-                        .strictWhitelist() //
                         .scan() //
                         .generateClassGraphDotFile(12, 8, false, false));
     }

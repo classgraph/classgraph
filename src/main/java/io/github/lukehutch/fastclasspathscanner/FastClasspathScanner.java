@@ -387,6 +387,10 @@ public class FastClasspathScanner {
      * classes within whitelisted packages as a superclass, implemented interface or annotation.)
      *
      * <p>
+     * Deprecated (and now has no effect) -- non-strict mode is now the default (as of version 3.0.2). Use
+     * {@link enableExternalClasses()} to disable strict mode.
+     * 
+     * <p>
      * See the following for info on external classes, and strict mode vs. non-strict mode:
      *
      * <p>
@@ -396,8 +400,8 @@ public class FastClasspathScanner {
      *            Whether or not to switch to strict mode.
      * @return this (for method chaining).
      */
+    @Deprecated
     public FastClasspathScanner strictWhitelist(final boolean strictWhitelist) {
-        getScanSpec().strictWhitelist = strictWhitelist;
         return this;
     }
 
@@ -406,6 +410,10 @@ public class FastClasspathScanner {
      * classes, and removes "external" classes from result lists returned by ScanSpec#get...() methods. (External
      * classes are classes outside of whitelisted packages that are directly referred to by classes within
      * whitelisted packages as a superclass, implemented interface or annotation.)
+     * 
+     * <p>
+     * Deprecated (and now has no effect)-- non-strict mode is the default (as of version 3.0.2). Use
+     * {@link enableExternalClasses()} to disable strict mode.
      *
      * <p>
      * See the following for info on external classes, and strict mode vs. non-strict mode:
@@ -415,8 +423,44 @@ public class FastClasspathScanner {
      *
      * @return this (for method chaining).
      */
+    @Deprecated
     public FastClasspathScanner strictWhitelist() {
-        strictWhitelist(true);
+        return this;
+    }
+
+    /**
+     * Causes FastClasspathScanner to return matching classes that are not in the whitelisted packages, but that are
+     * directly referred to by classes within whitelisted packages as a superclass, implemented interface or
+     * annotation.
+     *
+     * <p>
+     * See the following for info on external classes, and strict mode vs. non-strict mode:
+     *
+     * <p>
+     * https://github.com/lukehutch/fast-classpath-scanner/wiki/2.-Constructor#external-classes
+     *
+     * @return this (for method chaining).
+     */
+    public FastClasspathScanner enableExternalClasses(final boolean enableExternalClasses) {
+        getScanSpec().enableExternalClasses = enableExternalClasses;
+        return this;
+    }
+
+    /**
+     * Causes FastClasspathScanner to return matching classes that are not in the whitelisted packages, but that are
+     * directly referred to by classes within whitelisted packages as a superclass, implemented interface or
+     * annotation.
+     *
+     * <p>
+     * See the following for info on external classes, and strict mode vs. non-strict mode:
+     *
+     * <p>
+     * https://github.com/lukehutch/fast-classpath-scanner/wiki/2.-Constructor#external-classes
+     *
+     * @return this (for method chaining).
+     */
+    public FastClasspathScanner enableExternalClasses() {
+        enableExternalClasses(true);
         return this;
     }
 

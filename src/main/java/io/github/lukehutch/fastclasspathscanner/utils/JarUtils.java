@@ -310,6 +310,30 @@ public class JarUtils {
         return false;
     }
 
+    /** Prefixes of system (JRE) packages. */
+    public static final String[] SYSTEM_PACKAGE_PREFIXES = { //
+            "java.", "javax.", "javafx.", "jdk.", "oracle.", "sun." };
+
+    /** Prefixes of system (JRE) packages, turned into path form (with slashes instead of dots). */
+    public static final String[] SYSTEM_PACKAGE_PATH_PREFIXES = new String[SYSTEM_PACKAGE_PREFIXES.length];
+    static {
+        for (int i = 0; i < SYSTEM_PACKAGE_PREFIXES.length; i++) {
+            SYSTEM_PACKAGE_PATH_PREFIXES[i] = SYSTEM_PACKAGE_PREFIXES[i].replace('.', '/');
+        }
+    }
+
+    /** Return true if the given class name, package name or module name has a system package or module prefix */
+    public static boolean isInSystemPackageOrModule(final String packageOrModuleName) {
+        for (int i = 0; i < SYSTEM_PACKAGE_PREFIXES.length; i++) {
+            if (packageOrModuleName.startsWith(SYSTEM_PACKAGE_PREFIXES[i])) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
     /**
      * Count the number of bytes before the characters "PK" in a zipfile. Returns -1 if PK is not found anywhere in
      * the file.
@@ -348,6 +372,8 @@ public class JarUtils {
         }
     }
 
+    // -------------------------------------------------------------------------------------------------------------
+
     /** Log the Java version and the JRE paths that were found. */
     public static void logJavaInfo(final LogNode log) {
         if (log != null) {
@@ -364,12 +390,5 @@ public class JarUtils {
                 javaLog.log("Could not find rt.jar"); // TODO: this will be true in JDK9+
             }
         }
-    }
-
-    /** Return true if the given package name or module name corresponds to a system package or module */
-    public static boolean isSystemPackageOrModule(final String packageOrModuleName) {
-        return packageOrModuleName.startsWith("java.") || packageOrModuleName.startsWith("javax.")
-                || packageOrModuleName.startsWith("javafx.") || packageOrModuleName.startsWith("jdk.")
-                || packageOrModuleName.startsWith("oracle.") || packageOrModuleName.startsWith("sun.");
     }
 }

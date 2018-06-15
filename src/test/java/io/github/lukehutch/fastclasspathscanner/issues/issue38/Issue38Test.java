@@ -13,15 +13,15 @@ public class Issue38Test {
     }
 
     @Test
-    public void testImplementsSuppressWarnings() {
-        assertThat(new FastClasspathScanner(Issue38Test.class.getPackage().getName()).scan()
+    public void testImplementsSuppressWarningsNonStrict() {
+        assertThat(new FastClasspathScanner(Issue38Test.class.getPackage().getName()).enableExternalClasses().scan()
                 .getNamesOfClassesImplementing(SuppressWarnings.class))
                         .contains(ImplementsSuppressWarnings.class.getName());
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void testImplementsSuppressWarningsStrict() {
-        new FastClasspathScanner(Issue38Test.class.getPackage().getName()).strictWhitelist().scan()
+    @Test
+    public void testImplementsSuppressWarnings() {
+        new FastClasspathScanner(Issue38Test.class.getPackage().getName()).scan()
                 .getNamesOfClassesImplementing(SuppressWarnings.class);
     }
 }

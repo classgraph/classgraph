@@ -35,6 +35,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 
 import io.github.lukehutch.fastclasspathscanner.scanner.ClassInfo.ClassType;
@@ -64,7 +65,21 @@ class ClassGraphBuilder {
 
     /** Get a map from class name to ClassInfo for the class. */
     Map<String, ClassInfo> getClassNameToClassInfo() {
-        return classNameToClassInfo;
+        if (scanSpec.enableExternalClasses) {
+            return classNameToClassInfo;
+        } else {
+            // In the case of a strict whitelist, need to remove external classes from the map.
+            final Map<String, ClassInfo> classNameToClassInfoFiltered = new HashMap<>();
+            for (final Entry<String, ClassInfo> e : classNameToClassInfo.entrySet()) {
+                final String className = e.getKey();
+                final ClassInfo classInfo = e.getValue();
+                final boolean isExternal = !classInfo.classfileScanned;
+                if (!isExternal) {
+                    classNameToClassInfoFiltered.put(className, classInfo);
+                }
+            }
+            return classNameToClassInfoFiltered;
+        }
     }
 
     /**

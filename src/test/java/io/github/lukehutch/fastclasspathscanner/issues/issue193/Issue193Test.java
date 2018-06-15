@@ -57,7 +57,7 @@ public class Issue193Test {
         // Scan the classpath -- used to throw an exception for Stack, since companion object inherits
         // from different class
         final List<String> classes = new ArrayList<>();
-        new FastClasspathScanner("scala.collection.immutable").strictWhitelist().overrideClassLoaders(classLoader)
+        new FastClasspathScanner("scala.collection.immutable").overrideClassLoaders(classLoader)
                 .matchAllClasses(c -> {
                     if (c.getName().endsWith("$")) {
                         classes.add(c.getName());

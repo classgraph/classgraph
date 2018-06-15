@@ -6,7 +6,6 @@ public class GenerateClassGraphFigDotFile {
     public static void main(final String[] args) {
 
         System.out.println(new FastClasspathScanner("com.xyz.fig") //
-                .strictWhitelist() //
                 .ignoreFieldVisibility() //
                 .enableFieldInfo() //
                 .ignoreMethodVisibility() //

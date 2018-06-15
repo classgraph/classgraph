@@ -16,46 +16,47 @@ public class IssuesTest {
         new FastClasspathScanner("io.github.lukehutch.fastclasspathscanner.issues").scan();
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void issue70Strict() {
-        assertThat(new FastClasspathScanner().strictWhitelist().scan().getNamesOfSubclassesOf(Object.class))
-                .doesNotContain(Impl1.class.getName());
+    @Test
+    public void issue70() {
+        assertThat(new FastClasspathScanner(Impl1.class.getPackage().getName()).scan()
+                .getNamesOfSubclassesOf(Object.class)).contains(Impl1.class.getName());
     }
 
     @Test
-    public void issue70NonStrict() {
-        assertThat(new FastClasspathScanner().scan().getNamesOfSubclassesOf(Object.class))
+    public void issue70EnableExternalClasses() {
+        assertThat(new FastClasspathScanner().enableExternalClasses().scan().getNamesOfSubclassesOf(Object.class))
                 .contains(Impl1.class.getName());
-        assertThat(new FastClasspathScanner().scan().getNamesOfSuperclassesOf(Impl1Sub.class))
-                .doesNotContain(Object.class.getName());
-        assertThat(new FastClasspathScanner("!").scan().getNamesOfSuperclassesOf(Impl1Sub.class))
-                .contains(Object.class.getName());
+        assertThat(
+                new FastClasspathScanner().enableExternalClasses().scan().getNamesOfSuperclassesOf(Impl1Sub.class))
+                        .doesNotContain(Object.class.getName());
+        assertThat(new FastClasspathScanner("!").enableExternalClasses().scan()
+                .getNamesOfSuperclassesOf(Impl1Sub.class)).contains(Object.class.getName());
     }
 
     @Test
-    public void strictExtendsExternal() {
-        assertThat(new FastClasspathScanner(InternalExtendsExternal.class.getPackage().getName()).strictWhitelist()
-                .scan().getNamesOfSuperclassesOf(InternalExtendsExternal.class)).isEmpty();
+    public void extendsExternal() {
+        assertThat(new FastClasspathScanner(InternalExtendsExternal.class.getPackage().getName()).scan()
+                .getNamesOfSuperclassesOf(InternalExtendsExternal.class)).isEmpty();
     }
 
     @Test
     public void nonStrictExtendsExternal() {
-        assertThat(new FastClasspathScanner(InternalExtendsExternal.class.getPackage().getName()).scan()
-                .getNamesOfSuperclassesOf(InternalExtendsExternal.class))
+        assertThat(new FastClasspathScanner(InternalExtendsExternal.class.getPackage().getName())
+                .enableExternalClasses().scan().getNamesOfSuperclassesOf(InternalExtendsExternal.class))
                         .containsExactly(ExternalSuperclass.class.getName());
     }
 
     @Test
-    public void strictExtendsExternalSubclass() {
-        assertThat(new FastClasspathScanner(InternalExtendsExternal.class.getPackage().getName()).strictWhitelist()
-                .scan().getNamesOfSubclassesOf(ExternalSuperclass.class))
+    public void extendsExternalSubclass() {
+        assertThat(new FastClasspathScanner(InternalExtendsExternal.class.getPackage().getName()).scan()
+                .getNamesOfSubclassesOf(ExternalSuperclass.class))
                         .containsExactly(InternalExtendsExternal.class.getName());
     }
 
     @Test
     public void nonStrictExtendsExternalSubclass() {
-        assertThat(new FastClasspathScanner(InternalExtendsExternal.class.getPackage().getName()).scan()
-                .getNamesOfSubclassesOf(ExternalSuperclass.class))
+        assertThat(new FastClasspathScanner(InternalExtendsExternal.class.getPackage().getName())
+                .enableExternalClasses().scan().getNamesOfSubclassesOf(ExternalSuperclass.class))
                         .containsExactly(InternalExtendsExternal.class.getName());
     }
 }
