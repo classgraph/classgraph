@@ -367,8 +367,9 @@ public class ModuleRef implements Comparable<ModuleRef> {
 
     /**
      * Return the layer and all parent layers of a given class, in topological sort order. The JDK (as of 10.0.0.1)
-     * uses a broken DFS ordering for layer resolution, but I reported the bug, so hopefully this will be the
-     * correct long-term resolution order.
+     * uses a broken DFS ordering for layer resolution in ModuleLayer#layers() and Configuration#configurations(),
+     * but I reported this bug, so hopefully this will be fixed, and topological ordering will be the correct
+     * long-term layer resolution order.
      */
     private static List<Object> /* List<ModuleLayer> */ getAllModuleLayers(final Class<?> cls) {
         final Object /* Module */ module = ReflectionUtils.invokeMethod(cls, "getModule",
