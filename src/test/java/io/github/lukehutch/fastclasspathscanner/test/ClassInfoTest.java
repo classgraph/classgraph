@@ -28,7 +28,7 @@ import io.github.lukehutch.fastclasspathscanner.test.whitelisted.Impl2SubSub;
 public class ClassInfoTest {
     @Test
     public void useClassNameToClassInfo() {
-        final ScanResult scanResult = new FastClasspathScanner().scan();
+        final ScanResult scanResult = new FastClasspathScanner(Impl1.class.getPackage().getName()).scan();
         final Map<String, ClassInfo> classNameToClassInfo = scanResult.getClassNameToClassInfo();
         final ClassInfo callableClassInfo = classNameToClassInfo.get(Iface.class.getName());
         final List<String> impls = callableClassInfo.getNamesOfClassesImplementing();
@@ -37,7 +37,7 @@ public class ClassInfoTest {
 
     @Test
     public void stream() throws Exception {
-        final ScanResult scanResult = new FastClasspathScanner().scan();
+        final ScanResult scanResult = new FastClasspathScanner(Impl1.class.getPackage().getName()).scan();
         assertThat( //
                 scanResult.getClassNameToClassInfo().values().stream()
                         .filter(c -> c.getClassName().contains("ClsSub")) //
@@ -48,7 +48,7 @@ public class ClassInfoTest {
 
     @Test
     public void streamHasSuperInterface() throws Exception {
-        final ScanResult scanResult = new FastClasspathScanner().scan();
+        final ScanResult scanResult = new FastClasspathScanner(Impl1.class.getPackage().getName()).scan();
         assertThat( //
                 scanResult.getClassNameToClassInfo().values().stream() //
                         .filter(c -> c.hasSuperinterface(Iface.class.getName())) //
@@ -59,7 +59,7 @@ public class ClassInfoTest {
 
     @Test
     public void implementsInterface() {
-        final ScanResult scanResult = new FastClasspathScanner().scan();
+        final ScanResult scanResult = new FastClasspathScanner(Impl1.class.getPackage().getName()).scan();
         assertThat( //
                 scanResult.getClassNameToClassInfo().values().stream() //
                         .filter(c -> c.implementsInterface(Iface.class.getName())) //
@@ -72,7 +72,7 @@ public class ClassInfoTest {
 
     @Test
     public void multiCriteria() {
-        final ScanResult scanResult = new FastClasspathScanner().scan();
+        final ScanResult scanResult = new FastClasspathScanner(Impl1.class.getPackage().getName()).scan();
         final Set<String> matches = scanResult.getClassNameToClassInfo().values().stream() //
                 .filter(c -> c.implementsInterface(Iface.class.getName())) //
                 .filter(c -> c.hasSuperclass(Impl1.class.getName())) //

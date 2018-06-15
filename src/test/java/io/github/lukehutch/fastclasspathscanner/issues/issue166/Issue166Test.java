@@ -43,8 +43,7 @@ public class Issue166Test {
     public void issue166Test() {
         final URL jarURL = Issue166Test.class.getClassLoader().getResource("issue166-jar-without-extension");
         final ArrayList<String> fileNames = new ArrayList<>();
-        new FastClasspathScanner() //
-                .overrideClasspath(jarURL) //
+        new FastClasspathScanner().overrideClasspath(jarURL) //
                 .matchFilenamePattern(".*",
                         (final File classpathElt, final String relativePath) -> fileNames.add(relativePath))
                 .scan();
@@ -55,8 +54,7 @@ public class Issue166Test {
     public void testNonJarFileOnClasspath() {
         final URL nonJarURL = Issue166Test.class.getClassLoader().getResource("file-content-test.txt");
         final ArrayList<String> fileNames = new ArrayList<>();
-        new FastClasspathScanner() //
-                .overrideClasspath(nonJarURL) //
+        new FastClasspathScanner().overrideClasspath(nonJarURL) //
                 .matchFilenamePattern(".*",
                         (final File classpathElt, final String relativePath) -> fileNames.add(relativePath))
                 .scan();
@@ -68,8 +66,7 @@ public class Issue166Test {
         final URL nonJarURL = Issue166Test.class.getClassLoader().getResource("file-content-test.txt");
         final String nonExistentURL = nonJarURL.toString() + "-file-that-does-not-exist";
         final ArrayList<String> fileNames = new ArrayList<>();
-        new FastClasspathScanner() //
-                .overrideClasspath(nonExistentURL) //
+        new FastClasspathScanner().overrideClasspath(nonExistentURL) //
                 .matchFilenamePattern(".*",
                         (final File classpathElt, final String relativePath) -> fileNames.add(relativePath))
                 .scan();

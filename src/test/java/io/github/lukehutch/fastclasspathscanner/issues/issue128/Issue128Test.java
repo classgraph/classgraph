@@ -57,8 +57,7 @@ public class Issue128Test {
         // Test a nested jar inside a jar fetched over HTTP
         final List<String> filesInsideLevel3 = new ArrayList<>();
         final URL jarURL = new URL(NESTED_JAR_URL);
-        new FastClasspathScanner() //
-                .overrideClassLoaders(new URLClassLoader(new URL[] { jarURL }, null))
+        new FastClasspathScanner().overrideClassLoaders(new URLClassLoader(new URL[] { jarURL }, null))
                 .matchFilenamePattern(".*", new FileMatchContentsProcessor() {
                     @Override
                     public void processMatch(final String relativePath, final byte[] fileContents)

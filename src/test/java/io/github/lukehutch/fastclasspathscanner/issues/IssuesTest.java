@@ -24,11 +24,10 @@ public class IssuesTest {
 
     @Test
     public void issue70EnableExternalClasses() {
-        assertThat(new FastClasspathScanner().enableExternalClasses().scan().getNamesOfSubclassesOf(Object.class))
-                .contains(Impl1.class.getName());
-        assertThat(
-                new FastClasspathScanner().enableExternalClasses().scan().getNamesOfSuperclassesOf(Impl1Sub.class))
-                        .doesNotContain(Object.class.getName());
+        assertThat(new FastClasspathScanner(Impl1.class.getPackage().getName()).enableExternalClasses().scan()
+                .getNamesOfSubclassesOf(Object.class)).contains(Impl1.class.getName());
+        assertThat(new FastClasspathScanner(Impl1.class.getPackage().getName()).enableExternalClasses().scan()
+                .getNamesOfSuperclassesOf(Impl1Sub.class)).doesNotContain(Object.class.getName());
         assertThat(new FastClasspathScanner("!").enableExternalClasses().scan()
                 .getNamesOfSuperclassesOf(Impl1Sub.class)).contains(Object.class.getName());
     }

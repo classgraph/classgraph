@@ -286,7 +286,7 @@ public class FastClasspathScannerTest {
     @Test
     public void scanFilePattern() throws Exception {
         final AtomicBoolean readFileContents = new AtomicBoolean(false);
-        new FastClasspathScanner()
+        new FastClasspathScanner().disableRecursiveScanning()
                 .matchFilenamePattern("[[^/]*/]*file-content-test\\.txt", new FileMatchContentsProcessor() {
                     @Override
                     public void processMatch(final String relativePath, final byte[] contents) throws IOException {
@@ -298,8 +298,8 @@ public class FastClasspathScannerTest {
 
     @Test
     public void scanFilePatternWithContext() throws Exception {
-        new FastClasspathScanner().matchFilenamePattern("[[^/]*/]*file-content-test\\.txt",
-                new FileMatchContentsProcessorWithContext() {
+        new FastClasspathScanner().disableRecursiveScanning().matchFilenamePattern(
+                "[[^/]*/]*file-content-test\\.txt", new FileMatchContentsProcessorWithContext() {
                     @Override
                     public void processMatch(final File classpathElt, final String relativePath,
                             final byte[] contents) throws IOException {
@@ -380,13 +380,14 @@ public class FastClasspathScannerTest {
     @Test
     public void getManifest() throws Exception {
         final AtomicBoolean foundManifest = new AtomicBoolean();
-        new FastClasspathScanner().matchFilenamePathLeaf("MANIFEST.MF", new FileMatchProcessor() {
-            @Override
-            public void processMatch(final String relativePath, final InputStream inputStream,
-                    final long lengthBytes) throws IOException {
-                foundManifest.set(true);
-            }
-        }).scan();
+        new FastClasspathScanner("META-INF")
+                .matchFilenamePathLeaf("MANIFEST.MF", new FileMatchProcessor() {
+                    @Override
+                    public void processMatch(final String relativePath, final InputStream inputStream,
+                            final long lengthBytes) throws IOException {
+                        foundManifest.set(true);
+                    }
+                }).scan();
         assertThat(foundManifest.get()).isTrue();
     }
 }
