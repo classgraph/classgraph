@@ -33,10 +33,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.nio.ByteBuffer;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 
@@ -349,7 +350,7 @@ public class ModuleRef implements Comparable<ModuleRef> {
     // -------------------------------------------------------------------------------------------------------------
 
     /** Get all visible ModuleReferences in a list of layers. */
-    private static List<ModuleRef> findModuleRefs(final List<Object> layers) {
+    private static List<ModuleRef> findModuleRefs(final Deque<Object> layers) {
         final AdditionOrderedSet<ModuleRef> moduleRefs = new AdditionOrderedSet<>();
         for (final Object /* ModuleLayer */ layer : layers) {
             final Object /* Configuration */ cfg = ReflectionUtils.invokeMethod(layer, "configuration",
@@ -385,7 +386,7 @@ public class ModuleRef implements Comparable<ModuleRef> {
      */
     private static void findLayerOrder(final Object /* ModuleLayer */ layer,
             final Set<Object> /* Set<ModuleLayer> */ visited,
-            final LinkedList<Object> /* LinkedList<ModuleLayer> */ layersOut) {
+            final Deque<Object> /* Deque<ModuleLayer> */ layersOut) {
         if (visited.add(layer)) {
             @SuppressWarnings("unchecked")
             final List<Object> /* List<ModuleLayer> */ parents = (List<Object>) ReflectionUtils.invokeMethod(layer,
@@ -403,7 +404,7 @@ public class ModuleRef implements Comparable<ModuleRef> {
      * Get all visible ModuleReferences in all layers, given an array of stack frame {@code Class<?>} references.
      */
     public static List<ModuleRef> findModuleRefs(final Class<?>[] callStack) {
-        LinkedList<Object> /* List<ModuleLayer> */ layers = null;
+        Deque<Object> /* Deque<ModuleLayer> */ layers = null;
         final HashSet<Object> /* HashSet<ModuleLayer> */ visited = new HashSet<>();
         for (int i = 0; i < callStack.length; i++) {
             final Object /* Module */ module = ReflectionUtils.invokeMethod(callStack[i], "getModule",
@@ -413,7 +414,7 @@ public class ModuleRef implements Comparable<ModuleRef> {
                         /* throwException = */ true);
                 if (layer != null) {
                     if (layers == null) {
-                        layers = new LinkedList<>();
+                        layers = new ArrayDeque<>();
                     }
                     findLayerOrder(layer, visited, layers);
                 }
