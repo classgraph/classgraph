@@ -348,47 +348,10 @@ public class ModuleRef implements Comparable<ModuleRef> {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Recursively find the topological sort order of ancestral layers. */
-    private static void findLayerOrder(final Object /* ModuleLayer */ layer,
-            final Set<Object> /* Set<ModuleLayer> */ visited,
-            final LinkedList<Object> /* LinkedList<ModuleLayer> */ allLayersOut) {
-        if (visited.add(layer)) {
-            @SuppressWarnings("unchecked")
-            final List<Object> /* List<ModuleLayer> */ parents = (List<Object>) ReflectionUtils.invokeMethod(layer,
-                    "parents", /* throwException = */ true);
-            if (parents != null) {
-                for (int i = 0; i < parents.size(); i++) {
-                    findLayerOrder(parents.get(i), visited, allLayersOut);
-                }
-            }
-            allLayersOut.push(layer);
-        }
-    }
-
-    /**
-     * Return the layer and all parent layers of a given class, in topological sort order. The JDK (as of 10.0.0.1)
-     * uses a broken DFS ordering for layer resolution in ModuleLayer#layers() and Configuration#configurations(),
-     * but I reported this bug, so hopefully this will be fixed, and topological ordering will be the correct
-     * long-term layer resolution order.
-     */
-    private static List<Object> /* List<ModuleLayer> */ getAllModuleLayers(final Class<?> cls) {
-        final Object /* Module */ module = ReflectionUtils.invokeMethod(cls, "getModule",
-                /* throwException = */ false);
-        if (module != null) {
-            final Object /* ModuleLayer */ clsLayer = ReflectionUtils.invokeMethod(module, "getLayer",
-                    /* throwException = */ true);
-            if (clsLayer != null) {
-                final LinkedList<Object> /* List<ModuleLayer> */ allLayers = new LinkedList<>();
-                findLayerOrder(clsLayer, new HashSet<>(), allLayers);
-                return allLayers;
-            }
-        }
-        return Collections.<Object> emptyList();
-    }
-
     /** Get all visible ModuleReferences in all layers, given a Class reference. */
-    private static void findModuleRefs(final Class<?> cls, final AdditionOrderedSet<ModuleRef> moduleReferences) {
-        for (final Object /* ModuleLayer */ layer : getAllModuleLayers(cls)) {
+    private static List<ModuleRef> findModuleRefs(final List<Object> layers) {
+        final AdditionOrderedSet<ModuleRef> moduleRefs = new AdditionOrderedSet<>();
+        for (final Object /* ModuleLayer */ layer : layers) {
             final Object /* Configuration */ cfg = ReflectionUtils.invokeMethod(layer, "configuration",
                     /* throwException = */ true);
             if (cfg != null) {
@@ -405,64 +368,71 @@ public class ModuleRef implements Comparable<ModuleRef> {
                     }
                     // Sort modules in layer by name
                     Collections.sort(modulesInLayer);
-                    moduleReferences.addAll(modulesInLayer);
+                    moduleRefs.addAll(modulesInLayer);
                 }
             }
+        }
+        return moduleRefs.toList();
+    }
+
+    /**
+     * Recursively find the topological sort order of ancestral layers. The JDK (as of 10.0.0.1) uses a broken DFS
+     * ordering for layer resolution in ModuleLayer#layers() and Configuration#configurations(), but I reported this
+     * bug, so hopefully this will be fixed, and topological ordering will be the correct long-term layer resolution
+     * order.
+     */
+    private static void findLayerOrder(final Object /* ModuleLayer */ layer,
+            final Set<Object> /* Set<ModuleLayer> */ visited,
+            final LinkedList<Object> /* LinkedList<ModuleLayer> */ allLayersOut) {
+        if (visited.add(layer)) {
+            @SuppressWarnings("unchecked")
+            final List<Object> /* List<ModuleLayer> */ parents = (List<Object>) ReflectionUtils.invokeMethod(layer,
+                    "parents", /* throwException = */ true);
+            if (parents != null) {
+                for (int i = 0; i < parents.size(); i++) {
+                    findLayerOrder(parents.get(i), visited, allLayersOut);
+                }
+            }
+            allLayersOut.push(layer);
         }
     }
 
     /** Get all visible ModuleReferences in all layers, given a Class reference. */
     public static List<ModuleRef> findModuleRefs(final Class<?> cls) {
-        final AdditionOrderedSet<ModuleRef> moduleReferences = new AdditionOrderedSet<>();
-        findModuleRefs(cls, moduleReferences);
-        return moduleReferences.toList();
+        LinkedList<Object> /* List<ModuleLayer> */ layers = null;
+        final Object /* Module */ module = ReflectionUtils.invokeMethod(cls, "getModule",
+                /* throwException = */ false);
+        if (module != null) {
+            final Object /* ModuleLayer */ clsLayer = ReflectionUtils.invokeMethod(module, "getLayer",
+                    /* throwException = */ true);
+            if (clsLayer != null) {
+                layers = new LinkedList<>();
+                findLayerOrder(clsLayer, new HashSet<>(), layers);
+            }
+        }
+        return layers == null ? Collections.<ModuleRef> emptyList() : findModuleRefs(layers);
     }
 
     /**
      * Get all visible ModuleReferences in all layers, given an array of stack frame {@code Class<?>} references.
      */
     public static List<ModuleRef> findModuleRefs(final Class<?>[] callStack) {
-        final AdditionOrderedSet<ModuleRef> moduleReferences = new AdditionOrderedSet<>();
-        // Add modules bottom-up (lower-level layers before higher-level layers), so that if the same class
-        // is defined in two modules, the definition in the lower level will override the definition in
-        // the higher level. (Not 
+        LinkedList<Object> /* List<ModuleLayer> */ layers = null;
+        final HashSet<Object> /* HashSet<ModuleLayer> */ visited = new HashSet<>();
         for (int i = 0; i < callStack.length; i++) {
-            findModuleRefs(callStack[i], moduleReferences);
-        }
-        return moduleReferences.toList();
-    }
-
-    /** Find all system modules, or return null if not running on JDK9+. */
-    public static Set<ModuleRef> findSystemModuleRefs() {
-        Set<ModuleRef> systemModules = null;
-        try {
-            final Class<?> moduleLayerClass = ReflectionUtils.classForNameOrNull("java.lang.ModuleLayer");
-            if (moduleLayerClass != null) {
-                final Object /* ModuleLaer */ bootLayer = ReflectionUtils.invokeStaticMethod(moduleLayerClass,
-                        "boot", /* throwException = */ false);
-                if (bootLayer != null) {
-                    final Class<?> moduleFinderClass = ReflectionUtils
-                            .classForNameOrNull("java.lang.module.ModuleFinder");
-                    if (moduleFinderClass != null) {
-                        final Object systemModuleFinder = ReflectionUtils.invokeStaticMethod(moduleFinderClass,
-                                "ofSystem", /* throwException = */ false);
-                        if (systemModuleFinder != null) {
-                            @SuppressWarnings("unchecked")
-                            final Set<Object> systemModuleRefs = (Set<Object>) ReflectionUtils
-                                    .invokeMethod(systemModuleFinder, "findAll", /* throwException = */ true);
-                            if (systemModuleRefs != null) {
-                                systemModules = new HashSet<>();
-                                for (final Object /* ModuleReference */ ref : systemModuleRefs) {
-                                    systemModules.add(new ModuleRef(ref, bootLayer));
-                                }
-                            }
-                        }
+            final Object /* Module */ module = ReflectionUtils.invokeMethod(callStack[i], "getModule",
+                    /* throwException = */ false);
+            if (module != null) {
+                final Object /* ModuleLayer */ clsLayer = ReflectionUtils.invokeMethod(module, "getLayer",
+                        /* throwException = */ true);
+                if (clsLayer != null) {
+                    if (layers == null) {
+                        layers = new LinkedList<>();
                     }
+                    findLayerOrder(clsLayer, visited, layers);
                 }
             }
-        } catch (final Exception e) {
-            // Not running on JDK9+
         }
-        return systemModules;
+        return layers == null ? Collections.<ModuleRef> emptyList() : findModuleRefs(layers);
     }
 }
