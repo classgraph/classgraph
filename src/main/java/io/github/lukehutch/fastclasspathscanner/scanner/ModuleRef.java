@@ -33,11 +33,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.nio.ByteBuffer;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Deque;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 
@@ -349,10 +348,27 @@ public class ModuleRef implements Comparable<ModuleRef> {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /** Recursively find the topological sort order of ancestral layers. */
+    private static void findLayerOrder(final Object /* ModuleLayer */ layer,
+            final Set<Object> /* Set<ModuleLayer> */ visited,
+            final LinkedList<Object> /* LinkedList<ModuleLayer> */ allLayersOut) {
+        if (visited.add(layer)) {
+            @SuppressWarnings("unchecked")
+            final List<Object> /* List<ModuleLayer> */ parents = (List<Object>) ReflectionUtils.invokeMethod(layer,
+                    "parents", /* throwException = */ true);
+            if (parents != null) {
+                for (int i = 0; i < parents.size(); i++) {
+                    findLayerOrder(parents.get(i), visited, allLayersOut);
+                }
+            }
+            allLayersOut.push(layer);
+        }
+    }
+
     /**
-     * Return the layer and all parent layers of a given class, in DFS order. This same ordering is used in the JDK
-     * to get a list of modules in resolution order. However, it's probably not actually correct, since it is a
-     * preorder traversal, not a postorder traversal (so it doesn't produce a topological ordering).
+     * Return the layer and all parent layers of a given class, in topological sort order. The JDK (as of 10.0.0.1)
+     * uses a broken DFS ordering for layer resolution, but I reported the bug, so hopefully this will be the
+     * correct long-term resolution order.
      */
     private static List<Object> /* List<ModuleLayer> */ getAllModuleLayers(final Class<?> cls) {
         final Object /* Module */ module = ReflectionUtils.invokeMethod(cls, "getModule",
@@ -361,25 +377,8 @@ public class ModuleRef implements Comparable<ModuleRef> {
             final Object /* ModuleLayer */ clsLayer = ReflectionUtils.invokeMethod(module, "getLayer",
                     /* throwException = */ true);
             if (clsLayer != null) {
-                final List<Object> /* List<ModuleLayer> */ allLayers = new ArrayList<>();
-                final Set<Object> /* Set<ModuleLayer> */ visited = new HashSet<>();
-                final Deque<Object> /* Deque<ModuleLayer> */ stack = new ArrayDeque<>();
-                visited.add(clsLayer);
-                stack.push(clsLayer);
-                while (!stack.isEmpty()) {
-                    final Object /* ModuleLayer */ layer = stack.pop();
-                    allLayers.add(layer);
-                    @SuppressWarnings("unchecked")
-                    final List<Object> /* List<ModuleLayer> */ parents = (List<Object>) ReflectionUtils
-                            .invokeMethod(layer, "parents", /* throwException = */ true);
-                    for (int i = parents.size() - 1; i >= 0; i--) {
-                        final Object /* ModuleLayer */ parent = parents.get(i);
-                        if (!visited.contains(parent)) {
-                            visited.add(parent);
-                            stack.push(parent);
-                        }
-                    }
-                }
+                final LinkedList<Object> /* List<ModuleLayer> */ allLayers = new LinkedList<>();
+                findLayerOrder(clsLayer, new HashSet<>(), allLayers);
                 return allLayers;
             }
         }
