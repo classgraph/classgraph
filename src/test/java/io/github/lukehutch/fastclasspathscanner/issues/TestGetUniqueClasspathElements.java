@@ -1,7 +1,6 @@
 package io.github.lukehutch.fastclasspathscanner.issues;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.StrictAssertions.assertThat;
 
 import org.junit.Test;
 
