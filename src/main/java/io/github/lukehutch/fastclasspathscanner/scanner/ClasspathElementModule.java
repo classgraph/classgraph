@@ -255,7 +255,7 @@ class ClasspathElementModule extends ClasspathElement {
                 }
                 // Last modified time is not tracked for system modules, since they have a "jrt:/" URL
                 if (!moduleRef.isSystemModule()) {
-                    File moduleFile = moduleRef.getModuleLocationFile();
+                    final File moduleFile = moduleRef.getModuleLocationFile();
                     if (moduleFile.exists()) {
                         fileToLastModified.put(moduleFile, moduleFile.lastModified());
                     }

@@ -44,6 +44,7 @@ import java.util.Map;
 import java.util.Set;
 
 import io.github.lukehutch.fastclasspathscanner.scanner.AnnotationInfo.AnnotationParamValue;
+import io.github.lukehutch.fastclasspathscanner.scanner.JSONSerializerDeserializer.Id;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult.InfoObject;
 import io.github.lukehutch.fastclasspathscanner.typesignature.ClassTypeSignature;
 import io.github.lukehutch.fastclasspathscanner.typesignature.MethodTypeSignature;
@@ -57,10 +58,11 @@ import io.github.lukehutch.fastclasspathscanner.utils.MultiMapKeyToList;
 /** Holds metadata about a class encountered during a scan. */
 public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     /** Name of the class/interface/annotation. */
+    @Id
     String className;
 
     /** Class modifier flags, e.g. Modifier.PUBLIC */
-    int classModifiers;
+    int modifiers;
 
     /** True if the classfile indicated this is an interface. */
     boolean isInterface;
@@ -129,7 +131,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     transient ScanResult scanResult;
 
     /** The set of classes related to this one. */
-    Map<RelType, Set<ClassInfo>> relatedTypeToClassInfoSet = new HashMap<>();
+    Map<RelType, Set<ClassInfo>> relatedClasses = new HashMap<>();
 
     /**
      * The static constant initializer values of static final fields, if a StaticFinalFieldMatchProcessor matched a
@@ -196,7 +198,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
      * @return The class modifiers.
      */
     public int getClassModifiers() {
-        return classModifiers;
+        return modifiers;
     }
 
     /**
@@ -205,7 +207,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
      * @return The class modifiers, in String format.
      */
     public String getModifiersStr() {
-        return TypeUtils.modifiersToString(classModifiers, /* isMethod = */ false);
+        return TypeUtils.modifiersToString(modifiers, /* isMethod = */ false);
     }
 
     /**
@@ -214,7 +216,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
      * @return true if this ClassInfo corresponds to a public class.
      */
     public boolean isPublic() {
-        return (classModifiers & Modifier.PUBLIC) != 0;
+        return (modifiers & Modifier.PUBLIC) != 0;
     }
 
     /**
@@ -223,7 +225,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
      * @return true if this ClassInfo corresponds to an abstract class.
      */
     public boolean isAbstract() {
-        return (classModifiers & 0x400) != 0;
+        return (modifiers & 0x400) != 0;
     }
 
     /**
@@ -232,7 +234,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
      * @return true if this ClassInfo corresponds to a synthetic class.
      */
     public boolean isSynthetic() {
-        return (classModifiers & 0x1000) != 0;
+        return (modifiers & 0x1000) != 0;
     }
 
     /**
@@ -241,7 +243,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
      * @return true if this ClassInfo corresponds to a final class.
      */
     public boolean isFinal() {
-        return (classModifiers & Modifier.FINAL) != 0;
+        return (modifiers & Modifier.FINAL) != 0;
     }
 
     /**
@@ -268,7 +270,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
      * @return true if this ClassInfo corresponds to an enum.
      */
     public boolean isEnum() {
-        return (classModifiers & 0x4000) != 0;
+        return (modifiers & 0x4000) != 0;
     }
 
     /**
@@ -396,15 +398,15 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     public String toString() {
         final ClassTypeSignature typeSig = getTypeSignature();
         if (typeSig != null) {
-            return typeSig.toString(classModifiers, isAnnotation, isInterface, className);
+            return typeSig.toString(modifiers, isAnnotation, isInterface, className);
         } else {
             final StringBuilder buf = new StringBuilder();
-            TypeUtils.modifiersToString(classModifiers, /* isMethod = */ false, buf);
+            TypeUtils.modifiersToString(modifiers, /* isMethod = */ false, buf);
             if (buf.length() > 0) {
                 buf.append(' ');
             }
             buf.append(isAnnotation ? "@interface "
-                    : isInterface ? "interface " : (classModifiers & 0x4000) != 0 ? "enum " : "class ");
+                    : isInterface ? "interface " : (modifiers & 0x4000) != 0 ? "enum " : "class ");
             buf.append(className);
             return buf.toString();
         }
@@ -489,7 +491,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
             // Spot check to make sure class names were parsed from descriptors
             throw new RuntimeException("Bad class name");
         }
-        this.classModifiers = classModifiers;
+        this.modifiers = classModifiers;
         this.isExternalClass = isExternalClass;
         this.scanSpec = scanSpec;
     }
@@ -594,7 +596,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /** Get the classes directly related to this ClassInfo object the specified way. */
     private Set<ClassInfo> getDirectlyRelatedClasses(final RelType relType) {
-        final Set<ClassInfo> relatedClassClassInfo = relatedTypeToClassInfoSet.get(relType);
+        final Set<ClassInfo> relatedClassClassInfo = relatedClasses.get(relType);
         return relatedClassClassInfo == null ? Collections.<ClassInfo> emptySet() : relatedClassClassInfo;
     }
 
@@ -644,9 +646,9 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
      * Add a class with a given relationship type. Test whether the collection changed as a result of the call.
      */
     private boolean addRelatedClass(final RelType relType, final ClassInfo classInfo) {
-        Set<ClassInfo> classInfoSet = relatedTypeToClassInfoSet.get(relType);
+        Set<ClassInfo> classInfoSet = relatedClasses.get(relType);
         if (classInfoSet == null) {
-            relatedTypeToClassInfoSet.put(relType, classInfoSet = new HashSet<>(4));
+            relatedClasses.put(relType, classInfoSet = new HashSet<>(4));
         }
         return classInfoSet.add(classInfo);
     }
@@ -685,7 +687,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
             this.annotationInfo = new ArrayList<>();
         }
         this.annotationInfo.add(classAnnotationInfo);
-        annotationClassInfo.classModifiers |= 0x2000; // Modifier.ANNOTATION
+        annotationClassInfo.modifiers |= 0x2000; // Modifier.ANNOTATION
         classAnnotationInfo.addDefaultValues(annotationClassInfo.annotationDefaultParamValues);
         this.addRelatedClass(RelType.CLASS_ANNOTATIONS, annotationClassInfo);
         annotationClassInfo.addRelatedClass(RelType.CLASSES_WITH_CLASS_ANNOTATION, this);
@@ -697,7 +699,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
         final ClassInfo annotationClassInfo = getOrCreateClassInfo(methodAnnotationInfo.annotationName,
                 ANNOTATION_CLASS_MODIFIER, scanSpec, classNameToClassInfo);
         annotationClassInfo.isAnnotation = true;
-        annotationClassInfo.classModifiers |= 0x2000; // Modifier.ANNOTATION
+        annotationClassInfo.modifiers |= 0x2000; // Modifier.ANNOTATION
         methodAnnotationInfo.addDefaultValues(annotationClassInfo.annotationDefaultParamValues);
         this.addRelatedClass(RelType.METHOD_ANNOTATIONS, annotationClassInfo);
         annotationClassInfo.addRelatedClass(RelType.CLASSES_WITH_METHOD_ANNOTATION, this);
@@ -709,7 +711,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
         final ClassInfo annotationClassInfo = getOrCreateClassInfo(fieldAnnotationInfo.annotationName,
                 ANNOTATION_CLASS_MODIFIER, scanSpec, classNameToClassInfo);
         annotationClassInfo.isAnnotation = true;
-        annotationClassInfo.classModifiers |= 0x2000; // Modifier.ANNOTATION
+        annotationClassInfo.modifiers |= 0x2000; // Modifier.ANNOTATION
         fieldAnnotationInfo.addDefaultValues(annotationClassInfo.annotationDefaultParamValues);
         this.addRelatedClass(RelType.FIELD_ANNOTATIONS, annotationClassInfo);
         annotationClassInfo.addRelatedClass(RelType.CLASSES_WITH_FIELD_ANNOTATION, this);
@@ -720,7 +722,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
         final ClassInfo interfaceClassInfo = getOrCreateClassInfo(interfaceName,
                 /* classModifiers = */ Modifier.INTERFACE, scanSpec, classNameToClassInfo);
         interfaceClassInfo.isInterface = true;
-        interfaceClassInfo.classModifiers |= Modifier.INTERFACE;
+        interfaceClassInfo.modifiers |= Modifier.INTERFACE;
         this.addRelatedClass(RelType.IMPLEMENTED_INTERFACES, interfaceClassInfo);
         interfaceClassInfo.addRelatedClass(RelType.CLASSES_IMPLEMENTING, this);
     }
@@ -901,7 +903,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
         classInfo.isExternalClass = false;
 
         // Merge modifiers
-        classInfo.classModifiers |= classModifiers;
+        classInfo.modifiers |= classModifiers;
         classInfo.isInterface |= isInterface;
         classInfo.isAnnotation |= isAnnotation;
 

@@ -28,9 +28,12 @@
  */
 package io.github.lukehutch.fastclasspathscanner.scanner;
 
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -45,103 +48,211 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class JSONSerializerDeserializer {
 
+    /**
+     * Annotate a class field with this annotation to use that field's value instead of the automatically-generated
+     * id for object references in JSON output. The field value must be a unique identifier across the whole object
+     * graph.
+     */
+    @Retention(RetentionPolicy.RUNTIME)
+    public static @interface Id {
+    }
+
     private static final String ID_TAG = "_ID";
+    private static final String ID_PREFIX = "[ID#";
+    private static final String ID_SUFFIX = "]";
 
-    /** A class for holding a circular reference between JSON objects in a JSON object tree. */
+    /**
+     * A class that serves as a placeholder for circular references between objects. Points to the original object,
+     * not the converted JSON object, due to late binding.
+     */
     private static class JSONReference {
-        JSONObject referencedObject;
+        Object referencedObject;
 
-        public JSONReference(final JSONObject referencedObject) {
+        public JSONReference(final Object referencedObject) {
             this.referencedObject = referencedObject;
-        }
-
-        @Override
-        public String toString() {
-            return referencedObject.objectId.toString();
         }
     }
 
-    /** Serialize JSON object, array, or member object. */
-    private static void toJSONString(final Object obj, final int depth, final int indentWidth,
-            final StringBuilder buf) {
-        if (obj == null) {
+    /** Create a unique id for each referenced JSON object. */
+    private static void assignObjectIds(final Object jsonVal,
+            final Map<ReferenceEqualityKey, JSONObject> objToJSONVal,
+            final Map<ReferenceEqualityKey, Field> objToIdKeyField,
+            final Map<ReferenceEqualityKey, Object> refdJsonValToId,
+            final Map<ReferenceEqualityKey, Object> jsonReferenceToId, final AtomicInteger objId) {
+        if (jsonVal == null) {
+            return;
+        } else if (jsonVal instanceof JSONObject) {
+            for (final Entry<String, Object> item : ((JSONObject) jsonVal).items) {
+                assignObjectIds(item.getValue(), objToJSONVal, objToIdKeyField, refdJsonValToId, jsonReferenceToId,
+                        objId);
+            }
+        } else if (jsonVal instanceof JSONArray) {
+            for (final Object item : ((JSONArray) jsonVal).items) {
+                assignObjectIds(item, objToJSONVal, objToIdKeyField, refdJsonValToId, jsonReferenceToId, objId);
+            }
+        } else if (jsonVal instanceof JSONReference) {
+            // Get the referenced (non-JSON) object
+            final Object referencedObj = ((JSONReference) jsonVal).referencedObject;
+            // Look up the JSON object corresponding to the referenced object
+            final ReferenceEqualityKey refdObjKey = new ReferenceEqualityKey(referencedObj);
+            final JSONObject refdJsonVal = objToJSONVal.get(refdObjKey);
+            if (refdJsonVal == null) {
+                // Should not happen
+                throw new RuntimeException("Internal inconsistency");
+            }
+            // See if the JSON object has an @Id field
+            Field annotatedField = null;
+            if (!objToIdKeyField.containsKey(refdObjKey)) {
+                for (final Field field : referencedObj.getClass().getDeclaredFields()) {
+                    if (field.isAnnotationPresent(Id.class)) {
+                        final int modifiers = field.getModifiers();
+                        if (Modifier.isTransient(modifiers) || Modifier.isFinal(modifiers)
+                                || ((modifiers & 0x1000 /* synthetic */) != 0)) {
+                            throw new IllegalArgumentException("@Id-annotated field in class "
+                                    + referencedObj.getClass() + " cannot be transient, final or synthetic");
+                        }
+                        annotatedField = field;
+                        break;
+                    }
+                }
+                // Put the annotated field back in the map, or put null if no @Id field was found
+                // (to prevent this work being done again)
+                objToIdKeyField.put(refdObjKey, annotatedField);
+            } else {
+                annotatedField = objToIdKeyField.get(refdObjKey);
+            }
+            Object idObj = null;
+            if (annotatedField != null) {
+                // Get id value from field annotated with @Id
+                try {
+                    idObj = annotatedField.get(referencedObj);
+                } catch (IllegalArgumentException | IllegalAccessException e) {
+                    // Should not happen
+                    throw new RuntimeException(e);
+                }
+            }
+            if (idObj == null) {
+                // No @Id field, or field value is null -- check if ref'd JSON Object already has an id
+                final ReferenceEqualityKey refdJsonValKey = new ReferenceEqualityKey(refdJsonVal);
+                idObj = refdJsonValToId.get(refdJsonValKey);
+                if (idObj == null) {
+                    // Ref'd JSON object doesn't have an id yet -- generate unique integer id
+                    idObj = ID_PREFIX + objId.getAndIncrement() + ID_SUFFIX;
+                    // Label the referenced node with its new unique id
+                    refdJsonValToId.put(refdJsonValKey, idObj);
+                }
+            }
+            // Link both the referenced object and its JSON representation to the id
+            jsonReferenceToId.put(new ReferenceEqualityKey(jsonVal), idObj);
+        }
+    }
+
+    /** Serialize a JSON object, array, or value. */
+    private static void jsonValToJSONString(final Object jsonVal,
+            final Map<ReferenceEqualityKey, Object> refdJsonValToId,
+            final Map<ReferenceEqualityKey, Object> jsonReferenceToId, final boolean includeNullValuedFields,
+            final int depth, final int indentWidth, final StringBuilder buf) {
+        if (jsonVal == null) {
             buf.append("null");
-        } else if (obj instanceof JSONObject) {
-            ((JSONObject) obj).toString(depth + 1, indentWidth, buf);
-        } else if (obj instanceof JSONArray) {
-            ((JSONArray) obj).toString(depth + 1, indentWidth, buf);
-        } else if (obj instanceof String || obj instanceof JSONReference || obj.getClass().isEnum()) {
+        } else if (jsonVal instanceof JSONObject) {
+            ((JSONObject) jsonVal).toString(refdJsonValToId, jsonReferenceToId, includeNullValuedFields, depth,
+                    indentWidth, buf);
+        } else if (jsonVal instanceof JSONArray) {
+            ((JSONArray) jsonVal).toString(refdJsonValToId, jsonReferenceToId, includeNullValuedFields, depth,
+                    indentWidth, buf);
+        } else if (jsonVal instanceof JSONReference) {
+            final Object referencedObjectId = jsonReferenceToId.get(new ReferenceEqualityKey(jsonVal));
+            jsonValToJSONString(referencedObjectId, refdJsonValToId, jsonReferenceToId, includeNullValuedFields,
+                    depth, indentWidth, buf);
+        } else if (jsonVal instanceof String || jsonVal instanceof JSONReference || jsonVal.getClass().isEnum()) {
             buf.append('"');
-            escapeJSONString(obj.toString(), buf);
+            escapeJSONString(jsonVal.toString(), buf);
             buf.append('"');
-        } else if (obj instanceof Character) {
+        } else if (jsonVal instanceof Character) {
             buf.append('\'');
-            escapeJSONString(obj.toString(), buf);
+            escapeJSONString(jsonVal.toString(), buf);
             buf.append('\'');
         } else {
             // Integer, Long, Short, Float, Double, Boolean, Byte (doesn't need escaping)
-            buf.append(obj.toString());
+            buf.append(jsonVal.toString());
+        }
+    }
+
+    private static void indent(final int depth, final int indentWidth, final StringBuilder buf) {
+        for (int i = 0, n = depth * indentWidth; i < n; i++) {
+            buf.append(' ');
         }
     }
 
     private static class JSONObject {
-        /**
-         * Object id for showing references. Should be null for JSONObjects corresponding to HashMaps, since
-         * collections should not display an object id (they should only be referenced by one object in the object
-         * tree, to prevent cycles).
-         */
-        Object objectId;
-
         /** Key/value mappings, in display order. */
         List<Entry<String, Object>> items;
 
-        public JSONObject(final Object objectId, final List<Entry<String, Object>> items) {
-            this.objectId = objectId;
+        public JSONObject(final List<Entry<String, Object>> items) {
             this.items = items;
         }
 
-        /** Serialize to string. */
-        void toString(final int depth, final int indentWidth, final StringBuilder buf) {
+        /** Serialize this JSONObject to a string. */
+        void toString(final Map<ReferenceEqualityKey, Object> refdJsonValToId,
+                final Map<ReferenceEqualityKey, Object> jsonReferenceToId, final boolean includeNullValuedFields,
+                final int depth, final int indentWidth, final StringBuilder buf) {
             final boolean prettyPrint = indentWidth > 0;
-            buf.append(prettyPrint ? "{\n" : "{");
-
             final int n = items.size();
-            if (objectId != null) {
-                if (prettyPrint) {
-                    indent(depth + 1, indentWidth, buf);
-                }
-                buf.append(prettyPrint ? "\"" + ID_TAG + "\": " : "\"" + ID_TAG + "\":");
-                if (objectId instanceof String) {
-                    buf.append('"');
-                    escapeJSONString(objectId.toString(), buf);
-                    buf.append('"');
-                } else {
-                    escapeJSONString(objectId.toString(), buf);
-                }
-                if (n > 0) {
-                    buf.append(",");
-                }
-                if (prettyPrint) {
-                    buf.append('\n');
+            int numDisplayedFields;
+            if (includeNullValuedFields) {
+                numDisplayedFields = n;
+            } else {
+                numDisplayedFields = 0;
+                for (int i = 0; i < n; i++) {
+                    if (items.get(i).getValue() != null) {
+                        numDisplayedFields++;
+                    }
                 }
             }
-
-            for (int i = 0; i < n; i++) {
-                final Entry<String, Object> item = items.get(i);
-                final String key = item.getKey();
-                final Object val = item.getValue();
-                if (prettyPrint) {
-                    indent(depth + 1, indentWidth, buf);
+            final ReferenceEqualityKey thisKey = new ReferenceEqualityKey(this);
+            // id will be non-null if this object does not have an @Id field, but was referenced by another object
+            // (need to include ID_TAG)
+            final Object id = refdJsonValToId.get(thisKey);
+            if (id == null && numDisplayedFields == 0) {
+                buf.append("{}");
+            } else {
+                buf.append(prettyPrint ? "{\n" : "{");
+                if (id != null) {
+                    if (prettyPrint) {
+                        indent(depth + 1, indentWidth, buf);
+                    }
+                    buf.append('"');
+                    buf.append(ID_TAG);
+                    buf.append(prettyPrint ? "\": " : "\":");
+                    jsonValToJSONString(id, refdJsonValToId, jsonReferenceToId, includeNullValuedFields, depth + 1,
+                            indentWidth, buf);
+                    if (numDisplayedFields > 0) {
+                        buf.append(',');
+                    }
+                    if (prettyPrint) {
+                        buf.append('\n');
+                    }
                 }
-                buf.append('"');
-                escapeJSONString(key, buf);
-                buf.append(prettyPrint ? "\": " : "\":");
-                toJSONString(val, depth, indentWidth, buf);
-                if (i < n - 1) {
-                    buf.append(',');
-                }
-                if (prettyPrint) {
-                    buf.append('\n');
+                for (int i = 0, j = 0; i < n; i++) {
+                    final Entry<String, Object> item = items.get(i);
+                    final Object val = item.getValue();
+                    if (val != null || includeNullValuedFields) {
+                        final String key = item.getKey();
+                        if (prettyPrint) {
+                            indent(depth + 1, indentWidth, buf);
+                        }
+                        buf.append('"');
+                        escapeJSONString(key, buf);
+                        buf.append(prettyPrint ? "\": " : "\":");
+                        jsonValToJSONString(val, refdJsonValToId, jsonReferenceToId, includeNullValuedFields,
+                                depth + 1, indentWidth, buf);
+                        if (++j < numDisplayedFields) {
+                            buf.append(',');
+                        }
+                        if (prettyPrint) {
+                            buf.append('\n');
+                        }
+                    }
                 }
             }
             if (prettyPrint) {
@@ -159,10 +270,11 @@ public class JSONSerializerDeserializer {
             this.items = items;
         }
 
-        /** Serialize to string. */
-        void toString(final int depth, final int indentWidth, final StringBuilder buf) {
+        /** Serialize this JSONArray to a string. */
+        void toString(final Map<ReferenceEqualityKey, Object> refdJsonValToId,
+                final Map<ReferenceEqualityKey, Object> jsonReferenceToId, final boolean includeNullValuedFields,
+                final int depth, final int indentWidth, final StringBuilder buf) {
             final boolean prettyPrint = indentWidth > 0;
-
             final int n = items.size();
             if (n == 0) {
                 buf.append("[]");
@@ -176,7 +288,8 @@ public class JSONSerializerDeserializer {
                     if (prettyPrint) {
                         indent(depth + 1, indentWidth, buf);
                     }
-                    toJSONString(item, depth, indentWidth, buf);
+                    jsonValToJSONString(item, refdJsonValToId, jsonReferenceToId, includeNullValuedFields,
+                            depth + 1, indentWidth, buf);
                     if (i < n - 1) {
                         buf.append(',');
                     }
@@ -230,6 +343,7 @@ public class JSONSerializerDeserializer {
         }
         if (!needsEscaping) {
             buf.append(unsafeStr);
+            return;
         }
         // Slow path
         for (int i = 0, n = unsafeStr.length(); i < n; i++) {
@@ -243,19 +357,53 @@ public class JSONSerializerDeserializer {
         }
     }
 
+    /** Escape a string to be surrounded in double quotes in JSON. */
+    private static String escapeJSONString(final String unsafeStr) {
+        // Fast path
+        boolean needsEscaping = false;
+        for (int i = 0, n = unsafeStr.length(); i < n; i++) {
+            final char c = unsafeStr.charAt(i);
+            if (JSON_CHAR_REPLACEMENTS[c] != null) {
+                needsEscaping = true;
+                break;
+            }
+        }
+        if (!needsEscaping) {
+            return unsafeStr;
+        }
+        // Slow path
+        final StringBuilder buf = new StringBuilder(unsafeStr.length() * 2);
+        for (int i = 0, n = unsafeStr.length(); i < n; i++) {
+            final char c = unsafeStr.charAt(i);
+            final String replacement = JSON_CHAR_REPLACEMENTS[c];
+            if (replacement == null) {
+                buf.append(c);
+            } else {
+                buf.append(replacement);
+            }
+        }
+        return buf.toString();
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /** Return true for objects that can be converted directly to and from string representation. */
-    private static boolean isBasicType(final Object obj) {
+    private static boolean isBasicValueType(final Object obj) {
         return obj == null || obj instanceof Integer || obj instanceof Boolean || obj instanceof Long
                 || obj instanceof Float || obj instanceof Double || obj instanceof Short || obj instanceof Byte
                 || obj instanceof Character || obj instanceof String || obj.getClass().isEnum();
     }
 
-    /** Return true for objects that are collections, arrays or Iterables. */
-    private static boolean isCollectionOrArrayOrIterable(final Object obj) {
+    /** Return true for objects that are collections or arrays. */
+    private static boolean isCollectionOrArray(final Object obj) {
         final Class<? extends Object> cls = obj.getClass();
-        return Collection.class.isAssignableFrom(cls) || cls.isArray() || Iterable.class.isAssignableFrom(cls);
+        return Collection.class.isAssignableFrom(cls) || cls.isArray();
+    }
+
+    /** Return true for objects that are collections, arrays, or Maps. */
+    private static boolean isCollectionOrArrayOrMap(final Object obj) {
+        final Class<? extends Object> cls = obj.getClass();
+        return Collection.class.isAssignableFrom(cls) || cls.isArray() || Map.class.isAssignableFrom(cls);
     }
 
     /**
@@ -286,424 +434,249 @@ public class JSONSerializerDeserializer {
         }
     }
 
-    /**
-     * For a list/array/Iterable item, map value, or field value, get an object to render into JSON, whether it be
-     * the value itself, or an object id reference. If the object has not been seen before, and is not a basic type
-     * (String, Integer, enum value, null, etc.), then assign it a new object id, with the exception that empty
-     * collections, arrays and Iterables are not assigned a new id, and will never be displayed as an id reference
-     * (so that e.g. Collections.emptyList<>() does not result in a singleton immutable object that is displayed as
-     * a reference wherever it is used).
-     */
-    private static Object getSerializableObjectAndMaybeAssignId(final Object item,
-            final Map<ReferenceEqualityKey, Integer> objToIdOut, final Set<Integer> refdObjIdsOut,
-            final AtomicInteger objIdOut) {
-        Object renderableObject;
-        if (isBasicType(item) || isCollectionOrArrayOrIterable(item)) {
-            // For items of basic type, or collections/arrays/Iterables, generate JSON directly.
-            // This will mean that collections that are referenced in multiple places in the
-            // object tree will be duplicated in the JSON, and will be duplicated when the
-            // JSON is deserialized.
-            renderableObject = item;
-        } else {
-            Integer itemObjId = objToIdOut.get(new ReferenceEqualityKey(item));
-            if (itemObjId == null) {
-                // For objects that have not been seen before, assign new object id, and render the item
-                objToIdOut.put(new ReferenceEqualityKey(item), itemObjId = objIdOut.getAndIncrement());
-                renderableObject = item;
-            } else {
-                // For objects that have been seen before and have already been assigned an object id,
-                // use an id reference instead
-                renderableObject = "_ID:" + itemObjId;
-                refdObjIdsOut.add(itemObjId);
+    /** Take an array of object values, and recursively convert them (in place) into JSON values. */
+    private static void convertVals(final Object[] convertedVals, final Set<ReferenceEqualityKey> visitedOnPath,
+            final Set<ReferenceEqualityKey> standardObjectVisited,
+            final Map<Class<?>, List<Field>> classToSerializableFields,
+            final Map<ReferenceEqualityKey, JSONObject> objToJSONVal) {
+        // Pass 1: find standard objects (objects that are not of basic value type or collections/arrays/maps)
+        // that have not yet been visited, and mark them as visited. Place a JSONReference placeholder in
+        // convertedVals[i] to signify this. This first pass is non-recursive, so that objects are visited
+        // as high up the tree as possible, since it is only the first visit of an object that shows in the
+        // final JSON doc, and the rest are turned into references.
+        final ReferenceEqualityKey[] valKeys = new ReferenceEqualityKey[convertedVals.length];
+        final boolean[] needToConvert = new boolean[convertedVals.length];
+        for (int i = 0; i < convertedVals.length; i++) {
+            final Object val = convertedVals[i];
+            // By default (for basic value types), don't convert vals
+            needToConvert[i] = !isBasicValueType(val);
+            if (needToConvert[i] && !isCollectionOrArrayOrMap(val)) {
+                // If this object is a standard object, check if it has already been visited
+                // elsewhere in the tree. If so, use a JSONReference instead, and mark the object
+                // as visited.
+                final ReferenceEqualityKey valKey = new ReferenceEqualityKey(val);
+                valKeys[i] = valKey;
+                final boolean alreadyVisited = !standardObjectVisited.add(valKey);
+                if (alreadyVisited) {
+                    convertedVals[i] = new JSONReference(val);
+                    needToConvert[i] = false;
+                }
             }
         }
-        return renderableObject;
-    }
-
-    private static void indent(final int depth, final int indentWidth, final StringBuilder buf) {
-        for (int i = 0, n = depth * indentWidth; i < n; i++) {
-            buf.append(' ');
+        // Pass 2: convert standard objects, maps, collections and arrays to JSON objects.
+        for (int i = 0; i < convertedVals.length; i++) {
+            if (needToConvert[i]) {
+                // Recursively convert standard objects (if it is the first time they have been visited)
+                // and maps to JSON objects, and convert collections and arrays to JSON arrays.
+                final Object val = convertedVals[i];
+                convertedVals[i] = toJSONGraph(val, visitedOnPath, standardObjectVisited, classToSerializableFields,
+                        objToJSONVal);
+                if (!isCollectionOrArrayOrMap(val)) {
+                    // If this object is a standard object, then it has not been visited before, 
+                    // so save the mapping between original object and converted object
+                    objToJSONVal.put(valKeys[i], (JSONObject) convertedVals[i]);
+                }
+            }
         }
     }
 
     /**
-     * Recursively render JSON, skipping fields marked with Private or PrivateGet annotations, and id fields of
-     * DBModel objects. This produces a JSON rendering that may be served over a Web connection without exposing
-     * internal server state. It's lighter-weight and faster than other introspection-based JSON renderers.
+     * Turn an object graph into a graph of JSON objects, arrays, and values.
      */
     @SuppressWarnings({ "unchecked", "rawtypes" })
-    private static void toJSONRec(final Object obj, final Set<ReferenceEqualityKey> visited,
-            final Map<Class<?>, List<Field>> classToSerializableFields, final boolean includeNullFields,
-            final Map<ReferenceEqualityKey, Integer> objToId, final Set<Integer> definedObjIds,
-            final Set<Integer> refdObjIds, final AtomicInteger objId, final int depth, final int indentWidth,
-            final StringBuilder buf) {
-        if (obj == null) {
-            buf.append("null");
-            return;
+    private static Object toJSONGraph(final Object obj, final Set<ReferenceEqualityKey> visitedOnPath,
+            final Set<ReferenceEqualityKey> standardObjectVisited,
+            final Map<Class<?>, List<Field>> classToSerializableFields,
+            final Map<ReferenceEqualityKey, JSONObject> objToJSONVal) {
+
+        // For null and basic value types, just return value
+        if (obj == null || obj instanceof String || obj instanceof Integer || obj instanceof Boolean
+                || obj instanceof Long || obj instanceof Float || obj instanceof Double || obj instanceof Short
+                || obj instanceof Byte || obj instanceof Character || obj.getClass().isEnum()) {
+            return obj;
         }
-        final boolean prettyPrint = indentWidth > 0;
 
-        final ReferenceEqualityKey objKeyWrapper = new ReferenceEqualityKey(obj);
-        final boolean previouslyVisited = !visited.add(objKeyWrapper);
-
-        if (previouslyVisited) {
+        // Check for cycles
+        final ReferenceEqualityKey objKey = new ReferenceEqualityKey(obj);
+        if (!visitedOnPath.add(objKey)) {
             // Reached cycle in graph
-            if (isCollectionOrArrayOrIterable(obj)) {
+            if (isCollectionOrArray(obj)) {
                 // If we reached a collection that has already been visited, then there is a cycle
-                // terminating in this collection. We don't support collections involving cycles,
-                // since collections are not given object ids.
+                // terminating at this collection. We don't support collection cycles, since collections
+                // do not have object ids.
                 throw new IllegalArgumentException(
                         "Cycles involving collections cannot be serialized, since collections are not "
-                                + "assigned object ids in JSON");
+                                + "assigned object ids");
             } else {
-                // Object is its own ancestor -- output object id instead of object
-                final Integer prevObjId = objToId.get(obj);
-                if (prevObjId == null) {
-                    // Should not happen
-                    throw new IllegalArgumentException("prevObjId == null");
-                }
-                buf.append("\"_ID:" + prevObjId + "\"");
-                return;
+                // Object is its own ancestor -- output object reference instead of object to break cycle
+                return new JSONReference(obj);
             }
         }
 
-        try {
-            final Class<? extends Object> cls = obj.getClass();
-            if (cls == String.class) {
-                buf.append('"');
-                escapeJSONString((String) obj, buf);
-                buf.append('"');
+        Object jsonVal;
+        final Class<? extends Object> cls = obj.getClass();
 
-            } else if (cls == Integer.class || cls == Boolean.class || cls == Long.class || cls == Float.class
-                    || cls == Double.class || cls == Short.class) {
-                buf.append(obj.toString());
+        if (Map.class.isAssignableFrom(cls)) {
+            final Map<Object, Object> map = (Map<Object, Object>) obj;
 
-            } else if (cls == Byte.class) {
-                buf.append(Integer.toString(((Byte) obj).intValue()));
-
-            } else if (cls == Character.class) {
-                buf.append('"');
-                escapeJSONString(((Character) obj).toString(), buf);
-                buf.append('"');
-
-            } else if (Map.class.isAssignableFrom(cls)) {
-                final Map<Object, Object> map = (Map<Object, Object>) obj;
-                if (map.size() == 0) {
-                    buf.append("{}");
-                } else {
-                    buf.append(prettyPrint ? "{\n" : "{");
-                    final ArrayList<?> keys = new ArrayList<>(map.keySet());
-                    final int n = keys.size();
-                    final String[] serializableKeys = new String[n];
-                    boolean keysSortedByComparableType = false;
-                    Object firstNonNullKey = null;
-                    for (int i = 0; i < n && firstNonNullKey == null; i++) {
-                        firstNonNullKey = keys.get(i);
-                    }
-                    if (firstNonNullKey != null) {
-                        if (Comparable.class.isAssignableFrom(firstNonNullKey.getClass())) {
-                            Collections.sort((ArrayList<Comparable>) keys);
-                            keysSortedByComparableType = true;
-                        }
-                    }
-
-                    // Serialize keys into string form
-                    for (int i = 0; i < n; i++) {
-                        final Object key = keys.get(i);
-                        if (!isBasicType(key)) {
-                            throw new IllegalArgumentException("Map key of type " + key.getClass().getName()
-                                    + " is not a basic type (String, Integer, etc.), so can't be easily "
-                                    + "rendered as a JSON associative array key");
-                        }
-                        final String keyStr = key.toString();
-                        final StringBuilder keyBuf = new StringBuilder();
-                        escapeJSONString(keyStr, keyBuf);
-                        serializableKeys[i] = keyBuf.toString();
-                    }
-                    if (!keysSortedByComparableType) {
-                        // Sort strings lexicographically, if non-string ordering is not Comparable
-                        Arrays.sort(serializableKeys);
-                    }
-
-                    // Replace vals vith object id references if vals already have object ids
-                    // (do this in a separate pass, before recursing on each value, so that all
-                    // values are assigned values breadth-first)
-                    final Object[] serializableVals = new Object[n];
-                    for (int i = 0; i < n; i++) {
-                        final Object val = map.get(keys.get(i));
-                        serializableVals[i] = getSerializableObjectAndMaybeAssignId(val, objToId, refdObjIds,
-                                objId);
-                    }
-
-                    // Render map values
-                    for (int i = 0; i < n; i++) {
-                        final String keyStr = serializableKeys[i];
-                        final Object val = serializableVals[i];
-
-                        if (prettyPrint) {
-                            indent(depth + 1, indentWidth, buf);
-                        }
-
-                        buf.append('"');
-                        buf.append(keyStr);
-                        buf.append(prettyPrint ? "\": " : "\":");
-
-                        // Recursively render value
-                        toJSONRec(val, visited, classToSerializableFields, includeNullFields, objToId,
-                                definedObjIds, refdObjIds, objId, depth + 1, indentWidth, buf);
-                        if (i < n - 1) {
-                            buf.append(prettyPrint ? ",\n" : ",");
-                        } else if (prettyPrint) {
-                            buf.append('\n');
-                        }
-                    }
-                    if (prettyPrint) {
-                        indent(depth, indentWidth, buf);
-                    }
-                    buf.append('}');
+            // Get map keys, and sort them by value if values are Comparable.
+            // Assumes all keys have the same type (or at least that if one key is Comparable, they all are).
+            final ArrayList<?> keys = new ArrayList<>(map.keySet());
+            final int n = keys.size();
+            boolean keysComparable = false;
+            Object firstNonNullKey = null;
+            for (int i = 0; i < n && firstNonNullKey == null; i++) {
+                firstNonNullKey = keys.get(i);
+            }
+            if (firstNonNullKey != null) {
+                if (Comparable.class.isAssignableFrom(firstNonNullKey.getClass())) {
+                    Collections.sort((ArrayList<Comparable>) keys);
+                    keysComparable = true;
                 }
+            }
 
-            } else if (Iterable.class.isAssignableFrom(cls)) {
-                // Render an Iterable (e.g. a Set)
-                final Iterable<?> iterable = (Iterable<?>) obj;
-
-                // Assign all elements in the Iterable new ids
-                // (do this in a separate pass, before recursing on each item, so that all
-                // items are assigned values breadth-first)
-                final List<Object> serializableItems = new ArrayList<>();
-                for (final Object item : iterable) {
-                    final Object serializableItem = getSerializableObjectAndMaybeAssignId(item, objToId, refdObjIds,
-                            objId);
-                    serializableItems.add(serializableItem);
+            // Serialize keys into string form
+            final String[] convertedKeys = new String[n];
+            for (int i = 0; i < n; i++) {
+                final Object key = keys.get(i);
+                if (!isBasicValueType(key)) {
+                    throw new IllegalArgumentException("Map key of type " + key.getClass().getName()
+                            + " is not a basic type (String, Integer, etc.), so can't be easily "
+                            + "serialized as a JSON associative array key");
                 }
-                final int n = serializableItems.size();
+                convertedKeys[i] = escapeJSONString(key.toString());
+            }
 
-                if (n == 0) {
-                    buf.append("[]");
-                } else {
-                    buf.append('[');
-                    if (prettyPrint) {
-                        buf.append('\n');
-                    }
-                    for (int i = 0; i < n; i++) {
-                        if (prettyPrint) {
-                            indent(depth + 1, indentWidth, buf);
-                        }
-                        // Recursively render value
-                        final Object item = serializableItems.get(i);
-                        toJSONRec(item, visited, classToSerializableFields, includeNullFields, objToId,
-                                definedObjIds, refdObjIds, objId, depth + 1, indentWidth, buf);
-                        if (i < n - 1) {
-                            buf.append(",");
-                        }
-                        if (prettyPrint) {
-                            buf.append('\n');
-                        }
-                    }
-                    if (prettyPrint) {
-                        indent(depth, indentWidth, buf);
-                    }
-                    buf.append(']');
-                }
+            // Sort value strings lexicographically if values are not Comparable
+            if (!keysComparable) {
+                Arrays.sort(convertedKeys);
+            }
 
-            } else if (cls.isArray() || List.class.isAssignableFrom(cls)) {
-                // Render an array or list
-                final boolean isList = List.class.isAssignableFrom(cls);
-                final List<?> list = isList ? (List<?>) obj : null;
-                final int n = isList ? list.size() : Array.getLength(obj);
-                if (n == 0) {
-                    buf.append("[]");
-                } else {
-                    // Replace list items with object id references if items already have object ids 
-                    // (do this in a separate pass, before recursing on each item, so that all
-                    // items are assigned values breadth-first)
-                    final Object[] serializableItems = new Object[n];
-                    for (int i = 0; i < n; i++) {
-                        final Object item = isList ? list.get(i) : Array.get(obj, i);
-                        final Object serializableItem = getSerializableObjectAndMaybeAssignId(item, objToId,
-                                refdObjIds, objId);
-                        serializableItems[i] = serializableItem;
-                    }
-                    buf.append('[');
-                    if (prettyPrint) {
-                        buf.append('\n');
-                    }
-                    for (int i = 0; i < n; i++) {
-                        if (prettyPrint) {
-                            indent(depth + 1, indentWidth, buf);
-                        }
-                        // Recursively render item
-                        final Object item = serializableItems[i];
-                        toJSONRec(item, visited, classToSerializableFields, includeNullFields, objToId,
-                                definedObjIds, refdObjIds, objId, depth + 2, indentWidth, buf);
-                        if (i < n - 1) {
-                            buf.append(",");
-                        }
-                        if (prettyPrint) {
-                            buf.append('\n');
-                        }
-                    }
-                    if (prettyPrint) {
-                        indent(depth, indentWidth, buf);
-                    }
-                    buf.append(']');
-                }
+            // Convert map values to JSON values
+            final Object[] convertedVals = new Object[n];
+            for (int i = 0; i < n; i++) {
+                convertedVals[i] = map.get(keys.get(i));
+            }
+            convertVals(convertedVals, visitedOnPath, standardObjectVisited, classToSerializableFields,
+                    objToJSONVal);
 
-            } else {
-                // Some other class -- render fields as a JSON associative array using introspection.
+            // Create new JSON object representing the map
+            final List<Entry<String, Object>> convertedKeyValPairs = new ArrayList<>(n);
+            for (int i = 0; i < n; i++) {
+                convertedKeyValPairs.add(new SimpleEntry<>(convertedKeys[i], convertedVals[i]));
+            }
+            jsonVal = new JSONObject(convertedKeyValPairs);
 
-                // Look up class fields
+        } else if (cls.isArray() || List.class.isAssignableFrom(cls)) {
+            // Serialize an array or list
+            final boolean isList = List.class.isAssignableFrom(cls);
+            final List<?> list = isList ? (List<?>) obj : null;
+            final int n = isList ? list.size() : Array.getLength(obj);
+
+            // Convert list items to JSON values
+            final Object[] convertedVals = new Object[n];
+            for (int i = 0; i < n; i++) {
+                convertedVals[i] = isList ? list.get(i) : Array.get(obj, i);
+            }
+            convertVals(convertedVals, visitedOnPath, standardObjectVisited, classToSerializableFields,
+                    objToJSONVal);
+
+            // Create new JSON array representing the list
+            jsonVal = new JSONArray(Arrays.asList(convertedVals));
+
+        } else if (Collection.class.isAssignableFrom(cls)) {
+            final Collection<?> collection = (Collection<?>) obj;
+
+            // Convert items to JSON values
+            final List<Object> convertedValsList = new ArrayList<>();
+            for (final Object item : collection) {
+                convertedValsList.add(item);
+            }
+            final Object[] convertedVals = convertedValsList.toArray();
+            convertVals(convertedVals, visitedOnPath, standardObjectVisited, classToSerializableFields,
+                    objToJSONVal);
+
+            // Create new JSON array representing the collection
+            jsonVal = new JSONArray(Arrays.asList(convertedVals));
+
+        } else {
+            // A standard object -- serialize fields as a JSON associative array.
+            try {
+                // Cache class fields to include in serialization
                 List<Field> serializableFields = classToSerializableFields.get(cls);
                 if (serializableFields == null) {
-                    // Cache fieldsToInclude
                     classToSerializableFields.put(cls, serializableFields = new ArrayList<>());
                     final Field[] fields = cls.getDeclaredFields();
                     for (int i = 0; i < fields.length; i++) {
                         final Field field = fields[i];
-                        // Don't serialize transient or final fields
+                        // Don't serialize transient, final or synthetic fields
                         final int modifiers = field.getModifiers();
                         if (!Modifier.isTransient(modifiers) && !Modifier.isFinal(modifiers)
                                 && ((modifiers & 0x1000 /* synthetic */) == 0)) {
                             field.setAccessible(true);
-                            final Object fieldVal = fields[i].get(obj);
-                            if (fieldVal != null || includeNullFields) {
-                                serializableFields.add(field);
-                            }
+                            serializableFields.add(field);
                         }
                     }
                 }
                 final int n = serializableFields.size();
 
-                // Assign all elements in field values new ids
-                // (do this in a separate pass, before recursing on each field value, so that all
-                // field values are assigned values breadth-first)
-                final Object[] serializableFieldVals = new Object[n];
+                // Convert field values to JSON values
+                final String[] fieldNames = new String[n];
+                final Object[] convertedVals = new Object[n];
                 for (int i = 0; i < n; i++) {
                     final Field field = serializableFields.get(i);
-                    final Object fieldVal = field.get(obj);
-                    serializableFieldVals[i] = getSerializableObjectAndMaybeAssignId(fieldVal, objToId, refdObjIds,
-                            objId);
+                    fieldNames[i] = field.getName();
+                    convertedVals[i] = field.get(obj);
                 }
+                convertVals(convertedVals, visitedOnPath, standardObjectVisited, classToSerializableFields,
+                        objToJSONVal);
 
-                // Add pseudo field that defines the object id
-                final Integer thisObjId = objToId.get(new ReferenceEqualityKey(obj));
-                if (thisObjId == null) {
-                    // Should not happen -- object ids should have been added by caller
-                    throw new IllegalArgumentException("object id could not be found");
-                }
-                definedObjIds.add(thisObjId);
-
-                buf.append(prettyPrint ? "{\n" : "{");
-
-                if (prettyPrint) {
-                    indent(depth + 1, indentWidth, buf);
-                }
-                buf.append(prettyPrint ? "\"_ID\": " : "\"_ID\":");
-                buf.append(thisObjId);
-                buf.append(prettyPrint ? ",\n" : ",");
-
-                if (prettyPrint) {
-                    indent(depth + 1, indentWidth, buf);
-                }
-                buf.append(prettyPrint ? "\"_TYPE\": " : "\"_TYPE\":");
-                buf.append("\"" + obj.getClass().getName() + "\"");
-                if (n > 0) {
-                    buf.append(",");
-                }
-                if (prettyPrint) {
-                    buf.append('\n');
-                }
-
+                // Create new JSON object representing the standard object
+                final List<Entry<String, Object>> convertedKeyValPairs = new ArrayList<>(n);
                 for (int i = 0; i < n; i++) {
-                    final Field field = serializableFields.get(i);
-                    final Object fieldVal = serializableFieldVals[i];
-                    if (prettyPrint) {
-                        indent(depth + 1, indentWidth, buf);
-                    }
-                    buf.append('"');
-                    // Render field name as key
-                    escapeJSONString(field.getName(), buf);
-                    buf.append(prettyPrint ? "\": " : "\":");
+                    convertedKeyValPairs.add(new SimpleEntry(fieldNames[i], convertedVals[i]));
+                }
+                jsonVal = new JSONObject(convertedKeyValPairs);
 
-                    // Render value
-                    // Turn primitive types into strings, they have their own getter methods
-                    final Class<?> fieldType = field.getType();
-                    if (fieldType == Integer.TYPE) {
-                        buf.append(Integer.toString(field.getInt(obj)));
-                    } else if (fieldType == Boolean.TYPE) {
-                        buf.append(Boolean.toString(field.getBoolean(obj)));
-                    } else if (fieldType == Long.TYPE) {
-                        buf.append(Long.toString(field.getLong(obj)));
-                    } else if (fieldType == Float.TYPE) {
-                        buf.append(Float.toString(field.getFloat(obj)));
-                    } else if (fieldType == Double.TYPE) {
-                        buf.append(Double.toString(field.getDouble(obj)));
-                    } else if (fieldType == Short.TYPE) {
-                        buf.append(Short.toString(field.getShort(obj)));
-                    } else if (fieldType == Byte.TYPE) {
-                        buf.append(Integer.toString(field.getByte(obj)));
-                    } else if (fieldType == Character.TYPE) {
-                        buf.append('"');
-                        escapeJSONString(Character.toString(field.getChar(obj)), buf);
-                        buf.append('"');
-                    } else {
-                        // Not a primitive type; recursively render value
-                        toJSONRec(fieldVal, visited, classToSerializableFields, includeNullFields, objToId,
-                                definedObjIds, refdObjIds, objId, depth + 1, indentWidth, buf);
-                    }
-                    if (i < n - 1) {
-                        buf.append(',');
-                    }
-                    if (prettyPrint) {
-                        buf.append("\n");
-                    }
-                }
-                if (prettyPrint) {
-                    indent(depth, indentWidth, buf);
-                }
-                buf.append('}');
+            } catch (IllegalArgumentException | IllegalAccessException e) {
+                throw new RuntimeException("Could not serialize object into JSON", e);
             }
-        } catch (IllegalArgumentException | IllegalAccessException e) {
-            throw new RuntimeException("Could not render object into JSON", e);
         }
 
         // In the case of a DAG, just serialize the same object multiple times, i.e. remove obj
         // from visited set when exiting recursion, so that future instances also get serialized.
-        visited.remove(objKeyWrapper);
+        visitedOnPath.remove(objKey);
+
+        return jsonVal;
     }
 
     /**
-     * Recursively render an Object (or array, list, map or set of objects) as JSON, skipping transient and final
+     * Recursively serialize an Object (or array, list, map or set of objects) to JSON, skipping transient and final
      * fields. If indentWidth == 0, no prettyprinting indentation is performed.
      */
     public static String toJSON(final Object obj, final int indentWidth) {
-        final StringBuilder buf = new StringBuilder(32768);
+        final Set<ReferenceEqualityKey> visitedOnPath = new HashSet<>();
+        final Set<ReferenceEqualityKey> standardObjectVisited = new HashSet<>();
+        final Map<Class<?>, List<Field>> classToSerializableFields = new HashMap<>();
+        final HashMap<ReferenceEqualityKey, JSONObject> objToJSONVal = new HashMap<>();
 
-        final HashSet<Integer> definedObjIds = new HashSet<>();
-        final HashSet<Integer> refdObjIds = new HashSet<>();
-        final HashMap<ReferenceEqualityKey, Integer> objToId = new HashMap<>();
+        final Object rootJsonVal = toJSONGraph(obj, visitedOnPath, standardObjectVisited, classToSerializableFields,
+                objToJSONVal);
+
+        final Map<ReferenceEqualityKey, Field> objToIdKeyField = new HashMap<>();
+        final Map<ReferenceEqualityKey, Object> refdJsonValToId = new HashMap<>();
+        final Map<ReferenceEqualityKey, Object> jsonReferenceToId = new HashMap<>();
         final AtomicInteger objId = new AtomicInteger(0);
-        if (!isCollectionOrArrayOrIterable(obj)) {
-            // Collections aren't assigned object ids
-            objToId.put(new ReferenceEqualityKey(obj), objId.getAndIncrement());
-        }
+        assignObjectIds(rootJsonVal, objToJSONVal, objToIdKeyField, refdJsonValToId, jsonReferenceToId, objId);
 
-        final HashSet<ReferenceEqualityKey> visited = new HashSet<>();
-        final HashMap<Class<?>, List<Field>> classToSerializableFields = new HashMap<Class<?>, List<Field>>();
-        toJSONRec(obj, visited, classToSerializableFields, false, objToId, definedObjIds, refdObjIds, objId, 0,
-                indentWidth, buf);
-
-        refdObjIds.removeAll(definedObjIds);
-        if (!refdObjIds.isEmpty()) {
-            throw new IllegalArgumentException("Object graph contains cyclic dependencies between collections "
-                    + "(collection objects are not labeled with their object ID in the outpt JSON, so circular "
-                    + "dependencies between them cannot be represented in JSON)");
-        }
+        final StringBuilder buf = new StringBuilder(32768);
+        jsonValToJSONString(rootJsonVal, refdJsonValToId, jsonReferenceToId, /* includeNullValuedFields = */ false,
+                0, indentWidth, buf);
         return buf.toString();
     }
 
     /**
-     * Recursively render an Object (or array, list, map or set of objects) as JSON, skipping transient and final
+     * Recursively serialize an Object (or array, list, map or set of objects) to JSON, skipping transient and final
      * fields.
      */
     public static String toJSON(final Object obj) {

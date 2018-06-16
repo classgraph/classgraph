@@ -195,7 +195,7 @@ public class ModuleRef implements Comparable<ModuleRef> {
             if (!isSystemModule()) {
                 try {
                     moduleLocationFile = new File(moduleLocation);
-                } catch (Exception e) {
+                } catch (final Exception e) {
                     return null;
                 }
             } else {

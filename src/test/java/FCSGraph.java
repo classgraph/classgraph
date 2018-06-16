@@ -2,6 +2,7 @@ import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
 
 public class FCSGraph {
+
     public static void main(final String[] args) {
         final ScanResult scanResult = new FastClasspathScanner( //
                 "io.github.lukehutch.fastclasspathscanner", //
