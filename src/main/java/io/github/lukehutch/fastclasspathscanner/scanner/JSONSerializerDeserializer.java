@@ -688,8 +688,10 @@ public class JSONSerializerDeserializer {
             objToId.put(new ReferenceEqualityKey(obj), objId.getAndIncrement());
         }
 
-        toJSONRec(obj, new HashSet<>(), new HashMap<Class<?>, List<Field>>(), false, objToId, definedObjIds,
-                refdObjIds, objId, 0, indentWidth, buf);
+        final HashSet<ReferenceEqualityKey> visited = new HashSet<>();
+        final HashMap<Class<?>, List<Field>> classToSerializableFields = new HashMap<Class<?>, List<Field>>();
+        toJSONRec(obj, visited, classToSerializableFields, false, objToId, definedObjIds, refdObjIds, objId, 0,
+                indentWidth, buf);
 
         refdObjIds.removeAll(definedObjIds);
         if (!refdObjIds.isEmpty()) {
