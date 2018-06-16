@@ -2,7 +2,6 @@ import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
 
 public class FCSGraph {
-
     public static void main(final String[] args) {
         final ScanResult scanResult = new FastClasspathScanner( //
                 "io.github.lukehutch.fastclasspathscanner", //
@@ -13,9 +12,7 @@ public class FCSGraph {
                         .enableFieldInfo() //
                         .ignoreFieldVisibility() //
                         .scan();
-        // System.out.println(scanResult.generateClassGraphDotFile(12, 8, false, false));
-
-        System.out.println(scanResult.toJSON());
+        System.out.println(scanResult.generateClassGraphDotFile(12, 8, false, false));
     }
 
 }
