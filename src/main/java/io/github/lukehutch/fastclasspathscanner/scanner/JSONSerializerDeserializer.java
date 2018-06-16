@@ -28,8 +28,10 @@
  */
 package io.github.lukehutch.fastclasspathscanner.scanner;
 
+import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -47,13 +49,13 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class JSONSerializerDeserializer {
-
     /**
      * Annotate a class field with this annotation to use that field's value instead of the automatically-generated
      * id for object references in JSON output. The field value must be a unique identifier across the whole object
      * graph.
      */
     @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.FIELD)
     public static @interface Id {
     }
 
