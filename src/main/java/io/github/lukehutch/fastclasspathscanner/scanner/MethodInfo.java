@@ -48,57 +48,57 @@ import io.github.lukehutch.fastclasspathscanner.typesignature.TypeUtils;
  */
 public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
     /** Defining class name. */
-    private final String className;
+    transient String className;
 
     /** Defining class ClassInfo. */
-    ClassInfo classInfo;
+    transient ClassInfo classInfo;
 
     /** Method name. */
-    private final String methodName;
+    String methodName;
 
     /** Method modifiers. */
-    private final int modifiers;
+    int modifiers;
 
     /** Method annotations. */
-    final List<AnnotationInfo> annotationInfo;
+    List<AnnotationInfo> annotationInfo;
 
     /**
      * The JVM-internal type descriptor (missing type parameters, but including types for synthetic and mandated
      * method parameters).
      */
-    private final String typeDescriptorStr;
+    String typeDescriptorStr;
 
     /** The parsed type descriptor. */
-    private MethodTypeSignature typeDescriptor;
+    transient MethodTypeSignature typeDescriptor;
 
     /**
      * The type signature (may have type parameter information included, if present and available). Method parameter
      * types are unaligned.
      */
-    private final String typeSignatureStr;
+    String typeSignatureStr;
 
     /** The parsed type signature (or null if none). Method parameter types are unaligned. */
-    private MethodTypeSignature typeSignature;
+    transient MethodTypeSignature typeSignature;
 
     /**
      * Unaligned parameter names. These are only produced in JDK8+, and only if the commandline switch `-parameters`
      * is provided at compiletime.
      */
-    private final String[] parameterNames;
+    String[] parameterNames;
 
     /**
      * Unaligned parameter modifiers. These are only produced in JDK8+, and only if the commandline switch
      * `-parameters` is provided at compiletime.
      */
-    private final int[] parameterModifiers;
+    int[] parameterModifiers;
 
     /** Unaligned parameter annotations */
-    final AnnotationInfo[][] parameterAnnotationInfo;
+    AnnotationInfo[][] parameterAnnotationInfo;
 
     /** Aligned method parameter info */
-    private MethodParameterInfo[] methodParameterInfo;
+    transient MethodParameterInfo[] methodParameterInfo;
 
-    private ScanResult scanResult;
+    transient ScanResult scanResult;
 
     /** Sets back-reference to scan result after scan is complete. */
     @Override
@@ -154,8 +154,7 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
         this.parameterNames = parameterNames;
         this.parameterModifiers = parameterModifiers;
         this.parameterAnnotationInfo = parameterAnnotationInfo;
-        this.annotationInfo = methodAnnotationInfo == null || methodAnnotationInfo.isEmpty()
-                ? Collections.<AnnotationInfo> emptyList()
+        this.annotationInfo = methodAnnotationInfo == null || methodAnnotationInfo.isEmpty() ? null
                 : methodAnnotationInfo;
     }
 
@@ -891,7 +890,8 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
      * @return The names of annotations on this method, or the empty list if none.
      */
     public List<String> getAnnotationNames() {
-        return Arrays.asList(AnnotationInfo.getUniqueAnnotationNamesSorted(annotationInfo));
+        return annotationInfo == null ? Collections.<String> emptyList()
+                : Arrays.asList(AnnotationInfo.getUniqueAnnotationNamesSorted(annotationInfo));
     }
 
     /**

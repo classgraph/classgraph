@@ -931,6 +931,13 @@ public class ScanResult {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /** Serialize a ScanResult to JSON. */
+    public String toJSON() {
+        return JSONSerializerDeserializer.toJSON(new ArrayList<>(classGraphBuilder.classNameToClassInfo.values()));
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
     /**
      * Free any temporary files created by extracting jars from within jars. By default, temporary files are removed
      * at the end of a scan, after MatchProcessors have completed, so this typically does not need to be called. The

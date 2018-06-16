@@ -46,9 +46,9 @@ import io.github.lukehutch.fastclasspathscanner.typesignature.TypeSignature;
 
 /** Holds metadata about annotations. */
 public class AnnotationInfo extends InfoObject implements Comparable<AnnotationInfo> {
-    final String annotationName;
+    String annotationName;
     List<AnnotationParamValue> annotationParamValues;
-    private ScanResult scanResult;
+    transient ScanResult scanResult;
 
     @Override
     void setScanResult(final ScanResult scanResult) {
@@ -64,8 +64,8 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
 
     /** A wrapper used to pair annotation parameter names with annotation parameter values. */
     public static class AnnotationParamValue extends InfoObject implements Comparable<AnnotationParamValue> {
-        private final String paramName;
-        private final Object paramValue;
+        String paramName;
+        Object paramValue;
 
         /**
          * @param paramName
@@ -214,9 +214,9 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
      * annotation.
      */
     public static class AnnotationEnumValue extends InfoObject implements Comparable<AnnotationEnumValue> {
-        final String className;
-        final String constName;
-        private ScanResult scanResult;
+        String className;
+        String constName;
+        transient ScanResult scanResult;
 
         /**
          * @param className
@@ -313,9 +313,9 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
      * Use ReflectionUtils.typeStrToClass() to get a {@code Class<?>} reference from this class type string.
      */
     public static class AnnotationClassRef extends InfoObject {
-        private final String typeDescriptor;
-        private TypeSignature typeSignature;
-        private ScanResult scanResult;
+        String typeDescriptor;
+        transient TypeSignature typeSignature;
+        transient ScanResult scanResult;
 
         @Override
         void setScanResult(final ScanResult scanResult) {

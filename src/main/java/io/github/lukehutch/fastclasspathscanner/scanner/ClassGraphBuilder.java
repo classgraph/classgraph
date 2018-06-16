@@ -43,7 +43,7 @@ import io.github.lukehutch.fastclasspathscanner.utils.GraphvizUtils;
 
 /** Builds the class graph, and provides methods for querying it. */
 class ClassGraphBuilder {
-    final Map<String, ClassInfo> classNameToClassInfo;
+    Map<String, ClassInfo> classNameToClassInfo;
     private final ScanSpec scanSpec;
     private final Set<ClassInfo> allClassInfo;
     private final Map<String, ClassLoader[]> classNameToClassLoaders = new HashMap<>();
@@ -73,8 +73,7 @@ class ClassGraphBuilder {
             for (final Entry<String, ClassInfo> e : classNameToClassInfo.entrySet()) {
                 final String className = e.getKey();
                 final ClassInfo classInfo = e.getValue();
-                final boolean isExternal = !classInfo.classfileScanned;
-                if (!isExternal) {
+                if (!classInfo.isExternalClass) {
                     classNameToClassInfoFiltered.put(className, classInfo);
                 }
             }

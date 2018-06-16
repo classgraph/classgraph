@@ -43,16 +43,16 @@ import io.github.lukehutch.fastclasspathscanner.typesignature.TypeUtils;
  * classfile for the class.
  */
 public class FieldInfo extends InfoObject implements Comparable<FieldInfo> {
-    private final String className;
-    private final String fieldName;
-    private final int modifiers;
-    private final String typeSignatureStr;
-    private final String typeDescriptorStr;
-    private TypeSignature typeSignature;
-    private TypeSignature typeDescriptor;
-    private final Object constValue;
-    final List<AnnotationInfo> annotationInfo;
-    private ScanResult scanResult;
+    transient String className;
+    String fieldName;
+    int modifiers;
+    String typeSignatureStr;
+    String typeDescriptorStr;
+    transient TypeSignature typeSignature;
+    transient TypeSignature typeDescriptor;
+    Object constValue;
+    List<AnnotationInfo> annotationInfo;
+    transient ScanResult scanResult;
 
     /** Sets back-reference to scan result after scan is complete. */
     @Override
@@ -91,9 +91,7 @@ public class FieldInfo extends InfoObject implements Comparable<FieldInfo> {
         this.typeSignatureStr = typeSignatureStr;
 
         this.constValue = constValue;
-        this.annotationInfo = annotationInfo == null || annotationInfo.isEmpty()
-                ? Collections.<AnnotationInfo> emptyList()
-                : annotationInfo;
+        this.annotationInfo = annotationInfo == null || annotationInfo.isEmpty() ? null : annotationInfo;
     }
 
     /**
@@ -299,7 +297,8 @@ public class FieldInfo extends InfoObject implements Comparable<FieldInfo> {
      * @return The names of unique annotations on the field, or the empty list if none.
      */
     public List<String> getAnnotationNames() {
-        return Arrays.asList(AnnotationInfo.getUniqueAnnotationNamesSorted(annotationInfo));
+        return annotationInfo == null ? Collections.<String> emptyList()
+                : Arrays.asList(AnnotationInfo.getUniqueAnnotationNamesSorted(annotationInfo));
     }
 
     /**
@@ -311,7 +310,7 @@ public class FieldInfo extends InfoObject implements Comparable<FieldInfo> {
      *             if the annotation type could not be loaded.
      */
     public List<Class<?>> getAnnotationTypes() throws IllegalArgumentException {
-        if (annotationInfo.isEmpty()) {
+        if (annotationInfo == null || annotationInfo.isEmpty()) {
             return Collections.<Class<?>> emptyList();
         } else {
             final List<Class<?>> annotationClassRefs = new ArrayList<>();

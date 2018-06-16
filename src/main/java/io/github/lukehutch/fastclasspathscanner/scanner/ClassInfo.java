@@ -57,53 +57,56 @@ import io.github.lukehutch.fastclasspathscanner.utils.MultiMapKeyToList;
 /** Holds metadata about a class encountered during a scan. */
 public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     /** Name of the class/interface/annotation. */
-    private final String className;
+    String className;
 
     /** Class modifier flags, e.g. Modifier.PUBLIC */
-    private int classModifiers;
+    int classModifiers;
 
     /** True if the classfile indicated this is an interface. */
-    private boolean isInterface;
+    boolean isInterface;
 
     /** True if the classfile indicated this is an annotation. */
-    private boolean isAnnotation;
+    boolean isAnnotation;
 
     /** The class type signature string. */
-    private String typeSignatureStr;
+    String typeSignatureStr;
 
     /** The class type signature, parsed. */
-    private ClassTypeSignature typeSignature;
+    transient ClassTypeSignature typeSignature;
 
     /** The fully-qualified containing method name, for anonymous inner classes. */
-    private String fullyQualifiedContainingMethodName;
+    String fullyQualifiedContainingMethodName;
 
     /**
-     * True when a class has been scanned (i.e. its classfile contents read), as opposed to only being referenced by
-     * another class' classfile as a superclass/superinterface/annotation. If classfileScanned is true, then this
-     * also must be a whitelisted (and non-blacklisted) class in a whitelisted (and non-blacklisted) package.
+     * If true, this class is only being referenced by another class' classfile as a superclass / implemented
+     * interface / annotation, but this class is not itself a whitelisted (non-blacklisted) class, or in a
+     * whitelisted (non-blacklisted) package.
+     * 
+     * If false, this classfile was matched during scanning (i.e. its classfile contents read), i.e. this class is a
+     * whitelisted (and non-blacklisted) class in a whitelisted (and non-blacklisted) package.
      */
-    boolean classfileScanned;
+    boolean isExternalClass;
 
     /**
      * The classpath element file (classpath root dir or jar) that this class was found within, or null if this
      * class was found in a module.
      */
-    private File classpathElementFile;
+    transient File classpathElementFile;
 
     /**
      * The classpath element module that this class was found within, or null if this class was found within a
      * directory or jar.
      */
-    private ModuleRef classpathElementModuleRef;
+    transient ModuleRef classpathElementModuleRef;
 
     /** The classpath element URL (classpath root dir or jar) that this class was found within. */
-    private URL classpathElementURL;
+    transient URL classpathElementURL;
 
     /** The classloaders to try to load this class with before calling a MatchProcessor. */
-    private ClassLoader[] classLoaders;
+    transient ClassLoader[] classLoaders;
 
     /** The scan spec. */
-    private final ScanSpec scanSpec;
+    transient final ScanSpec scanSpec;
 
     /** Info on class annotations, including optional annotation param values. */
     List<AnnotationInfo> annotationInfo;
@@ -112,18 +115,29 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     List<FieldInfo> fieldInfo;
 
     /** Reverse mapping from field name to FieldInfo. */
-    private Map<String, FieldInfo> fieldNameToFieldInfo;
+    transient Map<String, FieldInfo> fieldNameToFieldInfo;
 
     /** Info on fields. */
     List<MethodInfo> methodInfo;
 
     /** Reverse mapping from method name to MethodInfo. */
-    private MultiMapKeyToList<String, MethodInfo> methodNameToMethodInfo;
+    transient MultiMapKeyToList<String, MethodInfo> methodNameToMethodInfo;
 
     /** For annotations, the default values of parameters. */
     List<AnnotationParamValue> annotationDefaultParamValues;
 
-    private ScanResult scanResult;
+    transient ScanResult scanResult;
+
+    /** The set of classes related to this one. */
+    Map<RelType, Set<ClassInfo>> relatedTypeToClassInfoSet = new HashMap<>();
+
+    /**
+     * The static constant initializer values of static final fields, if a StaticFinalFieldMatchProcessor matched a
+     * field in this class.
+     */
+    Map<String, Object> staticFinalFieldNameToConstantInitializerValue;
+
+    // -------------------------------------------------------------------------------------------------------------
 
     /** Sets back-reference to scan result after scan is complete. */
     @Override
@@ -166,6 +180,14 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
      */
     public Class<?> getClassRef() {
         return scanResult.classNameToClassRef(className);
+    }
+
+    /**
+     * Returns true if this class is an external class, i.e. was referenced by a whitelisted class as a superclass /
+     * implemented interface / annotation, but is not itself a whitelisted class.
+     */
+    public boolean isExternalClass() {
+        return isExternalClass;
     }
 
     /**
@@ -391,7 +413,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     // -------------------------------------------------------------------------------------------------------------
 
     /** How classes are related. */
-    private enum RelType {
+    private static enum RelType {
 
         // Classes:
 
@@ -460,26 +482,20 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
         CLASSES_WITH_FIELD_ANNOTATION,
     }
 
-    /** The set of classes related to this one. */
-    private final Map<RelType, Set<ClassInfo>> relatedTypeToClassInfoSet = new HashMap<>();
-
-    /**
-     * The static constant initializer values of static final fields, if a StaticFinalFieldMatchProcessor matched a
-     * field in this class.
-     */
-    private Map<String, Object> staticFinalFieldNameToConstantInitializerValue;
-
-    private ClassInfo(final String className, final int classModifiers, final ScanSpec scanSpec) {
+    private ClassInfo(final String className, final int classModifiers, final boolean isExternalClass,
+            final ScanSpec scanSpec) {
         this.className = className;
-        this.classModifiers = classModifiers;
-        this.scanSpec = scanSpec;
         if (className.endsWith(";")) {
+            // Spot check to make sure class names were parsed from descriptors
             throw new RuntimeException("Bad class name");
         }
+        this.classModifiers = classModifiers;
+        this.isExternalClass = isExternalClass;
+        this.scanSpec = scanSpec;
     }
 
     /** The class type to return. */
-    enum ClassType {
+    static enum ClassType {
         /** Get all class types. */
         ALL,
         /** A standard class (not an interface or annotation). */
@@ -539,12 +555,11 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
                     || includeImplementedInterfaces && classInfo.isImplementedInterface()
                     || includeAnnotations && classInfo.isAnnotation()) {
                 // Check whether class should be visible in results
-                final boolean isExternal = !classInfo.classfileScanned;
                 final boolean isBlacklisted = scanSpec.classIsBlacklisted(classInfo.className);
                 final boolean isSystemClass = JarUtils.isInSystemPackageOrModule(classInfo.className);
                 final boolean includeExternalClasses = scanSpec.enableExternalClasses
                         || !removeExternalClassesIfStrictWhitelist;
-                final boolean notExternalOrIncludeExternal = !isExternal || includeExternalClasses;
+                final boolean notExternalOrIncludeExternal = !classInfo.isExternalClass || includeExternalClasses;
                 if (notExternalOrIncludeExternal //
                         && !isBlacklisted
                         && (!isSystemClass || !scanSpec.blacklistSystemJars || !scanSpec.blacklistSystemPackages)) {
@@ -644,7 +659,8 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
             final ScanSpec scanSpec, final Map<String, ClassInfo> classNameToClassInfo) {
         ClassInfo classInfo = classNameToClassInfo.get(className);
         if (classInfo == null) {
-            classNameToClassInfo.put(className, classInfo = new ClassInfo(className, classModifiers, scanSpec));
+            classNameToClassInfo.put(className,
+                    classInfo = new ClassInfo(className, classModifiers, /* isExternalClass = */ true, scanSpec));
         }
         return classInfo;
     }
@@ -823,26 +839,16 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     static ClassInfo addScannedClass(final String className, final int classModifiers, final boolean isInterface,
             final boolean isAnnotation, final ScanSpec scanSpec, final Map<String, ClassInfo> classNameToClassInfo,
             final ClasspathElement classpathElement, final LogNode log) {
-        ClassInfo classInfo;
-        if (classNameToClassInfo.containsKey(className)) {
-            // Merge into base ClassInfo object that was already allocated, rather than the new one
-            classInfo = classNameToClassInfo.get(className);
-            // Class base name has been seen before, check if we're just merging scala aux classes together
-            if (classInfo.classfileScanned) {
-                // The same class was encountered more than once in a single jarfile -- should not happen. However,
-                // actually there is no restriction for paths within a zipfile to be unique (!!), and in fact
-                // zipfiles in the wild do contain the same classfiles multiple times with the same exact path,
-                // e.g.: xmlbeans-2.6.0.jar!org/apache/xmlbeans/xml/stream/Location.class
-                if (log != null) {
-                    log.log("Encountered class " + className
-                            + " more than once in the classpath; merging info from all copies of the classfile");
-                }
-            }
-            // Merge modifiers
-            classInfo.classModifiers |= classModifiers;
-        } else {
+        boolean classEncounteredMultipleTimes = false;
+        ClassInfo classInfo = classNameToClassInfo.get(className);
+        if (classInfo == null) {
             // This is the first time this class has been seen, add it
-            classNameToClassInfo.put(className, classInfo = new ClassInfo(className, classModifiers, scanSpec));
+            classNameToClassInfo.put(className,
+                    classInfo = new ClassInfo(className, classModifiers, /* isExternalClass = */ false, scanSpec));
+        } else {
+            if (!classInfo.isExternalClass) {
+                classEncounteredMultipleTimes = true;
+            }
         }
 
         // Remember which classpath element (zipfile / classpath root directory / module) the class was found in
@@ -851,16 +857,29 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
         if ((classInfo.classpathElementModuleRef != null && modRef != null
                 && !classInfo.classpathElementModuleRef.equals(modRef))
                 || (classInfo.classpathElementFile != null && file != null
-                        && !classInfo.classpathElementFile.equals(modRef))) {
-            log.log("Encountered class " + className + " in multiple different classpath elements: "
-                    + classInfo.classpathElementFile + " ; " + file
-                    + " -- ClassInfo.getClasspathElementFile() will only return the first of these");
+                        && !classInfo.classpathElementFile.equals(file))) {
+            classEncounteredMultipleTimes = true;
         }
-        if (classInfo.classpathElementModuleRef == null) {
-            classInfo.classpathElementModuleRef = modRef;
+
+        if (classEncounteredMultipleTimes) {
+            // The same class was encountered more than once in a single jarfile -- should not happen. However,
+            // actually there is no restriction for paths within a zipfile to be unique (!!), and in fact
+            // zipfiles in the wild do contain the same classfiles multiple times with the same exact path,
+            // e.g.: xmlbeans-2.6.0.jar!org/apache/xmlbeans/xml/stream/Location.class
+            if (log != null) {
+                log.log("Class " + className + " is defined in multiple different classpath elements or modules -- "
+                        + "ClassInfo#getClasspathElementFile() and/or ClassInfo#getClasspathElementModuleRef "
+                        + "will only return the first of these; attempting to merge info from all copies of "
+                        + "the classfile");
+            }
         }
         if (classInfo.classpathElementFile == null) {
+            // If class was found in more than one classpath element, keep the first classpath element reference 
             classInfo.classpathElementFile = file;
+        }
+        if (classInfo.classpathElementModuleRef == null) {
+            // If class was found in more than one module, keep the first module reference 
+            classInfo.classpathElementModuleRef = modRef;
         }
 
         // Remember which classloader handles the class was found in, for classloading
@@ -879,10 +898,13 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
         }
 
         // Mark the classfile as scanned
-        classInfo.classfileScanned = true;
+        classInfo.isExternalClass = false;
 
+        // Merge modifiers
+        classInfo.classModifiers |= classModifiers;
         classInfo.isInterface |= isInterface;
         classInfo.isAnnotation |= isAnnotation;
+
         return classInfo;
     }
 
