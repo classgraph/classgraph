@@ -39,53 +39,211 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class JSONSerializerDeserializer {
 
-    /** Escape a string to be surrounded in double quotes in JSON. */
-    private static void escapeJSONString(final String unsafeStr, final StringBuilder buf) {
-        for (int i = 0, n = unsafeStr.length(); i < n; i++) {
-            final char c = unsafeStr.charAt(i);
-            // See http://www.json.org/ under "string"
-            switch (c) {
-            case '\\':
-            case '"':
-                // Forward slash can be escaped, but doesn't have to be.
-                // Jackson doesn't escape it, and it makes URLs ugly.
-                // case '/':
-                buf.append('\\');
-                buf.append(c);
-                break;
-            case '\b':
-                buf.append("\\b");
-                break;
-            case '\t':
-                buf.append("\\t");
-                break;
-            case '\n':
-                buf.append("\\n");
-                break;
-            case '\f':
-                buf.append("\\f");
-                break;
-            case '\r':
-                buf.append("\\r");
-                break;
-            default:
-                if (c < ' ') {
-                    buf.append("\\u00");
-                    final int d1 = (c) >> 4;
-                    buf.append(d1 <= 9 ? (char) ('0' + d1) : (char) ('A' + d1 - 10));
-                    final int d2 = (c) & 0xf;
-                    buf.append(d2 <= 9 ? (char) ('0' + d2) : (char) ('A' + d2 - 10));
-                } else {
-                    buf.append(c);
+    private static final String ID_TAG = "_ID";
+
+    /** A class for holding a circular reference between JSON objects in a JSON object tree. */
+    private static class JSONReference {
+        JSONObject referencedObject;
+
+        public JSONReference(final JSONObject referencedObject) {
+            this.referencedObject = referencedObject;
+        }
+
+        @Override
+        public String toString() {
+            return referencedObject.objectId.toString();
+        }
+    }
+
+    /** Serialize JSON object, array, or member object. */
+    private static void toJSONString(final Object obj, final int depth, final int indentWidth,
+            final StringBuilder buf) {
+        if (obj == null) {
+            buf.append("null");
+        } else if (obj instanceof JSONObject) {
+            ((JSONObject) obj).toString(depth + 1, indentWidth, buf);
+        } else if (obj instanceof JSONArray) {
+            ((JSONArray) obj).toString(depth + 1, indentWidth, buf);
+        } else if (obj instanceof String || obj instanceof JSONReference || obj.getClass().isEnum()) {
+            buf.append('"');
+            escapeJSONString(obj.toString(), buf);
+            buf.append('"');
+        } else if (obj instanceof Character) {
+            buf.append('\'');
+            escapeJSONString(obj.toString(), buf);
+            buf.append('\'');
+        } else {
+            // Integer, Long, Short, Float, Double, Boolean, Byte (doesn't need escaping)
+            buf.append(obj.toString());
+        }
+    }
+
+    private static class JSONObject {
+        /**
+         * Object id for showing references. Should be null for JSONObjects corresponding to HashMaps, since
+         * collections should not display an object id (they should only be referenced by one object in the object
+         * tree, to prevent cycles).
+         */
+        Object objectId;
+
+        /** Key/value mappings, in display order. */
+        List<Entry<String, Object>> items;
+
+        public JSONObject(final Object objectId, final List<Entry<String, Object>> items) {
+            this.objectId = objectId;
+            this.items = items;
+        }
+
+        /** Serialize to string. */
+        void toString(final int depth, final int indentWidth, final StringBuilder buf) {
+            final boolean prettyPrint = indentWidth > 0;
+            buf.append(prettyPrint ? "{\n" : "{");
+
+            final int n = items.size();
+            if (objectId != null) {
+                if (prettyPrint) {
+                    indent(depth + 1, indentWidth, buf);
                 }
+                buf.append(prettyPrint ? "\"" + ID_TAG + "\": " : "\"" + ID_TAG + "\":");
+                if (objectId instanceof String) {
+                    buf.append('"');
+                    escapeJSONString(objectId.toString(), buf);
+                    buf.append('"');
+                } else {
+                    escapeJSONString(objectId.toString(), buf);
+                }
+                if (n > 0) {
+                    buf.append(",");
+                }
+                if (prettyPrint) {
+                    buf.append('\n');
+                }
+            }
+
+            for (int i = 0; i < n; i++) {
+                final Entry<String, Object> item = items.get(i);
+                final String key = item.getKey();
+                final Object val = item.getValue();
+                if (prettyPrint) {
+                    indent(depth + 1, indentWidth, buf);
+                }
+                buf.append('"');
+                escapeJSONString(key, buf);
+                buf.append(prettyPrint ? "\": " : "\":");
+                toJSONString(val, depth, indentWidth, buf);
+                if (i < n - 1) {
+                    buf.append(',');
+                }
+                if (prettyPrint) {
+                    buf.append('\n');
+                }
+            }
+            if (prettyPrint) {
+                indent(depth, indentWidth, buf);
+            }
+            buf.append('}');
+        }
+    }
+
+    private static class JSONArray {
+        /** Array items. */
+        List<Object> items;
+
+        public JSONArray(final List<Object> items) {
+            this.items = items;
+        }
+
+        /** Serialize to string. */
+        void toString(final int depth, final int indentWidth, final StringBuilder buf) {
+            final boolean prettyPrint = indentWidth > 0;
+
+            final int n = items.size();
+            if (n == 0) {
+                buf.append("[]");
+            } else {
+                buf.append('[');
+                if (prettyPrint) {
+                    buf.append('\n');
+                }
+                for (int i = 0; i < n; i++) {
+                    final Object item = items.get(i);
+                    if (prettyPrint) {
+                        indent(depth + 1, indentWidth, buf);
+                    }
+                    toJSONString(item, depth, indentWidth, buf);
+                    if (i < n - 1) {
+                        buf.append(',');
+                    }
+                    if (prettyPrint) {
+                        buf.append('\n');
+                    }
+                }
+                if (prettyPrint) {
+                    indent(depth, indentWidth, buf);
+                }
+                buf.append(']');
             }
         }
     }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    // See http://www.json.org/ under "string"
+    private static final String[] JSON_CHAR_REPLACEMENTS = new String[256];
+    static {
+        JSON_CHAR_REPLACEMENTS['\''] = "\\'";
+        JSON_CHAR_REPLACEMENTS['"'] = "\\\"";
+        JSON_CHAR_REPLACEMENTS['\\'] = "\\\\";
+        JSON_CHAR_REPLACEMENTS['\n'] = "\\n";
+        JSON_CHAR_REPLACEMENTS['\r'] = "\\r";
+        JSON_CHAR_REPLACEMENTS['\t'] = "\\t";
+        JSON_CHAR_REPLACEMENTS['\b'] = "\\b";
+        JSON_CHAR_REPLACEMENTS['\f'] = "\\f";
+        for (int i = 0; i < 256; i++) {
+            if (i == 32) {
+                i = 127;
+            }
+            final int d1 = i >> 4;
+            final char c1 = d1 <= 9 ? (char) ('0' + d1) : (char) ('A' + d1 - 10);
+            final int d0 = i & 0xf;
+            final char c0 = d0 <= 9 ? (char) ('0' + d0) : (char) ('A' + d0 - 10);
+            JSON_CHAR_REPLACEMENTS[i] = "\\u00" + c1 + c0;
+        }
+    }
+
+    /** Escape a string to be surrounded in double quotes in JSON. */
+    private static void escapeJSONString(final String unsafeStr, final StringBuilder buf) {
+        // Fast path
+        boolean needsEscaping = false;
+        for (int i = 0, n = unsafeStr.length(); i < n; i++) {
+            final char c = unsafeStr.charAt(i);
+            if (JSON_CHAR_REPLACEMENTS[c] != null) {
+                needsEscaping = true;
+                break;
+            }
+        }
+        if (!needsEscaping) {
+            buf.append(unsafeStr);
+        }
+        // Slow path
+        for (int i = 0, n = unsafeStr.length(); i < n; i++) {
+            final char c = unsafeStr.charAt(i);
+            final String replacement = JSON_CHAR_REPLACEMENTS[c];
+            if (replacement == null) {
+                buf.append(c);
+            } else {
+                buf.append(replacement);
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     /** Return true for objects that can be converted directly to and from string representation. */
     private static boolean isBasicType(final Object obj) {
