@@ -193,7 +193,11 @@ public class ModuleRef implements Comparable<ModuleRef> {
     public File getModuleLocationFile() {
         if (moduleLocationFile == null && moduleLocation != null) {
             if (!isSystemModule()) {
-                moduleLocationFile = new File(moduleLocation);
+                try {
+                    moduleLocationFile = new File(moduleLocation);
+                } catch (Exception e) {
+                    return null;
+                }
             } else {
                 return null;
             }

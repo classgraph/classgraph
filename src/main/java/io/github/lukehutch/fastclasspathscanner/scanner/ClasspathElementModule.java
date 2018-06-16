@@ -28,6 +28,7 @@
  */
 package io.github.lukehutch.fastclasspathscanner.scanner;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
@@ -252,13 +253,13 @@ class ClasspathElementModule extends ClasspathElement {
                         fileMatches.put(fileMatchProcessorWrapper, newClasspathResource(relativePath));
                     }
                 }
-                // Last modified time is not tracked for modules, since even if the file changes,
-                // module path scanning won't pick up the module changes until the module loader
-                // reloads the module, and we have no way of tracking when that happens.
-                //                if (!moduleRef.isSystemModule()) {
-                //                    File moduleFile = moduleRef.getModuleLocationFile();
-                //                    fileToLastModified.put(moduleFile, moduleFile.lastModified());
-                //                }
+                // Last modified time is not tracked for system modules, since they have a "jrt:/" URL
+                if (!moduleRef.isSystemModule()) {
+                    File moduleFile = moduleRef.getModuleLocationFile();
+                    if (moduleFile.exists()) {
+                        fileToLastModified.put(moduleFile, moduleFile.lastModified());
+                    }
+                }
             }
         }
     }

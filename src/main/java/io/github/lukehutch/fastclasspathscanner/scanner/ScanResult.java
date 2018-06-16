@@ -244,6 +244,10 @@ public class ScanResult {
      * scan. Checks the current timestamps, so this should increase between calls if something changes in
      * whitelisted paths. Assumes both file and system timestamps were generated from clocks whose time was
      * accurate. Ignores timestamps greater than the system time.
+     * 
+     * <p>
+     * This method cannot in general tell if classpath has changed (or modules have been added or removed) if it is
+     * run twice during the same runtime session.
      *
      * @return the maximum last-modified time for whitelisted files/directories/jars encountered during the scan.
      */
@@ -931,9 +935,18 @@ public class ScanResult {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Serialize a ScanResult to JSON. */
+    /**
+     * Serialize a ScanResult to JSON. If indentWidth is greater than 0, JSON will be formatted (indented),
+     * otherwise it will be minified (un-indented).
+     */
+    public String toJSON(final int indentWidth) {
+        return JSONSerializerDeserializer.toJSON(new ArrayList<>(classGraphBuilder.classNameToClassInfo.values()),
+                indentWidth);
+    }
+
+    /** Serialize a ScanResult to minified (un-indented) JSON. */
     public String toJSON() {
-        return JSONSerializerDeserializer.toJSON(new ArrayList<>(classGraphBuilder.classNameToClassInfo.values()));
+        return toJSON(0);
     }
 
     // -------------------------------------------------------------------------------------------------------------
