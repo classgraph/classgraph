@@ -28,7 +28,7 @@
  */
 package io.github.lukehutch.fastclasspathscanner.issues.issue140;
 
-import static org.assertj.core.api.StrictAssertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
 import java.lang.reflect.Array;
