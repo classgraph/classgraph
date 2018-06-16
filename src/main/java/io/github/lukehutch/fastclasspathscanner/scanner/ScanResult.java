@@ -933,7 +933,10 @@ public class ScanResult {
 
     /**
      * Free any temporary files created by extracting jars from within jars. By default, temporary files are removed
-     * at the end of a scan, after MatchProcessors have completed, so this typically does not need to be called.
+     * at the end of a scan, after MatchProcessors have completed, so this typically does not need to be called. The
+     * case where it might need to be called is if the list of classpath elements has been fetched, and the
+     * classpath contained jars within jars. Without calling this method, the temporary files created by extracting
+     * the inner jars will not be removed until the temporary file system cleans them up (typically at reboot).
      * 
      * @param log
      *            The log.
