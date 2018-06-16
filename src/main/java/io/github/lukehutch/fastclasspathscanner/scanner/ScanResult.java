@@ -939,6 +939,8 @@ public class ScanResult {
      *            The log.
      */
     public void freeTempFiles(final LogNode log) {
-        nestedJarHandler.close(log);
+        if (nestedJarHandler != null) {
+            nestedJarHandler.close(log);
+        }
     }
 }
