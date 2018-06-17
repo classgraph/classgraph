@@ -34,8 +34,8 @@ import java.util.List;
 import java.util.Set;
 
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
-import io.github.lukehutch.fastclasspathscanner.typesignature.TypeUtils.ParseException;
-import io.github.lukehutch.fastclasspathscanner.typesignature.TypeUtils.ParseState;
+import io.github.lukehutch.fastclasspathscanner.utils.Parser;
+import io.github.lukehutch.fastclasspathscanner.utils.Parser.ParseException;
 
 /** A class reference type signature (called "ClassTypeSignature" in the classfile documentation). */
 public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
@@ -221,32 +221,32 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
     }
 
     /** Parse a class type signature. */
-    static ClassRefTypeSignature parse(final ParseState parseState) throws ParseException {
-        if (parseState.peek() == 'L') {
-            parseState.next();
-            if (!parseState.parseIdentifier(/* separator = */ '/', /* separatorReplace = */ '.')) {
+    static ClassRefTypeSignature parse(final Parser parser) throws ParseException {
+        if (parser.peek() == 'L') {
+            parser.next();
+            if (!parser.parseIdentifier(/* separator = */ '/', /* separatorReplace = */ '.')) {
                 throw new ParseException();
             }
-            final String className = parseState.currToken();
-            final List<TypeArgument> typeArguments = TypeArgument.parseList(parseState);
+            final String className = parser.currToken();
+            final List<TypeArgument> typeArguments = TypeArgument.parseList(parser);
             List<String> suffixes;
             List<List<TypeArgument>> suffixTypeArguments;
-            if (parseState.peek() == '.') {
+            if (parser.peek() == '.') {
                 suffixes = new ArrayList<>();
                 suffixTypeArguments = new ArrayList<>();
-                while (parseState.peek() == '.') {
-                    parseState.expect('.');
-                    if (!parseState.parseIdentifier(/* separator = */ '/', /* separatorReplace = */ '.')) {
+                while (parser.peek() == '.') {
+                    parser.expect('.');
+                    if (!parser.parseIdentifier(/* separator = */ '/', /* separatorReplace = */ '.')) {
                         throw new ParseException();
                     }
-                    suffixes.add(parseState.currToken());
-                    suffixTypeArguments.add(TypeArgument.parseList(parseState));
+                    suffixes.add(parser.currToken());
+                    suffixTypeArguments.add(TypeArgument.parseList(parser));
                 }
             } else {
                 suffixes = Collections.emptyList();
                 suffixTypeArguments = Collections.emptyList();
             }
-            parseState.expect(';');
+            parser.expect(';');
             return new ClassRefTypeSignature(className, typeArguments, suffixes, suffixTypeArguments);
         } else {
             return null;

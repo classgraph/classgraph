@@ -28,11 +28,13 @@
  */
 package io.github.lukehutch.fastclasspathscanner.typesignature;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
-import io.github.lukehutch.fastclasspathscanner.typesignature.TypeUtils.ParseException;
-import io.github.lukehutch.fastclasspathscanner.typesignature.TypeUtils.ParseState;
+import io.github.lukehutch.fastclasspathscanner.utils.Parser;
+import io.github.lukehutch.fastclasspathscanner.utils.Parser.ParseException;
 
 /** A type variable signature. */
 public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
@@ -202,16 +204,25 @@ public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
     }
 
     /** Parse a TypeVariableSignature. */
-    static TypeVariableSignature parse(final ParseState parseState) throws ParseException {
-        final char peek = parseState.peek();
+    static TypeVariableSignature parse(final Parser parser) throws ParseException {
+        final char peek = parser.peek();
         if (peek == 'T') {
-            parseState.next();
-            if (!parseState.parseIdentifier()) {
+            parser.next();
+            if (!parser.parseIdentifier()) {
                 throw new ParseException();
             }
-            parseState.expect(';');
-            final TypeVariableSignature typeVariableSignature = new TypeVariableSignature(parseState.currToken());
-            parseState.addTypeVariableSignature(typeVariableSignature);
+            parser.expect(';');
+            final TypeVariableSignature typeVariableSignature = new TypeVariableSignature(parser.currToken());
+
+            // Save type variable signature in the parser state, so method and class type signatures can link
+            // to type signatures
+            @SuppressWarnings("unchecked")
+            List<TypeVariableSignature> typeVariableSignatures = (List<TypeVariableSignature>) parser.getState();
+            if (parser.getState() == null) {
+                parser.setState(typeVariableSignatures = new ArrayList<>());
+            }
+            typeVariableSignatures.add(typeVariableSignature);
+
             return typeVariableSignature;
         } else {
             return null;

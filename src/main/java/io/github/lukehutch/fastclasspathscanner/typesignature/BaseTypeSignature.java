@@ -31,7 +31,7 @@ package io.github.lukehutch.fastclasspathscanner.typesignature;
 import java.util.Set;
 
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
-import io.github.lukehutch.fastclasspathscanner.typesignature.TypeUtils.ParseState;
+import io.github.lukehutch.fastclasspathscanner.utils.Parser;
 
 /** A type signature for a base type. */
 public class BaseTypeSignature extends TypeSignature {
@@ -109,34 +109,34 @@ public class BaseTypeSignature extends TypeSignature {
     }
 
     /** Parse a base type. */
-    static BaseTypeSignature parse(final ParseState parseState) {
-        switch (parseState.peek()) {
+    static BaseTypeSignature parse(final Parser parser) {
+        switch (parser.peek()) {
         case 'B':
-            parseState.next();
+            parser.next();
             return new BaseTypeSignature("byte");
         case 'C':
-            parseState.next();
+            parser.next();
             return new BaseTypeSignature("char");
         case 'D':
-            parseState.next();
+            parser.next();
             return new BaseTypeSignature("double");
         case 'F':
-            parseState.next();
+            parser.next();
             return new BaseTypeSignature("float");
         case 'I':
-            parseState.next();
+            parser.next();
             return new BaseTypeSignature("int");
         case 'J':
-            parseState.next();
+            parser.next();
             return new BaseTypeSignature("long");
         case 'S':
-            parseState.next();
+            parser.next();
             return new BaseTypeSignature("short");
         case 'Z':
-            parseState.next();
+            parser.next();
             return new BaseTypeSignature("boolean");
         case 'V':
-            parseState.next();
+            parser.next();
             return new BaseTypeSignature("void");
         default:
             return null;

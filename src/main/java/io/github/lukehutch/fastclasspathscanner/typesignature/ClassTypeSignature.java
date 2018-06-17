@@ -33,8 +33,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
-import io.github.lukehutch.fastclasspathscanner.typesignature.TypeUtils.ParseException;
-import io.github.lukehutch.fastclasspathscanner.typesignature.TypeUtils.ParseState;
+import io.github.lukehutch.fastclasspathscanner.utils.Parser;
+import io.github.lukehutch.fastclasspathscanner.utils.Parser.ParseException;
 
 /** A class type signature (called "ClassSignature" in the classfile documentation). */
 public class ClassTypeSignature extends HierarchicalTypeSignature {
@@ -196,15 +196,15 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
      * @return The parsed class type signature or class type descriptor.
      */
     public static ClassTypeSignature parse(final String typeDescriptor) {
-        final ParseState parseState = new ParseState(typeDescriptor);
+        final Parser parser = new Parser(typeDescriptor);
         try {
-            final List<TypeParameter> typeParameters = TypeParameter.parseList(parseState);
-            final ClassRefTypeSignature superclassSignature = ClassRefTypeSignature.parse(parseState);
+            final List<TypeParameter> typeParameters = TypeParameter.parseList(parser);
+            final ClassRefTypeSignature superclassSignature = ClassRefTypeSignature.parse(parser);
             List<ClassRefTypeSignature> superinterfaceSignatures;
-            if (parseState.hasMore()) {
+            if (parser.hasMore()) {
                 superinterfaceSignatures = new ArrayList<>();
-                while (parseState.hasMore()) {
-                    final ClassRefTypeSignature superinterfaceSignature = ClassRefTypeSignature.parse(parseState);
+                while (parser.hasMore()) {
+                    final ClassRefTypeSignature superinterfaceSignature = ClassRefTypeSignature.parse(parser);
                     if (superinterfaceSignature == null) {
                         throw new ParseException();
                     }
@@ -213,18 +213,23 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
             } else {
                 superinterfaceSignatures = Collections.emptyList();
             }
-            if (parseState.hasMore()) {
-                throw new IllegalArgumentException("Extra characters at end of type descriptor: " + parseState);
+            if (parser.hasMore()) {
+                throw new IllegalArgumentException("Extra characters at end of type descriptor: " + parser);
             }
             final ClassTypeSignature classSignature = new ClassTypeSignature(typeParameters, superclassSignature,
                     superinterfaceSignatures);
             // Add back-links from type variable signature to the class signature it is part of
-            for (final TypeVariableSignature typeVariableSignature : parseState.getTypeVariableSignatures()) {
-                typeVariableSignature.containingClassSignature = classSignature;
+            @SuppressWarnings("unchecked")
+            final List<TypeVariableSignature> typeVariableSignatures = (List<TypeVariableSignature>) parser
+                    .getState();
+            if (typeVariableSignatures != null) {
+                for (final TypeVariableSignature typeVariableSignature : typeVariableSignatures) {
+                    typeVariableSignature.containingClassSignature = classSignature;
+                }
             }
             return classSignature;
         } catch (final Exception e) {
-            throw new IllegalArgumentException("Type signature could not be parsed: " + parseState, e);
+            throw new IllegalArgumentException("Type signature could not be parsed: " + parser, e);
         }
     }
 }

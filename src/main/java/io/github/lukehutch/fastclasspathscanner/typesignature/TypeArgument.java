@@ -33,8 +33,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
-import io.github.lukehutch.fastclasspathscanner.typesignature.TypeUtils.ParseException;
-import io.github.lukehutch.fastclasspathscanner.typesignature.TypeUtils.ParseState;
+import io.github.lukehutch.fastclasspathscanner.utils.Parser;
+import io.github.lukehutch.fastclasspathscanner.utils.Parser.ParseException;
 
 /** A type argument. */
 public class TypeArgument extends HierarchicalTypeSignature {
@@ -124,30 +124,27 @@ public class TypeArgument extends HierarchicalTypeSignature {
     }
 
     /** Parse a type argument. */
-    static TypeArgument parse(final ParseState parseState) throws ParseException {
-        final char peek = parseState.peek();
+    static TypeArgument parse(final Parser parser) throws ParseException {
+        final char peek = parser.peek();
         if (peek == '*') {
-            parseState.expect('*');
+            parser.expect('*');
             return new TypeArgument(WILDCARD.ANY, null);
         } else if (peek == '+') {
-            parseState.expect('+');
-            final ReferenceTypeSignature typeSignature = ReferenceTypeSignature
-                    .parseReferenceTypeSignature(parseState);
+            parser.expect('+');
+            final ReferenceTypeSignature typeSignature = ReferenceTypeSignature.parseReferenceTypeSignature(parser);
             if (typeSignature == null) {
                 throw new ParseException();
             }
             return new TypeArgument(WILDCARD.EXTENDS, typeSignature);
         } else if (peek == '-') {
-            parseState.expect('-');
-            final ReferenceTypeSignature typeSignature = ReferenceTypeSignature
-                    .parseReferenceTypeSignature(parseState);
+            parser.expect('-');
+            final ReferenceTypeSignature typeSignature = ReferenceTypeSignature.parseReferenceTypeSignature(parser);
             if (typeSignature == null) {
                 throw new ParseException();
             }
             return new TypeArgument(WILDCARD.SUPER, typeSignature);
         } else {
-            final ReferenceTypeSignature typeSignature = ReferenceTypeSignature
-                    .parseReferenceTypeSignature(parseState);
+            final ReferenceTypeSignature typeSignature = ReferenceTypeSignature.parseReferenceTypeSignature(parser);
             if (typeSignature == null) {
                 throw new ParseException();
             }
@@ -156,17 +153,17 @@ public class TypeArgument extends HierarchicalTypeSignature {
     }
 
     /** Parse a list of type arguments. */
-    static List<TypeArgument> parseList(final ParseState parseState) throws ParseException {
-        if (parseState.peek() == '<') {
-            parseState.expect('<');
+    static List<TypeArgument> parseList(final Parser parser) throws ParseException {
+        if (parser.peek() == '<') {
+            parser.expect('<');
             final List<TypeArgument> typeArguments = new ArrayList<>(2);
-            while (parseState.peek() != '>') {
-                if (!parseState.hasMore()) {
+            while (parser.peek() != '>') {
+                if (!parser.hasMore()) {
                     throw new ParseException();
                 }
-                typeArguments.add(parse(parseState));
+                typeArguments.add(parse(parser));
             }
-            parseState.expect('>');
+            parser.expect('>');
             return typeArguments;
         } else {
             return Collections.emptyList();

@@ -29,8 +29,8 @@
 package io.github.lukehutch.fastclasspathscanner.typesignature;
 
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
-import io.github.lukehutch.fastclasspathscanner.typesignature.TypeUtils.ParseException;
-import io.github.lukehutch.fastclasspathscanner.typesignature.TypeUtils.ParseState;
+import io.github.lukehutch.fastclasspathscanner.utils.Parser;
+import io.github.lukehutch.fastclasspathscanner.utils.Parser.ParseException;
 
 /**
  * A type signature for a reference type or base type. Subclasses are ReferenceTypeSignature (ClassTypeSignature,
@@ -57,13 +57,13 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
     public abstract boolean equalsIgnoringTypeParams(final TypeSignature other);
 
     /** Parse a type signature. */
-    static TypeSignature parse(final ParseState parseState) throws ParseException {
+    static TypeSignature parse(final Parser parser) throws ParseException {
         final ReferenceTypeSignature referenceTypeSignature = ReferenceTypeSignature
-                .parseReferenceTypeSignature(parseState);
+                .parseReferenceTypeSignature(parser);
         if (referenceTypeSignature != null) {
             return referenceTypeSignature;
         }
-        final BaseTypeSignature baseTypeSignature = BaseTypeSignature.parse(parseState);
+        final BaseTypeSignature baseTypeSignature = BaseTypeSignature.parse(parser);
         if (baseTypeSignature != null) {
             return baseTypeSignature;
         }
@@ -78,18 +78,18 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
      * @return The parsed type descriptor or type signature.
      */
     public static TypeSignature parse(final String typeDescriptor) {
-        final ParseState parseState = new ParseState(typeDescriptor);
+        final Parser parser = new Parser(typeDescriptor);
         TypeSignature typeSignature;
         try {
-            typeSignature = TypeSignature.parse(parseState);
+            typeSignature = TypeSignature.parse(parser);
             if (typeSignature == null) {
                 throw new ParseException();
             }
         } catch (final Exception e) {
-            throw new IllegalArgumentException("Type signature could not be parsed: " + parseState, e);
+            throw new IllegalArgumentException("Type signature could not be parsed: " + parser, e);
         }
-        if (parseState.hasMore()) {
-            throw new IllegalArgumentException("Extra characters at end of type descriptor: " + parseState);
+        if (parser.hasMore()) {
+            throw new IllegalArgumentException("Extra characters at end of type descriptor: " + parser);
         }
         return typeSignature;
     }

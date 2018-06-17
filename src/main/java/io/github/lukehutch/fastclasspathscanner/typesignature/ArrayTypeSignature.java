@@ -32,8 +32,8 @@ import java.lang.reflect.Array;
 import java.util.Set;
 
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
-import io.github.lukehutch.fastclasspathscanner.typesignature.TypeUtils.ParseException;
-import io.github.lukehutch.fastclasspathscanner.typesignature.TypeUtils.ParseState;
+import io.github.lukehutch.fastclasspathscanner.utils.Parser;
+import io.github.lukehutch.fastclasspathscanner.utils.Parser.ParseException;
 
 /** An array type. */
 public class ArrayTypeSignature extends ReferenceTypeSignature {
@@ -126,14 +126,14 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
         return buf.toString();
     }
 
-    static ArrayTypeSignature parse(final ParseState parseState) throws ParseException {
+    static ArrayTypeSignature parse(final Parser parser) throws ParseException {
         int numArrayDims = 0;
-        while (parseState.peek() == '[') {
+        while (parser.peek() == '[') {
             numArrayDims++;
-            parseState.next();
+            parser.next();
         }
         if (numArrayDims > 0) {
-            final TypeSignature elementTypeSignature = TypeSignature.parse(parseState);
+            final TypeSignature elementTypeSignature = TypeSignature.parse(parser);
             if (elementTypeSignature == null) {
                 throw new ParseException();
             }

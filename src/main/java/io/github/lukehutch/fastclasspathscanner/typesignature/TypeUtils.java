@@ -29,8 +29,6 @@
 package io.github.lukehutch.fastclasspathscanner.typesignature;
 
 import java.lang.reflect.Modifier;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Utilities for parsing Java type descriptors and type signatures.
@@ -43,116 +41,6 @@ public class TypeUtils {
 
     /** The modifier bit for mandated parameters. */
     public static final int MODIFIER_MANDATED = 0x8000;
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    static class ParseException extends Exception {
-        static final long serialVersionUID = 1L;
-    }
-
-    static class ParseState {
-        private final String string;
-        private int position;
-        private final StringBuilder token = new StringBuilder();
-        private final List<TypeVariableSignature> typeVariableSignatures = new ArrayList<>();
-
-        public ParseState(final String string) {
-            if (string == null) {
-                throw new IllegalArgumentException("Cannot parse null string");
-            }
-            this.string = string;
-        }
-
-        public void addTypeVariableSignature(final TypeVariableSignature typeVariableSignature) {
-            typeVariableSignatures.add(typeVariableSignature);
-        }
-
-        public List<TypeVariableSignature> getTypeVariableSignatures() {
-            return typeVariableSignatures;
-        }
-
-        public char getc() {
-            if (position >= string.length()) {
-                return '\0';
-            }
-            return string.charAt(position++);
-        }
-
-        public char peek() {
-            return position == string.length() ? '\0' : string.charAt(position);
-        }
-
-        public boolean peekMatches(final String strMatch) {
-            return string.regionMatches(position, strMatch, 0, strMatch.length());
-        }
-
-        public void next() {
-            position++;
-        }
-
-        public void advance(final int n) {
-            position += n;
-        }
-
-        public boolean hasMore() {
-            return position < string.length();
-        }
-
-        public void expect(final char c) {
-            final int next = getc();
-            if (next != c) {
-                throw new IllegalArgumentException(
-                        "Got character '" + (char) next + "', expected '" + c + "' in string: " + this);
-            }
-        }
-
-        public void appendToToken(final String str) {
-            token.append(str);
-        }
-
-        public void appendToToken(final char c) {
-            token.append(c);
-        }
-
-        /**
-         * Get the current token, and reset the token to empty.
-         * 
-         * @return The current token. Resets the current token to empty.
-         */
-        public String currToken() {
-            final String tok = token.toString();
-            token.setLength(0);
-            return tok;
-        }
-
-        public boolean parseIdentifier(final char separator, final char separatorReplace) throws ParseException {
-            boolean consumedChar = false;
-            while (hasMore()) {
-                final char c = peek();
-                if (c == separator) {
-                    appendToToken(separatorReplace);
-                    next();
-                    consumedChar = true;
-                } else if (c != ';' && c != '[' && c != '<' && c != '>' && c != ':' && c != '/' && c != '.') {
-                    appendToToken(c);
-                    next();
-                    consumedChar = true;
-                } else {
-                    break;
-                }
-            }
-            return consumedChar;
-        }
-
-        public boolean parseIdentifier() throws ParseException {
-            return parseIdentifier('\0', '\0');
-        }
-
-        @Override
-        public String toString() {
-            return string + " (position: " + position + "; token: \"" + token + "\")";
-        }
-    }
 
     // -------------------------------------------------------------------------------------------------------------
 

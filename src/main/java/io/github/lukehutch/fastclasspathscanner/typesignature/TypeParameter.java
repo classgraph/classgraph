@@ -33,8 +33,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
-import io.github.lukehutch.fastclasspathscanner.typesignature.TypeUtils.ParseException;
-import io.github.lukehutch.fastclasspathscanner.typesignature.TypeUtils.ParseState;
+import io.github.lukehutch.fastclasspathscanner.utils.Parser;
+import io.github.lukehutch.fastclasspathscanner.utils.Parser.ParseException;
 
 /** A type parameter. */
 public class TypeParameter extends HierarchicalTypeSignature {
@@ -149,20 +149,20 @@ public class TypeParameter extends HierarchicalTypeSignature {
     }
 
     /** Parse a {@link TypeParameter}. */
-    private static TypeParameter parse(final ParseState parseState) throws ParseException {
-        if (!parseState.parseIdentifier()) {
+    private static TypeParameter parse(final Parser parser) throws ParseException {
+        if (!parser.parseIdentifier()) {
             throw new ParseException();
         }
-        final String identifier = parseState.currToken();
+        final String identifier = parser.currToken();
         // classBound may be null
-        final ReferenceTypeSignature classBound = ReferenceTypeSignature.parseClassBound(parseState);
+        final ReferenceTypeSignature classBound = ReferenceTypeSignature.parseClassBound(parser);
         List<ReferenceTypeSignature> interfaceBounds;
-        if (parseState.peek() == ':') {
+        if (parser.peek() == ':') {
             interfaceBounds = new ArrayList<>();
-            while (parseState.peek() == ':') {
-                parseState.expect(':');
+            while (parser.peek() == ':') {
+                parser.expect(':');
                 final ReferenceTypeSignature interfaceTypeSignature = ReferenceTypeSignature
-                        .parseReferenceTypeSignature(parseState);
+                        .parseReferenceTypeSignature(parser);
                 if (interfaceTypeSignature == null) {
                     throw new ParseException();
                 }
@@ -175,19 +175,19 @@ public class TypeParameter extends HierarchicalTypeSignature {
     }
 
     /** Parse a list of {@link TypeParameter}s. */
-    static List<TypeParameter> parseList(final ParseState parseState) throws ParseException {
-        if (parseState.peek() != '<') {
+    static List<TypeParameter> parseList(final Parser parser) throws ParseException {
+        if (parser.peek() != '<') {
             return Collections.emptyList();
         }
-        parseState.expect('<');
+        parser.expect('<');
         final List<TypeParameter> typeParams = new ArrayList<>(1);
-        while (parseState.peek() != '>') {
-            if (!parseState.hasMore()) {
+        while (parser.peek() != '>') {
+            if (!parser.hasMore()) {
                 throw new ParseException();
             }
-            typeParams.add(TypeParameter.parse(parseState));
+            typeParams.add(TypeParameter.parse(parser));
         }
-        parseState.expect('>');
+        parser.expect('>');
         return typeParams;
     }
 }

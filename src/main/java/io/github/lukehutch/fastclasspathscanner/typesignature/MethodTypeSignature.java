@@ -34,8 +34,8 @@ import java.util.List;
 import java.util.Set;
 
 import io.github.lukehutch.fastclasspathscanner.scanner.ClassInfo;
-import io.github.lukehutch.fastclasspathscanner.typesignature.TypeUtils.ParseException;
-import io.github.lukehutch.fastclasspathscanner.typesignature.TypeUtils.ParseState;
+import io.github.lukehutch.fastclasspathscanner.utils.Parser;
+import io.github.lukehutch.fastclasspathscanner.utils.Parser.ParseException;
 
 /** A method type signature (called "MethodSignature" in the classfile documentation). */
 public class MethodTypeSignature extends HierarchicalTypeSignature {
@@ -206,36 +206,36 @@ public class MethodTypeSignature extends HierarchicalTypeSignature {
      * @return The parsed method type signature.
      */
     public static MethodTypeSignature parse(final ClassInfo classInfo, final String typeDescriptor) {
-        final ParseState parseState = new ParseState(typeDescriptor);
+        final Parser parser = new Parser(typeDescriptor);
         try {
-            final List<TypeParameter> typeParameters = TypeParameter.parseList(parseState);
-            parseState.expect('(');
+            final List<TypeParameter> typeParameters = TypeParameter.parseList(parser);
+            parser.expect('(');
             final List<TypeSignature> paramTypes = new ArrayList<>();
-            while (parseState.peek() != ')') {
-                if (!parseState.hasMore()) {
+            while (parser.peek() != ')') {
+                if (!parser.hasMore()) {
                     throw new ParseException();
                 }
-                final TypeSignature paramType = TypeSignature.parse(parseState);
+                final TypeSignature paramType = TypeSignature.parse(parser);
                 if (paramType == null) {
                     throw new ParseException();
                 }
                 paramTypes.add(paramType);
             }
-            parseState.expect(')');
-            final TypeSignature resultType = TypeSignature.parse(parseState);
+            parser.expect(')');
+            final TypeSignature resultType = TypeSignature.parse(parser);
             if (resultType == null) {
                 throw new ParseException();
             }
             List<ClassRefOrTypeVariableSignature> throwsSignatures;
-            if (parseState.peek() == '^') {
+            if (parser.peek() == '^') {
                 throwsSignatures = new ArrayList<>();
-                while (parseState.peek() == '^') {
-                    parseState.expect('^');
-                    final ClassRefTypeSignature classTypeSignature = ClassRefTypeSignature.parse(parseState);
+                while (parser.peek() == '^') {
+                    parser.expect('^');
+                    final ClassRefTypeSignature classTypeSignature = ClassRefTypeSignature.parse(parser);
                     if (classTypeSignature != null) {
                         throwsSignatures.add(classTypeSignature);
                     } else {
-                        final TypeVariableSignature typeVariableSignature = TypeVariableSignature.parse(parseState);
+                        final TypeVariableSignature typeVariableSignature = TypeVariableSignature.parse(parser);
                         if (typeVariableSignature != null) {
                             throwsSignatures.add(typeVariableSignature);
                         } else {
@@ -246,25 +246,30 @@ public class MethodTypeSignature extends HierarchicalTypeSignature {
             } else {
                 throwsSignatures = Collections.emptyList();
             }
-            if (parseState.hasMore()) {
-                throw new IllegalArgumentException("Extra characters at end of type descriptor: " + parseState);
+            if (parser.hasMore()) {
+                throw new IllegalArgumentException("Extra characters at end of type descriptor: " + parser);
             }
             final MethodTypeSignature methodSignature = new MethodTypeSignature(typeParameters, paramTypes,
                     resultType, throwsSignatures);
             // Add back-links from type variable signature to the method signature it is part of,
             // and to the enclosing class' type signature
-            for (final TypeVariableSignature typeVariableSignature : parseState.getTypeVariableSignatures()) {
-                typeVariableSignature.containingMethodSignature = methodSignature;
-            }
-            if (classInfo != null) {
-                final ClassTypeSignature classSignature = classInfo.getTypeSignature();
-                for (final TypeVariableSignature typeVariableSignature : parseState.getTypeVariableSignatures()) {
-                    typeVariableSignature.containingClassSignature = classSignature;
+            @SuppressWarnings("unchecked")
+            final List<TypeVariableSignature> typeVariableSignatures = (List<TypeVariableSignature>) parser
+                    .getState();
+            if (typeVariableSignatures != null) {
+                for (final TypeVariableSignature typeVariableSignature : typeVariableSignatures) {
+                    typeVariableSignature.containingMethodSignature = methodSignature;
+                }
+                if (classInfo != null) {
+                    final ClassTypeSignature classSignature = classInfo.getTypeSignature();
+                    for (final TypeVariableSignature typeVariableSignature : typeVariableSignatures) {
+                        typeVariableSignature.containingClassSignature = classSignature;
+                    }
                 }
             }
             return methodSignature;
         } catch (final Exception e) {
-            throw new IllegalArgumentException("Type signature could not be parsed: " + parseState, e);
+            throw new IllegalArgumentException("Type signature could not be parsed: " + parser, e);
         }
     }
 }
