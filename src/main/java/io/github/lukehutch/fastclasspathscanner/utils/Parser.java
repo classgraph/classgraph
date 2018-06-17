@@ -109,29 +109,6 @@ public class Parser {
         return tok;
     }
 
-    public boolean parseIdentifier(final char separator, final char separatorReplace) throws ParseException {
-        boolean consumedChar = false;
-        while (hasMore()) {
-            final char c = peek();
-            if (c == separator) {
-                appendToToken(separatorReplace);
-                next();
-                consumedChar = true;
-            } else if (c != ';' && c != '[' && c != '<' && c != '>' && c != ':' && c != '/' && c != '.') {
-                appendToToken(c);
-                next();
-                consumedChar = true;
-            } else {
-                break;
-            }
-        }
-        return consumedChar;
-    }
-
-    public boolean parseIdentifier() throws ParseException {
-        return parseIdentifier('\0', '\0');
-    }
-
     @Override
     public String toString() {
         return string + " (position: " + position + "; token: \"" + token + "\")";

@@ -224,7 +224,7 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
     static ClassRefTypeSignature parse(final Parser parser) throws ParseException {
         if (parser.peek() == 'L') {
             parser.next();
-            if (!parser.parseIdentifier(/* separator = */ '/', /* separatorReplace = */ '.')) {
+            if (!TypeUtils.getIdentifierToken(parser, /* separator = */ '/', /* separatorReplace = */ '.')) {
                 throw new ParseException();
             }
             final String className = parser.currToken();
@@ -236,7 +236,8 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
                 suffixTypeArguments = new ArrayList<>();
                 while (parser.peek() == '.') {
                     parser.expect('.');
-                    if (!parser.parseIdentifier(/* separator = */ '/', /* separatorReplace = */ '.')) {
+                    if (!TypeUtils.getIdentifierToken(parser, /* separator = */ '/',
+                            /* separatorReplace = */ '.')) {
                         throw new ParseException();
                     }
                     suffixes.add(parser.currToken());

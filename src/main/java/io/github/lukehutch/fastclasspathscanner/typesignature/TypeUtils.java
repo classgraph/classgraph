@@ -30,6 +30,9 @@ package io.github.lukehutch.fastclasspathscanner.typesignature;
 
 import java.lang.reflect.Modifier;
 
+import io.github.lukehutch.fastclasspathscanner.utils.Parser;
+import io.github.lukehutch.fastclasspathscanner.utils.Parser.ParseException;
+
 /**
  * Utilities for parsing Java type descriptors and type signatures.
  * 
@@ -140,4 +143,37 @@ public class TypeUtils {
             buf.append("strictfp");
         }
     }
+
+    /**
+     * Parse a Java identifier with the given separator ('.' or '/'). Potentially replaces the separator with a
+     * different character. Appends the identifier to the token buffer in the parser.
+     */
+    public static boolean getIdentifierToken(final Parser parser, final char separator, final char separatorReplace)
+            throws ParseException {
+        boolean consumedChar = false;
+        while (parser.hasMore()) {
+            final char c = parser.peek();
+            if (c == separator) {
+                parser.appendToToken(separatorReplace);
+                parser.next();
+                consumedChar = true;
+            } else if (c != ';' && c != '[' && c != '<' && c != '>' && c != ':' && c != '/' && c != '.') {
+                parser.appendToToken(c);
+                parser.next();
+                consumedChar = true;
+            } else {
+                break;
+            }
+        }
+        return consumedChar;
+    }
+
+    /**
+     * Parse a Java identifier part (between separators and other non-alphanumeric characters). Appends the
+     * identifier to the token buffer in the parser.
+     */
+    public static boolean getIdentifierToken(final Parser parser) throws ParseException {
+        return getIdentifierToken(parser, '\0', '\0');
+    }
+
 }

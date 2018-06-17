@@ -150,7 +150,7 @@ public class TypeParameter extends HierarchicalTypeSignature {
 
     /** Parse a {@link TypeParameter}. */
     private static TypeParameter parse(final Parser parser) throws ParseException {
-        if (!parser.parseIdentifier()) {
+        if (!TypeUtils.getIdentifierToken(parser)) {
             throw new ParseException();
         }
         final String identifier = parser.currToken();

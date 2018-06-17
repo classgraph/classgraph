@@ -208,7 +208,7 @@ public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
         final char peek = parser.peek();
         if (peek == 'T') {
             parser.next();
-            if (!parser.parseIdentifier()) {
+            if (!TypeUtils.getIdentifierToken(parser)) {
                 throw new ParseException();
             }
             parser.expect(';');
