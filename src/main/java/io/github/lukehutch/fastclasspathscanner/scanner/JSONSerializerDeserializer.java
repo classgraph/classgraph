@@ -253,11 +253,11 @@ public class JSONSerializerDeserializer {
                         }
                     }
                 }
+                if (prettyPrint) {
+                    indent(depth, indentWidth, buf);
+                }
+                buf.append('}');
             }
-            if (prettyPrint) {
-                indent(depth, indentWidth, buf);
-            }
-            buf.append('}');
         }
     }
 
