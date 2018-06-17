@@ -96,7 +96,7 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
     AnnotationInfo[][] parameterAnnotationInfo;
 
     /** Aligned method parameter info */
-    MethodParameterInfo[] methodParameterInfo;
+    transient MethodParameterInfo[] methodParameterInfo;
 
     transient ScanResult scanResult;
 

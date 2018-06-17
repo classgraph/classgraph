@@ -36,11 +36,11 @@ import io.github.lukehutch.fastclasspathscanner.typesignature.TypeSignature;
  * @author lukehutch
  */
 public class MethodParameterInfo {
-    private final AnnotationInfo[] annotationInfo;
-    private final int modifiers;
-    private final TypeSignature typeDescriptor;
-    private final TypeSignature typeSignature;
-    private final String name;
+    final AnnotationInfo[] annotationInfo;
+    final int modifiers;
+    final TypeSignature typeDescriptor;
+    final TypeSignature typeSignature;
+    final String methodParameterName;
 
     /**
      * @param annotationInfo
@@ -51,12 +51,13 @@ public class MethodParameterInfo {
      *            The method parameter type descriptor.
      * @param typeSignature
      *            The method parameter type signature.
-     * @param name
+     * @param methodParameterName
      *            The method parameter name.
      */
     public MethodParameterInfo(final AnnotationInfo[] annotationInfo, final int modifiers,
-            final TypeSignature typeDescriptor, final TypeSignature typeSignature, final String name) {
-        this.name = name;
+            final TypeSignature typeDescriptor, final TypeSignature typeSignature,
+            final String methodParameterName) {
+        this.methodParameterName = methodParameterName;
         this.modifiers = modifiers;
         this.typeDescriptor = typeDescriptor;
         this.typeSignature = typeSignature;
@@ -69,8 +70,9 @@ public class MethodParameterInfo {
      * 
      * @return The method parameter name.
      */
+    // TODO: Change to getMethodParameterName? (Make this consistent across all classes)
     public String getName() {
-        return name;
+        return methodParameterName;
     }
 
     /**
