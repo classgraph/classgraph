@@ -154,9 +154,9 @@ public class FastJSONMapper {
     private static final String[] INDENT_LEVELS = new String[17];
     static {
         final StringBuilder buf = new StringBuilder();
-        for (int i = 1; i < INDENT_LEVELS.length - 1; i++) {
+        for (int i = 0; i < INDENT_LEVELS.length; i++) {
+            INDENT_LEVELS[i] = buf.toString();
             buf.append(' ');
-            INDENT_LEVELS[buf.length()] = buf.toString();
         }
     }
 
