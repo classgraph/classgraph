@@ -940,8 +940,7 @@ public class ScanResult {
      * otherwise it will be minified (un-indented).
      */
     public String toJSON(final int indentWidth) {
-        return JSONSerializerDeserializer.toJSON(new ArrayList<>(classGraphBuilder.classNameToClassInfo.values()),
-                indentWidth);
+        return FastJSONMapper.toJSON(new ArrayList<>(classGraphBuilder.classNameToClassInfo.values()), indentWidth);
     }
 
     /** Serialize a ScanResult to minified (un-indented) JSON. */
