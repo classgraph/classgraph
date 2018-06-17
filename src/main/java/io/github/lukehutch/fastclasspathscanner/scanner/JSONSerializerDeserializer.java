@@ -309,7 +309,6 @@ public class JSONSerializerDeserializer {
     // See http://www.json.org/ under "string"
     private static final String[] JSON_CHAR_REPLACEMENTS = new String[256];
     static {
-        JSON_CHAR_REPLACEMENTS['\''] = "\\'";
         JSON_CHAR_REPLACEMENTS['"'] = "\\\"";
         JSON_CHAR_REPLACEMENTS['\\'] = "\\\\";
         JSON_CHAR_REPLACEMENTS['\n'] = "\\n";
