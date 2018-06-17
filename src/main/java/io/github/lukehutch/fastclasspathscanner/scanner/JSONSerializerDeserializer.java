@@ -330,6 +330,9 @@ public class JSONSerializerDeserializer {
 
     /** Escape a string to be surrounded in double quotes in JSON. */
     private static void escapeJSONString(final String unsafeStr, final StringBuilder buf) {
+        if (unsafeStr == null) {
+            return;
+        }
         // Fast path
         boolean needsEscaping = false;
         for (int i = 0, n = unsafeStr.length(); i < n; i++) {
@@ -357,6 +360,9 @@ public class JSONSerializerDeserializer {
 
     /** Escape a string to be surrounded in double quotes in JSON. */
     private static String escapeJSONString(final String unsafeStr) {
+        if (unsafeStr == null) {
+            return unsafeStr;
+        }
         // Fast path
         boolean needsEscaping = false;
         for (int i = 0, n = unsafeStr.length(); i < n; i++) {
