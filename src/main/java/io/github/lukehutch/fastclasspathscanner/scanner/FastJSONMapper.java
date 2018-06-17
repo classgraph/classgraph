@@ -68,15 +68,15 @@ public class FastJSONMapper {
     // See http://www.json.org/ under "string"
     private static final String[] JSON_CHAR_REPLACEMENTS = new String[256];
     static {
-        for (int i = 0; i < 256; i++) {
-            if (i == 32) {
-                i = 127;
+        for (int c = 0; c < 256; c++) {
+            if (c == 32) {
+                c = 127;
             }
-            final int d1 = i >> 4;
-            final char c1 = d1 <= 9 ? (char) ('0' + d1) : (char) ('A' + d1 - 10);
-            final int d0 = i & 0xf;
-            final char c0 = d0 <= 9 ? (char) ('0' + d0) : (char) ('A' + d0 - 10);
-            JSON_CHAR_REPLACEMENTS[i] = "\\u00" + c1 + c0;
+            final int nibble1 = c >> 4;
+            final char hexDigit1 = nibble1 <= 9 ? (char) ('0' + nibble1) : (char) ('A' + nibble1 - 10);
+            final int nibble0 = c & 0xf;
+            final char hexDigit0 = nibble0 <= 9 ? (char) ('0' + nibble0) : (char) ('A' + nibble0 - 10);
+            JSON_CHAR_REPLACEMENTS[c] = "\\u00" + Character.toString(hexDigit1) + Character.toString(hexDigit0);
         }
         JSON_CHAR_REPLACEMENTS['"'] = "\\\"";
         JSON_CHAR_REPLACEMENTS['\\'] = "\\\\";
@@ -96,7 +96,7 @@ public class FastJSONMapper {
         boolean needsEscaping = false;
         for (int i = 0, n = unsafeStr.length(); i < n; i++) {
             final char c = unsafeStr.charAt(i);
-            if (JSON_CHAR_REPLACEMENTS[c] != null) {
+            if (c > 0xff || JSON_CHAR_REPLACEMENTS[c] != null) {
                 needsEscaping = true;
                 break;
             }
@@ -108,11 +108,23 @@ public class FastJSONMapper {
         // Slow path
         for (int i = 0, n = unsafeStr.length(); i < n; i++) {
             final char c = unsafeStr.charAt(i);
-            final String replacement = JSON_CHAR_REPLACEMENTS[c];
-            if (replacement == null) {
-                buf.append(c);
+            if (c > 0xff) {
+                buf.append("\\u");
+                final int nibble3 = ((c) & 0xf000) >> 12;
+                buf.append(nibble3 <= 9 ? (char) ('0' + nibble3) : (char) ('A' + nibble3 - 10));
+                final int nibble2 = ((c) & 0xf00) >> 8;
+                buf.append(nibble2 <= 9 ? (char) ('0' + nibble2) : (char) ('A' + nibble2 - 10));
+                final int nibble1 = ((c) & 0xf0) >> 4;
+                buf.append(nibble1 <= 9 ? (char) ('0' + nibble1) : (char) ('A' + nibble1 - 10));
+                final int nibble0 = ((c) & 0xf);
+                buf.append(nibble0 <= 9 ? (char) ('0' + nibble0) : (char) ('A' + nibble0 - 10));
             } else {
-                buf.append(replacement);
+                final String replacement = JSON_CHAR_REPLACEMENTS[c];
+                if (replacement == null) {
+                    buf.append(c);
+                } else {
+                    buf.append(replacement);
+                }
             }
         }
     }
@@ -126,7 +138,7 @@ public class FastJSONMapper {
         boolean needsEscaping = false;
         for (int i = 0, n = unsafeStr.length(); i < n; i++) {
             final char c = unsafeStr.charAt(i);
-            if (JSON_CHAR_REPLACEMENTS[c] != null) {
+            if (c > 0xff || JSON_CHAR_REPLACEMENTS[c] != null) {
                 needsEscaping = true;
                 break;
             }
@@ -138,11 +150,23 @@ public class FastJSONMapper {
         final StringBuilder buf = new StringBuilder(unsafeStr.length() * 2);
         for (int i = 0, n = unsafeStr.length(); i < n; i++) {
             final char c = unsafeStr.charAt(i);
-            final String replacement = JSON_CHAR_REPLACEMENTS[c];
-            if (replacement == null) {
-                buf.append(c);
+            if (c > 0xff) {
+                buf.append("\\u");
+                final int nibble3 = ((c) & 0xf000) >> 12;
+                buf.append(nibble3 <= 9 ? (char) ('0' + nibble3) : (char) ('A' + nibble3 - 10));
+                final int nibble2 = ((c) & 0xf00) >> 8;
+                buf.append(nibble2 <= 9 ? (char) ('0' + nibble2) : (char) ('A' + nibble2 - 10));
+                final int nibble1 = ((c) & 0xf0) >> 4;
+                buf.append(nibble1 <= 9 ? (char) ('0' + nibble1) : (char) ('A' + nibble1 - 10));
+                final int nibble0 = ((c) & 0xf);
+                buf.append(nibble0 <= 9 ? (char) ('0' + nibble0) : (char) ('A' + nibble0 - 10));
             } else {
-                buf.append(replacement);
+                final String replacement = JSON_CHAR_REPLACEMENTS[c];
+                if (replacement == null) {
+                    buf.append(c);
+                } else {
+                    buf.append(replacement);
+                }
             }
         }
         return buf.toString();
