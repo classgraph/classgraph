@@ -166,14 +166,11 @@ public class JSONSerializerDeserializer {
             final Object referencedObjectId = jsonReferenceToId.get(new ReferenceEqualityKey(jsonVal));
             jsonValToJSONString(referencedObjectId, refdJsonValToId, jsonReferenceToId, includeNullValuedFields,
                     depth, indentWidth, buf);
-        } else if (jsonVal instanceof String || jsonVal instanceof JSONReference || jsonVal.getClass().isEnum()) {
+        } else if (jsonVal instanceof String || jsonVal instanceof Character || jsonVal instanceof JSONReference
+                || jsonVal.getClass().isEnum()) {
             buf.append('"');
             escapeJSONString(jsonVal.toString(), buf);
             buf.append('"');
-        } else if (jsonVal instanceof Character) {
-            buf.append('\'');
-            escapeJSONString(jsonVal.toString(), buf);
-            buf.append('\'');
         } else {
             // Integer, Long, Short, Float, Double, Boolean, Byte (doesn't need escaping)
             buf.append(jsonVal.toString());
