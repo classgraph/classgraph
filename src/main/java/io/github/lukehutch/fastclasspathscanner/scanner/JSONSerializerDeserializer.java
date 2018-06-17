@@ -309,13 +309,6 @@ public class JSONSerializerDeserializer {
     // See http://www.json.org/ under "string"
     private static final String[] JSON_CHAR_REPLACEMENTS = new String[256];
     static {
-        JSON_CHAR_REPLACEMENTS['"'] = "\\\"";
-        JSON_CHAR_REPLACEMENTS['\\'] = "\\\\";
-        JSON_CHAR_REPLACEMENTS['\n'] = "\\n";
-        JSON_CHAR_REPLACEMENTS['\r'] = "\\r";
-        JSON_CHAR_REPLACEMENTS['\t'] = "\\t";
-        JSON_CHAR_REPLACEMENTS['\b'] = "\\b";
-        JSON_CHAR_REPLACEMENTS['\f'] = "\\f";
         for (int i = 0; i < 256; i++) {
             if (i == 32) {
                 i = 127;
@@ -326,6 +319,13 @@ public class JSONSerializerDeserializer {
             final char c0 = d0 <= 9 ? (char) ('0' + d0) : (char) ('A' + d0 - 10);
             JSON_CHAR_REPLACEMENTS[i] = "\\u00" + c1 + c0;
         }
+        JSON_CHAR_REPLACEMENTS['"'] = "\\\"";
+        JSON_CHAR_REPLACEMENTS['\\'] = "\\\\";
+        JSON_CHAR_REPLACEMENTS['\n'] = "\\n";
+        JSON_CHAR_REPLACEMENTS['\r'] = "\\r";
+        JSON_CHAR_REPLACEMENTS['\t'] = "\\t";
+        JSON_CHAR_REPLACEMENTS['\b'] = "\\b";
+        JSON_CHAR_REPLACEMENTS['\f'] = "\\f";
     }
 
     /** Escape a string to be surrounded in double quotes in JSON. */
