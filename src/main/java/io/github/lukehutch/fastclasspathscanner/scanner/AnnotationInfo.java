@@ -43,6 +43,7 @@ import java.util.Set;
 
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult.InfoObject;
 import io.github.lukehutch.fastclasspathscanner.typesignature.TypeSignature;
+import io.github.lukehutch.fastclasspathscanner.utils.Parser.ParseException;
 
 /** Holds metadata about annotations. */
 public class AnnotationInfo extends InfoObject implements Comparable<AnnotationInfo> {
@@ -336,7 +337,11 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
          */
         public TypeSignature getTypeSignature() {
             if (typeSignature == null) {
-                typeSignature = TypeSignature.parse(typeDescriptor);
+                try {
+                    typeSignature = TypeSignature.parse(typeDescriptor);
+                } catch (final ParseException e) {
+                    throw new IllegalArgumentException(e);
+                }
             }
             return typeSignature;
         }

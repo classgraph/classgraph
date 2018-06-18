@@ -41,6 +41,7 @@ import io.github.lukehutch.fastclasspathscanner.typesignature.MethodTypeSignatur
 import io.github.lukehutch.fastclasspathscanner.typesignature.TypeParameter;
 import io.github.lukehutch.fastclasspathscanner.typesignature.TypeSignature;
 import io.github.lukehutch.fastclasspathscanner.typesignature.TypeUtils;
+import io.github.lukehutch.fastclasspathscanner.utils.Parser.ParseException;
 
 /**
  * Holds metadata about methods of a class encountered during a scan. All values are taken directly out of the
@@ -230,7 +231,11 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
      */
     public MethodTypeSignature getTypeDescriptor() {
         if (typeDescriptor == null) {
-            typeDescriptor = MethodTypeSignature.parse(classInfo, typeDescriptorStr);
+            try {
+                typeDescriptor = MethodTypeSignature.parse(classInfo, typeDescriptorStr);
+            } catch (final ParseException e) {
+                throw new IllegalArgumentException(e);
+            }
         }
         return typeDescriptor;
     }
@@ -243,7 +248,11 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
      */
     public MethodTypeSignature getTypeSignature() {
         if (typeSignature == null && typeSignatureStr != null) {
-            typeSignature = MethodTypeSignature.parse(classInfo, typeSignatureStr);
+            try {
+                typeSignature = MethodTypeSignature.parse(classInfo, typeSignatureStr);
+            } catch (final ParseException e) {
+                throw new IllegalArgumentException(e);
+            }
         }
         return typeSignature;
     }

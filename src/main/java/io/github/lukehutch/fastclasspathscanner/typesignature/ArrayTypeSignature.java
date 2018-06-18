@@ -135,7 +135,7 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
         if (numArrayDims > 0) {
             final TypeSignature elementTypeSignature = TypeSignature.parse(parser);
             if (elementTypeSignature == null) {
-                throw new ParseException();
+                throw new ParseException(parser, "elementTypeSignature == null");
             }
             return new ArrayTypeSignature(elementTypeSignature, numArrayDims);
         } else {

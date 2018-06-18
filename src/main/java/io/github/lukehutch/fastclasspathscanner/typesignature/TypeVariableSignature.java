@@ -209,7 +209,7 @@ public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
         if (peek == 'T') {
             parser.next();
             if (!TypeUtils.getIdentifierToken(parser)) {
-                throw new ParseException();
+                throw new ParseException(parser, "Could not parse type variable signature");
             }
             parser.expect(';');
             final TypeVariableSignature typeVariableSignature = new TypeVariableSignature(parser.currToken());

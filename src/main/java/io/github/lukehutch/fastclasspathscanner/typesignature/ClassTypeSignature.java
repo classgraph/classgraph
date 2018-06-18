@@ -194,42 +194,39 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
      * @param typeDescriptor
      *            The class type signature or class type descriptor to parse.
      * @return The parsed class type signature or class type descriptor.
+     * @throws ParseException
+     *             If the class type signature could not be parsed.
      */
-    public static ClassTypeSignature parse(final String typeDescriptor) {
+    public static ClassTypeSignature parse(final String typeDescriptor) throws ParseException {
         final Parser parser = new Parser(typeDescriptor);
-        try {
-            final List<TypeParameter> typeParameters = TypeParameter.parseList(parser);
-            final ClassRefTypeSignature superclassSignature = ClassRefTypeSignature.parse(parser);
-            List<ClassRefTypeSignature> superinterfaceSignatures;
-            if (parser.hasMore()) {
-                superinterfaceSignatures = new ArrayList<>();
-                while (parser.hasMore()) {
-                    final ClassRefTypeSignature superinterfaceSignature = ClassRefTypeSignature.parse(parser);
-                    if (superinterfaceSignature == null) {
-                        throw new ParseException();
-                    }
-                    superinterfaceSignatures.add(superinterfaceSignature);
+        final List<TypeParameter> typeParameters = TypeParameter.parseList(parser);
+        final ClassRefTypeSignature superclassSignature = ClassRefTypeSignature.parse(parser);
+        List<ClassRefTypeSignature> superinterfaceSignatures;
+        if (parser.hasMore()) {
+            superinterfaceSignatures = new ArrayList<>();
+            while (parser.hasMore()) {
+                final ClassRefTypeSignature superinterfaceSignature = ClassRefTypeSignature.parse(parser);
+                if (superinterfaceSignature == null) {
+                    throw new ParseException(parser, "Could not parse superinterface signature");
                 }
-            } else {
-                superinterfaceSignatures = Collections.emptyList();
+                superinterfaceSignatures.add(superinterfaceSignature);
             }
-            if (parser.hasMore()) {
-                throw new IllegalArgumentException("Extra characters at end of type descriptor: " + parser);
-            }
-            final ClassTypeSignature classSignature = new ClassTypeSignature(typeParameters, superclassSignature,
-                    superinterfaceSignatures);
-            // Add back-links from type variable signature to the class signature it is part of
-            @SuppressWarnings("unchecked")
-            final List<TypeVariableSignature> typeVariableSignatures = (List<TypeVariableSignature>) parser
-                    .getState();
-            if (typeVariableSignatures != null) {
-                for (final TypeVariableSignature typeVariableSignature : typeVariableSignatures) {
-                    typeVariableSignature.containingClassSignature = classSignature;
-                }
-            }
-            return classSignature;
-        } catch (final Exception e) {
-            throw new IllegalArgumentException("Type signature could not be parsed: " + parser, e);
+        } else {
+            superinterfaceSignatures = Collections.emptyList();
         }
+        if (parser.hasMore()) {
+            throw new ParseException(parser, "Extra characters at end of type descriptor");
+        }
+        final ClassTypeSignature classSignature = new ClassTypeSignature(typeParameters, superclassSignature,
+                superinterfaceSignatures);
+        // Add back-links from type variable signature to the class signature it is part of
+        @SuppressWarnings("unchecked")
+        final List<TypeVariableSignature> typeVariableSignatures = (List<TypeVariableSignature>) parser.getState();
+        if (typeVariableSignatures != null) {
+            for (final TypeVariableSignature typeVariableSignature : typeVariableSignatures) {
+                typeVariableSignature.containingClassSignature = classSignature;
+            }
+        }
+        return classSignature;
     }
 }

@@ -39,6 +39,7 @@ import io.github.lukehutch.fastclasspathscanner.scanner.AnnotationInfo.Annotatio
 import io.github.lukehutch.fastclasspathscanner.typesignature.ClassTypeSignature;
 import io.github.lukehutch.fastclasspathscanner.utils.Join;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
+import io.github.lukehutch.fastclasspathscanner.utils.Parser.ParseException;
 
 /**
  * Class information that has been directly read from the binary classfile, before it is cross-linked with other
@@ -226,8 +227,13 @@ class ClassInfoUnlinked {
                 subLog.log("Static final field values: " + Join.join(", ", fieldInitializers));
             }
             if (typeSignature != null) {
-                subLog.log("Class type signature: " + ClassTypeSignature.parse(typeSignature)
-                        .toString(classModifiers, isAnnotation, isInterface, className));
+                ClassTypeSignature typeSig = null;
+                try {
+                    typeSig = ClassTypeSignature.parse(typeSignature);
+                } catch (final ParseException e) {
+                }
+                subLog.log("Class type signature: " + (typeSig == null ? typeSignature
+                        : typeSig.toString(classModifiers, isAnnotation, isInterface, className)));
             }
         }
     }

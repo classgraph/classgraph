@@ -36,11 +36,21 @@ public class Parser {
 
     public static class ParseException extends Exception {
         static final long serialVersionUID = 1L;
+        private static final int MAX_STR_LEN = 32;
+
+        public ParseException(final Parser parser, final String msg) {
+            super(parser == null ? msg
+                    : msg + " (string: \""
+                            + (parser.string.length() > MAX_STR_LEN
+                                    ? parser.string.substring(0, MAX_STR_LEN) + "..."
+                                    : parser.string)
+                            + "\"; position: " + parser.position + "; token: \"" + parser.token + "\")");
+        }
     }
 
-    public Parser(final String string) {
+    public Parser(final String string) throws ParseException {
         if (string == null) {
-            throw new IllegalArgumentException("Cannot parse null string");
+            throw new ParseException(null, "Cannot parse null string");
         }
         this.string = string;
     }
@@ -55,9 +65,9 @@ public class Parser {
         return state;
     }
 
-    public char getc() {
+    public char getc() throws ParseException {
         if (position >= string.length()) {
-            return '\0';
+            throw new ParseException(this, "Ran out of input while parsing");
         }
         return string.charAt(position++);
     }
@@ -82,11 +92,10 @@ public class Parser {
         return position < string.length();
     }
 
-    public void expect(final char c) {
+    public void expect(final char c) throws ParseException {
         final int next = getc();
         if (next != c) {
-            throw new IllegalArgumentException(
-                    "Got character '" + (char) next + "', expected '" + c + "' in string: " + this);
+            throw new ParseException(this, "Expected character '" + c + "', got '" + next + "'");
         }
     }
 

@@ -37,6 +37,7 @@ import java.util.List;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult.InfoObject;
 import io.github.lukehutch.fastclasspathscanner.typesignature.TypeSignature;
 import io.github.lukehutch.fastclasspathscanner.typesignature.TypeUtils;
+import io.github.lukehutch.fastclasspathscanner.utils.Parser.ParseException;
 
 /**
  * Holds metadata about fields of a class encountered during a scan. All values are taken directly out of the
@@ -223,7 +224,11 @@ public class FieldInfo extends InfoObject implements Comparable<FieldInfo> {
             return null;
         }
         if (typeDescriptor == null) {
-            typeDescriptor = TypeSignature.parse(typeDescriptorStr);
+            try {
+                typeDescriptor = TypeSignature.parse(typeDescriptorStr);
+            } catch (final ParseException e) {
+                throw new IllegalArgumentException(e);
+            }
         }
         return typeDescriptor;
     }
@@ -247,7 +252,11 @@ public class FieldInfo extends InfoObject implements Comparable<FieldInfo> {
             return null;
         }
         if (typeSignature == null) {
-            typeSignature = TypeSignature.parse(typeSignatureStr);
+            try {
+                typeSignature = TypeSignature.parse(typeSignatureStr);
+            } catch (final ParseException e) {
+                throw new IllegalArgumentException(e);
+            }
         }
         return typeSignature;
     }

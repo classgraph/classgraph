@@ -225,7 +225,7 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
         if (parser.peek() == 'L') {
             parser.next();
             if (!TypeUtils.getIdentifierToken(parser, /* separator = */ '/', /* separatorReplace = */ '.')) {
-                throw new ParseException();
+                throw new ParseException(parser, "Could not parse identifier token");
             }
             final String className = parser.currToken();
             final List<TypeArgument> typeArguments = TypeArgument.parseList(parser);
@@ -238,7 +238,7 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
                     parser.expect('.');
                     if (!TypeUtils.getIdentifierToken(parser, /* separator = */ '/',
                             /* separatorReplace = */ '.')) {
-                        throw new ParseException();
+                        throw new ParseException(parser, "Could not parse identifier token");
                     }
                     suffixes.add(parser.currToken());
                     suffixTypeArguments.add(TypeArgument.parseList(parser));

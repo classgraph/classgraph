@@ -54,6 +54,7 @@ import io.github.lukehutch.fastclasspathscanner.utils.AdditionOrderedSet;
 import io.github.lukehutch.fastclasspathscanner.utils.JarUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.MultiMapKeyToList;
+import io.github.lukehutch.fastclasspathscanner.utils.Parser.ParseException;
 
 /** Holds metadata about a class encountered during a scan. */
 public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
@@ -293,7 +294,11 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
             return null;
         }
         if (typeSignature == null) {
-            typeSignature = ClassTypeSignature.parse(typeSignatureStr);
+            try {
+                typeSignature = ClassTypeSignature.parse(typeSignatureStr);
+            } catch (final ParseException e) {
+                throw new IllegalArgumentException(e);
+            }
         }
         return typeSignature;
     }

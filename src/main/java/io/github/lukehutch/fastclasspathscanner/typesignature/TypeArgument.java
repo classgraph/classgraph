@@ -133,20 +133,20 @@ public class TypeArgument extends HierarchicalTypeSignature {
             parser.expect('+');
             final ReferenceTypeSignature typeSignature = ReferenceTypeSignature.parseReferenceTypeSignature(parser);
             if (typeSignature == null) {
-                throw new ParseException();
+                throw new ParseException(parser, "Missing '+' type bound");
             }
             return new TypeArgument(WILDCARD.EXTENDS, typeSignature);
         } else if (peek == '-') {
             parser.expect('-');
             final ReferenceTypeSignature typeSignature = ReferenceTypeSignature.parseReferenceTypeSignature(parser);
             if (typeSignature == null) {
-                throw new ParseException();
+                throw new ParseException(parser, "Missing '-' type bound");
             }
             return new TypeArgument(WILDCARD.SUPER, typeSignature);
         } else {
             final ReferenceTypeSignature typeSignature = ReferenceTypeSignature.parseReferenceTypeSignature(parser);
             if (typeSignature == null) {
-                throw new ParseException();
+                throw new ParseException(parser, "Missing type bound");
             }
             return new TypeArgument(WILDCARD.NONE, typeSignature);
         }
@@ -159,7 +159,7 @@ public class TypeArgument extends HierarchicalTypeSignature {
             final List<TypeArgument> typeArguments = new ArrayList<>(2);
             while (parser.peek() != '>') {
                 if (!parser.hasMore()) {
-                    throw new ParseException();
+                    throw new ParseException(parser, "Missing '>'");
                 }
                 typeArguments.add(parse(parser));
             }

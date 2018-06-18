@@ -151,7 +151,7 @@ public class TypeParameter extends HierarchicalTypeSignature {
     /** Parse a {@link TypeParameter}. */
     private static TypeParameter parse(final Parser parser) throws ParseException {
         if (!TypeUtils.getIdentifierToken(parser)) {
-            throw new ParseException();
+            throw new ParseException(parser, "Could not parse identifier token");
         }
         final String identifier = parser.currToken();
         // classBound may be null
@@ -164,7 +164,7 @@ public class TypeParameter extends HierarchicalTypeSignature {
                 final ReferenceTypeSignature interfaceTypeSignature = ReferenceTypeSignature
                         .parseReferenceTypeSignature(parser);
                 if (interfaceTypeSignature == null) {
-                    throw new ParseException();
+                    throw new ParseException(parser, "Missing interface type signature");
                 }
                 interfaceBounds.add(interfaceTypeSignature);
             }
@@ -183,7 +183,7 @@ public class TypeParameter extends HierarchicalTypeSignature {
         final List<TypeParameter> typeParams = new ArrayList<>(1);
         while (parser.peek() != '>') {
             if (!parser.hasMore()) {
-                throw new ParseException();
+                throw new ParseException(parser, "Missing '>'");
             }
             typeParams.add(TypeParameter.parse(parser));
         }
