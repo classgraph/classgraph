@@ -965,4 +965,10 @@ public class ScanResult {
             nestedJarHandler.close(log);
         }
     }
+
+    @Override
+    protected void finalize() throws Throwable {
+        // TODO: replace this with java.lang.ref.Cleaner once FCS bumps minimum Java version to 10+.
+        freeTempFiles(null);
+    }
 }
