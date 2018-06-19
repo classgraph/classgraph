@@ -69,7 +69,7 @@ public class JSONMapper {
      * fields.
      */
     public static String toJSON(final Object obj, final int indentWidth) {
-        return JSONSerializer.toJSON(obj, 0);
+        return JSONSerializer.toJSON(obj, indentWidth);
     }
 
     // -------------------------------------------------------------------------------------------------------------
