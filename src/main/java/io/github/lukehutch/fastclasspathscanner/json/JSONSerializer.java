@@ -26,15 +26,10 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.lukehutch.fastclasspathscanner.scanner;
+package io.github.lukehutch.fastclasspathscanner.json;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -48,156 +43,24 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import io.github.lukehutch.fastclasspathscanner.json.FastJSONMapper.Id;
+import io.github.lukehutch.fastclasspathscanner.json.JSONUtils.SerializableFieldInfo;
+
 /**
  * Fast, lightweight Java object to JSON serializer, and JSON to Java object deserializer. Handles cycles in the
  * object graph by inserting reference ids.
  */
-public class FastJSONMapper {
+class JSONSerializer {
     /**
-     * Annotate a class field with this annotation to use that field's value instead of the automatically-generated
-     * id for object references in JSON output. The field value must be a unique identifier across the whole object
-     * graph.
+     * JSON object key name for objects that are linked to from more than one object. Key name is only used if the
+     * class that a JSON object was serialized from does not have its own id field annotated with {@link Id}.
      */
-    @Retention(RetentionPolicy.RUNTIME)
-    @Target(ElementType.FIELD)
-    public static @interface Id {
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    // See http://www.json.org/ under "string"
-    private static final String[] JSON_CHAR_REPLACEMENTS = new String[256];
-    static {
-        for (int c = 0; c < 256; c++) {
-            if (c == 32) {
-                c = 127;
-            }
-            final int nibble1 = c >> 4;
-            final char hexDigit1 = nibble1 <= 9 ? (char) ('0' + nibble1) : (char) ('A' + nibble1 - 10);
-            final int nibble0 = c & 0xf;
-            final char hexDigit0 = nibble0 <= 9 ? (char) ('0' + nibble0) : (char) ('A' + nibble0 - 10);
-            JSON_CHAR_REPLACEMENTS[c] = "\\u00" + Character.toString(hexDigit1) + Character.toString(hexDigit0);
-        }
-        JSON_CHAR_REPLACEMENTS['"'] = "\\\"";
-        JSON_CHAR_REPLACEMENTS['\\'] = "\\\\";
-        JSON_CHAR_REPLACEMENTS['\n'] = "\\n";
-        JSON_CHAR_REPLACEMENTS['\r'] = "\\r";
-        JSON_CHAR_REPLACEMENTS['\t'] = "\\t";
-        JSON_CHAR_REPLACEMENTS['\b'] = "\\b";
-        JSON_CHAR_REPLACEMENTS['\f'] = "\\f";
-    }
-
-    /** Escape a string to be surrounded in double quotes in JSON. */
-    private static void escapeJSONString(final String unsafeStr, final StringBuilder buf) {
-        if (unsafeStr == null) {
-            return;
-        }
-        // Fast path
-        boolean needsEscaping = false;
-        for (int i = 0, n = unsafeStr.length(); i < n; i++) {
-            final char c = unsafeStr.charAt(i);
-            if (c > 0xff || JSON_CHAR_REPLACEMENTS[c] != null) {
-                needsEscaping = true;
-                break;
-            }
-        }
-        if (!needsEscaping) {
-            buf.append(unsafeStr);
-            return;
-        }
-        // Slow path
-        for (int i = 0, n = unsafeStr.length(); i < n; i++) {
-            final char c = unsafeStr.charAt(i);
-            if (c > 0xff) {
-                buf.append("\\u");
-                final int nibble3 = ((c) & 0xf000) >> 12;
-                buf.append(nibble3 <= 9 ? (char) ('0' + nibble3) : (char) ('A' + nibble3 - 10));
-                final int nibble2 = ((c) & 0xf00) >> 8;
-                buf.append(nibble2 <= 9 ? (char) ('0' + nibble2) : (char) ('A' + nibble2 - 10));
-                final int nibble1 = ((c) & 0xf0) >> 4;
-                buf.append(nibble1 <= 9 ? (char) ('0' + nibble1) : (char) ('A' + nibble1 - 10));
-                final int nibble0 = ((c) & 0xf);
-                buf.append(nibble0 <= 9 ? (char) ('0' + nibble0) : (char) ('A' + nibble0 - 10));
-            } else {
-                final String replacement = JSON_CHAR_REPLACEMENTS[c];
-                if (replacement == null) {
-                    buf.append(c);
-                } else {
-                    buf.append(replacement);
-                }
-            }
-        }
-    }
-
-    /** Escape a string to be surrounded in double quotes in JSON. */
-    private static String escapeJSONString(final String unsafeStr) {
-        if (unsafeStr == null) {
-            return unsafeStr;
-        }
-        // Fast path
-        boolean needsEscaping = false;
-        for (int i = 0, n = unsafeStr.length(); i < n; i++) {
-            final char c = unsafeStr.charAt(i);
-            if (c > 0xff || JSON_CHAR_REPLACEMENTS[c] != null) {
-                needsEscaping = true;
-                break;
-            }
-        }
-        if (!needsEscaping) {
-            return unsafeStr;
-        }
-        // Slow path
-        final StringBuilder buf = new StringBuilder(unsafeStr.length() * 2);
-        for (int i = 0, n = unsafeStr.length(); i < n; i++) {
-            final char c = unsafeStr.charAt(i);
-            if (c > 0xff) {
-                buf.append("\\u");
-                final int nibble3 = ((c) & 0xf000) >> 12;
-                buf.append(nibble3 <= 9 ? (char) ('0' + nibble3) : (char) ('A' + nibble3 - 10));
-                final int nibble2 = ((c) & 0xf00) >> 8;
-                buf.append(nibble2 <= 9 ? (char) ('0' + nibble2) : (char) ('A' + nibble2 - 10));
-                final int nibble1 = ((c) & 0xf0) >> 4;
-                buf.append(nibble1 <= 9 ? (char) ('0' + nibble1) : (char) ('A' + nibble1 - 10));
-                final int nibble0 = ((c) & 0xf);
-                buf.append(nibble0 <= 9 ? (char) ('0' + nibble0) : (char) ('A' + nibble0 - 10));
-            } else {
-                final String replacement = JSON_CHAR_REPLACEMENTS[c];
-                if (replacement == null) {
-                    buf.append(c);
-                } else {
-                    buf.append(replacement);
-                }
-            }
-        }
-        return buf.toString();
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /** Lookup table for fast indenting */
-    private static final String[] INDENT_LEVELS = new String[17];
-    static {
-        final StringBuilder buf = new StringBuilder();
-        for (int i = 0; i < INDENT_LEVELS.length; i++) {
-            INDENT_LEVELS[i] = buf.toString();
-            buf.append(' ');
-        }
-    }
-
-    /** Indent (depth * indentWidth) spaces. */
-    private static void indent(final int depth, final int indentWidth, final StringBuilder buf) {
-        final int maxIndent = INDENT_LEVELS.length - 1;
-        for (int d = depth * indentWidth; d > 0;) {
-            final int n = Math.min(d, maxIndent);
-            buf.append(INDENT_LEVELS[n]);
-            d -= n;
-        }
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
     private static final String ID_TAG = "_ID";
+
+    /** JSON object reference id prefix. */
     private static final String ID_PREFIX = "[ID#";
+
+    /** JSON object reference id suffix. */
     private static final String ID_SUFFIX = "]";
 
     /**
@@ -215,56 +78,43 @@ public class FastJSONMapper {
     /** Create a unique id for each referenced JSON object. */
     private static void assignObjectIds(final Object jsonVal,
             final Map<ReferenceEqualityKey, JSONObject> objToJSONVal,
-            final Map<ReferenceEqualityKey, Field> objToIdKeyField,
+            final Map<Class<?>, SerializableFieldInfo> classToSerializableFieldInfo,
             final Map<ReferenceEqualityKey, Object> refdJsonValToId,
             final Map<ReferenceEqualityKey, Object> jsonReferenceToId, final AtomicInteger objId) {
         if (jsonVal == null) {
             return;
         } else if (jsonVal instanceof JSONObject) {
             for (final Entry<String, Object> item : ((JSONObject) jsonVal).items) {
-                assignObjectIds(item.getValue(), objToJSONVal, objToIdKeyField, refdJsonValToId, jsonReferenceToId,
-                        objId);
+                assignObjectIds(item.getValue(), objToJSONVal, classToSerializableFieldInfo, refdJsonValToId,
+                        jsonReferenceToId, objId);
             }
         } else if (jsonVal instanceof JSONArray) {
             for (final Object item : ((JSONArray) jsonVal).items) {
-                assignObjectIds(item, objToJSONVal, objToIdKeyField, refdJsonValToId, jsonReferenceToId, objId);
+                assignObjectIds(item, objToJSONVal, classToSerializableFieldInfo, refdJsonValToId,
+                        jsonReferenceToId, objId);
             }
         } else if (jsonVal instanceof JSONReference) {
             // Get the referenced (non-JSON) object
-            final Object referencedObj = ((JSONReference) jsonVal).referencedObject;
+            final Object refdObj = ((JSONReference) jsonVal).referencedObject;
+            if (refdObj == null) {
+                // Should not happen
+                throw new RuntimeException("Internal inconsistency");
+            }
             // Look up the JSON object corresponding to the referenced object
-            final ReferenceEqualityKey refdObjKey = new ReferenceEqualityKey(referencedObj);
+            final ReferenceEqualityKey refdObjKey = new ReferenceEqualityKey(refdObj);
             final JSONObject refdJsonVal = objToJSONVal.get(refdObjKey);
             if (refdJsonVal == null) {
                 // Should not happen
                 throw new RuntimeException("Internal inconsistency");
             }
             // See if the JSON object has an @Id field
-            Field annotatedField = null;
-            if (!objToIdKeyField.containsKey(refdObjKey)) {
-                for (final Field field : referencedObj.getClass().getDeclaredFields()) {
-                    if (field.isAnnotationPresent(Id.class)) {
-                        final int modifiers = field.getModifiers();
-                        if (Modifier.isTransient(modifiers) || Modifier.isFinal(modifiers)
-                                || ((modifiers & 0x1000 /* synthetic */) != 0)) {
-                            throw new IllegalArgumentException("@Id-annotated field in class "
-                                    + referencedObj.getClass() + " cannot be transient, final or synthetic");
-                        }
-                        annotatedField = field;
-                        break;
-                    }
-                }
-                // Put the annotated field back in the map, or put null if no @Id field was found
-                // (to prevent this work being done again)
-                objToIdKeyField.put(refdObjKey, annotatedField);
-            } else {
-                annotatedField = objToIdKeyField.get(refdObjKey);
-            }
+            Field annotatedField = JSONUtils.getSerializableFieldInfo(classToSerializableFieldInfo,
+                    refdObj.getClass()).idField;
             Object idObj = null;
             if (annotatedField != null) {
                 // Get id value from field annotated with @Id
                 try {
-                    idObj = annotatedField.get(referencedObj);
+                    idObj = annotatedField.get(refdObj);
                 } catch (IllegalArgumentException | IllegalAccessException e) {
                     // Should not happen
                     throw new RuntimeException(e);
@@ -288,6 +138,7 @@ public class FastJSONMapper {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /** An intermediate object in the serialization process, representing a JSON Object. */
     private static class JSONObject {
         /** Key/value mappings, in display order. */
         List<Entry<String, Object>> items;
@@ -323,7 +174,7 @@ public class FastJSONMapper {
                 buf.append(prettyPrint ? "{\n" : "{");
                 if (id != null) {
                     if (prettyPrint) {
-                        indent(depth + 1, indentWidth, buf);
+                        JSONUtils.indent(depth + 1, indentWidth, buf);
                     }
                     buf.append('"');
                     buf.append(ID_TAG);
@@ -343,10 +194,10 @@ public class FastJSONMapper {
                     if (val != null || includeNullValuedFields) {
                         final String key = item.getKey();
                         if (prettyPrint) {
-                            indent(depth + 1, indentWidth, buf);
+                            JSONUtils.indent(depth + 1, indentWidth, buf);
                         }
                         buf.append('"');
-                        escapeJSONString(key, buf);
+                        JSONUtils.escapeJSONString(key, buf);
                         buf.append(prettyPrint ? "\": " : "\":");
                         jsonValToJSONString(val, refdJsonValToId, jsonReferenceToId, includeNullValuedFields,
                                 depth + 1, indentWidth, buf);
@@ -359,13 +210,14 @@ public class FastJSONMapper {
                     }
                 }
                 if (prettyPrint) {
-                    indent(depth, indentWidth, buf);
+                    JSONUtils.indent(depth, indentWidth, buf);
                 }
                 buf.append('}');
             }
         }
     }
 
+    /** An intermediate object in the serialization process, representing a JSON array. */
     private static class JSONArray {
         /** Array items. */
         List<Object> items;
@@ -390,7 +242,7 @@ public class FastJSONMapper {
                 for (int i = 0; i < n; i++) {
                     final Object item = items.get(i);
                     if (prettyPrint) {
-                        indent(depth + 1, indentWidth, buf);
+                        JSONUtils.indent(depth + 1, indentWidth, buf);
                     }
                     jsonValToJSONString(item, refdJsonValToId, jsonReferenceToId, includeNullValuedFields,
                             depth + 1, indentWidth, buf);
@@ -402,7 +254,7 @@ public class FastJSONMapper {
                     }
                 }
                 if (prettyPrint) {
-                    indent(depth, indentWidth, buf);
+                    JSONUtils.indent(depth, indentWidth, buf);
                 }
                 buf.append(']');
             }
@@ -431,7 +283,7 @@ public class FastJSONMapper {
         } else if (jsonVal instanceof String || jsonVal instanceof Character || jsonVal instanceof JSONReference
                 || jsonVal.getClass().isEnum()) {
             buf.append('"');
-            escapeJSONString(jsonVal.toString(), buf);
+            JSONUtils.escapeJSONString(jsonVal.toString(), buf);
             buf.append('"');
         } else {
             // Integer, Long, Short, Float, Double, Boolean, Byte (doesn't need escaping)
@@ -495,7 +347,7 @@ public class FastJSONMapper {
     /** Take an array of object values, and recursively convert them (in place) into JSON values. */
     private static void convertVals(final Object[] convertedVals, final Set<ReferenceEqualityKey> visitedOnPath,
             final Set<ReferenceEqualityKey> standardObjectVisited,
-            final Map<Class<?>, List<Field>> classToSerializableFields,
+            final Map<Class<?>, SerializableFieldInfo> classToSerializableFieldInfo,
             final Map<ReferenceEqualityKey, JSONObject> objToJSONVal) {
         // Pass 1: find standard objects (objects that are not of basic value type or collections/arrays/maps)
         // that have not yet been visited, and mark them as visited. Place a JSONReference placeholder in
@@ -527,8 +379,8 @@ public class FastJSONMapper {
                 // Recursively convert standard objects (if it is the first time they have been visited)
                 // and maps to JSON objects, and convert collections and arrays to JSON arrays.
                 final Object val = convertedVals[i];
-                convertedVals[i] = toJSONGraph(val, visitedOnPath, standardObjectVisited, classToSerializableFields,
-                        objToJSONVal);
+                convertedVals[i] = toJSONGraph(val, visitedOnPath, standardObjectVisited,
+                        classToSerializableFieldInfo, objToJSONVal);
                 if (!isCollectionOrArrayOrMap(val)) {
                     // If this object is a standard object, then it has not been visited before, 
                     // so save the mapping between original object and converted object
@@ -544,7 +396,7 @@ public class FastJSONMapper {
     @SuppressWarnings({ "unchecked", "rawtypes" })
     private static Object toJSONGraph(final Object obj, final Set<ReferenceEqualityKey> visitedOnPath,
             final Set<ReferenceEqualityKey> standardObjectVisited,
-            final Map<Class<?>, List<Field>> classToSerializableFields,
+            final Map<Class<?>, SerializableFieldInfo> classToSerializableFieldInfo,
             final Map<ReferenceEqualityKey, JSONObject> objToJSONVal) {
 
         // For null and basic value types, just return value
@@ -602,7 +454,7 @@ public class FastJSONMapper {
                             + " is not a basic type (String, Integer, etc.), so can't be easily "
                             + "serialized as a JSON associative array key");
                 }
-                convertedKeys[i] = escapeJSONString(key.toString());
+                convertedKeys[i] = JSONUtils.escapeJSONString(key.toString());
             }
 
             // Sort value strings lexicographically if values are not Comparable
@@ -615,7 +467,7 @@ public class FastJSONMapper {
             for (int i = 0; i < n; i++) {
                 convertedVals[i] = map.get(keys.get(i));
             }
-            convertVals(convertedVals, visitedOnPath, standardObjectVisited, classToSerializableFields,
+            convertVals(convertedVals, visitedOnPath, standardObjectVisited, classToSerializableFieldInfo,
                     objToJSONVal);
 
             // Create new JSON object representing the map
@@ -636,7 +488,7 @@ public class FastJSONMapper {
             for (int i = 0; i < n; i++) {
                 convertedVals[i] = isList ? list.get(i) : Array.get(obj, i);
             }
-            convertVals(convertedVals, visitedOnPath, standardObjectVisited, classToSerializableFields,
+            convertVals(convertedVals, visitedOnPath, standardObjectVisited, classToSerializableFieldInfo,
                     objToJSONVal);
 
             // Create new JSON array representing the list
@@ -651,7 +503,7 @@ public class FastJSONMapper {
                 convertedValsList.add(item);
             }
             final Object[] convertedVals = convertedValsList.toArray();
-            convertVals(convertedVals, visitedOnPath, standardObjectVisited, classToSerializableFields,
+            convertVals(convertedVals, visitedOnPath, standardObjectVisited, classToSerializableFieldInfo,
                     objToJSONVal);
 
             // Create new JSON array representing the collection
@@ -661,21 +513,9 @@ public class FastJSONMapper {
             // A standard object -- serialize fields as a JSON associative array.
             try {
                 // Cache class fields to include in serialization
-                List<Field> serializableFields = classToSerializableFields.get(cls);
-                if (serializableFields == null) {
-                    classToSerializableFields.put(cls, serializableFields = new ArrayList<>());
-                    final Field[] fields = cls.getDeclaredFields();
-                    for (int i = 0; i < fields.length; i++) {
-                        final Field field = fields[i];
-                        // Don't serialize transient, final or synthetic fields
-                        final int modifiers = field.getModifiers();
-                        if (!Modifier.isTransient(modifiers) && !Modifier.isFinal(modifiers)
-                                && ((modifiers & 0x1000 /* synthetic */) == 0)) {
-                            field.setAccessible(true);
-                            serializableFields.add(field);
-                        }
-                    }
-                }
+                SerializableFieldInfo serializableFieldInfo = JSONUtils
+                        .getSerializableFieldInfo(classToSerializableFieldInfo, cls);
+                List<Field> serializableFields = serializableFieldInfo.serializableFields;
                 final int n = serializableFields.size();
 
                 // Convert field values to JSON values
@@ -686,7 +526,7 @@ public class FastJSONMapper {
                     fieldNames[i] = field.getName();
                     convertedVals[i] = field.get(obj);
                 }
-                convertVals(convertedVals, visitedOnPath, standardObjectVisited, classToSerializableFields,
+                convertVals(convertedVals, visitedOnPath, standardObjectVisited, classToSerializableFieldInfo,
                         objToJSONVal);
 
                 // Create new JSON object representing the standard object
@@ -714,20 +554,20 @@ public class FastJSONMapper {
      * Recursively serialize an Object (or array, list, map or set of objects) to JSON, skipping transient and final
      * fields. If indentWidth == 0, no prettyprinting indentation is performed.
      */
-    public static String toJSON(final Object obj, final int indentWidth) {
+    static String toJSON(final Object obj, final int indentWidth) {
         final Set<ReferenceEqualityKey> visitedOnPath = new HashSet<>();
         final Set<ReferenceEqualityKey> standardObjectVisited = new HashSet<>();
-        final Map<Class<?>, List<Field>> classToSerializableFields = new HashMap<>();
+        final Map<Class<?>, SerializableFieldInfo> classToSerializableFieldInfo = new HashMap<>();
         final HashMap<ReferenceEqualityKey, JSONObject> objToJSONVal = new HashMap<>();
 
-        final Object rootJsonVal = toJSONGraph(obj, visitedOnPath, standardObjectVisited, classToSerializableFields,
-                objToJSONVal);
+        final Object rootJsonVal = toJSONGraph(obj, visitedOnPath, standardObjectVisited,
+                classToSerializableFieldInfo, objToJSONVal);
 
-        final Map<ReferenceEqualityKey, Field> objToIdKeyField = new HashMap<>();
         final Map<ReferenceEqualityKey, Object> refdJsonValToId = new HashMap<>();
         final Map<ReferenceEqualityKey, Object> jsonReferenceToId = new HashMap<>();
         final AtomicInteger objId = new AtomicInteger(0);
-        assignObjectIds(rootJsonVal, objToJSONVal, objToIdKeyField, refdJsonValToId, jsonReferenceToId, objId);
+        assignObjectIds(rootJsonVal, objToJSONVal, classToSerializableFieldInfo, refdJsonValToId, jsonReferenceToId,
+                objId);
 
         final StringBuilder buf = new StringBuilder(32768);
         jsonValToJSONString(rootJsonVal, refdJsonValToId, jsonReferenceToId, /* includeNullValuedFields = */ false,
@@ -739,7 +579,7 @@ public class FastJSONMapper {
      * Recursively serialize an Object (or array, list, map or set of objects) to JSON, skipping transient and final
      * fields.
      */
-    public static String toJSON(final Object obj) {
+    static String toJSON(final Object obj) {
         return toJSON(obj, /* indentWidth = */ 0);
     }
 }

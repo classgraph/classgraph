@@ -43,8 +43,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import io.github.lukehutch.fastclasspathscanner.json.FastJSONMapper.Id;
 import io.github.lukehutch.fastclasspathscanner.scanner.AnnotationInfo.AnnotationParamValue;
-import io.github.lukehutch.fastclasspathscanner.scanner.FastJSONMapper.Id;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult.InfoObject;
 import io.github.lukehutch.fastclasspathscanner.typesignature.ClassTypeSignature;
 import io.github.lukehutch.fastclasspathscanner.typesignature.MethodTypeSignature;

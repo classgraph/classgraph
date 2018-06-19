@@ -107,6 +107,17 @@ public class Parser {
         token.append(c);
     }
 
+    public void skipWhitespace() {
+        while (position < string.length()) {
+            final char c = string.charAt(position);
+            if (c == ' ' || c == '\n' || c == '\r' || c == '\t') {
+                position++;
+            } else {
+                break;
+            }
+        }
+    }
+
     /**
      * Get the current token, and reset the token to empty.
      * 
