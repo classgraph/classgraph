@@ -105,7 +105,7 @@ export JAVA_HOME=/usr/java/default   # Or similar -- Maven needs JAVA_HOME
 mvn -Dmaven.test.skip=true package
 ```
 
-### Using as a Java module
+### Use as a Java module
 
 To use FastClasspathScanner as a Java module, add the jar dependency to your project using one of the above methods, then add the following to your `module-info.java`: 
 
