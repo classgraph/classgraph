@@ -109,7 +109,7 @@ mvn -Dmaven.test.skip=true package
 
 To use FastClasspathScanner as a Java module, add the jar dependency to your project using one of the above methods, then add the following to your `module-info.java`: 
 
-```requires io.github.lukehutch.fastclasspathscanner;```
+```    requires io.github.lukehutch.fastclasspathscanner;```
 
 ## License
 
