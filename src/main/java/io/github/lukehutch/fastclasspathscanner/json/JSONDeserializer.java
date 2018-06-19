@@ -45,7 +45,7 @@ class JSONDeserializer {
 
     // JSON PEG grammar: https://github.com/azatoth/PanPG/blob/master/grammars/JSON.peg
 
-    private static Entry<String, Object> parseKV(Parser parser) {
+    private static Entry<String, Object> parseKV(final Parser parser) {
         // TODO Auto-generated method stub
         return null;
     }
@@ -58,7 +58,7 @@ class JSONDeserializer {
         T obj = null;
         try {
             obj = classType.getDeclaredConstructor().newInstance();
-        } catch (Exception e) {
+        } catch (final Exception e) {
             throw new IllegalArgumentException("Cannot instantiate class " + classType, e);
         }
         final SerializableFieldInfo serializableFieldInfo = JSONUtils
@@ -66,7 +66,7 @@ class JSONDeserializer {
 
         boolean first = true;
         for (Entry<String, Object> kv = parseKV(parser); kv != null; kv = parseKV(parser)) {
-            Field f; // TODO
+            final Field f; // TODO
 
             if (first) {
                 first = false;

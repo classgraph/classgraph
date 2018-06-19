@@ -37,7 +37,7 @@ import java.lang.annotation.Target;
  * Fast, lightweight Java object to JSON serializer, and JSON to Java object deserializer. Handles cycles in the
  * object graph by inserting reference ids.
  */
-public class FastJSONMapper {
+public class JSONMapper {
     /**
      * Annotate a class field with this annotation to use that field's value instead of the automatically-generated
      * id for object references in JSON output. The field value must be a unique identifier across the whole object
@@ -68,7 +68,7 @@ public class FastJSONMapper {
      * Recursively serialize an Object (or array, list, map or set of objects) to JSON, skipping transient and final
      * fields.
      */
-    public static String toJSON(final Object obj, int indentWidth) {
+    public static String toJSON(final Object obj, final int indentWidth) {
         return JSONSerializer.toJSON(obj, 0);
     }
 

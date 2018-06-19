@@ -56,7 +56,7 @@ public class VersionFinder {
     static {
         int javaMajorVersion = 0;
         if (JAVA_VERSION != null) {
-            for (String versionPart : JAVA_VERSION.split("[^0-9]+")) {
+            for (final String versionPart : JAVA_VERSION.split("[^0-9]+")) {
                 if (!versionPart.isEmpty() && !versionPart.equals("1")) {
                     javaMajorVersion = Integer.parseInt(versionPart);
                     break;

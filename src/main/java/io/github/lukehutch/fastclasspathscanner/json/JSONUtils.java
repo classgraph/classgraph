@@ -38,7 +38,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import io.github.lukehutch.fastclasspathscanner.json.FastJSONMapper.Id;
+import io.github.lukehutch.fastclasspathscanner.json.JSONMapper.Id;
 
 /** Utils for Java serialization and deserialization. */
 class JSONUtils {
@@ -190,7 +190,7 @@ class JSONUtils {
             final Field[] fields = cls.getDeclaredFields();
             for (int i = 0; i < fields.length; i++) {
                 final Field field = fields[i];
-                boolean hasIdAnnotation = field.isAnnotationPresent(Id.class);
+                final boolean hasIdAnnotation = field.isAnnotationPresent(Id.class);
                 // Don't serialize transient, final or synthetic fields
                 final int modifiers = field.getModifiers();
                 if (!Modifier.isTransient(modifiers) && !Modifier.isFinal(modifiers)
@@ -200,12 +200,13 @@ class JSONUtils {
                     if (!field.isAccessible()) {
                         try {
                             field.setAccessible(true);
-                        } catch (Exception e) {
+                        } catch (final Exception e) {
                             AccessController.doPrivileged(new PrivilegedAction<Void>() {
+                                @Override
                                 public Void run() {
                                     try {
                                         field.setAccessible(true);
-                                    } catch (Exception e) {
+                                    } catch (final Exception e) {
                                     }
                                     return null;
                                 }
@@ -221,19 +222,19 @@ class JSONUtils {
                         serializableFieldInfo.idField = field;
                     }
 
-                    Class<?> fieldType = field.getType();
+                    final Class<?> fieldType = field.getType();
                     if (fieldType.isArray()) {
                         // Store component type of an array
                         serializableFieldInfo.fieldElementType0.add(fieldType.getComponentType());
                         serializableFieldInfo.fieldElementType1.add(null);
                     } else {
                         // Store any generic parameter type (for collections) or types (for maps)
-                        Type genericFieldType = field.getGenericType();
+                        final Type genericFieldType = field.getGenericType();
                         Type type0 = null;
                         Type type1 = null;
                         if (genericFieldType instanceof ParameterizedType) {
-                            ParameterizedType aType = (ParameterizedType) genericFieldType;
-                            Type[] fieldArgTypes = aType.getActualTypeArguments();
+                            final ParameterizedType aType = (ParameterizedType) genericFieldType;
+                            final Type[] fieldArgTypes = aType.getActualTypeArguments();
                             type0 = fieldArgTypes.length > 0 ? fieldArgTypes[0] : null;
                             type1 = fieldArgTypes.length > 1 ? fieldArgTypes[1] : null;
                         }

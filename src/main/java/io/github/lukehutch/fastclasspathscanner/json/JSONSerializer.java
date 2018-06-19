@@ -43,7 +43,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import io.github.lukehutch.fastclasspathscanner.json.FastJSONMapper.Id;
+import io.github.lukehutch.fastclasspathscanner.json.JSONMapper.Id;
 import io.github.lukehutch.fastclasspathscanner.json.JSONUtils.SerializableFieldInfo;
 
 /**
@@ -108,7 +108,7 @@ class JSONSerializer {
                 throw new RuntimeException("Internal inconsistency");
             }
             // See if the JSON object has an @Id field
-            Field annotatedField = JSONUtils.getSerializableFieldInfo(classToSerializableFieldInfo,
+            final Field annotatedField = JSONUtils.getSerializableFieldInfo(classToSerializableFieldInfo,
                     refdObj.getClass()).idField;
             Object idObj = null;
             if (annotatedField != null) {
@@ -513,9 +513,9 @@ class JSONSerializer {
             // A standard object -- serialize fields as a JSON associative array.
             try {
                 // Cache class fields to include in serialization
-                SerializableFieldInfo serializableFieldInfo = JSONUtils
+                final SerializableFieldInfo serializableFieldInfo = JSONUtils
                         .getSerializableFieldInfo(classToSerializableFieldInfo, cls);
-                List<Field> serializableFields = serializableFieldInfo.serializableFields;
+                final List<Field> serializableFields = serializableFieldInfo.serializableFields;
                 final int n = serializableFields.size();
 
                 // Convert field values to JSON values
