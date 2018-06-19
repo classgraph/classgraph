@@ -44,8 +44,30 @@ import org.w3c.dom.Document;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 
-/** Finds the version number of FastClasspathScanner. */
+/** Finds the version number of FastClasspathScanner, and the version of the JDK. */
 public class VersionFinder {
+
+    /** Java version string */
+    public static final String JAVA_VERSION = System.getProperty("java.version");
+
+    /** Java major version -- 7 for "1.7", 8 for "1.8.0_244", 9 for "9", 11 for "11-ea", etc. */
+    public static final int JAVA_MAJOR_VERSION;
+
+    static {
+        int javaMajorVersion = 0;
+        if (JAVA_VERSION != null) {
+            for (String versionPart : JAVA_VERSION.split("[^0-9]+")) {
+                if (!versionPart.isEmpty() && !versionPart.equals("1")) {
+                    javaMajorVersion = Integer.parseInt(versionPart);
+                    break;
+                }
+            }
+        }
+        JAVA_MAJOR_VERSION = javaMajorVersion;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
     private static final String MAVEN_PACKAGE = "io.github.lukehutch";
     private static final String MAVEN_ARTIFACT = "fast-classpath-scanner";
 

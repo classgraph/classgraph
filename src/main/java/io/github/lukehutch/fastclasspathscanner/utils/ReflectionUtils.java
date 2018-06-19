@@ -306,13 +306,6 @@ public class ReflectionUtils {
         return null;
     }
 
-    public static final String JAVA_VERSION = System.getProperty("java.version");
-    public static final boolean JAVA_VERSION_IS_8 = JAVA_VERSION != null
-            && (JAVA_VERSION.equals("8") || JAVA_VERSION.equals("1.8") || JAVA_VERSION.startsWith("1.8."));
-    public static final boolean JAVA_VERSION_IS_9_PLUS = JAVA_VERSION != null
-            && Integer.parseInt(JAVA_VERSION.indexOf('.') < 0 ? JAVA_VERSION
-                    : JAVA_VERSION.substring(0, JAVA_VERSION.indexOf('.'))) >= 9;
-
     private static Object tryInvokeDefaultMethod(final Class<?> cls, final String methodName,
             final Class<?> returnType, final ClassLoader classLoader, final boolean throwException)
             throws Exception {
@@ -321,7 +314,7 @@ public class ReflectionUtils {
                     @Override
                     public Object invoke(final Object proxy, final Method method, final Object[] args)
                             throws Throwable {
-                        if (JAVA_VERSION_IS_8) {
+                        if (VersionFinder.JAVA_MAJOR_VERSION == 8) {
                             final Constructor<Lookup> constructor = Lookup.class
                                     .getDeclaredConstructor(Class.class);
                             constructor.setAccessible(true);
@@ -355,7 +348,7 @@ public class ReflectionUtils {
             final ClassLoader classLoader, final boolean throwException)
             throws IllegalArgumentException, NullPointerException {
         if (cls != null) {
-            if (!JAVA_VERSION_IS_8 && !JAVA_VERSION_IS_9_PLUS) {
+            if (VersionFinder.JAVA_MAJOR_VERSION < 8) {
                 if (throwException) {
                     throw new NullPointerException("Can't invoke default method on JDK 1.7");
                 }
