@@ -28,18 +28,6 @@
  */
 package io.github.lukehutch.fastclasspathscanner.json;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-
-import io.github.lukehutch.fastclasspathscanner.json.JSONMapper.Id;
-
 /** Utils for Java serialization and deserialization. */
 class JSONUtils {
     // See http://www.json.org/ under "string"
@@ -169,85 +157,5 @@ class JSONUtils {
             buf.append(INDENT_LEVELS[n]);
             d -= n;
         }
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    static class SerializableFieldInfo {
-        List<Field> serializableFields = new ArrayList<>();
-        List<Type> fieldElementType0 = new ArrayList<>(); // Can be cast to Class<?>
-        List<Type> fieldElementType1 = new ArrayList<>();
-        Field idField;
-    }
-
-    @SuppressWarnings("deprecation")
-    static SerializableFieldInfo getSerializableFieldInfo(
-            final Map<Class<?>, SerializableFieldInfo> classToSerializableFieldInfo,
-            final Class<? extends Object> cls) {
-        SerializableFieldInfo serializableFieldInfo = classToSerializableFieldInfo.get(cls);
-        if (serializableFieldInfo == null) {
-            classToSerializableFieldInfo.put(cls, serializableFieldInfo = new SerializableFieldInfo());
-            final Field[] fields = cls.getDeclaredFields();
-            for (int i = 0; i < fields.length; i++) {
-                final Field field = fields[i];
-                final boolean hasIdAnnotation = field.isAnnotationPresent(Id.class);
-                // Don't serialize transient, final or synthetic fields
-                final int modifiers = field.getModifiers();
-                if (!Modifier.isTransient(modifiers) && !Modifier.isFinal(modifiers)
-                        && ((modifiers & 0x1000 /* synthetic */) == 0)) {
-
-                    // Make field accessible if needed
-                    if (!field.isAccessible()) {
-                        try {
-                            field.setAccessible(true);
-                        } catch (final Exception e) {
-                            AccessController.doPrivileged(new PrivilegedAction<Void>() {
-                                @Override
-                                public Void run() {
-                                    try {
-                                        field.setAccessible(true);
-                                    } catch (final Exception e) {
-                                    }
-                                    return null;
-                                }
-                            });
-                        }
-                    }
-
-                    // Save field among serializable fields
-                    serializableFieldInfo.serializableFields.add(field);
-
-                    // Store ID field if necessary
-                    if (hasIdAnnotation) {
-                        serializableFieldInfo.idField = field;
-                    }
-
-                    final Class<?> fieldType = field.getType();
-                    if (fieldType.isArray()) {
-                        // Store component type of an array
-                        serializableFieldInfo.fieldElementType0.add(fieldType.getComponentType());
-                        serializableFieldInfo.fieldElementType1.add(null);
-                    } else {
-                        // Store any generic parameter type (for collections) or types (for maps)
-                        final Type genericFieldType = field.getGenericType();
-                        Type type0 = null;
-                        Type type1 = null;
-                        if (genericFieldType instanceof ParameterizedType) {
-                            final ParameterizedType aType = (ParameterizedType) genericFieldType;
-                            final Type[] fieldArgTypes = aType.getActualTypeArguments();
-                            type0 = fieldArgTypes.length > 0 ? fieldArgTypes[0] : null;
-                            type1 = fieldArgTypes.length > 1 ? fieldArgTypes[1] : null;
-                        }
-                        serializableFieldInfo.fieldElementType0.add(type0);
-                        serializableFieldInfo.fieldElementType1.add(type1);
-                    }
-                } else if (hasIdAnnotation) {
-                    throw new IllegalArgumentException("Cannot use @Id annotation on transient or final field: "
-                            + cls + "." + field.getName());
-                }
-            }
-        }
-        return serializableFieldInfo;
-
     }
 }

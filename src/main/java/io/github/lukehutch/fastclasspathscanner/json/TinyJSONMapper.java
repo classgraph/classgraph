@@ -37,7 +37,7 @@ import java.lang.annotation.Target;
  * Fast, lightweight Java object to JSON serializer, and JSON to Java object deserializer. Handles cycles in the
  * object graph by inserting reference ids.
  */
-public class JSONMapper {
+public class TinyJSONMapper {
     /**
      * Annotate a class field with this annotation to use that field's value instead of the automatically-generated
      * id for object references in JSON output. The field value must be a unique identifier across the whole object
@@ -68,14 +68,14 @@ public class JSONMapper {
      * Recursively serialize an Object (or array, list, map or set of objects) to JSON, skipping transient and final
      * fields.
      */
-    public static String toJSON(final Object obj, final int indentWidth) {
-        return JSONSerializer.toJSON(obj, indentWidth);
+    public static String toJSON(final Object obj, final int indentWidth, final boolean onlySerializePublicFields) {
+        return JSONSerializer.toJSON(obj, indentWidth, onlySerializePublicFields);
     }
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Recursively deserialize an Object from JSON. */
-    public static <T extends Class<T>> T fromJSONObject(final String json, final T classType) {
-        return JSONDeserializer.fromJSONObject(json, classType);
-    }
+    //    /** Recursively deserialize an Object from JSON. */
+    //    public static <T extends Class<T>> T fromJSONObject(final String json, final T classType) {
+    //        return JSONDeserializer.fromJSONObject(json, classType);
+    //    }
 }

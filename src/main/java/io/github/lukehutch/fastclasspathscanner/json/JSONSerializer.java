@@ -43,8 +43,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import io.github.lukehutch.fastclasspathscanner.json.JSONMapper.Id;
-import io.github.lukehutch.fastclasspathscanner.json.JSONUtils.SerializableFieldInfo;
+import io.github.lukehutch.fastclasspathscanner.json.TinyJSONMapper.Id;
 
 /**
  * Fast, lightweight Java object to JSON serializer, and JSON to Java object deserializer. Handles cycles in the
@@ -77,21 +76,21 @@ class JSONSerializer {
 
     /** Create a unique id for each referenced JSON object. */
     private static void assignObjectIds(final Object jsonVal,
-            final Map<ReferenceEqualityKey, JSONObject> objToJSONVal,
-            final Map<Class<?>, SerializableFieldInfo> classToSerializableFieldInfo,
-            final Map<ReferenceEqualityKey, Object> refdJsonValToId,
-            final Map<ReferenceEqualityKey, Object> jsonReferenceToId, final AtomicInteger objId) {
+            final Map<ReferenceEqualityKey<Object>, JSONObject> objToJSONVal, final TypeCache typeCache,
+            final Map<ReferenceEqualityKey<JSONObject>, Object> refdJsonObjToId,
+            final Map<ReferenceEqualityKey<JSONReference>, Object> jsonReferenceToId, final AtomicInteger objId,
+            final boolean onlySerializePublicFields) {
         if (jsonVal == null) {
             return;
         } else if (jsonVal instanceof JSONObject) {
             for (final Entry<String, Object> item : ((JSONObject) jsonVal).items) {
-                assignObjectIds(item.getValue(), objToJSONVal, classToSerializableFieldInfo, refdJsonValToId,
-                        jsonReferenceToId, objId);
+                assignObjectIds(item.getValue(), objToJSONVal, typeCache, refdJsonObjToId, jsonReferenceToId, objId,
+                        onlySerializePublicFields);
             }
         } else if (jsonVal instanceof JSONArray) {
             for (final Object item : ((JSONArray) jsonVal).items) {
-                assignObjectIds(item, objToJSONVal, classToSerializableFieldInfo, refdJsonValToId,
-                        jsonReferenceToId, objId);
+                assignObjectIds(item, objToJSONVal, typeCache, refdJsonObjToId, jsonReferenceToId, objId,
+                        onlySerializePublicFields);
             }
         } else if (jsonVal instanceof JSONReference) {
             // Get the referenced (non-JSON) object
@@ -101,15 +100,16 @@ class JSONSerializer {
                 throw new RuntimeException("Internal inconsistency");
             }
             // Look up the JSON object corresponding to the referenced object
-            final ReferenceEqualityKey refdObjKey = new ReferenceEqualityKey(refdObj);
+            final ReferenceEqualityKey<Object> refdObjKey = new ReferenceEqualityKey<>(refdObj);
             final JSONObject refdJsonVal = objToJSONVal.get(refdObjKey);
             if (refdJsonVal == null) {
                 // Should not happen
                 throw new RuntimeException("Internal inconsistency");
             }
             // See if the JSON object has an @Id field
-            final Field annotatedField = JSONUtils.getSerializableFieldInfo(classToSerializableFieldInfo,
-                    refdObj.getClass()).idField;
+            // (for serialization, typeResolutions can be null)
+            final Field annotatedField = typeCache.getResolvedFields(refdObj.getClass(),
+                    /* typeResolutions = */ null, onlySerializePublicFields).idField;
             Object idObj = null;
             if (annotatedField != null) {
                 // Get id value from field annotated with @Id
@@ -122,17 +122,17 @@ class JSONSerializer {
             }
             if (idObj == null) {
                 // No @Id field, or field value is null -- check if ref'd JSON Object already has an id
-                final ReferenceEqualityKey refdJsonValKey = new ReferenceEqualityKey(refdJsonVal);
-                idObj = refdJsonValToId.get(refdJsonValKey);
+                final ReferenceEqualityKey<JSONObject> refdJsonValKey = new ReferenceEqualityKey<>(refdJsonVal);
+                idObj = refdJsonObjToId.get(refdJsonValKey);
                 if (idObj == null) {
                     // Ref'd JSON object doesn't have an id yet -- generate unique integer id
                     idObj = ID_PREFIX + objId.getAndIncrement() + ID_SUFFIX;
                     // Label the referenced node with its new unique id
-                    refdJsonValToId.put(refdJsonValKey, idObj);
+                    refdJsonObjToId.put(refdJsonValKey, idObj);
                 }
             }
-            // Link both the referenced object and its JSON representation to the id
-            jsonReferenceToId.put(new ReferenceEqualityKey(jsonVal), idObj);
+            // Link both the JSON representation ob the object to the id
+            jsonReferenceToId.put(new ReferenceEqualityKey<>((JSONReference) jsonVal), idObj);
         }
     }
 
@@ -148,9 +148,10 @@ class JSONSerializer {
         }
 
         /** Serialize this JSONObject to a string. */
-        void toString(final Map<ReferenceEqualityKey, Object> refdJsonValToId,
-                final Map<ReferenceEqualityKey, Object> jsonReferenceToId, final boolean includeNullValuedFields,
-                final int depth, final int indentWidth, final StringBuilder buf) {
+        void toString(final Map<ReferenceEqualityKey<JSONObject>, Object> refdJsonObjToId,
+                final Map<ReferenceEqualityKey<JSONReference>, Object> jsonReferenceToId,
+                final boolean includeNullValuedFields, final int depth, final int indentWidth,
+                final StringBuilder buf) {
             final boolean prettyPrint = indentWidth > 0;
             final int n = items.size();
             int numDisplayedFields;
@@ -164,10 +165,10 @@ class JSONSerializer {
                     }
                 }
             }
-            final ReferenceEqualityKey thisKey = new ReferenceEqualityKey(this);
+            final ReferenceEqualityKey<JSONObject> thisKey = new ReferenceEqualityKey<>(this);
             // id will be non-null if this object does not have an @Id field, but was referenced by another object
             // (need to include ID_TAG)
-            final Object id = refdJsonValToId.get(thisKey);
+            final Object id = refdJsonObjToId.get(thisKey);
             if (id == null && numDisplayedFields == 0) {
                 buf.append("{}");
             } else {
@@ -179,7 +180,7 @@ class JSONSerializer {
                     buf.append('"');
                     buf.append(ID_TAG);
                     buf.append(prettyPrint ? "\": " : "\":");
-                    jsonValToJSONString(id, refdJsonValToId, jsonReferenceToId, includeNullValuedFields, depth + 1,
+                    jsonValToJSONString(id, refdJsonObjToId, jsonReferenceToId, includeNullValuedFields, depth + 1,
                             indentWidth, buf);
                     if (numDisplayedFields > 0) {
                         buf.append(',');
@@ -199,7 +200,7 @@ class JSONSerializer {
                         buf.append('"');
                         JSONUtils.escapeJSONString(key, buf);
                         buf.append(prettyPrint ? "\": " : "\":");
-                        jsonValToJSONString(val, refdJsonValToId, jsonReferenceToId, includeNullValuedFields,
+                        jsonValToJSONString(val, refdJsonObjToId, jsonReferenceToId, includeNullValuedFields,
                                 depth + 1, indentWidth, buf);
                         if (++j < numDisplayedFields) {
                             buf.append(',');
@@ -227,9 +228,10 @@ class JSONSerializer {
         }
 
         /** Serialize this JSONArray to a string. */
-        void toString(final Map<ReferenceEqualityKey, Object> refdJsonValToId,
-                final Map<ReferenceEqualityKey, Object> jsonReferenceToId, final boolean includeNullValuedFields,
-                final int depth, final int indentWidth, final StringBuilder buf) {
+        void toString(final Map<ReferenceEqualityKey<JSONObject>, Object> refdJsonObjToId,
+                final Map<ReferenceEqualityKey<JSONReference>, Object> jsonReferenceToId,
+                final boolean includeNullValuedFields, final int depth, final int indentWidth,
+                final StringBuilder buf) {
             final boolean prettyPrint = indentWidth > 0;
             final int n = items.size();
             if (n == 0) {
@@ -244,7 +246,7 @@ class JSONSerializer {
                     if (prettyPrint) {
                         JSONUtils.indent(depth + 1, indentWidth, buf);
                     }
-                    jsonValToJSONString(item, refdJsonValToId, jsonReferenceToId, includeNullValuedFields,
+                    jsonValToJSONString(item, refdJsonObjToId, jsonReferenceToId, includeNullValuedFields,
                             depth + 1, indentWidth, buf);
                     if (i < n - 1) {
                         buf.append(',');
@@ -265,20 +267,22 @@ class JSONSerializer {
 
     /** Serialize a JSON object, array, or value. */
     private static void jsonValToJSONString(final Object jsonVal,
-            final Map<ReferenceEqualityKey, Object> refdJsonValToId,
-            final Map<ReferenceEqualityKey, Object> jsonReferenceToId, final boolean includeNullValuedFields,
-            final int depth, final int indentWidth, final StringBuilder buf) {
+            final Map<ReferenceEqualityKey<JSONObject>, Object> refdJsonObjToId,
+            final Map<ReferenceEqualityKey<JSONReference>, Object> jsonReferenceToId,
+            final boolean includeNullValuedFields, final int depth, final int indentWidth,
+            final StringBuilder buf) {
         if (jsonVal == null) {
             buf.append("null");
         } else if (jsonVal instanceof JSONObject) {
-            ((JSONObject) jsonVal).toString(refdJsonValToId, jsonReferenceToId, includeNullValuedFields, depth,
+            ((JSONObject) jsonVal).toString(refdJsonObjToId, jsonReferenceToId, includeNullValuedFields, depth,
                     indentWidth, buf);
         } else if (jsonVal instanceof JSONArray) {
-            ((JSONArray) jsonVal).toString(refdJsonValToId, jsonReferenceToId, includeNullValuedFields, depth,
+            ((JSONArray) jsonVal).toString(refdJsonObjToId, jsonReferenceToId, includeNullValuedFields, depth,
                     indentWidth, buf);
         } else if (jsonVal instanceof JSONReference) {
-            final Object referencedObjectId = jsonReferenceToId.get(new ReferenceEqualityKey(jsonVal));
-            jsonValToJSONString(referencedObjectId, refdJsonValToId, jsonReferenceToId, includeNullValuedFields,
+            final Object referencedObjectId = jsonReferenceToId
+                    .get(new ReferenceEqualityKey<>((JSONReference) jsonVal));
+            jsonValToJSONString(referencedObjectId, refdJsonObjToId, jsonReferenceToId, includeNullValuedFields,
                     depth, indentWidth, buf);
         } else if (jsonVal instanceof String || jsonVal instanceof Character || jsonVal instanceof JSONReference
                 || jsonVal.getClass().isEnum()) {
@@ -314,47 +318,18 @@ class JSONSerializer {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /**
-     * An object for wrapping a HashMap key so that the hashmap performs reference equality on the keys, not
-     * equals() equality.
-     */
-    private static class ReferenceEqualityKey {
-        Object wrappedKey;
-
-        public ReferenceEqualityKey(final Object wrappedKey) {
-            this.wrappedKey = wrappedKey;
-        }
-
-        @Override
-        public int hashCode() {
-            return wrappedKey.hashCode();
-        }
-
-        @Override
-        public boolean equals(final Object other) {
-            return other != null && other instanceof ReferenceEqualityKey
-                    && wrappedKey == ((ReferenceEqualityKey) other).wrappedKey;
-        }
-
-        @Override
-        public String toString() {
-            return wrappedKey.toString();
-        }
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
     /** Take an array of object values, and recursively convert them (in place) into JSON values. */
-    private static void convertVals(final Object[] convertedVals, final Set<ReferenceEqualityKey> visitedOnPath,
-            final Set<ReferenceEqualityKey> standardObjectVisited,
-            final Map<Class<?>, SerializableFieldInfo> classToSerializableFieldInfo,
-            final Map<ReferenceEqualityKey, JSONObject> objToJSONVal) {
+    private static void convertVals(final Object[] convertedVals,
+            final Set<ReferenceEqualityKey<Object>> visitedOnPath,
+            final Set<ReferenceEqualityKey<Object>> standardObjectVisited, final TypeCache typeCache,
+            final Map<ReferenceEqualityKey<Object>, JSONObject> objToJSONVal,
+            final boolean onlySerializePublicFields) {
         // Pass 1: find standard objects (objects that are not of basic value type or collections/arrays/maps)
         // that have not yet been visited, and mark them as visited. Place a JSONReference placeholder in
         // convertedVals[i] to signify this. This first pass is non-recursive, so that objects are visited
         // as high up the tree as possible, since it is only the first visit of an object that shows in the
         // final JSON doc, and the rest are turned into references.
-        final ReferenceEqualityKey[] valKeys = new ReferenceEqualityKey[convertedVals.length];
+        final ReferenceEqualityKey<?>[] valKeys = new ReferenceEqualityKey<?>[convertedVals.length];
         final boolean[] needToConvert = new boolean[convertedVals.length];
         for (int i = 0; i < convertedVals.length; i++) {
             final Object val = convertedVals[i];
@@ -364,7 +339,7 @@ class JSONSerializer {
                 // If this object is a standard object, check if it has already been visited
                 // elsewhere in the tree. If so, use a JSONReference instead, and mark the object
                 // as visited.
-                final ReferenceEqualityKey valKey = new ReferenceEqualityKey(val);
+                final ReferenceEqualityKey<Object> valKey = new ReferenceEqualityKey<>(val);
                 valKeys[i] = valKey;
                 final boolean alreadyVisited = !standardObjectVisited.add(valKey);
                 if (alreadyVisited) {
@@ -379,12 +354,14 @@ class JSONSerializer {
                 // Recursively convert standard objects (if it is the first time they have been visited)
                 // and maps to JSON objects, and convert collections and arrays to JSON arrays.
                 final Object val = convertedVals[i];
-                convertedVals[i] = toJSONGraph(val, visitedOnPath, standardObjectVisited,
-                        classToSerializableFieldInfo, objToJSONVal);
+                convertedVals[i] = toJSONGraph(val, visitedOnPath, standardObjectVisited, typeCache, objToJSONVal,
+                        onlySerializePublicFields);
                 if (!isCollectionOrArrayOrMap(val)) {
                     // If this object is a standard object, then it has not been visited before, 
                     // so save the mapping between original object and converted object
-                    objToJSONVal.put(valKeys[i], (JSONObject) convertedVals[i]);
+                    @SuppressWarnings("unchecked")
+                    final ReferenceEqualityKey<Object> valKey = (ReferenceEqualityKey<Object>) valKeys[i];
+                    objToJSONVal.put(valKey, (JSONObject) convertedVals[i]);
                 }
             }
         }
@@ -394,10 +371,10 @@ class JSONSerializer {
      * Turn an object graph into a graph of JSON objects, arrays, and values.
      */
     @SuppressWarnings({ "unchecked", "rawtypes" })
-    private static Object toJSONGraph(final Object obj, final Set<ReferenceEqualityKey> visitedOnPath,
-            final Set<ReferenceEqualityKey> standardObjectVisited,
-            final Map<Class<?>, SerializableFieldInfo> classToSerializableFieldInfo,
-            final Map<ReferenceEqualityKey, JSONObject> objToJSONVal) {
+    private static Object toJSONGraph(final Object obj, final Set<ReferenceEqualityKey<Object>> visitedOnPath,
+            final Set<ReferenceEqualityKey<Object>> standardObjectVisited, final TypeCache typeCache,
+            final Map<ReferenceEqualityKey<Object>, JSONObject> objToJSONVal,
+            final boolean onlySerializePublicFields) {
 
         // For null and basic value types, just return value
         if (obj == null || obj instanceof String || obj instanceof Integer || obj instanceof Boolean
@@ -407,7 +384,7 @@ class JSONSerializer {
         }
 
         // Check for cycles
-        final ReferenceEqualityKey objKey = new ReferenceEqualityKey(obj);
+        final ReferenceEqualityKey<Object> objKey = new ReferenceEqualityKey<>(obj);
         if (!visitedOnPath.add(objKey)) {
             // Reached cycle in graph
             if (isCollectionOrArray(obj)) {
@@ -467,8 +444,8 @@ class JSONSerializer {
             for (int i = 0; i < n; i++) {
                 convertedVals[i] = map.get(keys.get(i));
             }
-            convertVals(convertedVals, visitedOnPath, standardObjectVisited, classToSerializableFieldInfo,
-                    objToJSONVal);
+            convertVals(convertedVals, visitedOnPath, standardObjectVisited, typeCache, objToJSONVal,
+                    onlySerializePublicFields);
 
             // Create new JSON object representing the map
             final List<Entry<String, Object>> convertedKeyValPairs = new ArrayList<>(n);
@@ -488,8 +465,8 @@ class JSONSerializer {
             for (int i = 0; i < n; i++) {
                 convertedVals[i] = isList ? list.get(i) : Array.get(obj, i);
             }
-            convertVals(convertedVals, visitedOnPath, standardObjectVisited, classToSerializableFieldInfo,
-                    objToJSONVal);
+            convertVals(convertedVals, visitedOnPath, standardObjectVisited, typeCache, objToJSONVal,
+                    onlySerializePublicFields);
 
             // Create new JSON array representing the list
             jsonVal = new JSONArray(Arrays.asList(convertedVals));
@@ -503,8 +480,8 @@ class JSONSerializer {
                 convertedValsList.add(item);
             }
             final Object[] convertedVals = convertedValsList.toArray();
-            convertVals(convertedVals, visitedOnPath, standardObjectVisited, classToSerializableFieldInfo,
-                    objToJSONVal);
+            convertVals(convertedVals, visitedOnPath, standardObjectVisited, typeCache, objToJSONVal,
+                    onlySerializePublicFields);
 
             // Create new JSON array representing the collection
             jsonVal = new JSONArray(Arrays.asList(convertedVals));
@@ -512,22 +489,24 @@ class JSONSerializer {
         } else {
             // A standard object -- serialize fields as a JSON associative array.
             try {
-                // Cache class fields to include in serialization
-                final SerializableFieldInfo serializableFieldInfo = JSONUtils
-                        .getSerializableFieldInfo(classToSerializableFieldInfo, cls);
-                final List<Field> serializableFields = serializableFieldInfo.serializableFields;
-                final int n = serializableFields.size();
+                // Cache class fields to include in serialization (typeResolutions can be null,
+                // since it's not necessary to resolve type parameters during serialization)
+                final TypeResolvedFieldsForClass resolvedFields = typeCache.getResolvedFields(cls,
+                        /* typeResolutions = */ null, onlySerializePublicFields);
+                final List<FieldResolvedTypeInfo> fieldOrder = resolvedFields.fieldOrder;
+                final int n = fieldOrder.size();
 
                 // Convert field values to JSON values
                 final String[] fieldNames = new String[n];
                 final Object[] convertedVals = new Object[n];
                 for (int i = 0; i < n; i++) {
-                    final Field field = serializableFields.get(i);
+                    final FieldResolvedTypeInfo fieldInfo = fieldOrder.get(i);
+                    final Field field = fieldInfo.field;
                     fieldNames[i] = field.getName();
                     convertedVals[i] = field.get(obj);
                 }
-                convertVals(convertedVals, visitedOnPath, standardObjectVisited, classToSerializableFieldInfo,
-                        objToJSONVal);
+                convertVals(convertedVals, visitedOnPath, standardObjectVisited, typeCache, objToJSONVal,
+                        onlySerializePublicFields);
 
                 // Create new JSON object representing the standard object
                 final List<Entry<String, Object>> convertedKeyValPairs = new ArrayList<>(n);
@@ -554,23 +533,23 @@ class JSONSerializer {
      * Recursively serialize an Object (or array, list, map or set of objects) to JSON, skipping transient and final
      * fields. If indentWidth == 0, no prettyprinting indentation is performed.
      */
-    static String toJSON(final Object obj, final int indentWidth) {
-        final Set<ReferenceEqualityKey> visitedOnPath = new HashSet<>();
-        final Set<ReferenceEqualityKey> standardObjectVisited = new HashSet<>();
-        final Map<Class<?>, SerializableFieldInfo> classToSerializableFieldInfo = new HashMap<>();
-        final HashMap<ReferenceEqualityKey, JSONObject> objToJSONVal = new HashMap<>();
+    static String toJSON(final Object obj, final int indentWidth, final boolean onlySerializePublicFields) {
+        final Set<ReferenceEqualityKey<Object>> visitedOnPath = new HashSet<>();
+        final Set<ReferenceEqualityKey<Object>> standardObjectVisited = new HashSet<>();
+        final TypeCache typeCache = new TypeCache();
+        final HashMap<ReferenceEqualityKey<Object>, JSONObject> objToJSONVal = new HashMap<>();
 
-        final Object rootJsonVal = toJSONGraph(obj, visitedOnPath, standardObjectVisited,
-                classToSerializableFieldInfo, objToJSONVal);
+        final Object rootJsonVal = toJSONGraph(obj, visitedOnPath, standardObjectVisited, typeCache, objToJSONVal,
+                onlySerializePublicFields);
 
-        final Map<ReferenceEqualityKey, Object> refdJsonValToId = new HashMap<>();
-        final Map<ReferenceEqualityKey, Object> jsonReferenceToId = new HashMap<>();
+        final Map<ReferenceEqualityKey<JSONObject>, Object> refdJsonObjToId = new HashMap<>();
+        final Map<ReferenceEqualityKey<JSONReference>, Object> jsonReferenceToId = new HashMap<>();
         final AtomicInteger objId = new AtomicInteger(0);
-        assignObjectIds(rootJsonVal, objToJSONVal, classToSerializableFieldInfo, refdJsonValToId, jsonReferenceToId,
-                objId);
+        assignObjectIds(rootJsonVal, objToJSONVal, typeCache, refdJsonObjToId, jsonReferenceToId, objId,
+                onlySerializePublicFields);
 
         final StringBuilder buf = new StringBuilder(32768);
-        jsonValToJSONString(rootJsonVal, refdJsonValToId, jsonReferenceToId, /* includeNullValuedFields = */ false,
+        jsonValToJSONString(rootJsonVal, refdJsonObjToId, jsonReferenceToId, /* includeNullValuedFields = */ false,
                 0, indentWidth, buf);
         return buf.toString();
     }
@@ -580,6 +559,6 @@ class JSONSerializer {
      * fields.
      */
     static String toJSON(final Object obj) {
-        return toJSON(obj, /* indentWidth = */ 0);
+        return toJSON(obj, /* indentWidth = */ 0, /* onlySerializePublicFields = */ false);
     }
 }
