@@ -43,6 +43,8 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import io.github.lukehutch.fastclasspathscanner.utils.Parser;
+
 /**
  * Fast, lightweight Java object to JSON serializer, and JSON to Java object deserializer. Handles cycles in the
  * object graph by inserting reference ids.
@@ -496,17 +498,24 @@ class JSONSerializer {
 
     /**
      * Recursively serialize an Object (or array, list, map or set of objects) to JSON, skipping transient and final
-     * fields. If indentWidth == 0, no prettyprinting indentation is performed.
+     * fields.
+     * 
+     * @param obj
+     *            The object to serialize.
+     * @param typeCache
+     *            The type cache.
+     * @param indentWidth
+     *            If indentWidth == 0, no prettyprinting indentation is performed, otherwise this specifies the
+     *            number of spaces to indent each level of JSON.
+     * @param onlySerializePublicFields
+     *            If true, only serialize public fields.
      */
-    // TODO: create a version of this that takes an object and field name
-    static String toJSON(final Object obj, final int indentWidth, final boolean onlySerializePublicFields) {
-        final Set<ReferenceEqualityKey<Object>> visitedOnPath = new HashSet<>();
-        final Set<ReferenceEqualityKey<Object>> standardObjectVisited = new HashSet<>();
-        final TypeCache typeCache = new TypeCache();
+    private static String toJSON(final Object obj, final TypeCache typeCache, final int indentWidth,
+            final boolean onlySerializePublicFields) {
         final HashMap<ReferenceEqualityKey<Object>, JSONObject> objToJSONVal = new HashMap<>();
 
-        final Object rootJsonVal = toJSONGraph(obj, visitedOnPath, standardObjectVisited, typeCache, objToJSONVal,
-                onlySerializePublicFields);
+        final Object rootJsonVal = toJSONGraph(obj, new HashSet<ReferenceEqualityKey<Object>>(),
+                new HashSet<ReferenceEqualityKey<Object>>(), typeCache, objToJSONVal, onlySerializePublicFields);
 
         final Map<ReferenceEqualityKey<JSONObject>, Object> refdJsonObjToId = new HashMap<>();
         final Map<ReferenceEqualityKey<JSONReference>, Object> jsonReferenceToId = new HashMap<>();
@@ -518,6 +527,59 @@ class JSONSerializer {
         jsonValToJSONString(rootJsonVal, refdJsonObjToId, jsonReferenceToId, /* includeNullValuedFields = */ false,
                 0, indentWidth, buf);
         return buf.toString();
+    }
+
+    /**
+     * Recursively serialize an Object (or array, list, map or set of objects) to JSON, skipping transient and final
+     * fields.
+     * 
+     * @param obj
+     *            The object to serialize.
+     * @param indentWidth
+     *            If indentWidth == 0, no prettyprinting indentation is performed, otherwise this specifies the
+     *            number of spaces to indent each level of JSON.
+     * @param onlySerializePublicFields
+     *            If true, only serialize public fields.
+     */
+    static String toJSON(final Object obj, final int indentWidth, final boolean onlySerializePublicFields) {
+        return toJSON(obj, new TypeCache(), indentWidth, onlySerializePublicFields);
+    }
+
+    /**
+     * Recursively serialize the named field of an object, skipping transient and final fields.
+     * 
+     * @param containingObject
+     *            The object containing the field value to serialize.
+     * @param fieldName
+     *            The name of the field to serialize.
+     * @param indentWidth
+     *            If indentWidth == 0, no prettyprinting indentation is performed, otherwise this specifies the
+     *            number of spaces to indent each level of JSON.
+     * @param onlySerializePublicFields
+     *            If true, only serialize public fields.
+     */
+    static String toJSON(final Object containingObject, final String fieldName, final int indentWidth,
+            final boolean onlySerializePublicFields) {
+        final TypeCache typeCache = new TypeCache();
+        final FieldResolvedTypeInfo fieldResolvedTypeInfo = typeCache.getResolvedFields(containingObject.getClass(),
+                /* typeResolutions = */ null, /* onlySerializePublicFields = */ false).fieldNameToResolvedTypeInfo
+                        .get(fieldName);
+        if (fieldResolvedTypeInfo == null) {
+            throw new IllegalArgumentException("Class " + containingObject.getClass().getName()
+                    + " does not have a field named \"" + fieldName + "\"");
+        }
+        final Field field = fieldResolvedTypeInfo.field;
+        if (!TypeCache.fieldIsSerializable(field, /* onlySerializePublicFields = */ false)) {
+            throw new IllegalArgumentException("Field " + containingObject.getClass().getName() + "." + fieldName
+                    + " needs to be accessible, non-transient, and non-final");
+        }
+        Object fieldValue;
+        try {
+            fieldValue = JSONUtils.getFieldValue(field, containingObject);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Could not parse JSON", e);
+        }
+        return toJSON(fieldValue, typeCache, indentWidth, onlySerializePublicFields);
     }
 
     /**
