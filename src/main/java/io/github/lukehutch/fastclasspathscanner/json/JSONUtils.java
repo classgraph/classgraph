@@ -28,6 +28,9 @@
  */
 package io.github.lukehutch.fastclasspathscanner.json;
 
+import java.util.Collection;
+import java.util.Map;
+
 /** Utils for Java serialization and deserialization. */
 class JSONUtils {
     // See http://www.json.org/ under "string"
@@ -157,5 +160,55 @@ class JSONUtils {
             buf.append(INDENT_LEVELS[n]);
             d -= n;
         }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Return true for classes that can be equal to a basic value type (types that can be converted directly to and
+     * from string representation).
+     */
+    static boolean isBasicValueType(final Class<?> cls) {
+        return cls == String.class //
+                || cls == Integer.class || cls == Integer.TYPE //
+                || cls == Boolean.class || cls == Boolean.TYPE //
+                || cls == Long.class || cls == Long.TYPE //
+                || cls == Float.class || cls == Float.TYPE //
+                || cls == Double.class || cls == Double.TYPE //
+                || cls == Short.class || cls == Short.TYPE //
+                || cls == Byte.class || cls == Byte.TYPE //
+                || cls == Character.class || cls == Character.TYPE //
+                || cls.isEnum();
+    }
+
+    /** Return true for objects that can be converted directly to and from string representation. */
+    static boolean isBasicValueType(final Object obj) {
+        return obj == null || obj instanceof String || obj instanceof Integer || obj instanceof Boolean
+                || obj instanceof Long || obj instanceof Float || obj instanceof Double || obj instanceof Short
+                || obj instanceof Byte || obj instanceof Character || obj.getClass().isEnum();
+    }
+
+    /**
+     * Return true for classes that are collections or arrays (i.e. objects that are convertible to a JSON array).
+     */
+    static boolean isCollectionOrArray(final Class<?> cls) {
+        return Collection.class.isAssignableFrom(cls) || cls.isArray();
+    }
+
+    /**
+     * Return true for objects that are collections or arrays (i.e. objects that are convertible to a JSON array).
+     */
+    static boolean isCollectionOrArray(final Object obj) {
+        final Class<? extends Object> cls = obj.getClass();
+        return Collection.class.isAssignableFrom(cls) || cls.isArray();
+    }
+
+    /**
+     * Return true for objects that are collections, arrays, or Maps (i.e. objects that may have type parameters,
+     * but that are handled specially).
+     */
+    static boolean isCollectionOrArrayOrMap(final Object obj) {
+        final Class<? extends Object> cls = obj.getClass();
+        return Collection.class.isAssignableFrom(cls) || cls.isArray() || Map.class.isAssignableFrom(cls);
     }
 }

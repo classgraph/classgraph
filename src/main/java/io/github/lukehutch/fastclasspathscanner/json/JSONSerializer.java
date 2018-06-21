@@ -43,25 +43,11 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import io.github.lukehutch.fastclasspathscanner.json.TinyJSONMapper.Id;
-
 /**
  * Fast, lightweight Java object to JSON serializer, and JSON to Java object deserializer. Handles cycles in the
  * object graph by inserting reference ids.
  */
 class JSONSerializer {
-    /**
-     * JSON object key name for objects that are linked to from more than one object. Key name is only used if the
-     * class that a JSON object was serialized from does not have its own id field annotated with {@link Id}.
-     */
-    private static final String ID_TAG = "_ID";
-
-    /** JSON object reference id prefix. */
-    private static final String ID_PREFIX = "[ID#";
-
-    /** JSON object reference id suffix. */
-    private static final String ID_SUFFIX = "]";
-
     /**
      * A class that serves as a placeholder for circular references between objects. Points to the original object,
      * not the converted JSON object, due to late binding.
@@ -126,7 +112,7 @@ class JSONSerializer {
                 idObj = refdJsonObjToId.get(refdJsonValKey);
                 if (idObj == null) {
                     // Ref'd JSON object doesn't have an id yet -- generate unique integer id
-                    idObj = ID_PREFIX + objId.getAndIncrement() + ID_SUFFIX;
+                    idObj = TinyJSONMapper.ID_PREFIX + objId.getAndIncrement() + TinyJSONMapper.ID_SUFFIX;
                     // Label the referenced node with its new unique id
                     refdJsonObjToId.put(refdJsonValKey, idObj);
                 }
@@ -178,7 +164,7 @@ class JSONSerializer {
                         JSONUtils.indent(depth + 1, indentWidth, buf);
                     }
                     buf.append('"');
-                    buf.append(ID_TAG);
+                    buf.append(TinyJSONMapper.ID_TAG);
                     buf.append(prettyPrint ? "\": " : "\":");
                     jsonValToJSONString(id, refdJsonObjToId, jsonReferenceToId, includeNullValuedFields, depth + 1,
                             indentWidth, buf);
@@ -297,27 +283,6 @@ class JSONSerializer {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Return true for objects that can be converted directly to and from string representation. */
-    private static boolean isBasicValueType(final Object obj) {
-        return obj == null || obj instanceof Integer || obj instanceof Boolean || obj instanceof Long
-                || obj instanceof Float || obj instanceof Double || obj instanceof Short || obj instanceof Byte
-                || obj instanceof Character || obj instanceof String || obj.getClass().isEnum();
-    }
-
-    /** Return true for objects that are collections or arrays. */
-    private static boolean isCollectionOrArray(final Object obj) {
-        final Class<? extends Object> cls = obj.getClass();
-        return Collection.class.isAssignableFrom(cls) || cls.isArray();
-    }
-
-    /** Return true for objects that are collections, arrays, or Maps. */
-    private static boolean isCollectionOrArrayOrMap(final Object obj) {
-        final Class<? extends Object> cls = obj.getClass();
-        return Collection.class.isAssignableFrom(cls) || cls.isArray() || Map.class.isAssignableFrom(cls);
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
     /** Take an array of object values, and recursively convert them (in place) into JSON values. */
     private static void convertVals(final Object[] convertedVals,
             final Set<ReferenceEqualityKey<Object>> visitedOnPath,
@@ -334,8 +299,8 @@ class JSONSerializer {
         for (int i = 0; i < convertedVals.length; i++) {
             final Object val = convertedVals[i];
             // By default (for basic value types), don't convert vals
-            needToConvert[i] = !isBasicValueType(val);
-            if (needToConvert[i] && !isCollectionOrArrayOrMap(val)) {
+            needToConvert[i] = !JSONUtils.isBasicValueType(val);
+            if (needToConvert[i] && !JSONUtils.isCollectionOrArrayOrMap(val)) {
                 // If this object is a standard object, check if it has already been visited
                 // elsewhere in the tree. If so, use a JSONReference instead, and mark the object
                 // as visited.
@@ -356,7 +321,7 @@ class JSONSerializer {
                 final Object val = convertedVals[i];
                 convertedVals[i] = toJSONGraph(val, visitedOnPath, standardObjectVisited, typeCache, objToJSONVal,
                         onlySerializePublicFields);
-                if (!isCollectionOrArrayOrMap(val)) {
+                if (!JSONUtils.isCollectionOrArrayOrMap(val)) {
                     // If this object is a standard object, then it has not been visited before, 
                     // so save the mapping between original object and converted object
                     @SuppressWarnings("unchecked")
@@ -387,7 +352,7 @@ class JSONSerializer {
         final ReferenceEqualityKey<Object> objKey = new ReferenceEqualityKey<>(obj);
         if (!visitedOnPath.add(objKey)) {
             // Reached cycle in graph
-            if (isCollectionOrArray(obj)) {
+            if (JSONUtils.isCollectionOrArray(obj)) {
                 // If we reached a collection that has already been visited, then there is a cycle
                 // terminating at this collection. We don't support collection cycles, since collections
                 // do not have object ids.
@@ -426,7 +391,7 @@ class JSONSerializer {
             final String[] convertedKeys = new String[n];
             for (int i = 0; i < n; i++) {
                 final Object key = keys.get(i);
-                if (!isBasicValueType(key)) {
+                if (!JSONUtils.isBasicValueType(key)) {
                     throw new IllegalArgumentException("Map key of type " + key.getClass().getName()
                             + " is not a basic type (String, Integer, etc.), so can't be easily "
                             + "serialized as a JSON associative array key");
@@ -502,8 +467,27 @@ class JSONSerializer {
                 for (int i = 0; i < n; i++) {
                     final FieldResolvedTypeInfo fieldInfo = fieldOrder.get(i);
                     final Field field = fieldInfo.field;
+                    final Class<?> fieldType = field.getType();
                     fieldNames[i] = field.getName();
-                    convertedVals[i] = field.get(obj);
+                    if (fieldType == Integer.TYPE) {
+                        convertedVals[i] = Integer.valueOf(field.getInt(obj));
+                    } else if (fieldType == Long.TYPE) {
+                        convertedVals[i] = Long.valueOf(field.getLong(obj));
+                    } else if (fieldType == Short.TYPE) {
+                        convertedVals[i] = Short.valueOf(field.getShort(obj));
+                    } else if (fieldType == Double.TYPE) {
+                        convertedVals[i] = Double.valueOf(field.getDouble(obj));
+                    } else if (fieldType == Float.TYPE) {
+                        convertedVals[i] = Float.valueOf(field.getFloat(obj));
+                    } else if (fieldType == Boolean.TYPE) {
+                        convertedVals[i] = Boolean.valueOf(field.getBoolean(obj));
+                    } else if (fieldType == Byte.TYPE) {
+                        convertedVals[i] = Byte.valueOf(field.getByte(obj));
+                    } else if (fieldType == Character.TYPE) {
+                        convertedVals[i] = Character.valueOf(field.getChar(obj));
+                    } else {
+                        convertedVals[i] = field.get(obj);
+                    }
                 }
                 convertVals(convertedVals, visitedOnPath, standardObjectVisited, typeCache, objToJSONVal,
                         onlySerializePublicFields);
