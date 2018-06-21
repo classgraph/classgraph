@@ -328,7 +328,7 @@ public class JSONParser extends Parser {
         if (peek() == '}') {
             // Empty object
             next();
-            return new JSONObject(Collections.emptyList());
+            return new JSONObject(Collections.<Entry<String, Object>> emptyList());
         }
 
         final List<Entry<String, Object>> kvPairs = new ArrayList<>();
