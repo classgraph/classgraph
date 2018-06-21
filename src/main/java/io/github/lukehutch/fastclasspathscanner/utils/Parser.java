@@ -36,15 +36,9 @@ public class Parser {
 
     public static class ParseException extends Exception {
         static final long serialVersionUID = 1L;
-        private static final int MAX_STR_LEN = 32;
 
         public ParseException(final Parser parser, final String msg) {
-            super(parser == null ? msg
-                    : msg + " (string: \""
-                            + (parser.string.length() > MAX_STR_LEN
-                                    ? parser.string.substring(0, MAX_STR_LEN) + "..."
-                                    : parser.string)
-                            + "\"; position: " + parser.position + "; token: \"" + parser.token + "\")");
+            super(parser == null ? msg : msg + " " + parser.getPositionInfo(msg));
         }
     }
 
@@ -53,6 +47,16 @@ public class Parser {
             throw new ParseException(null, "Cannot parse null string");
         }
         this.string = string;
+    }
+
+    private static final int SHOW_BEFORE = 32;
+    private static final int SHOW_AFTER = 8;
+
+    public String getPositionInfo(String msg) {
+        int showStart = Math.max(0, position - SHOW_BEFORE);
+        int showEnd = Math.min(string.length(), position + SHOW_AFTER);
+        return " (before: \"" + string.substring(showStart, position) + "\"; after: \""
+                + string.substring(position, showEnd) + "\"; position: " + position + "; token: \"" + token + "\")";
     }
 
     public Object setState(final Object state) {
