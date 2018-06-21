@@ -55,6 +55,9 @@ public class FieldInfo extends InfoObject implements Comparable<FieldInfo> {
     List<AnnotationInfo> annotationInfo;
     transient ScanResult scanResult;
 
+    FieldInfo() {
+    }
+
     /** Sets back-reference to scan result after scan is complete. */
     @Override
     void setScanResult(final ScanResult scanResult) {

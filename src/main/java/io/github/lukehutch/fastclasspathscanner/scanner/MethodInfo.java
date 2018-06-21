@@ -101,6 +101,9 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
 
     transient ScanResult scanResult;
 
+    MethodInfo() {
+    }
+
     /** Sets back-reference to scan result after scan is complete. */
     @Override
     void setScanResult(final ScanResult scanResult) {

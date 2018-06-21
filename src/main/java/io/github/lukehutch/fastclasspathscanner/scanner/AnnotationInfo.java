@@ -51,6 +51,9 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
     List<AnnotationParamValue> annotationParamValues;
     transient ScanResult scanResult;
 
+    AnnotationInfo() {
+    }
+
     @Override
     void setScanResult(final ScanResult scanResult) {
         this.scanResult = scanResult;
@@ -67,6 +70,9 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
     public static class AnnotationParamValue extends InfoObject implements Comparable<AnnotationParamValue> {
         String paramName;
         Object paramValue;
+
+        AnnotationParamValue() {
+        }
 
         /**
          * @param paramName
@@ -219,6 +225,9 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
         String constName;
         transient ScanResult scanResult;
 
+        AnnotationEnumValue() {
+        }
+
         /**
          * @param className
          *            The enum class name.
@@ -317,6 +326,9 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
         String typeDescriptor;
         transient TypeSignature typeSignature;
         transient ScanResult scanResult;
+
+        AnnotationClassRef() {
+        }
 
         @Override
         void setScanResult(final ScanResult scanResult) {

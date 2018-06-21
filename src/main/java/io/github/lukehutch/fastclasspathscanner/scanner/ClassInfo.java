@@ -109,7 +109,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     transient ClassLoader[] classLoaders;
 
     /** The scan spec. */
-    transient final ScanSpec scanSpec;
+    transient ScanSpec scanSpec;
 
     /** Info on class annotations, including optional annotation param values. */
     List<AnnotationInfo> annotationInfo;
@@ -487,6 +487,9 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
          * Classes that have one or more fields annotated with this annotation, if this is an annotation.
          */
         CLASSES_WITH_FIELD_ANNOTATION,
+    }
+
+    ClassInfo() {
     }
 
     private ClassInfo(final String className, final int classModifiers, final boolean isExternalClass,
