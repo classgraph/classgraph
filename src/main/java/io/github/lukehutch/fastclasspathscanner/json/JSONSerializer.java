@@ -467,27 +467,8 @@ class JSONSerializer {
                 for (int i = 0; i < n; i++) {
                     final FieldResolvedTypeInfo fieldInfo = fieldOrder.get(i);
                     final Field field = fieldInfo.field;
-                    final Class<?> fieldType = field.getType();
                     fieldNames[i] = field.getName();
-                    if (fieldType == Integer.TYPE) {
-                        convertedVals[i] = Integer.valueOf(field.getInt(obj));
-                    } else if (fieldType == Long.TYPE) {
-                        convertedVals[i] = Long.valueOf(field.getLong(obj));
-                    } else if (fieldType == Short.TYPE) {
-                        convertedVals[i] = Short.valueOf(field.getShort(obj));
-                    } else if (fieldType == Double.TYPE) {
-                        convertedVals[i] = Double.valueOf(field.getDouble(obj));
-                    } else if (fieldType == Float.TYPE) {
-                        convertedVals[i] = Float.valueOf(field.getFloat(obj));
-                    } else if (fieldType == Boolean.TYPE) {
-                        convertedVals[i] = Boolean.valueOf(field.getBoolean(obj));
-                    } else if (fieldType == Byte.TYPE) {
-                        convertedVals[i] = Byte.valueOf(field.getByte(obj));
-                    } else if (fieldType == Character.TYPE) {
-                        convertedVals[i] = Character.valueOf(field.getChar(obj));
-                    } else {
-                        convertedVals[i] = field.get(obj);
-                    }
+                    convertedVals[i] = JSONUtils.getFieldValue(field, obj);
                 }
                 convertVals(convertedVals, visitedOnPath, standardObjectVisited, typeCache, objToJSONVal,
                         onlySerializePublicFields);
@@ -517,6 +498,7 @@ class JSONSerializer {
      * Recursively serialize an Object (or array, list, map or set of objects) to JSON, skipping transient and final
      * fields. If indentWidth == 0, no prettyprinting indentation is performed.
      */
+    // TODO: create a version of this that takes an object and field name
     static String toJSON(final Object obj, final int indentWidth, final boolean onlySerializePublicFields) {
         final Set<ReferenceEqualityKey<Object>> visitedOnPath = new HashSet<>();
         final Set<ReferenceEqualityKey<Object>> standardObjectVisited = new HashSet<>();
