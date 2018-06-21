@@ -32,9 +32,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
-import java.util.HashMap;
 import java.util.Map;
-import java.util.Map.Entry;
 
 import io.github.lukehutch.fastclasspathscanner.utils.Parser;
 import io.github.lukehutch.fastclasspathscanner.utils.Parser.ParseException;
@@ -45,87 +43,24 @@ import io.github.lukehutch.fastclasspathscanner.utils.Parser.ParseException;
  */
 class JSONDeserializer {
 
-//    // JSON PEG grammar: https://github.com/azatoth/PanPG/blob/master/grammars/JSON.peg
+//    private static Object jsonValToObject(final Object jsonVal, final Type expectedResolvedType,
+//            final TypeCache typeCache) throws ParseException {
 //
-//    private static Entry<String, Object> parseKV(final Parser parser) {
-//        // TODO Auto-generated method stub
-//        return null;
-//    }
+//        // TODO -- up to here
 //
-//    // -------------------------------------------------------------------------------------------------------------
-//
-//    private static <T> T parseJSONObject(final Parser parser, final Class<T> classType,
-//            final Map<Class<?>, SerializableFieldInfo> classToSerializableFieldInfo) throws ParseException {
-//        parser.expect('{');
-//        T obj = null;
-//        try {
-//            obj = classType.getDeclaredConstructor().newInstance();
-//        } catch (final Exception e) {
-//            throw new IllegalArgumentException("Cannot instantiate class " + classType, e);
-//        }
-//        final SerializableFieldInfo serializableFieldInfo = JSONUtils.getSerializableFieldInfo(classType,
-//                classToSerializableFieldInfo);
-//
-//        boolean first = true;
-//        for (Entry<String, Object> kv = parseKV(parser); kv != null; kv = parseKV(parser)) {
-//            final Field f; // TODO
-//
-//            if (first) {
-//                first = false;
-//            } else {
-//                if (parser.peek() == ',') {
-//                    parser.expect(',');
-//                }
-//            }
-//        }
-//        if (first) {
-//            parser.skipWhitespace();
-//        }
-//        parser.expect('}');
-//
-//        return null; // TODO
-//
-//    }
-//
-//    static <T extends Class<T>> T fromJSONObject(final String json, final T classType) {
-//        try {
-//            final Parser parser = new Parser(json);
-//            final Map<Class<?>, SerializableFieldInfo> classToSerializableFieldInfo = new HashMap<>();
-//            return parseJSONObject(parser, classType, classToSerializableFieldInfo);
-//        } catch (final ParseException e) {
-//            throw new IllegalArgumentException("JSON could not be parsed", e);
-//        }
-//    }
-//
-//    // -------------------------------------------------------------------------------------------------------------
-//
-//    private static Object deserializeClass(final Type type, final Parser parser,
-//            final boolean onlySerializePublicFields, final TypeCache typeCache, final int depth)
-//            throws IllegalArgumentException, IllegalAccessException, ParseException {
-//        parser.expect('{');
-//
-//        if (obj == null || obj instanceof String || obj instanceof Integer || obj instanceof Boolean
-//                || obj instanceof Long || obj instanceof Float || obj instanceof Double || obj instanceof Short
-//                || obj instanceof Byte || obj instanceof Character || obj.getClass().isEnum()) {
-//            for (int i = 0; i < depth; i++) {
-//                System.out.print("  ");
-//            }
-//            System.out.println(obj == null ? "null" : obj.toString());
-//            return;
-//        }
 //        Class<?> rawType;
 //        Type[] typeArguments;
 //        TypeVariable<?>[] typeParameters;
-//        // TODO: resolve this class' own parameters in terms of its incoming type resolutions 
 //        TypeVariableToResolvedTypeList typeResolutions;
-//        if (type instanceof Class<?>) {
-//            rawType = (Class<?>) type;
+//        if (expectedResolvedType instanceof Class<?>) {
+//            rawType = (Class<?>) expectedResolvedType;
 //            typeArguments = null;
-//            // TODO: need to pick up element type for arrays
 //            typeParameters = null;
 //            typeResolutions = null;
-//        } else if (type instanceof ParameterizedType) {
-//            final ParameterizedType parameterizedType = (ParameterizedType) type;
+//        } else if (expectedResolvedType instanceof ParameterizedType) {
+//            // Get mapping from type variables to resolved types, by comparing the concrete type arguments
+//            // of the expected type to its type arguments
+//            final ParameterizedType parameterizedType = (ParameterizedType) expectedResolvedType;
 //            rawType = (Class<?>) parameterizedType.getRawType();
 //            typeArguments = parameterizedType.getActualTypeArguments();
 //            typeParameters = rawType.getTypeParameters();
@@ -141,83 +76,96 @@ class JSONDeserializer {
 //                typeResolutions.add(new TypeVariableToResolvedType(typeParameters[i], typeArguments[i]));
 //            }
 //        } else {
-//            throw new IllegalArgumentException("Got illegal type: " + type);
+//            throw new IllegalArgumentException("Got illegal type: " + expectedResolvedType);
 //        }
 //
-//        final TypeResolvedFieldsForClass serializableFieldInfo = typeCache.getResolvedFields(type, typeResolutions,
-//                onlySerializePublicFields);
-//
-//        for (int i = 0; i < depth; i++) {
-//            System.out.print("  ");
-//        }
-//        System.out.println(type.getTypeName());
-//
-//        for (final FieldResolvedTypeInfo fieldTypeInfo : serializableFieldInfo.fieldOrder) {
-//            final Field field = fieldTypeInfo.field;
-//            final Type resolvedFieldType = fieldTypeInfo.resolvedFieldType;
-//
-//            for (int i = 0; i < depth + 1; i++) {
-//                System.out.print("  ");
+//        if (Map.class.isAssignableFrom(rawType)) {
+//            // Special handling for maps
+//            if (typeResolutions.size() != 2) {
+//                throw new IllegalArgumentException(
+//                        "Wrong number of type parameters for map: got " + typeResolutions.size() + "; expected 2");
 //            }
-//            System.out.println("FIELD " + field.getName() + " ## "
-//                    + resolvedFieldType /* + " ## " + fieldTypeInfo.typeVariableReplacements */);
+//            final Type keyType = typeResolutions.get(0).resolvedType;
+//            final Type valType = typeResolutions.get(1).resolvedType;
 //
-//            final Object fieldObject = field.get(obj);
-//            
-//            // TODO: set field in obj
-//            
-//            deserializeClass(resolvedFieldType, parser, onlySerializePublicFields, typeCache, depth + 2);
+//            // TODO: make sure key type can be de-serialized for non-string keys (e.g. Integer keys)
+//            // TODO: check for array value types
+//
+//        } else {
+//            // Deserialize a general object
+//            Object objectInstance = null;
+//            try {
+//                objectInstance = rawType.getDeclaredConstructor().newInstance();
+//            } catch (final Exception e) {
+//                throw new IllegalArgumentException("Cannot call default constructor for class " + rawType, e);
+//            }
+//
+//            final TypeResolvedFieldsForClass resolvedFields = typeCache.getResolvedFields(expectedResolvedType,
+//                    typeResolutions, /* onlySerializePublicFields = */ false);
+//
+//            for (final FieldResolvedTypeInfo fieldTypeInfo : resolvedFields.fieldOrder) {
+//                final Field field = fieldTypeInfo.field;
+//                final Type resolvedFieldType = fieldTypeInfo.resolvedFieldType;
+//
+//                final Object fieldObject = field.get(obj);
+//
+//                // TODO: set field in obj
+//
+//                jsonValToObject(jsonFieldObject, resolvedFieldType, typeCache);
+//            }
 //        }
-//        
-//        parser.expect('}');
 //    }
 //
-//    static Object deserializeClass(final Class<?> cls, final String json, final boolean onlySerializePublicFields)
-//            throws IllegalArgumentException {
-//        final TypeCache typeCache = new TypeCache();
+//    private static Object parseJSON(final Parser parser, final Type expectedType, final TypeCache typeCache)
+//            throws ParseException {
+//        Class<?> rawType;
+//        if (expectedType instanceof ParameterizedType) {
+//            rawType = (Class<?>) ((ParameterizedType) expectedType).getRawType();
+//        } else if (expectedType instanceof Class<?>) {
+//            rawType = (Class<?>) expectedType;
+//        } else if (expectedType instanceof TypeVariable<?>) {
+//            throw new RuntimeException("Cannot deserialize to generic type variable " + expectedType);
+//        } else {
+//            throw new RuntimeException("Illegal expected type: " + expectedType);
+//        }
+//        if (JSONUtils.isCollectionOrArray(rawType)) {
+//            parseJSONArray(parser, expectedType, typeCache);
+//        } else if (JSONUtils.isBasicValueType(rawType)) {
+//            parseJSONBasicValue(parser, expectedType, typeCache);
+//        } else {
+//            jsonValToObject(parser, expectedType, typeCache);
+//        }
+//    }
+//
+//    static Object deserializeClass(final Class<?> expectedType, final String json) throws IllegalArgumentException {
 //        try {
-//            Parser parser = new Parser(json);
-//            return deserializeClass(cls, parser, onlySerializePublicFields, typeCache, 0);
-//        } catch (Exception e) {
+//            return jsonValToObject(JSONParser.parseJSON(json), expectedType, new TypeCache());
+//        } catch (final Exception e) {
 //            throw new IllegalArgumentException("Could not parse JSON", e);
 //        }
 //    }
 //
-//    static void deserializeAndSetField(final Object containingObject, final String fieldName, String json,
-//            final boolean onlySerializePublicFields) throws IllegalArgumentException {
+//    static void deserializeAndSetField(final Object containingObject, final String fieldName, final String json)
+//            throws IllegalArgumentException {
 //        final TypeCache typeCache = new TypeCache();
 //        final FieldResolvedTypeInfo fieldResolvedTypeInfo = typeCache.getResolvedFields(containingObject.getClass(),
-//                /* typeResolutions = */ null, onlySerializePublicFields).fieldNameToResolvedTypeInfo.get(fieldName);
+//                /* typeResolutions = */ null, /* onlySerializePublicFields = */ false).fieldNameToResolvedTypeInfo
+//                        .get(fieldName);
 //        if (fieldResolvedTypeInfo == null) {
 //            throw new IllegalArgumentException("Class " + containingObject.getClass().getName()
 //                    + " does not have a field named \"" + fieldName + "\"");
 //        }
-//        final Field field = fieldResolvedTypeInfo.field;
-//        if (!TypeCache.fieldIsSerializable(field, onlySerializePublicFields)) {
+//        if (!TypeCache.fieldIsSerializable(fieldResolvedTypeInfo.field, /* onlySerializePublicFields = */ false)) {
 //            throw new IllegalArgumentException("Field " + containingObject.getClass().getName() + "." + fieldName
 //                    + " needs to be accessible, non-transient, and non-final");
 //        }
 //        try {
-//            Parser parser = new Parser(json);
-//            Object fieldValue = deserializeClass(field.getGenericType(), parser, onlySerializePublicFields,
-//                    typeCache, 0);
-//            field.set(containingObject, fieldValue);
-//        } catch (Exception e) {
+//            final Parser parser = new Parser(json);
+//            final Object fieldValue = jsonValToObject(JSONParser.parseJSON(json),
+//                    fieldResolvedTypeInfo.resolvedFieldType, typeCache);
+//            JSONUtils.setFieldValue(fieldResolvedTypeInfo.field, containingObject, fieldValue);
+//        } catch (final Exception e) {
 //            throw new IllegalArgumentException("Could not parse JSON", e);
 //        }
 //    }
-//
-//    //    public static void main(final String[] args) {
-//    //        deserializeField(new DD(), "cc", /* onlySerializePublicFields = */ false);
-//    //
-//    //        System.out.println();
-//    //
-//    //        deserializeClass(new CC2(2.0f), /* onlySerializePublicFields = */ false);
-//    //
-//    //        // resolveClass(new BB<>((short) 5)); // Fails as expected, since there is no type parameter context
-//    //
-//    //        System.out.println();
-//    //        System.out.println("Finished.");
-//    //    }
-
 }

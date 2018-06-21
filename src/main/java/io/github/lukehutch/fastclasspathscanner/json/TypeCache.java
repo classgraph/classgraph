@@ -76,7 +76,7 @@ class TypeCache {
      * N.B. Tries to set field to accessible, which will require an "opens" declarations from modules that want to
      * allow this introspection.
      */
-    private static boolean fieldIsSerializable(final Field field, final boolean onlySerializePublicFields) {
+    static boolean fieldIsSerializable(final Field field, final boolean onlySerializePublicFields) {
         final int modifiers = field.getModifiers();
         if ((!onlySerializePublicFields || Modifier.isPublic(modifiers)) && !Modifier.isTransient(modifiers)
                 && !Modifier.isFinal(modifiers) && ((modifiers & 0x1000 /* synthetic */) == 0)) {

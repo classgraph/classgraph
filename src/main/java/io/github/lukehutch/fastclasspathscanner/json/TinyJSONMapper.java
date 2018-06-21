@@ -54,13 +54,13 @@ public class TinyJSONMapper {
      * JSON object key name for objects that are linked to from more than one object. Key name is only used if the
      * class that a JSON object was serialized from does not have its own id field annotated with {@link Id}.
      */
-    private static final String ID_TAG = "_ID";
+    static final String ID_KEY = "_ID";
 
     /** JSON object reference id prefix. */
-    private static final String ID_PREFIX = "[ID#";
+    static final String ID_PREFIX = "[ID#";
 
     /** JSON object reference id suffix. */
-    private static final String ID_SUFFIX = "]";
+    static final String ID_SUFFIX = "]";
 
     // -------------------------------------------------------------------------------------------------------------
 

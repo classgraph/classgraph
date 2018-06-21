@@ -33,7 +33,7 @@ import java.util.Collection;
 import java.util.Map;
 
 /** Utils for Java serialization and deserialization. */
-class JSONUtils {
+public class JSONUtils {
     // See http://www.json.org/ under "string"
     private static final String[] JSON_CHAR_REPLACEMENTS = new String[256];
     static {
@@ -99,7 +99,7 @@ class JSONUtils {
     }
 
     /** Escape a string to be surrounded in double quotes in JSON. */
-    static String escapeJSONString(final String unsafeStr) {
+    public static String escapeJSONString(final String unsafeStr) {
         if (unsafeStr == null) {
             return unsafeStr;
         }
@@ -166,7 +166,8 @@ class JSONUtils {
     // -------------------------------------------------------------------------------------------------------------
 
     /** Get a field value, appropriately handling primitive-typed fields. */
-    static Object getFieldValue(Field field, Object obj) throws IllegalArgumentException, IllegalAccessException {
+    static Object getFieldValue(final Field field, final Object obj)
+            throws IllegalArgumentException, IllegalAccessException {
         final Class<?> fieldType = field.getType();
         if (fieldType == Integer.TYPE) {
             return Integer.valueOf(field.getInt(obj));
@@ -190,7 +191,7 @@ class JSONUtils {
     }
 
     /** Set a field value, appropriately handling primitive-typed fields. */
-    static void setFieldValue(Field field, Object obj, Object value)
+    static void setFieldValue(final Field field, final Object obj, final Object value)
             throws IllegalArgumentException, IllegalAccessException {
         final Class<?> fieldType = field.getType();
         if (fieldType == Integer.TYPE) {

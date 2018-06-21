@@ -28,6 +28,8 @@
  */
 package io.github.lukehutch.fastclasspathscanner.utils;
 
+import io.github.lukehutch.fastclasspathscanner.json.JSONUtils;
+
 public class Parser {
     private final String string;
     private int position;
@@ -38,7 +40,7 @@ public class Parser {
         static final long serialVersionUID = 1L;
 
         public ParseException(final Parser parser, final String msg) {
-            super(parser == null ? msg : msg + " " + parser.getPositionInfo(msg));
+            super(parser == null ? msg : msg + " (" + parser.getPositionInfo() + ")");
         }
     }
 
@@ -49,14 +51,15 @@ public class Parser {
         this.string = string;
     }
 
-    private static final int SHOW_BEFORE = 32;
-    private static final int SHOW_AFTER = 8;
+    private static final int SHOW_BEFORE = 80;
+    private static final int SHOW_AFTER = 80;
 
-    public String getPositionInfo(String msg) {
-        int showStart = Math.max(0, position - SHOW_BEFORE);
-        int showEnd = Math.min(string.length(), position + SHOW_AFTER);
-        return " (before: \"" + string.substring(showStart, position) + "\"; after: \""
-                + string.substring(position, showEnd) + "\"; position: " + position + "; token: \"" + token + "\")";
+    public String getPositionInfo() {
+        final int showStart = Math.max(0, position - SHOW_BEFORE);
+        final int showEnd = Math.min(string.length(), position + SHOW_AFTER);
+        return "before: \"" + JSONUtils.escapeJSONString(string.substring(showStart, position)) + "\"; after: \""
+                + JSONUtils.escapeJSONString(string.substring(position, showEnd)) + "\"; position: " + position
+                + "; token: \"" + token + "\"";
     }
 
     public Object setState(final Object state) {
@@ -80,6 +83,16 @@ public class Parser {
         return position == string.length() ? '\0' : string.charAt(position);
     }
 
+    public void peekExpect(final char expectedChar) throws ParseException {
+        if (position == string.length()) {
+            throw new ParseException(this, "Expected '" + expectedChar + "'; reached end of string");
+        }
+        final char next = string.charAt(position);
+        if (next != expectedChar) {
+            throw new ParseException(this, "Expected '" + expectedChar + "'; got '" + next + "'");
+        }
+    }
+
     public boolean peekMatches(final String strMatch) {
         return string.regionMatches(position, strMatch, 0, strMatch.length());
     }
@@ -88,18 +101,40 @@ public class Parser {
         position++;
     }
 
-    public void advance(final int n) {
-        position += n;
+    public void advance(final int numChars) {
+        if (position + numChars >= string.length()) {
+            throw new IllegalArgumentException("Invalid skip distance");
+        }
+        position += numChars;
     }
 
     public boolean hasMore() {
         return position < string.length();
     }
 
-    public void expect(final char c) throws ParseException {
+    public int getPosition() {
+        return position;
+    }
+
+    public void setPosition(final int position) {
+        if (position < 0 || position >= string.length()) {
+            throw new IllegalArgumentException("Invalid position");
+        }
+        this.position = position;
+    }
+
+    public CharSequence getSubsequence(final int startPosition, final int endPosition) {
+        return string.subSequence(startPosition, endPosition);
+    }
+
+    public String getSubstring(final int startPosition, final int endPosition) {
+        return string.substring(startPosition, endPosition);
+    }
+
+    public void expect(final char expectedChar) throws ParseException {
         final int next = getc();
-        if (next != c) {
-            throw new ParseException(this, "Expected character '" + c + "', got '" + next + "'");
+        if (next != expectedChar) {
+            throw new ParseException(this, "Expected '" + expectedChar + "'; got '" + (char) next + "'");
         }
     }
 
@@ -135,6 +170,6 @@ public class Parser {
 
     @Override
     public String toString() {
-        return string + " (position: " + position + "; token: \"" + token + "\")";
+        return getPositionInfo();
     }
 }
