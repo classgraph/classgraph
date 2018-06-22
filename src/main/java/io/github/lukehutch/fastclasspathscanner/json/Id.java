@@ -28,11 +28,16 @@
  */
 package io.github.lukehutch.fastclasspathscanner.json;
 
-/** A class that serves as a placeholder for circular references between objects. */
-class JSONReference {
-    Object idObject;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-    public JSONReference(final Object idObject) {
-        this.idObject = idObject;
-    }
+/**
+ * Annotate a class field with this annotation to use that field's value instead of the automatically-generated id
+ * for object references in JSON output. The field value must be a unique identifier across the whole object graph.
+ */
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.FIELD)
+public @interface Id {
 }

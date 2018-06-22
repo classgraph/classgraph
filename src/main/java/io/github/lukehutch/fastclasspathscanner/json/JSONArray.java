@@ -46,7 +46,7 @@ class JSONArray {
     }
 
     /** Serialize this JSONArray to a string. */
-    void toJSONString(final Map<ReferenceEqualityKey<JSONReference>, Object> jsonReferenceToId,
+    void toJSONString(final Map<ReferenceEqualityKey<JSONReference>, CharSequence> jsonReferenceToId,
             final boolean includeNullValuedFields, final int depth, final int indentWidth,
             final StringBuilder buf) {
         final boolean prettyPrint = indentWidth > 0;

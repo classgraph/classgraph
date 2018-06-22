@@ -50,7 +50,7 @@ class JSONObject {
     }
 
     /** Serialize this JSONObject to a string. */
-    void toJSONString(final Map<ReferenceEqualityKey<JSONReference>, Object> jsonReferenceToId,
+    void toJSONString(final Map<ReferenceEqualityKey<JSONReference>, CharSequence> jsonReferenceToId,
             final boolean includeNullValuedFields, final int depth, final int indentWidth,
             final StringBuilder buf) {
         final boolean prettyPrint = indentWidth > 0;
@@ -66,19 +66,18 @@ class JSONObject {
                 }
             }
         }
-        final ReferenceEqualityKey<JSONObject> thisKey = new ReferenceEqualityKey<>(this);
-        // id will be non-null if this object does not have an @Id field, but was referenced by another object
-        // (need to include ID_TAG)
         if (objectId == null && numDisplayedFields == 0) {
             buf.append("{}");
         } else {
             buf.append(prettyPrint ? "{\n" : "{");
             if (objectId != null) {
+                // id will be non-null if this object does not have an @Id field, but was referenced by
+                // another object (need to include ID_TAG)
                 if (prettyPrint) {
                     JSONUtils.indent(depth + 1, indentWidth, buf);
                 }
                 buf.append('"');
-                buf.append(TinyJSONMapper.ID_KEY);
+                buf.append(JSONUtils.ID_KEY);
                 buf.append(prettyPrint ? "\": " : "\":");
                 JSONSerializer.jsonValToJSONString(objectId, jsonReferenceToId, includeNullValuedFields, depth + 1,
                         indentWidth, buf);

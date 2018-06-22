@@ -38,7 +38,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import io.github.lukehutch.fastclasspathscanner.json.TinyJSONMapper;
+import io.github.lukehutch.fastclasspathscanner.json.JSONSerializer;
 import io.github.lukehutch.fastclasspathscanner.utils.InterruptionChecker;
 import io.github.lukehutch.fastclasspathscanner.utils.JarUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
@@ -943,8 +943,7 @@ public class ScanResult {
      *            If greater than 0, JSON will be formatted (indented), otherwise it will be minified (un-indented).
      */
     public String toJSON(final int indentWidth) {
-        return TinyJSONMapper.toJSON(new ArrayList<>(classGraphBuilder.classNameToClassInfo.values()), indentWidth,
-                false);
+        return JSONSerializer.serializeFromField(classGraphBuilder, "classNameToClassInfo", indentWidth, false);
     }
 
     /** Serialize a ScanResult to minified (un-indented) JSON. */

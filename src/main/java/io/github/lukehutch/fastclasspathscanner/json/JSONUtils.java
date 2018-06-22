@@ -28,12 +28,63 @@
  */
 package io.github.lukehutch.fastclasspathscanner.json;
 
+import java.lang.reflect.AccessibleObject;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+import java.util.AbstractList;
+import java.util.AbstractMap;
+import java.util.AbstractQueue;
+import java.util.AbstractSequentialList;
+import java.util.AbstractSet;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Deque;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
+import java.util.NavigableMap;
+import java.util.Queue;
+import java.util.Set;
+import java.util.SortedMap;
+import java.util.SortedSet;
+import java.util.TreeMap;
+import java.util.TreeSet;
+import java.util.concurrent.BlockingDeque;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ConcurrentNavigableMap;
+import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.LinkedTransferQueue;
+import java.util.concurrent.TransferQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /** Utils for Java serialization and deserialization. */
 public class JSONUtils {
+    /**
+     * JSON object key name for objects that are linked to from more than one object. Key name is only used if the
+     * class that a JSON object was serialized from does not have its own id field annotated with {@link Id}.
+     */
+    static final String ID_KEY = "__ID";
+
+    /** JSON object reference id prefix. */
+    static final String ID_PREFIX = "[#";
+
+    /** JSON object reference id suffix. */
+    static final String ID_SUFFIX = "]";
+
+    // -------------------------------------------------------------------------------------------------------------
+
     // See http://www.json.org/ under "string"
     private static final String[] JSON_CHAR_REPLACEMENTS = new String[256];
     static {
@@ -166,108 +217,27 @@ public class JSONUtils {
     // -------------------------------------------------------------------------------------------------------------
 
     /** Get a field value, appropriately handling primitive-typed fields. */
-    static Object getFieldValue(final Field field, final Object obj)
+    static Object getFieldValue(final Object containingObj, final Field field)
             throws IllegalArgumentException, IllegalAccessException {
         final Class<?> fieldType = field.getType();
         if (fieldType == Integer.TYPE) {
-            return Integer.valueOf(field.getInt(obj));
+            return Integer.valueOf(field.getInt(containingObj));
         } else if (fieldType == Long.TYPE) {
-            return Long.valueOf(field.getLong(obj));
+            return Long.valueOf(field.getLong(containingObj));
         } else if (fieldType == Short.TYPE) {
-            return Short.valueOf(field.getShort(obj));
+            return Short.valueOf(field.getShort(containingObj));
         } else if (fieldType == Double.TYPE) {
-            return Double.valueOf(field.getDouble(obj));
+            return Double.valueOf(field.getDouble(containingObj));
         } else if (fieldType == Float.TYPE) {
-            return Float.valueOf(field.getFloat(obj));
+            return Float.valueOf(field.getFloat(containingObj));
         } else if (fieldType == Boolean.TYPE) {
-            return Boolean.valueOf(field.getBoolean(obj));
+            return Boolean.valueOf(field.getBoolean(containingObj));
         } else if (fieldType == Byte.TYPE) {
-            return Byte.valueOf(field.getByte(obj));
+            return Byte.valueOf(field.getByte(containingObj));
         } else if (fieldType == Character.TYPE) {
-            return Character.valueOf(field.getChar(obj));
+            return Character.valueOf(field.getChar(containingObj));
         } else {
-            return field.get(obj);
-        }
-    }
-
-    /** Set a field value, appropriately handling primitive-typed fields. */
-    static void setFieldValue(final Field field, final Object obj, final Object value)
-            throws IllegalArgumentException, IllegalAccessException {
-        final Class<?> fieldType = field.getType();
-        if (fieldType == Integer.TYPE) {
-            if (value == null) {
-                throw new IllegalArgumentException("Tried to set primitive int-typed field to null value");
-            }
-            if (!(value instanceof Integer)) {
-                throw new IllegalArgumentException(
-                        "Expected value of type Integer; got " + value.getClass().getName());
-            }
-            field.setInt(obj, ((Integer) value).intValue());
-        } else if (fieldType == Long.TYPE) {
-            if (value == null) {
-                throw new IllegalArgumentException("Tried to set primitive long-typed field to null value");
-            }
-            if (!(value instanceof Long)) {
-                throw new IllegalArgumentException(
-                        "Expected value of type Long; got " + value.getClass().getName());
-            }
-            field.setLong(obj, ((Long) value).longValue());
-        } else if (fieldType == Short.TYPE) {
-            if (value == null) {
-                throw new IllegalArgumentException("Tried to set primitive short-typed field to null value");
-            }
-            if (!(value instanceof Short)) {
-                throw new IllegalArgumentException(
-                        "Expected value of type Short; got " + value.getClass().getName());
-            }
-            field.setShort(obj, ((Short) value).shortValue());
-        } else if (fieldType == Double.TYPE) {
-            if (value == null) {
-                throw new IllegalArgumentException("Tried to set primitive double-typed field to null value");
-            }
-            if (!(value instanceof Double)) {
-                throw new IllegalArgumentException(
-                        "Expected value of type Double; got " + value.getClass().getName());
-            }
-            field.setDouble(obj, ((Double) value).doubleValue());
-        } else if (fieldType == Float.TYPE) {
-            if (value == null) {
-                throw new IllegalArgumentException("Tried to set primitive float-typed field to null value");
-            }
-            if (!(value instanceof Float)) {
-                throw new IllegalArgumentException(
-                        "Expected value of type Float; got " + value.getClass().getName());
-            }
-            field.setFloat(obj, ((Float) value).floatValue());
-        } else if (fieldType == Boolean.TYPE) {
-            if (value == null) {
-                throw new IllegalArgumentException("Tried to set primitive boolean-typed field to null value");
-            }
-            if (!(value instanceof Boolean)) {
-                throw new IllegalArgumentException(
-                        "Expected value of type Boolean; got " + value.getClass().getName());
-            }
-            field.setBoolean(obj, ((Boolean) value).booleanValue());
-        } else if (fieldType == Byte.TYPE) {
-            if (value == null) {
-                throw new IllegalArgumentException("Tried to set primitive byte-typed field to null value");
-            }
-            if (!(value instanceof Byte)) {
-                throw new IllegalArgumentException(
-                        "Expected value of type Byte; got " + value.getClass().getName());
-            }
-            field.setByte(obj, ((Byte) value).byteValue());
-        } else if (fieldType == Character.TYPE) {
-            if (value == null) {
-                throw new IllegalArgumentException("Tried to set primitive char-typed field to null value");
-            }
-            if (!(value instanceof Character)) {
-                throw new IllegalArgumentException(
-                        "Expected value of type Character; got " + value.getClass().getName());
-            }
-            field.setChar(obj, ((Character) value).charValue());
-        } else {
-            field.set(obj, value);
+            return field.get(containingObj);
         }
     }
 
@@ -280,13 +250,13 @@ public class JSONUtils {
     static boolean isBasicValueType(final Class<?> cls) {
         return cls == String.class //
                 || cls == Integer.class || cls == Integer.TYPE //
-                || cls == Boolean.class || cls == Boolean.TYPE //
                 || cls == Long.class || cls == Long.TYPE //
+                || cls == Short.class || cls == Short.TYPE //
                 || cls == Float.class || cls == Float.TYPE //
                 || cls == Double.class || cls == Double.TYPE //
-                || cls == Short.class || cls == Short.TYPE //
                 || cls == Byte.class || cls == Byte.TYPE //
                 || cls == Character.class || cls == Character.TYPE //
+                || cls == Boolean.class || cls == Boolean.TYPE //
                 || cls.isEnum();
     }
 
@@ -312,12 +282,135 @@ public class JSONUtils {
         return Collection.class.isAssignableFrom(cls) || cls.isArray();
     }
 
+    // -------------------------------------------------------------------------------------------------------------
+
     /**
-     * Return true for objects that are collections, arrays, or Maps (i.e. objects that may have type parameters,
-     * but that are handled specially).
+     * Get the raw type from a Type.
+     * 
+     * @throws IllegalArgumentException
+     *             if passed a TypeVariable or anything other than a {@code Class<?>} reference or
+     *             {@link ParameterizedType}.
      */
-    static boolean isCollectionOrArrayOrMap(final Object obj) {
-        final Class<? extends Object> cls = obj.getClass();
-        return Collection.class.isAssignableFrom(cls) || cls.isArray() || Map.class.isAssignableFrom(cls);
+    static Class<?> getRawType(final Type type) {
+        if (type instanceof Class<?>) {
+            return (Class<?>) type;
+        } else if (type instanceof ParameterizedType) {
+            return (Class<?>) ((ParameterizedType) type).getRawType();
+        } else {
+            throw new IllegalArgumentException("Illegal type: " + type);
+        }
+    }
+
+    /** Get the concrete type for a map or collection whose raw type is an interface or abstract class. */
+    static Class<?> getConcreteType(final Class<?> rawType, final boolean returnNullIfNotMapOrCollection) {
+        if (rawType == Map.class || rawType == AbstractMap.class) {
+            return HashMap.class;
+        } else if (rawType == ConcurrentMap.class) {
+            return ConcurrentHashMap.class;
+        } else if (rawType == SortedMap.class || rawType == NavigableMap.class) {
+            return TreeMap.class;
+        } else if (rawType == ConcurrentNavigableMap.class) {
+            return ConcurrentSkipListMap.class;
+        } else if (rawType == List.class || rawType == AbstractList.class) {
+            return ArrayList.class;
+        } else if (rawType == AbstractSequentialList.class) {
+            return LinkedList.class;
+        } else if (rawType == Set.class || rawType == AbstractSet.class) {
+            return HashSet.class;
+        } else if (rawType == SortedSet.class) {
+            return TreeSet.class;
+        } else if (rawType == Queue.class || rawType == AbstractQueue.class || rawType == Deque.class) {
+            return ArrayDeque.class;
+        } else if (rawType == BlockingQueue.class) {
+            return LinkedBlockingQueue.class;
+        } else if (rawType == BlockingDeque.class) {
+            return LinkedBlockingDeque.class;
+        } else if (rawType == TransferQueue.class) {
+            return LinkedTransferQueue.class;
+        } else {
+            return rawType;
+        }
+    }
+
+    /** Get the concrete type of the given class, then return the default constructor for that type. */
+    static Constructor<?> getDefaultConstructorForConcreteType(final Class<?> cls) {
+        final Class<?> concreteType = getConcreteType(cls, /* returnNullIfNotMapOrCollection = */ false);
+        for (Class<?> c = concreteType; c != null; c = c.getSuperclass()) {
+            Constructor<?> defaultConstructor;
+            try {
+                defaultConstructor = c.getDeclaredConstructor();
+                JSONUtils.isAccessibleOrMakeAccessible(defaultConstructor);
+                return defaultConstructor;
+            } catch (final Exception e) {
+            }
+        }
+        throw new IllegalArgumentException(
+                "Class " + cls.getName() + " does not have an accessible default (no-arg) constructor");
+    }
+
+    /**
+     * Get the concrete type of the given class, then return the constructor for that type that takes a single
+     * integer parameter (the initial size hint, for Collection or Map). Returns null if not a Collection or Map, or
+     * constructor could not be found.
+     */
+    static Constructor<?> getConstructorWithSizeHintForConcreteType(final Class<?> cls) {
+        final Class<?> concreteType = getConcreteType(cls, /* returnNullIfNotMapOrCollection = */ true);
+        if (concreteType == null) {
+            throw new IllegalArgumentException(
+                    "Cannot get constructor with type hint for a class that is not a Collection or Map: "
+                            + concreteType.getName());
+        }
+        for (Class<?> c = concreteType; c != null; c = c.getSuperclass()) {
+            Constructor<?> intConstructor;
+            try {
+                intConstructor = c.getDeclaredConstructor(Integer.TYPE);
+                JSONUtils.isAccessibleOrMakeAccessible(intConstructor);
+                return intConstructor;
+            } catch (final Exception e) {
+            }
+        }
+        return null;
+    }
+
+    /** Return true if the field is accessible, or can be made accessible (and make it accessible if so). */
+    static boolean isAccessibleOrMakeAccessible(final AccessibleObject fieldOrConstructor) {
+        // Make field accessible if needed
+        @SuppressWarnings("deprecation")
+        final AtomicBoolean isAccessible = new AtomicBoolean(fieldOrConstructor.isAccessible());
+        if (!isAccessible.get()) {
+            try {
+                fieldOrConstructor.setAccessible(true);
+                isAccessible.set(true);
+            } catch (final Exception e) {
+                AccessController.doPrivileged(new PrivilegedAction<Void>() {
+                    @Override
+                    public Void run() {
+                        try {
+                            fieldOrConstructor.setAccessible(true);
+                            isAccessible.set(true);
+                        } catch (final Exception e) {
+                        }
+                        return null;
+                    }
+                });
+            }
+        }
+        return isAccessible.get();
+    }
+
+    /**
+     * Check if a field is serializable. Don't serialize transient, final, synthetic, or inaccessible fields.
+     * 
+     * <p>
+     * N.B. Tries to set field to accessible, which will require an "opens" declarations from modules that want to
+     * allow this introspection.
+     */
+    static boolean fieldIsSerializable(final Field field, final boolean onlySerializePublicFields) {
+        final int modifiers = field.getModifiers();
+        if ((!onlySerializePublicFields || Modifier.isPublic(modifiers)) && !Modifier.isTransient(modifiers)
+                && !Modifier.isFinal(modifiers) && ((modifiers & 0x1000 /* synthetic */) == 0)) {
+            return JSONUtils.isAccessibleOrMakeAccessible(field);
+        }
+        return false;
     }
 }

@@ -31,12 +31,13 @@ package io.github.lukehutch.fastclasspathscanner.json;
 import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.lang.reflect.TypeVariable;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-
-import io.github.lukehutch.fastclasspathscanner.json.TinyJSONMapper.Id;
+import java.util.Set;
 
 /**
  * The list of fields that can be (de)serialized (non-final, non-transient, non-synthetic, accessible), and their
@@ -62,4 +63,98 @@ class TypeResolvedFieldsForClass {
 
     /** If non-null, this is the field that has an {@link Id} annotation. */
     Field idField;
+
+    public TypeResolvedFieldsForClass(final Type type, final TypeVariableToResolvedTypeList typeResolutions,
+            final boolean onlySerializePublicFields) {
+
+        // Find declared accessible fields in all superclasses, and resolve generic types
+        final Set<String> visibleFieldNames = new HashSet<>();
+        final List<List<FieldResolvedTypeInfo>> fieldGroupingReversedOrder = new ArrayList<>();
+        TypeVariableToResolvedTypeList currTypeResolutions = typeResolutions;
+        for (Type currType = type, superClsType; currType != Object.class
+                && currType != null; currType = superClsType) {
+            Class<?> currCls;
+            if (currType instanceof ParameterizedType) {
+                final ParameterizedType superclassParameterizedType = (ParameterizedType) currType;
+
+                // Resolve superclass type arguments using subclass type variable definitions
+                final Type[] typeArgs = superclassParameterizedType.getActualTypeArguments();
+                final Type[] resolvedTypeArgs = new Type[typeArgs.length];
+                for (int i = 0; i < typeArgs.length; i++) {
+                    resolvedTypeArgs[i] = TypeVariableToResolvedTypeList.resolveTypeVariables(typeArgs[i],
+                            currTypeResolutions);
+                }
+                final TypeVariable<?>[] classTypeParams = ((Class<?>) superclassParameterizedType.getRawType())
+                        .getTypeParameters();
+
+                // Create new mappings between superclass type variables and resolved types
+                if (classTypeParams.length != resolvedTypeArgs.length) {
+                    throw new IllegalArgumentException("Parameter length mismatch");
+                }
+                final TypeVariableToResolvedTypeList superclassTypeResolutions //
+                        = new TypeVariableToResolvedTypeList(typeArgs.length);
+                for (int i = 0; i < typeArgs.length; i++) {
+                    superclassTypeResolutions
+                            .add(new TypeVariableToResolvedType(classTypeParams[i], resolvedTypeArgs[i]));
+                }
+
+                // Iterate to superclass
+                currTypeResolutions = superclassTypeResolutions;
+                currCls = (Class<?>) superclassParameterizedType.getRawType();
+                superClsType = currCls.getGenericSuperclass();
+
+            } else if (currType instanceof Class<?>) {
+                currCls = (Class<?>) currType;
+                superClsType = currCls.getGenericSuperclass();
+            } else {
+                throw new IllegalArgumentException("Got illegal superclass type: " + currType);
+            }
+            final Field[] fields = currCls.getDeclaredFields();
+            final List<FieldResolvedTypeInfo> fieldGroupingForClass = new ArrayList<>();
+            for (int i = 0; i < fields.length; i++) {
+                final Field field = fields[i];
+                // Mask superclass fields if subclass has a field of the same name
+                if (visibleFieldNames.add(field.getName())) {
+                    // Check for @Id annotation
+                    final boolean isIdField = field.isAnnotationPresent(Id.class);
+                    if (isIdField) {
+                        if (idField != null) {
+                            throw new IllegalArgumentException(
+                                    "More than one @Id annotation: " + idField.getDeclaringClass() + "." + idField
+                                            + " ; " + currCls.getName() + "." + field.getName());
+                        }
+                        idField = field;
+                    }
+
+                    if (JSONUtils.fieldIsSerializable(field, onlySerializePublicFields)) {
+                        // Resolve field type variables, if any
+                        final Type fieldGenericType = field.getGenericType();
+                        final Type fieldTypeResolved = fieldGenericType instanceof TypeVariable<?>
+                                || fieldGenericType instanceof ParameterizedType
+                                        ? TypeVariableToResolvedTypeList.resolveTypeVariables(fieldGenericType,
+                                                currTypeResolutions)
+                                        : fieldGenericType;
+
+                        // Save field and its resolved type
+                        final FieldResolvedTypeInfo resolvedFieldTypeInfo = new FieldResolvedTypeInfo(field,
+                                fieldTypeResolved);
+                        fieldNameToResolvedTypeInfo.put(field.getName(), resolvedFieldTypeInfo);
+                        fieldGroupingForClass.add(resolvedFieldTypeInfo);
+
+                    } else if (isIdField) {
+                        throw new IllegalArgumentException(
+                                "@Id annotation field must be accessible, final, and non-transient: "
+                                        + currCls.getName() + "." + field.getName());
+                    }
+                }
+            }
+            fieldGroupingReversedOrder.add(fieldGroupingForClass);
+        }
+        // Reverse the order of field visibility, so that ancestral superclass fields appear top-down, in field
+        // definition order (if not masked by same-named fields in subclasses), followed by fields in sublcasses.
+        for (int i = fieldGroupingReversedOrder.size() - 1; i >= 0; i--) {
+            final List<FieldResolvedTypeInfo> fieldGroupingForClass = fieldGroupingReversedOrder.get(i);
+            fieldOrder.addAll(fieldGroupingForClass);
+        }
+    }
 }

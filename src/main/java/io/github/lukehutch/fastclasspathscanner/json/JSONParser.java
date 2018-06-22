@@ -41,7 +41,7 @@ import io.github.lukehutch.fastclasspathscanner.utils.Parser;
  * 
  * https://github.com/azatoth/PanPG/blob/master/grammars/JSON.peg
  */
-public class JSONParser extends Parser {
+class JSONParser extends Parser {
     private JSONParser(final String string) throws ParseException {
         super(string);
     }
@@ -256,7 +256,7 @@ public class JSONParser extends Parser {
                 }
             }
             if (getPosition() - exponentStart == 0) {
-                throw new IllegalArgumentException("Expected exponent");
+                throw new IllegalArgumentException("Expected an exponent");
             }
         }
         final int endIdx = getPosition();
@@ -340,7 +340,6 @@ public class JSONParser extends Parser {
             } else {
                 expect(',');
             }
-            // TODO: the key can be Integer etc. -- need to map key strings back to basic types
             final CharSequence key = parseString();
             if (key == null) {
                 throw new IllegalArgumentException("Object keys must be strings");
@@ -349,19 +348,14 @@ public class JSONParser extends Parser {
                 return null;
             }
             expect(':');
-            // TODO: when values are strings, they have CharSequence type
             final Object value = parseJSON();
 
             // Check for special object id key
-            if (key.equals(TinyJSONMapper.ID_KEY)) {
+            if (key.equals(JSONUtils.ID_KEY)) {
                 if (value == null) {
-                    throw new ParseException(this, "Got null value for \"" + TinyJSONMapper.ID_KEY + "\" key");
+                    throw new ParseException(this, "Got null value for \"" + JSONUtils.ID_KEY + "\" key");
                 }
-                if (!(value instanceof JSONReference)) {
-                    throw new ParseException(this, "Got illegal value type for \"" + TinyJSONMapper.ID_KEY
-                            + "\" key: " + value.getClass().getName());
-                }
-                jsonObject.objectId = (CharSequence) ((JSONReference) value).referencedObject;
+                jsonObject.objectId = (CharSequence) value;
             } else {
                 kvPairs.add(new SimpleEntry<>(key.toString(), value));
             }
@@ -403,34 +397,6 @@ public class JSONParser extends Parser {
                 if (charSequence == null) {
                     throw new ParseException(this, "Invalid string");
                 }
-                // Check for specially-formatted object reference strings
-                boolean isIdRef = true;
-                for (int i = 0, prefixLen = TinyJSONMapper.ID_PREFIX.length(), charSeqLen = charSequence
-                        .length(); i < prefixLen && i < charSeqLen; i++) {
-                    if (charSequence.charAt(i) != TinyJSONMapper.ID_PREFIX.charAt(i)) {
-                        isIdRef = false;
-                        break;
-                    }
-                }
-                if (isIdRef) {
-                    for (int i = 0, suffixLen = TinyJSONMapper.ID_SUFFIX.length(), charSeqLen = charSequence
-                            .length(); i < suffixLen; i++) {
-                        final int j = charSeqLen - suffixLen + i;
-                        if (j < 0) {
-                            isIdRef = false;
-                            break;
-                        }
-                        if (charSequence.charAt(j) != TinyJSONMapper.ID_SUFFIX.charAt(i)) {
-                            isIdRef = false;
-                            break;
-                        }
-                    }
-                }
-                if (isIdRef) {
-                    // Return a JSONReference rather than the parsed string
-                    return new JSONReference(charSequence);
-                }
-                // Return the string
                 return charSequence;
 
             } else if (peekMatches("true")) {
@@ -458,7 +424,7 @@ public class JSONParser extends Parser {
     }
 
     /** Parse a JSON object, array, string, value or object reference. */
-    public static Object parseJSON(final String str) throws ParseException {
+    static Object parseJSON(final String str) throws ParseException {
         return new JSONParser(str).parseJSON();
     }
 }
