@@ -47,42 +47,42 @@ import io.github.lukehutch.fastclasspathscanner.utils.NestedJarHandler;
 /** The result of a scan. */
 public class ScanResult {
     /** The scan spec. */
-    final ScanSpec scanSpec;
+    transient ScanSpec scanSpec;
 
     /** The order of unique classpath elements. */
-    final List<ClasspathElement> classpathOrder;
+    transient List<ClasspathElement> classpathOrder;
 
     /**
      * The default order in which ClassLoaders are called to load classes. Used when a specific class does not have
      * a record of which ClassLoader provided the URL used to locate the class (e.g. if the class is found using
      * java.class.path).
      */
-    private final ClassLoader[] envClassLoaderOrder;
+    private transient ClassLoader[] envClassLoaderOrder;
 
     /** The nested jar handler instance. */
-    private final NestedJarHandler nestedJarHandler;
+    private transient NestedJarHandler nestedJarHandler;
 
     /**
      * The file, directory and jarfile resources timestamped during a scan, along with their timestamp at the time
      * of the scan. For jarfiles, the timestamp represents the timestamp of all files within the jar. May be null,
      * if this ScanResult object is the result of a call to FastClasspathScanner#getUniqueClasspathElementsAsync().
      */
-    private final Map<File, Long> fileToLastModified;
+    private transient Map<File, Long> fileToLastModified;
 
     /**
      * The class graph builder. May be null, if this ScanResult object is the result of a call to
      * FastClasspathScanner#getUniqueClasspathElementsAsync().
      */
-    final ClassGraphBuilder classGraphBuilder;
+    ClassGraphBuilder classGraphBuilder;
 
     /** Exceptions thrown while loading classes or while calling MatchProcessors on loaded classes. */
-    private final List<Throwable> matchProcessorExceptions = new ArrayList<>();
+    private transient List<Throwable> matchProcessorExceptions = new ArrayList<>();
 
     /** The interruption checker. */
-    final InterruptionChecker interruptionChecker;
+    transient InterruptionChecker interruptionChecker;
 
     /** The log. */
-    final LogNode log;
+    transient LogNode log;
 
     /** Used to set ScanResult references in info objects after scan has completed. */
     abstract static class InfoObject {

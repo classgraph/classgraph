@@ -44,9 +44,9 @@ import io.github.lukehutch.fastclasspathscanner.utils.GraphvizUtils;
 /** Builds the class graph, and provides methods for querying it. */
 class ClassGraphBuilder {
     Map<String, ClassInfo> classNameToClassInfo;
-    private final ScanSpec scanSpec;
-    private final Set<ClassInfo> allClassInfo;
-    private final Map<String, ClassLoader[]> classNameToClassLoaders = new HashMap<>();
+    private transient ScanSpec scanSpec;
+    private transient Set<ClassInfo> allClassInfo;
+    private transient Map<String, ClassLoader[]> classNameToClassLoaders = new HashMap<>();
 
     private static final int PARAM_WRAP_WIDTH = 40;
 

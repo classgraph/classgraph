@@ -522,8 +522,8 @@ public class JSONDeserializer {
      * @throws IllegalArgumentException
      *             If anything goes wrong during deserialization.
      */
-    public static Object deserializeObject(final Class<?> expectedType, final String json,
-            final TypeCache typeCache) throws IllegalArgumentException {
+    public static <T> T deserializeObject(final Class<T> expectedType, final String json, final TypeCache typeCache)
+            throws IllegalArgumentException {
         // Parse the JSON
         Object parsedJSON;
         try {
@@ -532,11 +532,13 @@ public class JSONDeserializer {
             throw new IllegalArgumentException("Could not parse JSON", e);
         }
 
-        Object objectInstance;
+        T objectInstance;
         try {
             // Construct an object of the expected type
             final Constructor<?> constructor = JSONUtils.getDefaultConstructorForConcreteType(expectedType);
-            objectInstance = constructor.newInstance();
+            @SuppressWarnings("unchecked")
+            T newInstance = (T) constructor.newInstance();
+            objectInstance = newInstance;
         } catch (final Exception e) {
             throw new IllegalArgumentException("Could not construct object of type " + expectedType.getName(), e);
         }
@@ -564,10 +566,12 @@ public class JSONDeserializer {
      * @throws IllegalArgumentException
      *             If anything goes wrong during deserialization.
      */
-    public static Object deserializeObject(final Class<?> expectedType, final String json)
+    public static <T> T deserializeObject(final Class<T> expectedType, final String json)
             throws IllegalArgumentException {
         final TypeCache typeCache = new TypeCache();
-        return deserializeObject(expectedType, json, typeCache);
+        @SuppressWarnings("unchecked")
+        T result = (T) deserializeObject(expectedType, json, typeCache);
+        return result;
     }
 
     /**

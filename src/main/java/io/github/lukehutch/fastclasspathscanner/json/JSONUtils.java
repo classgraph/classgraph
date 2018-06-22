@@ -335,7 +335,7 @@ public class JSONUtils {
     /** Get the concrete type of the given class, then return the default constructor for that type. */
     static Constructor<?> getDefaultConstructorForConcreteType(final Class<?> cls) {
         final Class<?> concreteType = getConcreteType(cls, /* returnNullIfNotMapOrCollection = */ false);
-        for (Class<?> c = concreteType; c != null; c = c.getSuperclass()) {
+        for (Class<?> c = concreteType; c != null && c != Object.class; c = c.getSuperclass()) {
             Constructor<?> defaultConstructor;
             try {
                 defaultConstructor = c.getDeclaredConstructor();
