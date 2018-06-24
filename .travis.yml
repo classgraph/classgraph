@@ -1,9 +1,9 @@
 language: java
 jdk:
   # current LTS versions
-  - openjdk8
+#  - openjdk8    # Disabled because moditect needs JDK 9+ (though we build in JDK 7 mode) 
   # already EOL
-  - openjdk9
+#  - openjdk9
   # feature release
   - openjdk10
   # upcoming LTS
@@ -11,7 +11,7 @@ jdk:
   # early access
   - openjdk-ea
   # current LTS versions
-  - oraclejdk8
+#  - oraclejdk8    # As above
   # already EOL
 #  - oraclejdk9
   # feature release
