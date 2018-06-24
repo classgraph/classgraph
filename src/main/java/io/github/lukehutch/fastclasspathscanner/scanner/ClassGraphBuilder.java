@@ -44,9 +44,16 @@ import io.github.lukehutch.fastclasspathscanner.utils.GraphvizUtils;
 /** Builds the class graph, and provides methods for querying it. */
 class ClassGraphBuilder {
     Map<String, ClassInfo> classNameToClassInfo;
-    private transient ScanSpec scanSpec;
-    private transient Set<ClassInfo> allClassInfo;
-    private transient Map<String, ClassLoader[]> classNameToClassLoaders = new HashMap<>();
+    private final ScanSpec scanSpec;
+    private final Map<String, ClassLoader[]> classNameToClassLoaders = new HashMap<>();
+
+    /** Called after deserialization. */
+    void setFields(final ScanSpec scanSpec, final ScanResult scanResult) {
+        for (final ClassInfo classInfo : classNameToClassInfo.values()) {
+            classInfo.setFields(scanSpec);
+            classInfo.setScanResult(scanResult);
+        }
+    }
 
     private static final int PARAM_WRAP_WIDTH = 40;
 
@@ -54,8 +61,7 @@ class ClassGraphBuilder {
     ClassGraphBuilder(final ScanSpec scanSpec, final Map<String, ClassInfo> classNameToClassInfo) {
         this.scanSpec = scanSpec;
         this.classNameToClassInfo = classNameToClassInfo;
-        this.allClassInfo = new HashSet<>(classNameToClassInfo.values());
-        for (final ClassInfo classInfo : this.allClassInfo) {
+        for (final ClassInfo classInfo : classNameToClassInfo.values()) {
             final ClassLoader[] classLoaders = classInfo.getClassLoaders();
             if (classLoaders != null) {
                 classNameToClassLoaders.put(classInfo.getClassName(), classLoaders);
@@ -93,18 +99,22 @@ class ClassGraphBuilder {
     // -------------------------------------------------------------------------------------------------------------
     // Classes
 
+    private Set<ClassInfo> allClassInfo() {
+        return new HashSet<>(classNameToClassInfo.values());
+    }
+
     /**
      * Get the sorted unique names of all classes, interfaces and annotations found during the scan.
      */
     List<String> getNamesOfAllClasses() {
-        return ClassInfo.getNamesOfAllClasses(scanSpec, allClassInfo);
+        return ClassInfo.getNamesOfAllClasses(scanSpec, allClassInfo());
     }
 
     /**
      * Get the sorted unique names of all standard (non-interface/annotation) classes found during the scan.
      */
     List<String> getNamesOfAllStandardClasses() {
-        return ClassInfo.getNamesOfAllStandardClasses(scanSpec, allClassInfo);
+        return ClassInfo.getNamesOfAllStandardClasses(scanSpec, allClassInfo());
     }
 
     /** Return the sorted list of names of all subclasses of the named class. */
@@ -129,12 +139,12 @@ class ClassGraphBuilder {
 
     /** Return a sorted list of classes that have a method with the named annotation. */
     List<String> getNamesOfClassesWithMethodAnnotation(final String annotationName) {
-        return ClassInfo.getNamesOfClassesWithMethodAnnotation(annotationName, allClassInfo);
+        return ClassInfo.getNamesOfClassesWithMethodAnnotation(annotationName, allClassInfo());
     }
 
     /** Return a sorted list of classes that have a field with the named annotation. */
     List<String> getNamesOfClassesWithFieldAnnotation(final String annotationName) {
-        return ClassInfo.getNamesOfClassesWithFieldAnnotation(annotationName, allClassInfo);
+        return ClassInfo.getNamesOfClassesWithFieldAnnotation(annotationName, allClassInfo());
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -142,7 +152,7 @@ class ClassGraphBuilder {
 
     /** Return the sorted unique names of all interface classes found during the scan. */
     List<String> getNamesOfAllInterfaceClasses() {
-        return ClassInfo.getNamesOfAllInterfaceClasses(scanSpec, allClassInfo);
+        return ClassInfo.getNamesOfAllInterfaceClasses(scanSpec, allClassInfo());
     }
 
     /** Return the sorted list of names of all subinterfaces of the named interface. */
@@ -182,7 +192,7 @@ class ClassGraphBuilder {
 
     /** Return the sorted unique names of all annotation classes found during the scan. */
     List<String> getNamesOfAllAnnotationClasses() {
-        return ClassInfo.getNamesOfAllAnnotationClasses(scanSpec, allClassInfo);
+        return ClassInfo.getNamesOfAllAnnotationClasses(scanSpec, allClassInfo());
     }
 
     /**
@@ -488,16 +498,16 @@ class ClassGraphBuilder {
         buf.append("node [fontname = \"Courier, Regular\"]\n");
         buf.append("edge [fontname = \"Courier, Regular\"]\n");
 
-        final Set<ClassInfo> standardClassNodes = ClassInfo.filterClassInfo(allClassInfo,
+        final Set<ClassInfo> standardClassNodes = ClassInfo.filterClassInfo(allClassInfo(),
                 /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.STANDARD_CLASS);
         final ClassInfo objectClass = classNameToClassInfo.get("java.lang.Object");
         if (objectClass != null) {
             // java.lang.Object should never be shown
             standardClassNodes.remove(objectClass);
         }
-        final Set<ClassInfo> interfaceNodes = ClassInfo.filterClassInfo(allClassInfo,
+        final Set<ClassInfo> interfaceNodes = ClassInfo.filterClassInfo(allClassInfo(),
                 /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.IMPLEMENTED_INTERFACE);
-        final Set<ClassInfo> annotationNodes = ClassInfo.filterClassInfo(allClassInfo,
+        final Set<ClassInfo> annotationNodes = ClassInfo.filterClassInfo(allClassInfo(),
                 /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.ANNOTATION);
 
         for (final ClassInfo node : standardClassNodes) {

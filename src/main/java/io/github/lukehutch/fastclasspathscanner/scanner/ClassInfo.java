@@ -163,6 +163,17 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
         }
     }
 
+    /** Sets back-reference to ScanSpec after deserialization. */
+    void setFields(final ScanSpec scanSpec) {
+        this.scanSpec = scanSpec;
+        if (this.methodInfo != null) {
+            for (final MethodInfo methodInfo : this.methodInfo) {
+                methodInfo.classInfo = this;
+                methodInfo.className = this.className;
+            }
+        }
+    }
+
     private static final int ANNOTATION_CLASS_MODIFIER = 0x2000;
 
     // -------------------------------------------------------------------------------------------------------------

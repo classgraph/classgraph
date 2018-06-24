@@ -1,102 +1,127 @@
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
+import org.junit.Test;
+
 import io.github.lukehutch.fastclasspathscanner.json.JSONDeserializer;
-import io.github.lukehutch.fastclasspathscanner.scanner.ClassInfo;
-import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
+import io.github.lukehutch.fastclasspathscanner.json.JSONSerializer;
 
 public class JSONSerializationTest {
 
-    private static class AA<X, Y> {
-        X xInAA;
-        Y yInAA;
-    }
+    private static class A<X, Y> {
+        X x;
+        Y y;
 
-    private static class BBParent<Q> {
-        Q bbParentField;
-
-        public BBParent(final Q bbParentField) {
-            this.bbParentField = bbParentField;
+        public A() {
         }
 
-    }
-
-    private static class BB<B> extends BBParent<B> {
-        AA<List<B>, String> aaInBB = new AA<>();
-
-        public BB(final B bbParentField) {
-            super(bbParentField);
+        public A(final X x, final Y y) {
+            this.x = x;
+            this.y = y;
         }
     }
 
-    private static class CCParent<T> {
+    private static class B<V> {
+        V b;
+
+        public B() {
+        }
+
+        public B(final V q) {
+            this.b = q;
+        }
+    }
+
+    private static class C<T> extends B<T> {
+        A<List<T>, String> a;
+        T[] arr;
+
+        public C() {
+        }
+
+        public C(final T t) {
+            super(t);
+            final List<T> tList = new ArrayList<>();
+            tList.add(t);
+            a = new A<>(tList, "x");
+            @SuppressWarnings("unchecked")
+            final T[] a = (T[]) List.of(t, t, t).toArray();
+            arr = a;
+        }
+    }
+
+    private static class D<T> {
         T z;
-        BB<T> q;
+        C<T> q;
         Map<T, T> map = new HashMap<>();
+        List<T> list;
 
-        public CCParent(final T obj) {
-            q = new BB<>(obj);
+        public D() {
+        }
+
+        public D(final T obj) {
+            z = obj;
+            q = new C<>(obj);
+            map.put(obj, obj);
+            list = List.of(obj, obj, obj);
         }
     }
 
-    private static class CC extends CCParent<Double> {
-        BB<Integer> bbInCC = new BB<>(Integer.valueOf(5));
-        int z;
+    private static class E extends D<Short> {
+        C<Integer> c = new C<>(Integer.valueOf(5));
+        int z = 42;
 
-        public CC(final Double obj) {
+        public E() {
+        }
+
+        public E(final Short obj) {
             super(obj);
         }
     }
 
-    private static class CC2 extends CCParent<Float> {
-        int wxy;
+    private static class F extends D<Float> {
+        int wxy = 123;
 
-        public CC2(final Float obj) {
-            super(obj);
+        public F() {
+        }
+
+        public F(final Float f) {
+            super(f);
         }
     }
 
-    private static class DD {
-        CC cc = new CC(Double.valueOf(10));
+    private static class G {
+        E e = new E(Short.valueOf((short) 3));
+        F f = new F(1.5f);
     }
 
-    private static class ListHolder {
-        Map<String, ClassInfo> classNameToClassInfo;
+    private static class H {
+        G g;
     }
 
-    public static void main(final String[] args) throws Exception {
-        final long time0 = System.nanoTime();
-        final ScanResult scanResult = new FastClasspathScanner().enableFieldInfo().enableMethodInfo().scan();
-        final long time1 = System.nanoTime();
-        final String json = scanResult.toJSON(2);
-        final long time2 = System.nanoTime();
+    @Test
+    public void testJSON() {
+        final H h = new H();
+        h.g = new G();
 
-        // System.out.println(json);
+        final String json0 = JSONSerializer.serializeFromField(h, "g", 0, false);
 
-        final ListHolder listHolder = new ListHolder();
-        JSONDeserializer.deserializeToField(listHolder, "classNameToClassInfo", json);
-        final long time3 = System.nanoTime();
+        final String expected = //
+                "{\"e\":{\"q\":{\"b\":3,\"a\":{\"x\":[3],\"y\":\"x\"},\"arr\":[3,3,3]},\"map\":{\"3\":3},"
+                        + "\"list\":[3,3,3],\"c\":{\"b\":5,\"a\":{\"x\":[5],\"y\":\"x\"},\"arr\":[5,5,5]},"
+                        + "\"z\":42},\"f\":{\"z\":1.5,\"q\":{\"b\":1.5,\"a\":{\"x\":[1.5],\"y\":\"x\"},"
+                        + "\"arr\":[1.5,1.5,1.5]},\"map\":{\"1.5\":1.5},\"list\":[1.5,1.5,1.5],\"wxy\":123}}";
 
-        System.out.println(json.length());
-        System.out.println((time1 - time0) * 1.0e-9);
-        System.out.println((time2 - time1) * 1.0e-9);
-        System.out.println((time3 - time2) * 1.0e-9);
-        System.out.println();
+        assertThat(json0).isEqualTo(expected);
 
-        // System.out.println(listHolder.classNameToClassInfo);
-        
-        // System.out.println(json);
+        final G obj = JSONDeserializer.deserializeObject(G.class, json0);
 
-        //        try (PrintWriter w = new PrintWriter("/tmp/3")) {
-        //            w.print(json);
-        //        }
+        final String json1 = JSONSerializer.serializeObject(obj, 0, false);
 
-        // TODO:
-        // - Look closely at field names before pushing out new version (e.g. className -> name etc.), since
-        //   serialization format should not change.
-        // - Run all unit tests through serialize->deserialize to test them
-        // - Come up with new ScanSpec config enum, and serialize ScanSpec to JSON too? 
+        assertThat(json0).isEqualTo(json1);
     }
 }

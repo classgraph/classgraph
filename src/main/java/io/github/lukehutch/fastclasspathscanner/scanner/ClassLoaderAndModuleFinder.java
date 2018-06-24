@@ -94,7 +94,7 @@ public class ClassLoaderAndModuleFinder {
      * A class to find the unique ordered classpath elements.
      * 
      * @param scanSpec
-     *            The scan spec.
+     *            The scan spec, or null if none available.
      * @param log
      *            The log.
      * @return The list of classloaders for this environment, and any system and non-system modules that are
@@ -105,7 +105,7 @@ public class ClassLoaderAndModuleFinder {
         LogNode classLoadersFoundLog = null;
         List<ModuleRef> systemModuleRefs = null;
         List<ModuleRef> nonSystemModuleRefs = null;
-        if (scanSpec.overrideClassLoaders == null) {
+        if (scanSpec == null || scanSpec.overrideClassLoaders == null) {
             // ClassLoaders were not overridden
 
             // Add the ClassLoaders in the order system, caller, context; then remove any of them that are
@@ -173,7 +173,7 @@ public class ClassLoaderAndModuleFinder {
             }
 
             // Add any custom-added classloaders after system/context classloaders
-            if (scanSpec.addedClassLoaders != null) {
+            if (scanSpec != null && scanSpec.addedClassLoaders != null) {
                 classLoadersUnique.addAll(scanSpec.addedClassLoaders);
             }
             classLoadersFoundLog = log == null ? null : log.log("Found ClassLoaders:");

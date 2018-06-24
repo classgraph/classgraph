@@ -40,8 +40,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
 import io.github.lukehutch.fastclasspathscanner.classloaderhandler.ClassLoaderHandler;
-import io.github.lukehutch.fastclasspathscanner.json.JSONDeserializer;
-import io.github.lukehutch.fastclasspathscanner.json.JSONSerializer;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.ClassAnnotationMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.ClassMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.matchprocessor.FieldAnnotationMatchProcessor;
@@ -1604,10 +1602,6 @@ public class FastClasspathScanner {
             ScanResult scanResult = scanAsync(executorService, numParallelTasks, /* isAsyncScan = */ false,
                     /* runMatchProcessorsOnWorkerThread = */ false).get();
 
-            //TODO: testing
-//            String scanResultJson = JSONSerializer.serializeObject(scanResult);
-//            scanResult = (ScanResult) JSONDeserializer.deserializeObject(ScanResult.class, scanResultJson);
-            
             // Call MatchProcessors in the same thread as the caller, to avoid deadlock (see bug #103)
             getScanSpec().callMatchProcessors(scanResult);
 
@@ -1615,6 +1609,10 @@ public class FastClasspathScanner {
             if (scanSpec.removeTemporaryFilesAfterScan) {
                 scanResult.freeTempFiles(log);
             }
+
+            // // Test serialization and deserialization by serializing and then deserializing the ScanResult 
+            // final String scanResultJson = scanResult.toJSON();
+            // scanResult = ScanResult.fromJSON(scanResultJson);
 
             // Return the scanResult after calling MatchProcessors
             return scanResult;

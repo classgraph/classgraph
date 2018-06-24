@@ -74,51 +74,51 @@ public class ScanSpec {
      * Whitelisted package paths with "/" appended, or the empty list if all packages are whitelisted. These
      * packages and any subpackages will be scanned.
      */
-    public final List<String> whitelistedPathPrefixes = new ArrayList<>();
+    public List<String> whitelistedPathPrefixes = new ArrayList<>();
 
     /**
      * Whitelisted package paths with "/" appended, or the empty list if all packages are whitelisted. These
      * packages will be scanned, but subpackages will not be scanned unless they are whitelisted.
      */
-    public final List<String> whitelistedPathsNonRecursive = new ArrayList<>();
+    public List<String> whitelistedPathsNonRecursive = new ArrayList<>();
 
     /**
      * Blacklisted package paths with "/" appended. Neither these packages nor any subpackages will be scanned.
      */
-    public final List<String> blacklistedPathPrefixes = new ArrayList<>();
+    public transient List<String> blacklistedPathPrefixes = new ArrayList<>();
 
     /**
      * Blacklisted package names with "." appended. Neither these packages nor any subpackages will be scanned.
      */
-    public final List<String> blacklistedPackagePrefixes = new ArrayList<>();
+    public List<String> blacklistedPackagePrefixes = new ArrayList<>();
 
     /** Whitelisted class names, or the empty list if none. */
-    public final Set<String> specificallyWhitelistedClassRelativePaths = new HashSet<>();
+    public Set<String> specificallyWhitelistedClassRelativePaths = new HashSet<>();
 
     /** Path prefixes of whitelisted classes, or the empty list if none. */
-    public final Set<String> specificallyWhitelistedClassParentRelativePaths = new HashSet<>();
+    public transient Set<String> specificallyWhitelistedClassParentRelativePaths = new HashSet<>();
 
     /** Blacklisted class relative paths. */
-    public final Set<String> specificallyBlacklistedClassRelativePaths = new HashSet<>();
+    public Set<String> specificallyBlacklistedClassRelativePaths = new HashSet<>();
 
     /** Blacklisted class names. */
-    public final Set<String> specificallyBlacklistedClassNames = new HashSet<>();
+    public Set<String> specificallyBlacklistedClassNames = new HashSet<>();
 
     /** Whitelisted jarfile names. (Leaf filename only.) */
-    public final Set<String> whitelistedJars = new HashSet<>();
+    public Set<String> whitelistedJars = new HashSet<>();
 
     /** Blacklisted jarfile names. (Leaf filename only.) */
-    public final Set<String> blacklistedJars = new HashSet<>();
+    public Set<String> blacklistedJars = new HashSet<>();
 
     /**
      * Whitelisted jarfile names containing a glob('*') character, converted to a regexp. (Leaf filename only.)
      */
-    public final List<Pattern> whitelistedJarPatterns = new ArrayList<>();
+    public transient List<Pattern> whitelistedJarPatterns = new ArrayList<>();
 
     /**
      * Blacklisted jarfile names containing a glob('*') character, converted to a regexp. (Leaf filename only.)
      */
-    public final List<Pattern> blacklistedJarPatterns = new ArrayList<>();
+    public transient List<Pattern> blacklistedJarPatterns = new ArrayList<>();
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -208,13 +208,13 @@ public class ScanSpec {
      * called if that class name and static final field name is encountered with a static constant initializer
      * during scan.
      */
-    private MultiMapKeyToList<String, StaticFinalFieldMatchProcessor> //
+    private transient MultiMapKeyToList<String, StaticFinalFieldMatchProcessor> //
     fullyQualifiedFieldNameToStaticFinalFieldMatchProcessors;
 
     /**
      * A map from className to a list of static final fields to match with StaticFinalFieldMatchProcessors.
      */
-    private MultiMapKeyToSet<String, String> classNameToStaticFinalFieldsToMatch;
+    private transient MultiMapKeyToSet<String, String> classNameToStaticFinalFieldsToMatch;
 
     /**
      * Get the map from class name to static final fields to match.
@@ -226,52 +226,52 @@ public class ScanSpec {
     }
 
     /** A list of class matchers to call once all classes have been read in from classpath. */
-    private ArrayList<ClassMatchProcessorWrapper> classMatchers;
+    private transient ArrayList<ClassMatchProcessorWrapper> classMatchers;
 
     /** A list of file path testers and match processor wrappers to use for file matching. */
-    private final List<FileMatchProcessorWrapper> fileMatchProcessorWrappers = new ArrayList<>();
+    private transient final List<FileMatchProcessorWrapper> fileMatchProcessorWrappers = new ArrayList<>();
 
     // -------------------------------------------------------------------------------------------------------------
 
     /**
      * If non-null, specified manually-added classloaders that should be searched after the context classloader(s).
      */
-    public List<ClassLoader> addedClassLoaders;
+    public transient List<ClassLoader> addedClassLoaders;
 
     /**
      * If non-null, all ClassLoaders have been overriden. In particular, this causes FastClasspathScanner to ignore
      * the java.class.path system property.
      */
-    public List<ClassLoader> overrideClassLoaders;
+    public transient List<ClassLoader> overrideClassLoaders;
 
     /** The ClassLoader finder. */
-    public ClassLoaderAndModuleFinder classLoaderFinder;
+    public transient ClassLoaderAndModuleFinder classLoaderFinder;
 
     /** If non-null, specifies a classpath to override the default one. */
     public String overrideClasspath;
 
     /** If non-null, a list of filter operations to apply to classpath elements. */
-    public List<ClasspathElementFilter> classpathElementFilters;
+    public transient List<ClasspathElementFilter> classpathElementFilters;
 
     /** Manually-registered ClassLoaderHandlers. */
-    public final ArrayList<ClassLoaderHandlerRegistryEntry> extraClassLoaderHandlers = new ArrayList<>();
+    public transient final ArrayList<ClassLoaderHandlerRegistryEntry> extraClassLoaderHandlers = new ArrayList<>();
 
     /**
      * If true, classes loaded with Class.forName() are initialized before passing class references to
      * MatchProcessors. If false (the default), matched classes are loaded but not initialized before passing class
      * references to MatchProcessors (meaning classes are instead initialized lazily on first usage of the class).
      */
-    public boolean initializeLoadedClasses = false;
+    public transient boolean initializeLoadedClasses = false;
 
     /**
      * If true, nested jarfiles (jarfiles within jarfiles) that are extracted during scanning are removed from their
      * temporary directory (e.g. /tmp-FastClasspathScanner-8JX2u4w) after the scan has completed. If false,
      * temporary files are removed on JVM exit.
      */
-    public boolean removeTemporaryFilesAfterScan = true;
+    public transient boolean removeTemporaryFilesAfterScan = true;
 
     /** If true, do not fetch paths from parent classloaders. */
-    public boolean ignoreParentClassLoaders = false;
+    public transient boolean ignoreParentClassLoaders = false;
 
     /**
      * If true, manually strip the self extracting executable header from zipfiles (i.e. anything before the magic
@@ -283,9 +283,12 @@ public class ScanSpec {
      * where your JVM does not already automatically skip forward to the first "PK" marker (Oracle JVM on Linux does
      * this automatically).
      */
-    public boolean stripSFXHeader = false;
+    public transient boolean stripSFXHeader = false;
 
     // -------------------------------------------------------------------------------------------------------------
+
+    ScanSpec() {
+    }
 
     /**
      * Parses the scanning specification that was passed to the FastClasspathScanner constructor, and finds all
@@ -693,7 +696,7 @@ public class ScanSpec {
     /**
      * Whether a path is a descendant of a blacklisted path, or an ancestor or descendant of a whitelisted path.
      */
-    enum ScanSpecPathMatch {
+    static enum ScanSpecPathMatch {
         HAS_BLACKLISTED_PATH_PREFIX, HAS_WHITELISTED_PATH_PREFIX, AT_WHITELISTED_PATH, //
         ANCESTOR_OF_WHITELISTED_PATH, AT_WHITELISTED_CLASS_PACKAGE, NOT_WITHIN_WHITELISTED_PATH;
     }

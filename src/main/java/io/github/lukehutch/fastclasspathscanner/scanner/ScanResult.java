@@ -33,11 +33,13 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import io.github.lukehutch.fastclasspathscanner.json.JSONDeserializer;
 import io.github.lukehutch.fastclasspathscanner.json.JSONSerializer;
 import io.github.lukehutch.fastclasspathscanner.utils.InterruptionChecker;
 import io.github.lukehutch.fastclasspathscanner.utils.JarUtils;
@@ -84,8 +86,8 @@ public class ScanResult {
     /** The log. */
     transient LogNode log;
 
-    /** Used to set ScanResult references in info objects after scan has completed. */
     abstract static class InfoObject {
+        /** Set ScanResult references in info objects after scan has completed. */
         abstract void setScanResult(ScanResult scanResult);
     }
 
@@ -125,13 +127,15 @@ public class ScanResult {
      * @return The classloader(s) for the named class.
      */
     public ClassLoader[] getClassLoadersForClass(final String className) {
-        final ClassLoader[] classLoaders = classGraphBuilder.getClassNameToClassLoaders().get(className);
-        if (classLoaders != null) {
-            return classLoaders;
-        } else {
-            // Default to default classloader order if classpath element didn't have specified classloader(s)
-            return envClassLoaderOrder;
+        final Map<String, ClassLoader[]> classNameToClassLoaders = classGraphBuilder.getClassNameToClassLoaders();
+        if (classNameToClassLoaders != null) {
+            final ClassLoader[] classLoaders = classNameToClassLoaders.get(className);
+            if (classLoaders != null) {
+                return classLoaders;
+            }
         }
+        // Default to default classloader order if classpath element didn't have specified classloader(s)
+        return envClassLoaderOrder;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -936,6 +940,42 @@ public class ScanResult {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    private static class SerializationFormat {
+        public String serializationFormat;
+        public ScanSpec scanSpec;
+        public List<ClassInfo> allClassInfo;
+
+        public SerializationFormat() {
+        }
+
+        public SerializationFormat(final String serializationFormat, final ScanSpec scanSpec,
+                final ClassGraphBuilder classGraphBuilder) {
+            this.serializationFormat = serializationFormat;
+            this.scanSpec = scanSpec;
+            this.allClassInfo = new ArrayList<>(classGraphBuilder.classNameToClassInfo.values());
+        }
+    }
+
+    /** Deserialize a ScanResult from previously-saved JSON. */
+    public static ScanResult fromJSON(final String json) {
+        final SerializationFormat deserialized = JSONDeserializer.deserializeObject(SerializationFormat.class,
+                json);
+        final ClassLoader[] envClassLoaderOrder = new ClassLoaderAndModuleFinder(deserialized.scanSpec,
+                /* log = */ null).getClassLoaders();
+        final Map<String, ClassInfo> classNameToClassInfo = new HashMap<>();
+        for (final ClassInfo ci : deserialized.allClassInfo) {
+            classNameToClassInfo.put(ci.getClassName(), ci);
+        }
+        final ClassGraphBuilder classGraphBuilder = new ClassGraphBuilder(deserialized.scanSpec,
+                classNameToClassInfo);
+        final ScanResult scanResult = new ScanResult(deserialized.scanSpec,
+                Collections.<ClasspathElement> emptyList(), envClassLoaderOrder, classGraphBuilder,
+                /* fileToLastModified = */ null, /* nestedJarHandler = */ null, /* interruptionChecker = */ null,
+                /* log = */ null);
+        classGraphBuilder.setFields(deserialized.scanSpec, scanResult);
+        return scanResult;
+    }
+
     /**
      * Serialize a ScanResult to JSON.
      * 
@@ -943,7 +983,8 @@ public class ScanResult {
      *            If greater than 0, JSON will be formatted (indented), otherwise it will be minified (un-indented).
      */
     public String toJSON(final int indentWidth) {
-        return JSONSerializer.serializeFromField(classGraphBuilder, "classNameToClassInfo", indentWidth, false);
+        return JSONSerializer.serializeObject(new SerializationFormat("1", scanSpec, classGraphBuilder),
+                indentWidth, false);
     }
 
     /** Serialize a ScanResult to minified (un-indented) JSON. */

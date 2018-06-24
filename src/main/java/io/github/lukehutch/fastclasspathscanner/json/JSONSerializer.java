@@ -50,19 +50,20 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class JSONSerializer {
     /** Create a unique id for each referenced JSON object. */
     private static void assignObjectIds(final Object jsonVal,
-            final Map<ReferenceEqualityKey<Object>, JSONObject> objToJSONVal, final TypeCache typeCache,
+            final Map<ReferenceEqualityKey<Object>, JSONObject> objToJSONVal, final ClassFieldCache classFieldCache,
             final Map<ReferenceEqualityKey<JSONReference>, CharSequence> jsonReferenceToId,
             final AtomicInteger objId, final boolean onlySerializePublicFields) {
         if (jsonVal == null) {
             return;
         } else if (jsonVal instanceof JSONObject) {
             for (final Entry<String, Object> item : ((JSONObject) jsonVal).items) {
-                assignObjectIds(item.getValue(), objToJSONVal, typeCache, jsonReferenceToId, objId,
+                assignObjectIds(item.getValue(), objToJSONVal, classFieldCache, jsonReferenceToId, objId,
                         onlySerializePublicFields);
             }
         } else if (jsonVal instanceof JSONArray) {
             for (final Object item : ((JSONArray) jsonVal).items) {
-                assignObjectIds(item, objToJSONVal, typeCache, jsonReferenceToId, objId, onlySerializePublicFields);
+                assignObjectIds(item, objToJSONVal, classFieldCache, jsonReferenceToId, objId,
+                        onlySerializePublicFields);
             }
         } else if (jsonVal instanceof JSONReference) {
             // Get the referenced (non-JSON) object
@@ -80,8 +81,7 @@ public class JSONSerializer {
             }
             // See if the JSON object has an @Id field
             // (for serialization, typeResolutions can be null)
-            final Field annotatedField = typeCache.getResolvedFields(refdObj.getClass(),
-                    /* typeResolutions = */ null, onlySerializePublicFields).idField;
+            final Field annotatedField = classFieldCache.get(refdObj.getClass()).idField;
             String idStr = null;
             if (annotatedField != null) {
                 // Get id value from field annotated with @Id
@@ -114,7 +114,7 @@ public class JSONSerializer {
     /** Take an array of object values, and recursively convert them (in place) into JSON values. */
     private static void convertVals(final Object[] convertedVals,
             final Set<ReferenceEqualityKey<Object>> visitedOnPath,
-            final Set<ReferenceEqualityKey<Object>> standardObjectVisited, final TypeCache typeCache,
+            final Set<ReferenceEqualityKey<Object>> standardObjectVisited, final ClassFieldCache classFieldCache,
             final Map<ReferenceEqualityKey<Object>, JSONObject> objToJSONVal,
             final boolean onlySerializePublicFields) {
         // Pass 1: find standard objects (objects that are not of basic value type or collections/arrays/maps)
@@ -141,14 +141,14 @@ public class JSONSerializer {
                 }
             }
         }
-        // Pass 2: convert standard objects, maps, collections and arrays to JSON objects.
+        // Pass 2: Recursively convert items in standard objects, maps, collections and arrays to JSON objects.
         for (int i = 0; i < convertedVals.length; i++) {
             if (needToConvert[i]) {
                 // Recursively convert standard objects (if it is the first time they have been visited)
                 // and maps to JSON objects, and convert collections and arrays to JSON arrays.
                 final Object val = convertedVals[i];
-                convertedVals[i] = toJSONGraph(val, visitedOnPath, standardObjectVisited, typeCache, objToJSONVal,
-                        onlySerializePublicFields);
+                convertedVals[i] = toJSONGraph(val, visitedOnPath, standardObjectVisited, classFieldCache,
+                        objToJSONVal, onlySerializePublicFields);
                 if (!JSONUtils.isCollectionOrArray(val)) {
                     // If this object is a standard object or map, then it has not been visited before, 
                     // so save the mapping between original object and converted object
@@ -165,7 +165,7 @@ public class JSONSerializer {
      */
     @SuppressWarnings({ "unchecked", "rawtypes" })
     private static Object toJSONGraph(final Object obj, final Set<ReferenceEqualityKey<Object>> visitedOnPath,
-            final Set<ReferenceEqualityKey<Object>> standardObjectVisited, final TypeCache typeCache,
+            final Set<ReferenceEqualityKey<Object>> standardObjectVisited, final ClassFieldCache classFieldCache,
             final Map<ReferenceEqualityKey<Object>, JSONObject> objToJSONVal,
             final boolean onlySerializePublicFields) {
 
@@ -237,7 +237,7 @@ public class JSONSerializer {
             for (int i = 0; i < n; i++) {
                 convertedVals[i] = map.get(keys.get(i));
             }
-            convertVals(convertedVals, visitedOnPath, standardObjectVisited, typeCache, objToJSONVal,
+            convertVals(convertedVals, visitedOnPath, standardObjectVisited, classFieldCache, objToJSONVal,
                     onlySerializePublicFields);
 
             // Create new JSON object representing the map
@@ -258,7 +258,7 @@ public class JSONSerializer {
             for (int i = 0; i < n; i++) {
                 convertedVals[i] = isList ? list.get(i) : Array.get(obj, i);
             }
-            convertVals(convertedVals, visitedOnPath, standardObjectVisited, typeCache, objToJSONVal,
+            convertVals(convertedVals, visitedOnPath, standardObjectVisited, classFieldCache, objToJSONVal,
                     onlySerializePublicFields);
 
             // Create new JSON array representing the list
@@ -273,7 +273,7 @@ public class JSONSerializer {
                 convertedValsList.add(item);
             }
             final Object[] convertedVals = convertedValsList.toArray();
-            convertVals(convertedVals, visitedOnPath, standardObjectVisited, typeCache, objToJSONVal,
+            convertVals(convertedVals, visitedOnPath, standardObjectVisited, classFieldCache, objToJSONVal,
                     onlySerializePublicFields);
 
             // Create new JSON array representing the collection
@@ -284,21 +284,20 @@ public class JSONSerializer {
             try {
                 // Cache class fields to include in serialization (typeResolutions can be null,
                 // since it's not necessary to resolve type parameters during serialization)
-                final TypeResolvedFieldsForClass resolvedFields = typeCache.getResolvedFields(cls,
-                        /* typeResolutions = */ null, onlySerializePublicFields);
-                final List<FieldResolvedTypeInfo> fieldOrder = resolvedFields.fieldOrder;
+                final ClassFields resolvedFields = classFieldCache.get(cls);
+                final List<FieldTypeInfo> fieldOrder = resolvedFields.fieldOrder;
                 final int n = fieldOrder.size();
 
                 // Convert field values to JSON values
                 final String[] fieldNames = new String[n];
                 final Object[] convertedVals = new Object[n];
                 for (int i = 0; i < n; i++) {
-                    final FieldResolvedTypeInfo fieldInfo = fieldOrder.get(i);
+                    final FieldTypeInfo fieldInfo = fieldOrder.get(i);
                     final Field field = fieldInfo.field;
                     fieldNames[i] = field.getName();
                     convertedVals[i] = JSONUtils.getFieldValue(obj, field);
                 }
-                convertVals(convertedVals, visitedOnPath, standardObjectVisited, typeCache, objToJSONVal,
+                convertVals(convertedVals, visitedOnPath, standardObjectVisited, classFieldCache, objToJSONVal,
                         onlySerializePublicFields);
 
                 // Create new JSON object representing the standard object
@@ -373,23 +372,25 @@ public class JSONSerializer {
      *            number of spaces to indent each level of JSON.
      * @param onlySerializePublicFields
      *            If true, only serialize public fields.
-     * @param typeCache
-     *            The type cache. Reusing the type cache will increase the speed if many JSON documents of the same
-     *            type need to be produced.
+     * @param classFieldCache
+     *            The class field cache. Reusing this cache will increase the speed if many JSON documents of the
+     *            same type need to be produced.
      * @return The object graph in JSON form.
      * @throws IllegalArgumentException
      *             If anything goes wrong during serialization.
      */
     public static String serializeObject(final Object obj, final int indentWidth,
-            final boolean onlySerializePublicFields, final TypeCache typeCache) {
+            final boolean onlySerializePublicFields, final ClassFieldCache classFieldCache) {
         final HashMap<ReferenceEqualityKey<Object>, JSONObject> objToJSONVal = new HashMap<>();
 
         final Object rootJsonVal = toJSONGraph(obj, new HashSet<ReferenceEqualityKey<Object>>(),
-                new HashSet<ReferenceEqualityKey<Object>>(), typeCache, objToJSONVal, onlySerializePublicFields);
+                new HashSet<ReferenceEqualityKey<Object>>(), classFieldCache, objToJSONVal,
+                onlySerializePublicFields);
 
         final Map<ReferenceEqualityKey<JSONReference>, CharSequence> jsonReferenceToId = new HashMap<>();
         final AtomicInteger objId = new AtomicInteger(0);
-        assignObjectIds(rootJsonVal, objToJSONVal, typeCache, jsonReferenceToId, objId, onlySerializePublicFields);
+        assignObjectIds(rootJsonVal, objToJSONVal, classFieldCache, jsonReferenceToId, objId,
+                onlySerializePublicFields);
 
         final StringBuilder buf = new StringBuilder(32768);
         jsonValToJSONString(rootJsonVal, jsonReferenceToId, /* includeNullValuedFields = */ false, 0, indentWidth,
@@ -414,7 +415,8 @@ public class JSONSerializer {
      */
     public static String serializeObject(final Object obj, final int indentWidth,
             final boolean onlySerializePublicFields) {
-        return serializeObject(obj, indentWidth, onlySerializePublicFields, new TypeCache());
+        return serializeObject(obj, indentWidth, onlySerializePublicFields,
+                new ClassFieldCache(/* resolveTypes = */ false, /* onlySerializePublicFields = */ false));
     }
 
     /**
@@ -443,18 +445,17 @@ public class JSONSerializer {
      *            number of spaces to indent each level of JSON.
      * @param onlySerializePublicFields
      *            If true, only serialize public fields.
-     * @param typeCache
-     *            The type cache. Reusing the type cache will increase the speed if many JSON documents of the same
-     *            type need to be produced.
+     * @param classFieldCache
+     *            The class field cache. Reusing this cache will increase the speed if many JSON documents of the
+     *            same type need to be produced.
      * @return The object graph in JSON form.
      * @throws IllegalArgumentException
      *             If anything goes wrong during serialization.
      */
     public static String serializeFromField(final Object containingObject, final String fieldName,
-            final int indentWidth, final boolean onlySerializePublicFields, final TypeCache typeCache) {
-        final FieldResolvedTypeInfo fieldResolvedTypeInfo = typeCache.getResolvedFields(containingObject.getClass(),
-                /* typeResolutions = */ null, /* onlySerializePublicFields = */ false).fieldNameToResolvedTypeInfo
-                        .get(fieldName);
+            final int indentWidth, final boolean onlySerializePublicFields, final ClassFieldCache classFieldCache) {
+        final FieldTypeInfo fieldResolvedTypeInfo = classFieldCache
+                .get(containingObject.getClass()).fieldNameToFieldTypeInfo.get(fieldName);
         if (fieldResolvedTypeInfo == null) {
             throw new IllegalArgumentException("Class " + containingObject.getClass().getName()
                     + " does not have a field named \"" + fieldName + "\"");
@@ -470,7 +471,7 @@ public class JSONSerializer {
         } catch (final Exception e) {
             throw new IllegalArgumentException("Could not parse JSON", e);
         }
-        return serializeObject(fieldValue, indentWidth, onlySerializePublicFields, typeCache);
+        return serializeObject(fieldValue, indentWidth, onlySerializePublicFields, classFieldCache);
     }
 
     /**
@@ -491,7 +492,10 @@ public class JSONSerializer {
      */
     public static String serializeFromField(final Object containingObject, final String fieldName,
             final int indentWidth, final boolean onlySerializePublicFields) {
-        final TypeCache typeCache = new TypeCache();
-        return serializeFromField(containingObject, fieldName, indentWidth, onlySerializePublicFields, typeCache);
+        // Don't need to resolve types during serialization
+        final ClassFieldCache classFieldCache = new ClassFieldCache(/* resolveTypes = */ false,
+                onlySerializePublicFields);
+        return serializeFromField(containingObject, fieldName, indentWidth, onlySerializePublicFields,
+                classFieldCache);
     }
 }

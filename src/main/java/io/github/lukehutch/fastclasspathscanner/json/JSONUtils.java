@@ -29,44 +29,18 @@
 package io.github.lukehutch.fastclasspathscanner.json;
 
 import java.lang.reflect.AccessibleObject;
-import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
-import java.util.AbstractList;
-import java.util.AbstractMap;
-import java.util.AbstractQueue;
-import java.util.AbstractSequentialList;
-import java.util.AbstractSet;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
-import java.util.Deque;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.NavigableMap;
-import java.util.Queue;
-import java.util.Set;
-import java.util.SortedMap;
-import java.util.SortedSet;
-import java.util.TreeMap;
-import java.util.TreeSet;
-import java.util.concurrent.BlockingDeque;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.ConcurrentNavigableMap;
-import java.util.concurrent.ConcurrentSkipListMap;
-import java.util.concurrent.LinkedBlockingDeque;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.LinkedTransferQueue;
-import java.util.concurrent.TransferQueue;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /** Utils for Java serialization and deserialization. */
@@ -260,6 +234,17 @@ public class JSONUtils {
                 || cls.isEnum();
     }
 
+    /** Return true for types that can be converted directly to and from string representation. */
+    static boolean isBasicValueType(final Type type) {
+        if (type instanceof Class<?>) {
+            return isBasicValueType((Class<?>) type);
+        } else if (type instanceof ParameterizedType) {
+            return isBasicValueType(((ParameterizedType) type).getRawType());
+        } else {
+            return false;
+        }
+    }
+
     /** Return true for objects that can be converted directly to and from string representation. */
     static boolean isBasicValueType(final Object obj) {
         return obj == null || obj instanceof String || obj instanceof Integer || obj instanceof Boolean
@@ -299,77 +284,6 @@ public class JSONUtils {
         } else {
             throw new IllegalArgumentException("Illegal type: " + type);
         }
-    }
-
-    /** Get the concrete type for a map or collection whose raw type is an interface or abstract class. */
-    static Class<?> getConcreteType(final Class<?> rawType, final boolean returnNullIfNotMapOrCollection) {
-        if (rawType == Map.class || rawType == AbstractMap.class) {
-            return HashMap.class;
-        } else if (rawType == ConcurrentMap.class) {
-            return ConcurrentHashMap.class;
-        } else if (rawType == SortedMap.class || rawType == NavigableMap.class) {
-            return TreeMap.class;
-        } else if (rawType == ConcurrentNavigableMap.class) {
-            return ConcurrentSkipListMap.class;
-        } else if (rawType == List.class || rawType == AbstractList.class) {
-            return ArrayList.class;
-        } else if (rawType == AbstractSequentialList.class) {
-            return LinkedList.class;
-        } else if (rawType == Set.class || rawType == AbstractSet.class) {
-            return HashSet.class;
-        } else if (rawType == SortedSet.class) {
-            return TreeSet.class;
-        } else if (rawType == Queue.class || rawType == AbstractQueue.class || rawType == Deque.class) {
-            return ArrayDeque.class;
-        } else if (rawType == BlockingQueue.class) {
-            return LinkedBlockingQueue.class;
-        } else if (rawType == BlockingDeque.class) {
-            return LinkedBlockingDeque.class;
-        } else if (rawType == TransferQueue.class) {
-            return LinkedTransferQueue.class;
-        } else {
-            return rawType;
-        }
-    }
-
-    /** Get the concrete type of the given class, then return the default constructor for that type. */
-    static Constructor<?> getDefaultConstructorForConcreteType(final Class<?> cls) {
-        final Class<?> concreteType = getConcreteType(cls, /* returnNullIfNotMapOrCollection = */ false);
-        for (Class<?> c = concreteType; c != null && c != Object.class; c = c.getSuperclass()) {
-            Constructor<?> defaultConstructor;
-            try {
-                defaultConstructor = c.getDeclaredConstructor();
-                JSONUtils.isAccessibleOrMakeAccessible(defaultConstructor);
-                return defaultConstructor;
-            } catch (final Exception e) {
-            }
-        }
-        throw new IllegalArgumentException(
-                "Class " + cls.getName() + " does not have an accessible default (no-arg) constructor");
-    }
-
-    /**
-     * Get the concrete type of the given class, then return the constructor for that type that takes a single
-     * integer parameter (the initial size hint, for Collection or Map). Returns null if not a Collection or Map, or
-     * constructor could not be found.
-     */
-    static Constructor<?> getConstructorWithSizeHintForConcreteType(final Class<?> cls) {
-        final Class<?> concreteType = getConcreteType(cls, /* returnNullIfNotMapOrCollection = */ true);
-        if (concreteType == null) {
-            throw new IllegalArgumentException(
-                    "Cannot get constructor with type hint for a class that is not a Collection or Map: "
-                            + concreteType.getName());
-        }
-        for (Class<?> c = concreteType; c != null; c = c.getSuperclass()) {
-            Constructor<?> intConstructor;
-            try {
-                intConstructor = c.getDeclaredConstructor(Integer.TYPE);
-                JSONUtils.isAccessibleOrMakeAccessible(intConstructor);
-                return intConstructor;
-            } catch (final Exception e) {
-            }
-        }
-        return null;
     }
 
     /** Return true if the field is accessible, or can be made accessible (and make it accessible if so). */
@@ -412,5 +326,144 @@ public class JSONUtils {
             return JSONUtils.isAccessibleOrMakeAccessible(field);
         }
         return false;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** An implementation of {@link ParameterizedType}, used to replace type variables with concrete types. */
+    static class ParameterizedTypeImpl implements ParameterizedType {
+        private final Type[] actualTypeArguments;
+        private final Class<?> rawType;
+        private final Type ownerType;
+
+        public static final Type MAP_OF_UNKNOWN_TYPE = new ParameterizedTypeImpl(Map.class,
+                new Type[] { Object.class, Object.class }, null);
+        public static final Type LIST_OF_UNKNOWN_TYPE = new ParameterizedTypeImpl(List.class,
+                new Type[] { Object.class }, null);
+
+        ParameterizedTypeImpl(final Class<?> rawType, final Type[] actualTypeArguments, final Type ownerType) {
+            this.actualTypeArguments = actualTypeArguments;
+            this.rawType = rawType;
+            this.ownerType = (ownerType != null) ? ownerType : rawType.getDeclaringClass();
+            if (rawType.getTypeParameters().length != actualTypeArguments.length) {
+                throw new IllegalArgumentException("Argument length mismatch");
+            }
+        }
+
+        @Override
+        public Type[] getActualTypeArguments() {
+            return actualTypeArguments.clone();
+        }
+
+        @Override
+        public Class<?> getRawType() {
+            return rawType;
+        }
+
+        @Override
+        public Type getOwnerType() {
+            return ownerType;
+        }
+
+        @Override
+        public boolean equals(final Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof ParameterizedType)) {
+                return false;
+            }
+            final ParameterizedType other = (ParameterizedType) o;
+
+            final Type otherOwnerType = other.getOwnerType();
+            final Type otherRawType = other.getRawType();
+
+            return Objects.equals(ownerType, otherOwnerType) && Objects.equals(rawType, otherRawType)
+                    && Arrays.equals(actualTypeArguments, other.getActualTypeArguments());
+        }
+
+        @Override
+        public int hashCode() {
+            return Arrays.hashCode(actualTypeArguments) ^ Objects.hashCode(ownerType) ^ Objects.hashCode(rawType);
+        }
+
+        @Override
+        public String toString() {
+            final StringBuilder buf = new StringBuilder();
+            if (ownerType == null) {
+                buf.append(rawType.getName());
+            } else {
+                if (ownerType instanceof Class) {
+                    buf.append(((Class<?>) ownerType).getName());
+                } else {
+                    buf.append(ownerType.toString());
+                }
+                buf.append("$");
+                if (ownerType instanceof ParameterizedTypeImpl) {
+                    final String simpleName = rawType.getName()
+                            .replace(((ParameterizedTypeImpl) ownerType).rawType.getName() + "$", "");
+                    buf.append(simpleName);
+                } else {
+                    buf.append(rawType.getSimpleName());
+                }
+            }
+            if (actualTypeArguments != null && actualTypeArguments.length > 0) {
+                buf.append("<");
+                boolean first = true;
+                for (final Type t : actualTypeArguments) {
+                    if (first) {
+                        first = false;
+                    } else {
+                        buf.append(", ");
+                    }
+                    buf.append(t.getTypeName());
+                }
+                buf.append(">");
+            }
+            return buf.toString();
+        }
+    }
+
+    /** An implementation of {@link GenericArrayType}, used to replace type variables with concrete types. */
+    static class GenericArrayTypeImpl implements GenericArrayType {
+        private final Type genericComponentType;
+
+        GenericArrayTypeImpl(final Type componentType) {
+            genericComponentType = componentType;
+        }
+
+        @Override
+        public Type getGenericComponentType() {
+            return genericComponentType;
+        }
+
+        @Override
+        public String toString() {
+            final Type componentType = getGenericComponentType();
+            final StringBuilder buf = new StringBuilder();
+
+            if (componentType instanceof Class) {
+                buf.append(((Class<?>) componentType).getName());
+            } else {
+                buf.append(componentType.toString());
+            }
+            buf.append("[]");
+            return buf.toString();
+        }
+
+        @Override
+        public boolean equals(final Object o) {
+            if (o instanceof GenericArrayType) {
+                final GenericArrayType other = (GenericArrayType) o;
+                return Objects.equals(genericComponentType, other.getGenericComponentType());
+            } else {
+                return false;
+            }
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hashCode(genericComponentType);
+        }
     }
 }

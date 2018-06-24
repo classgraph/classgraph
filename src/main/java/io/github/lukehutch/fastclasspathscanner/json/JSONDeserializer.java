@@ -32,7 +32,6 @@ import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
-import java.lang.reflect.TypeVariable;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -40,6 +39,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+
+import io.github.lukehutch.fastclasspathscanner.json.JSONUtils.ParameterizedTypeImpl;
 
 /**
  * Fast, lightweight Java object to JSON serializer, and JSON to Java object deserializer. Handles cycles in the
@@ -50,7 +51,8 @@ public class JSONDeserializer {
      * Deserialize a JSON basic value (String, Integer, Long, or Double), conforming it to the expected type
      * (Character, Short, etc.).
      */
-    private static Object jsonBasicValueToObject(final Object jsonVal, final Type expectedType) {
+    private static Object jsonBasicValueToObject(final Object jsonVal, final Type expectedType,
+            final boolean convertStringToNumber) {
         if (jsonVal == null) {
             return null;
         } else if (jsonVal instanceof JSONArray || jsonVal instanceof JSONObject) {
@@ -77,6 +79,9 @@ public class JSONDeserializer {
             return jsonVal;
 
         } else if (rawType == Integer.class || rawType == Integer.TYPE) {
+            if (convertStringToNumber && jsonVal instanceof CharSequence) {
+                return Integer.parseInt(jsonVal.toString());
+            }
             if (!(jsonVal instanceof Integer)) {
                 throw new IllegalArgumentException("Expected integer; got " + jsonVal.getClass().getName());
             }
@@ -85,6 +90,9 @@ public class JSONDeserializer {
         } else if (rawType == Long.class || rawType == Long.TYPE) {
             final boolean isLong = jsonVal instanceof Long;
             final boolean isInteger = jsonVal instanceof Integer;
+            if (convertStringToNumber && jsonVal instanceof CharSequence) {
+                return isLong ? Long.parseLong(jsonVal.toString()) : Integer.parseInt(jsonVal.toString());
+            }
             if (!(isLong || isInteger)) {
                 throw new IllegalArgumentException("Expected long; got " + jsonVal.getClass().getName());
             }
@@ -95,6 +103,9 @@ public class JSONDeserializer {
             }
 
         } else if (rawType == Short.class || rawType == Short.TYPE) {
+            if (convertStringToNumber && jsonVal instanceof CharSequence) {
+                return Short.parseShort(jsonVal.toString());
+            }
             if (!(jsonVal instanceof Integer)) {
                 throw new IllegalArgumentException("Expected short; got " + jsonVal.getClass().getName());
             }
@@ -105,6 +116,9 @@ public class JSONDeserializer {
             return Short.valueOf((short) intValue);
 
         } else if (rawType == Float.class || rawType == Float.TYPE) {
+            if (convertStringToNumber && jsonVal instanceof CharSequence) {
+                return Float.parseFloat(jsonVal.toString());
+            }
             if (!(jsonVal instanceof Double)) {
                 throw new IllegalArgumentException("Expected float; got " + jsonVal.getClass().getName());
             }
@@ -115,12 +129,18 @@ public class JSONDeserializer {
             return Float.valueOf((float) doubleValue);
 
         } else if (rawType == Double.class || rawType == Double.TYPE) {
+            if (convertStringToNumber && jsonVal instanceof CharSequence) {
+                return Double.parseDouble(jsonVal.toString());
+            }
             if (!(jsonVal instanceof Double)) {
                 throw new IllegalArgumentException("Expected double; got " + jsonVal.getClass().getName());
             }
             return jsonVal;
 
         } else if (rawType == Byte.class || rawType == Byte.TYPE) {
+            if (convertStringToNumber && jsonVal instanceof CharSequence) {
+                return Byte.parseByte(jsonVal.toString());
+            }
             if (!(jsonVal instanceof Integer)) {
                 throw new IllegalArgumentException("Expected byte; got " + jsonVal.getClass().getName());
             }
@@ -141,6 +161,9 @@ public class JSONDeserializer {
             return Character.valueOf(charSequence.charAt(0));
 
         } else if (rawType == Boolean.class || rawType == Boolean.TYPE) {
+            if (convertStringToNumber && jsonVal instanceof CharSequence) {
+                return Boolean.parseBoolean(jsonVal.toString());
+            }
             if (!(jsonVal instanceof Boolean)) {
                 throw new IllegalArgumentException("Expected boolean; got " + jsonVal.getClass().getName());
             }
@@ -185,9 +208,9 @@ public class JSONDeserializer {
         }
     }
 
-    private static void populateObjectFromJsonObject(final Object objectInstance, final Type objectType,
-            final Object jsonVal, final TypeCache typeCache, final Map<CharSequence, Object> idToObjectInstance,
-            final List<Runnable> collectionElementAdders) {
+    private static void populateObjectFromJsonObject(final Object objectInstance, final Type objectResolvedType,
+            final Object jsonVal, final ClassFieldCache classFieldCache,
+            final Map<CharSequence, Object> idToObjectInstance, final List<Runnable> collectionElementAdders) {
 
         // Leave objectInstance empty (or leave fields null) if jsonVal is null
         if (jsonVal == null) {
@@ -205,97 +228,74 @@ public class JSONDeserializer {
         final JSONArray jsonArray = isJsonArray ? (JSONArray) jsonVal : null;
 
         // Check concrete type of object instance
-        final Class<?> concreteType = objectInstance.getClass();
-        final boolean isMap = Map.class.isAssignableFrom(concreteType);
+        final Class<?> rawType = objectInstance.getClass();
+        final boolean isMap = Map.class.isAssignableFrom(rawType);
         @SuppressWarnings("unchecked")
         final Map<Object, Object> mapInstance = isMap ? (Map<Object, Object>) objectInstance : null;
-        final boolean isCollection = Collection.class.isAssignableFrom(concreteType);
+        final boolean isCollection = Collection.class.isAssignableFrom(rawType);
         @SuppressWarnings("unchecked")
         final Collection<Object> collectionInstance = isCollection ? (Collection<Object>) objectInstance : null;
-        final boolean isArray = concreteType.isArray();
+        final boolean isArray = rawType.isArray();
         final boolean isObj = !(isMap || isCollection || isArray);
         if ((isMap || isObj) != isJsonObject || (isCollection || isArray) != isJsonArray) {
             throw new IllegalArgumentException("Wrong JSON type for class " + objectInstance.getClass().getName());
         }
 
         // Get type arguments of resolved type of object, and resolve any type variables
-        Type[] typeArguments;
-        TypeVariable<?>[] typeParameters;
-        TypeVariableToResolvedTypeList typeResolutions;
+        TypeResolutions typeResolutions;
         // keyType is the first type parameter for maps, otherwise null
         Type mapKeyType;
         // valueType is the component type for arrays, the second type parameter for maps,
         // the first type parameter for collections, or null for standard objects (since
         // fields may be of a range of different types for standard objects)
-        Type commonValueType;
+        Type commonResolvedValueType;
         Class<?> arrayComponentType;
         boolean is1DArray;
-        if (objectType instanceof Class<?>) {
-            typeArguments = null;
-            typeParameters = null;
+        if (objectResolvedType instanceof Class<?>) {
             typeResolutions = null;
             mapKeyType = null;
-            arrayComponentType = isArray ? ((Class<?>) objectType).getComponentType() : null;
+            arrayComponentType = isArray ? ((Class<?>) objectResolvedType).getComponentType() : null;
             is1DArray = isArray && !arrayComponentType.isArray();
-            commonValueType = null;
-        } else if (objectType instanceof ParameterizedType) {
+            commonResolvedValueType = null;
+        } else if (objectResolvedType instanceof ParameterizedType) {
             // Get mapping from type variables to resolved types, by comparing the concrete type arguments
             // of the expected type to its type parameters
-            final ParameterizedType parameterizedType = (ParameterizedType) objectType;
-            typeArguments = parameterizedType.getActualTypeArguments();
-            typeParameters = ((Class<?>) parameterizedType.getRawType()).getTypeParameters();
-            if (typeArguments.length != typeParameters.length) {
-                throw new IllegalArgumentException("Type parameter count mismatch");
-            }
+            final ParameterizedType parameterizedResolvedType = (ParameterizedType) objectResolvedType;
+            typeResolutions = new TypeResolutions(parameterizedResolvedType);
             // Correlate type variables with resolved types
-            typeResolutions = new TypeVariableToResolvedTypeList(typeArguments.length);
-            for (int i = 0; i < typeArguments.length; i++) {
-                if (!(typeParameters[i] instanceof TypeVariable<?>)) {
-                    throw new IllegalArgumentException("Got illegal type pararameter type: " + typeParameters[i]);
-                }
-                typeResolutions.add(new TypeVariableToResolvedType(typeParameters[i], typeArguments[i]));
-            }
-            if (isMap && typeArguments.length != 2) {
+            final int numTypeArgs = typeResolutions.resolvedTypeArguments.length;
+            if (isMap && numTypeArgs != 2) {
                 throw new IllegalArgumentException(
-                        "Wrong number of type arguments for Map: got " + typeResolutions.size() + "; expected 2");
-            } else if (isCollection && typeArguments.length != 1) {
-                throw new IllegalArgumentException("Wrong number of type arguments for Collection: got "
-                        + typeResolutions.size() + "; expected 1");
+                        "Wrong number of type arguments for Map: got " + numTypeArgs + "; expected 2");
+            } else if (isCollection && numTypeArgs != 1) {
+                throw new IllegalArgumentException(
+                        "Wrong number of type arguments for Collection: got " + numTypeArgs + "; expected 1");
             }
-            mapKeyType = isMap ? typeResolutions.get(0).resolvedType : null;
-            commonValueType = isMap ? typeResolutions.get(1).resolvedType
-                    : isCollection ? typeResolutions.get(0).resolvedType : null;
+            mapKeyType = isMap ? typeResolutions.resolvedTypeArguments[0] : null;
+            commonResolvedValueType = isMap ? typeResolutions.resolvedTypeArguments[1]
+                    : isCollection ? typeResolutions.resolvedTypeArguments[0] : null;
             is1DArray = false;
             arrayComponentType = null;
         } else {
-            throw new IllegalArgumentException("Got illegal type: " + objectType);
+            throw new IllegalArgumentException("Got illegal type: " + objectResolvedType);
         }
-        final Class<?> commonValueRawType = commonValueType == null ? null : JSONUtils.getRawType(commonValueType);
+        final Class<?> commonValueRawType = commonResolvedValueType == null ? null
+                : JSONUtils.getRawType(commonResolvedValueType);
 
-        // For maps and collections, or 1D arrays, all the elements are of the same type -- 
-        // look up the constructor for the value type just once for speed
+        // For maps and collections, or 1D arrays, all the elements are of the same type. 
+        // Look up the constructor for the value type just once for speed.
         Constructor<?> commonValueConstructorWithSizeHint;
         Constructor<?> commonValueDefaultConstructor;
-        if (isMap || isCollection) {
-            // Get value type constructor for Collection or Map
-            commonValueConstructorWithSizeHint = JSONUtils
-                    .getConstructorWithSizeHintForConcreteType(commonValueRawType);
+        if (isMap || isCollection || (is1DArray && !JSONUtils.isBasicValueType(arrayComponentType))) {
+            // Get value type constructor for Collection, Map or 1D array
+            commonValueConstructorWithSizeHint = classFieldCache.getConstructorWithSizeHintForConcreteTypeOf(
+                    is1DArray ? arrayComponentType : commonValueRawType);
             if (commonValueConstructorWithSizeHint != null) {
                 // No need for a default constructor if there is a constructor that takes a size hint
                 commonValueDefaultConstructor = null;
             } else {
-                commonValueDefaultConstructor = JSONUtils.getDefaultConstructorForConcreteType(commonValueRawType);
-            }
-        } else if (is1DArray && !JSONUtils.isBasicValueType(arrayComponentType)) {
-            // Get value type constructor for 1D array (i.e. array with non-array component type),
-            // as long as the component type is not a basic value type
-            commonValueConstructorWithSizeHint = JSONUtils
-                    .getConstructorWithSizeHintForConcreteType(arrayComponentType);
-            if (commonValueConstructorWithSizeHint != null) {
-                // No need for a default constructor if there is a constructor that takes a size hint
-                commonValueDefaultConstructor = null;
-            } else {
-                commonValueDefaultConstructor = JSONUtils.getDefaultConstructorForConcreteType(arrayComponentType);
+                commonValueDefaultConstructor = classFieldCache.getDefaultConstructorForConcreteTypeOf(
+                        is1DArray ? arrayComponentType : commonValueRawType);
             }
         } else {
             // There is no single constructor for the fields of objects, and arrays and basic value types
@@ -305,14 +305,7 @@ public class JSONDeserializer {
         }
 
         // For standard objects, look up the list of deserializable fields
-        TypeResolvedFieldsForClass resolvedFields;
-        if (isObj) {
-            // Get field info from cache
-            resolvedFields = typeCache.getResolvedFields(concreteType, typeResolutions,
-                    /* onlySerializePublicFields = */ false);
-        } else {
-            resolvedFields = null;
-        }
+        final ClassFields classFields = isObj ? classFieldCache.get(rawType) : null;
 
         // Need to deserialize items in the same order as serialization: create all deserialized objects
         // at the current level in Pass 1, recording any ids that are found, then recurse into child nodes
@@ -327,51 +320,39 @@ public class JSONDeserializer {
             final Object jsonArrayItem = isJsonObject ? null : jsonArray.items.get(i);
             final String itemJsonKey = isJsonObject ? jsonObjectItem.getKey() : null;
             final Object itemJsonValue = isJsonObject ? jsonObjectItem.getValue() : jsonArrayItem;
+            final boolean itemJsonValueIsJsonObject = itemJsonValue instanceof JSONObject;
+            final boolean itemJsonValueIsJsonArray = itemJsonValue instanceof JSONArray;
+            final JSONObject itemJsonValueJsonObject = itemJsonValueIsJsonObject ? (JSONObject) itemJsonValue
+                    : null;
+            final JSONArray itemJsonValueJsonArray = itemJsonValueIsJsonArray ? (JSONArray) itemJsonValue : null;
 
             // If this is a standard object, look up the field info in the type cache
-            FieldResolvedTypeInfo fieldResolvedTypeInfo;
+            FieldTypeInfo fieldTypeInfo;
             if (isObj) {
                 // Standard objects must interpret the key as a string, since field names are strings.
                 // Look up field name directly, using the itemJsonKey string
                 final String fieldName = itemJsonKey;
-                fieldResolvedTypeInfo = resolvedFields.fieldNameToResolvedTypeInfo.get(fieldName);
-                if (fieldResolvedTypeInfo == null) {
-                    throw new IllegalArgumentException("Field " + concreteType.getName() + "." + fieldName
+                fieldTypeInfo = classFields.fieldNameToFieldTypeInfo.get(fieldName);
+                if (fieldTypeInfo == null) {
+                    throw new IllegalArgumentException("Field " + rawType.getName() + "." + fieldName
                             + " does not exist or is not accessible, non-final, and non-transient");
                 }
             } else {
-                fieldResolvedTypeInfo = null;
-            }
-
-            // For maps, key type should be deserialized from strings, to support e.g. Integer as a key type.
-            // This only works for basic object types though (String, Integer, Enum, etc.)
-            Object mapKey;
-            if (isMap) {
-                // TODO: test maps with non-String keys
-                mapKey = jsonBasicValueToObject(itemJsonKey, mapKeyType);
-            } else {
-                mapKey = null;
+                fieldTypeInfo = null;
             }
 
             // Standard objects have a different type for each field; arrays have a nested value type;
-            // collections and maps have a single common value type for all elements
-            final Type valueType = isObj ? fieldResolvedTypeInfo.resolvedFieldType
-                    : isArray ? arrayComponentType : commonValueType;
-            final Class<?> valueRawType = JSONUtils.getRawType(valueType);
-
-            // For maps and collections, all the elements are of the same type -- look up the constructor
-            // for the value type just once for speed
-            Constructor<?> valueConstructorWithSizeHint;
-            Constructor<?> valueDefaultConstructor;
-            if (isObj) {
-                // For object types, each field has its own constructor
-                valueConstructorWithSizeHint = fieldResolvedTypeInfo.constructorForFieldTypeWithSizeHint;
-                valueDefaultConstructor = fieldResolvedTypeInfo.defaultConstructorForFieldType;
-            } else {
-                // For Collections, Maps and Ararys, use the common value constructors, if available
-                valueConstructorWithSizeHint = commonValueConstructorWithSizeHint;
-                valueDefaultConstructor = commonValueDefaultConstructor;
-            }
+            // collections and maps have a single common value type for all elements.
+            final Type resolvedItemValueType =
+                    // For objects, finish resolving partially resolve field types using the set of type
+                    // resolutions found by comparing the resolved type of the concrete containing object
+                    // with its generic type. (Fields were partially resolved before by substituting type
+                    // arguments of subclasses into type variables of superclasses.)
+                    isObj ? fieldTypeInfo.getFullyResolvedFieldType(typeResolutions)
+                            // For arrays, the item type is the array component type
+                            : isArray ? arrayComponentType
+                                    // For collections and maps, the value type is the same for all items
+                                    : commonResolvedValueType;
 
             // Construct an object of the type needed to hold the value
             final Object instantiatedItemObject;
@@ -379,29 +360,44 @@ public class JSONDeserializer {
                 // If JSON value is null, no need to recurse to deserialize the value
                 instantiatedItemObject = null;
 
-            } else if (valueRawType == Object.class) {
-                // For Object-typed fields, we only support deserializing basic value types, since we don't know
-                // the element type of JSONObjects and JSONArrays
-                if (itemJsonValue instanceof JSONObject || itemJsonValue instanceof JSONArray) {
-                    // throw new IllegalArgumentException(
-                    // System.err.println("Got JSON object or array type when the expected type is java.lang.Object"
-                    //         + " -- cannot deserialize without type information");
-                    continue;
-                }
-                // Deserialize basic JSON value
-                instantiatedItemObject = jsonBasicValueToObject(itemJsonValue, valueType);
+            } else if (resolvedItemValueType == Object.class) {
+                // For Object-typed fields, we can only deserialize a JSONObject to Map<Object, Object>
+                // or a JSONArray to List<Object>, since we don't have any other type information
+                if (itemJsonValueIsJsonObject) {
+                    instantiatedItemObject = new HashMap<>();
+                    if (itemsToRecurseToInPass2 == null) {
+                        itemsToRecurseToInPass2 = new ArrayList<>();
+                    }
+                    itemsToRecurseToInPass2.add(new ObjectInstantiation(instantiatedItemObject,
+                            ParameterizedTypeImpl.MAP_OF_UNKNOWN_TYPE, itemJsonValue));
 
-            } else if (JSONUtils.isBasicValueType(valueRawType)) {
+                } else if (itemJsonValueIsJsonArray) {
+                    instantiatedItemObject = new ArrayList<>();
+                    if (itemsToRecurseToInPass2 == null) {
+                        itemsToRecurseToInPass2 = new ArrayList<>();
+                    }
+                    itemsToRecurseToInPass2.add(new ObjectInstantiation(instantiatedItemObject,
+                            ParameterizedTypeImpl.LIST_OF_UNKNOWN_TYPE, itemJsonValue));
+
+                } else {
+                    // Deserialize basic JSON value for assigning to Object-typed field or as Object-typed element
+                    instantiatedItemObject = jsonBasicValueToObject(itemJsonValue, resolvedItemValueType,
+                            /* convertStringToNumber = */ false);
+                }
+
+            } else if (JSONUtils.isBasicValueType(resolvedItemValueType)) {
                 // For non-recursive (basic) value types, just convert the values directly.
-                if (itemJsonValue instanceof JSONObject || itemJsonValue instanceof JSONArray) {
+                if (itemJsonValueIsJsonObject || itemJsonValueIsJsonArray) {
                     throw new IllegalArgumentException(
-                            "Got JSON object or array type when expecting a simple value type");
+                            "Got JSONObject or JSONArray type when expecting a simple value type");
                 }
                 // Deserialize basic JSON value
-                instantiatedItemObject = jsonBasicValueToObject(itemJsonValue, valueType);
+                instantiatedItemObject = jsonBasicValueToObject(itemJsonValue, resolvedItemValueType,
+                        /* convertStringToNumber = */ false);
 
             } else {
                 // Value type is a recursive type (has fields or items)
+
                 if (CharSequence.class.isAssignableFrom(itemJsonValue.getClass())) {
                     // This must be an id ref -- it is a string in a position that requires a recursive type.  
                     // Look up JSON reference, based on the id in itemJsonValue.
@@ -415,21 +411,58 @@ public class JSONDeserializer {
                     instantiatedItemObject = linkedObject;
 
                 } else {
-                    // For other items of recursive type, create an empty object instance for the item
+                    // For other items of recursive type (maps, collections, or general objects),
+                    // create an empty object instance for the item
+                    if (!itemJsonValueIsJsonObject && !itemJsonValueIsJsonArray) {
+                        throw new IllegalArgumentException(
+                                "Got simple value type when expecting a JSON object or JSON array");
+                    }
                     try {
-                        if (valueRawType.isArray()) {
-                            // Instantiate inner array with same number of items as the JSONArray
-                            instantiatedItemObject = Array.newInstance(valueRawType.getComponentType(), numItems);
+                        // Call the appropriate constructor for the item, whether its type is array, Collection,
+                        // Map or other class type. For collections and Maps, call the size hint constructor
+                        // for speed when adding items.
+                        final int numSubItems = itemJsonValueIsJsonObject ? itemJsonValueJsonObject.items.size()
+                                : itemJsonValueJsonArray.items.size();
+                        if ((resolvedItemValueType instanceof Class<?>
+                                && ((Class<?>) resolvedItemValueType).isArray())) {
+                            // Instantiate inner array with same number of items as the inner JSONArray
+                            if (!itemJsonValueIsJsonArray) {
+                                throw new IllegalArgumentException(
+                                        "Expected JSONArray, got " + itemJsonValue.getClass().getName());
+                            }
+                            instantiatedItemObject = Array.newInstance(
+                                    ((Class<?>) resolvedItemValueType).getComponentType(), numSubItems);
                         } else {
-                            // Instantiate a Map or Collection, with a size hint if possible
-                            instantiatedItemObject = valueConstructorWithSizeHint != null
-                                    // Instantiate collection or map with size hint
-                                    ? valueConstructorWithSizeHint.newInstance(numItems)
-                                    // Instantiate other object types
-                                    : valueDefaultConstructor.newInstance();
+                            // For maps and collections, all the elements are of the same type
+                            if (isCollection || isMap || is1DArray) {
+                                // Instantiate a Map or Collection, with a size hint if possible
+                                instantiatedItemObject = commonValueConstructorWithSizeHint != null
+                                        // Instantiate collection or map with size hint
+                                        ? commonValueConstructorWithSizeHint.newInstance(numSubItems)
+                                        // Instantiate other object types
+                                        : commonValueDefaultConstructor.newInstance();
+                            } else if (isObj) {
+                                // For object types, each field has its own constructor, and the constructor can
+                                // vary if the field type is completely generic (e.g. "T field").
+                                final Constructor<?> valueConstructorWithSizeHint = fieldTypeInfo
+                                        .getConstructorForFieldTypeWithSizeHint(resolvedItemValueType,
+                                                classFieldCache);
+                                if (valueConstructorWithSizeHint != null) {
+                                    instantiatedItemObject = valueConstructorWithSizeHint.newInstance(numSubItems);
+                                } else {
+                                    instantiatedItemObject = fieldTypeInfo.getDefaultConstructorForFieldType(
+                                            resolvedItemValueType, classFieldCache).newInstance();
+                                }
+                            } else if (isArray && !is1DArray) {
+                                // Construct next innermost array for an array of 2+ dimensions
+                                instantiatedItemObject = Array.newInstance(rawType.getComponentType(), numSubItems);
+
+                            } else {
+                                throw new IllegalArgumentException("Got illegal type");
+                            }
                         }
                     } catch (final Exception e) {
-                        throw new IllegalArgumentException("Could not instantiate class " + valueRawType.getName(),
+                        throw new IllegalArgumentException("Could not instantiate type " + resolvedItemValueType,
                                 e);
                     }
 
@@ -447,15 +480,19 @@ public class JSONDeserializer {
                     if (itemsToRecurseToInPass2 == null) {
                         itemsToRecurseToInPass2 = new ArrayList<>();
                     }
-                    itemsToRecurseToInPass2
-                            .add(new ObjectInstantiation(instantiatedItemObject, valueType, itemJsonValue));
+                    itemsToRecurseToInPass2.add(
+                            new ObjectInstantiation(instantiatedItemObject, resolvedItemValueType, itemJsonValue));
                 }
             }
 
             // Add instantiated items to parent object
             if (isObj) {
-                fieldResolvedTypeInfo.setFieldValue(objectInstance, instantiatedItemObject);
+                fieldTypeInfo.setFieldValue(objectInstance, instantiatedItemObject);
             } else if (isMap) {
+                // For maps, key type should be deserialized from strings, to support e.g. Integer as a key type.
+                // This only works for basic object types though (String, Integer, Enum, etc.)
+                final Object mapKey = jsonBasicValueToObject(itemJsonKey, mapKeyType,
+                        /* convertStringToNumber = */ true);
                 mapInstance.put(mapKey, instantiatedItemObject);
             } else if (isArray) {
                 Array.set(objectInstance, i, instantiatedItemObject);
@@ -474,8 +511,8 @@ public class JSONDeserializer {
         // Pass 2: Recurse into child items to populate child fields.
         if (itemsToRecurseToInPass2 != null) {
             for (final ObjectInstantiation i : itemsToRecurseToInPass2) {
-                populateObjectFromJsonObject(i.objectInstance, i.type, i.jsonVal, typeCache, idToObjectInstance,
-                        collectionElementAdders);
+                populateObjectFromJsonObject(i.objectInstance, i.type, i.jsonVal, classFieldCache,
+                        idToObjectInstance, collectionElementAdders);
             }
         }
     }
@@ -515,15 +552,15 @@ public class JSONDeserializer {
      *            The type that the JSON should conform to.
      * @param json
      *            the JSON string to deserialize.
-     * @param typeCache
-     *            The type cache. Reusing the type cache will increase the speed if many JSON documents of the same
-     *            type need to be parsed.
+     * @param classFieldCache
+     *            The class field cache. Reusing this cache will increase the speed if many JSON documents of the
+     *            same type need to be parsed.
      * @return The object graph after deserialization.
      * @throws IllegalArgumentException
      *             If anything goes wrong during deserialization.
      */
-    public static <T> T deserializeObject(final Class<T> expectedType, final String json, final TypeCache typeCache)
-            throws IllegalArgumentException {
+    public static <T> T deserializeObject(final Class<T> expectedType, final String json,
+            final ClassFieldCache classFieldCache) throws IllegalArgumentException {
         // Parse the JSON
         Object parsedJSON;
         try {
@@ -535,9 +572,9 @@ public class JSONDeserializer {
         T objectInstance;
         try {
             // Construct an object of the expected type
-            final Constructor<?> constructor = JSONUtils.getDefaultConstructorForConcreteType(expectedType);
+            final Constructor<?> constructor = classFieldCache.getDefaultConstructorForConcreteTypeOf(expectedType);
             @SuppressWarnings("unchecked")
-            T newInstance = (T) constructor.newInstance();
+            final T newInstance = (T) constructor.newInstance();
             objectInstance = newInstance;
         } catch (final Exception e) {
             throw new IllegalArgumentException("Could not construct object of type " + expectedType.getName(), e);
@@ -545,7 +582,7 @@ public class JSONDeserializer {
 
         // Populate the object from the parsed JSON
         final List<Runnable> collectionElementAdders = new ArrayList<>();
-        populateObjectFromJsonObject(objectInstance, expectedType, parsedJSON, typeCache,
+        populateObjectFromJsonObject(objectInstance, expectedType, parsedJSON, classFieldCache,
                 getInitialIdToObjectMap(objectInstance, parsedJSON), collectionElementAdders);
         for (final Runnable runnable : collectionElementAdders) {
             runnable.run();
@@ -568,9 +605,9 @@ public class JSONDeserializer {
      */
     public static <T> T deserializeObject(final Class<T> expectedType, final String json)
             throws IllegalArgumentException {
-        final TypeCache typeCache = new TypeCache();
-        @SuppressWarnings("unchecked")
-        T result = (T) deserializeObject(expectedType, json, typeCache);
+        final ClassFieldCache classFieldCache = new ClassFieldCache(/* resolveTypes = */ true,
+                /* onlySerializePublicFields = */ false);
+        final T result = deserializeObject(expectedType, json, classFieldCache);
         return result;
     }
 
@@ -585,14 +622,14 @@ public class JSONDeserializer {
      *            The name of the field to set with the result.
      * @param json
      *            the JSON string to deserialize.
-     * @param typeCache
-     *            The type cache. Reusing the type cache will increase the speed if many JSON documents of the same
-     *            type need to be parsed.
+     * @param classFieldCache
+     *            The class field cache. Reusing this cache will increase the speed if many JSON documents of the
+     *            same type need to be parsed.
      * @throws IllegalArgumentException
      *             If anything goes wrong during deserialization.
      */
     public static void deserializeToField(final Object containingObject, final String fieldName, final String json,
-            final TypeCache typeCache) throws IllegalArgumentException {
+            final ClassFieldCache classFieldCache) throws IllegalArgumentException {
         if (containingObject == null) {
             throw new IllegalArgumentException("Cannot deserialize to a field of a null object");
         }
@@ -612,8 +649,8 @@ public class JSONDeserializer {
         // Populate the object field
         // (no need to call getInitialIdToObjectMap(), since toplevel object is a wrapper, which doesn't have an id)
         final List<Runnable> collectionElementAdders = new ArrayList<>();
-        populateObjectFromJsonObject(containingObject, containingObject.getClass(), wrapperJsonObj, typeCache,
-                new HashMap<>(), collectionElementAdders);
+        populateObjectFromJsonObject(containingObject, containingObject.getClass(), wrapperJsonObj, classFieldCache,
+                new HashMap<CharSequence, Object>(), collectionElementAdders);
         for (final Runnable runnable : collectionElementAdders) {
             runnable.run();
         }
@@ -635,7 +672,8 @@ public class JSONDeserializer {
      */
     public static void deserializeToField(final Object containingObject, final String fieldName, final String json)
             throws IllegalArgumentException {
-        final TypeCache typeCache = new TypeCache();
+        final ClassFieldCache typeCache = new ClassFieldCache(/* resolveTypes = */ true,
+                /* onlySerializePublicFields = */ false);
         deserializeToField(containingObject, fieldName, json, typeCache);
     }
 }

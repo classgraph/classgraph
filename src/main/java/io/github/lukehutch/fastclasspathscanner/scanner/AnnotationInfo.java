@@ -59,7 +59,130 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
         this.scanResult = scanResult;
         if (annotationParamValues != null) {
             for (final AnnotationParamValue a : annotationParamValues) {
-                a.setScanResult(scanResult);
+                if (a != null) {
+                    a.setScanResult(scanResult);
+                }
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** A union type, used for recovering object type during deserialization. Only one field is ever set. */
+    private static class AnnotationParamValueWrapper extends InfoObject {
+        // Parameter value is split into different fields by type, so that serialization and deserialization
+        // works properly (can't properly serialize a field of Object type, since the concrete type is not
+        // stored in JSON).
+        AnnotationEnumValue annotationEnumValue;
+        AnnotationClassRef annotationClassRef;
+        AnnotationInfo annotationInfo;
+        AnnotationParamValueWrapper[] annotationValueArray;
+        String annotationConstantString;
+        Integer annotationConstantInteger;
+        Long annotationConstantLong;
+        Short annotationConstantShort;
+        Boolean annotationConstantBoolean;
+        Character annotationConstantCharacter;
+        Float annotationConstantFloat;
+        Double annotationConstantDouble;
+        Byte annotationConstantByte;
+
+        public AnnotationParamValueWrapper() {
+        }
+
+        public AnnotationParamValueWrapper(final Object annotationParamValue) {
+            if (annotationParamValue != null) {
+                if (annotationParamValue.getClass().isArray()) {
+                    final int n = Array.getLength(annotationParamValue);
+                    annotationValueArray = new AnnotationParamValueWrapper[n];
+                    for (int i = 0; i < n; i++) {
+                        annotationValueArray[i] = new AnnotationParamValueWrapper(
+                                Array.get(annotationParamValue, i));
+                    }
+                } else if (annotationParamValue instanceof AnnotationEnumValue) {
+                    annotationEnumValue = (AnnotationEnumValue) annotationParamValue;
+                } else if (annotationParamValue instanceof AnnotationClassRef) {
+                    annotationClassRef = (AnnotationClassRef) annotationParamValue;
+                } else if (annotationParamValue instanceof AnnotationInfo) {
+                    annotationInfo = (AnnotationInfo) annotationParamValue;
+                } else if (annotationParamValue instanceof String) {
+                    annotationConstantString = (String) annotationParamValue;
+                } else if (annotationParamValue instanceof Integer) {
+                    annotationConstantInteger = (Integer) annotationParamValue;
+                } else if (annotationParamValue instanceof Long) {
+                    annotationConstantLong = (Long) annotationParamValue;
+                } else if (annotationParamValue instanceof Short) {
+                    annotationConstantShort = (Short) annotationParamValue;
+                } else if (annotationParamValue instanceof Boolean) {
+                    annotationConstantBoolean = (Boolean) annotationParamValue;
+                } else if (annotationParamValue instanceof Character) {
+                    annotationConstantCharacter = (Character) annotationParamValue;
+                } else if (annotationParamValue instanceof Float) {
+                    annotationConstantFloat = (Float) annotationParamValue;
+                } else if (annotationParamValue instanceof Double) {
+                    annotationConstantDouble = (Double) annotationParamValue;
+                } else if (annotationParamValue instanceof String) {
+                    annotationConstantByte = (Byte) annotationParamValue;
+                } else {
+                    throw new IllegalArgumentException(
+                            "Unsupported enum value type: " + annotationParamValue.getClass().getName());
+                }
+            }
+        }
+
+        /** Unwrap the wrapped value. */
+        public Object get() {
+            if (annotationValueArray != null) {
+                final Object[] annotationValueObjects = new Object[annotationValueArray.length];
+                for (int i = 0; i < annotationValueArray.length; i++) {
+                    if (annotationValueArray[i] != null) {
+                        annotationValueObjects[i] = annotationValueArray[i].get();
+                    }
+                }
+                return annotationValueObjects;
+            } else if (annotationEnumValue != null) {
+                return annotationEnumValue;
+            } else if (annotationClassRef != null) {
+                return annotationClassRef;
+            } else if (annotationInfo != null) {
+                return annotationInfo;
+            } else if (annotationConstantString != null) {
+                return annotationConstantString;
+            } else if (annotationConstantInteger != null) {
+                return annotationConstantInteger;
+            } else if (annotationConstantLong != null) {
+                return annotationConstantLong;
+            } else if (annotationConstantShort != null) {
+                return annotationConstantShort;
+            } else if (annotationConstantBoolean != null) {
+                return annotationConstantBoolean;
+            } else if (annotationConstantCharacter != null) {
+                return annotationConstantCharacter;
+            } else if (annotationConstantFloat != null) {
+                return annotationConstantFloat;
+            } else if (annotationConstantDouble != null) {
+                return annotationConstantDouble;
+            } else if (annotationConstantByte != null) {
+                return annotationConstantByte;
+            } else {
+                return null;
+            }
+        }
+
+        @Override
+        void setScanResult(final ScanResult scanResult) {
+            if (annotationValueArray != null) {
+                for (int i = 0; i < annotationValueArray.length; i++) {
+                    if (annotationValueArray[i] != null) {
+                        annotationValueArray[i].setScanResult(scanResult);
+                    }
+                }
+            } else if (annotationEnumValue != null) {
+                annotationEnumValue.setScanResult(scanResult);
+            } else if (annotationClassRef != null) {
+                annotationClassRef.setScanResult(scanResult);
+            } else if (annotationInfo != null) {
+                annotationInfo.setScanResult(scanResult);
             }
         }
     }
@@ -69,7 +192,7 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
     /** A wrapper used to pair annotation parameter names with annotation parameter values. */
     public static class AnnotationParamValue extends InfoObject implements Comparable<AnnotationParamValue> {
         String paramName;
-        Object paramValue;
+        AnnotationParamValueWrapper paramValue;
 
         AnnotationParamValue() {
         }
@@ -82,25 +205,13 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
          */
         public AnnotationParamValue(final String paramName, final Object paramValue) {
             this.paramName = paramName;
-            this.paramValue = paramValue;
+            this.paramValue = new AnnotationParamValueWrapper(paramValue);
         }
 
         @Override
         void setScanResult(final ScanResult scanResult) {
             if (paramValue != null) {
-                if (paramValue instanceof InfoObject) {
-                    ((InfoObject) paramValue).setScanResult(scanResult);
-                } else {
-                    final Class<? extends Object> valClass = paramValue.getClass();
-                    if (valClass.isArray()) {
-                        for (int j = 0, n = Array.getLength(paramValue); j < n; j++) {
-                            final Object elt = Array.get(paramValue, j);
-                            if (elt != null && elt instanceof InfoObject) {
-                                ((InfoObject) elt).setScanResult(scanResult);
-                            }
-                        }
-                    }
-                }
+                paramValue.setScanResult(scanResult);
             }
         }
 
@@ -130,7 +241,7 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
          *         </ul>
          */
         public Object getParamValue() {
-            return paramValue;
+            return paramValue == null ? null : paramValue.get();
         }
 
         @Override
@@ -150,28 +261,28 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
             if (paramValue == null) {
                 buf.append("null");
             } else {
-                final Class<? extends Object> valClass = paramValue.getClass();
+                final Object paramVal = paramValue.get();
+                final Class<? extends Object> valClass = paramVal.getClass();
                 if (valClass.isArray()) {
                     buf.append('{');
-                    for (int j = 0, n = Array.getLength(paramValue); j < n; j++) {
+                    for (int j = 0, n = Array.getLength(paramVal); j < n; j++) {
                         if (j > 0) {
                             buf.append(", ");
                         }
-                        final Object elt = Array.get(paramValue, j);
+                        final Object elt = Array.get(paramVal, j);
                         buf.append(elt == null ? "null" : elt.toString());
                     }
                     buf.append('}');
-                } else if (paramValue instanceof String) {
+                } else if (paramVal instanceof String) {
                     buf.append('"');
-                    buf.append(
-                            paramValue.toString().replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r"));
+                    buf.append(paramVal.toString().replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r"));
                     buf.append('"');
-                } else if (paramValue instanceof Character) {
+                } else if (paramVal instanceof Character) {
                     buf.append('\'');
-                    buf.append(paramValue.toString().replace("'", "\\'").replace("\n", "\\n").replace("\r", "\\r"));
+                    buf.append(paramVal.toString().replace("'", "\\'").replace("\n", "\\n").replace("\r", "\\r"));
                     buf.append('\'');
                 } else {
-                    buf.append(paramValue.toString());
+                    buf.append(paramVal.toString());
                 }
             }
         }
@@ -182,23 +293,18 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
             if (diff != 0) {
                 return diff;
             }
-            if (paramValue == null && o.paramValue == null) {
+            // Use toString() order and get() (which can be slow) as a last-ditch effort -- only happens
+            // if the annotation has multiple parameters of the same name but different value. 
+            final Object p0 = getParamValue();
+            final Object p1 = o.getParamValue();
+            if (p0 == null && p1 == null) {
                 return 0;
-            } else if (paramValue == null) {
+            } else if (p0 == null && p1 != null) {
                 return -1;
-            } else if (o.paramValue == null) {
+            } else if (p0 != null && p1 == null) {
                 return 1;
-            } else if (paramValue instanceof Comparable && o.paramValue instanceof Comparable) {
-                try {
-                    @SuppressWarnings({ "unchecked", "rawtypes" })
-                    final int cmp = ((Comparable) paramValue).compareTo(o.paramValue);
-                    return cmp;
-                } catch (final ClassCastException e) {
-                }
             }
-            // Use toString() order if trying to compare uncomparable types (this is inefficient, but it's a
-            // last-ditch effort to order things consistently)
-            return paramValue.toString().compareTo(o.paramValue.toString());
+            return p0.toString().compareTo(p1.toString());
         }
 
         @Override
@@ -418,10 +524,10 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
                 // Overwrite defaults with non-defaults
                 final Map<String, Object> allParamValues = new HashMap<>();
                 for (final AnnotationParamValue annotationParamValue : defaultAnnotationParamValues) {
-                    allParamValues.put(annotationParamValue.paramName, annotationParamValue.paramValue);
+                    allParamValues.put(annotationParamValue.paramName, annotationParamValue.paramValue.get());
                 }
                 for (final AnnotationParamValue annotationParamValue : this.annotationParamValues) {
-                    allParamValues.put(annotationParamValue.paramName, annotationParamValue.paramValue);
+                    allParamValues.put(annotationParamValue.paramName, annotationParamValue.paramValue.get());
                 }
                 this.annotationParamValues.clear();
                 for (final Entry<String, Object> ent : allParamValues.entrySet()) {
