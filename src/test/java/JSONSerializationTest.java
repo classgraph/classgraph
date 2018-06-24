@@ -48,8 +48,12 @@ public class JSONSerializationTest {
             final List<T> tList = new ArrayList<>();
             tList.add(t);
             a = new A<>(tList, "x");
+            List<T> ts = new ArrayList<>();
+            ts.add(t);
+            ts.add(t);
+            ts.add(t);
             @SuppressWarnings("unchecked")
-            final T[] a = (T[]) List.of(t, t, t).toArray();
+            final T[] a = (T[]) ts.toArray();
             arr = a;
         }
     }
