@@ -956,10 +956,16 @@ public class ScanResult {
         }
     }
 
+    private static final String CURRENT_SERIALIZATION_FORMAT = "1";
+
     /** Deserialize a ScanResult from previously-saved JSON. */
     public static ScanResult fromJSON(final String json) {
         final SerializationFormat deserialized = JSONDeserializer.deserializeObject(SerializationFormat.class,
                 json);
+        if (!deserialized.serializationFormat.equals(CURRENT_SERIALIZATION_FORMAT)) {
+            // Probably the deserialization failed before now anyway, if fields have changed, etc.
+            throw new IllegalArgumentException("JSON was serialized by newer version of FastClasspathScanner");
+        }
         final ClassLoader[] envClassLoaderOrder = new ClassLoaderAndModuleFinder(deserialized.scanSpec,
                 /* log = */ null).getClassLoaders();
         final Map<String, ClassInfo> classNameToClassInfo = new HashMap<>();
@@ -983,8 +989,9 @@ public class ScanResult {
      *            If greater than 0, JSON will be formatted (indented), otherwise it will be minified (un-indented).
      */
     public String toJSON(final int indentWidth) {
-        return JSONSerializer.serializeObject(new SerializationFormat("1", scanSpec, classGraphBuilder),
-                indentWidth, false);
+        return JSONSerializer.serializeObject(
+                new SerializationFormat(CURRENT_SERIALIZATION_FORMAT, scanSpec, classGraphBuilder), indentWidth,
+                false);
     }
 
     /** Serialize a ScanResult to minified (un-indented) JSON. */
