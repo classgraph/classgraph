@@ -1,3 +1,22 @@
 language: java
 jdk:
+  # current LTS versions
+  - openjdk8
+  # already EOL
+  - openjdk9
+  # feature release
+  - openjdk10
+  # upcoming LTS
+  - openjdk11
+  # early access
+  - openjdk-ea
+  # current LTS versions
+  - oraclejdk8
+  # already EOL
+#  - oraclejdk9
+  # feature release
   - oraclejdk10
+  # upcoming LTS
+#  - oraclejdk11
+  # early access
+  - oraclejdk-ea
