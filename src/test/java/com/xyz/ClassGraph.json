@@ -1,0 +1,523 @@
+{
+  "serializationFormat": "1",
+  "scanSpec": {
+    "whitelistedPathPrefixes": [
+      "com/xyz/fig/"
+    ],
+    "whitelistedPathsNonRecursive": [],
+    "blacklistedPackagePrefixes": [
+      "java.",
+      "javafx.",
+      "javax.",
+      "jdk.",
+      "oracle.",
+      "sun."
+    ],
+    "specificallyWhitelistedClassRelativePaths": [],
+    "specificallyBlacklistedClassRelativePaths": [],
+    "specificallyBlacklistedClassNames": [],
+    "whitelistedJars": [],
+    "blacklistedJars": [],
+    "scanJars": true,
+    "scanDirs": true,
+    "enableMethodAnnotationIndexing": false,
+    "enableFieldAnnotationIndexing": false,
+    "enableFieldInfo": true,
+    "enableMethodInfo": true,
+    "enableExternalClasses": false,
+    "blacklistSystemJars": true,
+    "blacklistSystemPackages": true,
+    "ignoreFieldVisibility": true,
+    "ignoreMethodVisibility": true,
+    "annotationVisibility": "CLASS",
+    "disableRecursiveScanning": false,
+    "suppressMatchProcessorExceptions": false
+  },
+  "allClassInfo": [
+    {
+      "__ID": "com.xyz.fig.shape.ShapeImpl",
+      "className": "com.xyz.fig.shape.ShapeImpl",
+      "modifiers": 1057,
+      "isInterface": false,
+      "isAnnotation": false,
+      "isExternalClass": false,
+      "fieldInfo": [
+        {
+          "fieldName": "x",
+          "modifiers": 18,
+          "typeDescriptorStr": "F"
+        },
+        {
+          "fieldName": "y",
+          "modifiers": 18,
+          "typeDescriptorStr": "F"
+        }
+      ],
+      "methodInfo": [
+        {
+          "methodName": "<init>",
+          "modifiers": 1,
+          "typeDescriptorStr": "(FF)V"
+        },
+        {
+          "methodName": "getX",
+          "modifiers": 1,
+          "typeDescriptorStr": "()F"
+        },
+        {
+          "methodName": "getY",
+          "modifiers": 1,
+          "typeDescriptorStr": "()F"
+        },
+        {
+          "methodName": "draw",
+          "modifiers": 1025,
+          "typeDescriptorStr": "(Ljava/awt/Graphics2D;)V"
+        }
+      ],
+      "relatedClasses": {
+        "SUPERCLASSES": [
+          "java.lang.Object"
+        ],
+        "SUBCLASSES": [
+          "com.xyz.fig.shape.Triangle",
+          "com.xyz.fig.shape.Square",
+          "com.xyz.fig.shape.Circle",
+          "com.xyz.fig.shape.Diamond"
+        ],
+        "IMPLEMENTED_INTERFACES": [
+          "com.xyz.fig.shape.Shape"
+        ]
+      }
+    },
+    {
+      "__ID": "com.xyz.fig.Figure",
+      "className": "com.xyz.fig.Figure",
+      "modifiers": 33,
+      "isInterface": false,
+      "isAnnotation": false,
+      "isExternalClass": false,
+      "annotationInfo": [
+        {
+          "annotationName": "com.xyz.fig.UIWidget"
+        }
+      ],
+      "fieldInfo": [
+        {
+          "fieldName": "sceneGraph",
+          "modifiers": 0,
+          "typeDescriptorStr": "Lcom/xyz/fig/SceneGraph;"
+        }
+      ],
+      "methodInfo": [
+        {
+          "methodName": "<init>",
+          "modifiers": 1,
+          "typeDescriptorStr": "()V"
+        },
+        {
+          "methodName": "addShape",
+          "modifiers": 1,
+          "typeDescriptorStr": "(Lcom/xyz/fig/shape/Shape;)V"
+        },
+        {
+          "methodName": "draw",
+          "modifiers": 1,
+          "typeDescriptorStr": "(Ljava/awt/Graphics2D;)V"
+        }
+      ],
+      "relatedClasses": {
+        "SUPERCLASSES": [
+          "java.lang.Object"
+        ],
+        "IMPLEMENTED_INTERFACES": [
+          "com.xyz.fig.Drawable"
+        ],
+        "CLASS_ANNOTATIONS": [
+          "com.xyz.fig.UIWidget"
+        ]
+      }
+    },
+    {
+      "__ID": "com.xyz.fig.shape.Square",
+      "className": "com.xyz.fig.shape.Square",
+      "modifiers": 33,
+      "isInterface": false,
+      "isAnnotation": false,
+      "isExternalClass": false,
+      "fieldInfo": [
+        {
+          "fieldName": "size",
+          "modifiers": 18,
+          "typeDescriptorStr": "F"
+        }
+      ],
+      "methodInfo": [
+        {
+          "methodName": "<init>",
+          "modifiers": 1,
+          "typeDescriptorStr": "(FFF)V"
+        },
+        {
+          "methodName": "getSize",
+          "modifiers": 1,
+          "typeDescriptorStr": "()F"
+        },
+        {
+          "methodName": "draw",
+          "modifiers": 1,
+          "typeDescriptorStr": "(Ljava/awt/Graphics2D;)V"
+        }
+      ],
+      "relatedClasses": {
+        "SUPERCLASSES": [
+          "com.xyz.fig.shape.ShapeImpl"
+        ]
+      }
+    },
+    {
+      "__ID": "java.lang.annotation.Retention",
+      "className": "java.lang.annotation.Retention",
+      "modifiers": 8192,
+      "isInterface": false,
+      "isAnnotation": true,
+      "isExternalClass": true,
+      "relatedClasses": {
+        "CLASSES_WITH_CLASS_ANNOTATION": [
+          "com.xyz.fig.UIWidget",
+          "com.xyz.fig.UIElement"
+        ]
+      }
+    },
+    {
+      "__ID": "com.xyz.fig.shape.Triangle",
+      "className": "com.xyz.fig.shape.Triangle",
+      "modifiers": 33,
+      "isInterface": false,
+      "isAnnotation": false,
+      "isExternalClass": false,
+      "fieldInfo": [
+        {
+          "fieldName": "edgeLen",
+          "modifiers": 18,
+          "typeDescriptorStr": "F"
+        },
+        {
+          "fieldName": "rotation",
+          "modifiers": 18,
+          "typeDescriptorStr": "F"
+        }
+      ],
+      "methodInfo": [
+        {
+          "methodName": "<init>",
+          "modifiers": 1,
+          "typeDescriptorStr": "(FFFF)V"
+        },
+        {
+          "methodName": "getEdgeLen",
+          "modifiers": 1,
+          "typeDescriptorStr": "()F"
+        },
+        {
+          "methodName": "getRotation",
+          "modifiers": 1,
+          "typeDescriptorStr": "()F"
+        },
+        {
+          "methodName": "draw",
+          "modifiers": 1,
+          "typeDescriptorStr": "(Ljava/awt/Graphics2D;)V"
+        }
+      ],
+      "relatedClasses": {
+        "SUPERCLASSES": [
+          "com.xyz.fig.shape.ShapeImpl"
+        ]
+      }
+    },
+    {
+      "__ID": "com.xyz.fig.UIWidget",
+      "className": "com.xyz.fig.UIWidget",
+      "modifiers": 9729,
+      "isInterface": true,
+      "isAnnotation": true,
+      "isExternalClass": false,
+      "annotationInfo": [
+        {
+          "annotationName": "com.xyz.fig.UIElement"
+        },
+        {
+          "annotationName": "java.lang.annotation.Retention",
+          "annotationParamValues": [
+            {
+              "paramName": "value",
+              "paramValue": {
+                "annotationEnumValue": {
+                  "className": "java.lang.annotation.RetentionPolicy",
+                  "constName": "RUNTIME"
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "relatedClasses": {
+        "SUPERCLASSES": [
+          "java.lang.Object"
+        ],
+        "IMPLEMENTED_INTERFACES": [
+          "java.lang.annotation.Annotation"
+        ],
+        "CLASS_ANNOTATIONS": [
+          "com.xyz.fig.UIElement",
+          "java.lang.annotation.Retention"
+        ],
+        "CLASSES_WITH_CLASS_ANNOTATION": [
+          "com.xyz.fig.Figure"
+        ]
+      }
+    },
+    {
+      "__ID": "com.xyz.fig.shape.Shape",
+      "className": "com.xyz.fig.shape.Shape",
+      "modifiers": 1537,
+      "isInterface": true,
+      "isAnnotation": false,
+      "isExternalClass": false,
+      "relatedClasses": {
+        "SUPERCLASSES": [
+          "java.lang.Object"
+        ],
+        "IMPLEMENTED_INTERFACES": [
+          "com.xyz.fig.Drawable"
+        ],
+        "CLASSES_IMPLEMENTING": [
+          "com.xyz.fig.shape.ShapeImpl"
+        ]
+      }
+    },
+    {
+      "__ID": "com.xyz.fig.SceneGraph",
+      "className": "com.xyz.fig.SceneGraph",
+      "modifiers": 33,
+      "isInterface": false,
+      "isAnnotation": false,
+      "isExternalClass": false,
+      "fieldInfo": [
+        {
+          "fieldName": "shapes",
+          "modifiers": 0,
+          "typeSignatureStr": "Ljava/util/ArrayList<Lcom/xyz/fig/shape/Shape;>;",
+          "typeDescriptorStr": "Ljava/util/ArrayList;"
+        }
+      ],
+      "methodInfo": [
+        {
+          "methodName": "<init>",
+          "modifiers": 1,
+          "typeDescriptorStr": "()V"
+        },
+        {
+          "methodName": "addShape",
+          "modifiers": 1,
+          "typeDescriptorStr": "(Lcom/xyz/fig/shape/Shape;)V"
+        },
+        {
+          "methodName": "draw",
+          "modifiers": 1,
+          "typeDescriptorStr": "(Ljava/awt/Graphics2D;)V"
+        }
+      ],
+      "relatedClasses": {
+        "SUPERCLASSES": [
+          "java.lang.Object"
+        ],
+        "IMPLEMENTED_INTERFACES": [
+          "com.xyz.fig.Drawable"
+        ]
+      }
+    },
+    {
+      "__ID": "com.xyz.fig.shape.Circle",
+      "className": "com.xyz.fig.shape.Circle",
+      "modifiers": 33,
+      "isInterface": false,
+      "isAnnotation": false,
+      "isExternalClass": false,
+      "fieldInfo": [
+        {
+          "fieldName": "r",
+          "modifiers": 18,
+          "typeDescriptorStr": "F"
+        }
+      ],
+      "methodInfo": [
+        {
+          "methodName": "<init>",
+          "modifiers": 1,
+          "typeDescriptorStr": "(FFF)V"
+        },
+        {
+          "methodName": "getR",
+          "modifiers": 1,
+          "typeDescriptorStr": "()F"
+        },
+        {
+          "methodName": "draw",
+          "modifiers": 1,
+          "typeDescriptorStr": "(Ljava/awt/Graphics2D;)V"
+        }
+      ],
+      "relatedClasses": {
+        "SUPERCLASSES": [
+          "com.xyz.fig.shape.ShapeImpl"
+        ]
+      }
+    },
+    {
+      "__ID": "java.lang.annotation.Annotation",
+      "className": "java.lang.annotation.Annotation",
+      "modifiers": 512,
+      "isInterface": true,
+      "isAnnotation": false,
+      "isExternalClass": true,
+      "relatedClasses": {
+        "CLASSES_IMPLEMENTING": [
+          "com.xyz.fig.UIWidget",
+          "com.xyz.fig.UIElement"
+        ]
+      }
+    },
+    {
+      "__ID": "java.lang.Object",
+      "className": "java.lang.Object",
+      "modifiers": 0,
+      "isInterface": false,
+      "isAnnotation": false,
+      "isExternalClass": true,
+      "relatedClasses": {
+        "SUBCLASSES": [
+          "com.xyz.fig.UIWidget",
+          "com.xyz.fig.shape.Shape",
+          "com.xyz.fig.SceneGraph",
+          "com.xyz.fig.shape.ShapeImpl",
+          "com.xyz.fig.Figure",
+          "com.xyz.fig.Drawable",
+          "com.xyz.fig.UIElement"
+        ]
+      }
+    },
+    {
+      "__ID": "com.xyz.fig.Drawable",
+      "className": "com.xyz.fig.Drawable",
+      "modifiers": 1537,
+      "isInterface": true,
+      "isAnnotation": false,
+      "isExternalClass": false,
+      "methodInfo": [
+        {
+          "methodName": "draw",
+          "modifiers": 1025,
+          "typeDescriptorStr": "(Ljava/awt/Graphics2D;)V"
+        }
+      ],
+      "relatedClasses": {
+        "SUPERCLASSES": [
+          "java.lang.Object"
+        ],
+        "CLASSES_IMPLEMENTING": [
+          "com.xyz.fig.shape.Shape",
+          "com.xyz.fig.SceneGraph",
+          "com.xyz.fig.Figure"
+        ]
+      }
+    },
+    {
+      "__ID": "com.xyz.fig.UIElement",
+      "className": "com.xyz.fig.UIElement",
+      "modifiers": 9729,
+      "isInterface": true,
+      "isAnnotation": true,
+      "isExternalClass": false,
+      "annotationInfo": [
+        {
+          "annotationName": "java.lang.annotation.Retention",
+          "annotationParamValues": [
+            {
+              "paramName": "value",
+              "paramValue": {
+                "annotationEnumValue": {
+                  "className": "java.lang.annotation.RetentionPolicy",
+                  "constName": "RUNTIME"
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "relatedClasses": {
+        "SUPERCLASSES": [
+          "java.lang.Object"
+        ],
+        "IMPLEMENTED_INTERFACES": [
+          "java.lang.annotation.Annotation"
+        ],
+        "CLASS_ANNOTATIONS": [
+          "java.lang.annotation.Retention"
+        ],
+        "CLASSES_WITH_CLASS_ANNOTATION": [
+          "com.xyz.fig.UIWidget"
+        ]
+      }
+    },
+    {
+      "__ID": "com.xyz.fig.shape.Diamond",
+      "className": "com.xyz.fig.shape.Diamond",
+      "modifiers": 33,
+      "isInterface": false,
+      "isAnnotation": false,
+      "isExternalClass": false,
+      "fieldInfo": [
+        {
+          "fieldName": "w",
+          "modifiers": 18,
+          "typeDescriptorStr": "F"
+        },
+        {
+          "fieldName": "h",
+          "modifiers": 18,
+          "typeDescriptorStr": "F"
+        }
+      ],
+      "methodInfo": [
+        {
+          "methodName": "<init>",
+          "modifiers": 1,
+          "typeDescriptorStr": "(FFFF)V"
+        },
+        {
+          "methodName": "getW",
+          "modifiers": 1,
+          "typeDescriptorStr": "()F"
+        },
+        {
+          "methodName": "getH",
+          "modifiers": 1,
+          "typeDescriptorStr": "()F"
+        },
+        {
+          "methodName": "draw",
+          "modifiers": 1,
+          "typeDescriptorStr": "(Ljava/awt/Graphics2D;)V"
+        }
+      ],
+      "relatedClasses": {
+        "SUPERCLASSES": [
+          "com.xyz.fig.shape.ShapeImpl"
+        ]
+      }
+    }
+  ]
+}
+
