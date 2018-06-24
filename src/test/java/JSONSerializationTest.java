@@ -71,6 +71,10 @@ public class JSONSerializationTest {
             z = obj;
             q = new C<>(obj);
             map.put(obj, obj);
+            List<T> objs = new ArrayList<>();
+            objs.add(obj);
+            objs.add(obj);
+            objs.add(obj);
             list = List.of(obj, obj, obj);
         }
     }
