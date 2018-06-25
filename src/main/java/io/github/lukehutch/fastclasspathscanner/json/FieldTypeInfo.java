@@ -35,7 +35,6 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.Map;
 
 class FieldTypeInfo {
@@ -57,12 +56,6 @@ class FieldTypeInfo {
      * the constructor in this case.
      */
     private final boolean isTypeVariable;
-
-    /** Enable type resolution caching. It's a bit slower with this off, because type resolution is fast. */
-    private static final boolean CACHE_TYPE_RESOLUTION = false;
-
-    /** A cache that converts type resolutions into a fully resolved type for this field. */
-    Map<TypeResolutions, Type> typeResolutionsToFieldTypeFullyResolved;
 
     /** The index of the type: 0 for non-primitive type; 1-8 for primitive types. */
     private final int primitiveTypeIdx;
@@ -173,19 +166,10 @@ class FieldTypeInfo {
             // Fast path -- don't try to resolve type variables if there aren't any to resolve
             return fieldTypePartiallyResolved;
         }
-        if (CACHE_TYPE_RESOLUTION) {
-            if (typeResolutionsToFieldTypeFullyResolved == null) {
-                typeResolutionsToFieldTypeFullyResolved = new HashMap<>();
-            }
-            Type fullyResolvedType = typeResolutionsToFieldTypeFullyResolved.get(typeResolutions);
-            if (fullyResolvedType == null) {
-                typeResolutionsToFieldTypeFullyResolved.put(typeResolutions,
-                        fullyResolvedType = typeResolutions.resolveTypeVariables(fieldTypePartiallyResolved));
-            }
-            return fullyResolvedType;
-        } else {
-            return typeResolutions.resolveTypeVariables(fieldTypePartiallyResolved);
-        }
+        // Resolve any remaining type variables using type resolutions
+        // (N.B. I tried caching this type resolution process using a HashMap, but it was a bit slower
+        // than this uncached version, because type resolution is relatively fast in most cases.)
+        return typeResolutions.resolveTypeVariables(fieldTypePartiallyResolved);
     }
 
     /** Set the field's value, appropriately handling primitive-typed fields. */

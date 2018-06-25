@@ -34,7 +34,6 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.lang.reflect.WildcardType;
-import java.util.Arrays;
 
 import io.github.lukehutch.fastclasspathscanner.json.JSONUtils.ParameterizedTypeImpl;
 
@@ -142,31 +141,6 @@ class TypeResolutions {
             // TODO: Support WildcardType
             throw new RuntimeException("Got unexpected type: " + type);
         }
-    }
-
-    /**
-     * This will only ever be put in a map with other TypeResolutions objects having the same type variables, so
-     * only have to compare resolvedTypeArguments.
-     */
-    @Override
-    public int hashCode() {
-        int hashCode = 0;
-        for (int i = 0; i < resolvedTypeArguments.length; i++) {
-            hashCode = 31 * hashCode + resolvedTypeArguments[i].hashCode();
-        }
-        return super.hashCode();
-    }
-
-    /**
-     * This will only ever be put in a map with other TypeResolutions objects having the same type variables, so
-     * only have to compare resolvedTypeArguments.
-     */
-    @Override
-    public boolean equals(final Object obj) {
-        if (!(obj instanceof TypeResolutions)) {
-            return false;
-        }
-        return Arrays.equals(resolvedTypeArguments, ((TypeResolutions) obj).resolvedTypeArguments);
     }
 
     @Override

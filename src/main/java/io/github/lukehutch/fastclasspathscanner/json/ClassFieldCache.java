@@ -29,8 +29,6 @@
 package io.github.lukehutch.fastclasspathscanner.json;
 
 import java.lang.reflect.Constructor;
-import java.lang.reflect.Field;
-import java.lang.reflect.Type;
 import java.util.AbstractList;
 import java.util.AbstractMap;
 import java.util.AbstractQueue;
@@ -44,7 +42,6 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.NavigableMap;
 import java.util.Queue;
 import java.util.Set;
@@ -99,25 +96,6 @@ public class ClassFieldCache {
     public ClassFieldCache(final boolean forDeserialization, final boolean onlySerializePublicFields) {
         this.resolveTypes = forDeserialization;
         this.onlySerializePublicFields = !forDeserialization && onlySerializePublicFields;
-    }
-
-    void print() {
-        for (final Entry<Class<?>, ClassFields> ent : classToClassFields.entrySet()) {
-            System.out.println(ent.getKey().getName());
-            final ClassFields fields = ent.getValue();
-            for (int i = 0; i < fields.fieldOrder.size(); i++) {
-                final FieldTypeInfo fieldInfo = fields.fieldOrder.get(i);
-                final Field f = fieldInfo.field;
-                System.out.println("  FIELD: " + f);
-                System.out.println("    TYPE: " + f.getType());
-                if (fieldInfo.typeResolutionsToFieldTypeFullyResolved != null) {
-                    for (final Entry<TypeResolutions, Type> ent2 : fieldInfo.typeResolutionsToFieldTypeFullyResolved
-                            .entrySet()) {
-                        System.out.println("      RESOLVED TYPE: " + ent2.getKey() + " " + ent2.getValue());
-                    }
-                }
-            }
-        }
     }
 
     /**
