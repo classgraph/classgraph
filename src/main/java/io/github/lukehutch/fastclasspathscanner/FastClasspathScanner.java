@@ -1599,7 +1599,7 @@ public class FastClasspathScanner {
     public ScanResult scan(final ExecutorService executorService, final int numParallelTasks) {
         try {
             // Start the scan, and then wait for scan completion
-            ScanResult scanResult = scanAsync(executorService, numParallelTasks, /* isAsyncScan = */ false,
+            final ScanResult scanResult = scanAsync(executorService, numParallelTasks, /* isAsyncScan = */ false,
                     /* runMatchProcessorsOnWorkerThread = */ false).get();
 
             // Call MatchProcessors in the same thread as the caller, to avoid deadlock (see bug #103)

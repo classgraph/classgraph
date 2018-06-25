@@ -5,7 +5,7 @@ import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
 
 public class GenerateClassGraphFigDotFile {
     public static void main(final String[] args) {
-        ScanResult scanResult = new FastClasspathScanner("com.xyz.fig") //
+        final ScanResult scanResult = new FastClasspathScanner("com.xyz.fig") //
                 .ignoreFieldVisibility() //
                 .enableFieldInfo() //
                 .ignoreMethodVisibility() //
