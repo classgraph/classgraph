@@ -58,8 +58,8 @@ class FieldTypeInfo {
      */
     private final boolean isTypeVariable;
 
-    /** A Boolean switch to enable type resolution caching. TODO: benchmark with and without this. */
-    private static final boolean CACHE_TYPE_RESOLUTION = true;
+    /** Enable type resolution caching. It's a bit slower with this off, because type resolution is fast. */
+    private static final boolean CACHE_TYPE_RESOLUTION = false;
 
     /** A cache that converts type resolutions into a fully resolved type for this field. */
     Map<TypeResolutions, Type> typeResolutionsToFieldTypeFullyResolved;

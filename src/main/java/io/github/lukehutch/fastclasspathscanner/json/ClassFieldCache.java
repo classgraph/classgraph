@@ -200,7 +200,9 @@ public class ClassFieldCache {
     Constructor<?> getConstructorWithSizeHintForConcreteTypeOf(final Class<?> cls) {
         // Check cache
         final Constructor<?> constructor = constructorForConcreteTypeWithSizeHint.get(cls);
-        if (constructor != null && constructor != NO_CONSTRUCTOR) {
+        if (constructor == NO_CONSTRUCTOR) {
+            return null;
+        } else if (constructor != null) {
             return constructor;
         }
         final Class<?> concreteType = getConcreteType(cls, /* returnNullIfNotMapOrCollection = */ true);
