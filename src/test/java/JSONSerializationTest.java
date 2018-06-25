@@ -48,7 +48,7 @@ public class JSONSerializationTest {
             final List<T> tList = new ArrayList<>();
             tList.add(t);
             a = new A<>(tList, "x");
-            List<T> ts = new ArrayList<>();
+            final List<T> ts = new ArrayList<>();
             ts.add(t);
             ts.add(t);
             ts.add(t);
