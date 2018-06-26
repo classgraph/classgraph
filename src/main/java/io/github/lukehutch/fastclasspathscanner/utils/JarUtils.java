@@ -255,6 +255,19 @@ public class JarUtils {
         // Add special-case path for Mac OS X, this is not always picked up from java.home or java.ext.dirs
         addJRERoot(new File("/System/Library/Java"), jrePathsSet, jreRtJarPaths);
 
+        // Add some other site-wide package installation directories (these are prefixes of the typical values for
+        // java.ext.dirs, since that only covers the "ext/" dir in this location)
+        addJRERoot(new File("/usr/java/packages"), jrePathsSet, jreRtJarPaths);
+        addJRERoot(new File("/usr/jdk/packages"), jrePathsSet, jreRtJarPaths);
+        try {
+            final String systemRoot = File.separatorChar == '\\' ? System.getenv("SystemRoot") : null;
+            if (systemRoot != null) {
+                addJRERoot(new File(systemRoot, "Sun\\Java"), jrePathsSet, jreRtJarPaths);
+                addJRERoot(new File(systemRoot, "Oracle\\Java"), jrePathsSet, jreRtJarPaths);
+            }
+        } catch (final Exception e) {
+        }
+
         // Find "lib/" and "ext/" jars
         final Set<String> jreJarPaths = new HashSet<>();
         for (final String jrePath : jrePathsSet) {
