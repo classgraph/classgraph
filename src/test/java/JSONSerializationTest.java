@@ -7,8 +7,10 @@ import java.util.Map;
 
 import org.junit.Test;
 
+import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.json.JSONDeserializer;
 import io.github.lukehutch.fastclasspathscanner.json.JSONSerializer;
+import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
 
 public class JSONSerializationTest {
 
@@ -130,5 +132,14 @@ public class JSONSerializationTest {
         final String json1 = JSONSerializer.serializeObject(obj, 0, false);
 
         assertThat(json0).isEqualTo(json1);
+    }
+
+    @Test
+    public void testSerializeThenDeserializeScanResult() {
+        final ScanResult scanResult = new FastClasspathScanner().disableRecursiveScanning().scan();
+        final String scanResultJSON = scanResult.toJSON();
+        final ScanResult scanResultDeserialized = ScanResult.fromJSON(scanResultJSON);
+        final String scanResultReserializedJSON = scanResultDeserialized.toJSON();
+        assertThat(scanResultReserializedJSON).isEqualTo(scanResultJSON);
     }
 }

@@ -38,6 +38,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import io.github.lukehutch.fastclasspathscanner.json.JSONDeserializer;
 import io.github.lukehutch.fastclasspathscanner.json.JSONSerializer;
@@ -971,6 +973,18 @@ public class ScanResult {
 
     /** Deserialize a ScanResult from previously-saved JSON. */
     public static ScanResult fromJSON(final String json) {
+        final Matcher matcher = Pattern.compile("\\{[\\n\\r ]*\"serializationFormat\"[ ]?:[ ]?\"([^\"]+)\"")
+                .matcher(json);
+        if (!matcher.find()) {
+            throw new IllegalArgumentException("JSON is not in correct format");
+        }
+        if (!CURRENT_SERIALIZATION_FORMAT.equals(matcher.group(1))) {
+            throw new IllegalArgumentException(
+                    "JSON was serialized in a different format from the format used by the current version of "
+                            + "FastClasspathScanner -- please serialize and deserialize your ScanResult using "
+                            + "the same version of FastClasspathScanner");
+        }
+
         final SerializationFormat deserialized = JSONDeserializer.deserializeObject(SerializationFormat.class,
                 json);
         if (!deserialized.serializationFormat.equals(CURRENT_SERIALIZATION_FORMAT)) {
