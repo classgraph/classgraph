@@ -219,8 +219,8 @@ public class JarUtils {
 
     private static final List<String> JRE_JARS = new ArrayList<>();
     private static final Set<String> JRE_JARS_SET = new HashSet<>();
-    private static final List<String> JRE_LIB_JARS = new ArrayList<>();
-    private static final List<String> JRE_EXT_JARS = new ArrayList<>();
+    private static final Set<String> JRE_LIB_JARS = new HashSet<>();
+    private static final Set<String> JRE_EXT_JARS = new HashSet<>();
 
     // Find jars in JRE dirs ({java.home}, {java.home}/lib, {java.home}/lib/ext, etc.)
     static {
@@ -273,8 +273,6 @@ public class JarUtils {
                 }
             }
         }
-        Collections.sort(JRE_LIB_JARS);
-        Collections.sort(JRE_EXT_JARS);
 
         // Put rt.jar first in list of JRE jar paths
         jreJarPaths.removeAll(jreRtJarPaths);
@@ -346,12 +344,12 @@ public class JarUtils {
     }
 
     /** Get the paths for any JRE/JDK "lib/" jars. */
-    public static List<String> getJreExtJars() {
+    public static Set<String> getJreExtJars() {
         return JRE_EXT_JARS;
     }
 
     /** Get the paths for any JRE/JDK "ext/" jars. */
-    public static List<String> getJreLibJars() {
+    public static Set<String> getJreLibJars() {
         return JRE_LIB_JARS;
     }
 
