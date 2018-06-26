@@ -803,11 +803,22 @@ public class ScanResult {
         }
 
         // Try loading class via each classloader in turn
-        for (final ClassLoader classLoader : getClassLoadersForClass(className)) {
-            final Class<?> classRef = loadClass(className, classLoader, log);
-            if (classRef != null) {
-                return classRef;
+        ClassLoader[] classLoadersForClass = getClassLoadersForClass(className);
+        if (classLoadersForClass == null) {
+            classLoadersForClass = envClassLoaderOrder;
+        }
+        if (classLoadersForClass != null) {
+            for (final ClassLoader classLoader : classLoadersForClass) {
+                final Class<?> classRef = loadClass(className, classLoader, log);
+                if (classRef != null) {
+                    return classRef;
+                }
             }
+        }
+        // Try with null (bootstrap) ClassLoader
+        final Class<?> classRef = loadClass(className, /* classLoader = */ null, log);
+        if (classRef != null) {
+            return classRef;
         }
 
         // Could not load class

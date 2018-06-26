@@ -146,7 +146,9 @@ class RelativePath {
             throw new IllegalArgumentException("moduleRef cannot be null");
         }
         this.moduleRef = moduleRef;
-        this.classLoaders = new ClassLoader[] { moduleRef.getClassLoader() };
+        final ClassLoader classLoader = moduleRef.getClassLoader();
+        // System modules that use the bootstrap classloader may return null for their classloader
+        this.classLoaders = classLoader == null ? null : new ClassLoader[] { classLoader };
         this.pathToResolveAgainst = "";
         this.nestedJarHandler = nestedJarHandler;
         this.relativePath = moduleRef.getModuleLocationStr();
