@@ -953,6 +953,10 @@ public class ScanResult {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /** The current serialization format. */
+    private static final String CURRENT_SERIALIZATION_FORMAT = "2";
+
+    /** A class to hold a serialized ScanResult along with the ScanSpec that was used to scan. */
     private static class SerializationFormat {
         public String serializationFormat;
         public ScanSpec scanSpec;
@@ -968,8 +972,6 @@ public class ScanResult {
             this.allClassInfo = new ArrayList<>(classGraphBuilder.classNameToClassInfo.values());
         }
     }
-
-    private static final String CURRENT_SERIALIZATION_FORMAT = "1";
 
     /** Deserialize a ScanResult from previously-saved JSON. */
     public static ScanResult fromJSON(final String json) {
