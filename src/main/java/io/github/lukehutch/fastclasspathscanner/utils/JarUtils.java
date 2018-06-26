@@ -239,14 +239,15 @@ public class JarUtils {
             }
         }
         final String javaExtDirs = getProperty("java.ext.dirs");
+        final Set<String> javaExtDirsSet = new HashSet<>();
         if (javaExtDirs != null) {
             for (final String javaExtDir : smartPathSplit(javaExtDirs)) {
                 if (!javaExtDir.isEmpty()) {
-                    addJREPath(new File(javaExtDir), jrePathsSet);
-                    JRE_EXT_JARS.add(javaExtDir);
+                    addJREPath(new File(javaExtDir), javaExtDirsSet);
                 }
             }
         }
+        jrePathsSet.addAll(javaExtDirsSet);
 
         // Add special-case path for Mac OS X, this is not always picked up from java.home or java.ext.dirs
         addJRERoot(new File("/System/Library/Java"), jrePathsSet, jreRtJarPaths);
@@ -257,7 +258,9 @@ public class JarUtils {
             final File dir = new File(jrePath);
             if (ClasspathUtils.canRead(dir) && dir.isDirectory()) {
                 final boolean isLib = jrePath.endsWith("/lib");
-                final boolean isExt = jrePath.endsWith("/ext");
+                final boolean isExt = jrePath.endsWith("/ext")
+                        // java.ext.dirs dirs may not necessarily end in "/ext"
+                        || javaExtDirsSet.contains(jrePath);
                 for (final File file : dir.listFiles()) {
                     final String filePath = FastPathResolver.resolve("", file.getPath());
                     if (!filePath.isEmpty()) {
