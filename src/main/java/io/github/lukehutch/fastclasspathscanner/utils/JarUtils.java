@@ -237,6 +237,9 @@ public class JarUtils {
                 // Try adding "{java.home}/jre" as a JRE root when java.home is not a JRE path
                 addJRERoot(new File(javaHomeFile, "jre"), jrePathsSet, jreRtJarPaths);
             }
+            // Add "{java.home}/packages" -- apparently this is used on Solaris, so potentially elsewhere too:
+            // https://docs.oracle.com/javase/tutorial/ext/basics/load.html
+            addJRERoot(new File(javaHomeFile, "packages"), jrePathsSet, jreRtJarPaths);
         }
         final String javaExtDirs = getProperty("java.ext.dirs");
         final Set<String> javaExtDirsSet = new HashSet<>();
