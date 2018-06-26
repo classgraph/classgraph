@@ -230,7 +230,7 @@ public class JarUtils {
         if (javaHome != null && !javaHome.isEmpty()) {
             final File javaHomeFile = new File(javaHome);
             addJRERoot(javaHomeFile, jrePathsSet, jreRtJarPaths);
-            // Try adding "{java.home}/.." as a JDK root, when java.home is a JRE path
+            // Try adding "{java.home}/.." as a JDK root when java.home is a JRE path
             if (javaHomeFile.getName().equals("jre")) {
                 addJRERoot(javaHomeFile.getParentFile(), jrePathsSet, jreRtJarPaths);
             } else {
