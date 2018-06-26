@@ -42,6 +42,7 @@ import java.util.List;
 import java.util.Set;
 
 import io.github.lukehutch.fastclasspathscanner.utils.AdditionOrderedSet;
+import io.github.lukehutch.fastclasspathscanner.utils.JarUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
 
 /** Work with modules using reflection, until support for JDK 8 and earlier is removed. */
@@ -163,9 +164,16 @@ public class ModuleRef implements Comparable<ModuleRef> {
         return moduleLocation;
     }
 
-    /** Returns true if this module's location is a "jrt:/" URI, or if it has no location URI. */
+    /**
+     * Returns true if this module's location is a non-"file:/" ("jrt:/") URI, or if it has no location URI, or if
+     * it uses the (null) bootstrap ClassLoader, or if the module name starts with a system prefix ("java.", "jre.",
+     * etc.).
+     */
     public boolean isSystemModule() {
-        if (moduleLocation == null) {
+        if (moduleLocation == null || classLoader == null) {
+            return true;
+        }
+        if (JarUtils.isInSystemPackageOrModule(moduleName)) {
             return true;
         }
         final String scheme = moduleLocation.getScheme();

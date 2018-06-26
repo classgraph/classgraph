@@ -34,7 +34,6 @@ import java.util.List;
 import java.util.Set;
 
 import io.github.lukehutch.fastclasspathscanner.utils.AdditionOrderedSet;
-import io.github.lukehutch.fastclasspathscanner.utils.JarUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 
 /** A class to find the unique ordered classpath elements. */
@@ -157,7 +156,7 @@ public class ClassLoaderAndModuleFinder {
                     systemModuleRefs = new ArrayList<>();
                     nonSystemModuleRefs = new ArrayList<>();
                     for (final ModuleRef moduleRef : allModuleRefsList) {
-                        if (JarUtils.isInSystemPackageOrModule(moduleRef.getModuleName())) {
+                        if (moduleRef.isSystemModule()) {
                             systemModuleRefs.add(moduleRef);
                         } else {
                             nonSystemModuleRefs.add(moduleRef);
