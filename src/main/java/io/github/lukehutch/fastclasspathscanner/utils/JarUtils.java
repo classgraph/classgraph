@@ -222,7 +222,7 @@ public class JarUtils {
     private static final List<String> JRE_LIB_JARS = new ArrayList<>();
     private static final List<String> JRE_EXT_JARS = new ArrayList<>();
 
-    // Find JRE jar dirs
+    // Find jars in JRE dirs ({java.home}, {java.home}/lib, {java.home}/lib/ext, etc.)
     static {
         final Set<String> jrePathsSet = new HashSet<>();
         final List<String> jreRtJarPaths = new ArrayList<>();
@@ -230,11 +230,11 @@ public class JarUtils {
         if (javaHome != null && !javaHome.isEmpty()) {
             final File javaHomeFile = new File(javaHome);
             addJRERoot(javaHomeFile, jrePathsSet, jreRtJarPaths);
-            // Handle {java.home}/../lib , when java.home is a JRE path
+            // Try adding "{java.home}/.." as a JDK root, when java.home is a JRE path
             if (javaHomeFile.getName().equals("jre")) {
                 addJRERoot(javaHomeFile.getParentFile(), jrePathsSet, jreRtJarPaths);
             } else {
-                // Handle {java.home}/jre/lib , when java.home is a JDK path
+                // Try adding "{java.home}/jre" as a JRE root when java.home is not a JRE path
                 addJRERoot(new File(javaHomeFile, "jre"), jrePathsSet, jreRtJarPaths);
             }
         }
