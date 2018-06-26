@@ -216,10 +216,14 @@ public class ClasspathFinder {
             // because it is included implicitly by the JVM. TODO: this is handled differently in Java 9.
             if (!scanSpec.blacklistSystemJars()) {
                 // There should only be zero or one of these.
-                final String rtJarPath = JarUtils.getRtJarPath();
+                final List<String> rtJarPaths = JarUtils.getRtJarPaths();
+                final String rtJarPath = rtJarPaths.size() == 0 ? null : rtJarPaths.get(0);
                 if (log != null) {
-                    log.log(rtJarPath == null ? "Could not find path for rt.jar"
-                            : "Adding rt.jar as first classpath element to scan: " + rtJarPath);
+                    log.log(rtJarPaths.isEmpty() ? "Could not find rt.jar in java.home"
+                            : rtJarPaths.size() == 1
+                                    ? "Adding rt.jar as first classpath element to scan: " + rtJarPath
+                                    : "Multiple rt.jar jarfiles found in java.home, only using the first: "
+                                            + rtJarPaths.toString());
                 }
                 if (rtJarPath != null) {
                     // Insert rt.jar as the first entry in the classpath.

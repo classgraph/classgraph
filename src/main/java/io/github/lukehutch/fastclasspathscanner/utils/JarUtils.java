@@ -218,7 +218,7 @@ public class JarUtils {
     // -------------------------------------------------------------------------------------------------------------
 
     private static final List<String> JRE_PATHS = new ArrayList<>();
-    private static String RT_JAR_PATH = null;
+    private static final List<String> RT_JAR_PATHS = new ArrayList<>();
 
     // Find JRE jar dirs. TODO: Update for JDK9.
     static {
@@ -226,36 +226,26 @@ public class JarUtils {
         final String javaHome = getProperty("java.home");
         if (javaHome != null && !javaHome.isEmpty()) {
             final File javaHomeFile = new File(javaHome);
-            addJREPath(javaHomeFile, jrePathsSet);
-            final File libFile = new File(javaHomeFile, "lib");
-            addJREPath(libFile, jrePathsSet);
-            final File extFile = new File(libFile, "ext");
-            addJREPath(extFile, jrePathsSet);
-            final File rtJarFile = new File(libFile, "rt.jar");
-            if (ClasspathUtils.canRead(rtJarFile)) {
-                RT_JAR_PATH = rtJarFile.getPath();
-            }
+            addJRERoot(javaHomeFile, jrePathsSet);
+            // Handle {java.home}/../lib , when java.home is a JRE path
             if (javaHomeFile.getName().equals("jre")) {
-                // Handle jre/../lib/tools.jar
-                final File parent = javaHomeFile.getParentFile();
-                if (parent != null) {
-                    final File parentLibFile = new File(parent, "lib");
-                    addJREPath(parentLibFile, jrePathsSet);
-                }
+                addJRERoot(javaHomeFile.getParentFile(), jrePathsSet);
+            } else {
+                // Handle {java.home}/jre/lib , when java.home is a JDK path
+                addJRERoot(new File(javaHomeFile, "jre"), jrePathsSet);
             }
         }
         final String javaExtDirs = getProperty("java.ext.dirs");
         if (javaExtDirs != null) {
             for (final String javaExtDir : smartPathSplit(javaExtDirs)) {
                 if (!javaExtDir.isEmpty()) {
-                    final File javaExtDirFile = new File(javaExtDir);
-                    addJREPath(javaExtDirFile, jrePathsSet);
+                    addJREPath(new File(javaExtDir), jrePathsSet);
                 }
             }
         }
 
         // Add special-case path for Mac OS X, this is not always picked up from java.home or java.ext.dirs
-        addJREPath(new File("/System/Library/Java"), jrePathsSet);
+        addJRERoot(new File("/System/Library/Java"), jrePathsSet);
 
         JRE_PATHS.addAll(jrePathsSet);
         Collections.sort(JRE_PATHS);
@@ -269,7 +259,24 @@ public class JarUtils {
         }
     }
 
-    private static void addJREPath(final File dir, final Set<String> jrePathsSet) {
+    private static void addJRERoot(final File jreRoot, final Set<String> jrePathsSet) {
+        if (addJREPath(jreRoot, jrePathsSet)) {
+            final File libFile = new File(jreRoot, "lib");
+            if (addJREPath(libFile, jrePathsSet)) {
+                final File extFile = new File(libFile, "ext");
+                addJREPath(extFile, jrePathsSet);
+                final File rtJarFile = new File(libFile, "rt.jar");
+                if (ClasspathUtils.canRead(rtJarFile)) {
+                    final String rtJarPath = rtJarFile.getPath();
+                    if (!RT_JAR_PATHS.contains(rtJarPath)) {
+                        RT_JAR_PATHS.add(rtJarPath);
+                    }
+                }
+            }
+        }
+    }
+
+    private static boolean addJREPath(final File dir, final Set<String> jrePathsSet) {
         if (ClasspathUtils.canRead(dir) && dir.isDirectory()) {
             String path = dir.getPath();
             if (!path.endsWith(File.separator)) {
@@ -290,12 +297,14 @@ public class JarUtils {
                 }
             } catch (IOException | SecurityException e) {
             }
+            return true;
         }
+        return false;
     }
 
-    /** Get the path of rt.jar */
-    public static String getRtJarPath() {
-        return RT_JAR_PATH;
+    /** Get the path(s) of rt.jar */
+    public static List<String> getRtJarPaths() {
+        return RT_JAR_PATHS;
     }
 
     /**
@@ -379,15 +388,16 @@ public class JarUtils {
         if (log != null) {
             log.log("Operating system: " + getProperty("os.name") + " " + getProperty("os.version") + " "
                     + getProperty("os.arch"));
-            log.log("Java version: " + getProperty("java.version") + " (" + getProperty("java.vendor") + ")");
+            log.log("Java version: " + getProperty("java.version") + " / " + getProperty("java.runtime.version")
+                    + " (" + getProperty("java.vendor") + ")");
             final LogNode javaLog = log.log("JRE paths:");
             for (final String jrePath : JRE_PATHS) {
                 javaLog.log(jrePath);
             }
-            if (RT_JAR_PATH != null) {
-                javaLog.log(RT_JAR_PATH);
-            } else {
-                javaLog.log("Could not find rt.jar"); // TODO: this will be true in JDK9+
+            if (!RT_JAR_PATHS.isEmpty()) {
+                javaLog.log("JRE paths:").log(RT_JAR_PATHS);
+            } else if (VersionFinder.JAVA_MAJOR_VERSION < 9) {
+                javaLog.log("Could not find rt.jar");
             }
         }
     }

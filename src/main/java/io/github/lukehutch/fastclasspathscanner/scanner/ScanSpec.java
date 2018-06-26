@@ -107,6 +107,12 @@ public class ScanSpec {
     /** Whitelisted jarfile names. (Leaf filename only.) */
     public Set<String> whitelistedJars = new HashSet<>();
 
+    /** Whitelisted jarfile names of jars to scan in the JDK/JRE "lib/" directory. (Leaf filename only.) */
+    public Set<String> whitelistedLibJars = new HashSet<>();
+
+    /** Whitelisted jarfile names of jars to scan in the JDK/JRE "ext/" directory. (Leaf filename only.) */
+    public Set<String> whitelistedExtJars = new HashSet<>();
+
     /** Blacklisted jarfile names. (Leaf filename only.) */
     public Set<String> blacklistedJars = new HashSet<>();
 
@@ -347,6 +353,33 @@ public class ScanSpec {
                                 } else {
                                     whitelistedJars.add(spec);
                                 }
+                            }
+                        }
+                    }
+                } else if (spec.startsWith("lib:") || spec.startsWith("ext:")) {
+                    // Strip off "lib:" / "ext:"
+                    final boolean isLib = spec.startsWith("lib:");
+                    spec = spec.substring(4);
+                    if (spec.indexOf('/') >= 0) {
+                        if (log != null) {
+                            log.log("Only a leaf filename may be used with a \"lib:\" or \"ext:\" entry in the "
+                                    + "scan spec, got \"" + spec + "\" -- ignoring");
+                        }
+                    } else {
+                        if (blacklisted || spec.isEmpty()) {
+                            // "-lib:xyz.jar", "-ext:xyz.jar", "lib:", "ext:" have no effect, can only
+                            // specifically whitelist jars
+                            if (log != null) {
+                                log.log("Ignoring scan spec entry with no effect: \"" + scanSpecEntry + "\"");
+                            }
+                        } else {
+                            if (spec.contains("*")) {
+                                if (log != null) {
+                                    log.log("Cannot use wildcards for jar names in lib/ or ext/ directories: \""
+                                            + scanSpecEntry + "\"");
+                                }
+                            } else {
+                                (isLib ? whitelistedLibJars : whitelistedExtJars).add(spec);
                             }
                         }
                     }
