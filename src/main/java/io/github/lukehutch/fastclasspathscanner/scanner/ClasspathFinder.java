@@ -212,48 +212,20 @@ public class ClasspathFinder {
                                 + "context classloader");
             }
         } else {
-            // If system jars are not blacklisted, need to manually add rt.jar at the beginning of the classpath,
-            // because it is included implicitly by the JVM. TODO: this is handled differently in Java 9.
-            if (!scanSpec.blacklistSystemJars()) {
-                // There should only be zero or one of these.
-                final List<String> rtJarPaths = JarUtils.getRtJarPaths();
-                final String rtJarPath = rtJarPaths.size() == 0 ? null : rtJarPaths.get(0);
+            // If system jars are not blacklisted, or if there are whitelisted "lib/" or "ext/" jars,
+            // add the JRE jars to the beginning of the classpath (rt.jar will be first in the order).
+            if (!scanSpec.blacklistSystemJars() || !scanSpec.whitelistedLibJars.isEmpty()
+                    || !scanSpec.whitelistedExtJars.isEmpty()) {
+                final List<String> jreJarPaths = JarUtils.getJreJarPaths();
                 if (log != null) {
-                    log.log(rtJarPaths.isEmpty() ? "Could not find rt.jar in java.home"
-                            : rtJarPaths.size() == 1
-                                    ? "Adding rt.jar as first classpath element to scan: " + rtJarPath
-                                    : "Multiple rt.jar jarfiles found in java.home, only using the first: "
-                                            + rtJarPaths.toString());
+                    log.log("Adding JRE/JDK jars to classpath:").log(jreJarPaths);
                 }
-                if (rtJarPath != null) {
-                    // Insert rt.jar as the first entry in the classpath.
-                    classpathOrder.addClasspathElement(rtJarPath, classLoaders, classpathFinderLog);
-                }
-            } else if (!scanSpec.whitelistedLibJars.isEmpty() || !scanSpec.whitelistedExtJars.isEmpty()) {
-                // Add any whitelisted "lib" and "ext" jars
-                for (final String jrePath : JarUtils.getJrePaths()) {
-                    if (jrePath.endsWith("/lib")) {
-                        for (final String libJar : scanSpec.whitelistedLibJars) {
-                            final String libJarPath = jrePath + "/" + libJar;
-                            if (log != null) {
-                                log.log("Adding whitelisted lib jar to beginning of classpath order: "
-                                        + libJarPath);
-                            }
-                            classpathOrder.addClasspathElement(libJarPath, classLoaders, classpathFinderLog);
-                        }
-                    } else if (jrePath.endsWith("/ext")) {
-                        for (final String extJar : scanSpec.whitelistedExtJars) {
-                            final String extJarPath = jrePath + "/" + extJar;
-                            if (log != null) {
-                                log.log("Adding whitelisted ext jar to beginning of classpath order: "
-                                        + extJarPath);
-                            }
-                            classpathOrder.addClasspathElement(extJarPath, classLoaders, classpathFinderLog);
-                        }
-                    }
+                for (final String jreJarPath : jreJarPaths) {
+                    classpathOrder.addClasspathElement(jreJarPath, classLoaders, classpathFinderLog);
                 }
             }
 
+            // Get default ClassLoaderHandlers from the ClassLoaderHandler registry
             final List<ClassLoaderHandlerRegistryEntry> allClassLoaderHandlerRegistryEntries = scanSpec
                     .getAllClassLoaderHandlerRegistryEntries();
             if (classpathFinderLog != null) {
