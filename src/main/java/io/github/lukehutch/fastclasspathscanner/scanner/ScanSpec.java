@@ -415,11 +415,7 @@ public class ScanSpec {
                             log.log("module names cannot contain '/' -- ignoring: \"" + scanSpecEntry + "\"");
                         }
                     } else {
-                        if (spec.isEmpty()) {
-                            if (log != null) {
-                                log.log("Module name must not be empty: \"" + scanSpecEntry + "\"");
-                            }
-                        } else if (spec.contains("*")) {
+                        if (spec.contains("*")) {
                             if (log != null) {
                                 log.log("Module name cannot contain wildcards: \"" + scanSpecEntry + "\"");
                             }
@@ -549,7 +545,12 @@ public class ScanSpec {
             if (!specificallyWhitelistedClassRelativePaths.isEmpty()) {
                 log.log("Specifically-whitelisted classfiles: " + specificallyWhitelistedClassRelativePaths);
             }
-
+            if (!whitelistedModules.isEmpty()) {
+                log.log("Whitelisted modules: " + whitelistedModules);
+            }
+            if (!blacklistedModules.isEmpty()) {
+                log.log("Blacklisted modules: " + blacklistedModules);
+            }
             if (!scanJars) {
                 log.log("Scanning of jarfiles is disabled");
             }

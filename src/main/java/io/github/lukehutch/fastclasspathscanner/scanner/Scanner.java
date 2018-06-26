@@ -224,11 +224,15 @@ public class Scanner implements Callable<ScanResult> {
                 if (systemModules != null) {
                     for (final ModuleRef systemModule : systemModules) {
                         final String moduleName = systemModule.getModuleName();
-                        if (!scanSpec.blacklistSystemJars //
-                                || (scanSpec.whitelistedModules.contains(moduleName)
-                                        && !scanSpec.blacklistedModules.contains(moduleName))) {
+                        if (((!scanSpec.blacklistSystemJars && scanSpec.whitelistedModules.isEmpty())
+                                || scanSpec.whitelistedModules.contains(moduleName))
+                                && !scanSpec.blacklistedModules.contains(moduleName)) {
                             rawClasspathEltOrder
                                     .add(new RelativePath(systemModule, nestedJarHandler, getRawElementsLog));
+                        } else {
+                            if (log != null) {
+                                log.log("Skipping blacklisted/non-whitelisted system module: " + moduleName);
+                            }
                         }
                     }
                 }
@@ -241,13 +245,26 @@ public class Scanner implements Callable<ScanResult> {
                                 && !scanSpec.blacklistedModules.contains(moduleName)) {
                             rawClasspathEltOrder
                                     .add(new RelativePath(nonSystemModule, nestedJarHandler, getRawElementsLog));
+                        } else {
+                            if (log != null) {
+                                log.log("Skipping blacklisted/non-whitelisted module: " + moduleName);
+                            }
                         }
                     }
                 }
             }
 
-            // Add non-module classpath elements to classpath order
-            rawClasspathEltOrder.addAll(classpathFinder.getRawClasspathElements());
+            // If there are no whitelisted modules, or the module whitelist contains the unnamed module
+            if ((scanSpec.whitelistedModules.isEmpty() || scanSpec.whitelistedModules.contains(""))
+                    && !scanSpec.blacklistedModules.contains("")) {
+                // Add non-module classpath elements to classpath order
+                rawClasspathEltOrder.addAll(classpathFinder.getRawClasspathElements());
+            } else {
+                if (log != null) {
+                    log.log("Skipping non-module classpath entries, since the unnamed module (\"\") is not "
+                            + "whitelisted, or is blacklisted");
+                }
+            }
 
             // In parallel, resolve raw classpath elements to canonical paths, creating a ClasspathElement singleton
             // for each unique canonical path. Also check jars against jar whitelist/blacklist.a

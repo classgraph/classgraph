@@ -250,12 +250,9 @@ public class JarUtils {
         // Add special-case path for Mac OS X, this is not always picked up from java.home or java.ext.dirs
         addJRERoot(new File("/System/Library/Java"), jrePathsSet, jreRtJarPaths);
 
-        final List<String> jrePaths = new ArrayList<>();
-        jrePaths.addAll(jrePathsSet);
-        Collections.sort(jrePaths);
-
+        // Find "lib/" and "ext/" jars
         final Set<String> jreJarPaths = new HashSet<>();
-        for (final String jrePath : jrePaths) {
+        for (final String jrePath : jrePathsSet) {
             final File dir = new File(jrePath);
             if (ClasspathUtils.canRead(dir) && dir.isDirectory()) {
                 final boolean isLib = jrePath.endsWith("/lib");
@@ -263,8 +260,8 @@ public class JarUtils {
                 for (final File file : dir.listFiles()) {
                     final String filePath = FastPathResolver.resolve("", file.getPath());
                     if (!filePath.isEmpty()) {
-                        jreJarPaths.add(filePath);
                         if (filePath.endsWith(".jar")) {
+                            jreJarPaths.add(filePath);
                             if (isLib) {
                                 JRE_LIB_JARS.add(filePath);
                             } else if (isExt) {
@@ -279,7 +276,7 @@ public class JarUtils {
         Collections.sort(JRE_EXT_JARS);
 
         // Put rt.jar first in list of JRE jar paths
-        jreJarPaths.removeAll(JRE_JARS);
+        jreJarPaths.removeAll(jreRtJarPaths);
         final List<String> jreJarPathsSorted = new ArrayList<>(jreJarPaths);
         Collections.sort(jreJarPathsSorted);
         if (jreRtJarPaths.size() > 0) {
@@ -355,6 +352,7 @@ public class JarUtils {
         if (whitelistedLibJars.isEmpty() && whitelistedExtJars.isEmpty()) {
             return JRE_JARS_SET.contains(filePath);
         } else {
+            // TODO: also support blacklisting lib or ext jars
             if (whitelistedLibJars.contains(filePath)) {
                 return false;
             } else if (whitelistedExtJars.contains(filePath)) {
