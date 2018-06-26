@@ -214,8 +214,7 @@ public class ClasspathFinder {
         } else {
             // If system jars are not blacklisted, or if there are whitelisted "lib/" or "ext/" jars,
             // add the JRE jars to the beginning of the classpath (rt.jar will be first in the order).
-            if (!scanSpec.blacklistSystemJars() || !scanSpec.whitelistedLibJars.isEmpty()
-                    || !scanSpec.whitelistedExtJars.isEmpty()) {
+            if (!scanSpec.blacklistSystemJars() || !scanSpec.whitelistedLibOrExtJarPaths.isEmpty()) {
                 final List<String> jreJarPaths = JarUtils.getJreJarPaths();
                 if (log != null) {
                     log.log("Adding JRE/JDK jars to classpath:").log(jreJarPaths);

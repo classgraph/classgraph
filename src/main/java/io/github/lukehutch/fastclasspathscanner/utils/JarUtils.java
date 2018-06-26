@@ -222,7 +222,7 @@ public class JarUtils {
     private static final List<String> JRE_LIB_JARS = new ArrayList<>();
     private static final List<String> JRE_EXT_JARS = new ArrayList<>();
 
-    // Find JRE jar dirs. TODO: Update for JDK9.
+    // Find JRE jar dirs
     static {
         final Set<String> jrePathsSet = new HashSet<>();
         final List<String> jreRtJarPaths = new ArrayList<>();
@@ -339,28 +339,32 @@ public class JarUtils {
         return false;
     }
 
-    /** Get the paths of jars in JRE/JDK directories, with any rt.jar listed first. */
+    /** Get the paths of jars in all JRE/JDK system directories, with any rt.jar listed first. */
     public static List<String> getJreJarPaths() {
         return JRE_JARS;
+    }
+
+    /** Get the paths for any JRE/JDK "lib/" jars. */
+    public static List<String> getJreExtJars() {
+        return JRE_EXT_JARS;
+    }
+
+    /** Get the paths for any JRE/JDK "ext/" jars. */
+    public static List<String> getJreLibJars() {
+        return JRE_LIB_JARS;
     }
 
     /**
      * Determine whether a given jarfile is in a JRE system directory (jre, jre/lib, jre/lib/ext, etc.).
      */
-    public static boolean isJREJar(final String filePath, final Set<String> whitelistedLibJars,
-            final Set<String> whitelistedExtJars, final LogNode log) {
-        if (whitelistedLibJars.isEmpty() && whitelistedExtJars.isEmpty()) {
-            return JRE_JARS_SET.contains(filePath);
-        } else {
-            // TODO: also support blacklisting lib or ext jars
-            if (whitelistedLibJars.contains(filePath)) {
-                return false;
-            } else if (whitelistedExtJars.contains(filePath)) {
-                return false;
-            } else {
-                return JRE_JARS_SET.contains(filePath);
-            }
+    public static boolean isJREJar(final String filePath, final Set<String> whitelistedLibOrExtJarPaths,
+            final Set<String> blacklistedLibOrExtJarPaths, final LogNode log) {
+        if (!whitelistedLibOrExtJarPaths.isEmpty() && whitelistedLibOrExtJarPaths.contains(filePath)
+                && !blacklistedLibOrExtJarPaths.contains(filePath)) {
+            // This is a whitelisted "lib/" or "ext/" jar, so don't consider this a system jar
+            return false;
         }
+        return JRE_JARS_SET.contains(filePath);
     }
 
     /** Prefixes of system (JRE) packages. */

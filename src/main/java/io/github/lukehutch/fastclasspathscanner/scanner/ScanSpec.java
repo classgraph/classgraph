@@ -107,11 +107,11 @@ public class ScanSpec {
     /** Whitelisted jarfile names. (Leaf filename only.) */
     public Set<String> whitelistedJars = new HashSet<>();
 
-    /** Whitelisted jarfile names of jars to scan in the JDK/JRE "lib/" directory. (Leaf filename only.) */
-    public Set<String> whitelistedLibJars = new HashSet<>();
+    /** Complete paths of whitelisted jars to scan in the JDK/JRE "lib/" or "ext/" directory. */
+    public Set<String> whitelistedLibOrExtJarPaths = new HashSet<>();
 
-    /** Whitelisted jarfile names of jars to scan in the JDK/JRE "ext/" directory. (Leaf filename only.) */
-    public Set<String> whitelistedExtJars = new HashSet<>();
+    /** Complete paths of blacklisted in the JDK/JRE "lib/" or "ext/" directory. */
+    public Set<String> blacklistedLibOrExtJarPaths = new HashSet<>();
 
     /** Blacklisted jarfile names. (Leaf filename only.) */
     public Set<String> blacklistedJars = new HashSet<>();
@@ -357,29 +357,55 @@ public class ScanSpec {
                         }
                     }
                 } else if (spec.startsWith("lib:") || spec.startsWith("ext:")) {
+                    final boolean isLib = spec.startsWith("lib:");
                     // Strip off "lib:" / "ext:"
                     spec = spec.substring(4);
-                    final boolean isLib = spec.startsWith("lib:");
                     if (spec.indexOf('/') >= 0) {
                         if (log != null) {
                             log.log("Only a leaf filename may be used with a \"lib:\" or \"ext:\" entry in the "
-                                    + "scan spec, got \"" + spec + "\" -- ignoring: \"" + scanSpecEntry + "\"");
+                                    + "scan spec, ignoring: \"" + scanSpecEntry + "\"");
                         }
                     } else {
-                        if (blacklisted || spec.isEmpty()) {
-                            // "-lib:xyz.jar", "-ext:xyz.jar", "lib:", "ext:" have no effect, can only
-                            // specifically whitelist jars
-                            if (log != null) {
-                                log.log("Ignoring scan spec entry with no effect: \"" + scanSpecEntry + "\"");
-                            }
+                        if (spec.isEmpty()) {
+                            // Blacklist or whitelist all "lib/" or "ext/" jars
+                            (blacklisted ? blacklistedLibOrExtJarPaths : whitelistedLibOrExtJarPaths)
+                                    .addAll(isLib ? JarUtils.getJreLibJars() : JarUtils.getJreExtJars());
                         } else {
                             if (spec.contains("*")) {
-                                if (log != null) {
-                                    log.log("Cannot use wildcards for jar names in lib/ or ext/ directories: \""
-                                            + scanSpecEntry + "\"");
+                                // Support wildcards with "lib:" and "ext:"
+                                final Pattern pattern = specToPattern(spec);
+                                boolean found = false;
+                                for (final String path : (isLib ? JarUtils.getJreLibJars()
+                                        : JarUtils.getJreExtJars())) {
+                                    final int slashIdx = path.lastIndexOf('/');
+                                    final String pathLeaf = path.substring(slashIdx + 1);
+                                    if (pattern.matcher(pathLeaf).matches()) {
+                                        (blacklisted ? blacklistedLibOrExtJarPaths : whitelistedLibOrExtJarPaths)
+                                                .add(path);
+                                        found = true;
+                                    }
+                                }
+                                if (!found && log != null) {
+                                    log.log("Could not find " + (isLib ? "lib" : "ext") + " jar matching wildcard: "
+                                            + scanSpecEntry);
                                 }
                             } else {
-                                (isLib ? whitelistedLibJars : whitelistedExtJars).add(spec);
+                                // No wildcards, just blacklist or whitelist the named jar, if present
+                                boolean found = false;
+                                for (final String path : (isLib ? JarUtils.getJreLibJars()
+                                        : JarUtils.getJreExtJars())) {
+                                    final int slashIdx = path.lastIndexOf('/');
+                                    final String pathLeaf = path.substring(slashIdx + 1);
+                                    if (spec.equals(pathLeaf)) {
+                                        (blacklisted ? blacklistedLibOrExtJarPaths : whitelistedLibOrExtJarPaths)
+                                                .add(path);
+                                        found = true;
+                                        break;
+                                    }
+                                }
+                                if (!found && log != null) {
+                                    log.log("Could not find " + (isLib ? "lib" : "ext") + " jar: " + scanSpecEntry);
+                                }
                             }
                         }
                     }
