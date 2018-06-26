@@ -116,6 +116,12 @@ public class ScanSpec {
     /** Blacklisted jarfile names. (Leaf filename only.) */
     public Set<String> blacklistedJars = new HashSet<>();
 
+    /** Names of whitelisted modules. */
+    public Set<String> whitelistedModules = new HashSet<>();
+
+    /** Names of blacklisted modules. */
+    public Set<String> blacklistedModules = new HashSet<>();
+
     /**
      * Whitelisted jarfile names containing a glob('*') character, converted to a regexp. (Leaf filename only.)
      */
@@ -358,12 +364,12 @@ public class ScanSpec {
                     }
                 } else if (spec.startsWith("lib:") || spec.startsWith("ext:")) {
                     // Strip off "lib:" / "ext:"
-                    final boolean isLib = spec.startsWith("lib:");
                     spec = spec.substring(4);
+                    final boolean isLib = spec.startsWith("lib:");
                     if (spec.indexOf('/') >= 0) {
                         if (log != null) {
                             log.log("Only a leaf filename may be used with a \"lib:\" or \"ext:\" entry in the "
-                                    + "scan spec, got \"" + spec + "\" -- ignoring");
+                                    + "scan spec, got \"" + spec + "\" -- ignoring: \"" + scanSpecEntry + "\"");
                         }
                     } else {
                         if (blacklisted || spec.isEmpty()) {
@@ -388,7 +394,8 @@ public class ScanSpec {
                     spec = spec.substring(4);
                     if (!spec.isEmpty()) {
                         if (log != null) {
-                            log.log("Ignoring extra text after \"dir:\" in scan spec entry: " + scanSpecEntry);
+                            log.log("Ignoring extra text after \"dir:\" in scan spec entry: \"" + scanSpecEntry
+                                    + "\"");
                         }
                     }
                     if (blacklisted) {
@@ -398,6 +405,26 @@ public class ScanSpec {
                         // "dir:" with no dir name has no effect
                         if (log != null) {
                             log.log("Ignoring scan spec entry with no effect: \"" + scanSpecEntry + "\"");
+                        }
+                    }
+                } else if (spec.startsWith("mod:")) {
+                    // Strip off "mod:"
+                    spec = spec.substring(4);
+                    if (spec.indexOf('/') >= 0) {
+                        if (log != null) {
+                            log.log("module names cannot contain '/' -- ignoring: \"" + scanSpecEntry + "\"");
+                        }
+                    } else {
+                        if (spec.isEmpty()) {
+                            if (log != null) {
+                                log.log("Module name must not be empty: \"" + scanSpecEntry + "\"");
+                            }
+                        } else if (spec.contains("*")) {
+                            if (log != null) {
+                                log.log("Module name cannot contain wildcards: \"" + scanSpecEntry + "\"");
+                            }
+                        } else {
+                            (blacklisted ? blacklistedModules : whitelistedModules).add(spec);
                         }
                     }
                 } else {

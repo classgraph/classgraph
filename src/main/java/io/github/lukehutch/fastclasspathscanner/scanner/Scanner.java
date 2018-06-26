@@ -218,21 +218,31 @@ public class Scanner implements Callable<ScanResult> {
             final ClassLoader[] classLoaderOrder = classLoaderAndModuleFinder.getClassLoaders();
             final List<RelativePath> rawClasspathEltOrder = new ArrayList<>();
 
-            // Add modules to start of classpath order (in JDK9+)
-            if (!scanSpec.blacklistSystemJars && !scanSpec.blacklistSystemPackages) {
+            if (scanSpec.overrideClasspath == null && scanSpec.overrideClassLoaders == null) {
+                // Add modules to start of classpath order (in JDK9+)
                 final List<ModuleRef> systemModules = classLoaderAndModuleFinder.getSystemModuleRefs();
                 if (systemModules != null) {
                     for (final ModuleRef systemModule : systemModules) {
-                        rawClasspathEltOrder
-                                .add(new RelativePath(systemModule, nestedJarHandler, getRawElementsLog));
+                        final String moduleName = systemModule.getModuleName();
+                        if (!scanSpec.blacklistSystemJars //
+                                || (scanSpec.whitelistedModules.contains(moduleName)
+                                        && !scanSpec.blacklistedModules.contains(moduleName))) {
+                            rawClasspathEltOrder
+                                    .add(new RelativePath(systemModule, nestedJarHandler, getRawElementsLog));
+                        }
                     }
                 }
-            }
-            final List<ModuleRef> nonSystemModules = classLoaderAndModuleFinder.getNonSystemModuleRefs();
-            if (nonSystemModules != null) {
-                for (final ModuleRef nonSystemModule : nonSystemModules) {
-                    rawClasspathEltOrder
-                            .add(new RelativePath(nonSystemModule, nestedJarHandler, getRawElementsLog));
+                final List<ModuleRef> nonSystemModules = classLoaderAndModuleFinder.getNonSystemModuleRefs();
+                if (nonSystemModules != null) {
+                    for (final ModuleRef nonSystemModule : nonSystemModules) {
+                        final String moduleName = nonSystemModule.getModuleName();
+                        if ((scanSpec.whitelistedModules.isEmpty()
+                                || scanSpec.whitelistedModules.contains(moduleName))
+                                && !scanSpec.blacklistedModules.contains(moduleName)) {
+                            rawClasspathEltOrder
+                                    .add(new RelativePath(nonSystemModule, nestedJarHandler, getRawElementsLog));
+                        }
+                    }
                 }
             }
 
