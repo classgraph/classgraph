@@ -1,6 +1,6 @@
 # FastClasspathScanner
 
-FastClasspathScanner is an uber-fast, ultra-lightweight classpath scanner, module scanner, and annotation processor for Java, Scala, Kotlin and other JVM languages. FastClasspathScanner can scan the classpath and module path either at build-time (e.g. to implement annotation processing for Android), or dynamically at runtime.
+FastClasspathScanner is an uber-fast, ultra-lightweight classpath scanner, module scanner, and annotation processor for Java, Scala, Kotlin and other JVM languages. FastClasspathScanner can scan the classpath and module path either at build-time (e.g. to implement annotation processing for Android), or dynamically at runtime.  FastClasspathScanner handles a [huge number](https://github.com/lukehutch/fast-classpath-scanner/wiki#fastclasspathscanner-handles-a-number-of-classloaders-and-classpath--module-path-specification-mechanisms) of classpath specification mechanisms found in the wild.
 
 FastClasspathScanner reads the classfile bytecode format directly for speed, to avoid the overhead of loading classes, and to avoid the overhead and side effects of initializing classes (causing static initializer blocks to be run).
 
