@@ -243,6 +243,7 @@ public class JarUtils {
             for (final String javaExtDir : smartPathSplit(javaExtDirs)) {
                 if (!javaExtDir.isEmpty()) {
                     addJREPath(new File(javaExtDir), jrePathsSet);
+                    JRE_EXT_JARS.add(javaExtDir);
                 }
             }
         }
