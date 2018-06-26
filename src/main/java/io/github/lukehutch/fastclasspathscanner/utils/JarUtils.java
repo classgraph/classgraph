@@ -307,13 +307,26 @@ public class JarUtils {
         return RT_JAR_PATHS;
     }
 
+    /** Get the paths of the JRE/JDK directories. */
+    public static List<String> getJrePaths() {
+        return JRE_PATHS;
+    }
+
     /**
      * Determine whether a given jarfile is in a JRE system directory (jre, jre/lib, jre/lib/ext, etc.).
      */
-    public static boolean isJREJar(final String filePath, final LogNode log) {
+    public static boolean isJREJar(final String filePath, final Set<String> whitelistedLibJars,
+            final Set<String> whitelistedExtJars, final LogNode log) {
         for (final String jrePathPrefix : JRE_PATHS) {
-            if (filePath.startsWith(jrePathPrefix)) {
-                return true;
+            if (filePath.startsWith(jrePathPrefix) && filePath.length() > jrePathPrefix.length()
+                    && filePath.charAt(jrePathPrefix.length()) == '/') {
+                if (!whitelistedLibJars.isEmpty() || !whitelistedExtJars.isEmpty()) {
+                    final String filePathLeaf = filePath.substring(filePath.lastIndexOf('/'));
+                    return !((jrePathPrefix.endsWith("/lib") && whitelistedLibJars.contains(filePathLeaf))
+                            || (jrePathPrefix.endsWith("/ext") && whitelistedExtJars.contains(filePathLeaf)));
+                } else {
+                    return true;
+                }
             }
         }
         return false;

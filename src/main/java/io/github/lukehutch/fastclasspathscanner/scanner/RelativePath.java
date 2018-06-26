@@ -388,7 +388,8 @@ class RelativePath {
             }
             if (isFile) {
                 final String canonicalPath = getCanonicalPath(log);
-                if (scanSpec.blacklistSystemJars() && JarUtils.isJREJar(canonicalPath, log)) {
+                if (scanSpec.blacklistSystemJars() && JarUtils.isJREJar(canonicalPath, scanSpec.whitelistedLibJars,
+                        scanSpec.whitelistedExtJars, log)) {
                     // Don't scan system jars if they are blacklisted
                     if (log != null) {
                         log.log("Ignoring JRE jar: " + path);

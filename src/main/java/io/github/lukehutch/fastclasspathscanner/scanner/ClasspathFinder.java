@@ -192,6 +192,7 @@ public class ClasspathFinder {
         final ClasspathOrder classpathOrder = new ClasspathOrder(scanSpec, nestedJarHandler);
         final ClasspathOrder ignoredClasspathOrder = new ClasspathOrder(scanSpec, nestedJarHandler);
 
+        final ClassLoader[] classLoaders = classLoaderAndModuleFinder.getClassLoaders();
         if (scanSpec.overrideClasspath != null) {
             // Manual classpath override
             if (scanSpec.overrideClassLoaders != null) {
@@ -203,8 +204,7 @@ public class ClasspathFinder {
             }
             final LogNode overrideLog = classpathFinderLog == null ? null
                     : classpathFinderLog.log("Overriding classpath with: " + scanSpec.overrideClasspath);
-            classpathOrder.addClasspathElements(scanSpec.overrideClasspath,
-                    classLoaderAndModuleFinder.getClassLoaders(), overrideLog);
+            classpathOrder.addClasspathElements(scanSpec.overrideClasspath, classLoaders, overrideLog);
             if (overrideLog != null) {
                 classpathFinderLog
                         .log("WARNING: when the classpath is overridden, there is no guarantee that the classes "
@@ -227,8 +227,30 @@ public class ClasspathFinder {
                 }
                 if (rtJarPath != null) {
                     // Insert rt.jar as the first entry in the classpath.
-                    classpathOrder.addClasspathElement(rtJarPath, classLoaderAndModuleFinder.getClassLoaders(),
-                            classpathFinderLog);
+                    classpathOrder.addClasspathElement(rtJarPath, classLoaders, classpathFinderLog);
+                }
+            } else if (!scanSpec.whitelistedLibJars.isEmpty() || !scanSpec.whitelistedExtJars.isEmpty()) {
+                // Add any whitelisted "lib" and "ext" jars
+                for (final String jrePath : JarUtils.getJrePaths()) {
+                    if (jrePath.endsWith("/lib")) {
+                        for (final String libJar : scanSpec.whitelistedLibJars) {
+                            final String libJarPath = jrePath + "/" + libJar;
+                            if (log != null) {
+                                log.log("Adding whitelisted lib jar to beginning of classpath order: "
+                                        + libJarPath);
+                            }
+                            classpathOrder.addClasspathElement(libJarPath, classLoaders, classpathFinderLog);
+                        }
+                    } else if (jrePath.endsWith("/ext")) {
+                        for (final String extJar : scanSpec.whitelistedExtJars) {
+                            final String extJarPath = jrePath + "/" + extJar;
+                            if (log != null) {
+                                log.log("Adding whitelisted ext jar to beginning of classpath order: "
+                                        + extJarPath);
+                            }
+                            classpathOrder.addClasspathElement(extJarPath, classLoaders, classpathFinderLog);
+                        }
+                    }
                 }
             }
 
@@ -247,7 +269,7 @@ public class ClasspathFinder {
             final List<SimpleEntry<ClassLoader, ClassLoaderHandler>> classLoaderAndHandlerOrder = new ArrayList<>();
             final List<SimpleEntry<ClassLoader, ClassLoaderHandler>> ignoredClassLoaderAndHandlerOrder = //
                     new ArrayList<>();
-            for (final ClassLoader envClassLoader : classLoaderAndModuleFinder.getClassLoaders()) {
+            for (final ClassLoader envClassLoader : classLoaders) {
                 if (!scanSpec.blacklistSystemJars()
                         || !envClassLoader.getClass().getName().startsWith("sun.misc.Launcher$ExtClassLoader")) {
                     findClassLoaderHandlerForClassLoaderAndParents(scanSpec, envClassLoader,
@@ -303,10 +325,9 @@ public class ClasspathFinder {
                             : classpathFinderLog.log("Getting classpath entries from java.class.path");
                     for (final String pathElement : pathElements) {
                         if (!ignoredClasspathOrder.get().contains(new RelativePath(currDirPathStr, pathElement,
-                                classLoaderAndModuleFinder.getClassLoaders(), nestedJarHandler, log))) {
+                                classLoaders, nestedJarHandler, log))) {
                             // pathElement is not also listed in an ignored parent classloader
-                            classpathOrder.addClasspathElement(pathElement,
-                                    classLoaderAndModuleFinder.getClassLoaders(), sysPropLog);
+                            classpathOrder.addClasspathElement(pathElement, classLoaders, sysPropLog);
                         } else {
                             // pathElement is also listed in an ignored parent classloader, ignore it (Issue #169)
                             if (sysPropLog != null) {
