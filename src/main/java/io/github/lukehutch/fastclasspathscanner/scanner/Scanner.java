@@ -224,7 +224,7 @@ public class Scanner implements Callable<ScanResult> {
                 if (systemModules != null) {
                     for (final ModuleRef systemModule : systemModules) {
                         final String moduleName = systemModule.getModuleName();
-                        if (((!scanSpec.blacklistSystemJars && scanSpec.whitelistedModules.isEmpty())
+                        if (((!scanSpec.blacklistSystemJarsOrModules && scanSpec.whitelistedModules.isEmpty())
                                 || scanSpec.whitelistedModules.contains(moduleName))
                                 && !scanSpec.blacklistedModules.contains(moduleName)) {
                             rawClasspathEltOrder

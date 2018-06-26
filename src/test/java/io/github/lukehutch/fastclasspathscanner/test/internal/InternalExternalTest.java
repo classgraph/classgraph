@@ -26,7 +26,8 @@ public class InternalExternalTest {
                 ExternalAnnotation.class.getName()).enableExternalClasses().scan();
         assertThat(scanResult.getNamesOfAllStandardClasses()).containsOnly(ExternalSuperclass.class.getName(),
                 InternalExternalTest.class.getName(), InternalExtendsExternal.class.getName(),
-                InternalImplementsExternal.class.getName(), InternalAnnotatedByExternal.class.getName());
+                InternalImplementsExternal.class.getName(), InternalAnnotatedByExternal.class.getName(),
+                Object.class.getName());
     }
 
     @Test

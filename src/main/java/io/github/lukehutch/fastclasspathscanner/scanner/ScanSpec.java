@@ -170,14 +170,7 @@ public class ScanSpec {
      * be overridden by including "!!" in the scan spec. Disabling this blacklisting will increase the time or
      * memory required to scan the classpath.
      */
-    public boolean blacklistSystemJars = true;
-
-    /**
-     * By default, blacklist all java.* and sun.* packages. This means for example that you can't use
-     * java.lang.Comparable as a match criterion. This can be overridden by including "!!" in the scan spec.
-     * Disabling this blacklisting may increase the time or memory required to scan the classpath.
-     */
-    public boolean blacklistSystemPackages = true;
+    public boolean blacklistSystemJarsOrModules = true;
 
     /**
      * If true, ignore field visibility (affects finding classes with fields of a given type, and matching of static
@@ -317,10 +310,11 @@ public class ScanSpec {
         for (final String scanSpecEntry : scanSpecFields) {
             String spec = scanSpecEntry;
             if ("!".equals(scanSpecEntry)) {
-                blacklistSystemPackages = false;
+                if (log != null) {
+                    log.log("Ignoring deprecated scan spec option \"!\"");
+                }
             } else if ("!!".equals(scanSpecEntry)) {
-                blacklistSystemJars = false;
-                blacklistSystemPackages = false;
+                blacklistSystemJarsOrModules = false;
             } else {
                 final boolean blacklisted = spec.startsWith("-");
                 if (blacklisted) {
@@ -459,8 +453,8 @@ public class ScanSpec {
             }
         }
 
-        if (blacklistSystemPackages) {
-            // Blacklist Java types by default
+        if (blacklistSystemJarsOrModules) {
+            // Blacklist Java paths by default
             for (final String prefix : JarUtils.SYSTEM_PACKAGE_PATH_PREFIXES) {
                 uniqueBlacklistedPathPrefixes.add(prefix);
             }
@@ -885,7 +879,7 @@ public class ScanSpec {
      * memory required to scan the classpath.
      */
     boolean blacklistSystemJars() {
-        return blacklistSystemJars;
+        return blacklistSystemJarsOrModules;
     }
 
     // -------------------------------------------------------------------------------------------------------------

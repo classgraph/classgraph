@@ -582,8 +582,10 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
                         || !removeExternalClassesIfStrictWhitelist;
                 final boolean notExternalOrIncludeExternal = !classInfo.isExternalClass || includeExternalClasses;
                 if (notExternalOrIncludeExternal //
-                        && !isBlacklisted
-                        && (!isSystemClass || !scanSpec.blacklistSystemJars || !scanSpec.blacklistSystemPackages)) {
+                        // If this is a system class, ignore blacklist unless the blanket blacklisting of
+                        // all system jars or modules has been disabled, and this system class was specifically
+                        // blacklisted by name
+                        && (!isBlacklisted || (isSystemClass && scanSpec.blacklistSystemJarsOrModules))) {
                     // Class passed filter criteria
                     classInfoSetFiltered.add(classInfo);
                 }

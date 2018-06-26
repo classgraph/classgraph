@@ -954,7 +954,7 @@ public class ScanResult {
     // -------------------------------------------------------------------------------------------------------------
 
     /** The current serialization format. */
-    private static final String CURRENT_SERIALIZATION_FORMAT = "2";
+    private static final String CURRENT_SERIALIZATION_FORMAT = "3";
 
     /** A class to hold a serialized ScanResult along with the ScanSpec that was used to scan. */
     private static class SerializationFormat {
