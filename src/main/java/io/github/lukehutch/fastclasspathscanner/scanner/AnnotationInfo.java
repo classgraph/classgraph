@@ -124,8 +124,8 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
                 } else if (annotationParamValue instanceof Byte) {
                     annotationConstantByte = (Byte) annotationParamValue;
                 } else {
-                    throw new IllegalArgumentException(
-                            "Unsupported enum value type: " + annotationParamValue.getClass().getName());
+                    throw new IllegalArgumentException("Unsupported annotation parameter value type: "
+                            + annotationParamValue.getClass().getName());
                 }
             }
         }
