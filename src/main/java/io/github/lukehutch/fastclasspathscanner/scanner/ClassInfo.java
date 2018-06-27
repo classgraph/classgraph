@@ -191,9 +191,29 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
      * Get a class reference for this class. Calls the classloader.
      * 
      * @return The class reference.
+     * @throws IllegalArgumentException
+     *             if there were problems loading or initializing the class. (Note that class initialization on load
+     *             is disabled by default, you can enable it with
+     *             {@code FastClasspathScanner#initializeLoadedClasses(true)} .)
      */
     public Class<?> getClassRef() {
         return scanResult.classNameToClassRef(className);
+    }
+
+    /**
+     * Get a class reference for this class, casting it to the requested interface or superclass type. Calls the
+     * classloader.
+     * 
+     * @param classType
+     *            The class to cast the result to.
+     * @return The class reference.
+     * @throws IllegalArgumentException
+     *             if there were problems loading the class, initializing the class, or casting it to the requested
+     *             type. (Note that class initialization on load is disabled by default, you can enable it with
+     *             {@code FastClasspathScanner#initializeLoadedClasses(true)} .)
+     */
+    public <T> Class<T> getClassRef(final Class<T> classType) {
+        return scanResult.classNameToClassRef(className, classType);
     }
 
     /**

@@ -852,9 +852,11 @@ public class ScanResult {
      *            If true, exceptions are ignored during classloading, otherwise IllegalArgumentException is thrown
      *            if a class could not be loaded.
      * @throws IllegalArgumentException
-     *             if ignoreExceptions is false and an exception is thrown during classloading or class
-     *             initialization. (Note that class initialization on load is not enabled by default, you can enable
-     *             it with FastClasspathScanner#initializeLoadedClasses(true).)
+     *             if ignoreExceptions is false, IllegalArgumentException is thrown if there were problems loading
+     *             or initializing the classes. (Note that class initialization on load is disabled by default, you
+     *             can enable it with {@code FastClasspathScanner#initializeLoadedClasses(true)} .) Otherwise
+     *             exceptions are suppressed, and classes are not added to the resulting list if loading them
+     *             exhibits any of these problems.
      * @return a list of references to the loaded classes.
      */
     public List<Class<?>> classNamesToClassRefs(final List<String> classNames, final boolean ignoreExceptions)
@@ -875,6 +877,49 @@ public class ScanResult {
     }
 
     /**
+     * Produce a list of Class references, given a list of names of classes extending a common superclass or
+     * implementing a common interface. If ignoreExceptions is true, and any classes cannot be loaded (due to
+     * classloading error, or due to an exception being thrown in the class initialization block), an
+     * IllegalArgumentException is thrown; otherwise, the class will simply be skipped if an exception is thrown.
+     *
+     * <p>
+     * Enable verbose scanning to see details of any exceptions thrown during classloading, even if ignoreExceptions
+     * is false.
+     *
+     * @param classNames
+     *            The list of names of classes to load.
+     * @param commonClassType
+     *            The common superclass of, or interface implemented by, the named classes.
+     * @param ignoreExceptions
+     *            If true, exceptions are ignored during classloading, otherwise IllegalArgumentException is thrown
+     *            if a class could not be loaded.
+     * @throws IllegalArgumentException
+     *             if ignoreExceptions is false, IllegalArgumentException is thrown if there were problems loading
+     *             the classes, initializing the classes, or casting them to the requested type. (Note that class
+     *             initialization on load is disabled by default, you can enable it with
+     *             {@code FastClasspathScanner#initializeLoadedClasses(true)} .) Otherwise exceptions are
+     *             suppressed, and classes are not added to the resulting list if loading them exhibits any of these
+     *             problems.
+     * @return a list of references to the loaded classes.
+     */
+    public <T> List<Class<T>> classNamesToClassRefs(final List<String> classNames, final Class<T> commonClassType,
+            final boolean ignoreExceptions) throws IllegalArgumentException {
+        if (classNames.isEmpty()) {
+            return Collections.<Class<T>> emptyList();
+        } else {
+            final List<Class<T>> classRefs = new ArrayList<>();
+            // Try loading each class
+            for (final String className : classNames) {
+                final Class<T> classRef = classNameToClassRef(className, commonClassType, ignoreExceptions);
+                if (classRef != null) {
+                    classRefs.add(classRef);
+                }
+            }
+            return classRefs.isEmpty() ? Collections.<Class<T>> emptyList() : classRefs;
+        }
+    }
+
+    /**
      * Produce a list of Class references given a list of class names. If any classes cannot be loaded (due to
      * classloading error, or due to an exception being thrown in the class initialization block),
      * IllegalArgumentException will be thrown.
@@ -882,13 +927,33 @@ public class ScanResult {
      * @param classNames
      *            The list of names of classes to load.
      * @throws IllegalArgumentException
-     *             an exception is thrown during classloading or class initialization. (Note that class
-     *             initialization on load is not enabled by default, you can enable it with
-     *             FastClasspathScanner#initializeLoadedClasses(true).)
+     *             if there were problems loading or initializing the classes. (Note that class initialization on
+     *             load is disabled by default, you can enable it with
+     *             {@code FastClasspathScanner#initializeLoadedClasses(true)} .)
      * @return a list of references to the loaded classes.
      */
     public List<Class<?>> classNamesToClassRefs(final List<String> classNames) throws IllegalArgumentException {
         return classNamesToClassRefs(classNames, /* ignoreExceptions = */ false);
+    }
+
+    /**
+     * Produce a list of Class references, given a list of names of classes extending a common superclass or
+     * implementing a common interface. If any classes cannot be loaded (due to classloading error, or due to an
+     * exception being thrown in the class initialization block), IllegalArgumentException will be thrown.
+     *
+     * @param classNames
+     *            The list of names of classes to load.
+     * @param commonClassType
+     *            The common superclass of, or interface implemented by, the named classes.
+     * @throws IllegalArgumentException
+     *             if there were problems loading the classes, initializing the classes, or casting them to the
+     *             requested type. (Note that class initialization on load is disabled by default, you can enable it
+     *             with {@code FastClasspathScanner#initializeLoadedClasses(true)} .)
+     * @return a list of references to the loaded classes.
+     */
+    public <T> List<Class<T>> classNamesToClassRefs(final List<String> classNames, final Class<T> commonClassType)
+            throws IllegalArgumentException {
+        return classNamesToClassRefs(classNames, commonClassType, /* ignoreExceptions = */ false);
     }
 
     /**
@@ -906,9 +971,10 @@ public class ScanResult {
      *            If true, null is returned if there was an exception during classloading, otherwise
      *            IllegalArgumentException is thrown if a class could not be loaded.
      * @throws IllegalArgumentException
-     *             if ignoreExceptions is false and an exception is thrown during classloading or class
-     *             initialization. (Note that class initialization on load is not enabled by default, you can enable
-     *             it with FastClasspathScanner#initializeLoadedClasses(true).)
+     *             if ignoreExceptions is false, IllegalArgumentException is thrown if there were problems loading
+     *             or initializing the class. (Note that class initialization on load is disabled by default, you
+     *             can enable it with {@code FastClasspathScanner#initializeLoadedClasses(true)} .) Otherwise
+     *             exceptions are suppressed, and null is returned if any of these problems occurs.
      * @return a reference to the loaded class, or null if the class could not be loaded and ignoreExceptions is
      *         true.
      */
@@ -916,6 +982,68 @@ public class ScanResult {
             throws IllegalArgumentException {
         try {
             return loadClass(className, /* returnNullIfClassNotFound = */ ignoreExceptions, log);
+        } catch (final Throwable e) {
+            if (ignoreExceptions) {
+                return null;
+            } else {
+                throw e;
+            }
+        } finally {
+            // Manually flush log, since this method is called after scanning is complete
+            if (log != null) {
+                log.flush();
+            }
+        }
+    }
+
+    /**
+     * Produce Class reference given a class name. If ignoreExceptions is false, and the class cannot be loaded (due
+     * to classloading error, or due to an exception being thrown in the class initialization block), an
+     * IllegalArgumentException is thrown; otherwise, the class will simply be skipped if an exception is thrown.
+     *
+     * <p>
+     * Enable verbose scanning to see details of any exceptions thrown during classloading, even if ignoreExceptions
+     * is false.
+     *
+     * @param className
+     *            The names of the class to load.
+     * @param classType
+     *            The class type to cast the result to.
+     * @param ignoreExceptions
+     *            If true, null is returned if there was an exception during classloading, otherwise
+     *            IllegalArgumentException is thrown if a class could not be loaded.
+     * @throws IllegalArgumentException
+     *             if ignoreExceptions is false, IllegalArgumentException is thrown if there were problems loading
+     *             the class, initializing the class, or casting it to the requested type. (Note that class
+     *             initialization on load is disabled by default, you can enable it with
+     *             {@code FastClasspathScanner#initializeLoadedClasses(true)} .) Otherwise exceptions are
+     *             suppressed, and null is returned if any of these problems occurs.
+     * @return a reference to the loaded class, or null if the class could not be loaded and ignoreExceptions is
+     *         true.
+     */
+    public <T> Class<T> classNameToClassRef(final String className, final Class<T> classType,
+            final boolean ignoreExceptions) throws IllegalArgumentException {
+        try {
+            if (classType == null) {
+                if (ignoreExceptions) {
+                    return null;
+                } else {
+                    throw new IllegalArgumentException("classType parameter cannot be null");
+                }
+            }
+            final Class<?> loadedClass = loadClass(className, /* returnNullIfClassNotFound = */ ignoreExceptions,
+                    log);
+            if (loadedClass != null && !classType.isAssignableFrom(loadedClass)) {
+                if (ignoreExceptions) {
+                    return null;
+                } else {
+                    throw new IllegalArgumentException(
+                            "Loaded class " + loadedClass.getName() + " cannot be cast to " + classType.getName());
+                }
+            }
+            @SuppressWarnings("unchecked")
+            final Class<T> castClass = (Class<T>) loadedClass;
+            return castClass;
         } catch (final Throwable e) {
             if (ignoreExceptions) {
                 return null;
@@ -941,14 +1069,38 @@ public class ScanResult {
      * @param className
      *            The names of the classe to load.
      * @throws IllegalArgumentException
-     *             if an exception is thrown during classloading or class initialization. (Note that class
-     *             initialization on load is not enabled by default, you can enable it with
-     *             FastClasspathScanner#initializeLoadedClasses(true).)
+     *             if there were problems loading or initializing the class. (Note that class initialization on load
+     *             is disabled by default, you can enable it with
+     *             {@code FastClasspathScanner#initializeLoadedClasses(true)} .)
      * @return a reference to the loaded class, or null if the class could not be loaded and ignoreExceptions is
      *         true.
      */
     public Class<?> classNameToClassRef(final String className) throws IllegalArgumentException {
         return classNameToClassRef(className, /* ignoreExceptions = */ false);
+    }
+
+    /**
+     * Produce Class reference given a class name. If the class cannot be loaded (due to classloading error, or due
+     * to an exception being thrown in the class initialization block), an IllegalArgumentException is thrown.
+     *
+     * <p>
+     * Enable verbose scanning to see details of any exceptions thrown during classloading, even if ignoreExceptions
+     * is false.
+     *
+     * @param className
+     *            The names of the classe to load.
+     * @param classType
+     *            The class type to cast the result to.
+     * @throws IllegalArgumentException
+     *             if there were problems loading the class, initializing the class, or casting it to the requested
+     *             type. (Note that class initialization on load is disabled by default, you can enable it with
+     *             {@code FastClasspathScanner#initializeLoadedClasses(true)} .)
+     * @return a reference to the loaded class, or null if the class could not be loaded and ignoreExceptions is
+     *         true.
+     */
+    public <T> Class<T> classNameToClassRef(final String className, final Class<T> classType)
+            throws IllegalArgumentException {
+        return classNameToClassRef(className, classType, /* ignoreExceptions = */ false);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -962,6 +1114,7 @@ public class ScanResult {
         public ScanSpec scanSpec;
         public List<ClassInfo> allClassInfo;
 
+        @SuppressWarnings("unused")
         public SerializationFormat() {
         }
 
