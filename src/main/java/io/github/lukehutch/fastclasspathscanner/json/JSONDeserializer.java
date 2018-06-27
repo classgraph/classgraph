@@ -169,7 +169,6 @@ public class JSONDeserializer {
             }
             return jsonVal;
         } else if (Enum.class.isAssignableFrom(rawType)) {
-            // TODO: test enums
             if (!(jsonVal instanceof CharSequence)) {
                 throw new IllegalArgumentException(
                         "Expected string for enum value; got " + jsonVal.getClass().getName());
@@ -317,9 +316,15 @@ public class JSONDeserializer {
         for (int i = 0; i < numItems; i++) {
             // Iterate through items of JSONObject or JSONArray (key is null for JSONArray)
             final Entry<String, Object> jsonObjectItem = isJsonObject ? jsonObject.items.get(i) : null;
-            final Object jsonArrayItem = isJsonObject ? null : jsonArray.items.get(i);
-            final String itemJsonKey = isJsonObject ? jsonObjectItem.getKey() : null;
-            final Object itemJsonValue = isJsonObject ? jsonObjectItem.getValue() : jsonArrayItem;
+            final String itemJsonKey;
+            final Object itemJsonValue;
+            if (isJsonObject) {
+                itemJsonKey = jsonObjectItem.getKey();
+                itemJsonValue = jsonObjectItem.getValue();
+            } else {
+                itemJsonKey = null;
+                itemJsonValue = jsonArray.items.get(i);
+            }
             final boolean itemJsonValueIsJsonObject = itemJsonValue instanceof JSONObject;
             final boolean itemJsonValueIsJsonArray = itemJsonValue instanceof JSONArray;
             final JSONObject itemJsonValueJsonObject = itemJsonValueIsJsonObject ? (JSONObject) itemJsonValue
@@ -643,7 +648,7 @@ public class JSONDeserializer {
         }
 
         // Create a JSONObject with one field of the requested name, and deserialize that into the requested object
-        final JSONObject wrapperJsonObj = new JSONObject();
+        final JSONObject wrapperJsonObj = new JSONObject(1);
         wrapperJsonObj.items.add(new SimpleEntry<>(fieldName, parsedJSON));
 
         // Populate the object field

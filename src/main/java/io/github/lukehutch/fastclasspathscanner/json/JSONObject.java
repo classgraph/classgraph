@@ -41,8 +41,8 @@ class JSONObject {
     /** Object id for cross-references, if known. */
     CharSequence objectId;
 
-    public JSONObject() {
-        items = new ArrayList<>();
+    public JSONObject(final int sizeHint) {
+        items = new ArrayList<>(sizeHint);
     }
 
     public JSONObject(final List<Entry<String, Object>> items) {
@@ -95,6 +95,7 @@ class JSONObject {
                     final String key = item.getKey();
                     if (key == null) {
                         // Keys must be quoted, so the unquoted null value cannot be a key
+                        // (Should not happen -- JSONParser.parseJSONObject checks for null keys)
                         throw new IllegalArgumentException("Cannot serialize JSON object with null key");
                     }
                     if (prettyPrint) {

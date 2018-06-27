@@ -211,7 +211,7 @@ class JSONParser extends Parser {
      * 
      * </pre>
      */
-    private Object parseNumber() {
+    private Object parseNumber() throws ParseException {
         final int startIdx = getPosition();
         if (peek() == '-') {
             next();
@@ -226,7 +226,7 @@ class JSONParser extends Parser {
         final int integralEndIdx = getPosition();
         final int numIntegralDigits = integralEndIdx - integralStartIdx;
         if (numIntegralDigits == 0) {
-            throw new IllegalArgumentException("Expected a number");
+            throw new ParseException(this, "Expected a number");
         }
         final boolean hasFractionalPart = peek() == '.';
         if (hasFractionalPart) {
@@ -238,7 +238,7 @@ class JSONParser extends Parser {
                 }
             }
             if (getPosition() - (integralEndIdx + 1) == 0) {
-                throw new IllegalArgumentException("Expected digits after decimal point");
+                throw new ParseException(this, "Expected digits after decimal point");
             }
         }
         final boolean hasExponentPart = peek() == '.';
@@ -256,7 +256,7 @@ class JSONParser extends Parser {
                 }
             }
             if (getPosition() - exponentStart == 0) {
-                throw new IllegalArgumentException("Expected an exponent");
+                throw new ParseException(this, "Expected an exponent");
             }
         }
         final int endIdx = getPosition();
@@ -342,7 +342,7 @@ class JSONParser extends Parser {
             }
             final CharSequence key = parseString();
             if (key == null) {
-                throw new IllegalArgumentException("Object keys must be strings");
+                throw new ParseException(this, "Object keys must be strings");
             }
             if (peek() != ':') {
                 return null;
