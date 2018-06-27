@@ -93,7 +93,7 @@ public class JSONSerializer {
                     }
                 } catch (IllegalArgumentException | IllegalAccessException e) {
                     // Should not happen
-                    throw new RuntimeException(e);
+                    throw new IllegalArgumentException("Could not access @Id-annotated field " + annotatedField, e);
                 }
             }
             if (idStr == null) {
@@ -186,7 +186,7 @@ public class JSONSerializer {
                 // do not have object ids.
                 throw new IllegalArgumentException(
                         "Cycles involving collections cannot be serialized, since collections are not "
-                                + "assigned object ids");
+                                + "assigned object ids. Reached cycle at: " + obj);
             } else {
                 // Object is its own ancestor -- output object reference instead of object to break cycle
                 return new JSONReference(obj);
@@ -308,7 +308,7 @@ public class JSONSerializer {
                 jsonVal = new JSONObject(convertedKeyValPairs);
 
             } catch (IllegalArgumentException | IllegalAccessException e) {
-                throw new RuntimeException("Could not serialize object to JSON", e);
+                throw new RuntimeException("Could not get value of field in object: " + obj, e);
             }
         }
 
