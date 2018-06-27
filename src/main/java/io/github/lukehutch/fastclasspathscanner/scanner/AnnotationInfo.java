@@ -121,7 +121,7 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
                     annotationConstantFloat = (Float) annotationParamValue;
                 } else if (annotationParamValue instanceof Double) {
                     annotationConstantDouble = (Double) annotationParamValue;
-                } else if (annotationParamValue instanceof String) {
+                } else if (annotationParamValue instanceof Byte) {
                     annotationConstantByte = (Byte) annotationParamValue;
                 } else {
                     throw new IllegalArgumentException(
