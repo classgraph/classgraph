@@ -101,9 +101,6 @@ public class ClasspathOrder {
                             ClasspathFinder.currDirPathStr, pathElement.substring(0, pathElement.length() - 2),
                             classLoaders, nestedJarHandler, subLog);
                     final String classpathEltParentDirPath = classpathEltParentDirRelativePath.getResolvedPath();
-                    if (log != null && !pathElement.equals(classpathEltParentDirPath)) {
-                        log.log("Normalizing path to: " + pathElement);
-                    }
                     if (!filter(classpathEltParentDirPath)) {
                         if (log != null) {
                             log.log("Classpath element did not match filter criterion, skipping: "
@@ -124,13 +121,14 @@ public class ClasspathOrder {
                         }
                         return false;
                     }
-                    final LogNode subSubLog = subLog == null ? null
-                            : subLog.log("Including wildcard classpath element: " + pathElement);
                     for (final File fileInDir : classpathEltParentDir.listFiles()) {
                         final String name = fileInDir.getName();
                         if (!name.equals(".") && !name.equals("..")) {
                             // Add each directory entry as a classpath element
-                            addClasspathElement(fileInDir.getPath(), classLoaders, subSubLog);
+                            String fileInDirPath = fileInDir.getPath();
+                            final LogNode subSubLog = subLog == null ? null
+                                    : subLog.log("Including classpath element matching wildcard: " + fileInDirPath);
+                            addClasspathElement(fileInDirPath, classLoaders, subSubLog);
                         }
                     }
                     return true;
@@ -151,9 +149,6 @@ public class ClasspathOrder {
             final RelativePath classpathEltRelativePath = new RelativePath(ClasspathFinder.currDirPathStr,
                     pathElement, classLoaders, nestedJarHandler, subLog);
             final String classpathEltPath = classpathEltRelativePath.getResolvedPath();
-            if (log != null && !pathElement.equals(classpathEltPath)) {
-                log.log("Normalizing path to: " + pathElement);
-            }
             if (!filter(classpathEltPath)) {
                 if (log != null) {
                     log.log("Classpath element did not match filter criterion, skipping: "
