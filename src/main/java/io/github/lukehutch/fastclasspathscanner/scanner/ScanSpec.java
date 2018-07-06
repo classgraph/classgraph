@@ -577,6 +577,9 @@ public class ScanSpec {
             if (!scanDirs) {
                 log.log("Scanning of directories (i.e. non-jarfiles) is disabled");
             }
+            if (ignoreParentClassLoaders) {
+                log.log("Ignoring parent classloaders");
+            }
         }
     }
 
