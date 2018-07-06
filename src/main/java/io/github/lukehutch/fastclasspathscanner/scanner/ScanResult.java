@@ -791,14 +791,13 @@ public class ScanResult {
             // to its superclass, if the class and its superclass are loaded into different classloaders, possibly
             // due to accidental loading and caching in the non-custom classloader). Basically if you're overriding
             // the classpath and/or defining custom classloaders, bad things will probably happen at some point!
-            throw new IllegalArgumentException(
-                    "Cannot load classes from custom classpath, defined using .overrideClasspath(), "
-                            + "since system classloaders may search a different classpath, and/or may have "
-                            + "already loaded and cached a class (which can lead to a class being loaded "
-                            + "twice, if a new classloader is defined using the custom classpath). "
-                            + "If you want to load classes from a custom classpath at runtime, you need "
-                            + "to define your own ClassLoader (e.g. using new URLClassLoader()), and then "
-                            + "use .overrideClassLoaders() instead");
+            if (log != null) {
+                log.log("When loading classes from a custom classpath, defined using .overrideClasspath(), "
+                        + "the correct classloader for the requested class " + className
+                        + " cannot reliably be determined. Will try loading the class using the default context "
+                        + "classLoader (which may or may not even be able to find the class). "
+                        + "Preferably always use .overrideClassLoaders() instead.");
+            }
         }
         if (className == null || className.isEmpty()) {
             throw new IllegalArgumentException("Cannot load class -- class names cannot be null or empty");
