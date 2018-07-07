@@ -79,6 +79,13 @@ public class LogNode {
     private static final DecimalFormat nanoFormatter = new DecimalFormat("0.000000");
 
     /**
+     * If this is set to true, log entries are output in realtime, as well as added to the LogNode tree. This can
+     * help debug situations where log info is never shown, e.g. deadlocks, or where you need to show the log info
+     * right up to the point where you hit a breakpoint.
+     */
+    public static boolean LOG_IN_REALTIME = false;
+
+    /**
      * Create a non-toplevel log node. The order may also be made deterministic by specifying a sort key for log
      * entries.
      */
@@ -93,6 +100,9 @@ public class LogNode {
             stackTrace = writer.toString();
         } else {
             stackTrace = null;
+        }
+        if (LOG_IN_REALTIME) {
+            System.err.println(toString());
         }
     }
 
