@@ -80,6 +80,7 @@ public class ClassFieldCache {
     }
 
     private static class NoConstructor {
+        @SuppressWarnings("unused")
         public NoConstructor() {
         }
     }
