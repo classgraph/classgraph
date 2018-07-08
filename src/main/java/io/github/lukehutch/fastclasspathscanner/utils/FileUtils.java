@@ -123,9 +123,9 @@ public class FileUtils {
                 return -1;
             }
 
-            len = Math.min(len, buf.remaining());
-            buf.get(bytes, off, len);
-            return len;
+            int minLen = Math.min(len, buf.remaining());
+            buf.get(bytes, off, minLen);
+            return minLen;
         }
     }
 }
