@@ -52,7 +52,6 @@ public class Issue209Test {
 
         final ScanResult result = new FastClasspathScanner("com.foo") //
                 .overrideClassLoaders(overrideClassLoader) //
-                .verbose() //
                 .scan();
 
         final Collection<ClassInfo> cis = result.getClassNameToClassInfo().values();
