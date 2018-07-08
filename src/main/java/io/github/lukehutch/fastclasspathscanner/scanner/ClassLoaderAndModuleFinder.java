@@ -96,8 +96,6 @@ public class ClassLoaderAndModuleFinder {
      *            The scan spec, or null if none available.
      * @param log
      *            The log.
-     * @return The list of classloaders for this environment, and any system and non-system modules that are
-     *         discovered (in JDK9+).
      */
     public ClassLoaderAndModuleFinder(final ScanSpec scanSpec, final LogNode log) {
         AdditionOrderedSet<ClassLoader> classLoadersUnique;
