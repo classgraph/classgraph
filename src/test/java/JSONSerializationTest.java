@@ -12,6 +12,7 @@ import io.github.lukehutch.fastclasspathscanner.json.JSONDeserializer;
 import io.github.lukehutch.fastclasspathscanner.json.JSONSerializer;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
 
+@SuppressWarnings("unused")
 public class JSONSerializationTest {
 
     private static class A<X, Y> {
