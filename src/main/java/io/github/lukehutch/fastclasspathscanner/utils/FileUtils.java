@@ -118,12 +118,12 @@ public class FileUtils {
         }
 
         @Override
-        public int read(final byte[] bytes, final int off, int len) throws IOException {
+        public int read(final byte[] bytes, final int off, final int len) throws IOException {
             if (!buf.hasRemaining()) {
                 return -1;
             }
 
-            int minLen = Math.min(len, buf.remaining());
+            final int minLen = Math.min(len, buf.remaining());
             buf.get(bytes, off, minLen);
             return minLen;
         }

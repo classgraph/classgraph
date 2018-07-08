@@ -823,6 +823,31 @@ public class ScanResult {
             return classRef;
         }
 
+        // If this class came from a jarfile with a package root (e.g. a Spring-Boot jar, with packages rooted
+        // at BOOT-INF/classes), then the problem is probably that the jarfile was on the classpath, but the
+        // scanner is not running inside the jar itself, so the necessary ClassLoader for the jar is not
+        // available. Unzip the jar starting from the package root, and create a URLClassLoader to load classes
+        // from the unzipped jar. (This is only done once per jar and package root, using the singleton pattern.)
+        final ClassInfo classInfo = classGraphBuilder.classNameToClassInfo.get(className);
+        if (classInfo != null && !classInfo.jarfilePackageRoot.isEmpty() && nestedJarHandler != null) {
+            try {
+                final ClassLoader customClassLoader = nestedJarHandler.getCustomClassLoaderForPackageRoot(
+                        classInfo.classpathElementFile, classInfo.jarfilePackageRoot, log);
+                final Class<?> customLoaderClassRef = loadClass(className, customClassLoader, log);
+                if (customLoaderClassRef != null) {
+                    return customLoaderClassRef;
+                }
+            } catch (final Exception e) {
+                if (log != null) {
+                    log.log("Could not create custom URLClassLoader to load class " + className + " from "
+                            + classInfo.classpathElementFile + "!/" + classInfo.jarfilePackageRoot, e);
+                }
+                if (returnNullIfClassNotFound) {
+                    return null;
+                }
+            }
+        }
+
         // Could not load class
         if (!returnNullIfClassNotFound) {
             throw new IllegalArgumentException("No classloader was able to load class " + className);

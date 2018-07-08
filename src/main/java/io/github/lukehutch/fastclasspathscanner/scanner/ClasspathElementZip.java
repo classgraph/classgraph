@@ -32,7 +32,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -43,10 +42,10 @@ import java.util.zip.ZipFile;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec.ScanSpecPathMatch;
 import io.github.lukehutch.fastclasspathscanner.scanner.matchers.FileMatchProcessorWrapper;
 import io.github.lukehutch.fastclasspathscanner.utils.ClasspathUtils;
-import io.github.lukehutch.fastclasspathscanner.utils.FastManifestParser;
 import io.github.lukehutch.fastclasspathscanner.utils.FastPathResolver;
 import io.github.lukehutch.fastclasspathscanner.utils.FileUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.InterruptionChecker;
+import io.github.lukehutch.fastclasspathscanner.utils.JarfileMetadataReader;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.MultiMapKeyToList;
 import io.github.lukehutch.fastclasspathscanner.utils.NestedJarHandler;
@@ -57,7 +56,7 @@ import io.github.lukehutch.fastclasspathscanner.utils.WorkQueue;
 class ClasspathElementZip extends ClasspathElement {
     private File classpathEltZipFile;
     /** Result of parsing the manifest file for this jarfile. */
-    private FastManifestParser fastManifestParser;
+    private JarfileMetadataReader jarfileMetadataReader;
 
     private Recycler<ZipFile, IOException> zipFileRecycler;
 
@@ -83,10 +82,20 @@ class ClasspathElementZip extends ClasspathElement {
             return;
         }
         try {
-            zipFileRecycler = nestedJarHandler.getZipFileRecycler(classpathEltZipFile.getPath(), log);
+            zipFileRecycler = nestedJarHandler.getZipFileRecycler(classpathEltZipFile, log);
         } catch (final Exception e) {
             if (log != null) {
                 log.log("Exception while creating zipfile recycler for " + classpathEltZipFile + " : " + e);
+            }
+            ioExceptionOnOpen = true;
+            return;
+        }
+
+        try {
+            jarfileMetadataReader = nestedJarHandler.getJarfileMetadataReader(classpathEltZipFile, log);
+        } catch (final Exception e) {
+            if (log != null) {
+                log.log("Exception while reading metadata from " + classpathEltZipFile + " : " + e);
             }
             ioExceptionOnOpen = true;
             return;
@@ -103,28 +112,26 @@ class ClasspathElementZip extends ClasspathElement {
                 ioExceptionOnOpen = true;
                 return;
             }
-            // If not performing a scan, get the manifest entry if present
-            fastManifestParser = new FastManifestParser(zipFile, log);
-            if (fastManifestParser != null && fastManifestParser.classPath != null) {
-                final LogNode manifestLog = log == null ? null
-                        : log.log("Manifest file " + FastManifestParser.MANIFEST_PATH + " has Class-Path entries");
+            // Parse the manifest entry if present
+            if (jarfileMetadataReader != null && jarfileMetadataReader.manifestClassPathEntries != null) {
+                final LogNode childClasspathLog = log == null ? null
+                        : log.log("Found additional classpath entries in metadata for " + classpathEltZipFile);
 
                 // Get the classpath elements from the Class-Path manifest entry (these are space-delimited).
-                childClasspathElts = new ArrayList<>(fastManifestParser.classPath.size());
+                childClasspathElts = new ArrayList<>(jarfileMetadataReader.manifestClassPathEntries.size());
 
                 // Class-Path entries in the manifest file are resolved relative to the dir the manifest's jarfile
                 // is contaiin. Get the parent path.
                 final String pathOfContainingDir = FastPathResolver.resolve(classpathEltZipFile.getParent());
 
                 // Create child classpath elements from Class-Path entry
-                for (int i = 0; i < fastManifestParser.classPath.size(); i++) {
-                    final String manifestClassPathEltPath = fastManifestParser.classPath.get(i);
+                for (int i = 0; i < jarfileMetadataReader.manifestClassPathEntries.size(); i++) {
+                    final String manifestClassPathEltPath = jarfileMetadataReader.manifestClassPathEntries.get(i);
                     final RelativePath childRelativePath = new RelativePath(pathOfContainingDir,
                             manifestClassPathEltPath, classpathEltPath.getClassLoaders(), nestedJarHandler, log);
                     childClasspathElts.add(childRelativePath);
-                    if (manifestLog != null) {
-                        manifestLog.log("Found Class-Path entry in manifest: " + manifestClassPathEltPath + " -> "
-                                + childRelativePath);
+                    if (childClasspathLog != null) {
+                        childClasspathLog.log(childRelativePath.toString());
                     }
                 }
 
@@ -174,7 +181,7 @@ class ClasspathElementZip extends ClasspathElement {
                 ioExceptionOnOpen = true;
                 return;
             }
-            scanZipFile(classpathEltZipFile, zipFile, classpathEltPath.getZipClasspathBaseDir(), logNode);
+            scanZipFile(classpathEltZipFile, zipFile, classpathEltPath.getJarfilePackageRoot(), logNode);
         } finally {
             zipFileRecycler.release(zipFile);
         }
@@ -261,16 +268,7 @@ class ClasspathElementZip extends ClasspathElement {
         Set<String> loggedNestedClasspathRoots = null;
         String prevParentRelativePath = null;
         ScanSpecPathMatch prevParentMatchStatus = null;
-        for (final Enumeration<? extends ZipEntry> entries = zipFile.entries(); entries.hasMoreElements();) {
-            // Get next ZipEntry
-            final ZipEntry zipEntry = entries.nextElement();
-
-            // Ignore directory entries, they are not used
-            final boolean isDir = zipEntry.isDirectory();
-            if (isDir) {
-                continue;
-            }
-
+        for (final ZipEntry zipEntry : jarfileMetadataReader.zipEntries) {
             // Normalize path of ZipEntry
             String relativePath = zipEntry.getName();
             if (relativePath.startsWith("/")) {

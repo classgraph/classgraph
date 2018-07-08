@@ -32,9 +32,12 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
+import java.net.URLClassLoader;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.AbstractMap.SimpleEntry;
+import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map.Entry;
@@ -67,7 +70,10 @@ import io.github.lukehutch.fastclasspathscanner.scanner.ModuleRef.ModuleReaderPr
 public class NestedJarHandler {
     private final ConcurrentLinkedDeque<File> tempFiles = new ConcurrentLinkedDeque<>();
     private final SingletonMap<String, Entry<File, Set<String>>> nestedPathToJarfileAndRootRelativePathsMap;
-    private final SingletonMap<String, Recycler<ZipFile, IOException>> canonicalPathToZipFileRecyclerMap;
+    private final SingletonMap<File, Recycler<ZipFile, IOException>> zipFileToRecyclerMap;
+    private final SingletonMap<File, JarfileMetadataReader> zipFileToJarfileMetadataReaderMap;
+    private final SingletonMap<Entry<File, String>, ClassLoader> //
+    classpathEltFileAndPackageRootToCustomClassLoaderMap;
     private final SingletonMap<ModuleRef, Recycler<ModuleReaderProxy, IOException>> //
     moduleReaderProxyToModuleReaderRecyclerMap;
     private final InterruptionChecker interruptionChecker;
@@ -79,18 +85,42 @@ public class NestedJarHandler {
         this.interruptionChecker = interruptionChecker;
 
         // Set up a singleton map from canonical path to ZipFile recycler
-        this.canonicalPathToZipFileRecyclerMap = new SingletonMap<String, Recycler<ZipFile, IOException>>() {
+        this.zipFileToRecyclerMap = new SingletonMap<File, Recycler<ZipFile, IOException>>() {
             @Override
-            public Recycler<ZipFile, IOException> newInstance(final String canonicalPath, final LogNode log)
+            public Recycler<ZipFile, IOException> newInstance(final File zipFile, final LogNode log)
                     throws Exception {
                 return new Recycler<ZipFile, IOException>() {
                     @Override
                     public ZipFile newInstance() throws IOException {
-                        return new ZipFile(canonicalPath);
+                        return new ZipFile(zipFile.getPath());
                     }
                 };
             }
         };
+
+        // Set up a singleton map from canonical path to FastManifestParser
+        this.zipFileToJarfileMetadataReaderMap = new SingletonMap<File, JarfileMetadataReader>() {
+            @Override
+            public JarfileMetadataReader newInstance(final File canonicalFile, final LogNode log) throws Exception {
+                return new JarfileMetadataReader(canonicalFile, log);
+            }
+        };
+
+        // Set up a singleton map from Spring-Boot URLs for a specific jar, and classloaders that was used to find
+        // the jar's path, to custom Spring Boot classloaders that can load classes from the URLs in the jar.
+        // (May need to construct a Spring Boot classloader if the scanner is not itself running in the same
+        // Spring-Boot jar -- see Issue #209.)
+        this.classpathEltFileAndPackageRootToCustomClassLoaderMap = //
+                new SingletonMap<Entry<File, String>, ClassLoader>() {
+                    @Override
+                    public ClassLoader newInstance(final Entry<File, String> ent, final LogNode log)
+                            throws Exception {
+                        final File classpathEltFile = ent.getKey();
+                        final String packageRoot = ent.getValue();
+                        final File tempDir = unzipToTempDir(classpathEltFile, packageRoot, log);
+                        return new URLClassLoader(new URL[] { tempDir.toURI().toURL() });
+                    }
+                };
 
         // Set up a singleton map from ModuleRef object to ModuleReaderProxy recycler
         this.moduleReaderProxyToModuleReaderRecyclerMap = //
@@ -192,8 +222,8 @@ public class NestedJarHandler {
                     }
 
                     // Get the ZipFile recycler for the parent jar's canonical path
-                    final Recycler<ZipFile, IOException> parentJarRecycler = canonicalPathToZipFileRecyclerMap
-                            .getOrCreateSingleton(parentJarFile.getCanonicalPath(), log);
+                    final Recycler<ZipFile, IOException> parentJarRecycler = zipFileToRecyclerMap
+                            .getOrCreateSingleton(parentJarFile.getCanonicalFile(), log);
                     ZipFile parentZipFile = null;
                     try {
                         // Look up the child path within the parent zipfile
@@ -266,9 +296,27 @@ public class NestedJarHandler {
      *
      * @return The ZipFile recycler.
      */
-    public Recycler<ZipFile, IOException> getZipFileRecycler(final String canonicalPath, final LogNode log)
+    public Recycler<ZipFile, IOException> getZipFileRecycler(final File zipFile, final LogNode log)
             throws Exception {
-        return canonicalPathToZipFileRecyclerMap.getOrCreateSingleton(canonicalPath, log);
+        return zipFileToRecyclerMap.getOrCreateSingleton(zipFile, log);
+    }
+
+    /**
+     * Get a {@link JarfileMetadataReader} singleton for a given jarfile (so that the manifest and ZipEntries will
+     * only be read once).
+     */
+    public JarfileMetadataReader getJarfileMetadataReader(final File zipFile, final LogNode log) throws Exception {
+        return zipFileToJarfileMetadataReaderMap.getOrCreateSingleton(zipFile, log);
+    }
+
+    /**
+     * Within a singleton constructor, unzip a jarfile, starting from the given package root, and return a custom
+     * {@link URLClassLoader} that can load classes from the package root in the unzipped jarfile.
+     */
+    public ClassLoader getCustomClassLoaderForPackageRoot(final File classpathEltJarfile, final String packageRoot,
+            final LogNode log) throws Exception {
+        return classpathEltFileAndPackageRootToCustomClassLoaderMap
+                .getOrCreateSingleton(new SimpleEntry<>(classpathEltJarfile, packageRoot), log);
     }
 
     /**
@@ -301,14 +349,31 @@ public class NestedJarHandler {
         return nestedPathToJarfileAndRootRelativePathsMap.getOrCreateSingleton(nestedJarPath, log);
     }
 
+    private String leafname(final String path) {
+        return path.substring(path.lastIndexOf('/') + 1);
+    }
+
+    private String parentPath(final String filePath) {
+        final int lastSlash = filePath.lastIndexOf('/');
+        if (lastSlash <= 0) {
+            return "";
+        } else {
+            return filePath.substring(0, lastSlash);
+        }
+    }
+
+    private String sanitizeFilename(final String filename) {
+        return filename.replace('/', '_').replace('\\', '_').replace(':', '_').replace('?', '_').replace('&', '_')
+                .replace('=', '_').replace('.', '_').replace(' ', '_');
+    }
+
     /** Download a jar from a URL to a temporary file. */
     private File downloadTempFile(final String jarURL, final LogNode log) {
         final LogNode subLog = log == null ? null : log.log(jarURL, "Downloading URL " + jarURL);
         File tempFile = null;
         try {
-            final String suffix = TEMP_FILENAME_LEAF_SEPARATOR + jarURL.replace('/', '_').replace(':', '_')
-                    .replace('?', '_').replace('&', '_').replace('=', '_');
-            tempFile = File.createTempFile("FastClasspathScanner-", suffix);
+            final String suffix = TEMP_FILENAME_LEAF_SEPARATOR + sanitizeFilename(jarURL);
+            tempFile = File.createTempFile("FCS--", suffix);
             tempFile.deleteOnExit();
             tempFiles.add(tempFile);
             final URL url = new URL(jarURL);
@@ -335,7 +400,7 @@ public class NestedJarHandler {
 
     /**
      * Unzip a ZipEntry to a temporary file, then return the temporary file. The temporary file will be removed when
-     * NestedJarHandler#close() is called.
+     * {@link NestedJarHandler#close()} is called.
      */
     private File unzipToTempFile(final ZipFile zipFile, final ZipEntry zipEntry, final LogNode log)
             throws IOException {
@@ -343,17 +408,16 @@ public class NestedJarHandler {
         if (zipEntryPath.startsWith("/")) {
             zipEntryPath = zipEntryPath.substring(1);
         }
-        final String zipEntryLeaf = zipEntryPath.substring(zipEntryPath.lastIndexOf('/') + 1);
         // The following filename format is also expected by JarUtils.leafName()
-        final File tempFile = File.createTempFile("FastClasspathScanner-",
-                TEMP_FILENAME_LEAF_SEPARATOR + zipEntryLeaf);
+        final File tempFile = File.createTempFile("FCS--", TEMP_FILENAME_LEAF_SEPARATOR + leafname(zipEntryPath));
         tempFile.deleteOnExit();
         tempFiles.add(tempFile);
         LogNode subLog = null;
         if (log != null) {
-            final String qualifiedPath = zipFile.getName() + "!/" + zipEntryPath;
-            subLog = log.log(qualifiedPath, "Unzipping zip entry " + qualifiedPath);
-            subLog.log("Extracted to temporary file " + tempFile.getPath());
+            subLog = log
+                    .log(zipFile.getName() + "!/" + zipEntryPath,
+                            "Unzipping " + (zipFile.getName() + "!/" + zipEntryPath))
+                    .log("Extracted to temporary file " + tempFile.getPath());
         }
         try (InputStream inputStream = zipFile.getInputStream(zipEntry)) {
             Files.copy(inputStream, tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
@@ -362,6 +426,89 @@ public class NestedJarHandler {
             subLog.addElapsedTime();
         }
         return tempFile;
+    }
+
+    /**
+     * Unzip a given package root within a zipfile to a temporary directory, then return the temporary directory.
+     * The temporary directory and all of its contents will be removed when {@link NestedJarHandler#close()} is
+     * called.
+     */
+    private File unzipToTempDir(final File jarFile, final String packageRoot, final LogNode log)
+            throws IOException {
+        final LogNode subLog = log == null ? null
+                : log.log("Unzipping " + jarFile + " from package root " + packageRoot);
+
+        // Create temporary directory to unzip into
+        final Path tempDirPath = Files.createTempDirectory("FCS--" + sanitizeFilename(leafname(jarFile.getName()))
+                + "--" + sanitizeFilename(packageRoot) + "--");
+        final File tempDir = tempDirPath.toFile();
+        tempDir.deleteOnExit();
+        tempFiles.add(tempDir);
+
+        try (ZipFile zipFile = new ZipFile(jarFile)) {
+            final String pathPrefix = packageRoot + '/';
+            final int pathPrefixLen = pathPrefix.length();
+            final Set<String> mkDirsPaths = new HashSet<>();
+            for (final Enumeration<? extends ZipEntry> e = zipFile.entries(); e.hasMoreElements();) {
+                final ZipEntry zipEntry = e.nextElement();
+                String entName = zipEntry.getName();
+                // Skip directory entries
+                if (!zipEntry.isDirectory() && !entName.endsWith("/")) {
+                    // Strip any leading '/' in ZipEntry paths
+                    if (entName.startsWith("/")) {
+                        entName = entName.substring(1);
+                    }
+                    if (entName.startsWith(pathPrefix)) {
+                        // Strip off package root prefix from ZipEntry path
+                        final String pathWithinPackageRoot = entName.substring(pathPrefixLen);
+
+                        // Get path of file to unzip to
+                        final Path pathToFileToUnzip = tempDirPath.resolve(pathWithinPackageRoot);
+                        final File fileToUnzip = pathToFileToUnzip.toFile();
+
+                        // Make sure parent directories exist
+                        final String parentPathStr = parentPath(pathWithinPackageRoot);
+                        if (!parentPathStr.isEmpty() && mkDirsPaths.add(parentPathStr)) {
+                            // This parent dir has not yet been reached -- perform "mkdirs" (although we need
+                            // to do this manually, one at a time, so that the temp dirs will be removed on exit)
+                            File curr = tempDir;
+                            for (final String part : parentPathStr.split("/")) {
+                                final File next = new File(curr, part);
+                                if (!next.exists()) {
+                                    final boolean created = next.mkdir();
+                                    if (!created) {
+                                        throw new IOException("Could not create dir: " + next);
+                                    }
+                                    next.deleteOnExit();
+                                    tempFiles.add(next);
+                                } else if (!next.isDirectory()) {
+                                    throw new IOException("Tried to unzip as both a directory and a file: " + next);
+                                }
+                                curr = next;
+                            }
+                        }
+
+                        // Unzip file
+                        final LogNode subSubLog = subLog == null ? null
+                                : subLog.log(jarFile.getName() + "!" + entName,
+                                        "Unzipping " + (jarFile.getName() + "!" + entName));
+                        try (InputStream inputStream = zipFile.getInputStream(zipEntry)) {
+                            Files.copy(inputStream, pathToFileToUnzip, StandardCopyOption.REPLACE_EXISTING);
+                        } catch (final Exception ex) {
+                            if (subSubLog != null) {
+                                subSubLog.log("Could not unzip file: " + ex);
+                            }
+                        }
+                        fileToUnzip.deleteOnExit();
+                        tempFiles.add(fileToUnzip);
+                        if (subSubLog != null) {
+                            subSubLog.log("Extracted to temporary file: " + pathToFileToUnzip);
+                        }
+                    }
+                }
+            }
+        }
+        return tempDir;
     }
 
     /**
@@ -381,7 +528,7 @@ public class NestedJarHandler {
             return zipfile;
         } else {
             // Need to strip off ZipSFX header (e.g. Bash script prepended by Spring-Boot)
-            final File bareZipfile = File.createTempFile("FastClasspathScanner-",
+            final File bareZipfile = File.createTempFile("FCS--",
                     TEMP_FILENAME_LEAF_SEPARATOR + JarUtils.leafName(zipfile.getName()));
             bareZipfile.deleteOnExit();
             tempFiles.add(bareZipfile);
@@ -407,7 +554,7 @@ public class NestedJarHandler {
         }
         List<Recycler<ZipFile, IOException>> recyclers = null;
         try {
-            recyclers = canonicalPathToZipFileRecyclerMap.values();
+            recyclers = zipFileToRecyclerMap.values();
         } catch (final InterruptedException e) {
             // Stop other threads
             interruptionChecker.interrupt();
@@ -416,7 +563,7 @@ public class NestedJarHandler {
             for (final Recycler<ZipFile, IOException> recycler : recyclers) {
                 recycler.close();
             }
-            canonicalPathToZipFileRecyclerMap.clear();
+            zipFileToRecyclerMap.clear();
         }
     }
 }

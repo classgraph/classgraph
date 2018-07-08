@@ -97,6 +97,13 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     transient File classpathElementFile;
 
     /**
+     * The package root within a jarfile (e.g. "BOOT-INF/classes"), or the empty string if this is not a jarfile, or
+     * the package root is the classpath element path (as opposed to within a subdirectory of the classpath
+     * element).
+     */
+    transient String jarfilePackageRoot = "";
+
+    /**
      * The classpath element module that this class was found within, or null if this class was found within a
      * directory or jar.
      */
@@ -919,6 +926,8 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
         if (classInfo.classpathElementFile == null) {
             // If class was found in more than one classpath element, keep the first classpath element reference 
             classInfo.classpathElementFile = file;
+            // Save jarfile package root, if any
+            classInfo.jarfilePackageRoot = classpathElement.getJarfilePackageRoot();
         }
         if (classInfo.classpathElementModuleRef == null) {
             // If class was found in more than one module, keep the first module reference 

@@ -267,9 +267,9 @@ public class Scanner implements Callable<ScanResult> {
             }
 
             // In parallel, resolve raw classpath elements to canonical paths, creating a ClasspathElement singleton
-            // for each unique canonical path. Also check jars against jar whitelist/blacklist.a
+            // for each unique canonical path. Also check jars against jar whitelist/blacklist.
             final LogNode preScanLog = classpathFinderLog == null ? null
-                    : classpathFinderLog.log("Searching for \"Class-Path:\" entries within manifest files");
+                    : classpathFinderLog.log("Reading jarfile metadata");
             final RelativePathToElementMap classpathElementMap = new RelativePathToElementMap(
                     enableRecursiveScanning, scanSpec, nestedJarHandler, interruptionChecker);
             WorkQueue.runWorkQueue(rawClasspathEltOrder, executorService, numParallelTasks,
@@ -356,7 +356,8 @@ public class Scanner implements Callable<ScanResult> {
             if (enableRecursiveScanning) {
 
                 // Find classpath elements that are path prefixes of other classpath elements
-                final List<SimpleEntry<String, ClasspathElement>> classpathEltResolvedPathToElement = new ArrayList<>();
+                final List<SimpleEntry<String, ClasspathElement>> classpathEltResolvedPathToElement = //
+                        new ArrayList<>();
                 for (int i = 0; i < classpathOrder.size(); i++) {
                     final ClasspathElement classpathElement = classpathOrder.get(i);
                     classpathEltResolvedPathToElement.add(new SimpleEntry<>(

@@ -125,7 +125,7 @@ public class ClasspathOrder {
                         final String name = fileInDir.getName();
                         if (!name.equals(".") && !name.equals("..")) {
                             // Add each directory entry as a classpath element
-                            String fileInDirPath = fileInDir.getPath();
+                            final String fileInDirPath = fileInDir.getPath();
                             final LogNode subSubLog = subLog == null ? null
                                     : subLog.log("Including classpath element matching wildcard: " + fileInDirPath);
                             addClasspathElement(fileInDirPath, classLoaders, subSubLog);

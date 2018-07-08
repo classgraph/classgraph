@@ -110,7 +110,7 @@ abstract class ClasspathElement {
     /** Return the classpath element's path. */
     @Override
     public String toString() {
-        return getClasspathElementFilePath();
+        return classpathEltPath.toString();
     }
 
     /** Return the classpath element's file (directory or jarfile), or null if this is a module. */
@@ -126,9 +126,12 @@ abstract class ClasspathElement {
         }
     }
 
-    /** The path for this classpath element, possibly including a '!' jar-internal path suffix. */
-    public String getClasspathElementFilePath() {
-        return classpathEltPath.toString();
+    /**
+     * If non-empty, this path represents the package root within a jarfile, e.g. if the path is
+     * "spring-project.jar!/BOOT-INF/classes", the package root is "BOOT-INF/classes".
+     */
+    public String getJarfilePackageRoot() {
+        return classpathEltPath.getJarfilePackageRoot();
     }
 
     /** Get the ClassLoader(s) to use when trying to load the class. */

@@ -57,10 +57,10 @@ class RelativePath {
     private final String relativePath;
 
     /**
-     * For jarfiles, this gives the trailing zip-internal path, if the section of the path after the last '!' is not
-     * a jarfile.
+     * For jarfiles, this gives the package root (e.g. "BOOT-INF/classes"), if the section of the path after the
+     * last '!' is not a jarfile.
      */
-    private String zipClasspathBaseDir = "";
+    private String jarfilePackageRoot = "";
 
     /** Handler for nested jars. */
     private final NestedJarHandler nestedJarHandler;
@@ -158,7 +158,7 @@ class RelativePath {
     /** Hash based on canonical path. */
     @Override
     public int hashCode() {
-        return relativePath.hashCode() + 31 * zipClasspathBaseDir.hashCode();
+        return relativePath.hashCode() + 31 * jarfilePackageRoot.hashCode();
     }
 
     /** Return true based on equality of canonical paths. */
@@ -181,21 +181,29 @@ class RelativePath {
             if (!thisCp.equals(otherCp)) {
                 return false;
             }
-            return getZipClasspathBaseDir().equals(other.getZipClasspathBaseDir());
+            return getJarfilePackageRoot().equals(other.getJarfilePackageRoot());
         } catch (final IOException e) {
             return false;
         }
     }
 
-    /** Return the canonical path. */
+    /** Return the path. */
     @Override
     public String toString() {
-        return zipClasspathBaseDir.isEmpty() ? getResolvedPath() : getResolvedPath() + "!" + zipClasspathBaseDir;
+        if (jarfilePackageRoot.isEmpty()) {
+            return getResolvedPath();
+        } else {
+            try {
+                return getFile(null) + "!" + jarfilePackageRoot;
+            } catch (final Exception e) {
+                return getResolvedPath();
+            }
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Get the ClassLoader(s) that should be used to load classes for this classpath element */
+    /** Get the ClassLoader(s) that should be used to load classes for this classpath element. */
     public ClassLoader[] getClassLoaders() {
         return classLoaders;
     }
@@ -203,7 +211,14 @@ class RelativePath {
     /** Get the path of this classpath element, resolved against the parent path. */
     public String getResolvedPath() {
         if (!resolvedPathIsCached) {
-            resolvedPathCached = FastPathResolver.resolve(pathToResolveAgainst, relativePath);
+            final String resolvedPath = FastPathResolver.resolve(pathToResolveAgainst, relativePath);
+            if (resolvedPath.endsWith("!")) {
+                resolvedPathCached = resolvedPath.substring(0, resolvedPath.length() - 1);
+            } else if (resolvedPath.endsWith("!/")) {
+                resolvedPathCached = resolvedPath.substring(0, resolvedPath.length() - 2);
+            } else {
+                resolvedPathCached = resolvedPath;
+            }
             resolvedPathIsCached = true;
         }
         return resolvedPathCached;
@@ -270,15 +285,18 @@ class RelativePath {
                         final Set<String> rootRelativePaths = innermostJarAndRootRelativePaths.getValue();
                         if (!rootRelativePaths.isEmpty()) {
                             // Get section after last '!' (stripping any initial '/')
-                            final String tail = path.length() == plingIdx + 1 ? ""
+                            final String tail = path.length() == plingIdx + 1 || plingIdx == -1 ? ""
                                     : path.charAt(plingIdx + 1) == '/' ? path.substring(plingIdx + 2)
                                             : path.substring(plingIdx + 1);
                             // Check to see if last segment is listed in the set of root relative paths for the jar
                             // -- if so, then this is the classpath base for this jarfile
                             if (rootRelativePaths.contains(tail)) {
+                                jarfilePackageRoot = tail;
+                            } else {
+                                if (log != null) {
+                                    log.log("Classpath suffix is not a valid zipfile path: !" + tail);
+                                }
                             }
-
-                            zipClasspathBaseDir = tail;
                         }
                     }
                 } catch (final Exception e) {
@@ -303,11 +321,11 @@ class RelativePath {
     }
 
     /**
-     * If non-empty, this path represents a classpath root within a jarfile, e.g. if the path is
-     * "spring-project.jar!/BOOT-INF/classes", the zipClasspathBaseDir is "BOOT-INF/classes".
+     * If non-empty, this path represents the package root within a jarfile, e.g. if the path is
+     * "spring-project.jar!/BOOT-INF/classes", the package root is "BOOT-INF/classes".
      */
-    public String getZipClasspathBaseDir() {
-        return zipClasspathBaseDir;
+    public String getJarfilePackageRoot() {
+        return jarfilePackageRoot;
     }
 
     /** Gets the canonical path of the File object corresponding to the resolved path. */
