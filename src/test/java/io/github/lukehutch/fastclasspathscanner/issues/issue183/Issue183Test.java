@@ -53,6 +53,7 @@ public class Issue183Test {
 
     @Test
     public void testSuppressMatchProcessorExceptions() {
+        @SuppressWarnings("unused")
         ScanResult scanResult = null;
         try {
             scanResult = new FastClasspathScanner(Issue183Test.class.getPackage().getName()) //
