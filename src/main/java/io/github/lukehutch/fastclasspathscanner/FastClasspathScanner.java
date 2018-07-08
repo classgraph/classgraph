@@ -369,6 +369,23 @@ public class FastClasspathScanner {
     }
 
     /**
+     * Whether to enable the adding of nested jars within the library directories of Spring-Boot jars or WARs (in
+     * "lib/", "BOOT-INF/lib/*.jar", "WEB-INF/lib/*.jar", or "WEB-INF/lib-provided/*.jar") to the classpath. This is
+     * needed if you are adding a Spring-Boot jar or a WAR to the classpath, but you're not running the scanner from
+     * within that Spring-Boot jar or WAR. This will cause all the nested lib jars to be extracted and added to the
+     * classpath to be scanned.
+     *
+     * @param addNestedLibJarsToClasspath
+     *            If true, scan nested lib jars. If false (the default), do not automatically scan nested lib jars,
+     *            unless they are explicitly listed on the classpath.
+     * @return this (for method chaining).
+     */
+    public FastClasspathScanner addNestedLibJarsToClasspath(final boolean addNestedLibJarsToClasspath) {
+        getScanSpec().addNestedLibJarsToClasspath = addNestedLibJarsToClasspath;
+        return this;
+    }
+
+    /**
      * Allows you to scan default packages (with package name "") without scanning sub-packages unless they are
      * whitelisted. This is needed because if you add the package name "" to the whitelist, that package and all
      * sub-packages will be scanned, which means everything will be scanned. This method makes it possible to

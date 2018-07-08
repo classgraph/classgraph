@@ -110,7 +110,7 @@ public class JarfileMetadataReader {
      * class, so has lower overhead. Only extracts a few specific entries from the manifest file, if present.
      * Assumes there is only one of each entry present in the manifest.
      */
-    public JarfileMetadataReader(final File jarFile, final LogNode log) {
+    public JarfileMetadataReader(final File jarFile, final boolean scanNestedLibJars, final LogNode log) {
         zipEntries = new ArrayList<>();
         try (ZipFile zipFile = new ZipFile(jarFile)) {
             boolean hasBootInfClasses = false;
@@ -135,10 +135,12 @@ public class JarfileMetadataReader {
                     zipEntries.add(zipEntry);
 
                     // Scan for jars in common lib dirs (e.g. Spring-Boot and Spring WAR lib directories)
-                    if ((zipEntryPath.startsWith("BOOT-INF/lib/") || zipEntryPath.startsWith("WEB-INF/lib/")
-                            || zipEntryPath.startsWith("WEB-INF/lib-provided/") || zipEntryPath.startsWith("lib/"))
-                            // Look for jarfiles within the above lib dirs
-                            && zipEntryPath.endsWith(".jar")) {
+                    if (scanNestedLibJars && //
+                            ((zipEntryPath.startsWith("BOOT-INF/lib/") || zipEntryPath.startsWith("WEB-INF/lib/")
+                                    || zipEntryPath.startsWith("WEB-INF/lib-provided/")
+                                    || zipEntryPath.startsWith("lib/"))
+                                    // Look for jarfiles within the above lib paths
+                                    && zipEntryPath.endsWith(".jar"))) {
                         // Found a jarfile that should probably be added to the classpath. This is needed because
                         // if for example you manually add a Spring-Boot jar to your classpath, but your scanning
                         // code is not running within the Spring-Boot jar itself, then the classloader for that
@@ -207,20 +209,22 @@ public class JarfileMetadataReader {
                                     }
                                 }
                             }
-                            final int springBootLibIdx = manifest.indexOf("\nSpring-Boot-Lib:");
-                            if (springBootLibIdx >= 0) {
-                                String springBootLib = extractManifestField(manifest, springBootLibIdx + 17);
-                                if (springBootLib.endsWith("/")) {
-                                    springBootLib = springBootLib.substring(0, springBootLib.length() - 1);
-                                }
-                                if (springBootLib.startsWith("/")) {
-                                    springBootLib = springBootLib.substring(1);
-                                }
-                                if (!springBootLib.equals("BOOT-INF/lib")) {
-                                    // Non-standard Spring-Boot lib dir
-                                    nonStandardSpringBootLib = springBootLib;
-                                    if (log != null) {
-                                        log.log("Found Spring-Boot lib dir: " + springBootLib);
+                            if (scanNestedLibJars) {
+                                final int springBootLibIdx = manifest.indexOf("\nSpring-Boot-Lib:");
+                                if (springBootLibIdx >= 0) {
+                                    String springBootLib = extractManifestField(manifest, springBootLibIdx + 17);
+                                    if (springBootLib.endsWith("/")) {
+                                        springBootLib = springBootLib.substring(0, springBootLib.length() - 1);
+                                    }
+                                    if (springBootLib.startsWith("/")) {
+                                        springBootLib = springBootLib.substring(1);
+                                    }
+                                    if (!springBootLib.equals("BOOT-INF/lib")) {
+                                        // Non-standard Spring-Boot lib dir
+                                        nonStandardSpringBootLib = springBootLib;
+                                        if (log != null) {
+                                            log.log("Found Spring-Boot lib dir: " + springBootLib);
+                                        }
                                     }
                                 }
                             }

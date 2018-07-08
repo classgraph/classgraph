@@ -203,8 +203,7 @@ public class Scanner implements Callable<ScanResult> {
     @Override
     public ScanResult call() throws InterruptedException, ExecutionException {
         final LogNode classpathFinderLog = log == null ? null : log.log("Finding classpath entries");
-        this.nestedJarHandler = new NestedJarHandler(scanSpec.stripSFXHeader, interruptionChecker,
-                classpathFinderLog);
+        this.nestedJarHandler = new NestedJarHandler(scanSpec, interruptionChecker, classpathFinderLog);
         try {
             final long scanStart = System.nanoTime();
 

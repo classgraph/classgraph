@@ -33,7 +33,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 
 import org.junit.Test;
@@ -44,23 +43,46 @@ import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
 
 public class Issue209Test {
     @Test
-    public void issue209Test() {
-        final ClassLoader classLoader = Issue209Test.class.getClassLoader();
-        final String aJarName = "issue209.jar";
-        final URL aJarURL = classLoader.getResource(aJarName);
-        final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
+    public void testWithoutLibJars() {
+        final ScanResult result = new FastClasspathScanner( //
+                "org.springframework.boot.loader.util", "com.foo", "org.slf4j") //
+                        .overrideClassLoaders(new URLClassLoader(
+                                new URL[] { Issue209Test.class.getClassLoader().getResource("issue209.jar") })) //
+                        .scan();
 
-        final ScanResult result = new FastClasspathScanner("com.foo") //
-                .overrideClassLoaders(overrideClassLoader) //
-                .scan();
-
-        final Collection<ClassInfo> cis = result.getClassNameToClassInfo().values();
         final List<String> classNames = new ArrayList<>();
-        for (final ClassInfo ci : cis) {
+        for (final ClassInfo ci : result.getClassNameToClassInfo().values()) {
             final Class<?> classRef = ci.getClassRef();
             classNames.add(classRef.getName());
         }
-        assertThat(classNames).containsOnly("com.foo.externalApp.ExternalAppApplication",
-                "com.foo.externalApp.SomeClass");
+        assertThat(classNames).containsOnly(
+                // Test reading from /
+                "org.springframework.boot.loader.util.SystemPropertyUtils",
+                // Test reading from /BOOT-INF/classes
+                "com.foo.externalApp.ExternalAppApplication", "com.foo.externalApp.SomeClass");
+    }
+
+    @Test
+    public void testWithLibJars() {
+        final ScanResult result = new FastClasspathScanner( //
+                "org.springframework.boot.loader.util", "com.foo", "org.slf4j") //
+                        .overrideClassLoaders(new URLClassLoader(
+                                new URL[] { Issue209Test.class.getClassLoader().getResource("issue209.jar") })) //
+                        // Also add BOOT-INF/lib to the classpath
+                        .addNestedLibJarsToClasspath(true) //
+                        .scan();
+
+        final List<String> classNames = new ArrayList<>();
+        for (final ClassInfo ci : result.getClassNameToClassInfo().values()) {
+            final Class<?> classRef = ci.getClassRef();
+            classNames.add(classRef.getName());
+        }
+        assertThat(classNames).containsOnly(
+                // Test reading from /
+                "org.springframework.boot.loader.util.SystemPropertyUtils",
+                // Test reading from /BOOT-INF/classes
+                "com.foo.externalApp.ExternalAppApplication", "com.foo.externalApp.SomeClass",
+                // Test reading from /BOOT-INF/lib/*.jar
+                "org.slf4j.bridge.SLF4JBridgeHandler");
     }
 }

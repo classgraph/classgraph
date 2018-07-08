@@ -48,6 +48,7 @@ import java.util.zip.ZipFile;
 
 import io.github.lukehutch.fastclasspathscanner.scanner.ModuleRef;
 import io.github.lukehutch.fastclasspathscanner.scanner.ModuleRef.ModuleReaderProxy;
+import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
 
 /**
  * Unzip a jarfile within a jarfile to a temporary file on disk. Also handles the download of jars from http(s) URLs
@@ -80,7 +81,7 @@ public class NestedJarHandler {
 
     public static final String TEMP_FILENAME_LEAF_SEPARATOR = "---";
 
-    public NestedJarHandler(final boolean stripSFXHeader, final InterruptionChecker interruptionChecker,
+    public NestedJarHandler(final ScanSpec scanSpec, final InterruptionChecker interruptionChecker,
             final LogNode log) {
         this.interruptionChecker = interruptionChecker;
 
@@ -102,7 +103,7 @@ public class NestedJarHandler {
         this.zipFileToJarfileMetadataReaderMap = new SingletonMap<File, JarfileMetadataReader>() {
             @Override
             public JarfileMetadataReader newInstance(final File canonicalFile, final LogNode log) throws Exception {
-                return new JarfileMetadataReader(canonicalFile, log);
+                return new JarfileMetadataReader(canonicalFile, scanSpec.addNestedLibJarsToClasspath, log);
             }
         };
 
@@ -117,8 +118,14 @@ public class NestedJarHandler {
                             throws Exception {
                         final File classpathEltFile = ent.getKey();
                         final String packageRoot = ent.getValue();
-                        final File tempDir = unzipToTempDir(classpathEltFile, packageRoot, log);
-                        return new URLClassLoader(new URL[] { tempDir.toURI().toURL() });
+                        if (packageRoot.isEmpty()) {
+                            // If packageRoot is "", just create a new URL pointing to the jarfile
+                            return new URLClassLoader(new URL[] { classpathEltFile.toURI().toURL() });
+                        } else {
+                            // Otherwise unzip the contents of the jarfile, starting at packageRoot
+                            final File tempDir = unzipToTempDir(classpathEltFile, packageRoot, log);
+                            return new URLClassLoader(new URL[] { tempDir.toURI().toURL() });
+                        }
                     }
                 };
 
@@ -182,7 +189,8 @@ public class NestedJarHandler {
                         return null;
                     }
                     // Handle self-extracting archives (they can be created by Spring-Boot)
-                    final File bareJarfile = stripSFXHeader ? stripSFXHeader(canonicalFile, log) : canonicalFile;
+                    final File bareJarfile = scanSpec.stripSFXHeader ? stripSFXHeader(canonicalFile, log)
+                            : canonicalFile;
                     // Return canonical file as the singleton entry for this path
                     final Set<String> rootRelativePaths = new HashSet<>();
                     return new SimpleEntry<>(bareJarfile, rootRelativePaths);
@@ -268,7 +276,8 @@ public class NestedJarHandler {
 
                         try {
                             // Handle self-extracting archives (can be created by Spring-Boot)
-                            final File bareChildTempFile = stripSFXHeader ? stripSFXHeader(childTempFile, log)
+                            final File bareChildTempFile = scanSpec.stripSFXHeader
+                                    ? stripSFXHeader(childTempFile, log)
                                     : childTempFile;
 
                             // Return the child temp zipfile as a new entry

@@ -829,7 +829,7 @@ public class ScanResult {
         // available. Unzip the jar starting from the package root, and create a URLClassLoader to load classes
         // from the unzipped jar. (This is only done once per jar and package root, using the singleton pattern.)
         final ClassInfo classInfo = classGraphBuilder.classNameToClassInfo.get(className);
-        if (classInfo != null && !classInfo.jarfilePackageRoot.isEmpty() && nestedJarHandler != null) {
+        if (classInfo != null && nestedJarHandler != null) {
             try {
                 final ClassLoader customClassLoader = nestedJarHandler.getCustomClassLoaderForPackageRoot(
                         classInfo.classpathElementFile, classInfo.jarfilePackageRoot, log);
