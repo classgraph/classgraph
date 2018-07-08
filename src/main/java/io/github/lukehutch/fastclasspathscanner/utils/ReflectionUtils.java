@@ -375,7 +375,12 @@ public class ReflectionUtils {
                 }
             }
             if (throwException) {
-                throw new IllegalArgumentException("Default method \"" + methodName + "\" not found");
+                if (illegalAccessException != null) {
+                    throw new IllegalArgumentException("Default method \"" + methodName + "\" not found",
+                            illegalAccessException);
+                } else {
+                    throw new IllegalArgumentException("Default method \"" + methodName + "\" not found");
+                }
             }
         } else if (throwException) {
             throw new NullPointerException(
