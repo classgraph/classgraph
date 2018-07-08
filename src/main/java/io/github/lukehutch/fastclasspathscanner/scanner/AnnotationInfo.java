@@ -87,6 +87,7 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
         Double annotationConstantDouble;
         Byte annotationConstantByte;
 
+        @SuppressWarnings("unused")
         public AnnotationParamValueWrapper() {
         }
 
