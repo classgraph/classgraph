@@ -92,7 +92,8 @@ class ClasspathElementZip extends ClasspathElement {
         }
 
         try {
-            jarfileMetadataReader = nestedJarHandler.getJarfileMetadataReader(classpathEltZipFile, log);
+            jarfileMetadataReader = nestedJarHandler.getJarfileMetadataReader(classpathEltZipFile,
+                    getJarfilePackageRoot(), log);
         } catch (final Exception e) {
             if (log != null) {
                 log.log("Exception while reading metadata from " + classpathEltZipFile + " : " + e);
@@ -113,20 +114,18 @@ class ClasspathElementZip extends ClasspathElement {
                 return;
             }
             // Parse the manifest entry if present
-            if (jarfileMetadataReader != null && jarfileMetadataReader.manifestClassPathEntries != null) {
+            if (jarfileMetadataReader != null && jarfileMetadataReader.classPathEntriesToScan != null) {
                 final LogNode childClasspathLog = log == null ? null
                         : log.log("Found additional classpath entries in metadata for " + classpathEltZipFile);
-
-                // Get the classpath elements from the Class-Path manifest entry (these are space-delimited).
-                childClasspathElts = new ArrayList<>(jarfileMetadataReader.manifestClassPathEntries.size());
 
                 // Class-Path entries in the manifest file are resolved relative to the dir the manifest's jarfile
                 // is contaiin. Get the parent path.
                 final String pathOfContainingDir = FastPathResolver.resolve(classpathEltZipFile.getParent());
 
                 // Create child classpath elements from Class-Path entry
-                for (int i = 0; i < jarfileMetadataReader.manifestClassPathEntries.size(); i++) {
-                    final String manifestClassPathEltPath = jarfileMetadataReader.manifestClassPathEntries.get(i);
+                childClasspathElts = new ArrayList<>(jarfileMetadataReader.classPathEntriesToScan.size());
+                for (int i = 0; i < jarfileMetadataReader.classPathEntriesToScan.size(); i++) {
+                    final String manifestClassPathEltPath = jarfileMetadataReader.classPathEntriesToScan.get(i);
                     final RelativePath childRelativePath = new RelativePath(pathOfContainingDir,
                             manifestClassPathEltPath, classpathEltPath.getClassLoaders(), nestedJarHandler, log);
                     childClasspathElts.add(childRelativePath);

@@ -290,12 +290,6 @@ public class ScanSpec {
      */
     public transient boolean stripSFXHeader = false;
 
-    /**
-     * If true, scan nested lib jars in "lib/", "BOOT-INF/lib", etc. If false, do not automatically scan nested lib
-     * jars, unless they are explicitly listed on the classpath.
-     */
-    public boolean addNestedLibJarsToClasspath = false;
-
     // -------------------------------------------------------------------------------------------------------------
 
     ScanSpec() {

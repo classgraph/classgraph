@@ -31,6 +31,7 @@ package io.github.lukehutch.fastclasspathscanner.scanner;
 import java.io.File;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -45,6 +46,7 @@ import io.github.lukehutch.fastclasspathscanner.json.JSONDeserializer;
 import io.github.lukehutch.fastclasspathscanner.json.JSONSerializer;
 import io.github.lukehutch.fastclasspathscanner.utils.InterruptionChecker;
 import io.github.lukehutch.fastclasspathscanner.utils.JarUtils;
+import io.github.lukehutch.fastclasspathscanner.utils.JarfileMetadataReader;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.NestedJarHandler;
 
@@ -831,19 +833,39 @@ public class ScanResult {
         final ClassInfo classInfo = classGraphBuilder.classNameToClassInfo.get(className);
         if (classInfo != null && nestedJarHandler != null) {
             try {
-                final ClassLoader customClassLoader = nestedJarHandler.getCustomClassLoaderForPackageRoot(
-                        classInfo.classpathElementFile, classInfo.jarfilePackageRoot, log);
-                final Class<?> customLoaderClassRef = loadClass(className, customClassLoader, log);
-                if (customLoaderClassRef != null) {
-                    return customLoaderClassRef;
+                ClassLoader customClassLoader = null;
+                if (classInfo.classpathElementFile.isDirectory()) {
+                    // Should not happen, but we should handle this anyway -- create a URLClassLoader for the dir
+                    customClassLoader = new URLClassLoader(
+                            new URL[] { classInfo.classpathElementFile.toURI().toURL() });
+                } else {
+                    // Get the outermost jar containing this jarfile, so that if a lib jar was extracted during
+                    // scanning, we obtain the classloader from the outer jar. This is needed so that package roots
+                    // and lib jars are loaded from the same classloader.
+                    final File outermostJar = nestedJarHandler.getOutermostJar(classInfo.classpathElementFile);
+
+                    // Get jarfile metadata for classpath element jarfile
+                    final JarfileMetadataReader jarfileMetadataReader = //
+                            nestedJarHandler.getJarfileMetadataReader(outermostJar, "", log);
+
+                    // Create a custom ClassLoader for the jarfile. This might be time consuming, as it could
+                    // trigger the extraction of all classes (for a classpath root other than ""), and/or any
+                    // lib jars (e.g. in BOOT-INF/lib).
+                    customClassLoader = jarfileMetadataReader.getCustomClassLoader(nestedJarHandler, log);
                 }
-            } catch (final Exception e) {
+                if (customClassLoader != null) {
+                    final Class<?> classRefFromCustomClassLoader = loadClass(className, customClassLoader, log);
+                    if (classRefFromCustomClassLoader != null) {
+                        return classRefFromCustomClassLoader;
+                    }
+                } else {
+                    if (log != null) {
+                        log.log("Unable to create custom classLoader to load class " + className);
+                    }
+                }
+            } catch (final Throwable e) {
                 if (log != null) {
-                    log.log("Could not create custom URLClassLoader to load class " + className + " from "
-                            + classInfo.classpathElementFile + "!/" + classInfo.jarfilePackageRoot, e);
-                }
-                if (returnNullIfClassNotFound) {
-                    return null;
+                    log.log("Exception while trying to load class " + className + " : " + e);
                 }
             }
         }

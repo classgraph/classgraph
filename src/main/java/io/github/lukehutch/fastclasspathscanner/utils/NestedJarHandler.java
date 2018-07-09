@@ -32,7 +32,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
-import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -42,6 +41,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
@@ -72,9 +72,8 @@ public class NestedJarHandler {
     private final ConcurrentLinkedDeque<File> tempFiles = new ConcurrentLinkedDeque<>();
     private final SingletonMap<String, Entry<File, Set<String>>> nestedPathToJarfileAndRootRelativePathsMap;
     private final SingletonMap<File, Recycler<ZipFile, IOException>> zipFileToRecyclerMap;
+    private final ConcurrentHashMap<File, File> innerJarToOuterJarMap;
     private final SingletonMap<File, JarfileMetadataReader> zipFileToJarfileMetadataReaderMap;
-    private final SingletonMap<Entry<File, String>, ClassLoader> //
-    classpathEltFileAndPackageRootToCustomClassLoaderMap;
     private final SingletonMap<ModuleRef, Recycler<ModuleReaderProxy, IOException>> //
     moduleReaderProxyToModuleReaderRecyclerMap;
     private final InterruptionChecker interruptionChecker;
@@ -103,31 +102,12 @@ public class NestedJarHandler {
         this.zipFileToJarfileMetadataReaderMap = new SingletonMap<File, JarfileMetadataReader>() {
             @Override
             public JarfileMetadataReader newInstance(final File canonicalFile, final LogNode log) throws Exception {
-                return new JarfileMetadataReader(canonicalFile, scanSpec.addNestedLibJarsToClasspath, log);
+                return new JarfileMetadataReader(canonicalFile, log);
             }
         };
 
-        // Set up a singleton map from Spring-Boot URLs for a specific jar, and classloaders that was used to find
-        // the jar's path, to custom Spring Boot classloaders that can load classes from the URLs in the jar.
-        // (May need to construct a Spring Boot classloader if the scanner is not itself running in the same
-        // Spring-Boot jar -- see Issue #209.)
-        this.classpathEltFileAndPackageRootToCustomClassLoaderMap = //
-                new SingletonMap<Entry<File, String>, ClassLoader>() {
-                    @Override
-                    public ClassLoader newInstance(final Entry<File, String> ent, final LogNode log)
-                            throws Exception {
-                        final File classpathEltFile = ent.getKey();
-                        final String packageRoot = ent.getValue();
-                        if (packageRoot.isEmpty()) {
-                            // If packageRoot is "", just create a new URL pointing to the jarfile
-                            return new URLClassLoader(new URL[] { classpathEltFile.toURI().toURL() });
-                        } else {
-                            // Otherwise unzip the contents of the jarfile, starting at packageRoot
-                            final File tempDir = unzipToTempDir(classpathEltFile, packageRoot, log);
-                            return new URLClassLoader(new URL[] { tempDir.toURI().toURL() });
-                        }
-                    }
-                };
+        // Set up a singleton map from inner jar to the outer jar it was extracted from
+        this.innerJarToOuterJarMap = new ConcurrentHashMap<>();
 
         // Set up a singleton map from ModuleRef object to ModuleReaderProxy recycler
         this.moduleReaderProxyToModuleReaderRecyclerMap = //
@@ -271,21 +251,24 @@ public class NestedJarHandler {
                             return parentJarfileAndRootRelativePaths;
                         }
 
-                        // Unzip the child zipfile to a temporary file
-                        final File childTempFile = unzipToTempFile(parentZipFile, childZipEntry, log);
-
                         try {
+                            // Unzip the child jarfile to a temporary file
+                            final File childJarFile = unzipToTempFile(parentZipFile, childZipEntry, log);
+
                             // Handle self-extracting archives (can be created by Spring-Boot)
-                            final File bareChildTempFile = scanSpec.stripSFXHeader
-                                    ? stripSFXHeader(childTempFile, log)
-                                    : childTempFile;
+                            final File noHeaderChildJarFile = scanSpec.stripSFXHeader
+                                    ? stripSFXHeader(childJarFile, log)
+                                    : childJarFile;
+
+                            // Record mapping between inner and outer jar
+                            innerJarToOuterJarMap.put(noHeaderChildJarFile, parentJarFile);
 
                             // Return the child temp zipfile as a new entry
                             final Set<String> rootRelativePaths = new HashSet<>();
-                            return new SimpleEntry<>(bareChildTempFile, rootRelativePaths);
+                            return new SimpleEntry<>(noHeaderChildJarFile, rootRelativePaths);
 
                         } catch (final IOException e) {
-                            // Thrown if the extracted file did not have a "PK" header
+                            // Thrown if the inner zipfile could nat be extracted
                             if (log != null) {
                                 log.log(nestedJarPath, "File does not appear to be a zipfile: " + childPath);
                             }
@@ -314,18 +297,16 @@ public class NestedJarHandler {
      * Get a {@link JarfileMetadataReader} singleton for a given jarfile (so that the manifest and ZipEntries will
      * only be read once).
      */
-    public JarfileMetadataReader getJarfileMetadataReader(final File zipFile, final LogNode log) throws Exception {
-        return zipFileToJarfileMetadataReaderMap.getOrCreateSingleton(zipFile, log);
-    }
-
-    /**
-     * Within a singleton constructor, unzip a jarfile, starting from the given package root, and return a custom
-     * {@link URLClassLoader} that can load classes from the package root in the unzipped jarfile.
-     */
-    public ClassLoader getCustomClassLoaderForPackageRoot(final File classpathEltJarfile, final String packageRoot,
+    public JarfileMetadataReader getJarfileMetadataReader(final File zipFile, final String jarfilePackageRoot,
             final LogNode log) throws Exception {
-        return classpathEltFileAndPackageRootToCustomClassLoaderMap
-                .getOrCreateSingleton(new SimpleEntry<>(classpathEltJarfile, packageRoot), log);
+        // Get the jarfile metadata reader singleton for this zipfile
+        final JarfileMetadataReader jarfileMetadataReader = zipFileToJarfileMetadataReaderMap
+                .getOrCreateSingleton(zipFile, log);
+        // Add the package root, as obtained from the classpath entry (after "!"), if any
+        if (!jarfilePackageRoot.isEmpty()) {
+            jarfileMetadataReader.addPackageRootPath(jarfilePackageRoot);
+        }
+        return jarfileMetadataReader;
     }
 
     /**
@@ -356,6 +337,15 @@ public class NestedJarHandler {
     public Entry<File, Set<String>> getInnermostNestedJar(final String nestedJarPath, final LogNode log)
             throws Exception {
         return nestedPathToJarfileAndRootRelativePathsMap.getOrCreateSingleton(nestedJarPath, log);
+    }
+
+    /** Given a File reference for an inner nested jarfile, find the outermost jarfile it was extracted from. */
+    public File getOutermostJar(final File jarFile) {
+        File lastValid = jarFile;
+        for (File curr = jarFile; curr != null; curr = innerJarToOuterJarMap.get(curr)) {
+            lastValid = curr;
+        }
+        return lastValid;
     }
 
     private String leafname(final String path) {
@@ -439,11 +429,10 @@ public class NestedJarHandler {
 
     /**
      * Unzip a given package root within a zipfile to a temporary directory, then return the temporary directory.
-     * The temporary directory and all of its contents will be removed when {@link NestedJarHandler#close()} is
+     * The temporary directory and all of its contents will be removed when {@code NestedJarHandler#close())} is
      * called.
      */
-    private File unzipToTempDir(final File jarFile, final String packageRoot, final LogNode log)
-            throws IOException {
+    public File unzipToTempDir(final File jarFile, final String packageRoot, final LogNode log) throws IOException {
         final LogNode subLog = log == null ? null
                 : log.log("Unzipping " + jarFile + " from package root " + packageRoot);
 
