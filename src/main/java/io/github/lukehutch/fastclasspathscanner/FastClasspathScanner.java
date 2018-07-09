@@ -756,9 +756,14 @@ public class FastClasspathScanner {
      * <p>
      * If you have overridden the ClassLoader(s), then the override ClassLoader(s) will be returned instead.
      *
+     * <p>
+     * Deprecated, since classloaders may need to be generated dynamically for loading classes from Spring-Boot jars
+     * and similar (#209).
+     *
      * @return A list of one or more ClassLoaders, out of the system ClassLoader, the current classloader, or the
      *         context classloader (or the override ClassLoaders, if ClassLoaders have been overridden).
      */
+    @Deprecated
     public ClassLoader[] findBestClassLoader() {
         return new ClassLoaderAndModuleFinder(getScanSpec(), log).getClassLoaders();
     }
