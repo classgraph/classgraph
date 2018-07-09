@@ -403,8 +403,15 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
      * Get the ClassLoader(s) to use when trying to load the class. Typically there will only be one. If there is
      * more than one, they will be listed in the order they should be called, until one is able to load the class.
      * 
+     * <p>
+     * This is deprecated, because a different ClassLoader may need to be created dynamically if classloading fails
+     * for the class (specifically to handle the case of needing to load classes from a Spring-Boot jar or similar,
+     * when running outside that jar's own classloader -- see bug #209). If you need the classloader that loaded the
+     * class, call {@link #getClassRef()} and then get the classloader from that class ref.
+     * 
      * @return The Classloader(s) to use when trying to load the class.
      */
+    @Deprecated
     public ClassLoader[] getClassLoaders() {
         return classLoaders;
     }
