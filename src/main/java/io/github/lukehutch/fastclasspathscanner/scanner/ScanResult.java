@@ -1247,6 +1247,7 @@ public class ScanResult {
     @Override
     protected void finalize() throws Throwable {
         // TODO: replace this with java.lang.ref.Cleaner once FCS bumps minimum Java version to 10+.
+        // For now, NestedJarHandler adds a runtime shutdown hook, which should do the same thing.
         freeTempFiles(null);
     }
 }

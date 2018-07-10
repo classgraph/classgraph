@@ -281,6 +281,14 @@ public class NestedJarHandler {
                 }
             }
         };
+
+        // Add runtime shutdown hook to remove temporary files on Ctrl-C or System.exit()
+        Runtime.getRuntime().addShutdownHook(new Thread() {
+            @Override
+            public void run() {
+                close(null);
+            }
+        });
     }
 
     /**
@@ -541,27 +549,32 @@ public class NestedJarHandler {
 
     /** Delete temporary files and release other resources. */
     public void close(final LogNode log) {
-        final LogNode rmLog = tempFiles.isEmpty() || log == null ? null : log.log("Removing temporary files");
-        while (!tempFiles.isEmpty()) {
-            final File head = tempFiles.remove();
-            final String path = head.getPath();
-            final boolean success = head.delete();
-            if (log != null) {
-                rmLog.log((success ? "Removed" : "Unable to remove") + " " + path);
-            }
-        }
-        List<Recycler<ZipFile, IOException>> recyclers = null;
-        try {
-            recyclers = zipFileToRecyclerMap.values();
-        } catch (final InterruptedException e) {
-            // Stop other threads
+        if (interruptionChecker != null) {
             interruptionChecker.interrupt();
         }
-        if (recyclers != null) {
-            for (final Recycler<ZipFile, IOException> recycler : recyclers) {
-                recycler.close();
+        if (tempFiles != null) {
+            final LogNode rmLog = tempFiles.isEmpty() || log == null ? null : log.log("Removing temporary files");
+            while (!tempFiles.isEmpty()) {
+                final File head = tempFiles.remove();
+                final String path = head.getPath();
+                final boolean success = head.delete();
+                if (log != null) {
+                    rmLog.log((success ? "Removed" : "Unable to remove") + " " + path);
+                }
             }
-            zipFileToRecyclerMap.clear();
+        }
+        if (zipFileToRecyclerMap != null) {
+            List<Recycler<ZipFile, IOException>> recyclers = null;
+            try {
+                recyclers = zipFileToRecyclerMap.values();
+            } catch (final InterruptedException e) {
+            }
+            if (recyclers != null) {
+                for (final Recycler<ZipFile, IOException> recycler : recyclers) {
+                    recycler.close();
+                }
+                zipFileToRecyclerMap.clear();
+            }
         }
     }
 }
