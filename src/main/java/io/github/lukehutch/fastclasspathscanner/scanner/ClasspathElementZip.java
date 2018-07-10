@@ -270,8 +270,7 @@ class ClasspathElementZip extends ClasspathElement {
         for (final ZipEntry zipEntry : jarfileMetadataReader.zipEntries) {
             // Normalize path of ZipEntry
             String relativePath = zipEntry.getName();
-            if (relativePath.startsWith("/")) {
-                // Shouldn't happen with the standard Java zipfile implementation (but just to be safe)
+            while (relativePath.startsWith("/")) {
                 relativePath = relativePath.substring(1);
             }
 

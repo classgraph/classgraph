@@ -379,7 +379,7 @@ public class NestedJarHandler {
         final LogNode subLog = log == null ? null : log.log(jarURL, "Downloading URL " + jarURL);
         File tempFile = null;
         try {
-            final String suffix = TEMP_FILENAME_LEAF_SEPARATOR + sanitizeFilename(jarURL);
+            final String suffix = TEMP_FILENAME_LEAF_SEPARATOR + sanitizeFilename(leafname(jarURL));
             tempFile = File.createTempFile("FCS--", suffix);
             tempFile.deleteOnExit();
             tempFiles.add(tempFile);
@@ -416,7 +416,8 @@ public class NestedJarHandler {
             zipEntryPath = zipEntryPath.substring(1);
         }
         // The following filename format is also expected by JarUtils.leafName()
-        final File tempFile = File.createTempFile("FCS--", TEMP_FILENAME_LEAF_SEPARATOR + leafname(zipEntryPath));
+        final File tempFile = File.createTempFile("FCS--",
+                TEMP_FILENAME_LEAF_SEPARATOR + sanitizeFilename(leafname(zipEntryPath)));
         tempFile.deleteOnExit();
         tempFiles.add(tempFile);
         LogNode subLog = null;
