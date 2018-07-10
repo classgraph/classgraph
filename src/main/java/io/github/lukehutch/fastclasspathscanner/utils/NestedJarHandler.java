@@ -461,15 +461,21 @@ public class NestedJarHandler {
                 // Skip directory entries
                 if (!zipEntry.isDirectory() && !entName.endsWith("/")) {
                     // Strip any leading '/' in ZipEntry paths
-                    if (entName.startsWith("/")) {
+                    while (entName.startsWith("/")) {
                         entName = entName.substring(1);
                     }
                     if (entName.startsWith(pathPrefix)) {
                         // Strip off package root prefix from ZipEntry path
                         final String pathWithinPackageRoot = entName.substring(pathPrefixLen);
 
-                        // Get path of file to unzip to
+                        // Get path of file to unzip to, and make sure it doesn't try to escape the unzip root
                         final Path pathToFileToUnzip = tempDirPath.resolve(pathWithinPackageRoot);
+                        if (!pathToFileToUnzip.startsWith(tempDirPath)) {
+                            if (subLog != null) {
+                                subLog.log("Skipping invalid path " + zipEntry.getName());
+                            }
+                            continue;
+                        }
                         final File fileToUnzip = pathToFileToUnzip.toFile();
 
                         // Make sure parent directories exist
