@@ -369,9 +369,9 @@ public class NestedJarHandler {
         }
     }
 
-    private String sanitizeFilename(final String filename) {
+    public String sanitizeFilename(final String filename) {
         return filename.replace('/', '_').replace('\\', '_').replace(':', '_').replace('?', '_').replace('&', '_')
-                .replace('=', '_').replace('.', '_').replace(' ', '_');
+                .replace('=', '_').replace(' ', '_');
     }
 
     /** Download a jar from a URL to a temporary file. */
