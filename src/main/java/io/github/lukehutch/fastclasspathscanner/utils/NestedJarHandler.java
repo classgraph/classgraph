@@ -46,6 +46,7 @@ import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.function.Supplier;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
@@ -538,19 +539,22 @@ public class NestedJarHandler {
                 futures.add(executor.submit(new Callable<Void>() {
                     @Override
                     public Void call() throws Exception {
-                        final ThreadLocal<ZipFile> zipFileTL = ThreadLocal.withInitial(() -> {
-                            try {
-                                // Open one ZipFile instance per thread
-                                final ZipFile zipFile = new ZipFile(jarFile);
-                                openZipFiles.add(zipFile);
-                                return zipFile;
-                            } catch (final IOException e) {
-                                // Should not happen unless zipfile was just barely deleted, since we
-                                // opened it already
-                                if (subLog != null) {
-                                    subLog.log("Cannot open zipfile: " + jarFile + " : " + e);
+                        final ThreadLocal<ZipFile> zipFileTL = ThreadLocal.withInitial(new Supplier<ZipFile>() {
+                            @Override
+                            public ZipFile get() {
+                                try {
+                                    // Open one ZipFile instance per thread
+                                    final ZipFile zipFile = new ZipFile(jarFile);
+                                    openZipFiles.add(zipFile);
+                                    return zipFile;
+                                } catch (final IOException e) {
+                                    // Should not happen unless zipfile was just barely deleted, since we
+                                    // opened it already
+                                    if (subLog != null) {
+                                        subLog.log("Cannot open zipfile: " + jarFile + " : " + e);
+                                    }
+                                    return null;
                                 }
-                                return null;
                             }
                         });
                         try {
