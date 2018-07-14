@@ -19,4 +19,4 @@ jdk:
   # upcoming LTS
 #  - oraclejdk11
   # early access
-  - oraclejdk-ea
+#  - oraclejdk-ea
