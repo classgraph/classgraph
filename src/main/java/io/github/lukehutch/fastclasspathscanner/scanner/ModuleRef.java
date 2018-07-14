@@ -38,10 +38,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-import io.github.lukehutch.fastclasspathscanner.utils.AdditionOrderedSet;
 import io.github.lukehutch.fastclasspathscanner.utils.JarUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
 
@@ -405,7 +405,7 @@ public class ModuleRef implements Comparable<ModuleRef> {
         }
         if (layers != null) {
             // Find modules in the ordered layers
-            final AdditionOrderedSet<ModuleRef> moduleRefs = new AdditionOrderedSet<>();
+            final LinkedHashSet<ModuleRef> moduleRefs = new LinkedHashSet<>();
             for (final Object /* ModuleLayer */ layer : layers) {
                 final Object /* Configuration */ cfg = ReflectionUtils.invokeMethod(layer, "configuration",
                         /* throwException = */ true);
@@ -429,7 +429,7 @@ public class ModuleRef implements Comparable<ModuleRef> {
                     }
                 }
             }
-            return moduleRefs.toList();
+            return new ArrayList<>(moduleRefs);
         } else {
             return Collections.<ModuleRef> emptyList();
         }

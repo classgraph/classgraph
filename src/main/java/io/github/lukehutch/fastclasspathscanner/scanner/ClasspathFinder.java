@@ -30,13 +30,13 @@ package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 
 import io.github.lukehutch.fastclasspathscanner.classloaderhandler.ClassLoaderHandler;
 import io.github.lukehutch.fastclasspathscanner.classloaderhandler.ClassLoaderHandler.DelegationOrder;
 import io.github.lukehutch.fastclasspathscanner.classloaderhandler.ClassLoaderHandlerRegistry;
 import io.github.lukehutch.fastclasspathscanner.classloaderhandler.ClassLoaderHandlerRegistry.ClassLoaderHandlerRegistryEntry;
-import io.github.lukehutch.fastclasspathscanner.utils.AdditionOrderedSet;
 import io.github.lukehutch.fastclasspathscanner.utils.FileUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.JarUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
@@ -54,7 +54,7 @@ public class ClasspathFinder {
     /** Add a ClassLoaderHandler, and recurse to parent classloader. */
     private boolean addClassLoaderHandler(final ScanSpec scanSpec, final ClassLoader classLoader,
             final ClassLoaderHandlerRegistryEntry classLoaderHandlerRegistryEntry,
-            final AdditionOrderedSet<ClassLoader> foundClassLoaders,
+            final LinkedHashSet<ClassLoader> foundClassLoaders,
             final List<ClassLoaderHandlerRegistryEntry> allClassLoaderHandlerRegistryEntries,
             final List<SimpleEntry<ClassLoader, ClassLoaderHandler>> classLoaderAndHandlerOrderOut,
             final List<SimpleEntry<ClassLoader, ClassLoaderHandler>> ignoredClassLoaderAndHandlerOrderOut,
@@ -105,7 +105,7 @@ public class ClasspathFinder {
      * observing parent delegation order (PARENT_FIRST or PARENT_LAST).
      */
     private void findClassLoaderHandlerForClassLoaderAndParents(final ScanSpec scanSpec,
-            final ClassLoader classLoader, final AdditionOrderedSet<ClassLoader> foundClassLoaders,
+            final ClassLoader classLoader, final LinkedHashSet<ClassLoader> foundClassLoaders,
             final List<ClassLoaderHandlerRegistryEntry> allClassLoaderHandlerRegistryEntries,
             final List<SimpleEntry<ClassLoader, ClassLoaderHandler>> classLoaderAndHandlerOrderOut,
             final List<SimpleEntry<ClassLoader, ClassLoaderHandler>> ignoredClassLoaderAndHandlerOrderOut,
@@ -244,7 +244,7 @@ public class ClasspathFinder {
                 if (!scanSpec.blacklistSystemJars()
                         || !envClassLoader.getClass().getName().startsWith("sun.misc.Launcher$ExtClassLoader")) {
                     findClassLoaderHandlerForClassLoaderAndParents(scanSpec, envClassLoader,
-                            /* foundClassLoaders = */ new AdditionOrderedSet<ClassLoader>(),
+                            /* foundClassLoaders = */ new LinkedHashSet<ClassLoader>(),
                             allClassLoaderHandlerRegistryEntries, classLoaderAndHandlerOrder,
                             ignoredClassLoaderAndHandlerOrder, classpathFinderLog);
                 } else if (classpathFinderLog != null) {
@@ -311,7 +311,7 @@ public class ClasspathFinder {
                 }
             }
         }
-        rawClasspathElements = classpathOrder.get().toList();
+        rawClasspathElements = new ArrayList<>(classpathOrder.get());
     }
 
     /** Get the raw classpath elements obtained from ClassLoaders. */

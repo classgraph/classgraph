@@ -34,10 +34,12 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -50,7 +52,6 @@ import io.github.lukehutch.fastclasspathscanner.typesignature.ClassTypeSignature
 import io.github.lukehutch.fastclasspathscanner.typesignature.MethodTypeSignature;
 import io.github.lukehutch.fastclasspathscanner.typesignature.TypeSignature;
 import io.github.lukehutch.fastclasspathscanner.typesignature.TypeUtils;
-import io.github.lukehutch.fastclasspathscanner.utils.AdditionOrderedSet;
 import io.github.lukehutch.fastclasspathscanner.utils.JarUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.MultiMapKeyToList;
@@ -947,12 +948,12 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
             classInfo.classLoaders = classLoaders;
         } else if (classLoaders != null && !classInfo.classLoaders.equals(classLoaders)) {
             // Merge together ClassLoader list (concatenate and dedup)
-            final AdditionOrderedSet<ClassLoader> allClassLoaders = new AdditionOrderedSet<>(
-                    classInfo.classLoaders);
+            final LinkedHashSet<ClassLoader> allClassLoaders = new LinkedHashSet<>(
+                    Arrays.asList(classInfo.classLoaders));
             for (final ClassLoader classLoader : classLoaders) {
                 allClassLoaders.add(classLoader);
             }
-            final List<ClassLoader> classLoaderOrder = allClassLoaders.toList();
+            final List<ClassLoader> classLoaderOrder = new ArrayList<>(allClassLoaders);
             classInfo.classLoaders = classLoaderOrder.toArray(new ClassLoader[classLoaderOrder.size()]);
         }
 

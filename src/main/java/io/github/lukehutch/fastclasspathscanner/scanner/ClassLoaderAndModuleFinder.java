@@ -30,10 +30,10 @@ package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-import io.github.lukehutch.fastclasspathscanner.utils.AdditionOrderedSet;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 
 /** A class to find the unique ordered classpath elements. */
@@ -98,7 +98,7 @@ public class ClassLoaderAndModuleFinder {
      *            The log.
      */
     public ClassLoaderAndModuleFinder(final ScanSpec scanSpec, final LogNode log) {
-        AdditionOrderedSet<ClassLoader> classLoadersUnique;
+        LinkedHashSet<ClassLoader> classLoadersUnique;
         LogNode classLoadersFoundLog = null;
         List<ModuleRef> systemModuleRefs = null;
         List<ModuleRef> nonSystemModuleRefs = null;
@@ -112,7 +112,7 @@ public class ClassLoaderAndModuleFinder {
             // http://www.javaworld.com/article/2077344/core-java/find-a-way-out-of-the-classloader-maze.html?page=2
 
             // Get system classloader
-            classLoadersUnique = new AdditionOrderedSet<>();
+            classLoadersUnique = new LinkedHashSet<>();
             final ClassLoader systemClassLoader = ClassLoader.getSystemClassLoader();
             if (systemClassLoader != null) {
                 classLoadersUnique.add(systemClassLoader);
@@ -177,7 +177,7 @@ public class ClassLoaderAndModuleFinder {
 
         } else {
             // ClassLoaders were overridden
-            classLoadersUnique = new AdditionOrderedSet<>(scanSpec.overrideClassLoaders);
+            classLoadersUnique = new LinkedHashSet<>(scanSpec.overrideClassLoaders);
             classLoadersFoundLog = log == null ? null : log.log("Override ClassLoaders:");
         }
 

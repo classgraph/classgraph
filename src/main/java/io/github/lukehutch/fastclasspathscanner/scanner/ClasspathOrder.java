@@ -31,9 +31,9 @@ package io.github.lukehutch.fastclasspathscanner.scanner;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Array;
+import java.util.LinkedHashSet;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner.ClasspathElementFilter;
-import io.github.lukehutch.fastclasspathscanner.utils.AdditionOrderedSet;
 import io.github.lukehutch.fastclasspathscanner.utils.JarUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.NestedJarHandler;
@@ -43,7 +43,7 @@ public class ClasspathOrder {
     final ScanSpec scanSpec;
     final NestedJarHandler nestedJarHandler;
 
-    private final AdditionOrderedSet<RelativePath> classpathOrder = new AdditionOrderedSet<>();
+    private final LinkedHashSet<RelativePath> classpathOrder = new LinkedHashSet<>();
 
     ClasspathOrder(final ScanSpec scanSpec, final NestedJarHandler nestedJarHandler) {
         this.scanSpec = scanSpec;
@@ -51,7 +51,7 @@ public class ClasspathOrder {
     }
 
     /** Get the order of classpath elements. */
-    public AdditionOrderedSet<RelativePath> get() {
+    public LinkedHashSet<RelativePath> get() {
         return classpathOrder;
     }
 
