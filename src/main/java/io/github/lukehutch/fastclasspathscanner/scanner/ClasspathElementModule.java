@@ -69,7 +69,7 @@ class ClasspathElementModule extends ClasspathElement {
             if (log != null) {
                 log.log("Exception while creating zipfile recycler for " + moduleRef.getModuleName() + " : " + e);
             }
-            ioExceptionOnOpen = true;
+            skipClasspathElement = true;
             return;
         }
         if (scanFiles) {
@@ -93,7 +93,7 @@ class ClasspathElementModule extends ClasspathElement {
                 if (logNode != null) {
                     logNode.log("Exception opening module " + classpathEltPath, e);
                 }
-                ioExceptionOnOpen = true;
+                skipClasspathElement = true;
                 return;
             }
             scanModule(moduleReaderProxy, logNode);
@@ -114,7 +114,7 @@ class ClasspathElementModule extends ClasspathElement {
 
             @Override
             public InputStream open() throws IOException {
-                if (ioExceptionOnOpen) {
+                if (skipClasspathElement) {
                     // Can't open a file inside a module if the module couldn't be opened (should never be
                     // triggered)
                     throw new IOException("Module could not be opened");

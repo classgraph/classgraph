@@ -60,7 +60,7 @@ class ClassInfoUnlinked {
     private String fullyQualifiedContainingMethodName;
     private List<SimpleEntry<String, String>> classContainmentEntries;
     List<AnnotationParamValue> annotationParamDefaultValues;
-    private final ClasspathElement classpathElement;
+    final ClasspathElement classpathElement;
     List<FieldInfo> fieldInfoList;
     List<MethodInfo> methodInfoList;
     private String typeSignature;

@@ -29,6 +29,8 @@
 package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import java.io.File;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -38,6 +40,7 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
@@ -94,11 +97,16 @@ public class Scanner implements Callable<ScanResult> {
             final HashSet<ClasspathElement> visitedClasspathElts, final ArrayList<ClasspathElement> order)
             throws InterruptedException {
         if (visitedClasspathElts.add(currSingleton)) {
-            order.add(currSingleton);
+            if (!currSingleton.skipClasspathElement) {
+                // Don't add a classpath element, if it is marked to be skipped.
+                order.add(currSingleton);
+            }
+            // Whether or not a classpath element should be skipped, add any child classpath elements that are
+            // not marked to be skipped (i.e. keep recursing)
             if (currSingleton.childClasspathElts != null) {
                 for (final RelativePath childClasspathElt : currSingleton.childClasspathElts) {
                     final ClasspathElement childSingleton = classpathElementMap.get(childClasspathElt);
-                    if (childSingleton != null && !childSingleton.ioExceptionOnOpen) {
+                    if (childSingleton != null) {
                         findClasspathOrder(childSingleton, classpathElementMap, visitedClasspathElts, order);
                     }
                 }
@@ -119,7 +127,7 @@ public class Scanner implements Callable<ScanResult> {
         final ArrayList<ClasspathElement> order = new ArrayList<>();
         for (final RelativePath toplevelClasspathElt : rawClasspathElements) {
             final ClasspathElement toplevelSingleton = classpathElementMap.get(toplevelClasspathElt);
-            if (toplevelSingleton != null && !toplevelSingleton.ioExceptionOnOpen) {
+            if (toplevelSingleton != null) {
                 findClasspathOrder(toplevelSingleton, classpathElementMap, visitedClasspathElts, order);
             }
         }
@@ -484,6 +492,64 @@ public class Scanner implements Callable<ScanResult> {
                     classfileScanLog.addElapsedTime();
                 }
 
+                // If we need to create a single custom classloader that can load all matched classes
+                if (scanSpec.createClassLoaderForMatchingClasses) {
+                    final LogNode classLoaderLog = classfileScanLog == null ? null
+                            : classfileScanLog
+                                    .log("Creating custom URLClassLoader for classpath elements containing "
+                                            + "matching classes");
+
+                    final Set<ClasspathElement> classpathElementsWithMatchedClasses = new HashSet<>();
+                    for (final ClassInfoUnlinked c : classInfoUnlinked) {
+                        classpathElementsWithMatchedClasses.add(c.classpathElement);
+                    }
+                    // Need to keep URLs in same relative order, but only include URLs for classpath elements
+                    // that contained matched classes, for efficiency
+                    final List<URL> urlOrder = new ArrayList<>(classpathOrder.size());
+                    for (final ClasspathElement classpathElement : classpathOrder) {
+                        if (classpathElementsWithMatchedClasses.contains(classpathElement)) {
+                            try {
+                                final File classpathEltFile = classpathElement.classpathEltPath
+                                        .getFile(classLoaderLog);
+                                final URL url = classpathEltFile.toURI().toURL();
+                                urlOrder.add(url);
+                                if (classLoaderLog != null) {
+                                    classLoaderLog.log(classpathElement + " -> " + url);
+                                }
+                            } catch (final Exception e) {
+                                if (classLoaderLog != null) {
+                                    classLoaderLog
+                                            .log("Cannot convert file to URL: " + classpathElement + " : " + e);
+                                }
+                            }
+                        }
+                    }
+                    // Build a custom URLClassLoader that contains all the URLs for jars / package root dirs
+                    // for matched classes
+                    final ClassLoader parentClassLoader = classLoaderOrder == null || classLoaderOrder.length == 0
+                            ? null
+                            : classLoaderOrder[0];
+                    @SuppressWarnings("resource")
+                    final URLClassLoader customClassLoader = new URLClassLoader(
+                            urlOrder.toArray(new URL[urlOrder.size()]), parentClassLoader);
+                    // Replace the ClassLoaders in all classpath elements that contained matched classes
+                    for (final ClasspathElement classpathElement : classpathElementsWithMatchedClasses) {
+                        final ClassLoader[] oldClassLoaders = classpathElement.classpathEltPath.classLoaders;
+                        // Prepend the new ClassLoader to the ClassLoader order (the older ClassLoaders should
+                        // never be called, but we may as well leave them there in the array anyway)
+                        final ClassLoader[] newClassLoaders = new ClassLoader[oldClassLoaders == null ? 1
+                                : 1 + oldClassLoaders.length];
+                        newClassLoaders[0] = customClassLoader;
+                        if (oldClassLoaders != null) {
+                            for (int i = 0; i < oldClassLoaders.length; i++) {
+                                newClassLoaders[i + 1] = oldClassLoaders[i];
+                            }
+                        }
+                        // Replace the classloaders for this classpath element with the new classloader order
+                        classpathElement.classpathEltPath.classLoaders = newClassLoaders;
+                    }
+                }
+
                 // Build the class graph: convert ClassInfoUnlinked to linked ClassInfo objects.
                 final LogNode classGraphLog = log == null ? null : log.log("Building class graph");
                 final Map<String, ClassInfo> classNameToClassInfo = new HashMap<>();
@@ -501,6 +567,7 @@ public class Scanner implements Callable<ScanResult> {
                         c.link(scanSpec, classNameToClassInfo, classGraphLog);
                     }
                 }
+                // Create ClassGraphBuilder
                 final ClassGraphBuilder classGraphBuilder = new ClassGraphBuilder(scanSpec, classNameToClassInfo);
                 if (classGraphLog != null) {
                     classGraphLog.addElapsedTime();

@@ -48,7 +48,7 @@ import io.github.lukehutch.fastclasspathscanner.utils.NestedJarHandler;
  */
 class RelativePath {
     /** The ClassLoader(s) used to load classes for this classpath element */
-    private final ClassLoader[] classLoaders;
+    ClassLoader[] classLoaders;
 
     /** Base path for path resolution. */
     private final String pathToResolveAgainst;
@@ -111,6 +111,7 @@ class RelativePath {
     /** True if existsCached has been cached. */
     private boolean existsIsCached;
 
+    private ScanSpec scanSpec;
     private final LogNode log;
 
     // -------------------------------------------------------------------------------------------------------------
@@ -120,10 +121,12 @@ class RelativePath {
      * for relative paths within classpath elements (e.g. the files within a ZipFile).
      */
     public RelativePath(final String pathToResolveAgainst, final String relativePath,
-            final ClassLoader[] classLoaders, final NestedJarHandler nestedJarHandler, final LogNode log) {
+            final ClassLoader[] classLoaders, final NestedJarHandler nestedJarHandler, final ScanSpec scanSpec,
+            final LogNode log) {
         this.classLoaders = classLoaders;
         this.pathToResolveAgainst = pathToResolveAgainst;
         this.nestedJarHandler = nestedJarHandler;
+        this.scanSpec = scanSpec;
         this.log = log;
 
         // Fix Spring relative paths with empty zip resource sections
@@ -281,21 +284,35 @@ class RelativePath {
                     final Entry<File, Set<String>> innermostJarAndRootRelativePaths = //
                             nestedJarHandler.getInnermostNestedJar(path, log);
                     if (innermostJarAndRootRelativePaths != null) {
-                        fileCached = innermostJarAndRootRelativePaths.getKey();
+                        final File innermostJar = innermostJarAndRootRelativePaths.getKey();
                         final Set<String> rootRelativePaths = innermostJarAndRootRelativePaths.getValue();
-                        if (!rootRelativePaths.isEmpty()) {
+                        if (rootRelativePaths.isEmpty()) {
+                            // There is no package root for this jar, so the jar itself is the classpath element
+                            fileCached = innermostJar;
+                        } else {
                             // Get section after last '!' (stripping any initial '/')
-                            final String tail = path.length() == plingIdx + 1 || plingIdx == -1 ? ""
+                            final String packageRoot = path.length() == plingIdx + 1 || plingIdx == -1 ? ""
                                     : path.charAt(plingIdx + 1) == '/' ? path.substring(plingIdx + 2)
                                             : path.substring(plingIdx + 1);
                             // Check to see if last segment is listed in the set of root relative paths for the jar
                             // -- if so, then this is the classpath base for this jarfile
-                            if (rootRelativePaths.contains(tail)) {
-                                jarfilePackageRoot = tail;
+                            if (rootRelativePaths.contains(packageRoot)) {
+                                if (scanSpec.createClassLoaderForMatchingClasses) {
+                                    // If a custom classloader will be created for all matching classes, need to
+                                    // extract the package root from the zipfile to a temporary directory
+                                    fileCached = nestedJarHandler.unzipToTempDir(innermostJar, packageRoot, log);
+                                } else {
+                                    // Otherwise, can scan the zipfile starting from the package root,
+                                    // without extracting it from the zipfile to disk
+                                    fileCached = innermostJar;
+                                    jarfilePackageRoot = packageRoot;
+                                }
                             } else {
                                 if (log != null) {
-                                    log.log("Classpath suffix is not a valid zipfile path: !" + tail);
+                                    log.log("Zipfile suffix is not a valid package root: !" + packageRoot);
                                 }
+                                // Fall back to ignoring the package root 
+                                fileCached = innermostJar;
                             }
                         }
                     }

@@ -75,13 +75,15 @@ public class ClasspathOrder {
      *            the URL or path of the classpath element.
      * @param classLoaders
      *            the ClassLoader(s) that this classpath element was obtained from.
+     * @param scanSpec
+     *            the ScanSpec.
      * @param log
      *            the LogNode instance to use if logging in verbose mode.
      * @return true (and add the classpath element) if pathElement is not null, empty, nonexistent, or filtered out
      *         by user-specified criteria, otherwise return false.
      */
     public boolean addClasspathElement(final String pathElement, final ClassLoader[] classLoaders,
-            final LogNode log) {
+            final ScanSpec scanSpec, final LogNode log) {
         if (pathElement == null || pathElement.isEmpty()) {
             return false;
         }
@@ -99,7 +101,7 @@ public class ClasspathOrder {
                 try {
                     final RelativePath classpathEltParentDirRelativePath = new RelativePath(
                             ClasspathFinder.currDirPathStr, pathElement.substring(0, pathElement.length() - 2),
-                            classLoaders, nestedJarHandler, subLog);
+                            classLoaders, nestedJarHandler, scanSpec, subLog);
                     final String classpathEltParentDirPath = classpathEltParentDirRelativePath.getResolvedPath();
                     if (!filter(classpathEltParentDirPath)) {
                         if (log != null) {
@@ -128,7 +130,7 @@ public class ClasspathOrder {
                             final String fileInDirPath = fileInDir.getPath();
                             final LogNode subSubLog = subLog == null ? null
                                     : subLog.log("Including classpath element matching wildcard: " + fileInDirPath);
-                            addClasspathElement(fileInDirPath, classLoaders, subSubLog);
+                            addClasspathElement(fileInDirPath, classLoaders, scanSpec, subSubLog);
                         }
                     }
                     return true;
@@ -147,7 +149,7 @@ public class ClasspathOrder {
             }
         } else {
             final RelativePath classpathEltRelativePath = new RelativePath(ClasspathFinder.currDirPathStr,
-                    pathElement, classLoaders, nestedJarHandler, subLog);
+                    pathElement, classLoaders, nestedJarHandler, scanSpec, subLog);
             final String classpathEltPath = classpathEltRelativePath.getResolvedPath();
             if (!filter(classpathEltPath)) {
                 if (log != null) {
@@ -197,7 +199,7 @@ public class ClasspathOrder {
                 return false;
             } else {
                 for (final String pathElement : parts) {
-                    addClasspathElement(pathElement, classLoaders, log);
+                    addClasspathElement(pathElement, classLoaders, scanSpec, log);
                 }
                 return true;
             }
@@ -217,7 +219,7 @@ public class ClasspathOrder {
      * @return true (and add the classpath element) if pathElement is not null or empty, otherwise return false.
      */
     public boolean addClasspathElement(final String pathElement, final ClassLoader classLoader, final LogNode log) {
-        return addClasspathElement(pathElement, new ClassLoader[] { classLoader }, log);
+        return addClasspathElement(pathElement, new ClassLoader[] { classLoader }, scanSpec, log);
     }
 
     /**

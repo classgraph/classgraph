@@ -63,4 +63,27 @@ public class Issue209Test {
                 // Test reading from /BOOT-INF/lib/*.jar
                 "org.slf4j.bridge.SLF4JBridgeHandler");
     }
+
+    @Test
+    public void testSpringBootJarWithLibJarsUsingCustomClassLoader() {
+        final ScanResult result = new FastClasspathScanner( //
+                "org.springframework.boot.loader.util", "com.foo", "org.slf4j") //
+                        .overrideClassLoaders(new URLClassLoader(
+                                new URL[] { Issue209Test.class.getClassLoader().getResource("issue209.jar") })) //
+                        .createClassLoaderForMatchingClasses() //
+                        .scan();
+
+        final List<String> classNames = new ArrayList<>();
+        for (final ClassInfo ci : result.getClassNameToClassInfo().values()) {
+            final Class<?> classRef = ci.getClassRef();
+            classNames.add(classRef.getName());
+        }
+        assertThat(classNames).containsOnly(
+                // Test reading from /
+                "org.springframework.boot.loader.util.SystemPropertyUtils",
+                // Test reading from /BOOT-INF/classes
+                "com.foo.externalApp.ExternalAppApplication", "com.foo.externalApp.SomeClass",
+                // Test reading from /BOOT-INF/lib/*.jar
+                "org.slf4j.bridge.SLF4JBridgeHandler");
+    }
 }

@@ -114,8 +114,8 @@ public class ScanResult {
         // classGraphBuilder is null when only getting classpath elements
         if (classGraphBuilder != null) {
             // Add some post-scan backrefs from info objects to this ScanResult
-            if (classGraphBuilder.getClassNameToClassInfo() != null) {
-                for (final ClassInfo ci : classGraphBuilder.getClassNameToClassInfo().values()) {
+            if (classGraphBuilder.classNameToClassInfo != null) {
+                for (final ClassInfo ci : classGraphBuilder.classNameToClassInfo.values()) {
                     ci.setScanResult(this);
                 }
             }

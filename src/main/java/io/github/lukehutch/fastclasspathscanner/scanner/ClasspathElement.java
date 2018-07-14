@@ -64,7 +64,7 @@ abstract class ClasspathElement {
     /**
      * True if there was an exception when trying to open this classpath element (e.g. a corrupt ZipFile).
      */
-    boolean ioExceptionOnOpen;
+    boolean skipClasspathElement;
 
     /**
      * The child classpath elements. These are the entries obtained from Class-Path entries in the manifest file, if

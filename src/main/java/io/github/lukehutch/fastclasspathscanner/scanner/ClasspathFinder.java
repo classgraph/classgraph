@@ -220,7 +220,7 @@ public class ClasspathFinder {
                     log.log("Adding JRE/JDK jars to classpath:").log(jreJarPaths);
                 }
                 for (final String jreJarPath : jreJarPaths) {
-                    classpathOrder.addClasspathElement(jreJarPath, classLoaders, classpathFinderLog);
+                    classpathOrder.addClasspathElement(jreJarPath, classLoaders, scanSpec, classpathFinderLog);
                 }
             }
 
@@ -296,9 +296,9 @@ public class ClasspathFinder {
                             : classpathFinderLog.log("Getting classpath entries from java.class.path");
                     for (final String pathElement : pathElements) {
                         if (!ignoredClasspathOrder.get().contains(new RelativePath(currDirPathStr, pathElement,
-                                classLoaders, nestedJarHandler, log))) {
+                                classLoaders, nestedJarHandler, scanSpec, log))) {
                             // pathElement is not also listed in an ignored parent classloader
-                            classpathOrder.addClasspathElement(pathElement, classLoaders, sysPropLog);
+                            classpathOrder.addClasspathElement(pathElement, classLoaders, scanSpec, sysPropLog);
                         } else {
                             // pathElement is also listed in an ignored parent classloader, ignore it (Issue #169)
                             if (sysPropLog != null) {

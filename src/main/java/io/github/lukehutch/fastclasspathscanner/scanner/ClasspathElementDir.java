@@ -59,7 +59,7 @@ class ClasspathElementDir extends ClasspathElement {
                 if (log != null) {
                     log.log("Exception while trying to canonicalize path " + classpathEltPath.getResolvedPath(), e);
                 }
-                ioExceptionOnOpen = true;
+                skipClasspathElement = true;
                 return;
             }
             fileMatches = new MultiMapKeyToList<>();
@@ -98,7 +98,7 @@ class ClasspathElementDir extends ClasspathElement {
 
             @Override
             public InputStream open() throws IOException {
-                if (ioExceptionOnOpen) {
+                if (skipClasspathElement) {
                     // Can't open a file inside a directory that couldn't be opened (should never be triggered)
                     throw new IOException("Parent directory could not be opened");
                 }

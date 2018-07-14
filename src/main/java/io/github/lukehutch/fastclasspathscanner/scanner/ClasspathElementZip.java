@@ -71,14 +71,14 @@ class ClasspathElementZip extends ClasspathElement {
             if (log != null) {
                 log.log("Exception while trying to canonicalize path " + classpathEltPath.getResolvedPath(), e);
             }
-            ioExceptionOnOpen = true;
+            skipClasspathElement = true;
             return;
         }
         if (classpathEltZipFile == null || !ClasspathUtils.canRead(classpathEltZipFile)) {
             if (log != null) {
                 log.log("Skipping non-existent jarfile " + classpathEltPath.getResolvedPath());
             }
-            ioExceptionOnOpen = true;
+            skipClasspathElement = true;
             return;
         }
         try {
@@ -87,18 +87,19 @@ class ClasspathElementZip extends ClasspathElement {
             if (log != null) {
                 log.log("Exception while creating zipfile recycler for " + classpathEltZipFile + " : " + e);
             }
-            ioExceptionOnOpen = true;
+            skipClasspathElement = true;
             return;
         }
 
+        final String jarfilePackageRoot = getJarfilePackageRoot();
         try {
             jarfileMetadataReader = nestedJarHandler.getJarfileMetadataReader(classpathEltZipFile,
-                    getJarfilePackageRoot(), log);
+                    jarfilePackageRoot, log);
         } catch (final Exception e) {
             if (log != null) {
                 log.log("Exception while reading metadata from " + classpathEltZipFile + " : " + e);
             }
-            ioExceptionOnOpen = true;
+            skipClasspathElement = true;
             return;
         }
 
@@ -110,9 +111,10 @@ class ClasspathElementZip extends ClasspathElement {
                 if (log != null) {
                     log.log("Exception opening zipfile " + classpathEltZipFile + " : " + e.getMessage());
                 }
-                ioExceptionOnOpen = true;
+                skipClasspathElement = true;
                 return;
             }
+
             // Parse the manifest entry if present
             if (jarfileMetadataReader != null && jarfileMetadataReader.classPathEntriesToScan != null) {
                 final LogNode childClasspathLog = log == null ? null
@@ -123,14 +125,24 @@ class ClasspathElementZip extends ClasspathElement {
                 final String pathOfContainingDir = FastPathResolver.resolve(classpathEltZipFile.getParent());
 
                 // Create child classpath elements from Class-Path entry
-                childClasspathElts = new ArrayList<>(jarfileMetadataReader.classPathEntriesToScan.size());
+                if (childClasspathElts == null) {
+                    childClasspathElts = new ArrayList<>(jarfileMetadataReader.classPathEntriesToScan.size());
+                }
                 for (int i = 0; i < jarfileMetadataReader.classPathEntriesToScan.size(); i++) {
-                    final String manifestClassPathEltPath = jarfileMetadataReader.classPathEntriesToScan.get(i);
+                    final String childClassPathEltPath = jarfileMetadataReader.classPathEntriesToScan.get(i);
                     final RelativePath childRelativePath = new RelativePath(pathOfContainingDir,
-                            manifestClassPathEltPath, classpathEltPath.getClassLoaders(), nestedJarHandler, log);
-                    childClasspathElts.add(childRelativePath);
-                    if (childClasspathLog != null) {
-                        childClasspathLog.log(childRelativePath.toString());
+                            childClassPathEltPath, classpathEltPath.getClassLoaders(), nestedJarHandler, scanSpec,
+                            log);
+                    if (!childRelativePath.equals(classpathEltPath)) {
+                        // Add child classpath element. This may add lib jars more than once, in the case of a
+                        // jar with "BOOT-INF/classes" and "BOOT-INF/lib", since this method may be called initially
+                        // with "" as the package root, and then a second time with "BOOT-INF/classes" as a package
+                        // root, and both times it will find "BOOT-INF/lib" -- but the caller will deduplicate
+                        // the multiply-added lib jars.
+                        childClasspathElts.add(childRelativePath);
+                        if (childClasspathLog != null) {
+                            childClasspathLog.log(childRelativePath.toString());
+                        }
                     }
                 }
 
@@ -177,7 +189,7 @@ class ClasspathElementZip extends ClasspathElement {
                 if (logNode != null) {
                     logNode.log("Exception opening zipfile " + classpathEltZipFile, e);
                 }
-                ioExceptionOnOpen = true;
+                skipClasspathElement = true;
                 return;
             }
             scanZipFile(classpathEltZipFile, zipFile, classpathEltPath.getJarfilePackageRoot(), logNode);
@@ -199,7 +211,7 @@ class ClasspathElementZip extends ClasspathElement {
 
             @Override
             public InputStream open() throws IOException {
-                if (ioExceptionOnOpen) {
+                if (skipClasspathElement) {
                     // Can't open a file inside a zipfile if the zipfile couldn't be opened (should never be
                     // triggered)
                     throw new IOException("Parent zipfile could not be opened");

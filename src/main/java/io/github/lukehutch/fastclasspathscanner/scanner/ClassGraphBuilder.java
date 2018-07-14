@@ -62,9 +62,8 @@ class ClassGraphBuilder {
         this.scanSpec = scanSpec;
         this.classNameToClassInfo = classNameToClassInfo;
         for (final ClassInfo classInfo : classNameToClassInfo.values()) {
-            final ClassLoader[] classLoaders = classInfo.getClassLoaders();
-            if (classLoaders != null) {
-                classNameToClassLoaders.put(classInfo.getClassName(), classLoaders);
+            if (classInfo.classLoaders != null) {
+                classNameToClassLoaders.put(classInfo.getClassName(), classInfo.classLoaders);
             }
         }
     }
