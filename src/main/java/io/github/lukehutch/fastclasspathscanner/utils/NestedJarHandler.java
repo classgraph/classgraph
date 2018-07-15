@@ -46,7 +46,6 @@ import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.function.Supplier;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
@@ -539,24 +538,24 @@ public class NestedJarHandler {
                 futures.add(executor.submit(new Callable<Void>() {
                     @Override
                     public Void call() throws Exception {
-                        final ThreadLocal<ZipFile> zipFileTL = ThreadLocal.withInitial(new Supplier<ZipFile>() {
-                            @Override
-                            public ZipFile get() {
-                                try {
-                                    // Open one ZipFile instance per thread
-                                    final ZipFile zipFile = new ZipFile(jarFile);
-                                    openZipFiles.add(zipFile);
-                                    return zipFile;
-                                } catch (final IOException e) {
-                                    // Should not happen unless zipfile was just barely deleted, since we
-                                    // opened it already
-                                    if (subLog != null) {
-                                        subLog.log("Cannot open zipfile: " + jarFile + " : " + e);
-                                    }
-                                    return null;
+                        ZipFile zipFile;
+                        final ThreadLocal<ZipFile> zipFileTL = new ThreadLocal<>();
+                        if ((zipFile = zipFileTL.get()) == null) {
+                            try {
+                                // Open one ZipFile instance per thread
+                                zipFile = new ZipFile(jarFile);
+                                openZipFiles.add(zipFile);
+                                zipFileTL.set(zipFile);
+                            } catch (final IOException e) {
+                                // Should not happen unless zipfile was just barely deleted, since we
+                                // opened it already
+                                if (subLog != null) {
+                                    subLog.log("Cannot open zipfile: " + jarFile + " : " + e);
                                 }
+                                return null;
                             }
-                        });
+                        }
+
                         try {
                             // Make sure we don't allow paths that use "../" to break out of the unzip root dir
                             final Path unzippedFilePath = tempDirPath.resolve(zipEntryNameWithoutPrefix);
@@ -577,7 +576,7 @@ public class NestedJarHandler {
                                     final boolean parentDirExists = mkDirs.getOrCreateSingleton(parentDir, subLog);
                                     if (parentDirExists) {
                                         // Open ZipEntry as an InputStream
-                                        try (InputStream inputStream = zipFileTL.get().getInputStream(zipEntry)) {
+                                        try (InputStream inputStream = zipFile.getInputStream(zipEntry)) {
                                             if (subLog != null) {
                                                 subLog.log("Unzipping: " + zipEntry.getName() + " -> "
                                                         + unzippedFilePath);

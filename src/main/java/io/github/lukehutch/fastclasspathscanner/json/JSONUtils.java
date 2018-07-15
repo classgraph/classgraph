@@ -416,7 +416,7 @@ public class JSONUtils {
                     } else {
                         buf.append(", ");
                     }
-                    buf.append(t.getTypeName());
+                    buf.append(t.toString());
                 }
                 buf.append(">");
             }
