@@ -137,6 +137,7 @@
 						</goals>
 						<configuration>
 							<additionalparam>-Xdoclint:none</additionalparam>
+							<additionalparam>-html5</additionalparam>
 						</configuration>
 					</execution>
 				</executions>
