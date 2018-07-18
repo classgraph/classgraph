@@ -1,4 +1,6 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
 	<groupId>io.github.lukehutch</groupId>
@@ -7,7 +9,8 @@
 	<name>FastClasspathScanner</name>
 
 	<description>
-	Uber-fast, ultra-lightweight Java classpath scanner. Scans the classpath by parsing the classfile  binary format directly rather than by using reflection.
+	Uber-fast, ultra-lightweight Java classpath and module path scanner. Scans the classpath and module path by 
+	parsing the classfile  binary format directly, rather than by using reflection.
 	See https://github.com/lukehutch/fast-classpath-scanner
 	</description>
 
@@ -70,7 +73,8 @@
 						</goals>
 						<configuration>
 							<rules>
-								<checkSignatureRule implementation="org.codehaus.mojo.animal_sniffer.enforcer.CheckSignatureRule">
+								<checkSignatureRule
+									implementation="org.codehaus.mojo.animal_sniffer.enforcer.CheckSignatureRule">
 									<signature>
 										<groupId>org.codehaus.mojo.signature</groupId>
 										<artifactId>java17</artifactId>
@@ -96,17 +100,9 @@
 						<configuration>
 							<overwriteExistingFiles>true</overwriteExistingFiles>
 							<module>
-								<moduleInfo>
-									<name>io.github.lukehutch.fastclasspathscanner</name>
-									<exports>
-										io.github.lukehutch.fastclasspathscanner;
-										io.github.lukehutch.fastclasspathscanner.classloaderhandler;
-										io.github.lukehutch.fastclasspathscanner.matchprocessor;
-										io.github.lukehutch.fastclasspathscanner.scanner;
-										io.github.lukehutch.fastclasspathscanner.typesignature;
-										io.github.lukehutch.fastclasspathscanner.utils;
-									</exports>
-								</moduleInfo>
+								<moduleInfoFile>
+									src/main/resources/module-info.java
+								</moduleInfoFile>
 							</module>
 						</configuration>
 					</execution>
