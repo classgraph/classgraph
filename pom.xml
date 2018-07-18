@@ -16,6 +16,7 @@
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<argLine.javadocs>-Xdoclint:none</argLine.javadocs> <!-- Overridden in JDK9 -->
 	</properties>
 
 	<issueManagement>
@@ -132,8 +133,7 @@
 							<goal>jar</goal>
 						</goals>
 						<configuration>
-							<additionalparam>-Xdoclint:none</additionalparam>
-							<additionalparam>-html5</additionalparam>
+							<additionalparam>${argLine.javadocs}</additionalparam>
 						</configuration>
 					</execution>
 				</executions>
@@ -305,6 +305,18 @@
 	<url>https://github.com/lukehutch/fast-classpath-scanner</url>
 
 	<profiles>
+		<!-- JDK9+ -->
+		<profile>
+			<id>java9</id>
+			<properties>
+				<argLine.javadocs>-Xdoclint:none -html5</argLine.javadocs> <!-- Overridden in JDK9 -->
+				<!-- coverall version 4.3.0 does not work with java 9, see https://github.com/trautonen/coveralls-maven-plugin/issues/112 -->
+				<coveralls.skip>true</coveralls.skip>
+			</properties>
+			<activation>
+				<jdk>[9,)</jdk>
+			</activation>
+		</profile>
 		<profile>
 			<id>release</id>
 			<activation>
