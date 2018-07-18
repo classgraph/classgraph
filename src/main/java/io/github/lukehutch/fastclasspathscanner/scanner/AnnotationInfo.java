@@ -473,6 +473,7 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
          * 
          * @return The type signature of the annotation class ref, as a {@code Class<?>} reference.
          */
+        @Deprecated
         public Class<?> getType() {
             return getClassRef();
         }
