@@ -48,7 +48,7 @@ public class Issue209Test {
                 "org.springframework.boot.loader.util", "com.foo", "issue209lib") //
                         .overrideClassLoaders(new URLClassLoader(
                                 new URL[] { Issue209Test.class.getClassLoader().getResource("issue209.jar") })) //
-                        .verbose().scan();
+                        .scan();
 
         final List<String> classNames = new ArrayList<>();
         for (final ClassInfo ci : result.getClassNameToClassInfo().values()) {
