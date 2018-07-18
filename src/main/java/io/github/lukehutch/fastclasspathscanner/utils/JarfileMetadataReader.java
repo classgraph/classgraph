@@ -337,7 +337,7 @@ public class JarfileMetadataReader {
                 // Add common package roots to the classpath (for Spring-Boot and Spring WAR files)
                 if (!hasBootInfClasses && zipEntryPath.startsWith(springBootClassesPrefix)) {
                     if (log != null) {
-                        log.log("Found Spring-Boot package root: " + zipEntryPath);
+                        log.log("Found Spring-Boot package root: " + springBootClassesPrefix);
                     }
                     // Only add once
                     hasBootInfClasses = true;
