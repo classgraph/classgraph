@@ -358,7 +358,8 @@ public class Scanner implements Callable<ScanResult> {
                     final String packageRoot = classpathElt.getJarfilePackageRoot();
                     final ModuleRef classpathElementModuleRef = classpathElt.getClasspathElementModuleRef();
                     if (classpathElementModuleRef != null) {
-                        logNode.log(i + ": module " + classpathElementModuleRef.getModuleName());
+                        logNode.log(i + ": module " + classpathElementModuleRef.getModuleName()
+                                + " ; module location: " + classpathElementModuleRef.getModuleLocationStr());
                     } else {
                         final String classpathEltStr = classpathElt.toString();
                         final String classpathEltFileStr = "" + classpathElt.getClasspathElementFile(logNode);
