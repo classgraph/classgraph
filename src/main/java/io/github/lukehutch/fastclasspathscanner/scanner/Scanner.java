@@ -411,10 +411,10 @@ public class Scanner implements Callable<ScanResult> {
                                     foundNestedClasspathRoot = true;
                                     // Store link from prefix element to nested elements
                                     final ClasspathElement baseElement = ei.getValue();
-                                    if (baseElement.nestedClasspathRoots == null) {
-                                        baseElement.nestedClasspathRoots = new HashSet<>();
+                                    if (baseElement.nestedClasspathRootPrefixes == null) {
+                                        baseElement.nestedClasspathRootPrefixes = new ArrayList<>();
                                     }
-                                    baseElement.nestedClasspathRoots.add(nestedClasspathRelativePath + "/");
+                                    baseElement.nestedClasspathRootPrefixes.add(nestedClasspathRelativePath + "/");
                                     if (classpathFinderLog != null) {
                                         if (nestedClasspathRootNode == null) {
                                             nestedClasspathRootNode = classpathFinderLog

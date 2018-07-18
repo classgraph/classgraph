@@ -152,9 +152,21 @@ class ClasspathElementDir extends ClasspathElement {
             }
             return;
         }
+
         final String dirPath = dir.getPath();
         final String dirRelativePath = ignorePrefixLen > dirPath.length() ? "/" //
                 : dirPath.substring(ignorePrefixLen).replace(File.separatorChar, '/') + "/";
+
+        if (nestedClasspathRootPrefixes != null) {
+            if (nestedClasspathRootPrefixes.contains(dirRelativePath)) {
+                if (log != null) {
+                    log.log("Reached nested classpath root, stopping recursion to avoid duplicate scanning: "
+                            + dirRelativePath);
+                }
+                return;
+            }
+        }
+
         final ScanSpecPathMatch matchStatus = scanSpec.dirWhitelistMatchStatus(dirRelativePath);
         if (matchStatus == ScanSpecPathMatch.NOT_WITHIN_WHITELISTED_PATH
                 || matchStatus == ScanSpecPathMatch.HAS_BLACKLISTED_PATH_PREFIX) {
@@ -167,15 +179,6 @@ class ClasspathElementDir extends ClasspathElement {
                 || matchStatus == ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX) {
             // Reached a whitelisted path -- can start scanning directories and files from this point
             inWhitelistedPath = true;
-        }
-        if (nestedClasspathRoots != null) {
-            if (nestedClasspathRoots.contains(dirRelativePath)) {
-                if (log != null) {
-                    log.log("Reached nested classpath root, stopping recursion to avoid duplicate scanning: "
-                            + dirRelativePath);
-                }
-                return;
-            }
         }
 
         final File[] filesInDir = dir.listFiles();

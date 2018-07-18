@@ -59,7 +59,7 @@ abstract class ClasspathElement {
      * need to be caught, because we don't scan jars-within-jars unless the inner jar is explicitly listed on the
      * classpath).
      */
-    Set<String> nestedClasspathRoots;
+    List<String> nestedClasspathRootPrefixes;
 
     /**
      * True if there was an exception when trying to open this classpath element (e.g. a corrupt ZipFile).

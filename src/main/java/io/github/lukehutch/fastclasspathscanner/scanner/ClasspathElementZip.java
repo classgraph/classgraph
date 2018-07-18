@@ -34,7 +34,6 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
@@ -270,13 +269,7 @@ class ClasspathElementZip extends ClasspathElement {
         }
         final int requiredPrefixLen = requiredPrefix.length();
 
-        // Convert set to list for faster iteration
-        List<String> nestedClasspathRootsList = null;
-        if (nestedClasspathRoots != null) {
-            nestedClasspathRootsList = new ArrayList<>(nestedClasspathRoots);
-        }
-
-        Set<String> loggedNestedClasspathRoots = null;
+        Set<String> loggedNestedClasspathRootPrefixes = null;
         String prevParentRelativePath = null;
         ScanSpecPathMatch prevParentMatchStatus = null;
         for (final ZipEntry zipEntry : jarfileMetadataReader.zipEntries) {
@@ -293,6 +286,31 @@ class ClasspathElementZip extends ClasspathElement {
                 }
                 // Strip the classpath root prefix from the relative path
                 relativePath = relativePath.substring(requiredPrefixLen);
+            }
+
+            // Check if the relative path is within a nested classpath root
+            if (nestedClasspathRootPrefixes != null) {
+                // This is O(mn), which is inefficient, but the number of nested classpath roots should be small
+                boolean reachedNestedRoot = false;
+                for (final String nestedClasspathRoot : nestedClasspathRootPrefixes) {
+                    if (relativePath.startsWith(nestedClasspathRoot)) {
+                        // relativePath has a prefix of nestedClasspathRoot
+                        if (log != null) {
+                            if (loggedNestedClasspathRootPrefixes == null) {
+                                loggedNestedClasspathRootPrefixes = new HashSet<>();
+                            }
+                            if (loggedNestedClasspathRootPrefixes.add(nestedClasspathRoot)) {
+                                log.log("Reached nested classpath root, stopping recursion to avoid duplicate "
+                                        + "scanning: " + nestedClasspathRoot);
+                            }
+                        }
+                        reachedNestedRoot = true;
+                        break;
+                    }
+                }
+                if (reachedNestedRoot) {
+                    continue;
+                }
             }
 
             // Get match status of the parent directory of this zipentry file's relative path (or reuse the last
@@ -317,26 +335,6 @@ class ClasspathElementZip extends ClasspathElement {
                     log.log("Skipping non-whitelisted path: " + zipEntry.getName());
                 }
                 continue;
-            }
-
-            // Check if the relative path is within a nested classpath root
-            if (nestedClasspathRootsList != null) {
-                // This is O(mn), which is inefficient, but the number of nested classpath roots should be small
-                for (final String nestedClasspathRoot : nestedClasspathRootsList) {
-                    if (relativePath.startsWith(nestedClasspathRoot)) {
-                        // relativePath has a prefix of nestedClasspathRoot
-                        if (log != null) {
-                            if (loggedNestedClasspathRoots == null) {
-                                loggedNestedClasspathRoots = new HashSet<>();
-                            }
-                            if (loggedNestedClasspathRoots.add(nestedClasspathRoot)) {
-                                log.log("Reached nested classpath root, stopping recursion to avoid duplicate "
-                                        + "scanning: " + nestedClasspathRoot);
-                            }
-                        }
-                        continue;
-                    }
-                }
             }
 
             final LogNode subLog = log == null ? null
