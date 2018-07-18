@@ -911,7 +911,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
         // Remember which classpath element (zipfile / classpath root directory / module) the class was found in
         final ModuleRef modRef = classpathElement.getClasspathElementModuleRef();
-        final File file = classpathElement.getClasspathElementFile(log);
+        final File file = modRef != null ? null : classpathElement.getClasspathElementFile(log);
         if ((classInfo.classpathElementModuleRef != null && modRef != null
                 && !classInfo.classpathElementModuleRef.equals(modRef))
                 || (classInfo.classpathElementFile != null && file != null
