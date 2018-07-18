@@ -332,7 +332,7 @@ class ClasspathElementZip extends ClasspathElement {
                     && (parentMatchStatus != ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE
                             || !scanSpec.isSpecificallyWhitelistedClass(relativePath))) {
                 if (log != null) {
-                    log.log("Skipping non-whitelisted path: " + zipEntry.getName());
+                    log.log("Skipping non-whitelisted path: " + relativePath);
                 }
                 continue;
             }
