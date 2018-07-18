@@ -196,7 +196,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     }
 
     /**
-     * Get a class reference for this class. Calls the classloader.
+     * Get a class reference for this class. Causes the ClassLoader to load the class.
      * 
      * @return The class reference.
      * @throws IllegalArgumentException
@@ -209,8 +209,8 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     }
 
     /**
-     * Get a class reference for this class, casting it to the requested interface or superclass type. Calls the
-     * classloader.
+     * Get a class reference for this class, casting it to the requested interface or superclass type. Causes the
+     * ClassLoader to load the class.
      * 
      * @param classType
      *            The class to cast the result to.
