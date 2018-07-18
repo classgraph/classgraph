@@ -13,6 +13,8 @@
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+		<argLine.javadocs>-Xdoclint:none</argLine.javadocs> <!-- Overridden in JDK9 -->
 	</properties>
 
 	<issueManagement>
@@ -83,36 +85,6 @@
 				</executions>
 			</plugin>
 			<plugin>
-				<groupId>org.moditect</groupId>
-				<artifactId>moditect-maven-plugin</artifactId>
-				<version>1.0.0.Beta1</version>
-				<executions>
-					<execution>
-						<id>add-module-infos</id>
-						<phase>package</phase>
-						<goals>
-							<goal>add-module-info</goal>
-						</goals>
-						<configuration>
-							<overwriteExistingFiles>true</overwriteExistingFiles>
-							<module>
-								<moduleInfo>
-									<name>io.github.lukehutch.fastclasspathscanner</name>
-									<exports>
-										io.github.lukehutch.fastclasspathscanner;
-										io.github.lukehutch.fastclasspathscanner.classloaderhandler;
-										io.github.lukehutch.fastclasspathscanner.matchprocessor;
-										io.github.lukehutch.fastclasspathscanner.scanner;
-										io.github.lukehutch.fastclasspathscanner.typesignature;
-										io.github.lukehutch.fastclasspathscanner.utils;
-									</exports>
-								</moduleInfo>
-							</module>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-source-plugin</artifactId>
 				<version>2.2.1</version>
@@ -136,8 +108,7 @@
 							<goal>jar</goal>
 						</goals>
 						<configuration>
-							<additionalparam>-Xdoclint:none</additionalparam>
-							<additionalparam>-html5</additionalparam>
+							<additionalparam>${argLine.javadocs}</additionalparam>
 						</configuration>
 					</execution>
 				</executions>
@@ -309,6 +280,18 @@
 	<url>https://github.com/lukehutch/fast-classpath-scanner</url>
 
 	<profiles>
+		<!-- JDK9+ -->
+		<profile>
+			<id>java9</id>
+			<properties>
+				<argLine.javadocs>-Xdoclint:none -html5</argLine.javadocs> <!-- Overridden in JDK9 -->
+				<!-- coverall version 4.3.0 does not work with java 9, see https://github.com/trautonen/coveralls-maven-plugin/issues/112 -->
+				<coveralls.skip>true</coveralls.skip>
+			</properties>
+			<activation>
+				<jdk>[9,)</jdk>
+			</activation>
+		</profile>
 		<profile>
 			<id>release</id>
 			<activation>
@@ -319,6 +302,36 @@
 			</activation>
 			<build>
 				<plugins>
+					<plugin>
+						<groupId>org.moditect</groupId>
+						<artifactId>moditect-maven-plugin</artifactId>
+						<version>1.0.0.Beta1</version>
+						<executions>
+							<execution>
+								<id>add-module-infos</id>
+								<phase>package</phase>
+								<goals>
+									<goal>add-module-info</goal>
+								</goals>
+								<configuration>
+									<overwriteExistingFiles>true</overwriteExistingFiles>
+									<module>
+										<moduleInfo>
+											<name>io.github.lukehutch.fastclasspathscanner</name>
+											<exports>
+												io.github.lukehutch.fastclasspathscanner;
+												io.github.lukehutch.fastclasspathscanner.classloaderhandler;
+												io.github.lukehutch.fastclasspathscanner.matchprocessor;
+												io.github.lukehutch.fastclasspathscanner.scanner;
+												io.github.lukehutch.fastclasspathscanner.typesignature;
+												io.github.lukehutch.fastclasspathscanner.utils;
+											</exports>
+										</moduleInfo>
+									</module>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-gpg-plugin</artifactId>
