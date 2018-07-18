@@ -45,10 +45,10 @@ public class Issue209Test {
     @Test
     public void testSpringBootJarWithLibJars() {
         final ScanResult result = new FastClasspathScanner( //
-                "org.springframework.boot.loader.util", "com.foo", "org.slf4j") //
+                "org.springframework.boot.loader.util", "com.foo", "issue209lib") //
                         .overrideClassLoaders(new URLClassLoader(
                                 new URL[] { Issue209Test.class.getClassLoader().getResource("issue209.jar") })) //
-                        .scan();
+                        .verbose().scan();
 
         final List<String> classNames = new ArrayList<>();
         for (final ClassInfo ci : result.getClassNameToClassInfo().values()) {
@@ -61,13 +61,13 @@ public class Issue209Test {
                 // Test reading from /BOOT-INF/classes
                 "com.foo.externalApp.ExternalAppApplication", "com.foo.externalApp.SomeClass",
                 // Test reading from /BOOT-INF/lib/*.jar
-                "org.slf4j.bridge.SLF4JBridgeHandler");
+                "issue209lib.Issue209Lib");
     }
 
     @Test
     public void testSpringBootJarWithLibJarsUsingCustomClassLoader() {
         final ScanResult result = new FastClasspathScanner( //
-                "org.springframework.boot.loader.util", "com.foo", "org.slf4j") //
+                "org.springframework.boot.loader.util", "com.foo", "issue209lib") //
                         .overrideClassLoaders(new URLClassLoader(
                                 new URL[] { Issue209Test.class.getClassLoader().getResource("issue209.jar") })) //
                         .createClassLoaderForMatchingClasses() //
@@ -84,6 +84,6 @@ public class Issue209Test {
                 // Test reading from /BOOT-INF/classes
                 "com.foo.externalApp.ExternalAppApplication", "com.foo.externalApp.SomeClass",
                 // Test reading from /BOOT-INF/lib/*.jar
-                "org.slf4j.bridge.SLF4JBridgeHandler");
+                "issue209lib.Issue209Lib");
     }
 }
