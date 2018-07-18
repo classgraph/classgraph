@@ -466,11 +466,24 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
         }
 
         /**
-         * Get a class reference for a class-reference-typed value used in an annotation parameter.
+         * Get a class reference for a class-reference-typed value used in an annotation parameter. Causes the
+         * ClassLoader to load the class.
+         * 
+         * @deprecated in favor of getClassRef(), for consistency with {@code ClassInfo#getClassRef()}.
          * 
          * @return The type signature of the annotation class ref, as a {@code Class<?>} reference.
          */
         public Class<?> getType() {
+            return getClassRef();
+        }
+
+        /**
+         * Get a class reference for a class-reference-typed value used in an annotation parameter. Causes the
+         * ClassLoader to load the class.
+         * 
+         * @return The type signature of the annotation class ref, as a {@code Class<?>} reference.
+         */
+        public Class<?> getClassRef() {
             return getTypeSignature().instantiate(scanResult);
         }
 
