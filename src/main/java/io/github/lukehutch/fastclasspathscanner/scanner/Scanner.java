@@ -521,12 +521,17 @@ public class Scanner implements Callable<ScanResult> {
                     for (final ClasspathElement classpathElement : classpathOrder) {
                         if (classpathElementsWithMatchedClasses.contains(classpathElement)) {
                             try {
-                                final File classpathEltFile = classpathElement.classpathEltPath
-                                        .getFile(classLoaderLog);
-                                final URL url = classpathEltFile.toURI().toURL();
-                                urlOrder.add(url);
-                                if (classLoaderLog != null) {
-                                    classLoaderLog.log(classpathElement + " -> " + url);
+                                // Don't try to get classpath URL for modules (classloading from modules
+                                // will be handled by parent classloader)
+                                ModuleRef modRef = classpathElement.getClasspathElementModuleRef();
+                                if (modRef == null) {
+                                    final File classpathEltFile = classpathElement.classpathEltPath
+                                            .getFile(classLoaderLog);
+                                    final URL url = classpathEltFile.toURI().toURL();
+                                    urlOrder.add(url);
+                                    if (classLoaderLog != null) {
+                                        classLoaderLog.log(classpathElement + " -> " + url);
+                                    }
                                 }
                             } catch (final Exception e) {
                                 if (classLoaderLog != null) {
