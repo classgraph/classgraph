@@ -355,13 +355,18 @@ public class Scanner implements Callable<ScanResult> {
                 final LogNode logNode = classpathFinderLog.log("Final classpath element order:");
                 for (int i = 0; i < classpathOrder.size(); i++) {
                     final ClasspathElement classpathElt = classpathOrder.get(i);
-                    final String classpathEltStr = classpathElt.toString();
-                    final String classpathEltFile = classpathElt.getClasspathElementFile(logNode).toString();
                     final String packageRoot = classpathElt.getJarfilePackageRoot();
-                    logNode.log(i + ": "
-                            + (classpathEltStr.equals(classpathEltFile) && packageRoot.isEmpty() ? classpathEltStr
-                                    : classpathElt + " -> " + classpathEltFile
-                                            + (packageRoot.isEmpty() ? "" : " ; package root: " + packageRoot)));
+                    final ModuleRef classpathElementModuleRef = classpathElt.getClasspathElementModuleRef();
+                    if (classpathElementModuleRef != null) {
+                        logNode.log(i + ": module " + classpathElementModuleRef.getModuleName());
+                    } else {
+                        final String classpathEltStr = classpathElt.toString();
+                        final String classpathEltFileStr = "" + classpathElt.getClasspathElementFile(logNode);
+                        logNode.log(i + ": " + (classpathEltStr.equals(classpathEltFileStr) && packageRoot.isEmpty()
+                                ? classpathEltStr
+                                : classpathElt + " -> " + classpathEltFileStr
+                                        + (packageRoot.isEmpty() ? "" : " ; package root: " + packageRoot)));
+                    }
                 }
             }
 
