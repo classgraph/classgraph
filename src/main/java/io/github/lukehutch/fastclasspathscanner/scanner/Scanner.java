@@ -50,6 +50,7 @@ import io.github.lukehutch.fastclasspathscanner.utils.InterruptionChecker;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.NestedJarHandler;
 import io.github.lukehutch.fastclasspathscanner.utils.Recycler;
+import io.github.lukehutch.fastclasspathscanner.utils.SingletonMap;
 import io.github.lukehutch.fastclasspathscanner.utils.WorkQueue;
 import io.github.lukehutch.fastclasspathscanner.utils.WorkQueue.WorkQueuePreStartHook;
 import io.github.lukehutch.fastclasspathscanner.utils.WorkQueue.WorkUnitProcessor;
@@ -84,6 +85,51 @@ public class Scanner implements Callable<ScanResult> {
         this.scanResultProcessor = scannResultProcessor;
         this.failureHandler = failureHandler;
         this.log = log;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** A map from relative path to classpath element singleton. */
+    private static class RelativePathToElementMap extends SingletonMap<RelativePath, ClasspathElement>
+            implements AutoCloseable {
+        private final boolean scanFiles;
+        private final ScanSpec scanSpec;
+        private final NestedJarHandler nestedJarHandler;
+        private final InterruptionChecker interruptionChecker;
+        private WorkQueue<RelativePath> workQueue;
+
+        /** A map from relative path to classpath element singleton. */
+        RelativePathToElementMap(final boolean scanFiles, final ScanSpec scanSpec,
+                final NestedJarHandler nestedJarHandler, final InterruptionChecker interruptionChecker) {
+            this.scanFiles = scanFiles;
+            this.scanSpec = scanSpec;
+            this.nestedJarHandler = nestedJarHandler;
+            this.interruptionChecker = interruptionChecker;
+        }
+
+        /**
+         * Work queue -- needs to be set for zipfiles, but not for directories, since zipfiles can contain
+         * Class-Path manifest entries, which require the adding of additional work units to the scanning work
+         * queue.
+         */
+        public void setWorkQueue(final WorkQueue<RelativePath> workQueue) {
+            this.workQueue = workQueue;
+        }
+
+        /** Create a new classpath element singleton instance. */
+        @Override
+        public ClasspathElement newInstance(final RelativePath classpathElt, final LogNode log) {
+            return ClasspathElement.newInstance(classpathElt, scanFiles, scanSpec, nestedJarHandler, workQueue,
+                    interruptionChecker, log);
+        }
+
+        /** Close the classpath elements. */
+        @Override
+        public void close() throws Exception {
+            for (final ClasspathElement classpathElt : values()) {
+                classpathElt.close();
+            }
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
