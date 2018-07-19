@@ -45,6 +45,7 @@ import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 /** The combination of a classpath element and a relative path within this classpath element. */
 public abstract class ClasspathResource {
     // TODO: moduleRef and classpathEltFile are mutually exclusive -- should probably create subclasses
+    // TODO: merge this class with RelativePath
     public final File classpathEltFile;
     public final ModuleRef moduleRef;
     public final String pathRelativeToClasspathElt;
