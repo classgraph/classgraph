@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2016 Luke Hutchison
+ * Copyright (c) 2018 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -34,7 +34,10 @@ import java.nio.ByteBuffer;
 
 import io.github.lukehutch.fastclasspathscanner.utils.FileUtils;
 
-/** The combination of a classpath element and a relative path within this classpath element. */
+/**
+ * A classpath resource (or file) that was found in a whitelisted/non-blacklisted package inside a classpath
+ * element.
+ */
 public abstract class ClasspathResource implements AutoCloseable {
     protected InputStream inputStream;
     protected ByteBuffer byteBuffer;
@@ -63,16 +66,20 @@ public abstract class ClasspathResource implements AutoCloseable {
     }
 
     /**
-     * The path of this classpath resource relative to the package root of the classpath element. For example, for a
-     * package root of "BOOT-INF/classes/" and a resource path of "BOOT-INF/classes/com/xyz/resource.xml", returns
-     * "com/xyz/resource.xml".
+     * Returns the path of this classpath resource relative to the package root within the classpath element.
+     * 
+     * @returns the path of this classpath resource relative to the package root within the classpath element. For
+     *          example, for a resource path of "BOOT-INF/classes/com/xyz/resource.xml" and a package root of
+     *          "BOOT-INF/classes/", returns "com/xyz/resource.xml".
      */
     public abstract String getPathRelativeToPackageRoot();
 
     /**
-     * The path of this classpath resource relative to the package root of the classpath element. For example, for a
-     * resource path of "BOOT-INF/classes/com/xyz/resource.xml", returns the whole resource path, even if the
-     * package root is "BOOT-INF/classes/".
+     * Returns the path of this classpath resource within the classpath element.
+     * 
+     * @returns the path of this classpath resource within the classpath element. For example, for a resource path
+     *          of "BOOT-INF/classes/com/xyz/resource.xml", returns "BOOT-INF/classes/com/xyz/resource.xml" (even if
+     *          the package root is "BOOT-INF/classes/").
      */
     public abstract String getPathRelativeToClasspathElement();
 
@@ -96,8 +103,9 @@ public abstract class ClasspathResource implements AutoCloseable {
     public abstract byte[] load() throws IOException;
 
     /**
-     * Get length of InputStream or ByteBuffer -- may only be set after calling {@link #open()} or {@link #read()}.
-     * (For some resources, length can never be determined.) Returns -1 if length is unknown.
+     * Get length of InputStream or ByteBuffer -- only set after calling {@link #open()} or {@link #read()}. (For
+     * some resources in jarfiles, length will be unknown even after calling {@link #open()} or {@link #read()}.)
+     * Returns -1 if length is unknown.
      */
     public long getLength() {
         return length;
