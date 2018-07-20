@@ -29,6 +29,8 @@
 package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import java.io.File;
+import java.io.IOException;
+import java.io.PrintWriter;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -45,7 +47,6 @@ import io.github.lukehutch.fastclasspathscanner.json.JSONDeserializer;
 import io.github.lukehutch.fastclasspathscanner.json.JSONSerializer;
 import io.github.lukehutch.fastclasspathscanner.utils.ClassLoaderAndModuleFinder;
 import io.github.lukehutch.fastclasspathscanner.utils.GraphvizDotfileGenerator;
-import io.github.lukehutch.fastclasspathscanner.utils.InterruptionChecker;
 import io.github.lukehutch.fastclasspathscanner.utils.JarUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.JarfileMetadataReader;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
@@ -54,42 +55,39 @@ import io.github.lukehutch.fastclasspathscanner.utils.NestedJarHandler;
 /** The result of a scan. */
 public class ScanResult {
     /** The scan spec. */
-    transient ScanSpec scanSpec;
+    private final ScanSpec scanSpec;
 
     /** The order of unique classpath elements. */
-    transient List<ClasspathElement> classpathOrder;
+    private final List<ClasspathElement> classpathOrder;
 
     /** The list of all files that were found in whitelisted packages. */
-    transient ResourceList allResources;
+    private ResourceList allResources;
 
     /**
      * The default order in which ClassLoaders are called to load classes. Used when a specific class does not have
      * a record of which ClassLoader provided the URL used to locate the class (e.g. if the class is found using
      * java.class.path).
      */
-    private transient ClassLoader[] envClassLoaderOrder;
+    private final ClassLoader[] envClassLoaderOrder;
 
     /** The nested jar handler instance. */
-    private transient NestedJarHandler nestedJarHandler;
+    private final NestedJarHandler nestedJarHandler;
 
     /**
      * The file, directory and jarfile resources timestamped during a scan, along with their timestamp at the time
      * of the scan. For jarfiles, the timestamp represents the timestamp of all files within the jar. May be null,
      * if this ScanResult object is the result of a call to FastClasspathScanner#getUniqueClasspathElementsAsync().
      */
-    private transient Map<File, Long> fileToLastModified;
+    private final Map<File, Long> fileToLastModified;
 
     /**
      * The class graph builder. May be null, if this ScanResult object is the result of a call to
      * FastClasspathScanner#getUniqueClasspathElementsAsync().
      */
-    Map<String, ClassInfo> classNameToClassInfo;
-
-    /** The interruption checker. */
-    transient InterruptionChecker interruptionChecker;
+    private final Map<String, ClassInfo> classNameToClassInfo;
 
     /** The log. */
-    transient LogNode log;
+    private final LogNode log;
 
     /** Called after deserialization. */
     void setFields(final ScanSpec scanSpec) {
@@ -104,8 +102,7 @@ public class ScanResult {
     /** The result of a scan. Make sure you call complete() after calling the constructor. */
     ScanResult(final ScanSpec scanSpec, final List<ClasspathElement> classpathOrder,
             final ClassLoader[] envClassLoaderOrder, final Map<String, ClassInfo> classNameToClassInfo,
-            final Map<File, Long> fileToLastModified, final NestedJarHandler nestedJarHandler,
-            final InterruptionChecker interruptionChecker, final LogNode log) {
+            final Map<File, Long> fileToLastModified, final NestedJarHandler nestedJarHandler, final LogNode log) {
         this.scanSpec = scanSpec;
         this.classpathOrder = classpathOrder;
         for (final ClasspathElement classpathElt : classpathOrder) {
@@ -120,7 +117,6 @@ public class ScanResult {
         this.fileToLastModified = fileToLastModified;
         this.classNameToClassInfo = classNameToClassInfo;
         this.nestedJarHandler = nestedJarHandler;
-        this.interruptionChecker = interruptionChecker;
         this.log = log;
 
         // Add some post-scan backrefs from info objects to this ScanResult and to the scan spec
@@ -144,7 +140,7 @@ public class ScanResult {
             if (modRef != null) {
                 if (!modRef.isSystemModule()) {
                     // Add module files when they don't have a "jrt:/" scheme
-                    File moduleLocationFile = modRef.getModuleLocationFile();
+                    final File moduleLocationFile = modRef.getModuleLocationFile();
                     if (moduleLocationFile != null) {
                         classpathElementOrderFiles.add(moduleLocationFile);
                     }
@@ -620,6 +616,27 @@ public class ScanResult {
                 /* showMethods = */ true);
     }
 
+    /**
+     * Generate a .dot file which can be fed into GraphViz for layout and visualization of the class graph, and save
+     * it to the specified file. Methods and fields are shown, if method and field info have been enabled
+     * respectively, via {@link io.github.lukehutch.fastclasspathscanner.FastClasspathScanner#enableMethodInfo()}
+     * and {@link io.github.lukehutch.fastclasspathscanner.FastClasspathScanner#enableFieldInfo()}. Only public
+     * methods/fields are shown, unless
+     * {@link io.github.lukehutch.fastclasspathscanner.FastClasspathScanner#ignoreMethodVisibility()} and/or
+     * {@link io.github.lukehutch.fastclasspathscanner.FastClasspathScanner#ignoreFieldVisibility()} has been
+     * called. The size defaults to 10.5 x 8 inches.
+     *
+     * @param file
+     *            the file to save the GraphViz .dot file to.
+     * @throws IOException
+     *             if the file could not be saved.
+     */
+    public void generateClassGraphDotFile(final File file) throws IOException {
+        try (final PrintWriter writer = new PrintWriter(file)) {
+            writer.print(generateClassGraphDotFile());
+        }
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
@@ -896,8 +913,8 @@ public class ScanResult {
             classNameToClassInfo.put(ci.getClassName(), ci);
         }
         final ScanResult scanResult = new ScanResult(deserialized.scanSpec,
-                Collections.<ClasspathElement> emptyList(), envClassLoaderOrder, classNameToClassInfo,
-                /* fileToLastModified = */ null, /* nestedJarHandler = */ null, /* interruptionChecker = */ null,
+                /* classpathOrder = */ Collections.<ClasspathElement> emptyList(), envClassLoaderOrder,
+                classNameToClassInfo, /* fileToLastModified = */ null, /* nestedJarHandler = */ null,
                 /* log = */ null);
         return scanResult;
     }

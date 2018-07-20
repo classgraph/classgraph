@@ -642,14 +642,13 @@ public class Scanner implements Callable<ScanResult> {
 
                 // Create ScanResult
                 scanResult = new ScanResult(scanSpec, classpathOrder, classLoaderOrder, classNameToClassInfo,
-                        fileToLastModified, nestedJarHandler, interruptionChecker, log);
+                        fileToLastModified, nestedJarHandler, log);
 
             } else {
                 // This is the result of a call to FastClasspathScanner#getUniqueClasspathElementsAsync(), so just
                 // create placeholder ScanResult to contain classpathElementFilesOrdered.
                 scanResult = new ScanResult(scanSpec, classpathOrder, classLoaderOrder,
-                        /* classNameToClassInfo = */ null, /* fileToLastModified = */ null, nestedJarHandler,
-                        interruptionChecker, log);
+                        /* classNameToClassInfo = */ null, /* fileToLastModified = */ null, nestedJarHandler, log);
             }
             if (log != null) {
                 log.log("Completed scan", System.nanoTime() - scanStart);
