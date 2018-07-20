@@ -34,20 +34,14 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult.InfoObject;
-import io.github.lukehutch.fastclasspathscanner.typesignature.ArrayTypeSignature;
-import io.github.lukehutch.fastclasspathscanner.typesignature.ClassRefOrTypeVariableSignature;
-import io.github.lukehutch.fastclasspathscanner.typesignature.MethodTypeSignature;
-import io.github.lukehutch.fastclasspathscanner.typesignature.TypeParameter;
-import io.github.lukehutch.fastclasspathscanner.typesignature.TypeSignature;
-import io.github.lukehutch.fastclasspathscanner.typesignature.TypeUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.Parser.ParseException;
+import io.github.lukehutch.fastclasspathscanner.utils.TypeUtils;
 
 /**
  * Holds metadata about methods of a class encountered during a scan. All values are taken directly out of the
  * classfile for the class.
  */
-public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
+public class MethodInfo extends ScanResultObject implements Comparable<MethodInfo> {
     /** Defining class name. */
     transient String className;
 
@@ -99,15 +93,14 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
     /** Aligned method parameter info */
     transient MethodParameterInfo[] methodParameterInfo;
 
-    transient ScanResult scanResult;
-
+    /** Default constructor for deserialization. */
     MethodInfo() {
     }
 
     /** Sets back-reference to scan result after scan is complete. */
     @Override
     void setScanResult(final ScanResult scanResult) {
-        this.scanResult = scanResult;
+        super.setScanResult(scanResult);
         if (this.annotationInfo != null) {
             for (int i = 0; i < this.annotationInfo.size(); i++) {
                 final AnnotationInfo ai = this.annotationInfo.get(i);
@@ -407,26 +400,25 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
         }
     }
 
-    private static Class<?>[] toClassRefs(final List<? extends TypeSignature> typeDescriptors,
-            final ScanResult scanResult) {
+    private static Class<?>[] toClassRefs(final List<? extends TypeSignature> typeDescriptors) {
         if (typeDescriptors.size() == 0) {
             return EMPTY_CLASS_REF_ARRAY;
         } else {
             final Class<?>[] classRefArray = new Class<?>[typeDescriptors.size()];
             for (int i = 0; i < typeDescriptors.size(); i++) {
-                classRefArray[i] = typeDescriptors.get(i).instantiate(scanResult);
+                classRefArray[i] = typeDescriptors.get(i).instantiate();
             }
             return classRefArray;
         }
     }
 
-    private static Class<?>[] toClassRefs(final TypeSignature[] typeDescriptors, final ScanResult scanResult) {
+    private static Class<?>[] toClassRefs(final TypeSignature[] typeDescriptors) {
         if (typeDescriptors.length == 0) {
             return EMPTY_CLASS_REF_ARRAY;
         } else {
             final Class<?>[] classRefArray = new Class<?>[typeDescriptors.length];
             for (int i = 0; i < typeDescriptors.length; i++) {
-                classRefArray[i] = typeDescriptors[i].instantiate(scanResult);
+                classRefArray[i] = typeDescriptors[i].instantiate();
             }
             return classRefArray;
         }
@@ -597,7 +589,7 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
             final TypeSignature typeDesc = paramInfo.getTypeDescriptor();
             paramTypeDescriptors[i] = typeDesc;
         }
-        return toClassRefs(paramTypeDescriptors, scanResult);
+        return toClassRefs(paramTypeDescriptors);
     }
 
     /**
@@ -776,13 +768,16 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
 
     /**
      * Returns the unique annotation types for annotations on each method parameter, if any parameters have
-     * annotations, else returns null.
+     * annotations, else returns null. Causes the classloader to load each parameter type's class, if not already
+     * loaded.
      *
      * Note that it is always faster to call {@link #getParameterInfo()} and get the parameter information from the
      * returned list of {@link MethodParameterInfo} objects, since this method calls that to compile its results.
      * 
      * @return The method parameter annotation types, as an array of Strings, or null if no parameter annotations
      *         are present.
+     * @throws IllegalArgumentException
+     *             if an exception or error is thrown when loading any of the paramater types.
      */
     public Class<?>[][] getParameterAnnotationTypes() {
         final String[][] paramAnnotationNames = getParameterAnnotationNames();
@@ -793,7 +788,8 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
         for (int i = 0; i < paramAnnotationNames.length; i++) {
             parameterAnnotationTypes[i] = new Class<?>[paramAnnotationNames[i].length];
             for (int j = 0; j < paramAnnotationNames[i].length; j++) {
-                parameterAnnotationTypes[i][j] = scanResult.classNameToClassRef(paramAnnotationNames[i][j]);
+                parameterAnnotationTypes[i][j] = scanResult.classNameToClassRef(paramAnnotationNames[i][j],
+                        /* ignoreExceptions = */ false);
             }
         }
         return parameterAnnotationTypes;
@@ -837,7 +833,7 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
      *             if the return type for the method could not be loaded.
      */
     public Class<?> getResultType() throws IllegalArgumentException {
-        return getResultTypeDescriptor().instantiate(scanResult);
+        return getResultTypeDescriptor().instantiate();
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -860,7 +856,7 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
      *         zero-sized array.
      */
     public Class<?>[] getThrowsTypes() {
-        return toClassRefs(getTypeSignature().getThrowsSignatures(), scanResult);
+        return toClassRefs(getTypeSignature().getThrowsSignatures());
     }
 
     /**
@@ -908,11 +904,12 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
 
     /**
      * Returns a list of {@code Class<?>} references for the annotations on this method. Note that this calls
-     * Class.forName() on the annotation types, which will cause each annotation class to be loaded.
+     * Class.forName() on the annotation types, which will cause each annotation class to be loaded. Causes the
+     * classloader to load each annotation's class, if not already loaded.
      * 
      * @return a list of {@code Class<?>} references for the annotations on this method, or the empty list if none.
      * @throws IllegalArgumentException
-     *             if the annotation type could not be loaded.
+     *             if an exception or error was thrown while loading any of the annotation classes.
      */
     public List<Class<?>> getAnnotationTypes() throws IllegalArgumentException {
         if (annotationInfo == null || annotationInfo.isEmpty()) {
@@ -920,7 +917,8 @@ public class MethodInfo extends InfoObject implements Comparable<MethodInfo> {
         } else {
             final List<Class<?>> annotationClassRefs = new ArrayList<>();
             for (final String annotationName : getAnnotationNames()) {
-                annotationClassRefs.add(scanResult.classNameToClassRef(annotationName));
+                annotationClassRefs
+                        .add(scanResult.classNameToClassRef(annotationName, /* ignoreExceptions = */ false));
             }
             return annotationClassRefs;
         }

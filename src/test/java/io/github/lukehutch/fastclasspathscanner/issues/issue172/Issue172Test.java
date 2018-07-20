@@ -2,7 +2,7 @@ package io.github.lukehutch.fastclasspathscanner.issues.issue172;
 
 import org.junit.Test;
 
-import io.github.lukehutch.fastclasspathscanner.typesignature.MethodTypeSignature;
+import io.github.lukehutch.fastclasspathscanner.scanner.MethodTypeSignature;
 
 public class Issue172Test {
     @Test

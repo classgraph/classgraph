@@ -26,12 +26,11 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.lukehutch.fastclasspathscanner.typesignature;
+package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import java.lang.reflect.Array;
 import java.util.Set;
 
-import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
 import io.github.lukehutch.fastclasspathscanner.utils.Parser;
 import io.github.lukehutch.fastclasspathscanner.utils.Parser.ParseException;
 
@@ -42,6 +41,14 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
 
     /** The number of array dimensions. */
     final int numArrayDims;
+
+    @Override
+    void setScanResult(final ScanResult scanResult) {
+        super.setScanResult(scanResult);
+        if (elementTypeSignature != null) {
+            elementTypeSignature.setScanResult(scanResult);
+        }
+    }
 
     /**
      * @param elementTypeSignature
@@ -87,8 +94,8 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
     }
 
     @Override
-    public Class<?> instantiate(final ScanResult scanResult) {
-        final Class<?> elementClassRef = elementTypeSignature.instantiate(scanResult);
+    public Class<?> instantiate(final boolean ignoreExceptions) {
+        final Class<?> elementClassRef = elementTypeSignature.instantiate(ignoreExceptions);
         return arrayify(elementClassRef, numArrayDims);
     }
 

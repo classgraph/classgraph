@@ -34,22 +34,17 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ExecutionException;
 
-import io.github.lukehutch.fastclasspathscanner.scanner.matchers.FileMatchProcessorWrapper;
 import io.github.lukehutch.fastclasspathscanner.utils.InterruptionChecker;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
-import io.github.lukehutch.fastclasspathscanner.utils.MultiMapKeyToList;
 import io.github.lukehutch.fastclasspathscanner.utils.NestedJarHandler;
 import io.github.lukehutch.fastclasspathscanner.utils.WorkQueue;
 
 /** A classpath element (a directory or jarfile on the classpath). */
 abstract class ClasspathElement {
     /** The path of the classpath element relative to the current directory. */
-    final RelativePath classpathEltPath;
+    final ClasspathElementPath classpathEltPath;
 
     /**
      * If non-null, contains a list of resolved paths for any classpath element roots nested inside this classpath
@@ -70,7 +65,7 @@ abstract class ClasspathElement {
      * The child classpath elements. These are the entries obtained from Class-Path entries in the manifest file, if
      * this classpath element is a jarfile.
      */
-    List<RelativePath> childClasspathElts;
+    List<ClasspathElementPath> childClasspathElts;
 
     /** The scan spec. */
     final ScanSpec scanSpec;
@@ -87,8 +82,8 @@ abstract class ClasspathElement {
      */
     protected InterruptionChecker interruptionChecker;
 
-    /** The list of classpath resources that matched for each FileMatchProcessor. */
-    protected MultiMapKeyToList<FileMatchProcessorWrapper, ClasspathResource> fileMatches;
+    /** The list of all classpath resources found within whitelisted paths within this classpath element. */
+    protected List<ClasspathResource> fileMatches;
 
     /**
      * The list of whitelisted classfiles found within this classpath resource, if scanFiles is true.
@@ -99,7 +94,7 @@ abstract class ClasspathElement {
     protected Map<File, Long> fileToLastModified;
 
     /** A classpath element (a directory or jarfile on the classpath). */
-    ClasspathElement(final RelativePath classpathEltPath, final ScanSpec scanSpec, final boolean scanFiles,
+    ClasspathElement(final ClasspathElementPath classpathEltPath, final ScanSpec scanSpec, final boolean scanFiles,
             final InterruptionChecker interruptionChecker) {
         this.classpathEltPath = classpathEltPath;
         this.scanSpec = scanSpec;
@@ -148,9 +143,9 @@ abstract class ClasspathElement {
      * Factory for creating a ClasspathElementDir singleton for directory classpath entries or a ClasspathElementZip
      * singleton for jarfile classpath entries.
      */
-    static ClasspathElement newInstance(final RelativePath classpathRelativePath, final boolean scanFiles,
+    static ClasspathElement newInstance(final ClasspathElementPath classpathRelativePath, final boolean scanFiles,
             final ScanSpec scanSpec, final NestedJarHandler nestedJarHandler,
-            final WorkQueue<RelativePath> workQueue, final InterruptionChecker interruptionChecker,
+            final WorkQueue<ClasspathElementPath> workQueue, final InterruptionChecker interruptionChecker,
             final LogNode log) {
         boolean isModule = false;
         boolean isDir = false;
@@ -216,12 +211,13 @@ abstract class ClasspathElement {
         final HashSet<String> maskedRelativePaths = new HashSet<>();
         for (final ClasspathResource res : classfileMatches) {
             // Don't mask module-info.class, since all modules need this classfile to be read
-            if (!res.pathRelativeToClasspathPrefix.equals("module-info.class")
-                    && !res.pathRelativeToClasspathPrefix.endsWith("/module-info.class")) {
-                if (!classpathRelativePathsFound.add(res.pathRelativeToClasspathPrefix)) {
+            final String getPathRelativeToPackageRoot = res.getPathRelativeToPackageRoot();
+            if (!getPathRelativeToPackageRoot.equals("module-info.class")
+                    && !getPathRelativeToPackageRoot.endsWith("/module-info.class")) {
+                if (!classpathRelativePathsFound.add(getPathRelativeToPackageRoot)) {
                     // This relative path has been encountered more than once; mask the second and subsequent
                     // occurrences of the path
-                    maskedRelativePaths.add(res.pathRelativeToClasspathPrefix);
+                    maskedRelativePaths.add(getPathRelativeToPackageRoot);
                 }
             }
         }
@@ -229,57 +225,19 @@ abstract class ClasspathElement {
             // Replace the lists of matching resources with filtered versions with masked paths removed
             final List<ClasspathResource> filteredClassfileMatches = new ArrayList<>();
             for (final ClasspathResource classfileMatch : classfileMatches) {
-                if (!maskedRelativePaths.contains(classfileMatch.pathRelativeToClasspathPrefix)) {
+                final String getPathRelativeToPackageRoot = classfileMatch.getPathRelativeToPackageRoot();
+                if (!maskedRelativePaths.contains(getPathRelativeToPackageRoot)) {
                     filteredClassfileMatches.add(classfileMatch);
                 } else {
                     if (log != null) {
                         log.log(String.format("%06d-1", classpathIdx),
-                                "Ignoring duplicate (masked) class " + classfileMatch.pathRelativeToClasspathPrefix
-                                        .substring(0, classfileMatch.pathRelativeToClasspathPrefix.length() - 6)
-                                        .replace('/', '.') + " for classpath element " + classfileMatch);
+                                "Ignoring duplicate (masked) class " + getPathRelativeToPackageRoot
+                                        .substring(0, getPathRelativeToPackageRoot.length() - 6).replace('/', '.')
+                                        + " for classpath element " + classfileMatch);
                     }
                 }
             }
             classfileMatches = filteredClassfileMatches;
-        }
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /** Call FileMatchProcessors for any whitelisted matches found within this classpath element. */
-    void callFileMatchProcessors(final ScanResult scanResult, final LogNode log)
-            throws InterruptedException, ExecutionException {
-        if (fileMatches != null) {
-            final Set<Entry<FileMatchProcessorWrapper, List<ClasspathResource>>> fileMatchesSet = fileMatches
-                    .entrySet();
-            if (!fileMatchesSet.isEmpty()) {
-                final LogNode subLog = log == null ? null
-                        : log.log("Calling FileMatchProcessors for classpath element " + this);
-                for (final Entry<FileMatchProcessorWrapper, List<ClasspathResource>> ent : fileMatchesSet) {
-                    final FileMatchProcessorWrapper fileMatchProcessorWrapper = ent.getKey();
-                    for (final ClasspathResource fileMatchResource : ent.getValue()) {
-                        try {
-                            final LogNode logNode = subLog == null ? null
-                                    : subLog.log("Calling MatchProcessor for matching file " + fileMatchResource);
-                            // Process the file match (may call fileMatchResource.open())
-                            fileMatchProcessorWrapper.processMatch(fileMatchResource, subLog);
-                            if (logNode != null) {
-                                logNode.addElapsedTime();
-                            }
-                        } catch (final Throwable e) {
-                            if (subLog != null) {
-                                subLog.log(
-                                        "Exception while calling FileMatchProcessor for file " + fileMatchResource,
-                                        e);
-                            }
-                            scanResult.addMatchProcessorException(e);
-                        }
-                    }
-                }
-                if (subLog != null) {
-                    subLog.addElapsedTime();
-                }
-            }
         }
     }
 
@@ -293,12 +251,13 @@ abstract class ClasspathElement {
             final ClasspathResource classfileResource = classfileMatches.get(i);
             try {
                 final LogNode logNode = log == null ? null
-                        : log.log(classfileResource.pathRelativeToClasspathPrefix,
+                        : log.log(classfileResource.getPathRelativeToPackageRoot(),
                                 "Parsing classfile " + classfileResource);
                 // Parse classpath binary format, creating a ClassInfoUnlinked object
                 final ClassInfoUnlinked thisClassInfoUnlinked = classfileBinaryParser
-                        .readClassInfoFromClassfileHeader(this, classfileResource.pathRelativeToClasspathPrefix,
+                        .readClassInfoFromClassfileHeader(this, classfileResource.getPathRelativeToPackageRoot(),
                                 // Open classfile as an InputStream
+                                // TODO: convert this to use ByteBuffer rather than InputStream
                                 /* inputStream = */ classfileResource.open(), //
                                 scanSpec, logNode);
                 // If class was successfully read, output new ClassInfoUnlinked object

@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2017 Luke Hutchison
+ * Copyright (c) 2018 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -28,8 +28,6 @@
  */
 package io.github.lukehutch.fastclasspathscanner.scanner;
 
-import java.lang.reflect.Array;
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -41,384 +39,26 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
-import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult.InfoObject;
-import io.github.lukehutch.fastclasspathscanner.typesignature.TypeSignature;
 import io.github.lukehutch.fastclasspathscanner.utils.Parser.ParseException;
 
 /** Holds metadata about annotations. */
-public class AnnotationInfo extends InfoObject implements Comparable<AnnotationInfo> {
+public class AnnotationInfo extends ScanResultObject implements Comparable<AnnotationInfo> {
     String annotationName;
     List<AnnotationParamValue> annotationParamValues;
-    transient ScanResult scanResult;
 
+    /** Default constructor for deserialization. */
     AnnotationInfo() {
     }
 
     @Override
     void setScanResult(final ScanResult scanResult) {
-        this.scanResult = scanResult;
+        super.setScanResult(scanResult);
         if (annotationParamValues != null) {
             for (final AnnotationParamValue a : annotationParamValues) {
                 if (a != null) {
                     a.setScanResult(scanResult);
                 }
             }
-        }
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /** A union type, used for recovering object type during deserialization. Only one field is ever set. */
-    private static class AnnotationParamValueWrapper extends InfoObject {
-        // Parameter value is split into different fields by type, so that serialization and deserialization
-        // works properly (can't properly serialize a field of Object type, since the concrete type is not
-        // stored in JSON).
-        AnnotationEnumValue annotationEnumValue;
-        AnnotationClassRef annotationClassRef;
-        AnnotationInfo annotationInfo;
-        AnnotationParamValueWrapper[] annotationValueArray;
-        String annotationConstantString;
-        Integer annotationConstantInteger;
-        Long annotationConstantLong;
-        Short annotationConstantShort;
-        Boolean annotationConstantBoolean;
-        Character annotationConstantCharacter;
-        Float annotationConstantFloat;
-        Double annotationConstantDouble;
-        Byte annotationConstantByte;
-
-        @SuppressWarnings("unused")
-        public AnnotationParamValueWrapper() {
-        }
-
-        public AnnotationParamValueWrapper(final Object annotationParamValue) {
-            if (annotationParamValue != null) {
-                if (annotationParamValue.getClass().isArray()) {
-                    final int n = Array.getLength(annotationParamValue);
-                    annotationValueArray = new AnnotationParamValueWrapper[n];
-                    for (int i = 0; i < n; i++) {
-                        annotationValueArray[i] = new AnnotationParamValueWrapper(
-                                Array.get(annotationParamValue, i));
-                    }
-                } else if (annotationParamValue instanceof AnnotationEnumValue) {
-                    annotationEnumValue = (AnnotationEnumValue) annotationParamValue;
-                } else if (annotationParamValue instanceof AnnotationClassRef) {
-                    annotationClassRef = (AnnotationClassRef) annotationParamValue;
-                } else if (annotationParamValue instanceof AnnotationInfo) {
-                    annotationInfo = (AnnotationInfo) annotationParamValue;
-                } else if (annotationParamValue instanceof String) {
-                    annotationConstantString = (String) annotationParamValue;
-                } else if (annotationParamValue instanceof Integer) {
-                    annotationConstantInteger = (Integer) annotationParamValue;
-                } else if (annotationParamValue instanceof Long) {
-                    annotationConstantLong = (Long) annotationParamValue;
-                } else if (annotationParamValue instanceof Short) {
-                    annotationConstantShort = (Short) annotationParamValue;
-                } else if (annotationParamValue instanceof Boolean) {
-                    annotationConstantBoolean = (Boolean) annotationParamValue;
-                } else if (annotationParamValue instanceof Character) {
-                    annotationConstantCharacter = (Character) annotationParamValue;
-                } else if (annotationParamValue instanceof Float) {
-                    annotationConstantFloat = (Float) annotationParamValue;
-                } else if (annotationParamValue instanceof Double) {
-                    annotationConstantDouble = (Double) annotationParamValue;
-                } else if (annotationParamValue instanceof Byte) {
-                    annotationConstantByte = (Byte) annotationParamValue;
-                } else {
-                    throw new IllegalArgumentException("Unsupported annotation parameter value type: "
-                            + annotationParamValue.getClass().getName());
-                }
-            }
-        }
-
-        /** Unwrap the wrapped value. */
-        public Object get() {
-            if (annotationValueArray != null) {
-                final Object[] annotationValueObjects = new Object[annotationValueArray.length];
-                for (int i = 0; i < annotationValueArray.length; i++) {
-                    if (annotationValueArray[i] != null) {
-                        annotationValueObjects[i] = annotationValueArray[i].get();
-                    }
-                }
-                return annotationValueObjects;
-            } else if (annotationEnumValue != null) {
-                return annotationEnumValue;
-            } else if (annotationClassRef != null) {
-                return annotationClassRef;
-            } else if (annotationInfo != null) {
-                return annotationInfo;
-            } else if (annotationConstantString != null) {
-                return annotationConstantString;
-            } else if (annotationConstantInteger != null) {
-                return annotationConstantInteger;
-            } else if (annotationConstantLong != null) {
-                return annotationConstantLong;
-            } else if (annotationConstantShort != null) {
-                return annotationConstantShort;
-            } else if (annotationConstantBoolean != null) {
-                return annotationConstantBoolean;
-            } else if (annotationConstantCharacter != null) {
-                return annotationConstantCharacter;
-            } else if (annotationConstantFloat != null) {
-                return annotationConstantFloat;
-            } else if (annotationConstantDouble != null) {
-                return annotationConstantDouble;
-            } else if (annotationConstantByte != null) {
-                return annotationConstantByte;
-            } else {
-                return null;
-            }
-        }
-
-        @Override
-        void setScanResult(final ScanResult scanResult) {
-            if (annotationValueArray != null) {
-                for (int i = 0; i < annotationValueArray.length; i++) {
-                    if (annotationValueArray[i] != null) {
-                        annotationValueArray[i].setScanResult(scanResult);
-                    }
-                }
-            } else if (annotationEnumValue != null) {
-                annotationEnumValue.setScanResult(scanResult);
-            } else if (annotationClassRef != null) {
-                annotationClassRef.setScanResult(scanResult);
-            } else if (annotationInfo != null) {
-                annotationInfo.setScanResult(scanResult);
-            }
-        }
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /** A wrapper used to pair annotation parameter names with annotation parameter values. */
-    public static class AnnotationParamValue extends InfoObject implements Comparable<AnnotationParamValue> {
-        String paramName;
-        AnnotationParamValueWrapper paramValue;
-
-        AnnotationParamValue() {
-        }
-
-        /**
-         * @param paramName
-         *            The annotation paramater name.
-         * @param paramValue
-         *            The annotation parameter value.
-         */
-        public AnnotationParamValue(final String paramName, final Object paramValue) {
-            this.paramName = paramName;
-            this.paramValue = new AnnotationParamValueWrapper(paramValue);
-        }
-
-        @Override
-        void setScanResult(final ScanResult scanResult) {
-            if (paramValue != null) {
-                paramValue.setScanResult(scanResult);
-            }
-        }
-
-        /**
-         * Get the annotation parameter name.
-         * 
-         * @return The annotation parameter name.
-         */
-        public String getParamName() {
-            return paramName;
-        }
-
-        /**
-         * Get the annotation parameter value.
-         * 
-         * @return The annotation parameter value. May be one of the following types:
-         *         <ul>
-         *         <li>String for string constants
-         *         <li>A wrapper type, e.g. Integer or Character, for primitive-typed constants
-         *         <li>{@link Object}[] for array types (and then the array element type may be one of the types in
-         *         this list)
-         *         <li>{@link AnnotationEnumValue}, for enum constants (this wraps the enum class and the string
-         *         name of the constant)
-         *         <li>{@link AnnotationClassRef}, for Class references within annotations (this wraps the name of
-         *         the referenced class)
-         *         <li>{@link AnnotationInfo}, for nested annotations
-         *         </ul>
-         */
-        public Object getParamValue() {
-            return paramValue == null ? null : paramValue.get();
-        }
-
-        @Override
-        public String toString() {
-            final StringBuilder buf = new StringBuilder();
-            toString(buf);
-            return buf.toString();
-        }
-
-        void toString(final StringBuilder buf) {
-            buf.append(paramName);
-            buf.append(" = ");
-            toStringParamValueOnly(buf);
-        }
-
-        void toStringParamValueOnly(final StringBuilder buf) {
-            if (paramValue == null) {
-                buf.append("null");
-            } else {
-                final Object paramVal = paramValue.get();
-                final Class<? extends Object> valClass = paramVal.getClass();
-                if (valClass.isArray()) {
-                    buf.append('{');
-                    for (int j = 0, n = Array.getLength(paramVal); j < n; j++) {
-                        if (j > 0) {
-                            buf.append(", ");
-                        }
-                        final Object elt = Array.get(paramVal, j);
-                        buf.append(elt == null ? "null" : elt.toString());
-                    }
-                    buf.append('}');
-                } else if (paramVal instanceof String) {
-                    buf.append('"');
-                    buf.append(paramVal.toString().replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r"));
-                    buf.append('"');
-                } else if (paramVal instanceof Character) {
-                    buf.append('\'');
-                    buf.append(paramVal.toString().replace("'", "\\'").replace("\n", "\\n").replace("\r", "\\r"));
-                    buf.append('\'');
-                } else {
-                    buf.append(paramVal.toString());
-                }
-            }
-        }
-
-        @Override
-        public int compareTo(final AnnotationParamValue o) {
-            final int diff = paramName.compareTo(o.getParamName());
-            if (diff != 0) {
-                return diff;
-            }
-            // Use toString() order and get() (which can be slow) as a last-ditch effort -- only happens
-            // if the annotation has multiple parameters of the same name but different value. 
-            final Object p0 = getParamValue();
-            final Object p1 = o.getParamValue();
-            if (p0 == null && p1 == null) {
-                return 0;
-            } else if (p0 == null && p1 != null) {
-                return -1;
-            } else if (p0 != null && p1 == null) {
-                return 1;
-            }
-            return p0.toString().compareTo(p1.toString());
-        }
-
-        @Override
-        public boolean equals(final Object obj) {
-            if (!(obj instanceof AnnotationParamValue)) {
-                return false;
-            }
-            final AnnotationParamValue o = (AnnotationParamValue) obj;
-            final int diff = this.compareTo(o);
-            return (diff != 0 ? false
-                    : paramValue == null && o.paramValue == null ? true
-                            : paramValue == null || o.paramValue == null ? false : true);
-        }
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Class for wrapping an enum constant value (split into class name and constant name) referenced inside an
-     * annotation.
-     */
-    public static class AnnotationEnumValue extends InfoObject implements Comparable<AnnotationEnumValue> {
-        String className;
-        String constName;
-        transient ScanResult scanResult;
-
-        AnnotationEnumValue() {
-        }
-
-        /**
-         * @param className
-         *            The enum class name.
-         * @param constName
-         *            The enum const name.
-         */
-        public AnnotationEnumValue(final String className, final String constName) {
-            this.className = className;
-            this.constName = constName;
-        }
-
-        @Override
-        void setScanResult(final ScanResult scanResult) {
-            this.scanResult = scanResult;
-        }
-
-        /**
-         * Get the class name of the enum.
-         * 
-         * @return The name of the enum class.
-         */
-        public String getClassName() {
-            return className;
-        }
-
-        /**
-         * Get the name of the enum constant.
-         * 
-         * @return The name of the enum constant.
-         */
-        public String getConstName() {
-            return constName;
-        }
-
-        /**
-         * Get the enum constant. Causes the ClassLoader to load the enum class.
-         * 
-         * @return A ref to the enum constant value.
-         * @throws IllegalArgumentException
-         *             if the class could not be loaded, or the enum constant is invalid.
-         */
-        public Object getEnumValueRef() throws IllegalArgumentException {
-            final Class<?> classRef = scanResult.classNameToClassRef(className);
-            if (!classRef.isEnum()) {
-                throw new IllegalArgumentException("Class " + className + " is not an enum");
-            }
-            Field field;
-            try {
-                field = classRef.getDeclaredField(constName);
-            } catch (NoSuchFieldException | SecurityException e) {
-                throw new IllegalArgumentException("Could not find enum constant " + toString(), e);
-            }
-            if (!field.isEnumConstant()) {
-                throw new IllegalArgumentException("Field " + toString() + " is not an enum constant");
-            }
-            try {
-                return field.get(null);
-            } catch (final IllegalAccessException e) {
-                throw new IllegalArgumentException("Field " + toString() + " is not accessible", e);
-            }
-        }
-
-        @Override
-        public int compareTo(final AnnotationEnumValue o) {
-            final int diff = className.compareTo(o.className);
-            return diff == 0 ? constName.compareTo(o.constName) : diff;
-        }
-
-        @Override
-        public boolean equals(final Object o) {
-            if (!(o instanceof AnnotationEnumValue)) {
-                return false;
-            }
-            return compareTo((AnnotationEnumValue) o) == 0;
-        }
-
-        @Override
-        public int hashCode() {
-            return className.hashCode() * 11 + constName.hashCode();
-        }
-
-        @Override
-        public String toString() {
-            return className + "." + constName;
         }
     }
 
@@ -429,7 +69,7 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
      * <p>
      * Use ReflectionUtils.typeStrToClass() to get a {@code Class<?>} reference from this class type string.
      */
-    public static class AnnotationClassRef extends InfoObject {
+    public static class AnnotationClassRef extends ScanResultObject {
         String typeDescriptor;
         transient TypeSignature typeSignature;
         transient ScanResult scanResult;
@@ -439,7 +79,10 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
 
         @Override
         void setScanResult(final ScanResult scanResult) {
-            this.scanResult = scanResult;
+            super.setScanResult(scanResult);
+            if (this.typeSignature != null) {
+                this.typeSignature.setScanResult(scanResult);
+            }
         }
 
         AnnotationClassRef(final String classRefTypeDescriptor) {
@@ -467,25 +110,14 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
 
         /**
          * Get a class reference for a class-reference-typed value used in an annotation parameter. Causes the
-         * ClassLoader to load the class.
-         * 
-         * @deprecated in favor of getClassRef(), for consistency with {@code ClassInfo#getClassRef()}.
+         * ClassLoader to load the class, if it is not already loaded.
          * 
          * @return The type signature of the annotation class ref, as a {@code Class<?>} reference.
-         */
-        @Deprecated
-        public Class<?> getType() {
-            return getClassRef();
-        }
-
-        /**
-         * Get a class reference for a class-reference-typed value used in an annotation parameter. Causes the
-         * ClassLoader to load the class.
-         * 
-         * @return The type signature of the annotation class ref, as a {@code Class<?>} reference.
+         * @throws IllegalArgumentException
+         *             if an exception or error is thrown while loading the class.
          */
         public Class<?> getClassRef() {
-            return getTypeSignature().instantiate(scanResult);
+            return getTypeSignature().instantiate();
         }
 
         @Override
@@ -564,14 +196,73 @@ public class AnnotationInfo extends InfoObject implements Comparable<AnnotationI
         return annotationName;
     }
 
+    // -------------------------------------------------------------------------------------------------------------
+
     /**
-     * Get a class reference for the annotation.
+     * Get a class reference for the annotation. Causes the ClassLoader to load the annotation class, if it is not
+     * already loaded.
+     * 
+     * <p>
+     * Important note: since {@code superinterfaceType} is a class reference for an already-loaded class, it is
+     * critical that {@code superinterfaceType} is loaded by the same classloader as the class referred to by this
+     * {@link AnnotationInfo} object, otherwise the class cast will fail.
+     * 
+     * @param superinterfaceType
+     *            The type to cast the loaded annotation class to.
+     * @return The annotation type, as a {@code Class<?>} reference, or null, if ignoreExceptions is true and there
+     *         was an exception or error loading the class.
+     * @throws IllegalArgumentException
+     *             if ignoreExceptions is false and there was a problem loading the annotation class.
+     */
+    public <T> Class<T> getClassRef(final Class<T> superinterfaceType, final boolean ignoreExceptions) {
+        return scanResult.classNameToClassRef(annotationName, superinterfaceType, ignoreExceptions);
+    }
+
+    /**
+     * Get a class reference for the annotation. Causes the ClassLoader to load the annotation class, if it is not
+     * already loaded.
+     * 
+     * <p>
+     * Important note: since {@code superinterfaceType} is a class reference for an already-loaded class, it is
+     * critical that {@code superinterfaceType} is loaded by the same classloader as the class referred to by this
+     * {@code AnnotationInfo} object, otherwise the class cast will fail.
+     * 
+     * @param superinterfaceType
+     *            The type to cast the loaded annotation class to.
+     * @return The annotation type, as a {@code Class<?>} reference.
+     * @throws IllegalArgumentException
+     *             if there was a problem loading the annotation class.
+     */
+    public <T> Class<T> getClassRef(final Class<T> superinterfaceType) {
+        return getClassRef(superinterfaceType, /* ignoreExceptions = */ false);
+    }
+
+    /**
+     * Get a class reference for the annotation. Causes the ClassLoader to load the annotation class, if it is not
+     * already loaded.
+     * 
+     * @return The annotation type, as a {@code Class<?>} reference, or null, if ignoreExceptions is true and there
+     *         was an exception or error loading the class.
+     * @throws IllegalArgumentException
+     *             if ignoreExceptions is false and there was a problem loading the annotation class.
+     */
+    public Class<?> getClassRef(final boolean ignoreExceptions) {
+        return scanResult.classNameToClassRef(annotationName, ignoreExceptions);
+    }
+
+    /**
+     * Get a class reference for the annotation. Causes the ClassLoader to load the annotation class, if it is not
+     * already loaded.
      * 
      * @return The annotation type, as a {@code Class<?>} reference.
+     * @throws IllegalArgumentException
+     *             if there were problems loading the annotation class.
      */
-    public Class<?> getAnnotationType() {
-        return scanResult.classNameToClassRef(annotationName);
+    public Class<?> getClassRef() {
+        return getClassRef(/* ignoreExceptions = */ false);
     }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Get the parameter value of the annotation.

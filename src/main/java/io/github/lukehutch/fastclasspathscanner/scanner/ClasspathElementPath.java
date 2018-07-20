@@ -46,7 +46,7 @@ import io.github.lukehutch.fastclasspathscanner.utils.NestedJarHandler;
  * remote jar will be fetched and cached if getFile() / isFile() etc. are called, and/or if the path is a
  * '!'-separated path to a nested jar, the innermost jar will be extracted and cached on these calls.
  */
-class RelativePath {
+class ClasspathElementPath {
     /** The ClassLoader(s) used to load classes for this classpath element */
     ClassLoader[] classLoaders;
 
@@ -120,7 +120,7 @@ class RelativePath {
      * A relative path. This is used for paths relative to the current directory (for classpath elements), and also
      * for relative paths within classpath elements (e.g. the files within a ZipFile).
      */
-    public RelativePath(final String pathToResolveAgainst, final String relativePath,
+    public ClasspathElementPath(final String pathToResolveAgainst, final String relativePath,
             final ClassLoader[] classLoaders, final NestedJarHandler nestedJarHandler, final ScanSpec scanSpec,
             final LogNode log) {
         this.classLoaders = classLoaders;
@@ -144,7 +144,8 @@ class RelativePath {
     }
 
     /** A relative path for a module (in JDK9+). */
-    public RelativePath(final ModuleRef moduleRef, final NestedJarHandler nestedJarHandler, final LogNode log) {
+    public ClasspathElementPath(final ModuleRef moduleRef, final NestedJarHandler nestedJarHandler,
+            final LogNode log) {
         if (moduleRef == null) {
             throw new IllegalArgumentException("moduleRef cannot be null");
         }
@@ -170,10 +171,10 @@ class RelativePath {
         if (o == null) {
             return false;
         }
-        if (!(o instanceof RelativePath)) {
+        if (!(o instanceof ClasspathElementPath)) {
             return false;
         }
-        final RelativePath other = (RelativePath) o;
+        final ClasspathElementPath other = (ClasspathElementPath) o;
         String thisCp;
         try {
             thisCp = getCanonicalPath(log);

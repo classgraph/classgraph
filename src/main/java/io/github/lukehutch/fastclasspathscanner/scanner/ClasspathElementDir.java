@@ -29,27 +29,28 @@
 package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.RandomAccessFile;
+import java.nio.ByteBuffer;
+import java.nio.MappedByteBuffer;
+import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec.ScanSpecPathMatch;
-import io.github.lukehutch.fastclasspathscanner.scanner.matchers.FileMatchProcessorWrapper;
 import io.github.lukehutch.fastclasspathscanner.utils.FileUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.InterruptionChecker;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
-import io.github.lukehutch.fastclasspathscanner.utils.MultiMapKeyToList;
 
 /** A directory classpath element. */
 class ClasspathElementDir extends ClasspathElement {
     private File dir;
 
     /** A directory classpath element. */
-    ClasspathElementDir(final RelativePath classpathEltPath, final ScanSpec scanSpec, final boolean scanFiles,
-            final InterruptionChecker interruptionChecker, final LogNode log) {
+    ClasspathElementDir(final ClasspathElementPath classpathEltPath, final ScanSpec scanSpec,
+            final boolean scanFiles, final InterruptionChecker interruptionChecker, final LogNode log) {
         super(classpathEltPath, scanSpec, scanFiles, interruptionChecker);
         if (scanFiles) {
             try {
@@ -62,77 +63,94 @@ class ClasspathElementDir extends ClasspathElement {
                 skipClasspathElement = true;
                 return;
             }
-            fileMatches = new MultiMapKeyToList<>();
+            fileMatches = new ArrayList<>();
             classfileMatches = new ArrayList<>();
             fileToLastModified = new HashMap<>();
         }
     }
 
-    /** Hierarchically scan directory structure for classfiles and matching files. */
-    @Override
-    public void scanPaths(final LogNode log) {
-        final String path = classpathEltPath.getResolvedPath();
-        String canonicalPath = path;
-        try {
-            canonicalPath = classpathEltPath.getCanonicalPath(log);
-        } catch (final IOException e) {
-        }
-        final LogNode logNode = log == null ? null
-                : log.log(canonicalPath, "Scanning directory classpath entry " + classpathEltPath
-                        + (path.equals(canonicalPath) ? "" : " ; canonical path: " + canonicalPath));
-
-        final HashSet<String> scannedCanonicalPaths = new HashSet<>();
-        scanDir(dir, dir, /* ignorePrefixLen = */ dir.getPath().length() + 1, /* inWhitelistedPath = */ false,
-                scannedCanonicalPaths, logNode);
-        if (logNode != null) {
-            logNode.addElapsedTime();
-        }
-    }
-
     private ClasspathResource newClasspathResource(final File classpathEltFile,
-            final String pathRelativeToClasspathElt, final String pathRelativeToClasspathPrefix,
-            final File relativePathFile) {
-        return new ClasspathResource(classpathEltFile, /* moduleRef = */ null, pathRelativeToClasspathElt,
-                pathRelativeToClasspathPrefix) {
-            InputStream inputStream = null;
+            final String pathRelativeToClasspathElt, final File classpathResourceFile) {
+        return new ClasspathResource() {
+            private RandomAccessFile randomAccessFile;
+            private FileChannel fileChannel;
 
             @Override
-            public InputStream open() throws IOException {
+            public String getPathRelativeToPackageRoot() {
+                return pathRelativeToClasspathElt;
+            }
+
+            @Override
+            public String getPathRelativeToClasspathElement() {
+                return pathRelativeToClasspathElt;
+            }
+
+            @Override
+            public ByteBuffer read() throws IOException {
                 if (skipClasspathElement) {
-                    // Can't open a file inside a directory that couldn't be opened (should never be triggered)
+                    // Shouldn't happen
                     throw new IOException("Parent directory could not be opened");
                 }
-                try {
-                    if (inputStream != null) {
-                        // Should not happen, since this will only be called from single-threaded code when
-                        // MatchProcessors are running
-                        throw new RuntimeException("Tried to open classpath resource twice");
+                if (byteBuffer != null) {
+                    return byteBuffer;
+                } else {
+                    try {
+                        @SuppressWarnings("resource")
+                        final RandomAccessFile randomAccessFile = new RandomAccessFile(classpathResourceFile, "r");
+                        final FileChannel fileChannel = randomAccessFile.getChannel();
+                        final MappedByteBuffer buffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, 0,
+                                fileChannel.size());
+                        buffer.load();
+                        byteBuffer = buffer;
+                        length = byteBuffer.remaining();
+                        return byteBuffer;
+                    } catch (final Exception e) {
+                        close();
+                        throw new IOException("Could not open " + this, e);
                     }
-                    inputStream = new FileInputStream(relativePathFile);
-                    inputStreamLength = relativePathFile.length();
-                    return inputStream;
-                } catch (final Exception e) {
-                    close();
-                    throw new IOException("Could not open " + this, e);
                 }
             }
 
             @Override
+            public InputStream open() throws IOException {
+                read();
+                return byteBufferToInputStream();
+            }
+
+            @Override
+            public byte[] load() throws IOException {
+                read();
+                return byteBufferToByteArray();
+            }
+
+            @Override
             public void close() {
-                if (inputStream != null) {
+                if (fileChannel != null) {
                     try {
-                        inputStream.close();
-                    } catch (final Exception e) {
-                        // Ignore
+                        fileChannel.close();
+                    } catch (final IOException e) {
                     }
-                    inputStream = null;
+                    fileChannel = null;
                 }
+                if (randomAccessFile != null) {
+                    try {
+                        randomAccessFile.close();
+                    } catch (final IOException e) {
+                    }
+                    randomAccessFile = null;
+                }
+                super.close();
+            }
+
+            @Override
+            public String toString() {
+                return "[dir " + classpathEltFile + "]/" + pathRelativeToClasspathElt;
             }
         };
     }
 
     /** Recursively scan a directory for file path patterns matching the scan spec. */
-    private void scanDir(final File classpathElt, final File dir, final int ignorePrefixLen,
+    private void scanDirRecursively(final File classpathElt, final File dir, final int ignorePrefixLen,
             final boolean prevInWhitelistedPath, final HashSet<String> scannedCanonicalPaths, final LogNode log) {
         boolean inWhitelistedPath = prevInWhitelistedPath;
         // See if this canonical path has been scanned before, so that recursive scanning doesn't get stuck in an
@@ -196,8 +214,8 @@ class ClasspathElementDir extends ClasspathElement {
                 if (inWhitelistedPath //
                         || matchStatus == ScanSpecPathMatch.ANCESTOR_OF_WHITELISTED_PATH) {
                     // Recurse into subdirectory
-                    scanDir(classpathElt, fileInDir, ignorePrefixLen, inWhitelistedPath, scannedCanonicalPaths,
-                            dirLog);
+                    scanDirRecursively(classpathElt, fileInDir, ignorePrefixLen, inWhitelistedPath,
+                            scannedCanonicalPaths, dirLog);
                     if (dirLog != null) {
                         dirLog.addElapsedTime();
                     }
@@ -216,26 +234,19 @@ class ClasspathElementDir extends ClasspathElement {
                     continue;
                 }
 
-                final LogNode subLog = dirLog == null ? null
-                        : dirLog.log(fileInDirRelativePath, "Found whitelisted file: " + fileInDirRelativePath);
+                if (dirLog != null) {
+                    dirLog.log(fileInDirRelativePath, "Found whitelisted file: " + fileInDirRelativePath);
+                }
 
                 fileToLastModified.put(fileInDir, fileInDir.lastModified());
 
                 // Store relative paths of any classfiles encountered
                 if (FileUtils.isClassfile(fileInDirRelativePath)) {
-                    classfileMatches.add(newClasspathResource(classpathElt, fileInDirRelativePath,
-                            fileInDirRelativePath, fileInDir));
+                    classfileMatches.add(newClasspathResource(classpathElt, fileInDirRelativePath, fileInDir));
                 }
 
-                // Match file paths against path patterns
-                for (final FileMatchProcessorWrapper fileMatchProcessorWrapper : //
-                scanSpec.getFileMatchProcessorWrappers()) {
-                    if (fileMatchProcessorWrapper.filePathMatches(fileInDirRelativePath, subLog)) {
-                        // File's relative path matches.
-                        fileMatches.put(fileMatchProcessorWrapper, newClasspathResource(classpathElt,
-                                fileInDirRelativePath, fileInDirRelativePath, fileInDir));
-                    }
-                }
+                // Record all classpath resources found in whitelisted paths
+                fileMatches.add(newClasspathResource(classpathElt, fileInDirRelativePath, fileInDir));
             }
         }
         if (matchStatus == ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX
@@ -244,6 +255,27 @@ class ClasspathElementDir extends ClasspathElement {
             // need to timestamp ancestors of whitelisted directories, in case a new directory is added that matches
             // whitelist criteria.
             fileToLastModified.put(dir, dir.lastModified());
+        }
+    }
+
+    /** Hierarchically scan directory structure for classfiles and matching files. */
+    @Override
+    public void scanPaths(final LogNode log) {
+        final String path = classpathEltPath.getResolvedPath();
+        String canonicalPath = path;
+        try {
+            canonicalPath = classpathEltPath.getCanonicalPath(log);
+        } catch (final IOException e) {
+        }
+        final LogNode logNode = log == null ? null
+                : log.log(canonicalPath, "Scanning directory classpath entry " + classpathEltPath
+                        + (path.equals(canonicalPath) ? "" : " ; canonical path: " + canonicalPath));
+
+        final HashSet<String> scannedCanonicalPaths = new HashSet<>();
+        scanDirRecursively(dir, dir, /* ignorePrefixLen = */ dir.getPath().length() + 1,
+                /* inWhitelistedPath = */ false, scannedCanonicalPaths, logNode);
+        if (logNode != null) {
+            logNode.addElapsedTime();
         }
     }
 

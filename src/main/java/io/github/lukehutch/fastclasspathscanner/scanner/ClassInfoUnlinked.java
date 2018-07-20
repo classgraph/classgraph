@@ -35,8 +35,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import io.github.lukehutch.fastclasspathscanner.scanner.AnnotationInfo.AnnotationParamValue;
-import io.github.lukehutch.fastclasspathscanner.typesignature.ClassTypeSignature;
 import io.github.lukehutch.fastclasspathscanner.utils.Join;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.Parser.ParseException;

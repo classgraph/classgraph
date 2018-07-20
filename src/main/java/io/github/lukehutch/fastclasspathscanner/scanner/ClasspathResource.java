@@ -28,135 +28,79 @@
  */
 package io.github.lukehutch.fastclasspathscanner.scanner;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.ByteBuffer;
 
-import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchContentsProcessor;
-import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchContentsProcessorWithContext;
-import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchProcessor;
-import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchProcessorWithContext;
-import io.github.lukehutch.fastclasspathscanner.matchprocessor.FilenameMatchProcessor;
-import io.github.lukehutch.fastclasspathscanner.scanner.matchers.FileMatchProcessorAny;
-import io.github.lukehutch.fastclasspathscanner.utils.ClasspathUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.FileUtils;
-import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 
 /** The combination of a classpath element and a relative path within this classpath element. */
-public abstract class ClasspathResource {
-    // TODO: moduleRef and classpathEltFile are mutually exclusive -- should probably create subclasses
-    // TODO: merge this class with RelativePath
-    public final File classpathEltFile;
-    public final ModuleRef moduleRef;
-    public final String pathRelativeToClasspathElt;
-    public final String pathRelativeToClasspathPrefix;
-    public long inputStreamLength;
+public abstract class ClasspathResource implements AutoCloseable {
+    protected InputStream inputStream;
+    protected ByteBuffer byteBuffer;
+    protected byte[] byteArray;
+    protected long length = -1L;
 
-    protected ClasspathResource(final File classpathEltFile, final ModuleRef moduleRef,
-            final String pathRelativeToClasspathElt, final String pathRelativeToClasspathPrefix) {
-        this.classpathEltFile = classpathEltFile;
-        this.moduleRef = moduleRef;
-        this.pathRelativeToClasspathElt = pathRelativeToClasspathElt;
-        this.pathRelativeToClasspathPrefix = pathRelativeToClasspathPrefix;
+    // https://stackoverflow.com/questions/4332264/wrapping-a-bytebuffer-with-an-inputstream/6603018#6603018
+    protected InputStream byteBufferToInputStream() {
+        return inputStream == null ? inputStream = FileUtils.byteBufferToInputStream(byteBuffer) : inputStream;
+    }
+
+    protected ByteBuffer inputStreamToByteBuffer() throws IOException {
+        return byteBuffer == null ? byteBuffer = ByteBuffer.wrap(inputStreamToByteArray()) : byteBuffer;
+    }
+
+    protected byte[] inputStreamToByteArray() throws IOException {
+        return byteArray == null ? byteArray = FileUtils.readAllBytes(inputStream, length, null) : byteArray;
+    }
+
+    protected byte[] byteBufferToByteArray() {
+        return byteArray == null ? byteArray = byteBuffer.array() : byteArray;
+    }
+
+    /**
+     * The path of this classpath resource relative to the package root of the classpath element. For example, for a
+     * package root of "BOOT-INF/classes/" and a resource path of "BOOT-INF/classes/com/xyz/resource.xml", returns
+     * "com/xyz/resource.xml".
+     */
+    public abstract String getPathRelativeToPackageRoot();
+
+    /**
+     * The path of this classpath resource relative to the package root of the classpath element. For example, for a
+     * resource path of "BOOT-INF/classes/com/xyz/resource.xml", returns the whole resource path, even if the
+     * package root is "BOOT-INF/classes/".
+     */
+    public abstract String getPathRelativeToClasspathElement();
+
+    /** Open an InputStream for a classpath resource. */
+    public abstract InputStream open() throws IOException;
+
+    /** Open a ByteBuffer for a classpath resource. */
+    public abstract ByteBuffer read() throws IOException;
+
+    /** Load a classpath resource and return its content as a byte array. */
+    public abstract byte[] load() throws IOException;
+
+    /**
+     * Get length of InputStream or ByteBuffer -- may only be set after calling {@link #open()} or {@link #read()}.
+     * (For some resources, length can never be determined.) Returns -1 if length is unknown.
+     */
+    public long getLength() {
+        return length >= 0L ? length : byteArray != null ? byteArray.length : -1L;
     }
 
     @Override
-    public String toString() {
-        return moduleRef != null ? "[module " + moduleRef.getModuleName() + "]/" + pathRelativeToClasspathElt
-                : ClasspathUtils.getClasspathResourceURL(classpathEltFile, pathRelativeToClasspathElt).toString();
-    }
-
-    public abstract InputStream open() throws IOException;
-
-    public long getInputStreamLength() {
-        return inputStreamLength;
-    }
-
-    // TODO: turn FileMatchProcessors into abstract classes, and factor this dispatch out into a method of
-    // FileMatchProcessorAny
-    public void processFileMatch(final FileMatchProcessorAny fileMatchProcessor, final LogNode log)
-            throws IOException {
-        if (fileMatchProcessor instanceof FilenameMatchProcessor) {
-            ((FilenameMatchProcessor) fileMatchProcessor).processMatch(
-                    // classpathResource.open() is not called for FilenameMatchProcessors
-                    classpathEltFile, pathRelativeToClasspathPrefix);
-        } else if (fileMatchProcessor instanceof FileMatchProcessor) {
+    public void close() {
+        byteArray = null;
+        if (inputStream != null) {
             try {
-                InputStream inputStream = null;
-                try {
-                    inputStream = open();
-                } catch (final IOException e) {
-                    if (log != null) {
-                        log.log("Exception while opening file " + this + ": " + e);
-                    }
-                }
-                if (inputStream != null) {
-                    ((FileMatchProcessor) fileMatchProcessor).processMatch(pathRelativeToClasspathPrefix,
-                            inputStream, inputStreamLength);
-                }
-            } finally {
-                close();
-            }
-        } else if (fileMatchProcessor instanceof FileMatchProcessorWithContext) {
-            try {
-                InputStream inputStream = null;
-                try {
-                    inputStream = open();
-                } catch (final IOException e) {
-                    if (log != null) {
-                        log.log("Exception while opening file " + this + ": " + e);
-                    }
-                }
-                if (inputStream != null) {
-                    ((FileMatchProcessorWithContext) fileMatchProcessor).processMatch(classpathEltFile,
-                            pathRelativeToClasspathPrefix, //
-                            inputStream, //
-                            inputStreamLength);
-                }
-            } finally {
-                close();
-            }
-        } else {
-            if (fileMatchProcessor instanceof FileMatchContentsProcessor) {
-                try {
-                    byte[] fileContent = null;
-                    try {
-                        fileContent = FileUtils.readAllBytes(/* inputStream = */ open(), inputStreamLength, log);
-                    } catch (final IOException e) {
-                        if (log != null) {
-                            log.log("Exception while opening file " + this + ": " + e);
-                        }
-                    }
-                    if (fileContent != null) {
-                        ((FileMatchContentsProcessor) fileMatchProcessor)
-                                .processMatch(pathRelativeToClasspathPrefix, fileContent);
-                    }
-                } finally {
-                    close();
-                }
-            } else if (fileMatchProcessor instanceof FileMatchContentsProcessorWithContext) {
-                try {
-                    byte[] fileContent = null;
-                    try {
-                        fileContent = FileUtils.readAllBytes(/* inputStream = */ open(), inputStreamLength, log);
-                    } catch (final IOException e) {
-                        if (log != null) {
-                            log.log("Exception while opening file " + this + ": " + e);
-                        }
-                    }
-                    if (fileContent != null) {
-                        ((FileMatchContentsProcessorWithContext) fileMatchProcessor).processMatch(classpathEltFile,
-                                pathRelativeToClasspathPrefix, fileContent);
-                    }
-                } finally {
-                    close();
-                }
-            } else {
-                throw new RuntimeException(
-                        "Unknown FileMatchProcessor type " + fileMatchProcessor.getClass().getName());
+                inputStream.close();
+                inputStream = null;
+            } catch (final IOException e) {
             }
         }
+        if (byteBuffer != null) {
+            byteBuffer = null;
+        }
     }
-
-    public abstract void close();
 }

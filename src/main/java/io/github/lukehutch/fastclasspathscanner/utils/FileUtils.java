@@ -97,35 +97,32 @@ public class FileUtils {
     }
 
     /**
-     * InputStream for backed by a ByteBuffer. From:
-     * https://stackoverflow.com/questions/4332264/wrapping-a-bytebuffer-with-an-inputstream/6603018#6603018
+     * Produce an InputStream from a ByteBuffer.
      * 
-     * Don't forget to close or release the ByteBuffer when the InputStream is closed, if needed.
+     * From: https://stackoverflow.com/questions/4332264/wrapping-a-bytebuffer-with-an-inputstream/6603018#6603018
      */
-    public static class ByteBufferBackedInputStream extends InputStream {
-        private final ByteBuffer buf;
+    public static InputStream byteBufferToInputStream(final ByteBuffer byteBuffer) {
+        return new InputStream() {
+            ByteBuffer buf = byteBuffer;
 
-        public ByteBufferBackedInputStream(final ByteBuffer buf) {
-            this.buf = buf;
-        }
-
-        @Override
-        public int read() throws IOException {
-            if (!buf.hasRemaining()) {
-                return -1;
-            }
-            return buf.get() & 0xFF;
-        }
-
-        @Override
-        public int read(final byte[] bytes, final int off, final int len) throws IOException {
-            if (!buf.hasRemaining()) {
-                return -1;
+            @Override
+            public int read() throws IOException {
+                if (!buf.hasRemaining()) {
+                    return -1;
+                }
+                return buf.get() & 0xFF;
             }
 
-            final int minLen = Math.min(len, buf.remaining());
-            buf.get(bytes, off, minLen);
-            return minLen;
-        }
+            @Override
+            public int read(final byte[] bytes, final int off, final int len) throws IOException {
+                if (!buf.hasRemaining()) {
+                    return -1;
+                }
+
+                final int bytesRead = Math.min(len, buf.remaining());
+                buf.get(bytes, off, bytesRead);
+                return bytesRead;
+            }
+        };
     }
 }

@@ -34,16 +34,14 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult.InfoObject;
-import io.github.lukehutch.fastclasspathscanner.typesignature.TypeSignature;
-import io.github.lukehutch.fastclasspathscanner.typesignature.TypeUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.Parser.ParseException;
+import io.github.lukehutch.fastclasspathscanner.utils.TypeUtils;
 
 /**
  * Holds metadata about fields of a class encountered during a scan. All values are taken directly out of the
  * classfile for the class.
  */
-public class FieldInfo extends InfoObject implements Comparable<FieldInfo> {
+public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo> {
     transient String className;
     String fieldName;
     int modifiers;
@@ -53,15 +51,21 @@ public class FieldInfo extends InfoObject implements Comparable<FieldInfo> {
     transient TypeSignature typeDescriptor;
     Object constValue;
     List<AnnotationInfo> annotationInfo;
-    transient ScanResult scanResult;
 
+    /** Default constructor for deserialization. */
     FieldInfo() {
     }
 
     /** Sets back-reference to scan result after scan is complete. */
     @Override
     void setScanResult(final ScanResult scanResult) {
-        this.scanResult = scanResult;
+        super.setScanResult(scanResult);
+        if (this.typeSignature != null) {
+            this.typeSignature.setScanResult(scanResult);
+        }
+        if (this.typeDescriptor != null) {
+            this.typeDescriptor.setScanResult(scanResult);
+        }
         if (this.annotationInfo != null) {
             for (final AnnotationInfo ai : this.annotationInfo) {
                 ai.setScanResult(scanResult);
@@ -291,7 +295,7 @@ public class FieldInfo extends InfoObject implements Comparable<FieldInfo> {
      *             if the field type could not be loaded.
      */
     public Class<?> getType() throws IllegalArgumentException {
-        return getTypeDescriptor().instantiate(scanResult);
+        return getTypeDescriptor().instantiate(/* ignoreExceptions = */ false);
     }
 
     /**
@@ -327,7 +331,8 @@ public class FieldInfo extends InfoObject implements Comparable<FieldInfo> {
         } else {
             final List<Class<?>> annotationClassRefs = new ArrayList<>();
             for (final String annotationName : getAnnotationNames()) {
-                annotationClassRefs.add(scanResult.classNameToClassRef(annotationName));
+                annotationClassRefs
+                        .add(scanResult.classNameToClassRef(annotationName, /* ignoreExceptions = */ false));
             }
             return annotationClassRefs;
         }

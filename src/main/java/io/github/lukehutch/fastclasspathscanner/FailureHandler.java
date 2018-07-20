@@ -26,28 +26,11 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.lukehutch.fastclasspathscanner.matchprocessor;
+package io.github.lukehutch.fastclasspathscanner;
 
-import java.io.IOException;
-import java.io.InputStream;
-
-import io.github.lukehutch.fastclasspathscanner.scanner.matchers.FileMatchProcessorAny;
-
-/** The method to run when a file with a matching path is found on the classpath. */
+/** A callback that can be called on scanning failure during an asynchronous scan. */
 @FunctionalInterface
-public interface FileMatchProcessor extends FileMatchProcessorAny {
-    /**
-     * Process a matching file.
-     *
-     * @param relativePath
-     *            The path of the matching file relative to the classpath element that contained the match.
-     * @param inputStream
-     *            An InputStream (either a FileInputStream or a ZipEntry InputStream) opened on the file. You do not
-     *            need to close this InputStream before returning, it is closed by the caller.
-     * @param lengthBytes
-     *            The length of the InputStream in bytes.
-     * @throws IOException
-     *             If anything goes wrong while processing the file.
-     */
-    public void processMatch(String relativePath, InputStream inputStream, long lengthBytes) throws IOException;
+public interface FailureHandler {
+    /** Called on scanning failure during an asynchronous scan. */
+    public void onFailure(Throwable throwable);
 }

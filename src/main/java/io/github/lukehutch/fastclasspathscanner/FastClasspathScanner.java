@@ -29,34 +29,16 @@
 package io.github.lukehutch.fastclasspathscanner;
 
 import java.io.File;
-import java.lang.annotation.Annotation;
 import java.lang.annotation.RetentionPolicy;
 import java.net.URL;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
 import io.github.lukehutch.fastclasspathscanner.classloaderhandler.ClassLoaderHandler;
-import io.github.lukehutch.fastclasspathscanner.matchprocessor.ClassAnnotationMatchProcessor;
-import io.github.lukehutch.fastclasspathscanner.matchprocessor.ClassMatchProcessor;
-import io.github.lukehutch.fastclasspathscanner.matchprocessor.FieldAnnotationMatchProcessor;
-import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchContentsProcessor;
-import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchContentsProcessorWithContext;
-import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchProcessor;
-import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchProcessorWithContext;
-import io.github.lukehutch.fastclasspathscanner.matchprocessor.FilenameMatchProcessor;
-import io.github.lukehutch.fastclasspathscanner.matchprocessor.ImplementingClassMatchProcessor;
-import io.github.lukehutch.fastclasspathscanner.matchprocessor.MethodAnnotationMatchProcessor;
-import io.github.lukehutch.fastclasspathscanner.matchprocessor.StaticFinalFieldMatchProcessor;
-import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubclassMatchProcessor;
-import io.github.lukehutch.fastclasspathscanner.matchprocessor.SubinterfaceMatchProcessor;
-import io.github.lukehutch.fastclasspathscanner.scanner.ClassLoaderAndModuleFinder;
-import io.github.lukehutch.fastclasspathscanner.scanner.FailureHandler;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
-import io.github.lukehutch.fastclasspathscanner.scanner.ScanResultProcessor;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
 import io.github.lukehutch.fastclasspathscanner.scanner.Scanner;
 import io.github.lukehutch.fastclasspathscanner.utils.AutoCloseableExecutorService;
@@ -238,62 +220,6 @@ public class FastClasspathScanner {
      */
     public FastClasspathScanner ignoreMethodVisibility() {
         ignoreMethodVisibility(true);
-        return this;
-    }
-
-    /**
-     * If enableMethodAnnotationIndexing is true, enables method annotation indexing, which allows you to call
-     * ScanResult#getNamesOfClassesWithMethodAnnotation(annotation). (If you add a method annotation match
-     * processor, this method is called for you.) Method annotation indexing is disabled by default, because it is
-     * expensive in terms of time, and it is not needed for most uses of FastClasspathScanner.
-     *
-     * @param enableMethodAnnotationIndexing
-     *            Whether or not to enable method annotation indexing.
-     * @return this (for method chaining).
-     */
-    public FastClasspathScanner enableMethodAnnotationIndexing(final boolean enableMethodAnnotationIndexing) {
-        getScanSpec().enableMethodAnnotationIndexing = enableMethodAnnotationIndexing;
-        return this;
-    }
-
-    /**
-     * Enables method annotation indexing, which allows you to call
-     * ScanResult#getNamesOfClassesWithMethodAnnotation(annotation). (If you add a method annotation match
-     * processor, this method is called for you.) Method annotation indexing is disabled by default, because it is
-     * expensive in terms of time, and it is not needed for most uses of FastClasspathScanner.
-     *
-     * @return this (for method chaining).
-     */
-    public FastClasspathScanner enableMethodAnnotationIndexing() {
-        enableMethodAnnotationIndexing(true);
-        return this;
-    }
-
-    /**
-     * If enableFieldAnnotationIndexing is true, enables field annotation indexing, which allows you to call
-     * ScanResult#getNamesOfClassesWithFieldAnnotation(annotation). (If you add a method annotation match processor,
-     * this method is called for you.) Method annotation indexing is disabled by default, because it is expensive in
-     * terms of time, and it is not needed for most uses of FastClasspathScanner.
-     * 
-     * @param enableFieldAnnotationIndexing
-     *            Whether to enable field annotation indexing.
-     * @return this (for method chaining).
-     */
-    public FastClasspathScanner enableFieldAnnotationIndexing(final boolean enableFieldAnnotationIndexing) {
-        getScanSpec().enableFieldAnnotationIndexing = enableFieldAnnotationIndexing;
-        return this;
-    }
-
-    /**
-     * Enables field annotation indexing, which allows you to call
-     * ScanResult#getNamesOfClassesWithFieldAnnotation(annotation). (If you add a method annotation match processor,
-     * this method is called for you.) Method annotation indexing is disabled by default, because it is expensive in
-     * terms of time, and it is not needed for most uses of FastClasspathScanner.
-     *
-     * @return this (for method chaining).
-     */
-    public FastClasspathScanner enableFieldAnnotationIndexing() {
-        enableFieldAnnotationIndexing(true);
         return this;
     }
 
@@ -726,234 +652,6 @@ public class FastClasspathScanner {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Causes exceptions thrown inside MatchProcessors to not be re-thrown, wrapped in a MatchProcessorException, at
-     * the end of a synchronous scan. Instead, any thrown exceptions can be fetched using
-     * ScanResult.getMatchProcessorExceptions().
-     * 
-     * @return this (for method chaining).
-     */
-    public FastClasspathScanner suppressMatchProcessorExceptions() {
-        suppressMatchProcessorExceptions(true);
-        return this;
-    }
-
-    /**
-     * If suppressMatchProcessorExceptions is true, exceptions thrown inside MatchProcessors are not re-thrown
-     * wrapped in a MatchProcessorException at the end of a synchronous scan, and any thrown exceptions can be
-     * fetched using ScanResult.getMatchProcessorExceptions(). If suppressMatchProcessorExceptions is false, at the
-     * end of a synchronous scan, if ScanResult.getMatchProcessorExceptions() returns a non-empty list,
-     * MatchProcessorException is thrown to the caller.
-     * 
-     * @param suppressMatchProcessorExceptions
-     *            Whether to suppress MatchProcessorExceptions.
-     * @return this (for method chaining).
-     */
-    public FastClasspathScanner suppressMatchProcessorExceptions(final boolean suppressMatchProcessorExceptions) {
-        getScanSpec().suppressMatchProcessorExceptions = suppressMatchProcessorExceptions;
-        return this;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Find the classloader or classloaders most likely to represent the order that classloaders are used to resolve
-     * classes in the current context. Uses the technique described by <a href=
-     * "http://www.javaworld.com/article/2077344/core-java/find-a-way-out-of-the-classloader-maze.html">Vladimir
-     * Roubtsov</a>.
-     *
-     * <p>
-     * Generally this will return exactly one ClassLoader, but if it returns more than one, the classloaders are
-     * listed in the order they should be called in until one of them is able to load the named class. If you can
-     * call only one ClassLoader, use the first element of the list.
-     *
-     * <p>
-     * If you have overridden the ClassLoader(s), then the override ClassLoader(s) will be returned instead.
-     *
-     * <p>
-     * Deprecated, since classloaders may need to be generated dynamically for loading classes from Spring-Boot jars
-     * and similar (#209).
-     *
-     * @return A list of one or more ClassLoaders, out of the system ClassLoader, the current classloader, or the
-     *         context classloader (or the override ClassLoaders, if ClassLoaders have been overridden).
-     */
-    @Deprecated
-    public ClassLoader[] findBestClassLoader() {
-        return new ClassLoaderAndModuleFinder(getScanSpec(), log).getClassLoaders();
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Calls the provided ClassMatchProcessor for all standard classes, interfaces and annotations found in
-     * whitelisted packages on the classpath.
-     *
-     * @param classMatchProcessor
-     *            the ClassMatchProcessor to call when a match is found.
-     * @return this (for method chaining).
-     */
-    public FastClasspathScanner matchAllClasses(final ClassMatchProcessor classMatchProcessor) {
-        getScanSpec().matchAllClasses(classMatchProcessor);
-        return this;
-    }
-
-    /**
-     * Calls the provided ClassMatchProcessor for all standard classes (i.e. non-interface, non-annotation classes)
-     * found in whitelisted packages on the classpath.
-     *
-     * @param standardClassMatchProcessor
-     *            the ClassMatchProcessor to call when a match is found.
-     * @return this (for method chaining).
-     */
-    public FastClasspathScanner matchAllStandardClasses(final ClassMatchProcessor standardClassMatchProcessor) {
-        getScanSpec().matchAllStandardClasses(standardClassMatchProcessor);
-        return this;
-    }
-
-    /**
-     * Calls the provided ClassMatchProcessor for all interface classes (interface definitions) found in whitelisted
-     * packages on the classpath.
-     *
-     * @param interfaceClassMatchProcessor
-     *            the ClassMatchProcessor to call when a match is found.
-     * @return this (for method chaining).
-     */
-    public FastClasspathScanner matchAllInterfaceClasses(final ClassMatchProcessor interfaceClassMatchProcessor) {
-        getScanSpec().matchAllInterfaceClasses(interfaceClassMatchProcessor);
-        return this;
-    }
-
-    /**
-     * Calls the provided ClassMatchProcessor for all annotation classes (annotation definitions) found in
-     * whitelisted packages on the classpath.
-     *
-     * @param annotationClassMatchProcessor
-     *            the ClassMatchProcessor to call when a match is found.
-     * @return this (for method chaining).
-     */
-    public FastClasspathScanner matchAllAnnotationClasses(final ClassMatchProcessor annotationClassMatchProcessor) {
-        getScanSpec().matchAllAnnotationClasses(annotationClassMatchProcessor);
-        return this;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Calls the provided SubclassMatchProcessor if classes are found on the classpath that extend the specified
-     * superclass.
-     *
-     * @param superclass
-     *            The superclass to match (i.e. the class that subclasses need to extend to match).
-     * @param subclassMatchProcessor
-     *            the SubclassMatchProcessor to call when a match is found.
-     * @return this (for method chaining).
-     */
-    public <T> FastClasspathScanner matchSubclassesOf(final Class<T> superclass,
-            final SubclassMatchProcessor<T> subclassMatchProcessor) {
-        getScanSpec().matchSubclassesOf(superclass, subclassMatchProcessor);
-        return this;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Calls the provided SubinterfaceMatchProcessor if an interface that extends a given superinterface is found on
-     * the classpath.
-     *
-     * @param superinterface
-     *            The superinterface to match (i.e. the interface that subinterfaces need to extend to match).
-     * @param subinterfaceMatchProcessor
-     *            the SubinterfaceMatchProcessor to call when a match is found.
-     * @return this (for method chaining).
-     */
-    public <T> FastClasspathScanner matchSubinterfacesOf(final Class<T> superinterface,
-            final SubinterfaceMatchProcessor<T> subinterfaceMatchProcessor) {
-        getScanSpec().matchSubinterfacesOf(superinterface, subinterfaceMatchProcessor);
-        return this;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Calls the provided InterfaceMatchProcessor for classes on the classpath that implement the specified
-     * interface or a subinterface, or whose superclasses implement the specified interface or a sub-interface.
-     *
-     * @param implementedInterface
-     *            The interface that classes need to implement.
-     * @param interfaceMatchProcessor
-     *            the ClassMatchProcessor to call when a match is found.
-     * @return this (for method chaining).
-     */
-    public <T> FastClasspathScanner matchClassesImplementing(final Class<T> implementedInterface,
-            final ImplementingClassMatchProcessor<T> interfaceMatchProcessor) {
-        getScanSpec().matchClassesImplementing(implementedInterface, interfaceMatchProcessor);
-        return this;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Calls the provided ClassAnnotationMatchProcessor if classes are found on the classpath that have the
-     * specified annotation.
-     *
-     * @param annotation
-     *            The class annotation to match.
-     * @param classAnnotationMatchProcessor
-     *            the ClassAnnotationMatchProcessor to call when a match is found.
-     * @return this (for method chaining).
-     */
-    public FastClasspathScanner matchClassesWithAnnotation(final Class<?> annotation,
-            final ClassAnnotationMatchProcessor classAnnotationMatchProcessor) {
-        getScanSpec().matchClassesWithAnnotation(annotation, classAnnotationMatchProcessor);
-        return this;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Calls the provided MethodAnnotationMatchProcessor if classes are found on the classpath that have one or more
-     * methods with the specified annotation.
-     *
-     * <p>
-     * Calls enableMethodAnnotationIndexing() for you.
-     *
-     * @param annotation
-     *            The method annotation to match.
-     * @param methodAnnotationMatchProcessor
-     *            the MethodAnnotationMatchProcessor to call when a match is found.
-     * @return this (for method chaining).
-     */
-    public FastClasspathScanner matchClassesWithMethodAnnotation(final Class<? extends Annotation> annotation,
-            final MethodAnnotationMatchProcessor methodAnnotationMatchProcessor) {
-        enableMethodAnnotationIndexing();
-        getScanSpec().matchClassesWithMethodAnnotation(annotation, methodAnnotationMatchProcessor);
-        return this;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Calls the provided FieldAnnotationMatchProcessor if classes are found on the classpath that have one or more
-     * fields with the specified annotation.
-     *
-     * <p>
-     * Calls enableFieldAnnotationIndexing() for you.
-     *
-     * @param annotation
-     *            The field annotation to match.
-     * @param fieldAnnotationMatchProcessor
-     *            the FieldAnnotationMatchProcessor to call when a match is found.
-     * @return this (for method chaining).
-     */
-    public FastClasspathScanner matchClassesWithFieldAnnotation(final Class<? extends Annotation> annotation,
-            final FieldAnnotationMatchProcessor fieldAnnotationMatchProcessor) {
-        enableFieldAnnotationIndexing();
-        getScanSpec().matchClassesWithFieldAnnotation(annotation, fieldAnnotationMatchProcessor);
-        return this;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
      * Set annotation visibility (to match the annotation retention policy).
      *
      * @param annotationVisibility
@@ -972,505 +670,6 @@ public class FastClasspathScanner {
     }
 
     // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Calls the given StaticFinalFieldMatchProcessor if classes are found on the classpath that contain static
-     * final fields that match one of a set of fully-qualified field names, e.g.
-     * "com.package.ClassName.STATIC_FIELD_NAME".
-     *
-     * <p>
-     * Field values are obtained from the constant pool in classfiles, not from a loaded class using reflection.
-     * This allows you to detect changes to the classpath and then run another scan that picks up the new values of
-     * selected static constants without reloading the class. (Class reloading is fraught with issues, see:
-     * http://tutorials.jenkov.com/java-reflection/dynamic-class-loading-reloading.html )
-     *
-     * <p>
-     * Note: Only static final fields with constant-valued literals are matched, not fields with initializer values
-     * that are the result of an expression or reference, except for cases where the compiler is able to simplify an
-     * expression into a single constant at compiletime, such as in the case of string concatenation.
-     *
-     * <p>
-     * Note that the visibility of the fields is not checked if ignoreFieldVisibility() was called before scan().
-     *
-     * @param fullyQualifiedStaticFinalFieldNames
-     *            The set of fully-qualified static field names to match.
-     * @param staticFinalFieldMatchProcessor
-     *            the StaticFinalFieldMatchProcessor to call when a match is found.
-     * @return this (for method chaining).
-     */
-    public FastClasspathScanner matchStaticFinalFieldNames(final Set<String> fullyQualifiedStaticFinalFieldNames,
-            final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor) {
-        getScanSpec().matchStaticFinalFieldNames(fullyQualifiedStaticFinalFieldNames,
-                staticFinalFieldMatchProcessor);
-        return this;
-    }
-
-    /**
-     * Calls the given StaticFinalFieldMatchProcessor if classes are found on the classpath that contain static
-     * final fields that match a fully-qualified field name, e.g. "com.package.ClassName.STATIC_FIELD_NAME".
-     *
-     * <p>
-     * Field values are obtained from the constant pool in classfiles, *not* from a loaded class using reflection.
-     * This allows you to detect changes to the classpath and then run another scan that picks up the new values of
-     * selected static constants without reloading the class. (Class reloading is fraught with issues, see:
-     * http://tutorials.jenkov.com/java-reflection/dynamic-class-loading-reloading.html )
-     *
-     * <p>
-     * Note: Only static final fields with constant-valued literals are matched, not fields with initializer values
-     * that are the result of an expression or reference, except for cases where the compiler is able to simplify an
-     * expression into a single constant at compiletime, such as in the case of string concatenation.
-     *
-     * <p>
-     * Note that the visibility of the fields is not checked if ignoreFieldVisibility() was called before scan().
-     *
-     * @param fullyQualifiedStaticFinalFieldName
-     *            The fully-qualified static field name to match
-     * @param staticFinalFieldMatchProcessor
-     *            the StaticFinalFieldMatchProcessor to call when a match is found.
-     * @return this (for method chaining).
-     */
-    public FastClasspathScanner matchStaticFinalFieldNames(final String fullyQualifiedStaticFinalFieldName,
-            final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor) {
-        getScanSpec().matchStaticFinalFieldNames(fullyQualifiedStaticFinalFieldName,
-                staticFinalFieldMatchProcessor);
-        return this;
-    }
-
-    /**
-     * Calls the given StaticFinalFieldMatchProcessor if classes are found on the classpath that contain static
-     * final fields that match one of a list of fully-qualified field names, e.g.
-     * "com.package.ClassName.STATIC_FIELD_NAME".
-     *
-     * <p>
-     * Field values are obtained from the constant pool in classfiles, *not* from a loaded class using reflection.
-     * This allows you to detect changes to the classpath and then run another scan that picks up the new values of
-     * selected static constants without reloading the class. (Class reloading is fraught with issues, see:
-     * http://tutorials.jenkov.com/java-reflection/dynamic-class-loading-reloading.html )
-     *
-     * <p>
-     * Note: Only static final fields with constant-valued literals are matched, not fields with initializer values
-     * that are the result of an expression or reference, except for cases where the compiler is able to simplify an
-     * expression into a single constant at compiletime, such as in the case of string concatenation.
-     *
-     * <p>
-     * Note that the visibility of the fields is not checked if ignoreFieldVisibility() was called before scan().
-     *
-     * @param fullyQualifiedStaticFinalFieldNames
-     *            The list of fully-qualified static field names to match.
-     * @param staticFinalFieldMatchProcessor
-     *            the StaticFinalFieldMatchProcessor to call when a match is found.
-     * @return this (for method chaining).
-     */
-    public FastClasspathScanner matchStaticFinalFieldNames(final String[] fullyQualifiedStaticFinalFieldNames,
-            final StaticFinalFieldMatchProcessor staticFinalFieldMatchProcessor) {
-        getScanSpec().matchStaticFinalFieldNames(fullyQualifiedStaticFinalFieldNames,
-                staticFinalFieldMatchProcessor);
-        return this;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Calls the given FilenameMatchProcessor if files are found on the classpath with the given regexp pattern in
-     * their path.
-     *
-     * @param pathRegexp
-     *            The regexp to match, e.g. "app/templates/.*\\.html"
-     * @param filenameMatchProcessor
-     *            The FilenameMatchProcessor to call when each match is found.
-     * @return this (for method chaining).
-     */
-    public FastClasspathScanner matchFilenamePattern(final String pathRegexp,
-            final FilenameMatchProcessor filenameMatchProcessor) {
-        getScanSpec().matchFilenamePattern(pathRegexp, filenameMatchProcessor);
-        return this;
-    }
-
-    /**
-     * Calls the given FileMatchProcessor if files are found on the classpath with the given regexp pattern in their
-     * path.
-     *
-     * @param pathRegexp
-     *            The regexp to match, e.g. "app/templates/.*\\.html"
-     * @param fileMatchProcessor
-     *            The FileMatchProcessor to call when each match is found.
-     * @return this (for method chaining).
-     */
-    public FastClasspathScanner matchFilenamePattern(final String pathRegexp,
-            final FileMatchProcessor fileMatchProcessor) {
-        getScanSpec().matchFilenamePattern(pathRegexp, fileMatchProcessor);
-        return this;
-    }
-
-    /**
-     * Calls the given FileMatchContentsProcessor if files are found on the classpath with the given regexp pattern
-     * in their path.
-     *
-     * @param pathRegexp
-     *            The regexp to match, e.g. "app/templates/.*\\.html"
-     * @param fileMatchContentsProcessor
-     *            The FileMatchContentsProcessor to call when each match is found.
-     * @return this (for method chaining).
-     */
-    public FastClasspathScanner matchFilenamePattern(final String pathRegexp,
-            final FileMatchContentsProcessor fileMatchContentsProcessor) {
-        getScanSpec().matchFilenamePattern(pathRegexp, fileMatchContentsProcessor);
-        return this;
-    }
-
-    /**
-     * Calls the given FileMatchProcessorWithContext if files are found on the classpath with the given regexp
-     * pattern in their path.
-     *
-     * @param pathRegexp
-     *            The regexp to match, e.g. "app/templates/.*\\.html"
-     * @param fileMatchProcessorWithContext
-     *            The FileMatchProcessorWithContext to call when each match is found.
-     * @return this (for method chaining).
-     */
-    public FastClasspathScanner matchFilenamePattern(final String pathRegexp,
-            final FileMatchProcessorWithContext fileMatchProcessorWithContext) {
-        getScanSpec().matchFilenamePattern(pathRegexp, fileMatchProcessorWithContext);
-        return this;
-    }
-
-    /**
-     * Calls the given FileMatchContentsProcessorWithContext if files are found on the classpath with the given
-     * regexp pattern in their path.
-     *
-     * @param pathRegexp
-     *            The regexp to match, e.g. "app/templates/.*\\.html"
-     * @param fileMatchContentsProcessorWithContext
-     *            The FileMatchContentsProcessorWithContext to call when each match is found.
-     * @return this (for method chaining).
-     */
-    public FastClasspathScanner matchFilenamePattern(final String pathRegexp,
-            final FileMatchContentsProcessorWithContext fileMatchContentsProcessorWithContext) {
-        getScanSpec().matchFilenamePattern(pathRegexp, fileMatchContentsProcessorWithContext);
-        return this;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Calls the given FilenameMatchProcessor if files are found on the classpath that exactly match the given
-     * relative path.
-     *
-     * @param relativePathToMatch
-     *            The complete path to match relative to the classpath entry, e.g.
-     *            "app/templates/WidgetTemplate.html"
-     * @param filenameMatchProcessor
-     *            The FilenameMatchProcessor to call when each match is found.
-     * @return this (for method chaining).
-     */
-    public FastClasspathScanner matchFilenamePath(final String relativePathToMatch,
-            final FilenameMatchProcessor filenameMatchProcessor) {
-        getScanSpec().matchFilenamePath(relativePathToMatch, filenameMatchProcessor);
-        return this;
-    }
-
-    /**
-     * Calls the given FileMatchProcessor if files are found on the classpath that exactly match the given relative
-     * path.
-     *
-     * @param relativePathToMatch
-     *            The complete path to match relative to the classpath entry, e.g.
-     *            "app/templates/WidgetTemplate.html"
-     * @param fileMatchProcessor
-     *            The FileMatchProcessor to call when each match is found.
-     * @return this (for method chaining).
-     */
-    public FastClasspathScanner matchFilenamePath(final String relativePathToMatch,
-            final FileMatchProcessor fileMatchProcessor) {
-        getScanSpec().matchFilenamePath(relativePathToMatch, fileMatchProcessor);
-        return this;
-    }
-
-    /**
-     * Calls the given FileMatchContentsProcessor if files are found on the classpath that exactly match the given
-     * relative path.
-     *
-     * @param relativePathToMatch
-     *            The complete path to match relative to the classpath entry, e.g.
-     *            "app/templates/WidgetTemplate.html"
-     * @param fileMatchContentsProcessor
-     *            The FileMatchContentsProcessor to call when each match is found.
-     * @return this (for method chaining).
-     */
-    public FastClasspathScanner matchFilenamePath(final String relativePathToMatch,
-            final FileMatchContentsProcessor fileMatchContentsProcessor) {
-        getScanSpec().matchFilenamePath(relativePathToMatch, fileMatchContentsProcessor);
-        return this;
-    }
-
-    /**
-     * Calls the given FileMatchProcessorWithContext if files are found on the classpath that exactly match the
-     * given relative path.
-     *
-     * @param relativePathToMatch
-     *            The complete path to match relative to the classpath entry, e.g.
-     *            "app/templates/WidgetTemplate.html"
-     * @param fileMatchProcessorWithContext
-     *            The FileMatchProcessorWithContext to call when each match is found.
-     * @return this (for method chaining).
-     */
-    public FastClasspathScanner matchFilenamePath(final String relativePathToMatch,
-            final FileMatchProcessorWithContext fileMatchProcessorWithContext) {
-        getScanSpec().matchFilenamePath(relativePathToMatch, fileMatchProcessorWithContext);
-        return this;
-    }
-
-    /**
-     * Calls the given FileMatchContentsProcessorWithContext if files are found on the classpath that exactly match
-     * the given relative path.
-     *
-     * @param relativePathToMatch
-     *            The complete path to match relative to the classpath entry, e.g.
-     *            "app/templates/WidgetTemplate.html"
-     * @param fileMatchContentsProcessorWithContext
-     *            The FileMatchContentsProcessorWithContext to call when each match is found.
-     * @return this (for method chaining).
-     */
-    public FastClasspathScanner matchFilenamePath(final String relativePathToMatch,
-            final FileMatchContentsProcessorWithContext fileMatchContentsProcessorWithContext) {
-        getScanSpec().matchFilenamePath(relativePathToMatch, fileMatchContentsProcessorWithContext);
-        return this;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Calls the given FilenameMatchProcessor if files are found on the classpath that exactly match the given path
-     * leafname.
-     *
-     * @param pathLeafToMatch
-     *            The complete path leaf to match, e.g. "WidgetTemplate.html"
-     * @param filenameMatchProcessor
-     *            The FilenameMatchProcessor to call when each match is found.
-     * @return this (for method chaining).
-     */
-    public FastClasspathScanner matchFilenamePathLeaf(final String pathLeafToMatch,
-            final FilenameMatchProcessor filenameMatchProcessor) {
-        getScanSpec().matchFilenamePathLeaf(pathLeafToMatch, filenameMatchProcessor);
-        return this;
-    }
-
-    /**
-     * Calls the given FileMatchProcessor if files are found on the classpath that exactly match the given path
-     * leafname.
-     *
-     * @param pathLeafToMatch
-     *            The complete path leaf to match, e.g. "WidgetTemplate.html"
-     * @param fileMatchProcessor
-     *            The FileMatchProcessor to call when each match is found.
-     * @return this (for method chaining).
-     */
-    public FastClasspathScanner matchFilenamePathLeaf(final String pathLeafToMatch,
-            final FileMatchProcessor fileMatchProcessor) {
-        getScanSpec().matchFilenamePathLeaf(pathLeafToMatch, fileMatchProcessor);
-        return this;
-    }
-
-    /**
-     * Calls the given FileMatchContentsProcessor if files are found on the classpath that exactly match the given
-     * path leafname.
-     *
-     * @param pathLeafToMatch
-     *            The complete path leaf to match, e.g. "WidgetTemplate.html"
-     * @param fileMatchContentsProcessor
-     *            The FileMatchContentsProcessor to call when each match is found.
-     * @return this (for method chaining).
-     */
-    public FastClasspathScanner matchFilenamePathLeaf(final String pathLeafToMatch,
-            final FileMatchContentsProcessor fileMatchContentsProcessor) {
-        getScanSpec().matchFilenamePathLeaf(pathLeafToMatch, fileMatchContentsProcessor);
-        return this;
-    }
-
-    /**
-     * Calls the given FileMatchProcessorWithContext if files are found on the classpath that exactly match the
-     * given path leafname.
-     *
-     * @param pathLeafToMatch
-     *            The complete path leaf to match, e.g. "WidgetTemplate.html"
-     * @param fileMatchProcessorWithContext
-     *            The FileMatchProcessorWithContext to call when each match is found.
-     * @return this (for method chaining).
-     */
-    public FastClasspathScanner matchFilenamePathLeaf(final String pathLeafToMatch,
-            final FileMatchProcessorWithContext fileMatchProcessorWithContext) {
-        getScanSpec().matchFilenamePathLeaf(pathLeafToMatch, fileMatchProcessorWithContext);
-        return this;
-    }
-
-    /**
-     * Calls the given FileMatchContentsProcessorWithContext if files are found on the classpath that exactly match
-     * the given path leafname.
-     *
-     * @param pathLeafToMatch
-     *            The complete path leaf to match, e.g. "WidgetTemplate.html"
-     * @param fileMatchContentsProcessorWithContext
-     *            The FileMatchContentsProcessorWithContext to call when each match is found.
-     * @return this (for method chaining).
-     */
-    public FastClasspathScanner matchFilenamePathLeaf(final String pathLeafToMatch,
-            final FileMatchContentsProcessorWithContext fileMatchContentsProcessorWithContext) {
-        getScanSpec().matchFilenamePathLeaf(pathLeafToMatch, fileMatchContentsProcessorWithContext);
-        return this;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Calls the given FilenameMatchProcessor if files are found on the classpath that have the given file
-     * extension.
-     *
-     * @param extensionToMatch
-     *            The extension to match, e.g. "html" matches "WidgetTemplate.html" and "WIDGET.HTML".
-     * @param filenameMatchProcessor
-     *            The FilenameMatchProcessor to call when each match is found.
-     * @return this (for method chaining).
-     */
-    public FastClasspathScanner matchFilenameExtension(final String extensionToMatch,
-            final FilenameMatchProcessor filenameMatchProcessor) {
-        getScanSpec().matchFilenameExtension(extensionToMatch, filenameMatchProcessor);
-        return this;
-    }
-
-    /**
-     * Calls the given FileMatchProcessor if files are found on the classpath that have the given file extension.
-     *
-     * @param extensionToMatch
-     *            The extension to match, e.g. "html" matches "WidgetTemplate.html" and "WIDGET.HTML".
-     * @param fileMatchProcessor
-     *            The FileMatchProcessor to call when each match is found.
-     * @return this (for method chaining).
-     */
-    public FastClasspathScanner matchFilenameExtension(final String extensionToMatch,
-            final FileMatchProcessor fileMatchProcessor) {
-        getScanSpec().matchFilenameExtension(extensionToMatch, fileMatchProcessor);
-        return this;
-    }
-
-    /**
-     * Calls the given FileMatchProcessor if files are found on the classpath that have the given file extension.
-     *
-     * @param extensionToMatch
-     *            The extension to match, e.g. "html" matches "WidgetTemplate.html".
-     * @param fileMatchContentsProcessor
-     *            The FileMatchContentsProcessor to call when each match is found.
-     * @return this (for method chaining).
-     */
-    public FastClasspathScanner matchFilenameExtension(final String extensionToMatch,
-            final FileMatchContentsProcessor fileMatchContentsProcessor) {
-        getScanSpec().matchFilenameExtension(extensionToMatch, fileMatchContentsProcessor);
-        return this;
-    }
-
-    /**
-     * Calls the given FileMatchProcessorWithContext if files are found on the classpath that have the given file
-     * extension.
-     *
-     * @param extensionToMatch
-     *            The extension to match, e.g. "html" matches "WidgetTemplate.html" and "WIDGET.HTML".
-     * @param fileMatchProcessorWithContext
-     *            The FileMatchProcessorWithContext to call when each match is found.
-     * @return this (for method chaining).
-     */
-    public FastClasspathScanner matchFilenameExtension(final String extensionToMatch,
-            final FileMatchProcessorWithContext fileMatchProcessorWithContext) {
-        getScanSpec().matchFilenameExtension(extensionToMatch, fileMatchProcessorWithContext);
-        return this;
-    }
-
-    /**
-     * Calls the given FileMatchProcessorWithContext if files are found on the classpath that have the given file
-     * extension.
-     *
-     * @param extensionToMatch
-     *            The extension to match, e.g. "html" matches "WidgetTemplate.html".
-     * @param fileMatchContentsProcessorWithContext
-     *            The FileMatchContentsProcessorWithContext to call when each match is found.
-     * @return this (for method chaining).
-     */
-    public FastClasspathScanner matchFilenameExtension(final String extensionToMatch,
-            final FileMatchContentsProcessorWithContext fileMatchContentsProcessorWithContext) {
-        getScanSpec().matchFilenameExtension(extensionToMatch, fileMatchContentsProcessorWithContext);
-        return this;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Asynchronously scans the classpath for matching files, and if scanResultProcessor is non-null, also calls any
-     * MatchProcessors if a match is identified.
-     *
-     * @param executorService
-     *            A custom ExecutorService to use for scheduling worker tasks.
-     * @param numParallelTasks
-     *            The number of parallel tasks to break the work into during the most CPU-intensive stage of
-     *            classpath scanning. Ideally the ExecutorService will have at least this many threads available.
-     * @param isAsyncScan
-     *            If true, this is an async scan -- don't allow running from class initializers, in order to prevent
-     *            a class initializer deadlock.
-     * @param scanResultProcessor
-     *            If non-null, specifies a callback to run on the ScanResult after asynchronous scanning has
-     *            completed and MatchProcessors have been run.
-     * @param failureHandler
-     *            If non-null, specifies a callback to run if an exception is thrown during an asynchronous scan. If
-     *            a FailureHandler is provided and an exception is thrown, the resulting Future's get() method will
-     *            return null rather than throwing an ExecutionException.
-     * @return a Future<ScanResult> object, that when resolved using get() yields a new ScanResult object. You can
-     *         call cancel(true) on this Future if you want to interrupt the scan.
-     */
-    private Future<ScanResult> launchAsyncScan(final ExecutorService executorService, final int numParallelTasks,
-            final boolean isAsyncScan, final ScanResultProcessor scanResultProcessor,
-            final FailureHandler failureHandler) {
-        final ScanSpec scanSpec = getScanSpec();
-        if (isAsyncScan && scanSpec.hasMatchProcessors()) {
-            // Disallow MatchProcessors when launched asynchronously from a class initializer, to prevent class
-            // initializer deadlock if any of the MatchProcessors try to refer to the incompletely-initialized class
-            // -- see bug #103.
-            try {
-                try {
-                    // Generate stacktrace, so that we can get caller info
-                    throw new Exception();
-                } catch (final Exception e) {
-                    final StackTraceElement[] elts = e.getStackTrace();
-                    for (final StackTraceElement elt : elts) {
-                        if ("<clinit>".equals(elt.getMethodName())) {
-                            throw new RuntimeException("Cannot use MatchProcessors while launching a scan "
-                                    + "from a class initialization block (for class " + elt.getClassName()
-                                    + "), as this can lead to a class initializer deadlock. See: "
-                                    + "https://github.com/lukehutch/fast-classpath-scanner/issues/103");
-                        }
-                    }
-                }
-            } catch (final RuntimeException e) {
-                // Re-catch the RuntimeException so we have the stacktrace for the above failure
-                if (failureHandler == null) {
-                    throw e;
-                } else {
-                    if (log != null) {
-                        log.log(e);
-                        log.flush();
-                    }
-                    failureHandler.onFailure(e);
-                    return executorService.submit(new Callable<ScanResult>() {
-                        @Override
-                        public ScanResult call() throws Exception {
-                            // Return null from the Future if a FailureHandler was added and there was an exception
-                            return null;
-                        }
-                    });
-                }
-            }
-        }
-        return executorService.submit(
-                // Call MatchProcessors before returning if in async scanning mode
-                new Scanner(scanSpec, executorService, numParallelTasks, /* enableRecursiveScanning = */ true,
-                        scanResultProcessor, failureHandler, log));
-    }
 
     /**
      * Asynchronously scans the classpath for matching files, and if runAsynchronously is true, also calls any
@@ -1501,19 +700,10 @@ public class FastClasspathScanner {
             throw new IllegalArgumentException("failureHandler cannot be null");
         }
         // Drop the returned Future<ScanResult>, a ScanResultProcessor is used instead
-        launchAsyncScan(executorService, numParallelTasks, /* isAsyncScan = */ true, new ScanResultProcessor() {
-            @Override
-            public void processScanResult(final ScanResult scanResult) {
-                // Call any MatchProcessors after scan has completed
-                getScanSpec().callMatchProcessors(scanResult);
-                // Call the provided ScanResultProcessor
-                scanResultProcessor.processScanResult(scanResult);
-                // Free temporary files if necessary
-                if (scanSpec.removeTemporaryFilesAfterScan) {
-                    scanResult.freeTempFiles(log);
-                }
-            }
-        }, failureHandler);
+        executorService.submit(
+                // Call MatchProcessors before returning if in async scanning mode
+                new Scanner(getScanSpec(), executorService, numParallelTasks, /* enableRecursiveScanning = */ true,
+                        scanResultProcessor, failureHandler, log));
     }
 
     /**
@@ -1532,18 +722,10 @@ public class FastClasspathScanner {
      */
     private Future<ScanResult> scanAsync(final ExecutorService executorService, final int numParallelTasks,
             final boolean isAsyncScan, final boolean runMatchProcessorsOnWorkerThread) {
-        return launchAsyncScan(executorService, numParallelTasks, isAsyncScan,
-                runMatchProcessorsOnWorkerThread ? new ScanResultProcessor() {
-                    @Override
-                    public void processScanResult(final ScanResult scanResult) {
-                        // Call MatchProcessors after scan has completed
-                        getScanSpec().callMatchProcessors(scanResult);
-                        // Free temporary files if necessary
-                        if (scanSpec.removeTemporaryFilesAfterScan) {
-                            scanResult.freeTempFiles(log);
-                        }
-                    }
-                } : null, /* failureHandler = */ null);
+        return executorService.submit(
+                // Call MatchProcessors before returning if in async scanning mode
+                new Scanner(getScanSpec(), executorService, numParallelTasks, /* enableRecursiveScanning = */ true,
+                        /* scanResultProcessor = */ null, /* failureHandler = */ null, log));
     }
 
     /**
@@ -1592,12 +774,6 @@ public class FastClasspathScanner {
      * @param numParallelTasks
      *            The number of parallel tasks to break the work into during the most CPU-intensive stage of
      *            classpath scanning. Ideally the ExecutorService will have at least this many threads available.
-     * @throws MatchProcessorException
-     *             if classloading fails for any of the classes matched by a MatchProcessor, or if a MatchProcessor
-     *             throws an exception. If {@link FastClasspathScanner#suppressMatchProcessorExceptions()} is called
-     *             before {@link FastClasspathScanner#scan()}, then {@link MatchProcessorException} will not be
-     *             thrown at the end of scanning, and instead, any exceptions that were thrown by MatchProcessors
-     *             can be fetched using {@link ScanResult#getMatchProcessorExceptions()}.
      * @throws ScanInterruptedException
      *             if any of the worker threads are interrupted during the scan. If you care about thread
      *             interruption, you should catch this exception. If you don't plan to interrupt the scan, you
@@ -1614,15 +790,7 @@ public class FastClasspathScanner {
             final ScanResult scanResult = scanAsync(executorService, numParallelTasks, /* isAsyncScan = */ false,
                     /* runMatchProcessorsOnWorkerThread = */ false).get();
 
-            // Call MatchProcessors in the same thread as the caller, to avoid deadlock (see bug #103)
-            getScanSpec().callMatchProcessors(scanResult);
-
-            // Free temporary files
-            if (scanSpec.removeTemporaryFilesAfterScan) {
-                scanResult.freeTempFiles(log);
-            }
-
-            // // Test serialization and deserialization by serializing and then deserializing the ScanResult 
+            // // TODO: test serialization and deserialization by serializing and then deserializing the ScanResult 
             // final String scanResultJson = scanResult.toJSON();
             // scanResult = ScanResult.fromJSON(scanResultJson);
 
@@ -1643,12 +811,7 @@ public class FastClasspathScanner {
                 if (log != null) {
                     log.log("Scan interrupted");
                 }
-                throw new ScanInterruptedException();
-            } else if (cause instanceof MatchProcessorException) {
-                if (log != null) {
-                    log.log("Exception during scan", e);
-                }
-                throw (MatchProcessorException) cause;
+                throw new ScanInterruptedException(); // TODO: Get rid of this exception, and make the Async version throw InterruptedException, but the non-Async version throw RuntimeException or something
             } else {
                 if (log != null) {
                     log.log("Unexpected exception during scan", e);
@@ -1670,12 +833,6 @@ public class FastClasspathScanner {
      *
      * @param numThreads
      *            The number of worker threads to start up.
-     * @throws MatchProcessorException
-     *             if classloading fails for any of the classes matched by a MatchProcessor, or if a MatchProcessor
-     *             throws an exception. If {@link FastClasspathScanner#suppressMatchProcessorExceptions()} is called
-     *             before {@link FastClasspathScanner#scan()}, then {@link MatchProcessorException} will not be
-     *             thrown at the end of scanning, and instead, any exceptions that were thrown by MatchProcessors
-     *             can be fetched using {@link ScanResult#getMatchProcessorExceptions()}.
      * @throws ScanInterruptedException
      *             if any of the worker threads are interrupted during the scan (shouldn't happen under normal
      *             circumstances).
@@ -1697,12 +854,6 @@ public class FastClasspathScanner {
      * scan to complete before returning a ScanResult. This method should be called after all required
      * MatchProcessors have been added.
      *
-     * @throws MatchProcessorException
-     *             if classloading fails for any of the classes matched by a MatchProcessor, or if a MatchProcessor
-     *             throws an exception. If {@link FastClasspathScanner#suppressMatchProcessorExceptions()} is called
-     *             before {@link FastClasspathScanner#scan()}, then {@link MatchProcessorException} will not be
-     *             thrown at the end of scanning, and instead, any exceptions that were thrown by MatchProcessors
-     *             can be fetched using {@link ScanResult#getMatchProcessorExceptions()}.
      * @throws ScanInterruptedException
      *             if any of the worker threads are interrupted during the scan (shouldn't happen under normal
      *             circumstances).

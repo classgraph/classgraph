@@ -37,6 +37,7 @@ import io.github.lukehutch.fastclasspathscanner.classloaderhandler.ClassLoaderHa
 import io.github.lukehutch.fastclasspathscanner.classloaderhandler.ClassLoaderHandler.DelegationOrder;
 import io.github.lukehutch.fastclasspathscanner.classloaderhandler.ClassLoaderHandlerRegistry;
 import io.github.lukehutch.fastclasspathscanner.classloaderhandler.ClassLoaderHandlerRegistry.ClassLoaderHandlerRegistryEntry;
+import io.github.lukehutch.fastclasspathscanner.utils.ClassLoaderAndModuleFinder;
 import io.github.lukehutch.fastclasspathscanner.utils.FileUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.JarUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
@@ -46,7 +47,7 @@ import io.github.lukehutch.fastclasspathscanner.utils.NestedJarHandler;
 public class ClasspathFinder {
     static final String currDirPathStr = FileUtils.getCurrDirPathStr();
 
-    private final List<RelativePath> rawClasspathElements;
+    private final List<ClasspathElementPath> rawClasspathElements;
     private final ClassLoaderAndModuleFinder classLoaderAndModuleFinder;
 
     // -------------------------------------------------------------------------------------------------------------
@@ -295,8 +296,8 @@ public class ClasspathFinder {
                     final LogNode sysPropLog = classpathFinderLog == null ? null
                             : classpathFinderLog.log("Getting classpath entries from java.class.path");
                     for (final String pathElement : pathElements) {
-                        if (!ignoredClasspathOrder.get().contains(new RelativePath(currDirPathStr, pathElement,
-                                classLoaders, nestedJarHandler, scanSpec, log))) {
+                        if (!ignoredClasspathOrder.get().contains(new ClasspathElementPath(currDirPathStr,
+                                pathElement, classLoaders, nestedJarHandler, scanSpec, log))) {
                             // pathElement is not also listed in an ignored parent classloader
                             classpathOrder.addClasspathElement(pathElement, classLoaders, scanSpec, sysPropLog);
                         } else {
@@ -315,7 +316,7 @@ public class ClasspathFinder {
     }
 
     /** Get the raw classpath elements obtained from ClassLoaders. */
-    public List<RelativePath> getRawClasspathElements() {
+    public List<ClasspathElementPath> getRawClasspathElements() {
         return rawClasspathElements;
     }
 

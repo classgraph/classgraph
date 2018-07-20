@@ -43,9 +43,9 @@ import io.github.lukehutch.fastclasspathscanner.issues.issue153.Issue153Test.Fru
 import io.github.lukehutch.fastclasspathscanner.issues.issue153.Issue153Test.NestedAnnotation;
 import io.github.lukehutch.fastclasspathscanner.issues.issue153.Issue153Test.StringAnnotation;
 import io.github.lukehutch.fastclasspathscanner.issues.issue153.Issue153Test.TwoParamAnnotation;
+import io.github.lukehutch.fastclasspathscanner.scanner.AnnotationEnumValue;
 import io.github.lukehutch.fastclasspathscanner.scanner.AnnotationInfo;
-import io.github.lukehutch.fastclasspathscanner.scanner.AnnotationInfo.AnnotationEnumValue;
-import io.github.lukehutch.fastclasspathscanner.scanner.AnnotationInfo.AnnotationParamValue;
+import io.github.lukehutch.fastclasspathscanner.scanner.AnnotationParamValue;
 import io.github.lukehutch.fastclasspathscanner.scanner.ClassInfo;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
 

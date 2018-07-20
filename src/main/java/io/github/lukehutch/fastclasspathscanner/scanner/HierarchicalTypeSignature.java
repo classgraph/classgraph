@@ -26,8 +26,19 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.lukehutch.fastclasspathscanner.typesignature;
+package io.github.lukehutch.fastclasspathscanner.scanner;
 
-/** A class type or type variable. Subclasses are ClassRefTypeSignature and TypeVariableSignature. */
-public abstract class ClassRefOrTypeVariableSignature extends ReferenceTypeSignature {
+import java.util.Set;
+
+/**
+ * A Java type signature. Subclasses are ClassTypeSignature, MethodTypeSignature, and TypeSignature.
+ */
+public abstract class HierarchicalTypeSignature extends ScanResultObject {
+    /**
+     * Get the names of all classes referenced in the type signature
+     * 
+     * @param classNameListOut
+     *            The set to store class names in.
+     */
+    public abstract void getAllReferencedClassNames(final Set<String> classNameListOut);
 }

@@ -26,16 +26,16 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.lukehutch.fastclasspathscanner.typesignature;
+package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
-import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
 import io.github.lukehutch.fastclasspathscanner.utils.Parser;
 import io.github.lukehutch.fastclasspathscanner.utils.Parser.ParseException;
+import io.github.lukehutch.fastclasspathscanner.utils.TypeUtils;
 
 /** A class reference type signature (called "ClassTypeSignature" in the classfile documentation). */
 public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
@@ -56,6 +56,23 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
      * empty list if there is no type argument for a given suffix.
      */
     private final List<List<TypeArgument>> suffixTypeArguments;
+
+    @Override
+    void setScanResult(final ScanResult scanResult) {
+        super.setScanResult(scanResult);
+        if (typeArguments != null) {
+            for (final TypeArgument typeArgument : typeArguments) {
+                typeArgument.setScanResult(scanResult);
+            }
+        }
+        if (suffixTypeArguments != null) {
+            for (final List<TypeArgument> list : suffixTypeArguments) {
+                for (final TypeArgument typeArgument : list) {
+                    typeArgument.setScanResult(scanResult);
+                }
+            }
+        }
+    }
 
     /**
      * @param className
@@ -122,7 +139,7 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
 
     /** Instantiate class ref. Type arguments are ignored. */
     @Override
-    public Class<?> instantiate(final ScanResult scanResult) {
+    public Class<?> instantiate(final boolean ignoreExceptions) {
         final StringBuilder buf = new StringBuilder();
         buf.append(className);
         for (int i = 0; i < suffixes.size(); i++) {
@@ -130,7 +147,7 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
             buf.append(suffixes.get(i));
         }
         final String classNameWithSuffixes = buf.toString();
-        return scanResult.classNameToClassRef(classNameWithSuffixes);
+        return scanResult.classNameToClassRef(classNameWithSuffixes, ignoreExceptions);
     }
 
     /**

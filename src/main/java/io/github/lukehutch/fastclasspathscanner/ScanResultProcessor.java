@@ -26,24 +26,19 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.lukehutch.fastclasspathscanner.matchprocessor;
+package io.github.lukehutch.fastclasspathscanner;
 
-import java.io.IOException;
+import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
 
-import io.github.lukehutch.fastclasspathscanner.scanner.matchers.FileMatchProcessorAny;
-
-/** The method to run when a file with a matching path is found on the classpath. */
+/**
+ * A callback that can be used to processes the result of an asynchronous scan after scanning has completed and any
+ * MatchProcessors have been run.
+ */
 @FunctionalInterface
-public interface FileMatchContentsProcessor extends FileMatchProcessorAny {
+public interface ScanResultProcessor {
     /**
-     * Process a matching file.
-     *
-     * @param relativePath
-     *            The path of the matching file relative to the classpath element that contained the match.
-     * @param fileContents
-     *            A byte array containing the file contents.
-     * @throws IOException
-     *             If anything goes wrong while processing the file.
+     * Process the result of an asynchronous scan after scanning has completed and any MatchProcessors have been
+     * run.
      */
-    public void processMatch(String relativePath, byte[] fileContents) throws IOException;
+    public void processScanResult(ScanResult scanResult);
 }

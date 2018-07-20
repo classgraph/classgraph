@@ -26,7 +26,7 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.lukehutch.fastclasspathscanner.typesignature;
+package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -55,6 +55,14 @@ public class TypeArgument extends HierarchicalTypeSignature {
 
     /** Type signature (will be null if wildcard == ANY). */
     private final ReferenceTypeSignature typeSignature;
+
+    @Override
+    void setScanResult(final ScanResult scanResult) {
+        super.setScanResult(scanResult);
+        if (this.typeSignature != null) {
+            this.typeSignature.setScanResult(scanResult);
+        }
+    }
 
     /**
      * @param wildcard

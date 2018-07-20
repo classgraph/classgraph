@@ -26,9 +26,8 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.lukehutch.fastclasspathscanner.typesignature;
+package io.github.lukehutch.fastclasspathscanner.scanner;
 
-import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
 import io.github.lukehutch.fastclasspathscanner.utils.Parser;
 import io.github.lukehutch.fastclasspathscanner.utils.Parser.ParseException;
 
@@ -38,14 +37,28 @@ import io.github.lukehutch.fastclasspathscanner.utils.Parser.ParseException;
  */
 public abstract class TypeSignature extends HierarchicalTypeSignature {
     /**
-     * Instantiate the type signature into a class reference. The ScanResult is used to ensure the correct
-     * classloader is used to load the class.
+     * Instantiate the type signature into a {@code Class<?>} reference.
      * 
-     * @param scanResult
-     *            The scan result.
-     * @return The instantiation of the type signature as a {@code Class<?>}.
+     * @param ignoreExceptions
+     *            if true, return null rather than throwing IllegalArgumentException if an exception or error is
+     *            thrown while trying to load or instantiate this type.
+     * @throws IllegalArgumentException
+     *             if ignoreExceptions is false and an exception or error is thrown while trying to load or
+     *             instantiate this type.
+     * @return The instantiation of the type signature as a {@code Class<?>} reference.
      */
-    public abstract Class<?> instantiate(final ScanResult scanResult);
+    public abstract Class<?> instantiate(boolean ignoreExceptions);
+
+    /**
+     * Instantiate the type signature into a {@code Class<?>} reference.
+     * 
+     * @throws IllegalArgumentException
+     *             if an exception or error is thrown while trying to load or instantiate this type.
+     * @return The instantiation of the type signature as a {@code Class<?>} reference.
+     */
+    public Class<?> instantiate() {
+        return instantiate(/* ignoreExceptions = */ false);
+    }
 
     /**
      * Compare base types, ignoring generic type parameters.

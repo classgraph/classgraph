@@ -46,6 +46,9 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 
+import io.github.lukehutch.fastclasspathscanner.FailureHandler;
+import io.github.lukehutch.fastclasspathscanner.ScanResultProcessor;
+import io.github.lukehutch.fastclasspathscanner.utils.ClassLoaderAndModuleFinder;
 import io.github.lukehutch.fastclasspathscanner.utils.InterruptionChecker;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.NestedJarHandler;
@@ -90,16 +93,16 @@ public class Scanner implements Callable<ScanResult> {
     // -------------------------------------------------------------------------------------------------------------
 
     /** A map from relative path to classpath element singleton. */
-    private static class RelativePathToElementMap extends SingletonMap<RelativePath, ClasspathElement>
-            implements AutoCloseable {
+    private static class ClasspathElementPathToClasspathElementMap
+            extends SingletonMap<ClasspathElementPath, ClasspathElement> implements AutoCloseable {
         private final boolean scanFiles;
         private final ScanSpec scanSpec;
         private final NestedJarHandler nestedJarHandler;
         private final InterruptionChecker interruptionChecker;
-        private WorkQueue<RelativePath> workQueue;
+        private WorkQueue<ClasspathElementPath> workQueue;
 
         /** A map from relative path to classpath element singleton. */
-        RelativePathToElementMap(final boolean scanFiles, final ScanSpec scanSpec,
+        ClasspathElementPathToClasspathElementMap(final boolean scanFiles, final ScanSpec scanSpec,
                 final NestedJarHandler nestedJarHandler, final InterruptionChecker interruptionChecker) {
             this.scanFiles = scanFiles;
             this.scanSpec = scanSpec;
@@ -112,13 +115,13 @@ public class Scanner implements Callable<ScanResult> {
          * Class-Path manifest entries, which require the adding of additional work units to the scanning work
          * queue.
          */
-        public void setWorkQueue(final WorkQueue<RelativePath> workQueue) {
+        public void setWorkQueue(final WorkQueue<ClasspathElementPath> workQueue) {
             this.workQueue = workQueue;
         }
 
         /** Create a new classpath element singleton instance. */
         @Override
-        public ClasspathElement newInstance(final RelativePath classpathElt, final LogNode log) {
+        public ClasspathElement newInstance(final ClasspathElementPath classpathElt, final LogNode log) {
             return ClasspathElement.newInstance(classpathElt, scanFiles, scanSpec, nestedJarHandler, workQueue,
                     interruptionChecker, log);
         }
@@ -139,7 +142,7 @@ public class Scanner implements Callable<ScanResult> {
      * the final classpath element order.
      */
     private static void findClasspathOrder(final ClasspathElement currSingleton,
-            final RelativePathToElementMap classpathElementMap,
+            final ClasspathElementPathToClasspathElementMap classpathElementMap,
             final HashSet<ClasspathElement> visitedClasspathElts, final ArrayList<ClasspathElement> order)
             throws InterruptedException {
         if (visitedClasspathElts.add(currSingleton)) {
@@ -150,7 +153,7 @@ public class Scanner implements Callable<ScanResult> {
             // Whether or not a classpath element should be skipped, add any child classpath elements that are
             // not marked to be skipped (i.e. keep recursing)
             if (currSingleton.childClasspathElts != null) {
-                for (final RelativePath childClasspathElt : currSingleton.childClasspathElts) {
+                for (final ClasspathElementPath childClasspathElt : currSingleton.childClasspathElts) {
                     final ClasspathElement childSingleton = classpathElementMap.get(childClasspathElt);
                     if (childSingleton != null) {
                         findClasspathOrder(childSingleton, classpathElementMap, visitedClasspathElts, order);
@@ -164,14 +167,14 @@ public class Scanner implements Callable<ScanResult> {
      * Recursively perform a depth-first search of jar interdependencies, breaking cycles if necessary, to determine
      * the final classpath element order.
      */
-    private static List<ClasspathElement> findClasspathOrder(final List<RelativePath> rawClasspathElements,
-            final RelativePathToElementMap classpathElementMap) throws InterruptedException {
+    private static List<ClasspathElement> findClasspathOrder(final List<ClasspathElementPath> rawClasspathElements,
+            final ClasspathElementPathToClasspathElementMap classpathElementMap) throws InterruptedException {
         // Recurse from toplevel classpath elements to determine a total ordering of classpath elements (jars with
         // Class-Path entries in their manifest file should have those child resources included in-place in the
         // classpath).
         final HashSet<ClasspathElement> visitedClasspathElts = new HashSet<>();
         final ArrayList<ClasspathElement> order = new ArrayList<>();
-        for (final RelativePath toplevelClasspathElt : rawClasspathElements) {
+        for (final ClasspathElementPath toplevelClasspathElt : rawClasspathElements) {
             final ClasspathElement toplevelSingleton = classpathElementMap.get(toplevelClasspathElt);
             if (toplevelSingleton != null) {
                 findClasspathOrder(toplevelSingleton, classpathElementMap, visitedClasspathElts, order);
@@ -269,7 +272,7 @@ public class Scanner implements Callable<ScanResult> {
             final ClassLoaderAndModuleFinder classLoaderAndModuleFinder = classpathFinder
                     .getClassLoaderAndModuleFinder();
             final ClassLoader[] classLoaderOrder = classLoaderAndModuleFinder.getClassLoaders();
-            final List<RelativePath> rawClasspathEltOrder = new ArrayList<>();
+            final List<ClasspathElementPath> rawClasspathEltOrder = new ArrayList<>();
 
             if (scanSpec.overrideClasspath == null && scanSpec.overrideClassLoaders == null) {
                 // Add modules to start of classpath order (in JDK9+)
@@ -280,8 +283,8 @@ public class Scanner implements Callable<ScanResult> {
                         if (((!scanSpec.blacklistSystemJarsOrModules && scanSpec.whitelistedModules.isEmpty())
                                 || scanSpec.whitelistedModules.contains(moduleName))
                                 && !scanSpec.blacklistedModules.contains(moduleName)) {
-                            rawClasspathEltOrder
-                                    .add(new RelativePath(systemModule, nestedJarHandler, getRawElementsLog));
+                            rawClasspathEltOrder.add(
+                                    new ClasspathElementPath(systemModule, nestedJarHandler, getRawElementsLog));
                         } else {
                             if (log != null) {
                                 log.log("Skipping blacklisted/non-whitelisted system module: " + moduleName);
@@ -296,8 +299,8 @@ public class Scanner implements Callable<ScanResult> {
                         if ((scanSpec.whitelistedModules.isEmpty()
                                 || scanSpec.whitelistedModules.contains(moduleName))
                                 && !scanSpec.blacklistedModules.contains(moduleName)) {
-                            rawClasspathEltOrder
-                                    .add(new RelativePath(nonSystemModule, nestedJarHandler, getRawElementsLog));
+                            rawClasspathEltOrder.add(
+                                    new ClasspathElementPath(nonSystemModule, nestedJarHandler, getRawElementsLog));
                         } else {
                             if (log != null) {
                                 log.log("Skipping blacklisted/non-whitelisted module: " + moduleName);
@@ -323,12 +326,14 @@ public class Scanner implements Callable<ScanResult> {
             // for each unique canonical path. Also check jars against jar whitelist/blacklist.
             final LogNode preScanLog = classpathFinderLog == null ? null
                     : classpathFinderLog.log("Reading jarfile metadata");
-            final RelativePathToElementMap classpathElementMap = new RelativePathToElementMap(
-                    enableRecursiveScanning, scanSpec, nestedJarHandler, interruptionChecker);
+            final ClasspathElementPathToClasspathElementMap classpathElementMap = //
+                    new ClasspathElementPathToClasspathElementMap(enableRecursiveScanning, scanSpec,
+                            nestedJarHandler, interruptionChecker);
             WorkQueue.runWorkQueue(rawClasspathEltOrder, executorService, numParallelTasks,
-                    new WorkUnitProcessor<RelativePath>() {
+                    new WorkUnitProcessor<ClasspathElementPath>() {
                         @Override
-                        public void processWorkUnit(final RelativePath rawClasspathEltPath) throws Exception {
+                        public void processWorkUnit(final ClasspathElementPath rawClasspathEltPath)
+                                throws Exception {
                             // Check if classpath element is already in the singleton map -- saves needlessly
                             // repeating work in isValidClasspathElement() and createSingleton() (need to check for
                             // duplicates again, even though we checked above, since additonal classpath entries can
@@ -381,9 +386,9 @@ public class Scanner implements Callable<ScanResult> {
                                 }
                             }
                         }
-                    }, new WorkQueuePreStartHook<RelativePath>() {
+                    }, new WorkQueuePreStartHook<ClasspathElementPath>() {
                         @Override
-                        public void processWorkQueueRef(final WorkQueue<RelativePath> workQueue) {
+                        public void processWorkQueueRef(final WorkQueue<ClasspathElementPath> workQueue) {
                             // Store a ref back to the work queue in the classpath element map, because some
                             // classpath elements will need to schedule additional classpath elements for scanning,
                             // e.g. "Class-Path:" refs in jar manifest files
@@ -569,7 +574,7 @@ public class Scanner implements Callable<ScanResult> {
                             try {
                                 // Don't try to get classpath URL for modules (classloading from modules
                                 // will be handled by parent classloader)
-                                ModuleRef modRef = classpathElement.getClasspathElementModuleRef();
+                                final ModuleRef modRef = classpathElement.getClasspathElementModuleRef();
                                 if (modRef == null) {
                                     final File classpathEltFile = classpathElement.classpathEltPath
                                             .getFile(classLoaderLog);
@@ -631,29 +636,37 @@ public class Scanner implements Callable<ScanResult> {
                     }
                 }
                 // Create ClassGraphBuilder
-                final ClassGraphBuilder classGraphBuilder = new ClassGraphBuilder(scanSpec, classNameToClassInfo);
                 if (classGraphLog != null) {
                     classGraphLog.addElapsedTime();
                 }
 
                 // Create ScanResult
-                scanResult = new ScanResult(scanSpec, classpathOrder, classLoaderOrder, classGraphBuilder,
+                scanResult = new ScanResult(scanSpec, classpathOrder, classLoaderOrder, classNameToClassInfo,
                         fileToLastModified, nestedJarHandler, interruptionChecker, log);
-
-                // Run scanResultProcessor in the current thread
-                if (scanResultProcessor != null) {
-                    scanResultProcessor.processScanResult(scanResult);
-                }
 
             } else {
                 // This is the result of a call to FastClasspathScanner#getUniqueClasspathElementsAsync(), so just
                 // create placeholder ScanResult to contain classpathElementFilesOrdered.
                 scanResult = new ScanResult(scanSpec, classpathOrder, classLoaderOrder,
-                        /* classGraphBuilder = */ null, /* fileToLastModified = */ null, nestedJarHandler,
+                        /* classNameToClassInfo = */ null, /* fileToLastModified = */ null, nestedJarHandler,
                         interruptionChecker, log);
             }
             if (log != null) {
                 log.log("Completed scan", System.nanoTime() - scanStart);
+            }
+
+            // Run scanResultProcessor in the current thread
+            if (scanResultProcessor != null) {
+                try {
+                    scanResultProcessor.processScanResult(scanResult);
+                } catch (final Throwable e) {
+                    throw new IllegalArgumentException("Exception while calling scan result processor", e);
+                }
+            }
+
+            // Remove temporary files if necessary
+            if (scanSpec.removeTemporaryFilesAfterScan) {
+                scanResult.freeTempFiles(log);
             }
 
             // No exceptions were thrown -- return scan result
@@ -667,12 +680,16 @@ public class Scanner implements Callable<ScanResult> {
             if (log != null) {
                 log.log(e);
             }
-            if (failureHandler == null) {
-                throw e;
+            if (failureHandler != null) {
+                try {
+                    failureHandler.onFailure(e);
+                    // The return value is discarded when using a scanResultProcessor and failureHandler
+                    return null;
+                } catch (final Throwable t) {
+                    throw new IllegalArgumentException("Exception while calling failure handler", t);
+                }
             } else {
-                failureHandler.onFailure(e);
-                // Return null from the Future if a FailureHandler was added and there was an exception
-                return null;
+                throw e;
             }
 
         } finally {

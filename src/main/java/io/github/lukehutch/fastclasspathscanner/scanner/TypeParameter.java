@@ -26,7 +26,7 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.lukehutch.fastclasspathscanner.typesignature;
+package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -35,6 +35,7 @@ import java.util.Set;
 
 import io.github.lukehutch.fastclasspathscanner.utils.Parser;
 import io.github.lukehutch.fastclasspathscanner.utils.Parser.ParseException;
+import io.github.lukehutch.fastclasspathscanner.utils.TypeUtils;
 
 /** A type parameter. */
 public class TypeParameter extends HierarchicalTypeSignature {
@@ -46,6 +47,19 @@ public class TypeParameter extends HierarchicalTypeSignature {
 
     /** Interface bounds -- may be empty */
     final List<ReferenceTypeSignature> interfaceBounds;
+
+    @Override
+    void setScanResult(final ScanResult scanResult) {
+        super.setScanResult(scanResult);
+        if (this.classBound != null) {
+            this.classBound.setScanResult(scanResult);
+        }
+        if (interfaceBounds != null) {
+            for (final ReferenceTypeSignature referenceTypeSignature : interfaceBounds) {
+                referenceTypeSignature.setScanResult(scanResult);
+            }
+        }
+    }
 
     /**
      * @param identifier

@@ -28,8 +28,6 @@
  */
 package io.github.lukehutch.fastclasspathscanner.scanner;
 
-import io.github.lukehutch.fastclasspathscanner.typesignature.TypeSignature;
-
 /**
  * Information on the parameters of a method.
  * 

@@ -26,14 +26,13 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.lukehutch.fastclasspathscanner.typesignature;
+package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
-import io.github.lukehutch.fastclasspathscanner.scanner.ClassInfo;
 import io.github.lukehutch.fastclasspathscanner.utils.Parser;
 import io.github.lukehutch.fastclasspathscanner.utils.Parser.ParseException;
 
@@ -50,6 +49,29 @@ public class MethodTypeSignature extends HierarchicalTypeSignature {
 
     /** The throws type signatures. */
     private final List<ClassRefOrTypeVariableSignature> throwsSignatures;
+
+    @Override
+    void setScanResult(final ScanResult scanResult) {
+        super.setScanResult(scanResult);
+        if (typeParameters != null) {
+            for (final TypeParameter typeParameter : typeParameters) {
+                typeParameter.setScanResult(scanResult);
+            }
+        }
+        if (this.parameterTypeSignatures != null) {
+            for (final TypeSignature typeParameter : parameterTypeSignatures) {
+                typeParameter.setScanResult(scanResult);
+            }
+        }
+        if (this.resultType != null) {
+            this.resultType.setScanResult(scanResult);
+        }
+        if (throwsSignatures != null) {
+            for (final ClassRefOrTypeVariableSignature throwsSignature : throwsSignatures) {
+                throwsSignature.setScanResult(scanResult);
+            }
+        }
+    }
 
     /**
      * @param typeParameters

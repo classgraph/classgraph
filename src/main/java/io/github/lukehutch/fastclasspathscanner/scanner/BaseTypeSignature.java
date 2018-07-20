@@ -26,11 +26,10 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.lukehutch.fastclasspathscanner.typesignature;
+package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import java.util.Set;
 
-import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
 import io.github.lukehutch.fastclasspathscanner.utils.Parser;
 
 /** A type signature for a base type. */
@@ -60,7 +59,7 @@ public class BaseTypeSignature extends TypeSignature {
     }
 
     @Override
-    public Class<?> instantiate(final ScanResult scanResult) {
+    public Class<?> instantiate(final boolean ignoreExceptions) {
         switch (baseType) {
         case "byte":
             return byte.class;
@@ -81,7 +80,11 @@ public class BaseTypeSignature extends TypeSignature {
         case "void":
             return void.class;
         default:
-            throw new RuntimeException("Unknown base type " + baseType);
+            if (ignoreExceptions) {
+                return null;
+            } else {
+                throw new IllegalArgumentException("Unknown base type " + baseType);
+            }
         }
     }
 

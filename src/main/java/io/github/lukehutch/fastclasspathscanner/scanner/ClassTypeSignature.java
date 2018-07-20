@@ -26,7 +26,7 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.lukehutch.fastclasspathscanner.typesignature;
+package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -35,6 +35,7 @@ import java.util.Set;
 
 import io.github.lukehutch.fastclasspathscanner.utils.Parser;
 import io.github.lukehutch.fastclasspathscanner.utils.Parser.ParseException;
+import io.github.lukehutch.fastclasspathscanner.utils.TypeUtils;
 
 /** A class type signature (called "ClassSignature" in the classfile documentation). */
 public class ClassTypeSignature extends HierarchicalTypeSignature {
@@ -61,6 +62,24 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
         this.typeParameters = typeParameters;
         this.superclassSignature = superclassSignature;
         this.superinterfaceSignatures = superinterfaceSignatures;
+    }
+
+    @Override
+    void setScanResult(final ScanResult scanResult) {
+        super.setScanResult(scanResult);
+        if (typeParameters != null) {
+            for (final TypeParameter typeParameter : typeParameters) {
+                typeParameter.setScanResult(scanResult);
+            }
+        }
+        if (this.superclassSignature != null) {
+            this.superclassSignature.setScanResult(scanResult);
+        }
+        if (superinterfaceSignatures != null) {
+            for (final ClassRefTypeSignature classRefTypeSignature : superinterfaceSignatures) {
+                classRefTypeSignature.setScanResult(scanResult);
+            }
+        }
     }
 
     /**

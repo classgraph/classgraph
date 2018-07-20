@@ -9,7 +9,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2016 Luke Hutchison
+ * Copyright (c) 2018 Luke Hutchison
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without
@@ -26,8 +26,8 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.lukehutch.fastclasspathscanner.scanner.matchers;
+package io.github.lukehutch.fastclasspathscanner.scanner;
 
-/** The superinterface of all FileMatchProcessors */
-public interface FileMatchProcessorAny {
+/** A class type or type variable. Subclasses are ClassRefTypeSignature and TypeVariableSignature. */
+public abstract class ClassRefOrTypeVariableSignature extends ReferenceTypeSignature {
 }

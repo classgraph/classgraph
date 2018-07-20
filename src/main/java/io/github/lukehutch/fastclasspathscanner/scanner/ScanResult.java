@@ -35,7 +35,6 @@ import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -44,6 +43,8 @@ import java.util.regex.Pattern;
 
 import io.github.lukehutch.fastclasspathscanner.json.JSONDeserializer;
 import io.github.lukehutch.fastclasspathscanner.json.JSONSerializer;
+import io.github.lukehutch.fastclasspathscanner.utils.ClassLoaderAndModuleFinder;
+import io.github.lukehutch.fastclasspathscanner.utils.GraphvizDotfileGenerator;
 import io.github.lukehutch.fastclasspathscanner.utils.InterruptionChecker;
 import io.github.lukehutch.fastclasspathscanner.utils.JarUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.JarfileMetadataReader;
@@ -57,6 +58,9 @@ public class ScanResult {
 
     /** The order of unique classpath elements. */
     transient List<ClasspathElement> classpathOrder;
+
+    /** The list of all files that were found in whitelisted packages. */
+    transient List<ClasspathResource> allResources;
 
     /**
      * The default order in which ClassLoaders are called to load classes. Used when a specific class does not have
@@ -79,10 +83,7 @@ public class ScanResult {
      * The class graph builder. May be null, if this ScanResult object is the result of a call to
      * FastClasspathScanner#getUniqueClasspathElementsAsync().
      */
-    ClassGraphBuilder classGraphBuilder;
-
-    /** Exceptions thrown while loading classes or while calling MatchProcessors on loaded classes. */
-    private transient List<Throwable> matchProcessorExceptions = new ArrayList<>();
+    Map<String, ClassInfo> classNameToClassInfo;
 
     /** The interruption checker. */
     transient InterruptionChecker interruptionChecker;
@@ -90,77 +91,42 @@ public class ScanResult {
     /** The log. */
     transient LogNode log;
 
-    abstract static class InfoObject {
-        /** Set ScanResult references in info objects after scan has completed. */
-        abstract void setScanResult(ScanResult scanResult);
+    /** Called after deserialization. */
+    void setFields(final ScanSpec scanSpec) {
+        for (final ClassInfo classInfo : classNameToClassInfo.values()) {
+            classInfo.setFields(scanSpec);
+            classInfo.setScanResult(this);
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
 
     /** The result of a scan. Make sure you call complete() after calling the constructor. */
     ScanResult(final ScanSpec scanSpec, final List<ClasspathElement> classpathOrder,
-            final ClassLoader[] envClassLoaderOrder, final ClassGraphBuilder classGraphBuilder,
+            final ClassLoader[] envClassLoaderOrder, final Map<String, ClassInfo> classNameToClassInfo,
             final Map<File, Long> fileToLastModified, final NestedJarHandler nestedJarHandler,
             final InterruptionChecker interruptionChecker, final LogNode log) {
         this.scanSpec = scanSpec;
         this.classpathOrder = classpathOrder;
+        for (final ClasspathElement classpathElt : classpathOrder) {
+            if (classpathElt.fileMatches != null) {
+                if (allResources == null) {
+                    allResources = new ArrayList<>();
+                }
+                allResources.addAll(classpathElt.fileMatches);
+            }
+        }
         this.envClassLoaderOrder = envClassLoaderOrder;
         this.fileToLastModified = fileToLastModified;
-        this.classGraphBuilder = classGraphBuilder;
+        this.classNameToClassInfo = classNameToClassInfo;
         this.nestedJarHandler = nestedJarHandler;
         this.interruptionChecker = interruptionChecker;
         this.log = log;
 
-        // classGraphBuilder is null when only getting classpath elements
-        if (classGraphBuilder != null) {
-            // Add some post-scan backrefs from info objects to this ScanResult
-            if (classGraphBuilder.classNameToClassInfo != null) {
-                for (final ClassInfo ci : classGraphBuilder.classNameToClassInfo.values()) {
-                    ci.setScanResult(this);
-                }
-            }
+        // Add some post-scan backrefs from info objects to this ScanResult and to the scan spec
+        if (classNameToClassInfo != null) {
+            setFields(scanSpec);
         }
-    }
-
-    /**
-     * Find the classloader(s) for the named class. Typically there will only be one ClassLoader returned. However,
-     * if more than one is returned, they should be called in turn until one is able to load the class.
-     * 
-     * @param className
-     *            The class name.
-     * @return The classloader(s) for the named class.
-     */
-    public ClassLoader[] getClassLoadersForClass(final String className) {
-        final Map<String, ClassLoader[]> classNameToClassLoaders = classGraphBuilder.getClassNameToClassLoaders();
-        if (classNameToClassLoaders != null) {
-            final ClassLoader[] classLoaders = classNameToClassLoaders.get(className);
-            if (classLoaders != null) {
-                return classLoaders;
-            }
-        }
-        // Default to default classloader order if classpath element didn't have specified classloader(s)
-        return envClassLoaderOrder;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /** Called if classloading fails, or if a MatchProcessor throws an exception or error. */
-    void addMatchProcessorException(final Throwable e) {
-        matchProcessorExceptions.add(e);
-    }
-
-    /**
-     * Return the exceptions and errors thrown during classloading and/or while calling MatchProcessors on loaded
-     * classes.
-     *
-     * @return A list of Throwables thrown while MatchProcessors were running.
-     */
-    // TODO: currently, if a match processor exception is thrown, FastClasspathScanner throws an exception 
-    // once scanning is finished. This means that ScanResult is never actually returned. Need to add a
-    // configuration option for suppressing warnings, so that the exceptions list can be fetched from
-    // ScanResult on exit.
-    public List<Throwable> getMatchProcessorExceptions() {
-        return matchProcessorExceptions;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -227,6 +193,93 @@ public class ScanResult {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /** Get a list of all resources (including classfiles and non-classfiles) found in whitelisted packages. */
+    public List<ClasspathResource> getAllResources() {
+        if (allResources == null || allResources.isEmpty()) {
+            return Collections.<ClasspathResource> emptyList();
+        } else {
+            return allResources;
+        }
+    }
+
+    /**
+     * Get a list of all resources found in whitelisted packages that have a path (relative to the package root of
+     * the classpath element) matching the requested path.
+     */
+    public List<ClasspathResource> getAllResourcesWithPath(final String resourcePath) {
+        if (allResources == null || allResources.isEmpty()) {
+            return Collections.<ClasspathResource> emptyList();
+        } else {
+            final List<ClasspathResource> filteredResources = new ArrayList<>();
+            for (final ClasspathResource classpathResource : allResources) {
+                if (classpathResource.getPathRelativeToPackageRoot().equals(resourcePath)) {
+                    filteredResources.add(classpathResource);
+                }
+            }
+            return filteredResources;
+        }
+    }
+
+    /** Get a list of all resources found in whitelisted packages that have the requested leafname. */
+    public List<ClasspathResource> getAllResourcesWithLeafName(final String leafName) {
+        if (allResources == null || allResources.isEmpty()) {
+            return Collections.<ClasspathResource> emptyList();
+        } else {
+            final List<ClasspathResource> filteredResources = new ArrayList<>();
+            for (final ClasspathResource classpathResource : allResources) {
+                final String relativePath = classpathResource.getPathRelativeToPackageRoot();
+                final int lastSlashIdx = relativePath.lastIndexOf('/');
+                if (relativePath.substring(lastSlashIdx + 1).equals(leafName)) {
+                    filteredResources.add(classpathResource);
+                }
+            }
+            return filteredResources;
+        }
+    }
+
+    /**
+     * Get a list of all resources found in whitelisted packages that have the requested extension (e.g. "xml" to
+     * match all files ending in ".xml").
+     */
+    public List<ClasspathResource> getAllResourcesWithExtension(final String extension) {
+        if (allResources == null || allResources.isEmpty()) {
+            return Collections.<ClasspathResource> emptyList();
+        } else {
+            final List<ClasspathResource> filteredResources = new ArrayList<>();
+            for (final ClasspathResource classpathResource : allResources) {
+                final String relativePath = classpathResource.getPathRelativeToPackageRoot();
+                final int lastSlashIdx = relativePath.lastIndexOf('/');
+                final int lastDotIdx = relativePath.lastIndexOf('.');
+                if (lastDotIdx > lastSlashIdx) {
+                    if (relativePath.substring(lastDotIdx + 1).equalsIgnoreCase(extension)) {
+                        filteredResources.add(classpathResource);
+                    }
+                }
+            }
+            return filteredResources;
+        }
+    }
+
+    /**
+     * Get a list of all resources found in whitelisted packages that have a path matching the requested pattern.
+     */
+    public List<ClasspathResource> getAllResourcesMatchingPattern(final Pattern pattern) {
+        if (allResources == null || allResources.isEmpty()) {
+            return Collections.<ClasspathResource> emptyList();
+        } else {
+            final List<ClasspathResource> filteredResources = new ArrayList<>();
+            for (final ClasspathResource classpathResource : allResources) {
+                final String relativePath = classpathResource.getPathRelativeToPackageRoot();
+                if (pattern.matcher(relativePath).matches()) {
+                    filteredResources.add(classpathResource);
+                }
+            }
+            return filteredResources;
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
     /**
      * Determine whether the classpath contents have been modified since the last scan. Checks the timestamps of
      * files and jarfiles encountered during the previous scan to see if they have changed. Does not perform a full
@@ -274,411 +327,191 @@ public class ScanResult {
     }
 
     // -------------------------------------------------------------------------------------------------------------
-    // ClassInfo (may be filtered as a Java 8 stream)
-
-    /**
-     * Get a map from class name to ClassInfo object for all whitelisted classes found during the scan. You can get
-     * the info for a specific class directly from this map, or the values() of this map may be filtered using Java
-     * 8 stream processing, see here:
-     *
-     * <p>
-     * https://github.com/lukehutch/fast-classpath-scanner/wiki/1.-Usage#mechanism-3
-     *
-     * @return A map from class name to ClassInfo object for the class.
-     */
-    public Map<String, ClassInfo> getClassNameToClassInfo() {
-        return classGraphBuilder.getClassNameToClassInfo();
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
     // Classes
 
     /**
-     * Get the names of all classes, interfaces and annotations found during the scan.
-     *
-     * @return The sorted list of the names of all whitelisted classes found during the scan, or the empty list if
-     *         none.
+     * Get the ClassInfo object for the named class, or null if no class of the requested name was found in a
+     * whitelisted/non-blacklisted package during scanning.
+     * 
+     * @return The ClassInfo object for the named class, or null if the class was not found.
      */
-    public List<String> getNamesOfAllClasses() {
-        return classGraphBuilder.getNamesOfAllClasses();
+    public ClassInfo getClassInfo(final String className) {
+        return classNameToClassInfo.get(className);
     }
 
     /**
-     * Get the names of all standard (non-interface/non-annotation) classes found during the scan.
+     * Get all classes, interfaces and annotations found during the scan.
      *
-     * @return The sorted list of the names of all encountered standard classes, or the empty list if none.
+     * @return A list of all whitelisted classes found during the scan, or the empty list if none.
      */
-    public List<String> getNamesOfAllStandardClasses() {
-        return classGraphBuilder.getNamesOfAllStandardClasses();
+    public ClassInfoList getAllClasses() {
+        return ClassInfo.getAllClasses(classNameToClassInfo.values(), scanSpec, this);
     }
 
     /**
-     * Get the names of all subclasses of the named class.
+     * Get all standard (non-interface/non-annotation) classes found during the scan.
+     *
+     * @return A list of all whitelisted standard classes found during the scan, or the empty list if none.
+     */
+    public ClassInfoList getAllStandardClasses() {
+        return ClassInfo.getAllStandardClasses(classNameToClassInfo.values(), scanSpec, this);
+    }
+
+    /**
+     * Get all subclasses of the named superclass.
      *
      * @param superclassName
      *            The name of the superclass.
-     * @return The sorted list of the names of matching subclasses, or the empty list if none.
+     * @return A list of subclasses of the named superclass, or the empty list if none.
      */
-    public List<String> getNamesOfSubclassesOf(final String superclassName) {
-        return classGraphBuilder.getNamesOfSubclassesOf(superclassName);
+    public ClassInfoList getSubclassesOf(final String superclassName) {
+        final ClassInfo superclass = classNameToClassInfo.get(superclassName);
+        return superclass == null ? ClassInfoList.EMPTY_LIST : superclass.getSubclasses();
     }
 
     /**
-     * Get the names of classes on the classpath that extend the specified superclass.
-     *
-     * @param superclass
-     *            The superclass to match (i.e. the class that subclasses need to extend to match).
-     * @return The sorted list of the names of matching subclasses, or the empty list if none.
-     */
-    public List<String> getNamesOfSubclassesOf(final Class<?> superclass) {
-        return classGraphBuilder.getNamesOfSubclassesOf(scanSpec.getStandardClassName(superclass));
-    }
-
-    /**
-     * Get the names of classes on the classpath that are superclasses of the named subclass.
+     * Get superclasses of the named subclass.
      *
      * @param subclassName
      *            The name of the subclass.
-     * @return The sorted list of the names of superclasses of the named subclass, or the empty list if none.
+     * @return A list of superclasses of the named subclass, or the empty list if none.
      */
-    public List<String> getNamesOfSuperclassesOf(final String subclassName) {
-        return classGraphBuilder.getNamesOfSuperclassesOf(subclassName);
+    public ClassInfoList getSuperclassesOf(final String subclassName) {
+        final ClassInfo subclass = classNameToClassInfo.get(subclassName);
+        return subclass == null ? ClassInfoList.EMPTY_LIST : subclass.getSuperclasses();
     }
 
     /**
-     * Get the names of classes on the classpath that are superclasses of the specified subclass.
-     *
-     * @param subclass
-     *            The subclass to match (i.e. the class that needs to extend a superclass for the superclass to
-     *            match).
-     * @return The sorted list of the names of superclasses of the subclass, or the empty list if none.
-     */
-    public List<String> getNamesOfSuperclassesOf(final Class<?> subclass) {
-        return getNamesOfSuperclassesOf(scanSpec.getStandardClassName(subclass));
-    }
-
-    /**
-     * Get the names of classes that have a method with an annotation of the named type.
+     * Get classes that have a method with an annotation of the named type.
      *
      * @param annotationName
      *            the name of the method annotation.
-     * @return The sorted list of the names of classes with a method that has an annotation of the named type, or
-     *         the empty list if none.
+     * @return The sorted list of classes with a method that has an annotation of the named type, or the empty list
+     *         if none.
      */
-    public List<String> getNamesOfClassesWithMethodAnnotation(final String annotationName) {
-        if (!scanSpec.enableMethodAnnotationIndexing) {
+    public ClassInfoList getClassesWithMethodAnnotation(final String annotationName) {
+        if (!scanSpec.enableMethodInfo) {
             throw new IllegalArgumentException(
-                    "Please call FastClasspathScanner#enableMethodAnnotationIndexing() before calling scan() -- "
+                    "Please call FastClasspathScanner#enableMethodInfo() before calling scan() -- "
                             + "method annotation indexing is disabled by default for efficiency");
         }
-        return classGraphBuilder.getNamesOfClassesWithMethodAnnotation(annotationName);
+        final ClassInfo classInfo = classNameToClassInfo.get(annotationName);
+        return classInfo == null ? ClassInfoList.EMPTY_LIST : classInfo.getClassesWithMethodAnnotation();
     }
 
     /**
-     * Get the names of classes that have a method with an annotation of the given type.
-     *
-     * @param annotation
-     *            the method annotation.
-     * @return The sorted list of the names of classes with a method that has an annotation of the given type, or
-     *         the empty list if none.
-     */
-    public List<String> getNamesOfClassesWithMethodAnnotation(final Class<?> annotation) {
-        return getNamesOfClassesWithMethodAnnotation(scanSpec.getAnnotationName(annotation));
-    }
-
-    /**
-     * Get the names of classes that have a field with an annotation of the named type.
+     * Get classes that have a field with an annotation of the named type.
      *
      * @param annotationName
      *            the name of the field annotation.
-     * @return The sorted list of the names of classes that have a field with an annotation of the named type, or
-     *         the empty list if none.
+     * @return The sorted list of classes that have a field with an annotation of the named type, or the empty list
+     *         if none.
      */
-    public List<String> getNamesOfClassesWithFieldAnnotation(final String annotationName) {
-        if (!scanSpec.enableFieldAnnotationIndexing) {
+    public ClassInfoList getClassesWithFieldAnnotation(final String annotationName) {
+        if (!scanSpec.enableFieldInfo) {
             throw new IllegalArgumentException(
                     "Please call FastClasspathScanner#enableFieldAnnotationIndexing() before calling scan() -- "
                             + "field annotation indexing is disabled by default for efficiency");
         }
-        return classGraphBuilder.getNamesOfClassesWithFieldAnnotation(annotationName);
-    }
-
-    /**
-     * Get the names of classes that have a field with an annotation of the given type.
-     *
-     * @param annotation
-     *            the field annotation.
-     * @return The sorted list of the names of classes that have a field with an annotaton of the given type, or the
-     *         empty list if none.
-     */
-    public List<String> getNamesOfClassesWithFieldAnnotation(final Class<?> annotation) {
-        return getNamesOfClassesWithFieldAnnotation(scanSpec.getAnnotationName(annotation));
+        final ClassInfo classInfo = classNameToClassInfo.get(annotationName);
+        return classInfo == null ? ClassInfoList.EMPTY_LIST : classInfo.getClassesWithFieldAnnotation();
     }
 
     // -------------------------------------------------------------------------------------------------------------
     // Interfaces
 
     /**
-     * Get the names of all interface classes found during the scan.
+     * Get all interface classes found during the scan, not including annotations. See also
+     * {@link #getAllInterfaceOrAnnotationClasses()}.
      *
-     * @return The sorted list of the names of all whitelisted interfaces found during the scan, or the empty list
-     *         if none.
+     * @return A list of all whitelisted interfaces found during the scan, or the empty list if none.
      */
-    public List<String> getNamesOfAllInterfaceClasses() {
-        return classGraphBuilder.getNamesOfAllInterfaceClasses();
+    public ClassInfoList getAllInterfaceClasses() {
+        return ClassInfo.getAllImplementedInterfaceClasses(classNameToClassInfo.values(), scanSpec, this);
     }
 
     /**
-     * Get the names of all subinterfaces of the named interface.
+     * Get all subinterfaces of the named interface.
      *
      * @param interfaceName
      *            The interface name.
-     * @return The sorted list of the names of all subinterfaces of the named interface, or the empty list if none.
+     * @return The sorted list of all subinterfaces of the named interface, or the empty list if none.
      */
-    public List<String> getNamesOfSubinterfacesOf(final String interfaceName) {
-        return classGraphBuilder.getNamesOfSubinterfacesOf(interfaceName);
+    public ClassInfoList getSubinterfacesOf(final String interfaceName) {
+        final ClassInfo classInfo = classNameToClassInfo.get(interfaceName);
+        return classInfo == null ? ClassInfoList.EMPTY_LIST : classInfo.getSubinterfaces();
     }
 
     /**
-     * Get the names of interfaces on the classpath that extend a given superinterface.
-     *
-     * @param superInterface
-     *            The superinterface.
-     * @return The sorted list of the names of subinterfaces of the given superinterface, or the empty list if none.
-     */
-    public List<String> getNamesOfSubinterfacesOf(final Class<?> superInterface) {
-        return getNamesOfSubinterfacesOf(scanSpec.getInterfaceName(superInterface));
-    }
-
-    /**
-     * Get the names of all superinterfaces of the named interface.
+     * Get all superinterfaces of the named interface.
      *
      * @param subInterfaceName
      *            The subinterface name.
-     * @return The sorted list of the names of superinterfaces of the named subinterface, or the empty list if none.
+     * @return The sorted list of superinterfaces of the named subinterface, or the empty list if none.
      */
-    public List<String> getNamesOfSuperinterfacesOf(final String subInterfaceName) {
-        return classGraphBuilder.getNamesOfSuperinterfacesOf(subInterfaceName);
+    public ClassInfoList getSuperinterfacesOf(final String subInterfaceName) {
+        final ClassInfo classInfo = classNameToClassInfo.get(subInterfaceName);
+        return classInfo == null ? ClassInfoList.EMPTY_LIST : classInfo.getSuperinterfaces();
     }
 
     /**
-     * Get the names of all superinterfaces of the given subinterface.
-     *
-     * @param subInterface
-     *            The subinterface.
-     * @return The sorted list of the names of superinterfaces of the given subinterface, or the empty list if none.
-     */
-    public List<String> getNamesOfSuperinterfacesOf(final Class<?> subInterface) {
-        return getNamesOfSuperinterfacesOf(scanSpec.getInterfaceName(subInterface));
-    }
-
-    /**
-     * Get the names of all classes that implement (or have superclasses that implement) the named interface (or one
-     * of its subinterfaces).
+     * Get all classes that implement (or have superclasses that implement) the named interface (or one of its
+     * subinterfaces).
      *
      * @param interfaceName
      *            The interface name.
-     * @return The sorted list of the names of all classes that implement the named interface, or the empty list if
-     *         none.
+     * @return The sorted list of all classes that implement the named interface, or the empty list if none.
      */
-    public List<String> getNamesOfClassesImplementing(final String interfaceName) {
-        return classGraphBuilder.getNamesOfClassesImplementing(interfaceName);
-    }
-
-    /**
-     * Get the names of all classes that implement (or have superclasses that implement) the given interface (or one
-     * of its subinterfaces).
-     *
-     * @param implementedInterface
-     *            The interface.
-     * @return The sorted list of the names of all classes that implement the given interface, or the empty list if
-     *         none.
-     */
-    public List<String> getNamesOfClassesImplementing(final Class<?> implementedInterface) {
-        return getNamesOfClassesImplementing(scanSpec.getInterfaceName(implementedInterface));
-    }
-
-    /**
-     * Get the names of all classes that implement (or have superclasses that implement) all of the named interfaces
-     * (or their subinterfaces).
-     *
-     * @param implementedInterfaceNames
-     *            The names of the interfaces.
-     * @return The sorted list of the names of all classes that implement all of the named interfaces, or the empty
-     *         list if none.
-     */
-    public List<String> getNamesOfClassesImplementingAllOf(final String... implementedInterfaceNames) {
-        final HashSet<String> classNames = new HashSet<>();
-        for (int i = 0; i < implementedInterfaceNames.length; i++) {
-            final String implementedInterfaceName = implementedInterfaceNames[i];
-            final List<String> namesOfImplementingClasses = getNamesOfClassesImplementing(implementedInterfaceName);
-            if (i == 0) {
-                classNames.addAll(namesOfImplementingClasses);
-            } else {
-                classNames.retainAll(namesOfImplementingClasses);
-            }
-        }
-        return new ArrayList<>(classNames);
-    }
-
-    /**
-     * Get the names of all classes that implement (or have superclasses that implement) all of the given interfaces
-     * (or their subinterfaces).
-     *
-     * @param implementedInterfaces
-     *            The interfaces.
-     * @return The sorted list of the names of all classes that implement all of the given interfaces, or the empty
-     *         list if none.
-     */
-    public List<String> getNamesOfClassesImplementingAllOf(final Class<?>... implementedInterfaces) {
-        return getNamesOfClassesImplementingAllOf(scanSpec.getInterfaceNames(implementedInterfaces));
+    public ClassInfoList getClassesImplementing(final String interfaceName) {
+        final ClassInfo classInfo = classNameToClassInfo.get(interfaceName);
+        return classInfo == null ? ClassInfoList.EMPTY_LIST : classInfo.getClassesImplementing();
     }
 
     // -------------------------------------------------------------------------------------------------------------
     // Annotations
 
     /**
-     * Get the names of all annotation classes found during the scan.
+     * Get all annotation classes found during the scan. See also {@link #getAllInterfaceOrAnnotationClasses()}.
      *
-     * @return The sorted list of the names of all annotation classes found during the scan, or the empty list if
-     *         none.
+     * @return A list of all annotation classes found during the scan, or the empty list if none.
      */
-    public List<String> getNamesOfAllAnnotationClasses() {
-        return classGraphBuilder.getNamesOfAllAnnotationClasses();
+    public ClassInfoList getAllAnnotationClasses() {
+        return ClassInfo.getAllAnnotationClasses(classNameToClassInfo.values(), scanSpec, this);
     }
 
     /**
-     * Get the names of non-annotation classes with the named class annotation or meta-annotation.
+     * Get all interface or annotation classes found during the scan. (Annotations are technically interfaces, and
+     * they can be implemented.)
+     *
+     * @return A list of all whitelisted interfaces found during the scan, or the empty list if none.
+     */
+    public ClassInfoList getAllInterfaceOrAnnotationClasses() {
+        return ClassInfo.getAllInterfaceOrAnnotationClasses(classNameToClassInfo.values(), scanSpec, this);
+    }
+
+    /**
+     * Get non-annotation classes with the named class annotation or meta-annotation.
      *
      * @param annotationName
      *            The name of the class annotation or meta-annotation.
-     * @return The sorted list of the names of all non-annotation classes that were found with the named class
-     *         annotation during the scan, or the empty list if none.
+     * @return The sorted list of all non-annotation classes that were found with the named class annotation during
+     *         the scan, or the empty list if none.
      */
-    public List<String> getNamesOfClassesWithAnnotation(final String annotationName) {
-        return classGraphBuilder.getNamesOfClassesWithAnnotation(annotationName);
+    public ClassInfoList getClassesWithAnnotation(final String annotationName) {
+        final ClassInfo classInfo = classNameToClassInfo.get(annotationName);
+        return classInfo == null ? ClassInfoList.EMPTY_LIST : classInfo.getClassesWithAnnotation();
     }
 
     /**
-     * Get the names of non-annotation classes with the given class annotation or meta-annotation.
-     *
-     * @param annotation
-     *            The class annotation or meta-annotation to match.
-     * @return The sorted list of the names of all non-annotation classes that were found with the given class
-     *         annotation during the scan, or the empty list if none.
-     */
-    public List<String> getNamesOfClassesWithAnnotation(final Class<?> annotation) {
-        return getNamesOfClassesWithAnnotation(scanSpec.getAnnotationName(annotation));
-    }
-
-    /**
-     * Get the names of classes that have all of the named annotations.
-     *
-     * @param annotationNames
-     *            The class annotation names.
-     * @return The sorted list of the names of classes that have all of the named class annotations, or the empty
-     *         list if none.
-     */
-    public List<String> getNamesOfClassesWithAnnotationsAllOf(final String... annotationNames) {
-        final HashSet<String> classNames = new HashSet<>();
-        for (int i = 0; i < annotationNames.length; i++) {
-            final String annotationName = annotationNames[i];
-            final List<String> namesOfClassesWithMetaAnnotation = getNamesOfClassesWithAnnotation(annotationName);
-            if (i == 0) {
-                classNames.addAll(namesOfClassesWithMetaAnnotation);
-            } else {
-                classNames.retainAll(namesOfClassesWithMetaAnnotation);
-            }
-        }
-        return new ArrayList<>(classNames);
-    }
-
-    /**
-     * Get the names of classes that have all of the given annotations.
-     *
-     * @param annotations
-     *            The class annotations.
-     * @return The sorted list of the names of classes that have all of the given class annotations, or the empty
-     *         list if none.
-     */
-    public List<String> getNamesOfClassesWithAnnotationsAllOf(final Class<?>... annotations) {
-        return getNamesOfClassesWithAnnotationsAllOf(scanSpec.getAnnotationNames(annotations));
-    }
-
-    /**
-     * Get the names of classes that have any of the named annotations.
-     *
-     * @param annotationNames
-     *            The annotation names.
-     * @return The sorted list of the names of classes that have any of the named class annotations, or the empty
-     *         list if none.
-     */
-    public List<String> getNamesOfClassesWithAnnotationsAnyOf(final String... annotationNames) {
-        final HashSet<String> classNames = new HashSet<>();
-        for (final String annotationName : annotationNames) {
-            classNames.addAll(getNamesOfClassesWithAnnotation(annotationName));
-        }
-        return new ArrayList<>(classNames);
-    }
-
-    /**
-     * Get the names of classes that have any of the given annotations.
-     *
-     * @param annotations
-     *            The annotations.
-     * @return The sorted list of the names of classes that have any of the given class annotations, or the empty
-     *         list if none.
-     */
-    public List<String> getNamesOfClassesWithAnnotationsAnyOf(final Class<?>... annotations) {
-        return getNamesOfClassesWithAnnotationsAnyOf(scanSpec.getAnnotationNames(annotations));
-    }
-
-    /**
-     * Get the names of all annotations and meta-annotations on the named class.
+     * Get all annotations and meta-annotations on the named class.
      *
      * @param className
      *            The class name.
-     * @return The sorted list of the names of annotations and meta-annotations on the named class, or the empty
-     *         list if none.
+     * @return The sorted list of annotations and meta-annotations on the named class, or the empty list if none.
      */
-    public List<String> getNamesOfAnnotationsOnClass(final String className) {
-        return classGraphBuilder.getNamesOfAnnotationsOnClass(className);
-    }
-
-    /**
-     * Get the names of all annotations and meta-annotations on the given class.
-     *
-     * @param klass
-     *            The class.
-     * @return The sorted list of the names of annotations and meta-annotations on the given class, or the empty
-     *         list if none.
-     */
-    public List<String> getNamesOfAnnotationsOnClass(final Class<?> klass) {
-        return getNamesOfAnnotationsOnClass(scanSpec.getClassOrInterfaceName(klass));
-    }
-
-    /**
-     * Return the names of all annotations that have the named meta-annotation.
-     *
-     * @param metaAnnotationName
-     *            The name of the meta-annotation.
-     * @return The sorted list of the names of annotations that have the named meta-annotation, or the empty list if
-     *         none.
-     */
-    public List<String> getNamesOfAnnotationsWithMetaAnnotation(final String metaAnnotationName) {
-        return classGraphBuilder.getNamesOfAnnotationsWithMetaAnnotation(metaAnnotationName);
-    }
-
-    /**
-     * Return the names of all annotations that have the named meta-annotation.
-     *
-     * @param metaAnnotation
-     *            The meta-annotation.
-     * @return The sorted list of the names of annotations that have the given meta-annotation, or the empty list if
-     *         none.
-     */
-    public List<String> getNamesOfAnnotationsWithMetaAnnotation(final Class<?> metaAnnotation) {
-        return getNamesOfAnnotationsWithMetaAnnotation(scanSpec.getAnnotationName(metaAnnotation));
+    public ClassInfoList getAnnotationsOnClass(final String className) {
+        final ClassInfo classInfo = classNameToClassInfo.get(className);
+        return classInfo == null ? ClassInfoList.EMPTY_LIST : classInfo.getAnnotations();
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -713,7 +546,8 @@ public class ScanResult {
      */
     public String generateClassGraphDotFile(final float sizeX, final float sizeY, final boolean showFields,
             final boolean showMethods) {
-        return classGraphBuilder.generateClassGraphDotFile(sizeX, sizeY, showFields, showMethods);
+        return GraphvizDotfileGenerator.generateClassGraphDotFile(this, sizeX, sizeY, showFields, showMethods,
+                scanSpec);
     }
 
     /**
@@ -734,8 +568,7 @@ public class ScanResult {
      * @return the GraphViz file contents.
      */
     public String generateClassGraphDotFile(final float sizeX, final float sizeY) {
-        return classGraphBuilder.generateClassGraphDotFile(sizeX, sizeY, /* showFields = */ true,
-                /* showMethods = */ true);
+        return generateClassGraphDotFile(sizeX, sizeY, /* showFields = */ true, /* showMethods = */ true);
     }
 
     /**
@@ -751,8 +584,8 @@ public class ScanResult {
      * @return the GraphViz file contents.
      */
     public String generateClassGraphDotFile() {
-        return classGraphBuilder.generateClassGraphDotFile(/* sizeX = */ 10.5f, /* sizeY = */ 8f,
-                /* showFields = */ true, /* showMethods = */ true);
+        return generateClassGraphDotFile(/* sizeX = */ 10.5f, /* sizeY = */ 8f, /* showFields = */ true,
+                /* showMethods = */ true);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -807,10 +640,8 @@ public class ScanResult {
         }
 
         // Try loading class via each classloader in turn
-        ClassLoader[] classLoadersForClass = getClassLoadersForClass(className);
-        if (classLoadersForClass == null) {
-            classLoadersForClass = envClassLoaderOrder;
-        }
+        final ClassInfo classInfo = classNameToClassInfo.get(className);
+        final ClassLoader[] classLoadersForClass = classInfo != null ? classInfo.classLoaders : envClassLoaderOrder;
         if (classLoadersForClass != null) {
             for (final ClassLoader classLoader : classLoadersForClass) {
                 final Class<?> classRef = loadClass(className, classLoader, log);
@@ -830,7 +661,6 @@ public class ScanResult {
         // scanner is not running inside the jar itself, so the necessary ClassLoader for the jar is not
         // available. Unzip the jar starting from the package root, and create a URLClassLoader to load classes
         // from the unzipped jar. (This is only done once per jar and package root, using the singleton pattern.)
-        final ClassInfo classInfo = classGraphBuilder.classNameToClassInfo.get(className);
         if (classInfo != null && nestedJarHandler != null) {
             try {
                 ClassLoader customClassLoader = null;
@@ -884,126 +714,6 @@ public class ScanResult {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Produce a list of Class references given a list of class names. If ignoreExceptions is true, and any classes
-     * cannot be loaded (due to classloading error, or due to an exception being thrown in the class initialization
-     * block), an IllegalArgumentException is thrown; otherwise, the class will simply be skipped if an exception is
-     * thrown.
-     *
-     * <p>
-     * Enable verbose scanning to see details of any exceptions thrown during classloading, even if ignoreExceptions
-     * is false.
-     *
-     * @param classNames
-     *            The list of names of classes to load.
-     * @param ignoreExceptions
-     *            If true, exceptions are ignored during classloading, otherwise IllegalArgumentException is thrown
-     *            if a class could not be loaded.
-     * @throws IllegalArgumentException
-     *             if ignoreExceptions is false, IllegalArgumentException is thrown if there were problems loading
-     *             or initializing the classes. (Note that class initialization on load is disabled by default, you
-     *             can enable it with {@code FastClasspathScanner#initializeLoadedClasses(true)} .) Otherwise
-     *             exceptions are suppressed, and classes are not added to the resulting list if loading them
-     *             exhibits any of these problems.
-     * @return a list of references to the loaded classes.
-     */
-    public List<Class<?>> classNamesToClassRefs(final List<String> classNames, final boolean ignoreExceptions)
-            throws IllegalArgumentException {
-        if (classNames.isEmpty()) {
-            return Collections.<Class<?>> emptyList();
-        } else {
-            final List<Class<?>> classRefs = new ArrayList<>();
-            // Try loading each class
-            for (final String className : classNames) {
-                final Class<?> classRef = classNameToClassRef(className, ignoreExceptions);
-                if (classRef != null) {
-                    classRefs.add(classRef);
-                }
-            }
-            return classRefs.isEmpty() ? Collections.<Class<?>> emptyList() : classRefs;
-        }
-    }
-
-    /**
-     * Produce a list of Class references, given a list of names of classes extending a common superclass or
-     * implementing a common interface. If ignoreExceptions is true, and any classes cannot be loaded (due to
-     * classloading error, or due to an exception being thrown in the class initialization block), an
-     * IllegalArgumentException is thrown; otherwise, the class will simply be skipped if an exception is thrown.
-     *
-     * <p>
-     * Enable verbose scanning to see details of any exceptions thrown during classloading, even if ignoreExceptions
-     * is false.
-     *
-     * @param classNames
-     *            The list of names of classes to load.
-     * @param commonClassType
-     *            The common superclass of, or interface implemented by, the named classes.
-     * @param ignoreExceptions
-     *            If true, exceptions are ignored during classloading, otherwise IllegalArgumentException is thrown
-     *            if a class could not be loaded.
-     * @throws IllegalArgumentException
-     *             if ignoreExceptions is false, IllegalArgumentException is thrown if there were problems loading
-     *             the classes, initializing the classes, or casting them to the requested type. (Note that class
-     *             initialization on load is disabled by default, you can enable it with
-     *             {@code FastClasspathScanner#initializeLoadedClasses(true)} .) Otherwise exceptions are
-     *             suppressed, and classes are not added to the resulting list if loading them exhibits any of these
-     *             problems.
-     * @return a list of references to the loaded classes.
-     */
-    public <T> List<Class<T>> classNamesToClassRefs(final List<String> classNames, final Class<T> commonClassType,
-            final boolean ignoreExceptions) throws IllegalArgumentException {
-        if (classNames.isEmpty()) {
-            return Collections.<Class<T>> emptyList();
-        } else {
-            final List<Class<T>> classRefs = new ArrayList<>();
-            // Try loading each class
-            for (final String className : classNames) {
-                final Class<T> classRef = classNameToClassRef(className, commonClassType, ignoreExceptions);
-                if (classRef != null) {
-                    classRefs.add(classRef);
-                }
-            }
-            return classRefs.isEmpty() ? Collections.<Class<T>> emptyList() : classRefs;
-        }
-    }
-
-    /**
-     * Produce a list of Class references given a list of class names. If any classes cannot be loaded (due to
-     * classloading error, or due to an exception being thrown in the class initialization block),
-     * IllegalArgumentException will be thrown.
-     *
-     * @param classNames
-     *            The list of names of classes to load.
-     * @throws IllegalArgumentException
-     *             if there were problems loading or initializing the classes. (Note that class initialization on
-     *             load is disabled by default, you can enable it with
-     *             {@code FastClasspathScanner#initializeLoadedClasses(true)} .)
-     * @return a list of references to the loaded classes.
-     */
-    public List<Class<?>> classNamesToClassRefs(final List<String> classNames) throws IllegalArgumentException {
-        return classNamesToClassRefs(classNames, /* ignoreExceptions = */ false);
-    }
-
-    /**
-     * Produce a list of Class references, given a list of names of classes extending a common superclass or
-     * implementing a common interface. If any classes cannot be loaded (due to classloading error, or due to an
-     * exception being thrown in the class initialization block), IllegalArgumentException will be thrown.
-     *
-     * @param classNames
-     *            The list of names of classes to load.
-     * @param commonClassType
-     *            The common superclass of, or interface implemented by, the named classes.
-     * @throws IllegalArgumentException
-     *             if there were problems loading the classes, initializing the classes, or casting them to the
-     *             requested type. (Note that class initialization on load is disabled by default, you can enable it
-     *             with {@code FastClasspathScanner#initializeLoadedClasses(true)} .)
-     * @return a list of references to the loaded classes.
-     */
-    public <T> List<Class<T>> classNamesToClassRefs(final List<String> classNames, final Class<T> commonClassType)
-            throws IllegalArgumentException {
-        return classNamesToClassRefs(classNames, commonClassType, /* ignoreExceptions = */ false);
-    }
-
-    /**
      * Produce Class reference given a class name. If ignoreExceptions is false, and the class cannot be loaded (due
      * to classloading error, or due to an exception being thrown in the class initialization block), an
      * IllegalArgumentException is thrown; otherwise, the class will simply be skipped if an exception is thrown.
@@ -1013,7 +723,7 @@ public class ScanResult {
      * is false.
      *
      * @param className
-     *            The names of the class to load.
+     *            the class to load.
      * @param ignoreExceptions
      *            If true, null is returned if there was an exception during classloading, otherwise
      *            IllegalArgumentException is thrown if a class could not be loaded.
@@ -1025,7 +735,7 @@ public class ScanResult {
      * @return a reference to the loaded class, or null if the class could not be loaded and ignoreExceptions is
      *         true.
      */
-    public Class<?> classNameToClassRef(final String className, final boolean ignoreExceptions)
+    Class<?> classNameToClassRef(final String className, final boolean ignoreExceptions)
             throws IllegalArgumentException {
         try {
             return loadClass(className, /* returnNullIfClassNotFound = */ ignoreExceptions, log);
@@ -1033,7 +743,7 @@ public class ScanResult {
             if (ignoreExceptions) {
                 return null;
             } else {
-                throw e;
+                throw new IllegalArgumentException("Could not load class " + className, e);
             }
         } finally {
             // Manually flush log, since this method is called after scanning is complete
@@ -1053,7 +763,7 @@ public class ScanResult {
      * is false.
      *
      * @param className
-     *            The names of the class to load.
+     *            the class to load.
      * @param classType
      *            The class type to cast the result to.
      * @param ignoreExceptions
@@ -1068,7 +778,7 @@ public class ScanResult {
      * @return a reference to the loaded class, or null if the class could not be loaded and ignoreExceptions is
      *         true.
      */
-    public <T> Class<T> classNameToClassRef(final String className, final Class<T> classType,
+    <T> Class<T> classNameToClassRef(final String className, final Class<T> classType,
             final boolean ignoreExceptions) throws IllegalArgumentException {
         try {
             if (classType == null) {
@@ -1095,7 +805,7 @@ public class ScanResult {
             if (ignoreExceptions) {
                 return null;
             } else {
-                throw e;
+                throw new IllegalArgumentException("Could not load class " + className, e);
             }
         } finally {
             // Manually flush log, since this method is called after scanning is complete
@@ -1105,55 +815,10 @@ public class ScanResult {
         }
     }
 
-    /**
-     * Produce Class reference given a class name. If the class cannot be loaded (due to classloading error, or due
-     * to an exception being thrown in the class initialization block), an IllegalArgumentException is thrown.
-     *
-     * <p>
-     * Enable verbose scanning to see details of any exceptions thrown during classloading, even if ignoreExceptions
-     * is false.
-     *
-     * @param className
-     *            The names of the classe to load.
-     * @throws IllegalArgumentException
-     *             if there were problems loading or initializing the class. (Note that class initialization on load
-     *             is disabled by default, you can enable it with
-     *             {@code FastClasspathScanner#initializeLoadedClasses(true)} .)
-     * @return a reference to the loaded class, or null if the class could not be loaded and ignoreExceptions is
-     *         true.
-     */
-    public Class<?> classNameToClassRef(final String className) throws IllegalArgumentException {
-        return classNameToClassRef(className, /* ignoreExceptions = */ false);
-    }
-
-    /**
-     * Produce Class reference given a class name. If the class cannot be loaded (due to classloading error, or due
-     * to an exception being thrown in the class initialization block), an IllegalArgumentException is thrown.
-     *
-     * <p>
-     * Enable verbose scanning to see details of any exceptions thrown during classloading, even if ignoreExceptions
-     * is false.
-     *
-     * @param className
-     *            The names of the classe to load.
-     * @param classType
-     *            The class type to cast the result to.
-     * @throws IllegalArgumentException
-     *             if there were problems loading the class, initializing the class, or casting it to the requested
-     *             type. (Note that class initialization on load is disabled by default, you can enable it with
-     *             {@code FastClasspathScanner#initializeLoadedClasses(true)} .)
-     * @return a reference to the loaded class, or null if the class could not be loaded and ignoreExceptions is
-     *         true.
-     */
-    public <T> Class<T> classNameToClassRef(final String className, final Class<T> classType)
-            throws IllegalArgumentException {
-        return classNameToClassRef(className, classType, /* ignoreExceptions = */ false);
-    }
-
     // -------------------------------------------------------------------------------------------------------------
 
     /** The current serialization format. */
-    private static final String CURRENT_SERIALIZATION_FORMAT = "3";
+    private static final String CURRENT_SERIALIZATION_FORMAT = "4";
 
     /** A class to hold a serialized ScanResult along with the ScanSpec that was used to scan. */
     private static class SerializationFormat {
@@ -1166,10 +831,10 @@ public class ScanResult {
         }
 
         public SerializationFormat(final String serializationFormat, final ScanSpec scanSpec,
-                final ClassGraphBuilder classGraphBuilder) {
+                final Map<String, ClassInfo> classNameToClassInfo) {
             this.serializationFormat = serializationFormat;
             this.scanSpec = scanSpec;
-            this.allClassInfo = new ArrayList<>(classGraphBuilder.classNameToClassInfo.values());
+            this.allClassInfo = new ArrayList<>(classNameToClassInfo.values());
         }
     }
 
@@ -1199,13 +864,10 @@ public class ScanResult {
         for (final ClassInfo ci : deserialized.allClassInfo) {
             classNameToClassInfo.put(ci.getClassName(), ci);
         }
-        final ClassGraphBuilder classGraphBuilder = new ClassGraphBuilder(deserialized.scanSpec,
-                classNameToClassInfo);
         final ScanResult scanResult = new ScanResult(deserialized.scanSpec,
-                Collections.<ClasspathElement> emptyList(), envClassLoaderOrder, classGraphBuilder,
+                Collections.<ClasspathElement> emptyList(), envClassLoaderOrder, classNameToClassInfo,
                 /* fileToLastModified = */ null, /* nestedJarHandler = */ null, /* interruptionChecker = */ null,
                 /* log = */ null);
-        classGraphBuilder.setFields(deserialized.scanSpec, scanResult);
         return scanResult;
     }
 
@@ -1217,7 +879,7 @@ public class ScanResult {
      */
     public String toJSON(final int indentWidth) {
         return JSONSerializer.serializeObject(
-                new SerializationFormat(CURRENT_SERIALIZATION_FORMAT, scanSpec, classGraphBuilder), indentWidth,
+                new SerializationFormat(CURRENT_SERIALIZATION_FORMAT, scanSpec, classNameToClassInfo), indentWidth,
                 false);
     }
 
@@ -1239,6 +901,14 @@ public class ScanResult {
      *            The log.
      */
     public void freeTempFiles(final LogNode log) {
+        if (allResources != null) {
+            for (final ClasspathResource classpathResource : allResources) {
+                try {
+                    classpathResource.close();
+                } catch (final Exception e) {
+                }
+            }
+        }
         if (nestedJarHandler != null) {
             nestedJarHandler.close(log);
         }
@@ -1246,8 +916,7 @@ public class ScanResult {
 
     @Override
     protected void finalize() throws Throwable {
-        // TODO: replace this with java.lang.ref.Cleaner once FCS bumps minimum Java version to 10+.
-        // For now, NestedJarHandler adds a runtime shutdown hook, which should do the same thing.
+        // NestedJarHandler also adds a runtime shutdown hook, since finalizers are not reliable
         freeTempFiles(null);
     }
 }

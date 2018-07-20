@@ -29,6 +29,7 @@
 package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import java.io.File;
+import java.lang.annotation.Inherited;
 import java.lang.reflect.Modifier;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -43,22 +44,18 @@ import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 
 import io.github.lukehutch.fastclasspathscanner.json.Id;
-import io.github.lukehutch.fastclasspathscanner.scanner.AnnotationInfo.AnnotationParamValue;
-import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult.InfoObject;
-import io.github.lukehutch.fastclasspathscanner.typesignature.ClassTypeSignature;
-import io.github.lukehutch.fastclasspathscanner.typesignature.MethodTypeSignature;
-import io.github.lukehutch.fastclasspathscanner.typesignature.TypeSignature;
-import io.github.lukehutch.fastclasspathscanner.typesignature.TypeUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.JarUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.MultiMapKeyToList;
 import io.github.lukehutch.fastclasspathscanner.utils.Parser.ParseException;
+import io.github.lukehutch.fastclasspathscanner.utils.TypeUtils;
 
 /** Holds metadata about a class encountered during a scan. */
-public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
+public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo> {
     /** Name of the class/interface/annotation. */
     @Id
     String className;
@@ -108,7 +105,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
      * The classpath element module that this class was found within, or null if this class was found within a
      * directory or jar.
      */
-    transient ModuleRef classpathElementModuleRef;
+    transient ModuleRef moduleRef;
 
     /** The classpath element URL (classpath root dir or jar) that this class was found within. */
     transient URL classpathElementURL;
@@ -137,8 +134,6 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     /** For annotations, the default values of parameters. */
     List<AnnotationParamValue> annotationDefaultParamValues;
 
-    transient ScanResult scanResult;
-
     /** The set of classes related to this one. */
     Map<RelType, Set<ClassInfo>> relatedClasses = new HashMap<>();
 
@@ -153,7 +148,10 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     /** Sets back-reference to scan result after scan is complete. */
     @Override
     void setScanResult(final ScanResult scanResult) {
-        this.scanResult = scanResult;
+        super.setScanResult(scanResult);
+        if (this.typeSignature != null) {
+            this.typeSignature.setScanResult(scanResult);
+        }
         if (annotationInfo != null) {
             for (final AnnotationInfo ai : annotationInfo) {
                 ai.setScanResult(scanResult);
@@ -182,7 +180,97 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
         }
     }
 
-    private static final int ANNOTATION_CLASS_MODIFIER = 0x2000;
+    /** Default constructor for deserialization. */
+    ClassInfo() {
+    }
+
+    private ClassInfo(final String className, final int classModifiers, final boolean isExternalClass,
+            final ScanSpec scanSpec) {
+        this.className = className;
+        if (className.endsWith(";")) {
+            // Spot check to make sure class names were parsed from descriptors
+            throw new RuntimeException("Bad class name");
+        }
+        this.modifiers = classModifiers;
+        this.isExternalClass = isExternalClass;
+        this.scanSpec = scanSpec;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Obtain a {@code Class<?>} reference for the class named by this {@link ClassInfo} object, casting it to the
+     * requested interface or superclass type. Causes the ClassLoader to load the class, if it is not already
+     * loaded.
+     * 
+     * <p>
+     * Important note: since {@code superclassOrInterfaceType} is a class reference for an already-loaded class, it
+     * is critical that {@code superclassOrInterfaceType} is loaded by the same classloader as the class referred to
+     * by this {@code ClassInfo} object, otherwise the class cast will fail.
+     * 
+     * @param superclassOrInterfaceType
+     *            The type to cast the loaded class to.
+     * @param ignoreExceptions
+     *            If true, ignore any exceptions or errors thrown during classloading, or when attempting to cast
+     *            the resulting {@code Class<?>} reference to the requested type. If an exception or error is
+     *            thrown, no {@code Class<?>} reference is added to the output class for the corresponding
+     *            {@link ClassInfo} object, so the returned list may contain fewer items than this input list. If
+     *            false, {@link IllegalArgumentException} is thrown if the class could not be loaded or cast to the
+     *            requested type.
+     * @return The class reference, or null, if ignoreExceptions is true and there was an exception or error loading
+     *         the class.
+     * @throws IllegalArgumentException
+     *             if ignoreExceptions is false and there were problems loading the class, or casting it to the
+     *             requested type.
+     */
+    public <T> Class<T> getClassRef(final Class<T> superclassOrInterfaceType, final boolean ignoreExceptions) {
+        return scanResult.classNameToClassRef(className, superclassOrInterfaceType, ignoreExceptions);
+    }
+
+    /**
+     * Obtain a {@code Class<?>} reference for the class named by this {@link ClassInfo} object, casting it to the
+     * requested interface or superclass type. Causes the ClassLoader to load the class, if it is not already
+     * loaded.
+     * 
+     * <p>
+     * Important note: since {@code superclassOrInterfaceType} is a class reference for an already-loaded class, it
+     * is critical that {@code superclassOrInterfaceType} is loaded by the same classloader as the class referred to
+     * by this {@code ClassInfo} object, otherwise the class cast will fail.
+     * 
+     * @param superclassOrInterfaceType
+     *            The type to cast the loaded class to.
+     * @return The class reference.
+     * @throws IllegalArgumentException
+     *             if there were problems loading the class or casting it to the requested type.
+     */
+    public <T> Class<T> getClassRef(final Class<T> superclassOrInterfaceType) {
+        return getClassRef(superclassOrInterfaceType, /* ignoreExceptions = */ false);
+    }
+
+    /**
+     * Obtain a {@code Class<?>} reference for the class named by this {@link ClassInfo} object. Causes the
+     * ClassLoader to load the class, if it is not already loaded.
+     * 
+     * @return The class reference, or null, if ignoreExceptions is true and there was an exception or error loading
+     *         the class.
+     * @throws IllegalArgumentException
+     *             if ignoreExceptions is false and there were problems loading the class.
+     */
+    public Class<?> getClassRef(final boolean ignoreExceptions) {
+        return scanResult.classNameToClassRef(className, ignoreExceptions);
+    }
+
+    /**
+     * Obtain a {@code Class<?>} reference for the class named by this {@link ClassInfo} object. Causes the
+     * ClassLoader to load the class, if it is not already loaded.
+     * 
+     * @return The class reference.
+     * @throws IllegalArgumentException
+     *             if there were problems loading the class.
+     */
+    public Class<?> getClassRef() {
+        return getClassRef(/* ignoreExceptions = */ false);
+    }
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -193,35 +281,6 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
      */
     public String getClassName() {
         return className;
-    }
-
-    /**
-     * Get a class reference for this class. Causes the ClassLoader to load the class.
-     * 
-     * @return The class reference.
-     * @throws IllegalArgumentException
-     *             if there were problems loading or initializing the class. (Note that class initialization on load
-     *             is disabled by default, you can enable it with
-     *             {@code FastClasspathScanner#initializeLoadedClasses(true)} .)
-     */
-    public Class<?> getClassRef() {
-        return scanResult.classNameToClassRef(className);
-    }
-
-    /**
-     * Get a class reference for this class, casting it to the requested interface or superclass type. Causes the
-     * ClassLoader to load the class.
-     * 
-     * @param classType
-     *            The class to cast the result to.
-     * @return The class reference.
-     * @throws IllegalArgumentException
-     *             if there were problems loading the class, initializing the class, or casting it to the requested
-     *             type. (Note that class initialization on load is disabled by default, you can enable it with
-     *             {@code FastClasspathScanner#initializeLoadedClasses(true)} .)
-     */
-    public <T> Class<T> getClassRef(final Class<T> classType) {
-        return scanResult.classNameToClassRef(className, classType);
     }
 
     /**
@@ -329,7 +388,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
      * @return The class type signature.
      */
     public ClassTypeSignature getTypeSignature() {
-        if (typeSignature == null) {
+        if (typeSignatureStr == null) {
             return null;
         }
         if (typeSignature == null) {
@@ -340,19 +399,6 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
             }
         }
         return typeSignature;
-    }
-
-    /**
-     * The classpath element URL (classpath root dir or jar) that this class was found within. This will consist of
-     * exactly one entry, so you should call the getClasspathElementURL() method instead.
-     * 
-     * @return The classpath element URL, stored in a set.
-     */
-    @Deprecated
-    public Set<URL> getClasspathElementURLs() {
-        final Set<URL> urls = new HashSet<>();
-        urls.add(getClasspathElementURL());
-        return urls;
     }
 
     /**
@@ -367,8 +413,8 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     public URL getClasspathElementURL() {
         if (classpathElementURL == null) {
             try {
-                if (classpathElementModuleRef != null) {
-                    classpathElementURL = classpathElementModuleRef.getModuleLocation().toURL();
+                if (moduleRef != null) {
+                    classpathElementURL = moduleRef.getModuleLocation().toURL();
                 } else {
                     classpathElementURL = getClasspathElementFile().toURI().toURL();
                 }
@@ -391,30 +437,13 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     }
 
     /**
-     * The classpath element module that this class was found within, or null if this class was found in a directory
-     * or jar.
+     * The module in the module path that this class was found within, or null if this class was found in a
+     * directory or jar in the classpath.
      * 
-     * @return The classpath element, as a ModuleRef.
+     * @return The module, as a ModuleRef.
      */
-    public ModuleRef getClasspathElementModuleRef() {
-        return classpathElementModuleRef;
-    }
-
-    /**
-     * Get the ClassLoader(s) to use when trying to load the class. Typically there will only be one. If there is
-     * more than one, they will be listed in the order they should be called, until one is able to load the class.
-     * 
-     * <p>
-     * This is deprecated, because a different ClassLoader may need to be created dynamically if classloading fails
-     * for the class (specifically to handle the case of needing to load classes from a Spring-Boot jar or similar,
-     * when running outside that jar's own classloader -- see bug #209). If you need the classloader that loaded the
-     * class, call {@link #getClassRef()} and then get the classloader from that class ref.
-     * 
-     * @return The Classloader(s) to use when trying to load the class.
-     */
-    @Deprecated
-    public ClassLoader[] getClassLoaders() {
-        return classLoaders;
+    public ModuleRef getModuleRef() {
+        return moduleRef;
     }
 
     /** Compare based on class name. */
@@ -535,168 +564,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
         CLASSES_WITH_FIELD_ANNOTATION,
     }
 
-    ClassInfo() {
-    }
-
-    private ClassInfo(final String className, final int classModifiers, final boolean isExternalClass,
-            final ScanSpec scanSpec) {
-        this.className = className;
-        if (className.endsWith(";")) {
-            // Spot check to make sure class names were parsed from descriptors
-            throw new RuntimeException("Bad class name");
-        }
-        this.modifiers = classModifiers;
-        this.isExternalClass = isExternalClass;
-        this.scanSpec = scanSpec;
-    }
-
-    /** The class type to return. */
-    static enum ClassType {
-        /** Get all class types. */
-        ALL,
-        /** A standard class (not an interface or annotation). */
-        STANDARD_CLASS,
-        /**
-         * An interface (this is named "implemented interface" rather than just "interface" to distinguish it from
-         * an annotation.)
-         */
-        IMPLEMENTED_INTERFACE,
-        /** An annotation. */
-        ANNOTATION,
-        /** An interface or annotation (used since you can actually implement an annotation). */
-        INTERFACE_OR_ANNOTATION,
-    }
-
-    /** Get the classes related to this one in the specified way. */
-    static Set<ClassInfo> filterClassInfo(final Set<ClassInfo> classInfoSet,
-            final boolean removeExternalClassesIfStrictWhitelist, final ScanSpec scanSpec,
-            final ClassType... classTypes) {
-        if (classInfoSet == null) {
-            return Collections.emptySet();
-        }
-        boolean includeAllTypes = classTypes.length == 0;
-        boolean includeStandardClasses = false;
-        boolean includeImplementedInterfaces = false;
-        boolean includeAnnotations = false;
-        for (final ClassType classType : classTypes) {
-            switch (classType) {
-            case ALL:
-                includeAllTypes = true;
-                break;
-            case STANDARD_CLASS:
-                includeStandardClasses = true;
-                break;
-            case IMPLEMENTED_INTERFACE:
-                includeImplementedInterfaces = true;
-                break;
-            case ANNOTATION:
-                includeAnnotations = true;
-                break;
-            case INTERFACE_OR_ANNOTATION:
-                includeImplementedInterfaces = includeAnnotations = true;
-                break;
-            default:
-                throw new RuntimeException("Unknown ClassType: " + classType);
-            }
-        }
-        if (includeStandardClasses && includeImplementedInterfaces && includeAnnotations) {
-            includeAllTypes = true;
-        }
-        // Do two passes with the same filter logic to avoid copying the set if nothing is filtered out
-        final Set<ClassInfo> classInfoSetFiltered = new HashSet<>(classInfoSet.size());
-        for (final ClassInfo classInfo : classInfoSet) {
-            // Check class type against requested type(s)
-            if (includeAllTypes //
-                    || includeStandardClasses && classInfo.isStandardClass()
-                    || includeImplementedInterfaces && classInfo.isImplementedInterface()
-                    || includeAnnotations && classInfo.isAnnotation()) {
-                // Check whether class should be visible in results
-                final boolean isBlacklisted = scanSpec.classIsBlacklisted(classInfo.className);
-                final boolean isSystemClass = JarUtils.isInSystemPackageOrModule(classInfo.className);
-                final boolean includeExternalClasses = scanSpec.enableExternalClasses
-                        || !removeExternalClassesIfStrictWhitelist;
-                final boolean notExternalOrIncludeExternal = !classInfo.isExternalClass || includeExternalClasses;
-                if (notExternalOrIncludeExternal //
-                        // If this is a system class, ignore blacklist unless the blanket blacklisting of
-                        // all system jars or modules has been disabled, and this system class was specifically
-                        // blacklisted by name
-                        && (!isBlacklisted || (isSystemClass && scanSpec.blacklistSystemJarsOrModules))) {
-                    // Class passed filter criteria
-                    classInfoSetFiltered.add(classInfo);
-                }
-            }
-        }
-        return classInfoSetFiltered;
-    }
-
-    /**
-     * Get the sorted list of the names of classes given a collection of {@link ClassInfo} objects. (Class names are
-     * not deduplicated.)
-     * 
-     * @param classInfoColl
-     *            The collection of {@link ClassInfo} objects.
-     * @return The names of classes in the collection.
-     */
-    public static List<String> getClassNames(final Collection<ClassInfo> classInfoColl) {
-        if (classInfoColl.isEmpty()) {
-            return Collections.emptyList();
-        } else {
-            final ArrayList<String> classNames = new ArrayList<>(classInfoColl.size());
-            for (final ClassInfo classInfo : classInfoColl) {
-                classNames.add(classInfo.className);
-            }
-            Collections.sort(classNames);
-            return classNames;
-        }
-    }
-
-    /** Get the classes directly related to this ClassInfo object the specified way. */
-    private Set<ClassInfo> getDirectlyRelatedClasses(final RelType relType) {
-        final Set<ClassInfo> relatedClassClassInfo = relatedClasses.get(relType);
-        return relatedClassClassInfo == null ? Collections.<ClassInfo> emptySet() : relatedClassClassInfo;
-    }
-
-    /**
-     * Find all ClassInfo nodes reachable from this ClassInfo node over the given relationship type links (not
-     * including this class itself).
-     */
-    private Set<ClassInfo> getReachableClasses(final RelType relType) {
-        final Set<ClassInfo> directlyRelatedClasses = this.getDirectlyRelatedClasses(relType);
-        if (directlyRelatedClasses.isEmpty()) {
-            return directlyRelatedClasses;
-        }
-        final Set<ClassInfo> reachableClasses = new HashSet<>(directlyRelatedClasses);
-        if (relType == RelType.METHOD_ANNOTATIONS || relType == RelType.FIELD_ANNOTATIONS) {
-            // For method and field annotations, need to change the RelType when finding meta-annotations
-            for (final ClassInfo annotation : directlyRelatedClasses) {
-                reachableClasses.addAll(annotation.getReachableClasses(RelType.CLASS_ANNOTATIONS));
-            }
-        } else if (relType == RelType.CLASSES_WITH_METHOD_ANNOTATION
-                || relType == RelType.CLASSES_WITH_FIELD_ANNOTATION) {
-            // If looking for meta-annotated methods or fields, need to find all meta-annotated annotations, then
-            // look for the methods or fields that they annotate
-            for (final ClassInfo subAnnotation : filterClassInfo(
-                    getReachableClasses(RelType.CLASSES_WITH_CLASS_ANNOTATION),
-                    /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.ANNOTATION)) {
-                reachableClasses.addAll(subAnnotation.getDirectlyRelatedClasses(relType));
-            }
-        } else {
-            // For other relationship types, the reachable type stays the same over the transitive closure. Find the
-            // transitive closure, breaking cycles where necessary.
-            final LinkedList<ClassInfo> queue = new LinkedList<>();
-            queue.addAll(directlyRelatedClasses);
-            while (!queue.isEmpty()) {
-                final ClassInfo head = queue.removeFirst();
-                for (final ClassInfo directlyReachableFromHead : head.getDirectlyRelatedClasses(relType)) {
-                    // Don't get in cycle
-                    if (reachableClasses.add(directlyReachableFromHead)) {
-                        queue.add(directlyReachableFromHead);
-                    }
-                }
-            }
-        }
-        return reachableClasses;
-    }
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Add a class with a given relationship type. Test whether the collection changed as a result of the call.
@@ -732,6 +600,8 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
             superclassClassInfo.addRelatedClass(RelType.SUBCLASSES, this);
         }
     }
+
+    private static final int ANNOTATION_CLASS_MODIFIER = 0x2000;
 
     /** Add an annotation to this class. */
     void addClassAnnotation(final AnnotationInfo classAnnotationInfo,
@@ -912,8 +782,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
         // Remember which classpath element (zipfile / classpath root directory / module) the class was found in
         final ModuleRef modRef = classpathElement.getClasspathElementModuleRef();
         final File file = modRef != null ? null : classpathElement.getClasspathElementFile(log);
-        if ((classInfo.classpathElementModuleRef != null && modRef != null
-                && !classInfo.classpathElementModuleRef.equals(modRef))
+        if ((classInfo.moduleRef != null && modRef != null && !classInfo.moduleRef.equals(modRef))
                 || (classInfo.classpathElementFile != null && file != null
                         && !classInfo.classpathElementFile.equals(file))) {
             classEncounteredMultipleTimes = true;
@@ -937,9 +806,9 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
             // Save jarfile package root, if any
             classInfo.jarfilePackageRoot = classpathElement.getJarfilePackageRoot();
         }
-        if (classInfo.classpathElementModuleRef == null) {
+        if (classInfo.moduleRef == null) {
             // If class was found in more than one module, keep the first module reference 
-            classInfo.classpathElementModuleRef = modRef;
+            classInfo.moduleRef = modRef;
         }
 
         // Remember which classloader handles the class was found in, for classloading
@@ -971,73 +840,18 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the names of any classes (other than this class itself) referenced in this class' type descriptor, or the
-     * type descriptors of fields or methods (if field or method info is recorded).
-     * 
-     * @return The names of the referenced classes.
-     */
-    public Set<String> getClassNamesReferencedInAnyTypeDescriptor() {
-        final Set<String> referencedClassNames = new HashSet<>();
-        if (methodInfo != null) {
-            for (final MethodInfo mi : methodInfo) {
-                final MethodTypeSignature methodSig = mi.getTypeSignature();
-                if (methodSig != null) {
-                    methodSig.getAllReferencedClassNames(referencedClassNames);
-                }
-            }
-        }
-        if (fieldInfo != null) {
-            for (final FieldInfo fi : fieldInfo) {
-                final TypeSignature fieldSig = fi.getTypeSignature();
-                if (fieldSig != null) {
-                    fieldSig.getAllReferencedClassNames(referencedClassNames);
-                }
-            }
-        }
-        final ClassTypeSignature classSig = getTypeSignature();
-        if (classSig != null) {
-            classSig.getAllReferencedClassNames(referencedClassNames);
-        }
-        // Remove self-reference, and any reference to java.lang.Object
-        referencedClassNames.remove(className);
-        referencedClassNames.remove("java.lang.Object");
-        return referencedClassNames;
-    }
-
-    /**
      * Get the names of any classes referenced in the type descriptors of this class' methods (if method info is
      * recorded).
      * 
      * @return The names of the referenced classes.
      */
-    public Set<String> getClassNamesReferencedInMethodTypeDescriptors() {
+    Set<String> getClassNamesReferencedInMethodTypeDescriptors() {
         final Set<String> referencedClassNames = new HashSet<>();
         if (methodInfo != null) {
             for (final MethodInfo mi : methodInfo) {
                 final MethodTypeSignature methodSig = mi.getTypeSignature();
                 if (methodSig != null) {
                     methodSig.getAllReferencedClassNames(referencedClassNames);
-                }
-            }
-        }
-        // Remove any reference to java.lang.Object
-        referencedClassNames.remove("java.lang.Object");
-        return referencedClassNames;
-    }
-
-    /**
-     * Get the names of any classes referenced in the type descriptors of this class' fields (if field info is
-     * recorded).
-     * 
-     * @return The names of the referenced classes.
-     */
-    public Set<String> getClassNamesReferencedInFieldTypeDescriptors() {
-        final Set<String> referencedClassNames = new HashSet<>();
-        if (fieldInfo != null) {
-            for (final FieldInfo fi : fieldInfo) {
-                final TypeSignature fieldSig = fi.getTypeSignature();
-                if (fieldSig != null) {
-                    fieldSig.getAllReferencedClassNames(referencedClassNames);
                 }
             }
         }
@@ -1051,7 +865,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
      * 
      * @return The names of the referenced classes.
      */
-    public Set<String> getClassNamesReferencedInClassTypeDescriptor() {
+    Set<String> getClassNamesReferencedInClassTypeDescriptor() {
         final Set<String> referencedClassNames = new HashSet<>();
         final ClassTypeSignature classSig = getTypeSignature();
         if (classSig != null) {
@@ -1064,30 +878,205 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     }
 
     // -------------------------------------------------------------------------------------------------------------
+
+    /** The class type to return. */
+    private static enum ClassType {
+        /** Get all class types. */
+        ALL,
+        /** A standard class (not an interface or annotation). */
+        STANDARD_CLASS,
+        /**
+         * An interface (this is named "implemented interface" rather than just "interface" to distinguish it from
+         * an annotation.)
+         */
+        IMPLEMENTED_INTERFACE,
+        /** An annotation. */
+        ANNOTATION,
+        /** An interface or annotation (used since you can actually implement an annotation). */
+        INTERFACE_OR_ANNOTATION,
+    }
+
+    /** Filter classes according to scan spec and class type. */
+    private static Set<ClassInfo> filterClassInfo(final Collection<ClassInfo> classes, final ScanSpec scanSpec,
+            final ClassType... classTypes) {
+        if (classes == null) {
+            return null;
+        }
+        boolean includeAllTypes = classTypes.length == 0;
+        boolean includeStandardClasses = false;
+        boolean includeImplementedInterfaces = false;
+        boolean includeAnnotations = false;
+        for (final ClassType classType : classTypes) {
+            switch (classType) {
+            case ALL:
+                includeAllTypes = true;
+                break;
+            case STANDARD_CLASS:
+                includeStandardClasses = true;
+                break;
+            case IMPLEMENTED_INTERFACE:
+                includeImplementedInterfaces = true;
+                break;
+            case ANNOTATION:
+                includeAnnotations = true;
+                break;
+            case INTERFACE_OR_ANNOTATION:
+                includeImplementedInterfaces = includeAnnotations = true;
+                break;
+            default:
+                throw new RuntimeException("Unknown ClassType: " + classType);
+            }
+        }
+        if (includeStandardClasses && includeImplementedInterfaces && includeAnnotations) {
+            includeAllTypes = true;
+        }
+        final Set<ClassInfo> classInfoSetFiltered = new HashSet<>(classes.size());
+        for (final ClassInfo classInfo : classes) {
+            // Check class type against requested type(s)
+            if (includeAllTypes //
+                    || includeStandardClasses && classInfo.isStandardClass()
+                    || includeImplementedInterfaces && classInfo.isImplementedInterface()
+                    || includeAnnotations && classInfo.isAnnotation()) {
+                // Don't include external classes unless enableExternalClasses is true
+                if (!classInfo.isExternalClass || scanSpec.enableExternalClasses) {
+                    // If this is a system class, ignore blacklist unless the blanket blacklisting of
+                    // all system jars or modules has been disabled, and this system class was specifically
+                    // blacklisted by name
+                    if (!scanSpec.classIsBlacklisted(classInfo.className) //
+                            && (!scanSpec.blacklistSystemJarsOrModules
+                                    || !JarUtils.isInSystemPackageOrModule(classInfo.className))) {
+                        // Class passed filter criteria
+                        classInfoSetFiltered.add(classInfo);
+                    }
+                }
+            }
+        }
+        return classInfoSetFiltered;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Get all classes found during the scan.
+     *
+     * @return A list of all classes found during the scan, or the empty list if none.
+     */
+    static ClassInfoList getAllClasses(final Collection<ClassInfo> classes, final ScanSpec scanSpec,
+            final ScanResult scanResult) {
+        return new ClassInfoList(ClassInfo.filterClassInfo(classes, scanSpec, ClassType.ALL), null, scanResult);
+    }
+
+    /**
+     * Get all standard classes found during the scan.
+     *
+     * @return A list of all standard classes found during the scan, or the empty list if none.
+     */
+    static ClassInfoList getAllStandardClasses(final Collection<ClassInfo> classes, final ScanSpec scanSpec,
+            final ScanResult scanResult) {
+        return new ClassInfoList(ClassInfo.filterClassInfo(classes, scanSpec, ClassType.STANDARD_CLASS), null,
+                scanResult);
+    }
+
+    /**
+     * Get all implemented interface (non-annotation interface) classes found during the scan.
+     *
+     * @return A list of all annotation classes found during the scan, or the empty list if none.
+     */
+    static ClassInfoList getAllImplementedInterfaceClasses(final Collection<ClassInfo> classes,
+            final ScanSpec scanSpec, final ScanResult scanResult) {
+        return new ClassInfoList(ClassInfo.filterClassInfo(classes, scanSpec, ClassType.IMPLEMENTED_INTERFACE),
+                null, scanResult);
+    }
+
+    /**
+     * Get all annotation classes found during the scan. See also {@link #getAllInterfaceOrAnnotationClasses()}.
+     *
+     * @return A list of all annotation classes found during the scan, or the empty list if none.
+     */
+    static ClassInfoList getAllAnnotationClasses(final Collection<ClassInfo> classes, final ScanSpec scanSpec,
+            final ScanResult scanResult) {
+        return new ClassInfoList(ClassInfo.filterClassInfo(classes, scanSpec, ClassType.ANNOTATION), null,
+                scanResult);
+    }
+
+    /**
+     * Get all interface or annotation classes found during the scan. (Annotations are technically interfaces, and
+     * they can be implemented.)
+     *
+     * @return A list of all whitelisted interfaces found during the scan, or the empty list if none.
+     */
+    static ClassInfoList getAllInterfaceOrAnnotationClasses(final Collection<ClassInfo> classes,
+            final ScanSpec scanSpec, final ScanResult scanResult) {
+        return new ClassInfoList(ClassInfo.filterClassInfo(classes, scanSpec, ClassType.INTERFACE_OR_ANNOTATION),
+                null, scanResult);
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Find all ClassInfo nodes reachable from this ClassInfo node over the given relationship type links (not
+     * including this class itself).
+     */
+    private Entry<Set<ClassInfo>, Set<ClassInfo>> getReachableAndDirectlyRelatedClasses(final RelType relType) {
+        final Set<ClassInfo> directlyRelatedClasses = this.relatedClasses.get(relType);
+        if (directlyRelatedClasses == null) {
+            return new SimpleEntry<>(Collections.<ClassInfo> emptySet(), Collections.<ClassInfo> emptySet());
+        }
+        final Set<ClassInfo> reachableClasses = new HashSet<>(directlyRelatedClasses);
+        if (relType == RelType.METHOD_ANNOTATIONS || relType == RelType.FIELD_ANNOTATIONS) {
+            // For method and field annotations, need to change the RelType when finding meta-annotations
+            for (final ClassInfo annotation : directlyRelatedClasses) {
+                reachableClasses.addAll(
+                        annotation.getReachableAndDirectlyRelatedClasses(RelType.CLASS_ANNOTATIONS).getKey());
+            }
+        } else if (relType == RelType.CLASSES_WITH_METHOD_ANNOTATION
+                || relType == RelType.CLASSES_WITH_FIELD_ANNOTATION) {
+            // If looking for meta-annotated methods or fields, need to find all meta-annotated annotations, then
+            // look for the methods or fields that they annotate
+            for (final ClassInfo subAnnotation : this.filterClassInfo(RelType.CLASSES_WITH_CLASS_ANNOTATION,
+                    ClassType.ANNOTATION)) {
+                final Set<ClassInfo> annotatedClasses = subAnnotation.relatedClasses.get(relType);
+                if (annotatedClasses != null) {
+                    reachableClasses.addAll(annotatedClasses);
+                }
+            }
+        } else {
+            // For other relationship types, the reachable type stays the same over the transitive closure. Find the
+            // transitive closure, breaking cycles where necessary.
+            final LinkedList<ClassInfo> queue = new LinkedList<>();
+            queue.addAll(directlyRelatedClasses);
+            while (!queue.isEmpty()) {
+                final ClassInfo head = queue.removeFirst();
+                final Set<ClassInfo> headRelatedClasses = head.relatedClasses.get(relType);
+                if (headRelatedClasses != null) {
+                    for (final ClassInfo directlyReachableFromHead : headRelatedClasses) {
+                        // Don't get in cycle
+                        if (reachableClasses.add(directlyReachableFromHead)) {
+                            queue.add(directlyReachableFromHead);
+                        }
+                    }
+                }
+            }
+        }
+        return new SimpleEntry<>(reachableClasses, directlyRelatedClasses);
+    }
+
+    /** Get the classes related to this one in the specified way. */
+    private ClassInfoList filterClassInfo(final RelType relType, final ClassType... classTypes) {
+        final Entry<Set<ClassInfo>, Set<ClassInfo>> reachableAndDirectlyRelatedClasses = //
+                getReachableAndDirectlyRelatedClasses(relType);
+        final Set<ClassInfo> reachableClasses = reachableAndDirectlyRelatedClasses.getKey();
+        if (reachableClasses.isEmpty()) {
+            return ClassInfoList.EMPTY_LIST;
+        }
+        final Set<ClassInfo> directlyRelatedClasses = reachableAndDirectlyRelatedClasses.getValue();
+
+        return new ClassInfoList(filterClassInfo(reachableClasses, scanSpec),
+                filterClassInfo(directlyRelatedClasses, scanSpec), scanResult);
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
     // Standard classes
-
-    /**
-     * Get the names of all classes, interfaces and annotations found during the scan, or the empty list if none.
-     *
-     * @return the sorted unique list of names of all classes, interfaces and annotations found during the scan, or
-     *         the empty list if none.
-     */
-    static List<String> getNamesOfAllClasses(final ScanSpec scanSpec, final Set<ClassInfo> allClassInfo) {
-        return getClassNames(filterClassInfo(allClassInfo, /* removeExternalClassesIfStrictWhitelist = */ true,
-                scanSpec, ClassType.ALL));
-    }
-
-    /**
-     * Get the names of all standard (non-interface/annotation) classes found during the scan, or the empty list if
-     * none.
-     *
-     * @return the sorted unique names of all standard (non-interface/annotation) classes found during the scan, or
-     *         the empty list if none.
-     */
-    static List<String> getNamesOfAllStandardClasses(final ScanSpec scanSpec, final Set<ClassInfo> allClassInfo) {
-        return getClassNames(filterClassInfo(allClassInfo, /* removeExternalClassesIfStrictWhitelist = */ true,
-                scanSpec, ClassType.STANDARD_CLASS));
-    }
 
     /**
      * Test whether this class is a standard class (not an annotation or interface).
@@ -1098,112 +1087,24 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
         return !(isAnnotation || isInterface);
     }
 
-    // -------------
-
     /**
      * Get the subclasses of this class.
      *
-     * @return the set of subclasses of this class, or the empty set if none.
+     * @return the list of subclasses of this class, or the empty list if none.
      */
-    public Set<ClassInfo> getSubclasses() {
+    public ClassInfoList getSubclasses() {
         // Make an exception for querying all subclasses of java.lang.Object
-        return filterClassInfo(getReachableClasses(RelType.SUBCLASSES),
-                /* removeExternalClassesIfStrictWhitelist = */ !className.equals("java.lang.Object"), scanSpec,
-                ClassType.ALL);
+        return this.filterClassInfo(RelType.SUBCLASSES);
     }
-
-    /**
-     * Get the names of subclasses of this class.
-     *
-     * @return the sorted list of names of the subclasses of this class, or the empty list if none.
-     */
-    public List<String> getNamesOfSubclasses() {
-        return getClassNames(getSubclasses());
-    }
-
-    /**
-     * Test whether this class has the named class as a subclass.
-     * 
-     * @param subclassName
-     *            The name of the subclass.
-     * @return true if this class has the named class as a subclass.
-     */
-    public boolean hasSubclass(final String subclassName) {
-        return getNamesOfSubclasses().contains(subclassName);
-    }
-
-    // -------------
-
-    /**
-     * Get the direct subclasses of this class.
-     *
-     * @return the set of direct subclasses of this class, or the empty set if none.
-     */
-    public Set<ClassInfo> getDirectSubclasses() {
-        // Make an exception for querying all direct subclasses of java.lang.Object
-        return filterClassInfo(getDirectlyRelatedClasses(RelType.SUBCLASSES),
-                /* removeExternalClassesIfStrictWhitelist = */ !className.equals("java.lang.Object"), scanSpec,
-                ClassType.ALL);
-    }
-
-    /**
-     * Get the names of direct subclasses of this class.
-     *
-     * @return the sorted list of names of direct subclasses of this class, or the empty list if none.
-     */
-    public List<String> getNamesOfDirectSubclasses() {
-        return getClassNames(getDirectSubclasses());
-    }
-
-    /**
-     * Test whether this class has the named direct subclass.
-     * 
-     * @param directSubclassName
-     *            The name of the direct subclass.
-     * @return true if this class has the named direct subclass.
-     */
-    public boolean hasDirectSubclass(final String directSubclassName) {
-        return getNamesOfDirectSubclasses().contains(directSubclassName);
-    }
-
-    // -------------
 
     /**
      * Get all direct and indirect superclasses of this class (i.e. the direct superclass(es) of this class, and
      * their superclass(es), all the way up to the top of the class hierarchy).
      *
-     * <p>
-     * (Includes the union of all mixin superclass hierarchies in the case of Scala mixins.)
-     *
-     * @return the set of all superclasses of this class, or the empty set if none.
+     * @return the list of all superclasses of this class, or the empty list if none.
      */
-    public Set<ClassInfo> getSuperclasses() {
-        return filterClassInfo(getReachableClasses(RelType.SUPERCLASSES),
-                /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.ALL);
-    }
-
-    /**
-     * Get the names of all direct and indirect superclasses of this class (i.e. the direct superclass(es) of this
-     * class, and their superclass(es), all the way up to the top of the class hierarchy).
-     *
-     * <p>
-     * (Includes the union of all mixin superclass hierarchies in the case of Scala mixins.)
-     *
-     * @return the sorted list of names of all superclasses of this class, or the empty list if none.
-     */
-    public List<String> getNamesOfSuperclasses() {
-        return getClassNames(getSuperclasses());
-    }
-
-    /**
-     * Test whether this class extends the named superclass, directly or indirectly.
-     * 
-     * @param superclassName
-     *            The name of the superclass.
-     * @return true if this class has the named direct or indirect superclass.
-     */
-    public boolean hasSuperclass(final String superclassName) {
-        return getNamesOfSuperclasses().contains(superclassName);
+    public ClassInfoList getSuperclasses() {
+        return this.filterClassInfo(RelType.SUPERCLASSES);
     }
 
     /**
@@ -1218,24 +1119,12 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
 
     /**
      * Returns the containing outer classes, for inner classes. Note that all containing outer classes are returned,
-     * not just the innermost containing outer class. Returns the empty set if this is not an inner class.
+     * not just the innermost containing outer class. Returns the empty list if this is not an inner class.
      * 
-     * @return The set of containing outer classes.
+     * @return The list of containing outer classes.
      */
-    public Set<ClassInfo> getOuterClasses() {
-        return filterClassInfo(getReachableClasses(RelType.CONTAINED_WITHIN_OUTER_CLASS),
-                /* removeExternalClassesIfStrictWhitelist = */ false, scanSpec, ClassType.ALL);
-    }
-
-    /**
-     * Returns the names of the containing outer classes, for inner classes. Note that all containing outer classes
-     * are returned, not just the innermost containing outer class. Returns the empty list if this is not an inner
-     * class.
-     * 
-     * @return The name of containing outer classes.
-     */
-    public List<String> getOuterClassName() {
-        return getClassNames(getOuterClasses());
+    public ClassInfoList getOuterClasses() {
+        return this.filterClassInfo(RelType.CONTAINED_WITHIN_OUTER_CLASS);
     }
 
     /**
@@ -1249,22 +1138,12 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     }
 
     /**
-     * Returns the inner classes contained within this class. Returns the empty set if none.
+     * Returns the inner classes contained within this class. Returns the empty list if none.
      * 
-     * @return The set of inner classes within this class.
+     * @return The list of inner classes within this class.
      */
-    public Set<ClassInfo> getInnerClasses() {
-        return filterClassInfo(getReachableClasses(RelType.CONTAINS_INNER_CLASS),
-                /* removeExternalClassesIfStrictWhitelist = */ false, scanSpec, ClassType.ALL);
-    }
-
-    /**
-     * Returns the names of inner classes contained within this class. Returns the empty list if none.
-     * 
-     * @return The names of inner classes within this class.
-     */
-    public List<String> getInnerClassNames() {
-        return getClassNames(getInnerClasses());
+    public ClassInfoList getInnerClasses() {
+        return this.filterClassInfo(RelType.CONTAINS_INNER_CLASS);
     }
 
     /**
@@ -1287,119 +1166,8 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
         return fullyQualifiedContainingMethodName;
     }
 
-    // -------------
-
-    /**
-     * Get the direct superclasses of this class.
-     *
-     * <p>
-     * Typically the returned set will contain zero or one direct superclass(es), but may contain more than one
-     * direct superclass in the case of Scala mixins.
-     *
-     * @return the direct superclasses of this class, or the empty set if none.
-     */
-    public Set<ClassInfo> getDirectSuperclasses() {
-        return filterClassInfo(getDirectlyRelatedClasses(RelType.SUPERCLASSES),
-                /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.ALL);
-    }
-
-    /**
-     * Convenience method for getting the single direct superclass of this class. Returns null if the class does not
-     * have a superclass (e.g. in the case of interfaces). Throws IllegalArgumentException if there are multiple
-     * direct superclasses (e.g. in the case of Scala mixins) -- use getDirectSuperclasses() if you need to deal
-     * with mixins.
-     *
-     * @return the direct superclass of this class, or null if the class does not have a superclass.
-     * @throws IllegalArgumentException
-     *             if there are multiple direct superclasses of this class (in the case of Scala mixins).
-     */
-    public ClassInfo getDirectSuperclass() {
-        final Set<ClassInfo> directSuperclasses = getDirectSuperclasses();
-        final int numDirectSuperclasses = directSuperclasses.size();
-        if (numDirectSuperclasses == 0) {
-            return null;
-        } else if (numDirectSuperclasses > 1) {
-            throw new IllegalArgumentException("Class has multiple direct superclasses: "
-                    + directSuperclasses.toString() + " -- need to call getDirectSuperclasses() instead");
-        } else {
-            return directSuperclasses.iterator().next();
-        }
-    }
-
-    /**
-     * Get the names of direct superclasses of this class.
-     *
-     * <p>
-     * Typically the returned list will contain zero or one direct superclass name(s), but may contain more than one
-     * direct superclass name in the case of Scala mixins.
-     *
-     * @return the direct superclasses of this class, or the empty set if none.
-     */
-    public List<String> getNamesOfDirectSuperclasses() {
-        return getClassNames(getDirectSuperclasses());
-    }
-
-    /**
-     * Convenience method for getting the name of the single direct superclass of this class. Returns null if the
-     * class does not have a superclass (e.g. in the case of interfaces). Throws IllegalArgumentException if there
-     * are multiple direct superclasses (e.g. in the case of Scala mixins) -- use getNamesOfDirectSuperclasses() if
-     * you need to deal with mixins.
-     *
-     * @return the name of the direct superclass of this class, or null if the class does not have a superclass.
-     * @throws IllegalArgumentException
-     *             if there are multiple direct superclasses of this class (in the case of Scala mixins).
-     */
-    public String getNameOfDirectSuperclass() {
-        final List<String> namesOfDirectSuperclasses = getNamesOfDirectSuperclasses();
-        final int numDirectSuperclasses = namesOfDirectSuperclasses.size();
-        if (numDirectSuperclasses == 0) {
-            return null;
-        } else if (numDirectSuperclasses > 1) {
-            throw new IllegalArgumentException(
-                    "Class has multiple direct superclasses: " + namesOfDirectSuperclasses.toString()
-                            + " -- need to call getNamesOfDirectSuperclasses() instead");
-        } else {
-            return namesOfDirectSuperclasses.get(0);
-        }
-    }
-
-    /**
-     * Test whether this class directly extends the named superclass.
-     *
-     * <p>
-     * If this class has multiple direct superclasses (in the case of Scala mixins), returns true if the named
-     * superclass is one of the direct superclasses of this class.
-     *
-     * @param directSuperclassName
-     *            The direct superclass name to match. If null, matches classes without a direct superclass (e.g.
-     *            interfaces). Note that standard classes that do not extend another class have java.lang.Object as
-     *            their superclass.
-     * @return true if this class has the named class as its direct superclass (or as one of its direct
-     *         superclasses, in the case of Scala mixins).
-     */
-    public boolean hasDirectSuperclass(final String directSuperclassName) {
-        final List<String> namesOfDirectSuperclasses = getNamesOfDirectSuperclasses();
-        if (directSuperclassName == null && namesOfDirectSuperclasses.isEmpty()) {
-            return true;
-        } else if (directSuperclassName == null || namesOfDirectSuperclasses.isEmpty()) {
-            return false;
-        } else {
-            return namesOfDirectSuperclasses.contains(directSuperclassName);
-        }
-    }
-
     // -------------------------------------------------------------------------------------------------------------
     // Interfaces
-
-    /**
-     * Get the names of interface classes found during the scan.
-     *
-     * @return the sorted list of names of interface classes found during the scan, or the empty list if none.
-     */
-    static List<String> getNamesOfAllInterfaceClasses(final ScanSpec scanSpec, final Set<ClassInfo> allClassInfo) {
-        return getClassNames(filterClassInfo(allClassInfo, /* removeExternalClassesIfStrictWhitelist = */ true,
-                scanSpec, ClassType.IMPLEMENTED_INTERFACE));
-    }
 
     /**
      * Test whether this class is an "implemented interface" (meaning a standard, non-annotation interface, or an
@@ -1416,454 +1184,107 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
      * @return true if this class is an "implemented interface".
      */
     public boolean isImplementedInterface() {
-        return !getDirectlyRelatedClasses(RelType.CLASSES_IMPLEMENTING).isEmpty() || (isInterface && !isAnnotation);
+        return relatedClasses.get(RelType.CLASSES_IMPLEMENTING) != null || (isInterface && !isAnnotation);
     }
-
-    // -------------
 
     /**
      * Get the subinterfaces of this interface.
      *
-     * @return the set of subinterfaces of this interface, or the empty set if none.
+     * @return the list of subinterfaces of this interface, or the empty list if none.
      */
-    public Set<ClassInfo> getSubinterfaces() {
-        return !isImplementedInterface() ? Collections.<ClassInfo> emptySet()
-                : filterClassInfo(getReachableClasses(RelType.CLASSES_IMPLEMENTING),
-                        /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec,
-                        ClassType.IMPLEMENTED_INTERFACE);
+    public ClassInfoList getSubinterfaces() {
+        return !isImplementedInterface() ? ClassInfoList.EMPTY_LIST
+                : this.filterClassInfo(RelType.CLASSES_IMPLEMENTING, ClassType.IMPLEMENTED_INTERFACE);
     }
-
-    /**
-     * Get the names of subinterfaces of this interface.
-     *
-     * @return the sorted list of names of subinterfaces of this interface, or the empty list if none.
-     */
-    public List<String> getNamesOfSubinterfaces() {
-        return getClassNames(getSubinterfaces());
-    }
-
-    /**
-     * Test whether this class is has the named subinterface.
-     *
-     * @param subinterfaceName
-     *            The name of the subinterface.
-     * @return true if this class is an interface and has the named subinterface.
-     */
-    public boolean hasSubinterface(final String subinterfaceName) {
-        return getNamesOfSubinterfaces().contains(subinterfaceName);
-    }
-
-    // -------------
-
-    /**
-     * Get the direct subinterfaces of this interface.
-     *
-     * @return the set of direct subinterfaces of this interface, or the empty set if none.
-     */
-    public Set<ClassInfo> getDirectSubinterfaces() {
-        return !isImplementedInterface() ? Collections.<ClassInfo> emptySet()
-                : filterClassInfo(getDirectlyRelatedClasses(RelType.CLASSES_IMPLEMENTING),
-                        /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec,
-                        ClassType.IMPLEMENTED_INTERFACE);
-    }
-
-    /**
-     * Get the names of direct subinterfaces of this interface.
-     *
-     * @return the sorted list of names of direct subinterfaces of this interface, or the empty list if none.
-     */
-    public List<String> getNamesOfDirectSubinterfaces() {
-        return getClassNames(getDirectSubinterfaces());
-    }
-
-    /**
-     * Test whether this class is and interface and has the named direct subinterface.
-     * 
-     * @param directSubinterfaceName
-     *            The name of the direct subinterface.
-     * @return true if this class is and interface and has the named direct subinterface.
-     */
-    public boolean hasDirectSubinterface(final String directSubinterfaceName) {
-        return getNamesOfDirectSubinterfaces().contains(directSubinterfaceName);
-    }
-
-    // -------------
 
     /**
      * Get the superinterfaces of this interface.
      *
-     * @return the set of superinterfaces of this interface, or the empty set if none.
+     * @return the list of superinterfaces of this interface, or the empty list if none.
      */
-    public Set<ClassInfo> getSuperinterfaces() {
-        return !isImplementedInterface() ? Collections.<ClassInfo> emptySet()
-                : filterClassInfo(getReachableClasses(RelType.IMPLEMENTED_INTERFACES),
-                        /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec,
-                        ClassType.IMPLEMENTED_INTERFACE);
-    }
-
-    /**
-     * Get the names of superinterfaces of this interface.
-     *
-     * @return the sorted list of names of superinterfaces of this interface, or the empty list if none.
-     */
-    public List<String> getNamesOfSuperinterfaces() {
-        return getClassNames(getSuperinterfaces());
-    }
-
-    /**
-     * Test whether this class is an interface and has the named superinterface.
-     * 
-     * @param superinterfaceName
-     *            The name of the superinterface.
-     * @return true if this class is an interface and has the named superinterface.
-     */
-    public boolean hasSuperinterface(final String superinterfaceName) {
-        return getNamesOfSuperinterfaces().contains(superinterfaceName);
-    }
-
-    // -------------
-
-    /**
-     * Get the direct superinterfaces of this interface.
-     *
-     * @return the set of direct superinterfaces of this interface, or the empty set if none.
-     */
-    public Set<ClassInfo> getDirectSuperinterfaces() {
-        return !isImplementedInterface() ? Collections.<ClassInfo> emptySet()
-                : filterClassInfo(getDirectlyRelatedClasses(RelType.IMPLEMENTED_INTERFACES),
-                        /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec,
-                        ClassType.IMPLEMENTED_INTERFACE);
-    }
-
-    /**
-     * Get the names of direct superinterfaces of this interface.
-     *
-     * @return the sorted list of names of direct superinterfaces of this interface, or the empty list if none.
-     */
-    public List<String> getNamesOfDirectSuperinterfaces() {
-        return getClassNames(getDirectSuperinterfaces());
-    }
-
-    /**
-     * Test whether this class is an interface and has the named direct superinterface.
-     * 
-     * @param directSuperinterfaceName
-     *            The name of the direct superinterface.
-     * @return true if this class is an interface and has the named direct superinterface.
-     */
-    public boolean hasDirectSuperinterface(final String directSuperinterfaceName) {
-        return getNamesOfDirectSuperinterfaces().contains(directSuperinterfaceName);
-    }
-
-    // -------------
-
-    /**
-     * Get the interfaces implemented by this standard class, or by one of its superclasses.
-     *
-     * @return the set of interfaces implemented by this standard class, or by one of its superclasses. Returns the
-     *         empty set if none.
-     */
-    public Set<ClassInfo> getImplementedInterfaces() {
-        if (!isStandardClass()) {
-            return Collections.<ClassInfo> emptySet();
-        } else {
-            final Set<ClassInfo> superclasses = filterClassInfo(getReachableClasses(RelType.SUPERCLASSES),
-                    /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.STANDARD_CLASS);
-            // Subclasses of implementing classes also implement the interface
-            final Set<ClassInfo> allInterfaces = new HashSet<>();
-            allInterfaces.addAll(getReachableClasses(RelType.IMPLEMENTED_INTERFACES));
-            for (final ClassInfo superClass : superclasses) {
-                allInterfaces.addAll(superClass.getReachableClasses(RelType.IMPLEMENTED_INTERFACES));
-            }
-            return allInterfaces;
-        }
+    public ClassInfoList getSuperinterfaces() {
+        return !isImplementedInterface() ? ClassInfoList.EMPTY_LIST
+                : this.filterClassInfo(RelType.IMPLEMENTED_INTERFACES);
     }
 
     /**
      * Get the interfaces implemented by this standard class, or by one of its superclasses.
      *
-     * @return the set of interfaces implemented by this standard class, or by one of its superclasses. Returns the
+     * @return the list of interfaces implemented by this standard class, or by one of its superclasses. Returns the
      *         empty list if none.
      */
-    public List<String> getNamesOfImplementedInterfaces() {
-        return getClassNames(getImplementedInterfaces());
+    public ClassInfoList getImplementedInterfaces() {
+        if (!isStandardClass()) {
+            return ClassInfoList.EMPTY_LIST;
+        } else {
+            // Classes also implement the interfaces of their superclasses
+            final ClassInfoList superclasses = this.filterClassInfo(RelType.SUPERCLASSES);
+            final ClassInfoList implementedInterfaces = this.filterClassInfo(RelType.IMPLEMENTED_INTERFACES);
+            final Set<ClassInfo> allInterfaces = new HashSet<>(implementedInterfaces);
+            for (final ClassInfo superclass : superclasses) {
+                final ClassInfoList superclassImplementedInterfaces = superclass
+                        .filterClassInfo(RelType.IMPLEMENTED_INTERFACES);
+                allInterfaces.addAll(superclassImplementedInterfaces);
+            }
+            return new ClassInfoList(allInterfaces, implementedInterfaces.directOnly(), scanResult);
+        }
     }
-
-    /**
-     * Test whether this standard class implements the named interface, or by one of its superclasses.
-     *
-     * @param interfaceName
-     *            The name of the interface.
-     * @return true this class is a standard class, and it (or one of its superclasses) implements the named
-     *         interface.
-     */
-    public boolean implementsInterface(final String interfaceName) {
-        return getNamesOfImplementedInterfaces().contains(interfaceName);
-    }
-
-    // -------------
-
-    /**
-     * Get the interfaces directly implemented by this standard class.
-     *
-     * @return the set of interfaces directly implemented by this standard class. Returns the empty set if none.
-     */
-    public Set<ClassInfo> getDirectlyImplementedInterfaces() {
-        return !isStandardClass() ? Collections.<ClassInfo> emptySet()
-                : filterClassInfo(getDirectlyRelatedClasses(RelType.IMPLEMENTED_INTERFACES),
-                        /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec,
-                        ClassType.IMPLEMENTED_INTERFACE);
-    }
-
-    /**
-     * Get the interfaces directly implemented by this standard class, or by one of its superclasses.
-     *
-     * @return the set of interfaces directly implemented by this standard class, or by one of its superclasses.
-     *         Returns the empty list if none.
-     */
-    public List<String> getNamesOfDirectlyImplementedInterfaces() {
-        return getClassNames(getDirectlyImplementedInterfaces());
-    }
-
-    /**
-     * Test whether this standard class directly implements the named interface, or by one of its superclasses.
-     *
-     * @param interfaceName
-     *            The name of the interface.
-     * @return true this class is a standard class, and directly implements the named interface.
-     */
-    public boolean directlyImplementsInterface(final String interfaceName) {
-        return getNamesOfDirectlyImplementedInterfaces().contains(interfaceName);
-    }
-
-    // -------------
 
     /**
      * Get the classes that implement this interface, and their subclasses.
      *
-     * @return the set of classes implementing this interface, or the empty set if none.
+     * @return the list of classes implementing this interface, or the empty list if none.
      */
-    public Set<ClassInfo> getClassesImplementing() {
+    public ClassInfoList getClassesImplementing() {
         if (!isImplementedInterface()) {
-            return Collections.<ClassInfo> emptySet();
+            return ClassInfoList.EMPTY_LIST;
         } else {
-            final Set<ClassInfo> implementingClasses = filterClassInfo(
-                    getReachableClasses(RelType.CLASSES_IMPLEMENTING),
-                    /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.STANDARD_CLASS);
             // Subclasses of implementing classes also implement the interface
-            final Set<ClassInfo> allImplementingClasses = new HashSet<>();
+            final ClassInfoList implementingClasses = this.filterClassInfo(RelType.CLASSES_IMPLEMENTING);
+            final Set<ClassInfo> allImplementingClasses = new HashSet<>(implementingClasses);
             for (final ClassInfo implementingClass : implementingClasses) {
-                allImplementingClasses.add(implementingClass);
-                allImplementingClasses.addAll(implementingClass.getReachableClasses(RelType.SUBCLASSES));
+                final ClassInfoList implementingSubclasses = implementingClass.filterClassInfo(RelType.SUBCLASSES);
+                allImplementingClasses.addAll(implementingSubclasses);
             }
-            return allImplementingClasses;
+            return new ClassInfoList(allImplementingClasses, implementingClasses.directOnly(), scanResult);
         }
-    }
-
-    /**
-     * Get the names of classes that implement this interface, and the names of their subclasses.
-     *
-     * @return the sorted list of names of classes implementing this interface, or the empty list if none.
-     */
-    public List<String> getNamesOfClassesImplementing() {
-        return getClassNames(getClassesImplementing());
-    }
-
-    /**
-     * Test whether this class is implemented by the named class, or by one of its superclasses.
-     * 
-     * @param className
-     *            The name of the class.
-     * @return true if this class is implemented by the named class, or by one of its superclasses.
-     */
-    public boolean isImplementedByClass(final String className) {
-        return getNamesOfClassesImplementing().contains(className);
-    }
-
-    // -------------
-
-    /**
-     * Get the classes that directly implement this interface, and their subclasses.
-     *
-     * @return the set of classes directly implementing this interface, or the empty set if none.
-     */
-    public Set<ClassInfo> getClassesDirectlyImplementing() {
-        return !isImplementedInterface() ? Collections.<ClassInfo> emptySet()
-                : filterClassInfo(getDirectlyRelatedClasses(RelType.CLASSES_IMPLEMENTING),
-                        /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.STANDARD_CLASS);
-    }
-
-    /**
-     * Get the names of classes that directly implement this interface, and the names of their subclasses.
-     *
-     * @return the sorted list of names of classes directly implementing this interface, or the empty list if none.
-     */
-    public List<String> getNamesOfClassesDirectlyImplementing() {
-        return getClassNames(getClassesDirectlyImplementing());
-    }
-
-    /**
-     * Test whether this class is directly implemented by the named class, or by one of its superclasses.
-     *
-     * @param className
-     *            The name of the class.
-     * @return true if this class is directly implemented by the named class, or by one of its superclasses.
-     */
-    public boolean isDirectlyImplementedByClass(final String className) {
-        return getNamesOfClassesDirectlyImplementing().contains(className);
     }
 
     // -------------------------------------------------------------------------------------------------------------
     // Annotations
 
     /**
-     * Get the names of all annotation classes found during the scan.
+     * Get the standard classes and non-annotation interfaces that are annotated by this annotation. Also handles
+     * the {@link Inherited} meta-annotation.
      *
-     * @return the sorted list of names of annotation classes found during the scan, or the empty list if none.
+     * @return the list of standard classes and non-annotation interfaces that are annotated by the annotation
+     *         corresponding to this ClassInfo class, or the empty list if none.
      */
-    static List<String> getNamesOfAllAnnotationClasses(final ScanSpec scanSpec, final Set<ClassInfo> allClassInfo) {
-        return getClassNames(filterClassInfo(allClassInfo, /* removeExternalClassesIfStrictWhitelist = */ true,
-                scanSpec, ClassType.ANNOTATION));
-    }
-
-    // -------------
-
-    /**
-     * Get the standard classes and non-annotation interfaces that are annotated by this annotation.
-     *
-     * @param direct
-     *            if true, return only directly-annotated classes.
-     * @return the set of standard classes and non-annotation interfaces that are annotated by the annotation
-     *         corresponding to this ClassInfo class, or the empty set if none.
-     */
-    private Set<ClassInfo> getClassesWithAnnotation(final boolean direct) {
+    public ClassInfoList getClassesWithAnnotation() {
         if (!isAnnotation()) {
-            return Collections.<ClassInfo> emptySet();
+            return ClassInfoList.EMPTY_LIST;
         }
-        final Set<ClassInfo> classesWithAnnotation = filterClassInfo(
-                direct ? getDirectlyRelatedClasses(RelType.CLASSES_WITH_CLASS_ANNOTATION)
-                        : getReachableClasses(RelType.CLASSES_WITH_CLASS_ANNOTATION),
-                /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, //
-                ClassType.STANDARD_CLASS, ClassType.IMPLEMENTED_INTERFACE);
+        final ClassInfoList classesWithAnnotation = this.filterClassInfo(RelType.CLASSES_WITH_CLASS_ANNOTATION);
         boolean isInherited = false;
-        for (final ClassInfo metaAnnotation : getDirectlyRelatedClasses(RelType.CLASS_ANNOTATIONS)) {
-            if (metaAnnotation.className.equals("java.lang.annotation.Inherited")) {
-                isInherited = true;
-                break;
+        final Set<ClassInfo> metaAnnotations = relatedClasses.get(RelType.CLASS_ANNOTATIONS);
+        if (metaAnnotations != null) {
+            for (final ClassInfo metaAnnotation : metaAnnotations) {
+                if (metaAnnotation.className.equals("java.lang.annotation.Inherited")) {
+                    isInherited = true;
+                    break;
+                }
             }
         }
         if (isInherited) {
+            // Handle @Inherited annotation
             final Set<ClassInfo> classesWithAnnotationAndTheirSubclasses = new HashSet<>(classesWithAnnotation);
             for (final ClassInfo classWithAnnotation : classesWithAnnotation) {
                 classesWithAnnotationAndTheirSubclasses.addAll(classWithAnnotation.getSubclasses());
             }
-            return classesWithAnnotationAndTheirSubclasses;
+            return new ClassInfoList(classesWithAnnotationAndTheirSubclasses, classesWithAnnotation, scanResult);
         } else {
-            return classesWithAnnotation;
+            return new ClassInfoList(classesWithAnnotation, null, scanResult);
         }
-    }
-
-    /**
-     * Get the standard classes and non-annotation interfaces that are annotated by this annotation.
-     *
-     * @return the set of standard classes and non-annotation interfaces that are annotated by the annotation
-     *         corresponding to this ClassInfo class, or the empty set if none.
-     */
-    public Set<ClassInfo> getClassesWithAnnotation() {
-        return getClassesWithAnnotation(/* direct = */ false);
-    }
-
-    /**
-     * Get the names of standard classes and non-annotation interfaces that are annotated by this annotation. .
-     *
-     * @return the sorted list of names of ClassInfo objects for standard classes and non-annotation interfaces that
-     *         are annotated by the annotation corresponding to this ClassInfo class, or the empty list if none.
-     */
-    public List<String> getNamesOfClassesWithAnnotation() {
-        return getClassNames(getClassesWithAnnotation());
-    }
-
-    /**
-     * Test whether this class annotates the named class.
-     * 
-     * @param annotatedClassName
-     *            The name of the annotated class.
-     * @return True if this class annotates the named class.
-     */
-    public boolean annotatesClass(final String annotatedClassName) {
-        return getNamesOfClassesWithAnnotation().contains(annotatedClassName);
-    }
-
-    // -------------
-
-    /**
-     * Get the standard classes or non-annotation interfaces that are directly annotated with this annotation.
-     *
-     * @return the set of standard classes or non-annotation interfaces that are directly annotated with this
-     *         annotation, or the empty set if none.
-     */
-    public Set<ClassInfo> getClassesWithDirectAnnotation() {
-        return getClassesWithAnnotation(/* direct = */ true);
-    }
-
-    /**
-     * Get the names of standard classes or non-annotation interfaces that are directly annotated with this
-     * annotation.
-     *
-     * @return the sorted list of names of standard classes or non-annotation interfaces that are directly annotated
-     *         with this annotation, or the empty list if none.
-     */
-    public List<String> getNamesOfClassesWithDirectAnnotation() {
-        return getClassNames(getClassesWithDirectAnnotation());
-    }
-
-    /**
-     * Test whether this class directly annotates the named class.
-     *
-     * @param directlyAnnotatedClassName
-     *            The name of the directly annotated class.
-     * @return true if this class directly annotates the named class.
-     */
-    public boolean directlyAnnotatesClass(final String directlyAnnotatedClassName) {
-        return getNamesOfClassesWithDirectAnnotation().contains(directlyAnnotatedClassName);
-    }
-
-    // -------------
-
-    /**
-     * Get the annotations and meta-annotations on this class. This is equivalent to the reflection call
-     * Class#getAnnotations(), except that it does not require calling the classloader, and it returns
-     * meta-annotations as well as annotations.
-     *
-     * @return the set of annotations and meta-annotations on this class or interface, or meta-annotations if this
-     *         is an annotation. Returns the empty set if none.
-     */
-    public Set<ClassInfo> getAnnotations() {
-        return filterClassInfo(getReachableClasses(RelType.CLASS_ANNOTATIONS),
-                /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.ALL);
-    }
-
-    /**
-     * Get the names of annotations and meta-annotations on this class. This is equivalent to the reflection call
-     * Class#getAnnotations(), except that it does not require calling the classloader, and it returns
-     * meta-annotations as well as annotations.
-     *
-     * @return the sorted list of names of annotations and meta-annotations on this class or interface, or
-     *         meta-annotations if this is an annotation. Returns the empty list if none.
-     */
-    public List<String> getNamesOfAnnotations() {
-        return getClassNames(getAnnotations());
-    }
-
-    /**
-     * Test whether this class, interface or annotation has the named class annotation or meta-annotation.
-     *
-     * @param annotationName
-     *            The name of the annotation.
-     * @return true if this class, interface or annotation has the named class annotation or meta-annotation.
-     */
-    public boolean hasAnnotation(final String annotationName) {
-        return getNamesOfAnnotations().contains(annotationName);
     }
 
     /**
@@ -1878,8 +1299,8 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     }
 
     /**
-     * Get a list of the default parameter values, if this is an annotation, and it has default parameter values.
-     * Otherwise returns the empty list.
+     * If this is an annotation, and it has default parameter values, returns a list of the default parameter
+     * values, otherwise returns the empty list.
      * 
      * @return If this is an annotation class, the list of {@link AnnotationParamValue} objects for each of the
      *         default parameter values for this annotation, otherwise the empty list.
@@ -1889,152 +1310,23 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
                 : annotationDefaultParamValues;
     }
 
-    // -------------
-
-    /**
-     * Get the direct annotations and meta-annotations on this class. This is equivalent to the reflection call
-     * Class#getAnnotations(), except that it does not require calling the classloader, and it returns
-     * meta-annotations as well as annotations.
-     *
-     * @return the set of direct annotations and meta-annotations on this class, or the empty set if none.
-     */
-    public Set<ClassInfo> getDirectAnnotations() {
-        return filterClassInfo(getDirectlyRelatedClasses(RelType.CLASS_ANNOTATIONS),
-                /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.ALL);
-    }
-
-    /**
-     * Get the names of direct annotations and meta-annotations on this class. This is equivalent to the reflection
-     * call Class#getAnnotations(), except that it does not require calling the classloader, and it returns
-     * meta-annotations as well as annotations.
-     *
-     * @return the sorted list of names of direct annotations and meta-annotations on this class, or the empty list
-     *         if none.
-     */
-    public List<String> getNamesOfDirectAnnotations() {
-        return getClassNames(getDirectAnnotations());
-    }
-
-    /**
-     * Test whether this class has the named direct annotation or meta-annotation. (This is equivalent to the
-     * reflection call Class#hasAnnotation(), except that it does not require calling the classloader, and it works
-     * for meta-annotations as well as Annotatinons.)
-     *
-     * @param directAnnotationName
-     *            The name of the direct annotation.
-     * @return true if this class has the named direct annotation or meta-annotation.
-     */
-    public boolean hasDirectAnnotation(final String directAnnotationName) {
-        return getNamesOfDirectAnnotations().contains(directAnnotationName);
-    }
-
-    // -------------
-
     /**
      * Get the annotations and meta-annotations on this annotation class.
      *
-     * @return the set of annotations and meta-annotations, if this is an annotation class, or the empty set if none
-     *         (or if this is not an annotation class).
-     */
-    public Set<ClassInfo> getMetaAnnotations() {
-        return !isAnnotation() ? Collections.<ClassInfo> emptySet()
-                : filterClassInfo(getReachableClasses(RelType.CLASS_ANNOTATIONS),
-                        /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.ALL);
-    }
-
-    /**
-     * Get the names of annotations and meta-annotations on this annotation class.
-     *
-     * @return the set of annotations and meta-annotations, if this is an annotation class, or the empty list if
+     * @return the list of annotations and meta-annotations, if this is an annotation class, or the empty list if
      *         none (or if this is not an annotation class).
      */
-    public List<String> getNamesOfMetaAnnotations() {
-        return getClassNames(getMetaAnnotations());
-    }
-
-    /**
-     * Test whether this is an annotation class and it has the named meta-annotation.
-     *
-     * @param metaAnnotationName
-     *            The meta-annotation name.
-     * @return true if this is an annotation class and it has the named meta-annotation.
-     */
-    public boolean hasMetaAnnotation(final String metaAnnotationName) {
-        return getNamesOfMetaAnnotations().contains(metaAnnotationName);
-    }
-
-    // -------------
-
-    /**
-     * Get the annotations that have this meta-annotation.
-     *
-     * @return the set of annotations that have this meta-annotation, or the empty set if none.
-     */
-    public Set<ClassInfo> getAnnotationsWithMetaAnnotation() {
-        return !isAnnotation() ? Collections.<ClassInfo> emptySet()
-                : filterClassInfo(getReachableClasses(RelType.CLASSES_WITH_CLASS_ANNOTATION),
-                        /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.ANNOTATION);
-    }
-
-    /**
-     * Get the names of annotations that have this meta-annotation.
-     *
-     * @return the sorted list of names of annotations that have this meta-annotation, or the empty list if none.
-     */
-    public List<String> getNamesOfAnnotationsWithMetaAnnotation() {
-        return getClassNames(getAnnotationsWithMetaAnnotation());
-    }
-
-    /**
-     * Test whether this annotation has the named meta-annotation.
-     *
-     * @param annotationName
-     *            The annotation name.
-     * @return true if this annotation has the named meta-annotation.
-     */
-    public boolean metaAnnotatesAnnotation(final String annotationName) {
-        return getNamesOfAnnotationsWithMetaAnnotation().contains(annotationName);
-    }
-
-    // -------------
-
-    /**
-     * Get the annotations that have this direct meta-annotation.
-     *
-     * @return the set of annotations that have this direct meta-annotation, or the empty set if none.
-     */
-    public Set<ClassInfo> getAnnotationsWithDirectMetaAnnotation() {
-        return !isAnnotation() ? Collections.<ClassInfo> emptySet()
-                : filterClassInfo(getDirectlyRelatedClasses(RelType.CLASSES_WITH_CLASS_ANNOTATION),
-                        /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.ANNOTATION);
-    }
-
-    /**
-     * Get the names of annotations that have this direct meta-annotation.
-     *
-     * @return the sorted list of names of annotations that have this direct meta-annotation, or the empty list if
-     *         none.
-     */
-    public List<String> getNamesOfAnnotationsWithDirectMetaAnnotation() {
-        return getClassNames(getAnnotationsWithDirectMetaAnnotation());
-    }
-
-    /**
-     * Test whether this annotation is directly meta-annotated with the named annotation.
-     *
-     * @param directMetaAnnotationName
-     *            The direct meta-annotation name.
-     * @return true if this annotation is directly meta-annotated with the named annotation.
-     */
-    public boolean hasDirectMetaAnnotation(final String directMetaAnnotationName) {
-        return getNamesOfAnnotationsWithDirectMetaAnnotation().contains(directMetaAnnotationName);
+    public ClassInfoList getAnnotations() {
+        return !isAnnotation() ? ClassInfoList.EMPTY_LIST
+                : this.filterClassInfo(RelType.CLASS_ANNOTATIONS, ClassType.ALL);
     }
 
     // -------------------------------------------------------------------------------------------------------------
     // Methods
 
     /**
-     * Returns information on visible methods of the class that are not constructors. There may be more than one
+     * Returns information on visible methods of the class that are not constructors. (Call
+     * {@link #getMethodAndConstructorInfo()} if you need methods and constructors.) There may be more than one
      * method of a given name with different type signatures, due to overloading.
      *
      * <p>
@@ -2043,8 +1335,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
      *
      * <p>
      * By default only returns information for public methods, unless FastClasspathScanner#ignoreMethodVisibility()
-     * was called before the scan. If method visibility is ignored, the result may include a reference to a private
-     * static class initializer block, with a method name of {@code "<clinit>"}.
+     * was called before the scan.
      *
      * @return the list of MethodInfo objects for visible methods of this class, or the empty list if no methods
      *         were found or visible.
@@ -2110,7 +1401,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     /**
      * Returns information on visible methods and constructors of the class. There may be more than one method or
      * constructor or method of a given name with different type signatures, due to overloading. Constructors have
-     * the method name of {@code "<init>"}.
+     * the method name of {@code "<init>"} and static initializer blocks have the name of {@code "<clinit>"}.
      *
      * <p>
      * Requires that FastClasspathScanner#enableMethodInfo() be called before scanning, otherwise throws
@@ -2136,8 +1427,8 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     }
 
     /**
-     * Returns information on the method(s) of the class with the given method name. Constructors have the method
-     * name of {@code "<init>"}.
+     * Returns information on the method(s) or constructor(s) of the class with the given method name. Constructors
+     * have the method name of {@code "<init>"}.
      *
      * <p>
      * Requires that FastClasspathScanner#enableMethodInfo() be called before scanning, otherwise throws
@@ -2180,170 +1471,22 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     // Method annotations
 
     /**
-     * Get the direct method direct annotations on this class.
-     *
-     * @return the set of method direct annotations on this class, or the empty set if none.
-     */
-    public Set<ClassInfo> getMethodDirectAnnotations() {
-        return filterClassInfo(getDirectlyRelatedClasses(RelType.METHOD_ANNOTATIONS),
-                /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.ANNOTATION);
-    }
-
-    /**
      * Get the method annotations or meta-annotations on this class.
      *
-     * @return the set of method annotations or meta-annotations on this class, or the empty set if none.
+     * @return the list of method annotations or meta-annotations on this class, or the empty list if none.
      */
-    public Set<ClassInfo> getMethodAnnotations() {
-        return filterClassInfo(getReachableClasses(RelType.METHOD_ANNOTATIONS),
-                /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.ANNOTATION);
-    }
-
-    /**
-     * Get the names of method direct annotations on this class.
-     *
-     * @return the sorted list of names of method direct annotations on this class, or the empty list if none.
-     */
-    public List<String> getNamesOfMethodDirectAnnotations() {
-        return getClassNames(getMethodDirectAnnotations());
-    }
-
-    /**
-     * Get the names of method annotations or meta-annotations on this class.
-     *
-     * @return the sorted list of names of method annotations or meta-annotations on this class, or the empty list
-     *         if none.
-     */
-    public List<String> getNamesOfMethodAnnotations() {
-        return getClassNames(getMethodAnnotations());
-    }
-
-    /**
-     * Test whether this class has a method with the named method direct annotation.
-     *
-     * @param annotationName
-     *            The annotation name.
-     * @return true if this class has a method with the named direct annotation.
-     */
-    public boolean hasMethodWithDirectAnnotation(final String annotationName) {
-        return getNamesOfMethodDirectAnnotations().contains(annotationName);
-    }
-
-    /**
-     * Test whether this class has a method with the named method annotation or meta-annotation.
-     *
-     * @param annotationName
-     *            The annotation name.
-     * @return true if this class has a method with the named annotation or meta-annotation.
-     */
-    public boolean hasMethodWithAnnotation(final String annotationName) {
-        return getNamesOfMethodAnnotations().contains(annotationName);
-    }
-
-    // -------------
-
-    /**
-     * Get the classes that have a method with this direct annotation.
-     *
-     * @return the set of classes that have a method with this direct annotation, or the empty set if none.
-     */
-    public Set<ClassInfo> getClassesWithDirectMethodAnnotation() {
-        return filterClassInfo(getDirectlyRelatedClasses(RelType.CLASSES_WITH_METHOD_ANNOTATION),
-                /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.ALL);
+    public ClassInfoList getMethodAnnotations() {
+        return this.filterClassInfo(RelType.METHOD_ANNOTATIONS, ClassType.ANNOTATION);
     }
 
     /**
      * Get the classes that have a method with this annotation or meta-annotation.
      *
-     * @return the set of classes that have a method with this annotation or meta-annotation, or the empty set if
+     * @return the list of classes that have a method with this annotation or meta-annotation, or the empty list if
      *         none.
      */
-    public Set<ClassInfo> getClassesWithMethodAnnotation() {
-        return filterClassInfo(getReachableClasses(RelType.CLASSES_WITH_METHOD_ANNOTATION),
-                /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.ALL);
-    }
-
-    /**
-     * Get the names of classes that have a method with this direct annotation.
-     *
-     * @return the sorted list of names of classes that have a method with this direct annotation, or the empty list
-     *         if none.
-     */
-    public List<String> getNamesOfClassesWithDirectMethodAnnotation() {
-        return getClassNames(getClassesWithDirectMethodAnnotation());
-    }
-
-    /**
-     * Get the names of classes that have a method with this annotation.
-     *
-     * @return the sorted list of names of classes that have a method with this annotation, or the empty list if
-     *         none.
-     */
-    public List<String> getNamesOfClassesWithMethodAnnotation() {
-        return getClassNames(getClassesWithMethodAnnotation());
-    }
-
-    /**
-     * Test whether this annotation annotates or meta-annotates a method of the named class.
-     *
-     * @param className
-     *            The class name.
-     * @return true if this annotation annotates a method of the named class.
-     */
-    public boolean annotatesMethodOfClass(final String className) {
-        return getNamesOfClassesWithMethodAnnotation().contains(className);
-    }
-
-    /**
-     * Return a sorted list of classes that have a method directly annotated with the named annotation.
-     *
-     * @return the sorted list of names of classes that have a method with the named direct annotation, or the empty
-     *         list if none.
-     */
-    static List<String> getNamesOfClassesWithDirectMethodAnnotation(final String annotationName,
-            final Set<ClassInfo> allClassInfo) {
-        // This method will not likely be used for a large number of different annotation types, so perform a linear
-        // search on each invocation, rather than building an index on classpath scan (so we don't slow down more
-        // common methods).
-        final ArrayList<String> namesOfClassesWithNamedMethodAnnotation = new ArrayList<>();
-        for (final ClassInfo classInfo : allClassInfo) {
-            for (final ClassInfo annotationType : classInfo.getDirectlyRelatedClasses(RelType.METHOD_ANNOTATIONS)) {
-                if (annotationType.className.equals(annotationName)) {
-                    namesOfClassesWithNamedMethodAnnotation.add(classInfo.className);
-                    break;
-                }
-            }
-        }
-        if (!namesOfClassesWithNamedMethodAnnotation.isEmpty()) {
-            Collections.sort(namesOfClassesWithNamedMethodAnnotation);
-        }
-        return namesOfClassesWithNamedMethodAnnotation;
-    }
-
-    /**
-     * Return a sorted list of classes that have a method with the named annotation or meta-annotation.
-     *
-     * @return the sorted list of names of classes that have a method with the named annotation or meta-annotation,
-     *         or the empty list if none.
-     */
-    static List<String> getNamesOfClassesWithMethodAnnotation(final String annotationName,
-            final Set<ClassInfo> allClassInfo) {
-        // This method will not likely be used for a large number of different annotation types, so perform a linear
-        // search on each invocation, rather than building an index on classpath scan (so we don't slow down more
-        // common methods).
-        final ArrayList<String> namesOfClassesWithNamedMethodAnnotation = new ArrayList<>();
-        for (final ClassInfo classInfo : allClassInfo) {
-            for (final ClassInfo annotationType : classInfo.getReachableClasses(RelType.METHOD_ANNOTATIONS)) {
-                if (annotationType.className.equals(annotationName)) {
-                    namesOfClassesWithNamedMethodAnnotation.add(classInfo.className);
-                    break;
-                }
-            }
-        }
-        if (!namesOfClassesWithNamedMethodAnnotation.isEmpty()) {
-            Collections.sort(namesOfClassesWithNamedMethodAnnotation);
-        }
-        return namesOfClassesWithNamedMethodAnnotation;
+    public ClassInfoList getClassesWithMethodAnnotation() {
+        return this.filterClassInfo(RelType.CLASSES_WITH_METHOD_ANNOTATION, ClassType.ALL);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -2425,31 +1568,10 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     /**
      * Get the field annotations on this class.
      *
-     * @return the set of field annotations on this class, or the empty set if none.
+     * @return the list of field annotations on this class, or the empty list if none.
      */
-    public Set<ClassInfo> getFieldAnnotations() {
-        return filterClassInfo(getDirectlyRelatedClasses(RelType.FIELD_ANNOTATIONS),
-                /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.ANNOTATION);
-    }
-
-    /**
-     * Get the names of field annotations on this class.
-     *
-     * @return the sorted list of names of field annotations on this class, or the empty list if none.
-     */
-    public List<String> getNamesOfFieldAnnotations() {
-        return getClassNames(getFieldAnnotations());
-    }
-
-    /**
-     * Test whether this class has a field with the named field annotation.
-     *
-     * @param annotationName
-     *            The annotation name.
-     * @return true if this class has a field with the named annotation.
-     */
-    public boolean hasFieldWithAnnotation(final String annotationName) {
-        return getNamesOfFieldAnnotations().contains(annotationName);
+    public ClassInfoList getFieldAnnotations() {
+        return this.filterClassInfo(RelType.FIELD_ANNOTATIONS, ClassType.ANNOTATION);
     }
 
     // -------------
@@ -2457,104 +1579,10 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
     /**
      * Get the classes that have a field with this annotation or meta-annotation.
      *
-     * @return the set of classes that have a field with this annotation or meta-annotation, or the empty set if
+     * @return the list of classes that have a field with this annotation or meta-annotation, or the empty list if
      *         none.
      */
-    public Set<ClassInfo> getClassesWithFieldAnnotation() {
-        return filterClassInfo(getReachableClasses(RelType.CLASSES_WITH_FIELD_ANNOTATION),
-                /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.ALL);
-    }
-
-    /**
-     * Get the names of classes that have a field with this annotation or meta-annotation.
-     *
-     * @return the sorted list of names of classes that have a field with this annotation or meta-annotation, or the
-     *         empty list if none.
-     */
-    public List<String> getNamesOfClassesWithFieldAnnotation() {
-        return getClassNames(getClassesWithFieldAnnotation());
-    }
-
-    /**
-     * Get the classes that have a field with this direct annotation.
-     *
-     * @return the set of classes that have a field with this direct annotation, or the empty set if none.
-     */
-    public Set<ClassInfo> getClassesWithDirectFieldAnnotation() {
-        return filterClassInfo(getDirectlyRelatedClasses(RelType.CLASSES_WITH_FIELD_ANNOTATION),
-                /* removeExternalClassesIfStrictWhitelist = */ true, scanSpec, ClassType.ALL);
-    }
-
-    /**
-     * Get the names of classes that have a field with this direct annotation.
-     *
-     * @return the sorted list of names of classes that have a field with thisdirect annotation, or the empty list
-     *         if none.
-     */
-    public List<String> getNamesOfClassesWithDirectFieldAnnotation() {
-        return getClassNames(getClassesWithDirectFieldAnnotation());
-    }
-
-    /**
-     * Test whether this annotation annotates a field of the named class.
-     *
-     * @param className
-     *            The class name.
-     * @return true if this annotation annotates a field of the named class.
-     */
-    public boolean annotatesFieldOfClass(final String className) {
-        return getNamesOfClassesWithFieldAnnotation().contains(className);
-    }
-
-    /**
-     * Return a sorted list of classes that have a field with the named annotation or meta-annotation.
-     *
-     * @return the sorted list of names of classes that have a field with the named annotation or meta-annotation,
-     *         or the empty list if none.
-     */
-    static List<String> getNamesOfClassesWithFieldAnnotation(final String annotationName,
-            final Set<ClassInfo> allClassInfo) {
-        // This method will not likely be used for a large number of different annotation types, so perform a linear
-        // search on each invocation, rather than building an index on classpath scan (so we don't slow down more
-        // common methods).
-        final ArrayList<String> namesOfClassesWithNamedFieldAnnotation = new ArrayList<>();
-        for (final ClassInfo classInfo : allClassInfo) {
-            for (final ClassInfo annotationType : classInfo.getReachableClasses(RelType.FIELD_ANNOTATIONS)) {
-                if (annotationType.className.equals(annotationName)) {
-                    namesOfClassesWithNamedFieldAnnotation.add(classInfo.className);
-                    break;
-                }
-            }
-        }
-        if (!namesOfClassesWithNamedFieldAnnotation.isEmpty()) {
-            Collections.sort(namesOfClassesWithNamedFieldAnnotation);
-        }
-        return namesOfClassesWithNamedFieldAnnotation;
-    }
-
-    /**
-     * Return a sorted list of classes that have a field with the named annotation or direct annotation.
-     *
-     * @return the sorted list of names of classes that have a field with the named direct annotation, or the empty
-     *         list if none.
-     */
-    static List<String> getNamesOfClassesWithDirectFieldAnnotation(final String annotationName,
-            final Set<ClassInfo> allClassInfo) {
-        // This method will not likely be used for a large number of different annotation types, so perform a linear
-        // search on each invocation, rather than building an index on classpath scan (so we don't slow down more
-        // common methods).
-        final ArrayList<String> namesOfClassesWithNamedFieldAnnotation = new ArrayList<>();
-        for (final ClassInfo classInfo : allClassInfo) {
-            for (final ClassInfo annotationType : classInfo.getDirectlyRelatedClasses(RelType.FIELD_ANNOTATIONS)) {
-                if (annotationType.className.equals(annotationName)) {
-                    namesOfClassesWithNamedFieldAnnotation.add(classInfo.className);
-                    break;
-                }
-            }
-        }
-        if (!namesOfClassesWithNamedFieldAnnotation.isEmpty()) {
-            Collections.sort(namesOfClassesWithNamedFieldAnnotation);
-        }
-        return namesOfClassesWithNamedFieldAnnotation;
+    public ClassInfoList getClassesWithFieldAnnotation() {
+        return this.filterClassInfo(RelType.CLASSES_WITH_FIELD_ANNOTATION, ClassType.ALL);
     }
 }

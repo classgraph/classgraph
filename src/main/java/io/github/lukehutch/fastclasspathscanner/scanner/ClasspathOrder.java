@@ -43,7 +43,7 @@ public class ClasspathOrder {
     final ScanSpec scanSpec;
     final NestedJarHandler nestedJarHandler;
 
-    private final LinkedHashSet<RelativePath> classpathOrder = new LinkedHashSet<>();
+    private final LinkedHashSet<ClasspathElementPath> classpathOrder = new LinkedHashSet<>();
 
     ClasspathOrder(final ScanSpec scanSpec, final NestedJarHandler nestedJarHandler) {
         this.scanSpec = scanSpec;
@@ -51,7 +51,7 @@ public class ClasspathOrder {
     }
 
     /** Get the order of classpath elements. */
-    public LinkedHashSet<RelativePath> get() {
+    public LinkedHashSet<ClasspathElementPath> get() {
         return classpathOrder;
     }
 
@@ -99,7 +99,7 @@ public class ClasspathOrder {
                                             && pathElement.charAt(pathElement.length() - 2) == '/')))) {
                 // Got wildcard path element (allowable for local classpaths as of JDK 6)
                 try {
-                    final RelativePath classpathEltParentDirRelativePath = new RelativePath(
+                    final ClasspathElementPath classpathEltParentDirRelativePath = new ClasspathElementPath(
                             ClasspathFinder.currDirPathStr, pathElement.substring(0, pathElement.length() - 2),
                             classLoaders, nestedJarHandler, scanSpec, subLog);
                     final String classpathEltParentDirPath = classpathEltParentDirRelativePath.getResolvedPath();
@@ -148,8 +148,8 @@ public class ClasspathOrder {
                 return false;
             }
         } else {
-            final RelativePath classpathEltRelativePath = new RelativePath(ClasspathFinder.currDirPathStr,
-                    pathElement, classLoaders, nestedJarHandler, scanSpec, subLog);
+            final ClasspathElementPath classpathEltRelativePath = new ClasspathElementPath(
+                    ClasspathFinder.currDirPathStr, pathElement, classLoaders, nestedJarHandler, scanSpec, subLog);
             final String classpathEltPath = classpathEltRelativePath.getResolvedPath();
             if (!filter(classpathEltPath)) {
                 if (log != null) {

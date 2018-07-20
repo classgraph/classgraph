@@ -26,7 +26,7 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.lukehutch.fastclasspathscanner.scanner;
+package io.github.lukehutch.fastclasspathscanner.utils;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -34,7 +34,8 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
+import io.github.lukehutch.fastclasspathscanner.scanner.ModuleRef;
+import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
 
 /** A class to find the unique ordered classpath elements. */
 public class ClassLoaderAndModuleFinder {

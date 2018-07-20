@@ -34,15 +34,9 @@ import java.lang.annotation.RetentionPolicy;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Set;
 
 import io.github.lukehutch.fastclasspathscanner.scanner.AnnotationInfo.AnnotationClassRef;
-import io.github.lukehutch.fastclasspathscanner.scanner.AnnotationInfo.AnnotationEnumValue;
-import io.github.lukehutch.fastclasspathscanner.scanner.AnnotationInfo.AnnotationParamValue;
-//import io.github.lukehutch.fastclasspathscanner.typesignature.MethodTypeSignature;
-//import io.github.lukehutch.fastclasspathscanner.utils.Join;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
-import io.github.lukehutch.fastclasspathscanner.utils.MultiMapKeyToSet;
 
 /**
  * A classfile binary format parser. Implements its own buffering to avoid the overhead of using DataInputStream.
@@ -53,6 +47,7 @@ class ClassfileBinaryParser implements AutoCloseable {
     /**
      * The InputStream for the current classfile. Set by each call to readClassInfoFromClassfileHeader().
      */
+    // TODO: migrate this to ByteBuffer
     private InputStream inputStream;
 
     /**
@@ -655,7 +650,7 @@ class ClassfileBinaryParser implements AutoCloseable {
         final boolean isAnnotation = (classModifierFlags & 0x2000) != 0;
         final boolean isModule = (classModifierFlags & 0x8000) != 0;
 
-        // TODO: not yet processing module-info class files
+        // Ignore module-info.class
         if (isModule) {
             return null;
         }
@@ -704,11 +699,6 @@ class ClassfileBinaryParser implements AutoCloseable {
         }
 
         // Fields
-        final MultiMapKeyToSet<String, String> classNameToStaticFinalFieldsToMatch = scanSpec
-                .getClassNameToStaticFinalFieldsToMatch();
-        final Set<String> staticFinalFieldsToMatch = classNameToStaticFinalFieldsToMatch == null ? null
-                : classNameToStaticFinalFieldsToMatch.get(className);
-        final boolean matchStaticFinalFields = staticFinalFieldsToMatch != null;
         final int fieldCount = readUnsignedShort();
         for (int i = 0; i < fieldCount; i++) {
             // Info on modifier flags: http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.5
@@ -716,11 +706,9 @@ class ClassfileBinaryParser implements AutoCloseable {
             final boolean isPublicField = ((fieldModifierFlags & 0x0001) == 0x0001);
             final boolean isStaticFinalField = ((fieldModifierFlags & 0x0018) == 0x0018);
             final boolean fieldIsVisible = isPublicField || scanSpec.ignoreFieldVisibility;
-            final boolean matchThisStaticFinalField = matchStaticFinalFields && isStaticFinalField
-                    && fieldIsVisible;
-            if (!fieldIsVisible || //
-                    (!scanSpec.enableFieldInfo && !matchThisStaticFinalField
-                            && !scanSpec.enableFieldAnnotationIndexing)) {
+            final boolean getStaticFinalFieldConstValue = scanSpec.enableStaticFinalFieldConstValues
+                    && isStaticFinalField && fieldIsVisible;
+            if (!fieldIsVisible || (!scanSpec.enableFieldInfo && !getStaticFinalFieldConstValue)) {
                 // Skip field
                 readUnsignedShort(); // fieldNameCpIdx
                 readUnsignedShort(); // fieldTypeDescriptorCpIdx
@@ -733,13 +721,9 @@ class ClassfileBinaryParser implements AutoCloseable {
             } else {
                 final int fieldNameCpIdx = readUnsignedShort();
                 String fieldName = null;
-                boolean isMatchedFieldName = false;
-                if (matchThisStaticFinalField || scanSpec.enableFieldInfo) {
+                if (getStaticFinalFieldConstValue || scanSpec.enableFieldInfo) {
                     // Only decode fieldName if needed
                     fieldName = getConstantPoolString(fieldNameCpIdx);
-                    if (matchThisStaticFinalField && staticFinalFieldsToMatch.contains(fieldName)) {
-                        isMatchedFieldName = true;
-                    }
                 }
                 final int fieldTypeDescriptorCpIdx = readUnsignedShort();
                 final char fieldTypeDescriptorFirstChar = (char) getConstantPoolStringFirstByte(
@@ -752,7 +736,6 @@ class ClassfileBinaryParser implements AutoCloseable {
                 }
 
                 Object fieldConstValue = null;
-                boolean foundFieldConstValue = false;
                 List<AnnotationInfo> fieldAnnotationInfo = null;
                 final int attributesCount = readUnsignedShort();
                 for (int j = 0; j < attributesCount; j++) {
@@ -760,21 +743,20 @@ class ClassfileBinaryParser implements AutoCloseable {
                     final int attributeLength = readInt(); // == 2
                     // See if field name matches one of the requested names for this class, and if it does, check if
                     // it is initialized with a constant value
-                    if ((isMatchedFieldName || scanSpec.enableFieldInfo)
+                    if ((getStaticFinalFieldConstValue || scanSpec.enableFieldInfo)
                             && constantPoolStringEquals(attributeNameCpIdx, "ConstantValue")) {
                         // http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.7.2
                         final int cpIdx = readUnsignedShort();
                         fieldConstValue = getFieldConstantPoolValue(tag[cpIdx], fieldTypeDescriptorFirstChar,
                                 cpIdx);
                         // Store static final field match in ClassInfo object
-                        if (isMatchedFieldName) {
+                        if (getStaticFinalFieldConstValue) {
                             classInfoUnlinked.addFieldConstantValue(fieldName, fieldConstValue);
                         }
-                        foundFieldConstValue = true;
                     } else if (scanSpec.enableFieldInfo && fieldIsVisible
                             && constantPoolStringEquals(attributeNameCpIdx, "Signature")) {
                         fieldTypeSignature = getConstantPoolString(readUnsignedShort());
-                    } else if ((scanSpec.enableFieldInfo || scanSpec.enableFieldAnnotationIndexing)
+                    } else if (scanSpec.enableFieldInfo //
                             && (constantPoolStringEquals(attributeNameCpIdx, "RuntimeVisibleAnnotations")
                                     || (scanSpec.annotationVisibility == RetentionPolicy.CLASS
                                             && constantPoolStringEquals(attributeNameCpIdx,
@@ -786,35 +768,12 @@ class ClassfileBinaryParser implements AutoCloseable {
                         }
                         for (int k = 0; k < fieldAnnotationCount; k++) {
                             final AnnotationInfo fieldAnnotation = readAnnotation();
-                            if (scanSpec.enableFieldAnnotationIndexing) {
-                                classInfoUnlinked.addFieldAnnotation(fieldAnnotation);
-                            }
+                            classInfoUnlinked.addFieldAnnotation(fieldAnnotation);
                             fieldAnnotationInfo.add(fieldAnnotation);
                         }
                     } else {
                         // No match, just skip attribute
                         skip(attributeLength);
-                    }
-                    if (isMatchedFieldName && !foundFieldConstValue && log != null) {
-                        boolean reasonFound = false;
-                        if (!isStaticFinalField) {
-                            log.log("Requested static final field match " //
-                                    + classInfoUnlinked.className + "." + getConstantPoolString(fieldNameCpIdx)
-                                    + " is not declared as static final");
-                            reasonFound = true;
-                        }
-                        if (!isPublicField && !scanSpec.ignoreFieldVisibility) {
-                            log.log("Requested static final field match " //
-                                    + classInfoUnlinked.className + "." + getConstantPoolString(fieldNameCpIdx)
-                                    + " is not declared as public, and ignoreFieldVisibility was not set to"
-                                    + " true before scan");
-                            reasonFound = true;
-                        }
-                        if (!reasonFound) {
-                            log.log("Requested static final field match " //
-                                    + classInfoUnlinked.className + "." + getConstantPoolString(fieldNameCpIdx)
-                                    + " does not have a constant literal initializer value");
-                        }
                     }
                 }
                 if (scanSpec.enableFieldInfo && fieldIsVisible) {
@@ -849,8 +808,7 @@ class ClassfileBinaryParser implements AutoCloseable {
             AnnotationInfo[][] methodParameterAnnotations = null;
             List<AnnotationParamValue> annotationParamDefaultValues = null;
             List<AnnotationInfo> methodAnnotationInfo = null;
-            if (!methodIsVisible
-                    || (!scanSpec.enableMethodInfo && !isAnnotation && !scanSpec.enableMethodAnnotationIndexing)) {
+            if (!methodIsVisible || (!scanSpec.enableMethodInfo && !isAnnotation)) {
                 // Skip method attributes
                 for (int j = 0; j < attributesCount; j++) {
                     skip(2); // attribute_name_index
@@ -871,7 +829,7 @@ class ClassfileBinaryParser implements AutoCloseable {
                         }
                         for (int k = 0; k < methodAnnotationCount; k++) {
                             final AnnotationInfo annotationInfo = readAnnotation();
-                            if (scanSpec.enableMethodAnnotationIndexing) {
+                            if (scanSpec.enableMethodInfo) {
                                 classInfoUnlinked.addMethodAnnotation(annotationInfo);
                             }
                             methodAnnotationInfo.add(annotationInfo);

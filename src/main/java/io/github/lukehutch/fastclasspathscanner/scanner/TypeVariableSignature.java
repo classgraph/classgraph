@@ -26,15 +26,15 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.lukehutch.fastclasspathscanner.typesignature;
+package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
-import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
 import io.github.lukehutch.fastclasspathscanner.utils.Parser;
 import io.github.lukehutch.fastclasspathscanner.utils.Parser.ParseException;
+import io.github.lukehutch.fastclasspathscanner.utils.TypeUtils;
 
 /** A type variable signature. */
 public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
@@ -46,6 +46,17 @@ public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
 
     /** The class signature that this type variable is part of, or the enclosing class, if this is a method. */
     ClassTypeSignature containingClassSignature;
+
+    @Override
+    void setScanResult(final ScanResult scanResult) {
+        super.setScanResult(scanResult);
+        if (this.containingMethodSignature != null) {
+            this.containingMethodSignature.setScanResult(scanResult);
+        }
+        if (this.containingClassSignature != null) {
+            this.containingClassSignature.setScanResult(scanResult);
+        }
+    }
 
     /**
      * @param typeVariableName
@@ -102,8 +113,12 @@ public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
     }
 
     @Override
-    public Class<?> instantiate(final ScanResult scanResult) {
-        throw new RuntimeException("Cannot instantiate a type variable");
+    public Class<?> instantiate(final boolean ignoreExceptions) {
+        if (ignoreExceptions) {
+            return null;
+        } else {
+            throw new IllegalArgumentException("Cannot instantiate a type variable");
+        }
     }
 
     @Override
