@@ -1260,6 +1260,10 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         corresponding to this ClassInfo class, or the empty list if none.
      */
     public ClassInfoList getClassesWithAnnotation() {
+        if (!scanSpec.enableAnnotationInfo) {
+            throw new IllegalArgumentException("Cannot get classes with annotation without calling "
+                    + "FastClasspathScanner#enableAnnotationInfo() before starting the scan");
+        }
         if (!isAnnotation()) {
             return ClassInfoList.EMPTY_LIST;
         }
@@ -1294,6 +1298,10 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         none.
      */
     public List<AnnotationInfo> getAnnotationInfo() {
+        if (!scanSpec.enableAnnotationInfo) {
+            throw new IllegalArgumentException("Cannot get annotation info without calling "
+                    + "FastClasspathScanner#enableAnnotationInfo() before starting the scan");
+        }
         return annotationInfo == null ? Collections.<AnnotationInfo> emptyList() : annotationInfo;
     }
 
@@ -1305,6 +1313,10 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         default parameter values for this annotation, otherwise the empty list.
      */
     public List<AnnotationParamValue> getAnnotationDefaultParamValues() {
+        if (!scanSpec.enableAnnotationInfo) {
+            throw new IllegalArgumentException("Cannot get annotation default parameter values without calling "
+                    + "FastClasspathScanner#enableAnnotationInfo() before starting the scan");
+        }
         return annotationDefaultParamValues == null ? Collections.<AnnotationParamValue> emptyList()
                 : annotationDefaultParamValues;
     }
@@ -1316,6 +1328,10 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         none (or if this is not an annotation class).
      */
     public ClassInfoList getAnnotations() {
+        if (!scanSpec.enableAnnotationInfo) {
+            throw new IllegalArgumentException("Cannot get annotations without calling "
+                    + "FastClasspathScanner#enableAnnotationInfo() before starting the scan");
+        }
         return !isAnnotation() ? ClassInfoList.EMPTY_LIST
                 : this.filterClassInfo(RelType.CLASS_ANNOTATIONS, ClassType.ALL);
     }
@@ -1475,6 +1491,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return the list of method annotations or meta-annotations on this class, or the empty list if none.
      */
     public ClassInfoList getMethodAnnotations() {
+        if (!scanSpec.enableAnnotationInfo || !scanSpec.enableMethodInfo) {
+            throw new IllegalArgumentException("Cannot get method annotations without calling "
+                    + "FastClasspathScanner#enableAnnotationInfo() and FastClasspathScanner#enableMethodInfo() "
+                    + "before starting the scan");
+        }
         return this.filterClassInfo(RelType.METHOD_ANNOTATIONS, ClassType.ANNOTATION);
     }
 
@@ -1485,6 +1506,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         none.
      */
     public ClassInfoList getClassesWithMethodAnnotation() {
+        if (!scanSpec.enableAnnotationInfo || !scanSpec.enableMethodInfo) {
+            throw new IllegalArgumentException("Cannot get classes with method annotation without calling "
+                    + "FastClasspathScanner#enableAnnotationInfo() and FastClasspathScanner#enableMethodInfo() "
+                    + "before starting the scan");
+        }
         return this.filterClassInfo(RelType.CLASSES_WITH_METHOD_ANNOTATION, ClassType.ALL);
     }
 
@@ -1570,6 +1596,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return the list of field annotations on this class, or the empty list if none.
      */
     public ClassInfoList getFieldAnnotations() {
+        if (!scanSpec.enableAnnotationInfo || !scanSpec.enableFieldInfo) {
+            throw new IllegalArgumentException("Cannot get field annotations without calling "
+                    + "FastClasspathScanner#enableAnnotationInfo() and FastClasspathScanner#enableFieldInfo() "
+                    + "before starting the scan");
+        }
         return this.filterClassInfo(RelType.FIELD_ANNOTATIONS, ClassType.ANNOTATION);
     }
 
@@ -1582,6 +1613,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         none.
      */
     public ClassInfoList getClassesWithFieldAnnotation() {
+        if (!scanSpec.enableAnnotationInfo || !scanSpec.enableFieldInfo) {
+            throw new IllegalArgumentException("Cannot get classes with field annotation without calling "
+                    + "FastClasspathScanner#enableAnnotationInfo() and FastClasspathScanner#enableFieldInfo() "
+                    + "before starting the scan");
+        }
         return this.filterClassInfo(RelType.CLASSES_WITH_FIELD_ANNOTATION, ClassType.ALL);
     }
 }

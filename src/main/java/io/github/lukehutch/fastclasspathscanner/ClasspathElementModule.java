@@ -241,9 +241,11 @@ class ClasspathElementModule extends ClasspathElement {
                         subLog.log(relativePath, "Found whitelisted file: " + relativePath);
                     }
 
-                    // Store relative paths of any classfiles encountered
-                    if (FileUtils.isClassfile(relativePath)) {
-                        classfileMatches.add(newClasspathResource(relativePath));
+                    if (scanSpec.scanClassfiles) {
+                        // Store relative paths of any classfiles encountered
+                        if (FileUtils.isClassfile(relativePath)) {
+                            classfileMatches.add(newClasspathResource(relativePath));
+                        }
                     }
 
                     // Record all classpath resources found in whitelisted paths

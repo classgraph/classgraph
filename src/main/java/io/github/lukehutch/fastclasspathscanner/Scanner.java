@@ -369,6 +369,11 @@ public class Scanner implements Callable<ScanResult> {
                                             preScanLog.log("Ignoring because directory scanning has been disabled: "
                                                     + rawClasspathEltPath);
                                         }
+                                    } else if (isModule && !scanSpec.scanModules) {
+                                        if (preScanLog != null) {
+                                            preScanLog.log("Ignoring because module scanning has been disabled: "
+                                                    + rawClasspathEltPath);
+                                        }
                                     } else {
                                         // Classpath element is valid, add as a singleton. This will trigger calling
                                         // the ClasspathElementZip constructor in the case of jarfiles, which will
@@ -425,7 +430,14 @@ public class Scanner implements Callable<ScanResult> {
             }
 
             ScanResult scanResult;
-            if (enableRecursiveScanning) {
+            if (!enableRecursiveScanning) {
+                // This is the result of a call to FastClasspathScanner#getUniqueClasspathElements(), so just
+                // create placeholder ScanResult to contain classpathElementFilesOrdered.
+                scanResult = new ScanResult(scanSpec, classpathOrder, classLoaderOrder,
+                        /* classNameToClassInfo = */ null, /* fileToLastModified = */ null, nestedJarHandler, log);
+
+            } else {
+                // Perform scan of the classpath
 
                 // Find classpath elements that are path prefixes of other classpath elements
                 final List<SimpleEntry<String, ClasspathElement>> classpathEltResolvedPathToElement = //
@@ -523,134 +535,135 @@ public class Scanner implements Callable<ScanResult> {
                     fileToLastModified.putAll(classpathElement.fileToLastModified);
                 }
 
-                // Scan classfile binary headers in parallel
-                final ConcurrentLinkedQueue<ClassInfoUnlinked> classInfoUnlinked = //
-                        new ConcurrentLinkedQueue<>();
-                final LogNode classfileScanLog = log == null ? null : log.log("Scanning classfile binary headers");
-                try (final Recycler<ClassfileBinaryParser, RuntimeException> classfileBinaryParserRecycler = //
-                        new Recycler<ClassfileBinaryParser, RuntimeException>() {
-                            @Override
-                            public ClassfileBinaryParser newInstance() {
-                                return new ClassfileBinaryParser();
-                            }
-                        }) {
-                    final List<ClassfileParserChunk> classfileParserChunks = getClassfileParserChunks(
-                            classpathOrder);
-                    WorkQueue.runWorkQueue(classfileParserChunks, executorService, numParallelTasks,
-                            new WorkUnitProcessor<ClassfileParserChunk>() {
-                                @Override
-                                public void processWorkUnit(final ClassfileParserChunk chunk) throws Exception {
-                                    ClassfileBinaryParser classfileBinaryParser = null;
-                                    try {
-                                        classfileBinaryParser = classfileBinaryParserRecycler.acquire();
-                                        chunk.classpathElement.parseClassfiles(classfileBinaryParser,
-                                                chunk.classfileStartIdx, chunk.classfileEndIdx, classInfoUnlinked,
-                                                classfileScanLog);
-                                    } finally {
-                                        classfileBinaryParserRecycler.release(classfileBinaryParser);
-                                        classfileBinaryParser = null;
-                                    }
-                                }
-                            }, interruptionChecker, classfileScanLog);
-                }
-                if (classfileScanLog != null) {
-                    classfileScanLog.addElapsedTime();
-                }
-
-                // If we need to create a single custom classloader that can load all matched classes
-                if (scanSpec.createClassLoaderForMatchingClasses) {
-                    final LogNode classLoaderLog = classfileScanLog == null ? null
-                            : classfileScanLog
-                                    .log("Creating custom URLClassLoader for classpath elements containing "
-                                            + "matching classes");
-
-                    final Set<ClasspathElement> classpathElementsWithMatchedClasses = new HashSet<>();
-                    for (final ClassInfoUnlinked c : classInfoUnlinked) {
-                        classpathElementsWithMatchedClasses.add(c.classpathElement);
-                    }
-                    // Need to keep URLs in same relative order, but only include URLs for classpath elements
-                    // that contained matched classes, for efficiency
-                    final List<URL> urlOrder = new ArrayList<>(classpathOrder.size());
-                    for (final ClasspathElement classpathElement : classpathOrder) {
-                        if (classpathElementsWithMatchedClasses.contains(classpathElement)) {
-                            try {
-                                // Don't try to get classpath URL for modules (classloading from modules
-                                // will be handled by parent classloader)
-                                final ModuleRef modRef = classpathElement.getClasspathElementModuleRef();
-                                if (modRef == null) {
-                                    final File classpathEltFile = classpathElement.classpathEltPath
-                                            .getFile(classLoaderLog);
-                                    final URL url = classpathEltFile.toURI().toURL();
-                                    urlOrder.add(url);
-                                    if (classLoaderLog != null) {
-                                        classLoaderLog.log(classpathElement + " -> " + url);
-                                    }
-                                }
-                            } catch (final Exception e) {
-                                if (classLoaderLog != null) {
-                                    classLoaderLog
-                                            .log("Cannot convert file to URL: " + classpathElement + " : " + e);
-                                }
-                            }
-                        }
-                    }
-                    // Build a custom URLClassLoader that contains all the URLs for jars / package root dirs
-                    // for matched classes
-                    final ClassLoader parentClassLoader = classLoaderOrder == null || classLoaderOrder.length == 0
-                            ? null
-                            : classLoaderOrder[0];
-                    @SuppressWarnings("resource")
-                    final URLClassLoader customClassLoader = new URLClassLoader(
-                            urlOrder.toArray(new URL[urlOrder.size()]), parentClassLoader);
-                    // Replace the ClassLoaders in all classpath elements that contained matched classes
-                    for (final ClasspathElement classpathElement : classpathElementsWithMatchedClasses) {
-                        final ClassLoader[] oldClassLoaders = classpathElement.classpathEltPath.classLoaders;
-                        // Prepend the new ClassLoader to the ClassLoader order (the older ClassLoaders should
-                        // never be called, but we may as well leave them there in the array anyway)
-                        final ClassLoader[] newClassLoaders = new ClassLoader[oldClassLoaders == null ? 1
-                                : 1 + oldClassLoaders.length];
-                        newClassLoaders[0] = customClassLoader;
-                        if (oldClassLoaders != null) {
-                            for (int i = 0; i < oldClassLoaders.length; i++) {
-                                newClassLoaders[i + 1] = oldClassLoaders[i];
-                            }
-                        }
-                        // Replace the classloaders for this classpath element with the new classloader order
-                        classpathElement.classpathEltPath.classLoaders = newClassLoaders;
-                    }
-                }
-
-                // Build the class graph: convert ClassInfoUnlinked to linked ClassInfo objects.
-                final LogNode classGraphLog = log == null ? null : log.log("Building class graph");
                 final Map<String, ClassInfo> classNameToClassInfo = new HashMap<>();
-                for (final ClassInfoUnlinked c : classInfoUnlinked) {
-                    // Need to do two passes, so that annotation default parameter vals are available when linking
-                    // non-attribute classes. In first pass, link annotations with default parameter vals.
-                    if (c.annotationParamDefaultValues != null) {
-                        c.link(scanSpec, classNameToClassInfo, classGraphLog);
+                if (!scanSpec.scanClassfiles) {
+                    if (log != null) {
+                        log.log("Classfile scanning is disabled");
                     }
-                }
-                for (final ClassInfoUnlinked c : classInfoUnlinked) {
-                    // In second pass, link everything else.
-                    if (c.annotationParamDefaultValues == null) {
-                        // Create ClassInfo object from ClassInfoUnlinked object, and link into class graph
-                        c.link(scanSpec, classNameToClassInfo, classGraphLog);
+                } else {
+                    // Scan classfile binary headers in parallel
+                    final ConcurrentLinkedQueue<ClassInfoUnlinked> classInfoUnlinked = //
+                            new ConcurrentLinkedQueue<>();
+                    final LogNode classfileScanLog = log == null ? null
+                            : log.log("Scanning classfile binary headers");
+                    try (final Recycler<ClassfileBinaryParser, RuntimeException> classfileBinaryParserRecycler = //
+                            new Recycler<ClassfileBinaryParser, RuntimeException>() {
+                                @Override
+                                public ClassfileBinaryParser newInstance() {
+                                    return new ClassfileBinaryParser();
+                                }
+                            }) {
+                        final List<ClassfileParserChunk> classfileParserChunks = getClassfileParserChunks(
+                                classpathOrder);
+                        WorkQueue.runWorkQueue(classfileParserChunks, executorService, numParallelTasks,
+                                new WorkUnitProcessor<ClassfileParserChunk>() {
+                                    @Override
+                                    public void processWorkUnit(final ClassfileParserChunk chunk) throws Exception {
+                                        ClassfileBinaryParser classfileBinaryParser = null;
+                                        try {
+                                            classfileBinaryParser = classfileBinaryParserRecycler.acquire();
+                                            chunk.classpathElement.parseClassfiles(classfileBinaryParser,
+                                                    chunk.classfileStartIdx, chunk.classfileEndIdx,
+                                                    classInfoUnlinked, classfileScanLog);
+                                        } finally {
+                                            classfileBinaryParserRecycler.release(classfileBinaryParser);
+                                            classfileBinaryParser = null;
+                                        }
+                                    }
+                                }, interruptionChecker, classfileScanLog);
                     }
-                }
-                // Create ClassGraphBuilder
-                if (classGraphLog != null) {
-                    classGraphLog.addElapsedTime();
+                    if (classfileScanLog != null) {
+                        classfileScanLog.addElapsedTime();
+                    }
+
+                    // If we need to create a single custom classloader that can load all matched classes
+                    if (scanSpec.createClassLoaderForMatchingClasses) {
+                        final LogNode classLoaderLog = classfileScanLog == null ? null
+                                : classfileScanLog
+                                        .log("Creating custom URLClassLoader for classpath elements containing "
+                                                + "matching classes");
+
+                        final Set<ClasspathElement> classpathElementsWithMatchedClasses = new HashSet<>();
+                        for (final ClassInfoUnlinked c : classInfoUnlinked) {
+                            classpathElementsWithMatchedClasses.add(c.classpathElement);
+                        }
+                        // Need to keep URLs in same relative order, but only include URLs for classpath elements
+                        // that contained matched classes, for efficiency
+                        final List<URL> urlOrder = new ArrayList<>(classpathOrder.size());
+                        for (final ClasspathElement classpathElement : classpathOrder) {
+                            if (classpathElementsWithMatchedClasses.contains(classpathElement)) {
+                                try {
+                                    // Don't try to get classpath URL for modules (classloading from modules
+                                    // will be handled by parent classloader)
+                                    final ModuleRef modRef = classpathElement.getClasspathElementModuleRef();
+                                    if (modRef == null) {
+                                        final File classpathEltFile = classpathElement.classpathEltPath
+                                                .getFile(classLoaderLog);
+                                        final URL url = classpathEltFile.toURI().toURL();
+                                        urlOrder.add(url);
+                                        if (classLoaderLog != null) {
+                                            classLoaderLog.log(classpathElement + " -> " + url);
+                                        }
+                                    }
+                                } catch (final Exception e) {
+                                    if (classLoaderLog != null) {
+                                        classLoaderLog
+                                                .log("Cannot convert file to URL: " + classpathElement + " : " + e);
+                                    }
+                                }
+                            }
+                        }
+                        // Build a custom URLClassLoader that contains all the URLs for jars / package root dirs
+                        // for matched classes
+                        final ClassLoader parentClassLoader = classLoaderOrder == null
+                                || classLoaderOrder.length == 0 ? null : classLoaderOrder[0];
+                        @SuppressWarnings("resource")
+                        final URLClassLoader customClassLoader = new URLClassLoader(
+                                urlOrder.toArray(new URL[urlOrder.size()]), parentClassLoader);
+                        // Replace the ClassLoaders in all classpath elements that contained matched classes
+                        for (final ClasspathElement classpathElement : classpathElementsWithMatchedClasses) {
+                            final ClassLoader[] oldClassLoaders = classpathElement.classpathEltPath.classLoaders;
+                            // Prepend the new ClassLoader to the ClassLoader order (the older ClassLoaders should
+                            // never be called, but we may as well leave them there in the array anyway)
+                            final ClassLoader[] newClassLoaders = new ClassLoader[oldClassLoaders == null ? 1
+                                    : 1 + oldClassLoaders.length];
+                            newClassLoaders[0] = customClassLoader;
+                            if (oldClassLoaders != null) {
+                                for (int i = 0; i < oldClassLoaders.length; i++) {
+                                    newClassLoaders[i + 1] = oldClassLoaders[i];
+                                }
+                            }
+                            // Replace the classloaders for this classpath element with the new classloader order
+                            classpathElement.classpathEltPath.classLoaders = newClassLoaders;
+                        }
+                    }
+
+                    // Build the class graph: convert ClassInfoUnlinked to linked ClassInfo objects.
+                    final LogNode classGraphLog = log == null ? null : log.log("Building class graph");
+                    for (final ClassInfoUnlinked c : classInfoUnlinked) {
+                        // Need to do two passes, so that annotation default parameter vals are available when linking
+                        // non-attribute classes. In first pass, link annotations with default parameter vals.
+                        if (c.annotationParamDefaultValues != null) {
+                            c.link(scanSpec, classNameToClassInfo, classGraphLog);
+                        }
+                    }
+                    for (final ClassInfoUnlinked c : classInfoUnlinked) {
+                        // In second pass, link everything else.
+                        if (c.annotationParamDefaultValues == null) {
+                            // Create ClassInfo object from ClassInfoUnlinked object, and link into class graph
+                            c.link(scanSpec, classNameToClassInfo, classGraphLog);
+                        }
+                    }
+                    // Create ClassGraphBuilder
+                    if (classGraphLog != null) {
+                        classGraphLog.addElapsedTime();
+                    }
                 }
 
                 // Create ScanResult
                 scanResult = new ScanResult(scanSpec, classpathOrder, classLoaderOrder, classNameToClassInfo,
                         fileToLastModified, nestedJarHandler, log);
 
-            } else {
-                // This is the result of a call to FastClasspathScanner#getUniqueClasspathElementsAsync(), so just
-                // create placeholder ScanResult to contain classpathElementFilesOrdered.
-                scanResult = new ScanResult(scanSpec, classpathOrder, classLoaderOrder,
-                        /* classNameToClassInfo = */ null, /* fileToLastModified = */ null, nestedJarHandler, log);
             }
             if (log != null) {
                 log.log("Completed scan", System.nanoTime() - scanStart);

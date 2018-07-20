@@ -29,10 +29,8 @@
 package io.github.lukehutch.fastclasspathscanner;
 
 import java.io.File;
-import java.lang.annotation.RetentionPolicy;
 import java.net.URL;
 import java.util.List;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -61,15 +59,6 @@ public class FastClasspathScanner {
 
     /** The scanning specification, parsed. */
     private ScanSpec scanSpec;
-
-    /** The unique classpath elements. */
-    private List<File> classpathElts;
-
-    /** The unique classpath element URLs. */
-    private List<URL> classpathEltURLs;
-
-    /** The FastClasspathScanner version. */
-    private static String version;
 
     /**
      * The default number of worker threads to use while scanning. This number gave the best results on a relatively
@@ -112,10 +101,7 @@ public class FastClasspathScanner {
      * @return the FastClasspathScanner version, or "unknown" if it could not be determined.
      */
     public static final String getVersion() {
-        if (version == null) {
-            version = VersionFinder.getVersion();
-        }
-        return version;
+        return VersionFinder.getVersion();
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -134,285 +120,185 @@ public class FastClasspathScanner {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Switches on verbose mode for debugging purposes if verbose == true. Call immediately after calling the
-     * constructor if you want full log output. Prints debug info to System.err.
+     * Switches on verbose logging to System.err.
      *
-     * @param verbose
-     *            Whether or not to give verbose output.
      * @return this (for method chaining).
      */
-    public FastClasspathScanner verbose(final boolean verbose) {
-        if (verbose) {
-            if (log == null) {
-                log = new LogNode();
-            }
-        } else {
-            log = null;
+    public FastClasspathScanner verbose() {
+        if (log == null) {
+            log = new LogNode();
         }
         return this;
     }
 
     /**
-     * Switches on verbose mode for debugging purposes. Call immediately after calling the constructor if you want
-     * full log output. Prints debug info to System.err.
-     *
-     * @return this (for method chaining).
-     */
-    public FastClasspathScanner verbose() {
-        verbose(true);
-        return this;
-    }
-
-    /**
-     * If ignoreFieldVisibility is true, causes FastClasspathScanner to ignore field visibility, enabling it to see
-     * private, package-private and protected fields. This affects finding classes with fields of a given type, as
-     * well as matching static final fields with constant initializers, and saving FieldInfo for the class. If
-     * false, fields must be public to be indexed/matched.
-     *
-     * @param ignoreFieldVisibility
-     *            Whether or not to ignore the field visibility modifier.
-     * @return this (for method chaining).
-     */
-    public FastClasspathScanner ignoreFieldVisibility(final boolean ignoreFieldVisibility) {
-        getScanSpec().ignoreFieldVisibility = ignoreFieldVisibility;
-        return this;
-    }
-
-    /**
-     * This method causes FastClasspathScanner to ignore field visibility, enabling it to see private,
-     * package-private and protected fields. This affects finding classes with fields of a given type, as well as
-     * matching static final fields with constant initializers, and saving FieldInfo for the class. If false, fields
-     * must be public to be indexed/matched.
+     * Causes field visibility to be ignored, enabling private, package-private and protected fields to be scanned.
+     * This affects finding classes with fields of a given type, as well as matching static final fields with
+     * constant initializers, and saving FieldInfo for the class. If false, fields must be public to be
+     * indexed/matched.
      *
      * @return this (for method chaining).
      */
     public FastClasspathScanner ignoreFieldVisibility() {
-        ignoreFieldVisibility(true);
+        getScanSpec().ignoreFieldVisibility = true;
         return this;
     }
 
     /**
-     * If ignoreMethodVisibility is true, causes FastClasspathScanner to ignore method visibility, enabling it to
-     * see private, package-private and protected methods. This affects finding classes that have methods with a
-     * given annotation, and also the saving of MethodInfo for the class. If false, methods must be public for the
-     * containing classes to be indexed/matched.
-     *
-     * @param ignoreMethodVisibility
-     *            Whether or not to ignore the method visibility modifier.
-     * @return this (for method chaining).
-     */
-    public FastClasspathScanner ignoreMethodVisibility(final boolean ignoreMethodVisibility) {
-        getScanSpec().ignoreMethodVisibility = ignoreMethodVisibility;
-        return this;
-    }
-
-    /**
-     * This method causes FastClasspathScanner to ignore method visibility, enabling it to see private,
-     * package-private and protected methods. This affects finding classes that have methods with a given
-     * annotation, and also the saving of MethodInfo for the class. If false, methods must be public for the
-     * containing classes to be indexed/matched.
+     * Causes method visibility to be ignored, enabling private, package-private and protected methods to be
+     * scanned. This affects finding classes that have methods with a given annotation, and also the saving of
+     * MethodInfo for the class. If false, methods must be public for the containing classes to be indexed/matched.
      *
      * @return this (for method chaining).
      */
     public FastClasspathScanner ignoreMethodVisibility() {
-        ignoreMethodVisibility(true);
-        return this;
-    }
-
-    /**
-     * If enableFieldInfo is true, enables the saving of field info during the scan. This information can be
-     * obtained using ClassInfo#getFieldInfo(). By default, field info is not saved, because enabling this option
-     * will cause the scan to take somewhat longer and potentially consume a lot more memory.
-     *
-     * @param enableFieldInfo
-     *            If true, save field info while scanning. (Default false.)
-     * @return this (for method chaining).
-     */
-    public FastClasspathScanner enableFieldInfo(final boolean enableFieldInfo) {
-        getScanSpec().enableFieldInfo = enableFieldInfo;
+        getScanSpec().ignoreMethodVisibility = true;
         return this;
     }
 
     /**
      * Enables the saving of field info during the scan. This information can be obtained using
-     * ClassInfo#getFieldInfo(). By default, field info is not saved, because enabling this option will cause the
-     * scan to take somewhat longer and potentially consume a lot more memory.
+     * {@link ClassInfo#getFieldInfo()}. By default, field info is not scanned, for efficiency.
      *
      * @return this (for method chaining).
      */
     public FastClasspathScanner enableFieldInfo() {
-        return enableFieldInfo(true);
+        getScanSpec().enableFieldInfo = true;
+        return this;
     }
 
     /**
-     * If enableMethodInfo is true, enables the saving of method info during the scan. This information can be
-     * obtained using ClassInfo#getMethodInfo(). By default, method info is not saved, because enabling this option
-     * will cause the scan to take somewhat longer and potentially consume a lot more memory.
+     * Enables the saving of static final field constant initializer values. By default, constant initializer values
+     * are not stored, for efficiency. Calls {@link #enableFieldInfo}.
      *
-     * @param enableMethodInfo
-     *            If true, save method info while scanning. (Default false.)
      * @return this (for method chaining).
      */
-    public FastClasspathScanner enableMethodInfo(final boolean enableMethodInfo) {
-        getScanSpec().enableMethodInfo = enableMethodInfo;
+    public FastClasspathScanner enableStaticFinalFieldConstValues() {
+        enableFieldInfo();
+        getScanSpec().enableAnnotationInfo = true;
         return this;
     }
 
     /**
      * Enables the saving of method info during the scan. This information can be obtained using
-     * ClassInfo#getMethodInfo(). By default, method info is not saved, because enabling this option will cause the
-     * scan to take somewhat longer and potentially consume a lot more memory.
+     * {@link ClassInfo#getMethodInfo()} etc. By default, method info is not scanned, for efficiency.
      *
      * @return this (for method chaining).
      */
     public FastClasspathScanner enableMethodInfo() {
-        return enableMethodInfo(true);
+        getScanSpec().enableMethodInfo = true;
+        return this;
     }
 
     /**
-     * Allows you to scan default packages (with package name "") without scanning sub-packages unless they are
-     * whitelisted. This is needed because if you add the package name "" to the whitelist, that package and all
-     * sub-packages will be scanned, which means everything will be scanned. This method makes it possible to
-     * whitelist just the toplevel (default) package but not its sub-packages.
+     * Enables the saving of annotation info (for class, field, method and method parameter annotations) during the
+     * scan. This information can be obtained using {@link ClassInfo#getAnnotationInfo()} etc. By default,
+     * annotation info is not scanned, for efficiency.
      *
-     * @param alwaysScanClasspathElementRoot
-     *            If true, always scan the classpath element root, regardless of the whitelist or blacklist.
      * @return this (for method chaining).
      */
-    public FastClasspathScanner alwaysScanClasspathElementRoot(final boolean alwaysScanClasspathElementRoot) {
-        if (alwaysScanClasspathElementRoot) {
-            getScanSpec().whitelistedPathsNonRecursive.add("");
-            getScanSpec().whitelistedPathsNonRecursive.add("/");
-        } else {
-            getScanSpec().whitelistedPathsNonRecursive.remove("");
-            getScanSpec().whitelistedPathsNonRecursive.remove("/");
-        }
+    public FastClasspathScanner enableAnnotationInfo() {
+        getScanSpec().enableAnnotationInfo = true;
+        return this;
+    }
+
+    /**
+     * Causes only runtime visible annotations to be scanned (runtime invisible annotations will be ignored).
+     *
+     * @return this (for method chaining).
+     */
+    public FastClasspathScanner disableRuntimeInvisibleAnnotations() {
+        getScanSpec().disableRuntimeInvisibleAnnotations = true;
+        return this;
+    }
+
+    /**
+     * Disables the scanning of classfiles (causes only resources to be obtainable from the {@link ScanResult}, not
+     * {@link ClassInfo} objects).
+     *
+     * @return this (for method chaining).
+     */
+    public FastClasspathScanner disableClassfileScanning() {
+        getScanSpec().scanClassfiles = false;
+        return this;
+    }
+
+    /**
+     * Disables the scanning of jarfiles.
+     *
+     * @return this (for method chaining).
+     */
+    public FastClasspathScanner disableJarScanning() {
+        getScanSpec().scanJars = false;
+        return this;
+    }
+
+    /**
+     * Disables the scanning of directories.
+     *
+     * @return this (for method chaining).
+     */
+    public FastClasspathScanner disableDirScanning() {
+        getScanSpec().scanDirs = false;
+        return this;
+    }
+
+    /**
+     * Disables the scanning of modules.
+     *
+     * @return this (for method chaining).
+     */
+    public FastClasspathScanner disableModuleScanning() {
+        getScanSpec().scanModules = false;
         return this;
     }
 
     /**
      * Allows you to scan default packages (with package name "") without scanning sub-packages unless they are
-     * whitelisted. This is needed because if you add the package name "" to the whitelist, that package and all
-     * sub-packages will be scanned, which means everything will be scanned. This method makes it possible to
-     * whitelist just the toplevel (default) package but not its sub-packages.
+     * whitelisted. This may be needed in some cases because if you add the package name "" to the whitelist, that
+     * package and all sub-packages (meaning everything) will be scanned. This method makes it possible to whitelist
+     * just the toplevel (default) package but not its sub-packages.
      *
      * @return this (for method chaining).
      */
     public FastClasspathScanner alwaysScanClasspathElementRoot() {
-        return alwaysScanClasspathElementRoot(true);
-    }
-
-    /**
-     * If strictWhitelist is true, switches FastClasspathScanner to strict mode, which disallows searching/matching
-     * based on blacklisted classes, and removes "external" classes from result lists returned by ScanSpec#get...()
-     * methods. (External classes are classes outside of whitelisted packages that are directly referred to by
-     * classes within whitelisted packages as a superclass, implemented interface or annotation.)
-     *
-     * <p>
-     * Deprecated (and now has no effect) -- non-strict mode is now the default (as of version 3.0.2). Use
-     * {@link #enableExternalClasses()} to disable strict mode.
-     * 
-     * <p>
-     * See the following for info on external classes, and strict mode vs. non-strict mode:
-     *
-     * <p>
-     * https://github.com/lukehutch/fast-classpath-scanner/wiki/2.-Constructor#external-classes
-     *
-     * @param strictWhitelist
-     *            Whether or not to switch to strict mode.
-     * @return this (for method chaining).
-     */
-    @Deprecated
-    public FastClasspathScanner strictWhitelist(final boolean strictWhitelist) {
+        // TODO: add method for whitelisting directories non-recursively
+        getScanSpec().whitelistedPathsNonRecursive.add("");
+        getScanSpec().whitelistedPathsNonRecursive.add("/");
         return this;
     }
 
     /**
-     * Switches FastClasspathScanner to strict mode, which disallows searching/matching based on blacklisted
-     * classes, and removes "external" classes from result lists returned by ScanSpec#get...() methods. (External
-     * classes are classes outside of whitelisted packages that are directly referred to by classes within
-     * whitelisted packages as a superclass, implemented interface or annotation.)
-     * 
-     * <p>
-     * Deprecated (and now has no effect)-- non-strict mode is the default (as of version 3.0.2). Use
-     * {@link #enableExternalClasses()} to disable strict mode.
-     *
-     * <p>
-     * See the following for info on external classes, and strict mode vs. non-strict mode:
-     *
-     * <p>
-     * https://github.com/lukehutch/fast-classpath-scanner/wiki/2.-Constructor#external-classes
-     *
-     * @return this (for method chaining).
-     */
-    @Deprecated
-    public FastClasspathScanner strictWhitelist() {
-        return this;
-    }
-
-    /**
-     * Causes FastClasspathScanner to return matching classes that are not in the whitelisted packages, but that are
-     * directly referred to by classes within whitelisted packages as a superclass, implemented interface or
-     * annotation.
-     *
-     * <p>
-     * See the following for info on external classes, and strict mode vs. non-strict mode:
-     *
-     * <p>
-     * https://github.com/lukehutch/fast-classpath-scanner/wiki/2.-Constructor#external-classes
-     *
-     * @return this (for method chaining).
-     */
-    public FastClasspathScanner enableExternalClasses(final boolean enableExternalClasses) {
-        getScanSpec().enableExternalClasses = enableExternalClasses;
-        return this;
-    }
-
-    /**
-     * Causes FastClasspathScanner to return matching classes that are not in the whitelisted packages, but that are
-     * directly referred to by classes within whitelisted packages as a superclass, implemented interface or
-     * annotation.
-     *
-     * <p>
-     * See the following for info on external classes, and strict mode vs. non-strict mode:
-     *
-     * <p>
-     * https://github.com/lukehutch/fast-classpath-scanner/wiki/2.-Constructor#external-classes
+     * Causes FastClasspathScanner to return classes that are not in the whitelisted packages, but that are directly
+     * referred to by classes within whitelisted packages as a superclass, implemented interface or annotation.
      *
      * @return this (for method chaining).
      */
     public FastClasspathScanner enableExternalClasses() {
-        enableExternalClasses(true);
+        getScanSpec().enableExternalClasses = true;
         return this;
     }
 
     /**
-     * If initializeLoadedClasses is true, classes loaded with Class.forName() are initialized before passing class
-     * references to MatchProcessors. If false (the default), matched classes are loaded but not initialized before
-     * passing class references to MatchProcessors (meaning classes are instead initialized lazily on first usage of
-     * the class).
+     * Causes classes loaded using {@link ClassInfo#getClassRef()} to be are initialized after class loading (the
+     * default is to not initialize classes).
      *
-     * @param initializeLoadedClasses
-     *            Whether or not to initialize classes before passing class references to MatchProcessors. (The
-     *            default value is false.)
      * @return this (for method chaining).
      */
-    public FastClasspathScanner initializeLoadedClasses(final boolean initializeLoadedClasses) {
-        getScanSpec().initializeLoadedClasses = initializeLoadedClasses;
+    public FastClasspathScanner initializeLoadedClasses() {
+        getScanSpec().initializeLoadedClasses = true;
         return this;
     }
 
     /**
-     * If true, nested jarfiles (jarfiles within jarfiles, which have to be extracted during scanning in order to be
-     * read) are removed from their temporary directory as soon as the scan has completed. If false (the default),
-     * temporary files removed by the {@link ScanResult} finalizer, or on JVM exit.
+     * Remove temporary files, including nested jarfiles (jarfiles within jarfiles, which have to be extracted
+     * during scanning in order to be read) from their temporary directory as soon as the scan has completed. The
+     * default is for temporary files to be removed by the {@link ScanResult} finalizer, or on JVM exit.
      *
-     * @param removeTemporaryFilesAfterScan
-     *            Whether or not to remove temporary files after scanning. (The default value is true.)
      * @return this (for method chaining).
      */
-    public FastClasspathScanner removeTemporaryFilesAfterScan(final boolean removeTemporaryFilesAfterScan) {
-        getScanSpec().removeTemporaryFilesAfterScan = removeTemporaryFilesAfterScan;
+    public FastClasspathScanner removeTemporaryFilesAfterScan() {
+        getScanSpec().removeTemporaryFilesAfterScan = true;
         return this;
     }
 
@@ -423,34 +309,21 @@ public class FastClasspathScanner {
      *
      * @return this (for method chaining).
      */
+    // TODO: remove this option, and make all whitelisting / blacklisting specified as either recursive or not
     public FastClasspathScanner disableRecursiveScanning() {
-        return disableRecursiveScanning(true);
-    }
-
-    /**
-     * If true, disable recursive scanning. Causes only toplevel entries within each whitelisted package to be
-     * scanned, i.e. sub-packages of whitelisted packages will not be scanned. If no whitelisted packages were
-     * provided to the constructor, then only the toplevel directory within each classpath element will be scanned.
-     * If false (the default), whitelisted paths and their subdirectories will be scanned.
-     *
-     * @param disableRecursiveScanning
-     *            Whether or not to disable recursive scanning. (The default value is false.)
-     * @return this (for method chaining).
-     */
-    public FastClasspathScanner disableRecursiveScanning(final boolean disableRecursiveScanning) {
-        getScanSpec().disableRecursiveScanning = disableRecursiveScanning;
+        getScanSpec().disableRecursiveScanning = true;
         return this;
     }
 
     /**
      * Manually strip the self extracting executable header from zipfiles (i.e. anything before the magic marker
-     * "PK", e.g. a Bash script added by Spring-Boot). Slightly increases scanning time, since zipfiles have to be
-     * opened twice (once as a byte stream, to check if there is an SFX header, then once as a ZipFile, for
-     * decompression).
+     * "PK", e.g. a Bash script added by Spring-Boot). Increases scanning time, since zipfiles have to be opened
+     * twice (once as a byte stream, to check if there is an SFX header, then once as a ZipFile, for decompression).
      * 
+     * <p>
      * Should only be needed in rare cases, where you are dealing with jarfiles with prepended (ZipSFX) headers,
-     * where your JVM does not already automatically skip forward to the first "PK" marker (Oracle JVM on Linux does
-     * this automatically).
+     * where your JVM does not already automatically skip forward to the first "PK" marker (most JVMs should do this
+     * automatically, so this option should not be needed).
      * 
      * @return this (for method chaining).
      */
@@ -490,6 +363,8 @@ public class FastClasspathScanner {
         getScanSpec().registerClassLoaderHandler(classLoaderHandlerClass);
         return this;
     }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Override the automatically-detected classpath with a custom path, with path elements separated by
@@ -548,6 +423,8 @@ public class FastClasspathScanner {
         return this;
     }
 
+    // -------------------------------------------------------------------------------------------------------------
+
     /**
      * Add a classpath element filter. The includeClasspathElement method should return true if the path string
      * passed to it is a path you want to scan.
@@ -555,14 +432,14 @@ public class FastClasspathScanner {
     @FunctionalInterface
     public interface ClasspathElementFilter {
         /**
-         * @param classpathElementString
+         * @param classpathElementPathStr
          *            The path string of a classpath element, normalized so that the path separator is '/'. This
          *            will usually be a file path, but could be a URL, or it could be a path for a nested jar, where
          *            the paths are separated using '!', in Java convention. "jar:" and/or "file:" will have been
          *            stripped from the beginning, if they were present in the classpath.
          * @return true if the path string passed is a path you want to scan.
          */
-        public boolean includeClasspathElement(String classpathElementString);
+        public boolean includeClasspathElement(String classpathElementPathStr);
     }
 
     /**
@@ -578,6 +455,8 @@ public class FastClasspathScanner {
         getScanSpec().filterClasspathElements(classpathElementFilter);
         return this;
     }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Add a ClassLoader to the list of ClassLoaders to scan.
@@ -613,24 +492,6 @@ public class FastClasspathScanner {
         return this;
     }
 
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Ignore parent classloaders (i.e. only obtain paths to scan from classloader(s), do not also fetch paths from
-     * parent classloader(s)).
-     *
-     * <p>
-     * This call is ignored if overrideClasspath() is called.
-     *
-     * @param ignoreParentClassLoaders
-     *            If true, do not fetch paths from parent classloaders.
-     * @return this (for method chaining).
-     */
-    public FastClasspathScanner ignoreParentClassLoaders(final boolean ignoreParentClassLoaders) {
-        getScanSpec().ignoreParentClassLoaders = ignoreParentClassLoaders;
-        return this;
-    }
-
     /**
      * Ignore parent classloaders (i.e. only obtain paths to scan from classloader(s), do not also fetch paths from
      * parent classloader(s)).
@@ -642,26 +503,6 @@ public class FastClasspathScanner {
      */
     public FastClasspathScanner ignoreParentClassLoaders() {
         getScanSpec().ignoreParentClassLoaders = true;
-        return this;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Set annotation visibility (to match the annotation retention policy).
-     *
-     * @param annotationVisibility
-     *            The annotation visibility: RetentionPolicy.RUNTIME matches only runtime-visible annotations. The
-     *            default value, RetentionPolicy.CLASS, matches all annotations (both runtime-visible and
-     *            runtime-invisible). RetentionPolicy.SOURCE will cause an IllegalArgumentException to be thrown,
-     *            since SOURCE-annotated annotations are not retained in classfiles.
-     * @return this (for method chaining).
-     */
-    public FastClasspathScanner setAnnotationVisibility(final RetentionPolicy annotationVisibility) {
-        if (annotationVisibility == RetentionPolicy.SOURCE) {
-            throw new IllegalArgumentException("RetentionPolicy.SOURCE annotations are not retained in classfiles");
-        }
-        getScanSpec().annotationVisibility = annotationVisibility;
         return this;
     }
 
@@ -703,28 +544,6 @@ public class FastClasspathScanner {
     }
 
     /**
-     * Asynchronously scans the classpath for matching files, and if runAsynchronously is true, also calls any
-     * MatchProcessors if a match is identified.
-     *
-     * @param executorService
-     *            A custom ExecutorService to use for scheduling worker tasks.
-     * @param numParallelTasks
-     *            The number of parallel tasks to break the work into during the most CPU-intensive stage of
-     *            classpath scanning. Ideally the ExecutorService will have at least this many threads available.
-     * @param runMatchProcessorsOnWorkerThread
-     *            If true, run MatchProcessors in one of the worker threads after obtaining the ScanResult.
-     * @return a Future<ScanResult> object, that when resolved using get() yields a new ScanResult object. You can
-     *         call cancel(true) on this Future if you want to interrupt the scan.
-     */
-    private Future<ScanResult> scanAsync(final ExecutorService executorService, final int numParallelTasks,
-            final boolean isAsyncScan, final boolean runMatchProcessorsOnWorkerThread) {
-        return executorService.submit(
-                // Call MatchProcessors before returning if in async scanning mode
-                new Scanner(getScanSpec(), executorService, numParallelTasks, /* enableRecursiveScanning = */ true,
-                        /* scanResultProcessor = */ null, /* failureHandler = */ null, log));
-    }
-
-    /**
      * Asynchronously scans the classpath for matching files, and calls any MatchProcessors if a match is
      * identified. Returns a Future object immediately after starting the scan. To block on scan completion, get the
      * result of the returned Future. Uses the provided ExecutorService, and divides the work according to the
@@ -752,8 +571,10 @@ public class FastClasspathScanner {
      *         classloading failed for some class, or a MatchProcessor threw an exception.
      */
     public Future<ScanResult> scanAsync(final ExecutorService executorService, final int numParallelTasks) {
-        return scanAsync(executorService, numParallelTasks, /* isAsyncScan = */ true,
-                /* runMatchProcessorsOnWorkerThread = */ true);
+        return executorService.submit(
+                // Call MatchProcessors before returning if in async scanning mode
+                new Scanner(getScanSpec(), executorService, numParallelTasks, /* enableRecursiveScanning = */ true,
+                        /* scanResultProcessor = */ null, /* failureHandler = */ null, log));
     }
 
     /**
@@ -770,10 +591,6 @@ public class FastClasspathScanner {
      * @param numParallelTasks
      *            The number of parallel tasks to break the work into during the most CPU-intensive stage of
      *            classpath scanning. Ideally the ExecutorService will have at least this many threads available.
-     * @throws ScanInterruptedException
-     *             if any of the worker threads are interrupted during the scan. If you care about thread
-     *             interruption, you should catch this exception. If you don't plan to interrupt the scan, you
-     *             probably don't need to catch this.
      * @throws RuntimeException
      *             if any of the worker threads throws an uncaught exception. (Should not happen, this would
      *             indicate a bug in FastClasspathScanner.)
@@ -782,12 +599,13 @@ public class FastClasspathScanner {
      */
     public ScanResult scan(final ExecutorService executorService, final int numParallelTasks) {
         try {
-            // Start the scan
-            final Future<ScanResult> scanFuture = scanAsync(executorService, numParallelTasks,
-                    /* isAsyncScan = */ false, /* runMatchProcessorsOnWorkerThread = */ false);
-
-            // Wait for scan completion
-            final ScanResult scanResult = scanFuture.get();
+            // Start the scan and wait for completion
+            final ScanResult scanResult = executorService.submit(
+                    // Call MatchProcessors before returning if in async scanning mode
+                    new Scanner(getScanSpec(), executorService, numParallelTasks,
+                            /* enableRecursiveScanning = */ true, /* scanResultProcessor = */ null,
+                            /* failureHandler = */ null, log)) //
+                    .get();
 
             // // TODO: test serialization and deserialization by serializing and then deserializing the ScanResult 
             // final String scanResultJson = scanResult.toJSON();
@@ -800,7 +618,7 @@ public class FastClasspathScanner {
             if (log != null) {
                 log.log("Scan interrupted");
             }
-            throw new ScanInterruptedException();
+            throw new IllegalArgumentException("Scan interrupted", e);
         } catch (final ExecutionException e) {
             Throwable cause = e.getCause();
             if (cause == null) {
@@ -810,7 +628,7 @@ public class FastClasspathScanner {
                 if (log != null) {
                     log.log("Scan interrupted");
                 }
-                throw new ScanInterruptedException();
+                throw new IllegalArgumentException("Scan interrupted", e);
             } else {
                 if (log != null) {
                     log.log("Unexpected exception during scan", e);
@@ -832,9 +650,6 @@ public class FastClasspathScanner {
      *
      * @param numThreads
      *            The number of worker threads to start up.
-     * @throws ScanInterruptedException
-     *             if any of the worker threads are interrupted during the scan (shouldn't happen under normal
-     *             circumstances).
      * @throws RuntimeException
      *             if any of the worker threads throws an uncaught exception. (Should not happen, this would
      *             indicate a bug in FastClasspathScanner.)
@@ -853,9 +668,6 @@ public class FastClasspathScanner {
      * scan to complete before returning a ScanResult. This method should be called after all required
      * MatchProcessors have been added.
      *
-     * @throws ScanInterruptedException
-     *             if any of the worker threads are interrupted during the scan (shouldn't happen under normal
-     *             circumstances).
      * @throws RuntimeException
      *             if any of the worker threads throws an uncaught exception. (Should not happen, this would
      *             indicate a bug in FastClasspathScanner.)
@@ -869,311 +681,94 @@ public class FastClasspathScanner {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Asynchronously returns the list of all unique File objects representing directories or zip/jarfiles on the
-     * classpath, in classloader resolution order. Classpath elements that do not exist are not included in the
-     * list.
+     * Returns the list of all unique File objects representing directories or zip/jarfiles on the classpath, in
+     * classloader resolution order. Will cause "http://" and "https://" classpath element URLs to be downloaded to
+     * a temporary file, and inner zipfiles (jars within jars) to be extracted to temporary files. Classpath
+     * elements that do not exist as a file or directory, including JPMS modules that are not backed by a "file:/"
+     * URL, are not included in the returned list.
      *
-     * <p>
-     * See the following for info on thread safety:
-     *
-     * <p>
-     * https://github.com/lukehutch/fast-classpath-scanner/wiki/1.-Usage#multithreading-issues
-     *
-     * <p>
-     * Note that if there are nested jarfiles on the classpath, e.g. {@code
-     * file:///path/to/jar1.jar!/path/to/jar2.jar}, then both FastClasspathScanner#scanAsync() and
-     * FastClasspathScanner#getUniqueClasspathElementsAsync() will cause jar2.jar to be extracted to a temporary
-     * file, however FastClasspathScanner#getUniqueClasspathElementsAsync() will not remove this temporary file
-     * after the scan (so that the file is still accessible to the caller -- each of the File objects in the
-     * returned list of classpath elements should exist). These extracted temporary files are marked for deletion on
-     * JVM exit, however.
-     *
-     * @param executorService
-     *            A custom ExecutorService to use for scheduling worker tasks.
-     * @param numParallelTasks
-     *            The number of parallel tasks to break the work into during the most CPU-intensive stage of
-     *            classpath scanning. Ideally the ExecutorService will have at least this many threads available.
-     * @return a {@code Future<List<File>>}, that when resolved with get() returns a list of the unique directories
-     *         and jarfiles on the classpath, in classpath resolution order. You can call cancel(true) on this
-     *         Future if you want to interrupt the process (although the result is typically returned quickly).
+     * @return a {@code List<File>} consisting of the unique directories and jarfiles on the classpath, in classpath
+     *         resolution order.
      */
-    public Future<List<File>> getUniqueClasspathElementsAsync(final ExecutorService executorService,
-            final int numParallelTasks) {
-        // No need to call disallowCallingFromClassInitializer() here, because no MatchProcessors are run, so class
-        // initializer deadlock cannot occur.
-        final Future<List<File>> classpathElementsFuture;
+    public List<File> getUniqueClasspathElements() {
         try {
-            final Future<ScanResult> scanResultFuture = executorService.submit( //
-                    new Scanner(getScanSpec(), executorService, numParallelTasks,
-                            /* enableRecursiveScanning = */ false, /* scanResultProcessor = */ null,
-                            /* failureHandler = */ null,
-                            log == null ? null : log.log("Getting unique classpath elements")));
-            classpathElementsFuture = executorService.submit(new Callable<List<File>>() {
-                @Override
-                public List<File> call() throws Exception {
-                    final ScanResult scanResult = scanResultFuture.get();
-                    final List<File> uniqueClasspathElements = scanResult.getUniqueClasspathElements();
-                    // N.B. scanResult.freeTempFiles() is *not* called for this method, so that the classpath
-                    // elements resulting from jars within jars are left in place. However, they are cleaned up on
-                    // normal JVM exit.
-                    return uniqueClasspathElements;
-                }
-            });
+            try (AutoCloseableExecutorService executorService = new AutoCloseableExecutorService(
+                    DEFAULT_NUM_WORKER_THREADS)) {
+                return executorService.submit( //
+                        new Scanner(getScanSpec(), executorService, DEFAULT_NUM_WORKER_THREADS,
+                                /* enableRecursiveScanning = */ false, /* scanResultProcessor = */ null,
+                                /* failureHandler = */ null,
+                                log == null ? null : log.log("Getting unique classpath elements")))
+                        .get().getUniqueClasspathElements();
+            }
+        } catch (final InterruptedException e) {
+            if (log != null) {
+                log.log("Thread interrupted while getting classpath elements");
+            }
+            throw new IllegalArgumentException("Scan interrupted", e);
+        } catch (final ExecutionException e) {
+            if (log != null) {
+                log.log("Exception while getting classpath elements", e);
+            }
+            final Throwable cause = e.getCause();
+            throw new RuntimeException(cause == null ? e : cause);
         } finally {
             if (log != null) {
                 log.flush();
             }
         }
-        return classpathElementsFuture;
     }
 
     /**
      * Returns the list of all unique File objects representing directories or zip/jarfiles on the classpath, in
-     * classloader resolution order. Classpath elements that do not exist are not included in the list. Blocks until
-     * the result can be returned, when all classpath elements have been found and tested to see if they exist in
-     * the filesystem.
+     * classloader resolution order, in the form of a classpath path string. Will cause "http://" and "https://"
+     * classpath element URLs to be downloaded to a temporary file, and inner zipfiles (jars within jars) to be
+     * extracted to temporary files. Classpath elements that do not exist as a file or directory, including JPMS
+     * modules that are not backed by a "file:/" URL, are not included in the returned list.
      *
-     * <p>
-     * Note that if there are nested jarfiles on the classpath, e.g. {@code
-     * file:///path/to/jar1.jar!/path/to/jar2.jar}, then both FastClasspathScanner#scan() and
-     * FastClasspathScanner#getUniqueClasspathElements() will cause jar2.jar to be extracted to a temporary file,
-     * however FastClasspathScanner#getUniqueClasspathElements() will not remove this temporary file after the scan
-     * (so that the file is still accessible to the caller -- each of the File objects in the returned list of
-     * classpath elements should exist). These extracted temporary files are marked for deletion on JVM exit,
-     * however.
-     *
-     * @param executorService
-     *            A custom ExecutorService to use for scheduling worker tasks.
-     * @param numParallelTasks
-     *            The number of parallel tasks to break the work into during the most CPU-intensive stage of
-     *            classpath scanning. Ideally the ExecutorService will have at least this many threads available.
-     * @throws ScanInterruptedException
-     *             if any of the worker threads are interrupted during the scan. If you care about thread
-     *             interruption, you should catch this exception. If you don't plan to interrupt the scan, you
-     *             probably don't need to catch this.
-     * @return a {@code List<File>} consisting of the unique directories and jarfiles on the classpath, in classpath
-     *         resolution order.
-     */
-    public List<File> getUniqueClasspathElements(final ExecutorService executorService,
-            final int numParallelTasks) {
-        if (classpathElts == null) {
-            try {
-                classpathElts = getUniqueClasspathElementsAsync(executorService, numParallelTasks).get();
-            } catch (final InterruptedException e) {
-                if (log != null) {
-                    log.log("Thread interrupted while getting classpath elements");
-                }
-                throw new ScanInterruptedException();
-            } catch (final ExecutionException e) {
-                if (log != null) {
-                    log.log("Exception while getting classpath elements", e);
-                }
-                final Throwable cause = e.getCause();
-                throw new RuntimeException(cause == null ? e : cause);
-            } finally {
-                if (log != null) {
-                    log.flush();
-                }
-            }
-        }
-        return classpathElts;
-    }
-
-    /**
-     * Returns the list of all unique File objects representing directories or zip/jarfiles on the classpath, in
-     * classloader resolution order. Classpath elements that do not exist are not included in the list. Blocks until
-     * the result can be returned, when all classpath elements have been found and tested to see if they exist in
-     * the filesystem.
-     *
-     * <p>
-     * Note that if there are nested jarfiles on the classpath, e.g. {@code
-     * file:///path/to/jar1.jar!/path/to/jar2.jar}, then both FastClasspathScanner#scan() and
-     * FastClasspathScanner#getUniqueClasspathElements() will cause jar2.jar to be extracted to a temporary file,
-     * however FastClasspathScanner#getUniqueClasspathElements() will not remove this temporary file after the scan
-     * (so that the file is still accessible to the caller -- each of the File objects in the returned list of
-     * classpath elements should exist). These extracted temporary files are marked for deletion on JVM exit,
-     * however.
-     *
-     * @throws ScanInterruptedException
-     *             if any of the worker threads are interrupted during the scan (shouldn't happen under normal
-     *             circumstances).
-     * @return a {@code List<File>} consisting of the unique directories and jarfiles on the classpath, in classpath
-     *         resolution order.
-     */
-    public List<File> getUniqueClasspathElements() {
-        if (classpathElts == null) {
-            try (AutoCloseableExecutorService executorService = new AutoCloseableExecutorService(
-                    DEFAULT_NUM_WORKER_THREADS)) {
-                return getUniqueClasspathElements(executorService, DEFAULT_NUM_WORKER_THREADS);
-            }
-        }
-        return classpathElts;
-    }
-
-    /**
-     * Returns all unique directories or zip/jarfiles on the classpath, in classloader resolution order, as a
-     * classpath string, delineated with the standard path separator character. Classpath elements that do not exist
-     * are not included in the path. Blocks until the result can be returned, when all classpath elements have been
-     * found and tested to see if they exist in the filesystem.
-     *
-     * <p>
-     * Note that if there are nested jarfiles on the classpath, e.g. {@code
-     * file:///path/to/jar1.jar!/path/to/jar2.jar}, then both FastClasspathScanner#scan() and
-     * FastClasspathScanner#getUniqueClasspathElements() will cause jar2.jar to be extracted to a temporary file,
-     * however FastClasspathScanner#getUniqueClasspathElements() will not remove this temporary file after the scan
-     * (so that the file is still accessible to the caller -- each of the File objects in the returned list of
-     * classpath elements should exist). These extracted temporary files are marked for deletion on JVM exit,
-     * however.
-     *
-     * @throws ScanInterruptedException
-     *             if any of the worker threads are interrupted during the scan (shouldn't happen under normal
-     *             circumstances).
-     * @return a the unique directories and jarfiles on the classpath, in classpath resolution order, as a path
-     *         string.
+     * @return a classpath path string consisting of the unique directories and jarfiles on the classpath, in
+     *         classpath resolution order.
      */
     public String getUniqueClasspathElementsAsPathStr() {
         return JarUtils.pathElementsToPathStr(getUniqueClasspathElements());
     }
 
     /**
-     * Asynchronously returns the list of all unique URLs representing directories or zip/jarfiles on the classpath,
-     * in classloader resolution order. Classpath elements that do not exist are not included in the list.
+     * Returns the list of all unique URL objects representing directories, zip/jarfiles or modules on the
+     * classpath, in classloader resolution order. Will cause "http://" and "https://" classpath element URLs to be
+     * downloaded to a temporary file, and inner zipfiles (jars within jars) to be extracted to temporary files.
+     * Classpath elements representing jarfiles or directories that do not exist are not included in the returned
+     * list.
      *
-     * <p>
-     * See the following for info on thread safety:
-     *
-     * <p>
-     * https://github.com/lukehutch/fast-classpath-scanner/wiki/1.-Usage#multithreading-issues
-     *
-     * <p>
-     * Note that if there are nested jarfiles on the classpath, e.g. {@code
-     * file:///path/to/jar1.jar!/path/to/jar2.jar}, then both FastClasspathScanner#scanAsync() and
-     * FastClasspathScanner#getUniqueClasspathElementsAsync() will cause jar2.jar to be extracted to a temporary
-     * file, however FastClasspathScanner#getUniqueClasspathElementURLsAsync() will not remove this temporary file
-     * after the scan (so that the file is still accessible to the caller -- each of the File objects in the
-     * returned list of classpath elements should exist). These extracted temporary files are marked for deletion on
-     * JVM exit, however.
-     *
-     * @param executorService
-     *            A custom ExecutorService to use for scheduling worker tasks.
-     * @param numParallelTasks
-     *            The number of parallel tasks to break the work into during the most CPU-intensive stage of
-     *            classpath scanning. Ideally the ExecutorService will have at least this many threads available.
-     * @return a {@code Future<List<URL>>}, that when resolved with get() returns a list of URLs for the unique
-     *         directories and jarfiles on the classpath, in classpath resolution order. You can call cancel(true)
-     *         on this Future if you want to interrupt the process (although the result is typically returned
-     *         quickly).
+     * @return a classpath path string consisting of the unique directories and jarfiles on the classpath, in
+     *         classpath resolution order.
      */
-    public Future<List<URL>> getUniqueClasspathElementURLsAsync(final ExecutorService executorService,
-            final int numParallelTasks) {
-        // No need to call disallowCallingFromClassInitializer() here, because no MatchProcessors are run, so class
-        // initializer deadlock cannot occur.
-        final Future<List<URL>> classpathElementsFuture;
+    public List<URL> getUniqueClasspathElementURLs() {
         try {
-            final Future<ScanResult> scanResultFuture = executorService.submit( //
-                    new Scanner(getScanSpec(), executorService, numParallelTasks,
-                            /* enableRecursiveScanning = */ false, /* scanResultProcessor = */ null,
-                            /* failureHandler = */ null,
-                            log == null ? null : log.log("Getting unique classpath elements")));
-            classpathElementsFuture = executorService.submit(new Callable<List<URL>>() {
-                @Override
-                public List<URL> call() throws Exception {
-                    final ScanResult scanResult = scanResultFuture.get();
-                    final List<URL> uniqueClasspathElementURLs = scanResult.getUniqueClasspathElementURLs();
-                    // N.B. scanResult.freeTempFiles() is *not* called for this method, so that the classpath
-                    // elements resulting from jars within jars are left in place. However, they are cleaned up on
-                    // normal JVM exit.
-                    return uniqueClasspathElementURLs;
-                }
-            });
+            try (AutoCloseableExecutorService executorService = new AutoCloseableExecutorService(
+                    DEFAULT_NUM_WORKER_THREADS)) {
+                return executorService.submit( //
+                        new Scanner(getScanSpec(), executorService, DEFAULT_NUM_WORKER_THREADS,
+                                /* enableRecursiveScanning = */ false, /* scanResultProcessor = */ null,
+                                /* failureHandler = */ null,
+                                log == null ? null : log.log("Getting unique classpath elements")))
+                        .get().getUniqueClasspathElementURLs();
+            }
+        } catch (final InterruptedException e) {
+            if (log != null) {
+                log.log("Thread interrupted while getting classpath elements");
+            }
+            throw new IllegalArgumentException("Scan interrupted", e);
+        } catch (final ExecutionException e) {
+            if (log != null) {
+                log.log("Exception while getting classpath elements", e);
+            }
+            final Throwable cause = e.getCause();
+            throw new RuntimeException(cause == null ? e : cause);
         } finally {
             if (log != null) {
                 log.flush();
             }
         }
-        return classpathElementsFuture;
-    }
-
-    /**
-     * Returns the list of all unique URL objects representing directories or zip/jarfiles on the classpath, in
-     * classloader resolution order. Classpath elements that do not exist are not included in the list. Blocks until
-     * the result can be returned, when all classpath elements have been found and tested to see if they exist in
-     * the filesystem.
-     *
-     * <p>
-     * Note that if there are nested jarfiles on the classpath, e.g. {@code
-     * file:///path/to/jar1.jar!/path/to/jar2.jar}, then both FastClasspathScanner#scan() and
-     * FastClasspathScanner#getUniqueClasspathElements() will cause jar2.jar to be extracted to a temporary file,
-     * however FastClasspathScanner#getUniqueClasspathElementURLs() will not remove this temporary file after the
-     * scan (so that the file is still accessible to the caller -- each of the File objects in the returned list of
-     * classpath elements should exist). These extracted temporary files are marked for deletion on JVM exit,
-     * however.
-     *
-     * @param executorService
-     *            A custom ExecutorService to use for scheduling worker tasks.
-     * @param numParallelTasks
-     *            The number of parallel tasks to break the work into during the most CPU-intensive stage of
-     *            classpath scanning. Ideally the ExecutorService will have at least this many threads available.
-     * @throws ScanInterruptedException
-     *             if any of the worker threads are interrupted during the scan. If you care about thread
-     *             interruption, you should catch this exception. If you don't plan to interrupt the scan, you
-     *             probably don't need to catch this.
-     * @return a {@code List<URL>} consisting of the unique directories and jarfiles on the classpath, in classpath
-     *         resolution order.
-     */
-    public List<URL> getUniqueClasspathElementURLs(final ExecutorService executorService,
-            final int numParallelTasks) {
-        if (classpathEltURLs == null) {
-            try {
-                classpathEltURLs = getUniqueClasspathElementURLsAsync(executorService, numParallelTasks).get();
-            } catch (final InterruptedException e) {
-                if (log != null) {
-                    log.log("Thread interrupted while getting classpath elements");
-                }
-                throw new ScanInterruptedException();
-            } catch (final ExecutionException e) {
-                if (log != null) {
-                    log.log("Exception while getting classpath elements", e);
-                }
-                final Throwable cause = e.getCause();
-                throw new RuntimeException(cause == null ? e : cause);
-            } finally {
-                if (log != null) {
-                    log.flush();
-                }
-            }
-        }
-        return classpathEltURLs;
-    }
-
-    /**
-     * Returns the list of all unique URL objects representing directories or zip/jarfiles on the classpath, in
-     * classloader resolution order. Classpath elements that do not exist are not included in the list. Blocks until
-     * the result can be returned, when all classpath elements have been found and tested to see if they exist in
-     * the filesystem.
-     *
-     * <p>
-     * Note that if there are nested jarfiles on the classpath, e.g. {@code
-     * file:///path/to/jar1.jar!/path/to/jar2.jar}, then both FastClasspathScanner#scan() and
-     * FastClasspathScanner#getUniqueClasspathElements() will cause jar2.jar to be extracted to a temporary file,
-     * however FastClasspathScanner#getUniqueClasspathElementURLs() will not remove this temporary file after the
-     * scan (so that the file is still accessible to the caller -- each of the File objects in the returned list of
-     * classpath elements should exist). These extracted temporary files are marked for deletion on JVM exit,
-     * however.
-     *
-     * @throws ScanInterruptedException
-     *             if any of the worker threads are interrupted during the scan (shouldn't happen under normal
-     *             circumstances).
-     * @return a {@code List<URL>} consisting of the unique directories and jarfiles on the classpath, in classpath
-     *         resolution order.
-     */
-    public List<URL> getUniqueClasspathElementURLs() {
-        if (classpathEltURLs == null) {
-            try (AutoCloseableExecutorService executorService = new AutoCloseableExecutorService(
-                    DEFAULT_NUM_WORKER_THREADS)) {
-                return getUniqueClasspathElementURLs(executorService, DEFAULT_NUM_WORKER_THREADS);
-            }
-        }
-        return classpathEltURLs;
     }
 }

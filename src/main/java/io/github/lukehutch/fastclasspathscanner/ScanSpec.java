@@ -28,7 +28,6 @@
  */
 package io.github.lukehutch.fastclasspathscanner;
 
-import java.lang.annotation.RetentionPolicy;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -112,26 +111,38 @@ public class ScanSpec {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** True if jarfiles on the classpath should be scanned. */
+    /** If true, scan jarfiles. */
     public boolean scanJars = true;
 
-    /** True if directories on the classpath should be scanned. */
+    /** If true, scan directories. */
     public boolean scanDirs = true;
+
+    /** If true, scan modules. */
+    public boolean scanModules = true;
+
+    /** If true, scan classfile bytecodes. */
+    public boolean scanClassfiles = true;
 
     /**
      * If true, enables the saving of field info during the scan. This information can be obtained using
-     * ClassInfo#getFieldInfo(). By default, field info is not saved for efficiency.
+     * {@link ClassInfo#getFieldInfo()}. By default, field info is not scanned, for efficiency.
      */
     public boolean enableFieldInfo;
 
     /**
      * If true, enables the saving of method info during the scan. This information can be obtained using
-     * ClassInfo#getMethodInfo(). By default, method info is not saved for efficiency.
+     * {@link ClassInfo#getMethodInfo()}. By default, method info is not scanned, for efficiency.
      */
     public boolean enableMethodInfo;
 
+    /**
+     * If true, enables the saving of annotation info (for class, field, method or method parameter annotations)
+     * during the scan. This information can be obtained using {@link ClassInfo#getAnnotationInfo()} etc. By
+     * default, annotation info is not scanned, for efficiency.
+     */
+    public boolean enableAnnotationInfo;
+
     /** Enable the storing of constant initializer values for static final fields in ClassInfo objects. */
-    // TODO: enable this as an option
     public boolean enableStaticFinalFieldConstValues;
 
     /**
@@ -161,10 +172,9 @@ public class ScanSpec {
     public boolean ignoreMethodVisibility = false;
 
     /**
-     * Annotation retention visibility: RetentionPolicy.CLASS matches all annotations (both RuntimeVisible and
-     * RuntimeInvisible); RetentionPolicy.RUNTIME matches only RuntimeVisible annotations.
+     * If true, don't scan runtime-invisible annotations (only scan annotations with RetentionPolicy.RUNTIME).
      */
-    public RetentionPolicy annotationVisibility = RetentionPolicy.CLASS;
+    public boolean disableRuntimeInvisibleAnnotations = false;
 
     /**
      * Whether to disable recursive scanning (enabled by default). If set to false, only toplevel entries within
