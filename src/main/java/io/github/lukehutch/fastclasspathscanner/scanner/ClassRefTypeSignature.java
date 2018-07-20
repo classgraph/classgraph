@@ -147,7 +147,7 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
             buf.append(suffixes.get(i));
         }
         final String classNameWithSuffixes = buf.toString();
-        return scanResult.classNameToClassRef(classNameWithSuffixes, ignoreExceptions);
+        return scanResult.loadClass(classNameWithSuffixes, ignoreExceptions);
     }
 
     /**

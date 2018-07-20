@@ -34,6 +34,8 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -137,6 +139,22 @@ public class JarUtils {
             }
             return partsFiltered.toArray(new String[partsFiltered.size()]);
         }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** Create a custom URLClassLoader from a classpath path string. */
+    public static ClassLoader createURLClassLoaderFromPathString(final String classpathStr) {
+        final List<URL> urls = new ArrayList<>();
+        for (final String pathEltStr : smartPathSplit(classpathStr)) {
+            try {
+                final URL url = new URL(pathEltStr);
+                urls.add(url);
+            } catch (final Exception e) {
+                // Skip bad URLs
+            }
+        }
+        return new URLClassLoader(urls.toArray(new URL[urls.size()]));
     }
 
     // -------------------------------------------------------------------------------------------------------------

@@ -744,8 +744,8 @@ public class ScanResult {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Produce Class reference given a class name. If ignoreExceptions is false, and the class cannot be loaded (due
-     * to classloading error, or due to an exception being thrown in the class initialization block), an
+     * Load a class given a class name. If ignoreExceptions is false, and the class cannot be loaded (due to
+     * classloading error, or due to an exception being thrown in the class initialization block), an
      * IllegalArgumentException is thrown; otherwise, the class will simply be skipped if an exception is thrown.
      *
      * <p>
@@ -765,8 +765,7 @@ public class ScanResult {
      * @return a reference to the loaded class, or null if the class could not be loaded and ignoreExceptions is
      *         true.
      */
-    Class<?> classNameToClassRef(final String className, final boolean ignoreExceptions)
-            throws IllegalArgumentException {
+    Class<?> loadClass(final String className, final boolean ignoreExceptions) throws IllegalArgumentException {
         try {
             return loadClass(className, /* returnNullIfClassNotFound = */ ignoreExceptions, log);
         } catch (final Throwable e) {
@@ -784,8 +783,8 @@ public class ScanResult {
     }
 
     /**
-     * Produce Class reference given a class name. If ignoreExceptions is false, and the class cannot be loaded (due
-     * to classloading error, or due to an exception being thrown in the class initialization block), an
+     * Load a class given a class name. If ignoreExceptions is false, and the class cannot be loaded (due to
+     * classloading error, or due to an exception being thrown in the class initialization block), an
      * IllegalArgumentException is thrown; otherwise, the class will simply be skipped if an exception is thrown.
      *
      * <p>
@@ -808,8 +807,8 @@ public class ScanResult {
      * @return a reference to the loaded class, or null if the class could not be loaded and ignoreExceptions is
      *         true.
      */
-    <T> Class<T> classNameToClassRef(final String className, final Class<T> classType,
-            final boolean ignoreExceptions) throws IllegalArgumentException {
+    <T> Class<T> loadClass(final String className, final Class<T> classType, final boolean ignoreExceptions)
+            throws IllegalArgumentException {
         try {
             if (classType == null) {
                 if (ignoreExceptions) {

@@ -331,8 +331,7 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
         } else {
             final List<Class<?>> annotationClassRefs = new ArrayList<>();
             for (final String annotationName : getAnnotationNames()) {
-                annotationClassRefs
-                        .add(scanResult.classNameToClassRef(annotationName, /* ignoreExceptions = */ false));
+                annotationClassRefs.add(scanResult.loadClass(annotationName, /* ignoreExceptions = */ false));
             }
             return annotationClassRefs;
         }

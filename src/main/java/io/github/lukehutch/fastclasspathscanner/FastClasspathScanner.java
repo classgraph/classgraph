@@ -787,8 +787,8 @@ public class FastClasspathScanner {
     public ScanResult scan(final ExecutorService executorService, final int numParallelTasks) {
         try {
             // Start the scan
-            Future<ScanResult> scanFuture = scanAsync(executorService, numParallelTasks, /* isAsyncScan = */ false,
-                    /* runMatchProcessorsOnWorkerThread = */ false);
+            final Future<ScanResult> scanFuture = scanAsync(executorService, numParallelTasks,
+                    /* isAsyncScan = */ false, /* runMatchProcessorsOnWorkerThread = */ false);
 
             // Wait for scan completion
             final ScanResult scanResult = scanFuture.get();

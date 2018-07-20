@@ -788,7 +788,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
         for (int i = 0; i < paramAnnotationNames.length; i++) {
             parameterAnnotationTypes[i] = new Class<?>[paramAnnotationNames[i].length];
             for (int j = 0; j < paramAnnotationNames[i].length; j++) {
-                parameterAnnotationTypes[i][j] = scanResult.classNameToClassRef(paramAnnotationNames[i][j],
+                parameterAnnotationTypes[i][j] = scanResult.loadClass(paramAnnotationNames[i][j],
                         /* ignoreExceptions = */ false);
             }
         }
@@ -917,8 +917,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
         } else {
             final List<Class<?>> annotationClassRefs = new ArrayList<>();
             for (final String annotationName : getAnnotationNames()) {
-                annotationClassRefs
-                        .add(scanResult.classNameToClassRef(annotationName, /* ignoreExceptions = */ false));
+                annotationClassRefs.add(scanResult.loadClass(annotationName, /* ignoreExceptions = */ false));
             }
             return annotationClassRefs;
         }

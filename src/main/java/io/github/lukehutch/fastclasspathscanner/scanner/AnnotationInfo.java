@@ -215,7 +215,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      *             if ignoreExceptions is false and there was a problem loading the annotation class.
      */
     public <T> Class<T> getClassRef(final Class<T> superinterfaceType, final boolean ignoreExceptions) {
-        return scanResult.classNameToClassRef(annotationName, superinterfaceType, ignoreExceptions);
+        return scanResult.loadClass(annotationName, superinterfaceType, ignoreExceptions);
     }
 
     /**
@@ -247,7 +247,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      *             if ignoreExceptions is false and there was a problem loading the annotation class.
      */
     public Class<?> getClassRef(final boolean ignoreExceptions) {
-        return scanResult.classNameToClassRef(annotationName, ignoreExceptions);
+        return scanResult.loadClass(annotationName, ignoreExceptions);
     }
 
     /**

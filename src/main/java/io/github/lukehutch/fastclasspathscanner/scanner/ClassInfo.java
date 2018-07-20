@@ -224,7 +224,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *             requested type.
      */
     public <T> Class<T> getClassRef(final Class<T> superclassOrInterfaceType, final boolean ignoreExceptions) {
-        return scanResult.classNameToClassRef(className, superclassOrInterfaceType, ignoreExceptions);
+        return scanResult.loadClass(className, superclassOrInterfaceType, ignoreExceptions);
     }
 
     /**
@@ -257,7 +257,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *             if ignoreExceptions is false and there were problems loading the class.
      */
     public Class<?> getClassRef(final boolean ignoreExceptions) {
-        return scanResult.classNameToClassRef(className, ignoreExceptions);
+        return scanResult.loadClass(className, ignoreExceptions);
     }
 
     /**

@@ -79,7 +79,7 @@ public class AnnotationEnumValue extends ScanResultObject implements Comparable<
      *             if the class could not be loaded, or the enum constant is invalid.
      */
     public Object getEnumValue() throws IllegalArgumentException {
-        final Class<?> classRef = scanResult.classNameToClassRef(className, /* ignoreExceptions = */ false);
+        final Class<?> classRef = scanResult.loadClass(className, /* ignoreExceptions = */ false);
         if (!classRef.isEnum()) {
             throw new IllegalArgumentException("Class " + className + " is not an enum");
         }
