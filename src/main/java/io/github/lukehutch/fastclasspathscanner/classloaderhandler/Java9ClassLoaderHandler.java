@@ -33,10 +33,8 @@ import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 
 /**
- * A basic ClassLoaderHandler that is able to extract the URLs from Java 9+ classloaders.
- *
- * <p>
- * N.B. does not honor Java 9 module module encapsulation rules.
+ * A placeloader ClassLoaderHandler that matches Java 9+ classloaders, but does not attempt to extract URLs from
+ * them (module scanning uses a different mechanism from classpath scanning).
  */
 public class Java9ClassLoaderHandler implements ClassLoaderHandler {
     @Override
@@ -54,6 +52,6 @@ public class Java9ClassLoaderHandler implements ClassLoaderHandler {
     @Override
     public void handle(final ScanSpec scanSpec, final ClassLoader classLoader,
             final ClasspathOrder classpathOrderOut, final LogNode log) {
-        // No need to fetch classpath entries from JDK9+ modules -- they are handled a different way 
+        // No URLs to extract 
     }
 }
