@@ -786,9 +786,12 @@ public class FastClasspathScanner {
      */
     public ScanResult scan(final ExecutorService executorService, final int numParallelTasks) {
         try {
-            // Start the scan, and then wait for scan completion
-            final ScanResult scanResult = scanAsync(executorService, numParallelTasks, /* isAsyncScan = */ false,
-                    /* runMatchProcessorsOnWorkerThread = */ false).get();
+            // Start the scan
+            Future<ScanResult> scanFuture = scanAsync(executorService, numParallelTasks, /* isAsyncScan = */ false,
+                    /* runMatchProcessorsOnWorkerThread = */ false);
+
+            // Wait for scan completion
+            final ScanResult scanResult = scanFuture.get();
 
             // // TODO: test serialization and deserialization by serializing and then deserializing the ScanResult 
             // final String scanResultJson = scanResult.toJSON();
@@ -811,7 +814,7 @@ public class FastClasspathScanner {
                 if (log != null) {
                     log.log("Scan interrupted");
                 }
-                throw new ScanInterruptedException(); // TODO: Get rid of this exception, and make the Async version throw InterruptedException, but the non-Async version throw RuntimeException or something
+                throw new ScanInterruptedException();
             } else {
                 if (log != null) {
                     log.log("Unexpected exception during scan", e);
