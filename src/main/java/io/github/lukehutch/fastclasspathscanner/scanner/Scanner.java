@@ -73,9 +73,10 @@ public class Scanner implements Callable<ScanResult> {
     /**
      * The number of files within a given classpath element (directory or zipfile) to send in a chunk to the workers
      * that are calling the classfile binary parser. The smaller this number is, the better the load leveling at the
-     * end of the scan, but the higher the overhead in re-opening the same ZipFile in different worker threads.
+     * end of the scan, but the higher the overhead in re-opening the same ZipFile or module in different worker
+     * threads.
      */
-    private static final int NUM_FILES_PER_CHUNK = 200;
+    private static final int NUM_FILES_PER_CHUNK = 32;
 
     /** The classpath scanner. */
     public Scanner(final ScanSpec scanSpec, final ExecutorService executorService, final int numParallelTasks,
