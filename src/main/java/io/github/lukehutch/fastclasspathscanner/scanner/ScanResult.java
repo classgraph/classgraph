@@ -43,6 +43,7 @@ import java.util.regex.Pattern;
 
 import io.github.lukehutch.fastclasspathscanner.json.JSONDeserializer;
 import io.github.lukehutch.fastclasspathscanner.json.JSONSerializer;
+import io.github.lukehutch.fastclasspathscanner.utils.AutoCloseableList;
 import io.github.lukehutch.fastclasspathscanner.utils.ClassLoaderAndModuleFinder;
 import io.github.lukehutch.fastclasspathscanner.utils.GraphvizDotfileGenerator;
 import io.github.lukehutch.fastclasspathscanner.utils.InterruptionChecker;
@@ -60,7 +61,7 @@ public class ScanResult {
     transient List<ClasspathElement> classpathOrder;
 
     /** The list of all files that were found in whitelisted packages. */
-    transient List<ClasspathResource> allResources;
+    transient AutoCloseableList<ClasspathResource> allResources;
 
     /**
      * The default order in which ClassLoaders are called to load classes. Used when a specific class does not have
@@ -111,7 +112,7 @@ public class ScanResult {
         for (final ClasspathElement classpathElt : classpathOrder) {
             if (classpathElt.fileMatches != null) {
                 if (allResources == null) {
-                    allResources = new ArrayList<>();
+                    allResources = new AutoCloseableList<>();
                 }
                 allResources.addAll(classpathElt.fileMatches);
             }
@@ -194,9 +195,9 @@ public class ScanResult {
     // -------------------------------------------------------------------------------------------------------------
 
     /** Get a list of all resources (including classfiles and non-classfiles) found in whitelisted packages. */
-    public List<ClasspathResource> getAllResources() {
+    public AutoCloseableList<ClasspathResource> getAllResources() {
         if (allResources == null || allResources.isEmpty()) {
-            return Collections.<ClasspathResource> emptyList();
+            return new AutoCloseableList<>(1);
         } else {
             return allResources;
         }
@@ -206,11 +207,11 @@ public class ScanResult {
      * Get a list of all resources found in whitelisted packages that have a path (relative to the package root of
      * the classpath element) matching the requested path.
      */
-    public List<ClasspathResource> getAllResourcesWithPath(final String resourcePath) {
+    public AutoCloseableList<ClasspathResource> getAllResourcesWithPath(final String resourcePath) {
         if (allResources == null || allResources.isEmpty()) {
-            return Collections.<ClasspathResource> emptyList();
+            return new AutoCloseableList<>(1);
         } else {
-            final List<ClasspathResource> filteredResources = new ArrayList<>();
+            final AutoCloseableList<ClasspathResource> filteredResources = new AutoCloseableList<>();
             for (final ClasspathResource classpathResource : allResources) {
                 if (classpathResource.getPathRelativeToPackageRoot().equals(resourcePath)) {
                     filteredResources.add(classpathResource);
@@ -221,11 +222,11 @@ public class ScanResult {
     }
 
     /** Get a list of all resources found in whitelisted packages that have the requested leafname. */
-    public List<ClasspathResource> getAllResourcesWithLeafName(final String leafName) {
+    public AutoCloseableList<ClasspathResource> getAllResourcesWithLeafName(final String leafName) {
         if (allResources == null || allResources.isEmpty()) {
-            return Collections.<ClasspathResource> emptyList();
+            return new AutoCloseableList<>(1);
         } else {
-            final List<ClasspathResource> filteredResources = new ArrayList<>();
+            final AutoCloseableList<ClasspathResource> filteredResources = new AutoCloseableList<>();
             for (final ClasspathResource classpathResource : allResources) {
                 final String relativePath = classpathResource.getPathRelativeToPackageRoot();
                 final int lastSlashIdx = relativePath.lastIndexOf('/');
@@ -241,11 +242,11 @@ public class ScanResult {
      * Get a list of all resources found in whitelisted packages that have the requested extension (e.g. "xml" to
      * match all files ending in ".xml").
      */
-    public List<ClasspathResource> getAllResourcesWithExtension(final String extension) {
+    public AutoCloseableList<ClasspathResource> getAllResourcesWithExtension(final String extension) {
         if (allResources == null || allResources.isEmpty()) {
-            return Collections.<ClasspathResource> emptyList();
+            return new AutoCloseableList<>(1);
         } else {
-            final List<ClasspathResource> filteredResources = new ArrayList<>();
+            final AutoCloseableList<ClasspathResource> filteredResources = new AutoCloseableList<>();
             for (final ClasspathResource classpathResource : allResources) {
                 final String relativePath = classpathResource.getPathRelativeToPackageRoot();
                 final int lastSlashIdx = relativePath.lastIndexOf('/');
@@ -263,11 +264,11 @@ public class ScanResult {
     /**
      * Get a list of all resources found in whitelisted packages that have a path matching the requested pattern.
      */
-    public List<ClasspathResource> getAllResourcesMatchingPattern(final Pattern pattern) {
+    public AutoCloseableList<ClasspathResource> getAllResourcesMatchingPattern(final Pattern pattern) {
         if (allResources == null || allResources.isEmpty()) {
-            return Collections.<ClasspathResource> emptyList();
+            return new AutoCloseableList<>(1);
         } else {
-            final List<ClasspathResource> filteredResources = new ArrayList<>();
+            final AutoCloseableList<ClasspathResource> filteredResources = new AutoCloseableList<>();
             for (final ClasspathResource classpathResource : allResources) {
                 final String relativePath = classpathResource.getPathRelativeToPackageRoot();
                 if (pattern.matcher(relativePath).matches()) {
