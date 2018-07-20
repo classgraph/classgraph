@@ -41,12 +41,11 @@ import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.NestedJarHandler;
 
 /**
- * A relative path. This is used for paths relative to the current directory (for classpath elements), and also for
- * relative paths within classpath elements (e.g. the files within a ZipFile). If the path is an http(s):// URL, the
- * remote jar will be fetched and cached if getFile() / isFile() etc. are called, and/or if the path is a
- * '!'-separated path to a nested jar, the innermost jar will be extracted and cached on these calls.
+ * An entry in the classpath or module path. If the path is an http(s):// URL, the remote jar will be fetched and
+ * cached if getFile() / isFile() etc. are called. If the path is a '!'-separated path to a nested jar, the
+ * innermost jar will be extracted and cached on these calls.
  */
-class ClasspathElementPath {
+class ClasspathOrModulePathEntry {
     /** The ClassLoader(s) used to load classes for this classpath element */
     ClassLoader[] classLoaders;
 
@@ -120,7 +119,7 @@ class ClasspathElementPath {
      * A relative path. This is used for paths relative to the current directory (for classpath elements), and also
      * for relative paths within classpath elements (e.g. the files within a ZipFile).
      */
-    public ClasspathElementPath(final String pathToResolveAgainst, final String relativePath,
+    public ClasspathOrModulePathEntry(final String pathToResolveAgainst, final String relativePath,
             final ClassLoader[] classLoaders, final NestedJarHandler nestedJarHandler, final ScanSpec scanSpec,
             final LogNode log) {
         this.classLoaders = classLoaders;
@@ -144,7 +143,7 @@ class ClasspathElementPath {
     }
 
     /** A relative path for a module (in JDK9+). */
-    public ClasspathElementPath(final ModuleRef moduleRef, final NestedJarHandler nestedJarHandler,
+    public ClasspathOrModulePathEntry(final ModuleRef moduleRef, final NestedJarHandler nestedJarHandler,
             final LogNode log) {
         if (moduleRef == null) {
             throw new IllegalArgumentException("moduleRef cannot be null");
@@ -171,10 +170,10 @@ class ClasspathElementPath {
         if (o == null) {
             return false;
         }
-        if (!(o instanceof ClasspathElementPath)) {
+        if (!(o instanceof ClasspathOrModulePathEntry)) {
             return false;
         }
-        final ClasspathElementPath other = (ClasspathElementPath) o;
+        final ClasspathOrModulePathEntry other = (ClasspathOrModulePathEntry) o;
         String thisCp;
         try {
             thisCp = getCanonicalPath(log);

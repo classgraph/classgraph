@@ -61,9 +61,9 @@ class ClasspathElementZip extends ClasspathElement {
     private Recycler<ZipFile, IOException> zipFileRecycler;
 
     /** A zip/jarfile classpath element. */
-    ClasspathElementZip(final ClasspathElementPath classpathEltPath, final ScanSpec scanSpec,
+    ClasspathElementZip(final ClasspathOrModulePathEntry classpathEltPath, final ScanSpec scanSpec,
             final boolean scanFiles, final NestedJarHandler nestedJarHandler,
-            final WorkQueue<ClasspathElementPath> workQueue, final InterruptionChecker interruptionChecker,
+            final WorkQueue<ClasspathOrModulePathEntry> workQueue, final InterruptionChecker interruptionChecker,
             final LogNode log) {
         super(classpathEltPath, scanSpec, scanFiles, interruptionChecker);
         try {
@@ -143,9 +143,9 @@ class ClasspathElementZip extends ClasspathElement {
                 }
                 for (int i = 0; i < jarfileMetadataReader.classPathEntriesToScan.size(); i++) {
                     final String childClassPathEltPath = jarfileMetadataReader.classPathEntriesToScan.get(i);
-                    final ClasspathElementPath childRelativePath = new ClasspathElementPath(pathOfContainingDir,
-                            childClassPathEltPath, classpathEltPath.getClassLoaders(), nestedJarHandler, scanSpec,
-                            log);
+                    final ClasspathOrModulePathEntry childRelativePath = new ClasspathOrModulePathEntry(
+                            pathOfContainingDir, childClassPathEltPath, classpathEltPath.getClassLoaders(),
+                            nestedJarHandler, scanSpec, log);
                     if (!childRelativePath.equals(classpathEltPath)) {
                         // Add child classpath element. This may add lib jars more than once, in the case of a
                         // jar with "BOOT-INF/classes" and "BOOT-INF/lib", since this method may be called initially

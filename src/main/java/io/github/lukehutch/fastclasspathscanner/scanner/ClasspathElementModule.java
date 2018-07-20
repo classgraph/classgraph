@@ -51,7 +51,7 @@ class ClasspathElementModule extends ClasspathElement {
     private Recycler<ModuleReaderProxy, IOException> moduleReaderProxyRecycler;
 
     /** A zip/jarfile classpath element. */
-    ClasspathElementModule(final ClasspathElementPath classpathEltPath, final ScanSpec scanSpec,
+    ClasspathElementModule(final ClasspathOrModulePathEntry classpathEltPath, final ScanSpec scanSpec,
             final boolean scanFiles, final NestedJarHandler nestedJarHandler,
             final InterruptionChecker interruptionChecker, final LogNode log) {
         super(classpathEltPath, scanSpec, scanFiles, interruptionChecker);

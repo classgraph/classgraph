@@ -43,7 +43,7 @@ public class ClasspathOrder {
     final ScanSpec scanSpec;
     final NestedJarHandler nestedJarHandler;
 
-    private final LinkedHashSet<ClasspathElementPath> classpathOrder = new LinkedHashSet<>();
+    private final LinkedHashSet<ClasspathOrModulePathEntry> classpathOrder = new LinkedHashSet<>();
 
     ClasspathOrder(final ScanSpec scanSpec, final NestedJarHandler nestedJarHandler) {
         this.scanSpec = scanSpec;
@@ -51,7 +51,7 @@ public class ClasspathOrder {
     }
 
     /** Get the order of classpath elements. */
-    public LinkedHashSet<ClasspathElementPath> get() {
+    public LinkedHashSet<ClasspathOrModulePathEntry> get() {
         return classpathOrder;
     }
 
@@ -99,7 +99,7 @@ public class ClasspathOrder {
                                             && pathElement.charAt(pathElement.length() - 2) == '/')))) {
                 // Got wildcard path element (allowable for local classpaths as of JDK 6)
                 try {
-                    final ClasspathElementPath classpathEltParentDirRelativePath = new ClasspathElementPath(
+                    final ClasspathOrModulePathEntry classpathEltParentDirRelativePath = new ClasspathOrModulePathEntry(
                             ClasspathFinder.currDirPathStr, pathElement.substring(0, pathElement.length() - 2),
                             classLoaders, nestedJarHandler, scanSpec, subLog);
                     final String classpathEltParentDirPath = classpathEltParentDirRelativePath.getResolvedPath();
@@ -148,7 +148,7 @@ public class ClasspathOrder {
                 return false;
             }
         } else {
-            final ClasspathElementPath classpathEltRelativePath = new ClasspathElementPath(
+            final ClasspathOrModulePathEntry classpathEltRelativePath = new ClasspathOrModulePathEntry(
                     ClasspathFinder.currDirPathStr, pathElement, classLoaders, nestedJarHandler, scanSpec, subLog);
             final String classpathEltPath = classpathEltRelativePath.getResolvedPath();
             if (!filter(classpathEltPath)) {

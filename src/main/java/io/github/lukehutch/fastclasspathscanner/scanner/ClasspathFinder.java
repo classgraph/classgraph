@@ -44,10 +44,10 @@ import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.NestedJarHandler;
 
 /** A class to find the unique ordered classpath elements. */
-public class ClasspathFinder {
+class ClasspathFinder {
     static final String currDirPathStr = FileUtils.getCurrDirPathStr();
 
-    private final List<ClasspathElementPath> rawClasspathElements;
+    private final List<ClasspathOrModulePathEntry> rawClasspathElements;
     private final ClassLoaderAndModuleFinder classLoaderAndModuleFinder;
 
     // -------------------------------------------------------------------------------------------------------------
@@ -296,7 +296,7 @@ public class ClasspathFinder {
                     final LogNode sysPropLog = classpathFinderLog == null ? null
                             : classpathFinderLog.log("Getting classpath entries from java.class.path");
                     for (final String pathElement : pathElements) {
-                        if (!ignoredClasspathOrder.get().contains(new ClasspathElementPath(currDirPathStr,
+                        if (!ignoredClasspathOrder.get().contains(new ClasspathOrModulePathEntry(currDirPathStr,
                                 pathElement, classLoaders, nestedJarHandler, scanSpec, log))) {
                             // pathElement is not also listed in an ignored parent classloader
                             classpathOrder.addClasspathElement(pathElement, classLoaders, scanSpec, sysPropLog);
@@ -316,7 +316,7 @@ public class ClasspathFinder {
     }
 
     /** Get the raw classpath elements obtained from ClassLoaders. */
-    public List<ClasspathElementPath> getRawClasspathElements() {
+    public List<ClasspathOrModulePathEntry> getRawClasspathElements() {
         return rawClasspathElements;
     }
 

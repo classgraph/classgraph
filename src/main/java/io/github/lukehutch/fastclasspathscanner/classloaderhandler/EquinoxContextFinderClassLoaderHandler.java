@@ -28,7 +28,6 @@
  */
 package io.github.lukehutch.fastclasspathscanner.classloaderhandler;
 
-import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathFinder;
 import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathOrder;
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
@@ -59,8 +58,8 @@ public class EquinoxContextFinderClassLoaderHandler implements ClassLoaderHandle
         final Object parentContextClassLoader = ReflectionUtils.getFieldVal(classLoader, "parentContextClassLoader",
                 false);
         if (parentContextClassLoader != null) {
-            final ClassLoaderHandler parentContextClassLoaderHandler = ClasspathFinder
-                    .findClassLoaderHandlerForClassLoader(scanSpec, classLoader, log);
+            final ClassLoaderHandler parentContextClassLoaderHandler = scanSpec
+                    .findClassLoaderHandlerForClassLoader(classLoader, log);
             LogNode subLog = log;
             if (log != null) {
                 subLog = log.log("Delegating to parentContextClassLoader: " + parentContextClassLoader);

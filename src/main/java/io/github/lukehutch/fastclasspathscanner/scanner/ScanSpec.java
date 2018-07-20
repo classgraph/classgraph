@@ -767,4 +767,8 @@ public class ScanSpec {
         }
         return allClassLoaderHandlerRegistryEntries;
     }
+
+    public ClassLoaderHandler findClassLoaderHandlerForClassLoader(ClassLoader classLoader, LogNode log) {
+        return ClasspathFinder.findClassLoaderHandlerForClassLoader(this, classLoader, log);
+    }
 }

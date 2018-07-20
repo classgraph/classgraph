@@ -44,7 +44,7 @@ import io.github.lukehutch.fastclasspathscanner.utils.WorkQueue;
 /** A classpath element (a directory or jarfile on the classpath). */
 abstract class ClasspathElement {
     /** The path of the classpath element relative to the current directory. */
-    final ClasspathElementPath classpathEltPath;
+    final ClasspathOrModulePathEntry classpathEltPath;
 
     /**
      * If non-null, contains a list of resolved paths for any classpath element roots nested inside this classpath
@@ -65,7 +65,7 @@ abstract class ClasspathElement {
      * The child classpath elements. These are the entries obtained from Class-Path entries in the manifest file, if
      * this classpath element is a jarfile.
      */
-    List<ClasspathElementPath> childClasspathElts;
+    List<ClasspathOrModulePathEntry> childClasspathElts;
 
     /** The scan spec. */
     final ScanSpec scanSpec;
@@ -94,8 +94,8 @@ abstract class ClasspathElement {
     protected Map<File, Long> fileToLastModified;
 
     /** A classpath element (a directory or jarfile on the classpath). */
-    ClasspathElement(final ClasspathElementPath classpathEltPath, final ScanSpec scanSpec, final boolean scanFiles,
-            final InterruptionChecker interruptionChecker) {
+    ClasspathElement(final ClasspathOrModulePathEntry classpathEltPath, final ScanSpec scanSpec,
+            final boolean scanFiles, final InterruptionChecker interruptionChecker) {
         this.classpathEltPath = classpathEltPath;
         this.scanSpec = scanSpec;
         this.scanFiles = scanFiles;
@@ -143,9 +143,9 @@ abstract class ClasspathElement {
      * Factory for creating a ClasspathElementDir singleton for directory classpath entries or a ClasspathElementZip
      * singleton for jarfile classpath entries.
      */
-    static ClasspathElement newInstance(final ClasspathElementPath classpathRelativePath, final boolean scanFiles,
-            final ScanSpec scanSpec, final NestedJarHandler nestedJarHandler,
-            final WorkQueue<ClasspathElementPath> workQueue, final InterruptionChecker interruptionChecker,
+    static ClasspathElement newInstance(final ClasspathOrModulePathEntry classpathRelativePath,
+            final boolean scanFiles, final ScanSpec scanSpec, final NestedJarHandler nestedJarHandler,
+            final WorkQueue<ClasspathOrModulePathEntry> workQueue, final InterruptionChecker interruptionChecker,
             final LogNode log) {
         boolean isModule = false;
         boolean isDir = false;
