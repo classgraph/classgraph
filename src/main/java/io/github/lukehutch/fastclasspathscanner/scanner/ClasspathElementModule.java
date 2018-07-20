@@ -76,8 +76,8 @@ class ClasspathElementModule extends ClasspathElement {
         }
     }
 
-    private ClasspathResource newClasspathResource(final String moduleResourcePath) {
-        return new ClasspathResource() {
+    private Resource newClasspathResource(final String moduleResourcePath) {
+        return new Resource() {
             private ModuleReaderProxy moduleReaderProxy = null;
 
             @Override

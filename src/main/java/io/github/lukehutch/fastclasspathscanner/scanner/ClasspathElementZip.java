@@ -182,9 +182,9 @@ class ClasspathElementZip extends ClasspathElement {
         }
     }
 
-    private ClasspathResource newClasspathResource(final File jarFile, final String packageRootPrefix,
+    private Resource newClasspathResource(final File jarFile, final String packageRootPrefix,
             final String pathRelativeToPackageRoot, final ZipEntry zipEntry) {
-        return new ClasspathResource() {
+        return new Resource() {
             private ZipFile zipFile;
             private String pathRelativeToClasspathElt = null;
 

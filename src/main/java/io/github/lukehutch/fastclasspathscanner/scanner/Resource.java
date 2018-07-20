@@ -35,10 +35,10 @@ import java.nio.ByteBuffer;
 import io.github.lukehutch.fastclasspathscanner.utils.FileUtils;
 
 /**
- * A classpath resource (or file) that was found in a whitelisted/non-blacklisted package inside a classpath
- * element.
+ * A classpath or module path resource (i.e. file) that was found in a whitelisted/non-blacklisted package inside a
+ * classpath element or module.
  */
-public abstract class ClasspathResource implements AutoCloseable {
+public abstract class Resource implements AutoCloseable {
     protected InputStream inputStream;
     protected ByteBuffer byteBuffer;
     protected long length = -1L;
@@ -84,21 +84,21 @@ public abstract class ClasspathResource implements AutoCloseable {
     public abstract String getPathRelativeToClasspathElement();
 
     /**
-     * Open an InputStream for a classpath resource. Make sure you call {@link ClasspathResource#close()} when you
-     * are finished with the InputStream, so that the InputStream is closed.
+     * Open an InputStream for a classpath resource. Make sure you call {@link Resource#close()} when you are
+     * finished with the InputStream, so that the InputStream is closed.
      */
     public abstract InputStream open() throws IOException;
 
     /**
-     * Open a ByteBuffer for a classpath resource. Make sure you call {@link ClasspathResource#close()} when you are
-     * finished with the ByteBuffer, so that the ByteBuffer is released or unmapped.
+     * Open a ByteBuffer for a classpath resource. Make sure you call {@link Resource#close()} when you are finished
+     * with the ByteBuffer, so that the ByteBuffer is released or unmapped.
      */
     public abstract ByteBuffer read() throws IOException;
 
     /**
      * Load a classpath resource and return its content as a byte array. Automatically calls
-     * {@link ClasspathResource#close()} after loading the byte array and before returning it, so that the
-     * underlying InputStream is closed or the underlying ByteBuffer is released or unmapped.
+     * {@link Resource#close()} after loading the byte array and before returning it, so that the underlying
+     * InputStream is closed or the underlying ByteBuffer is released or unmapped.
      */
     public abstract byte[] load() throws IOException;
 

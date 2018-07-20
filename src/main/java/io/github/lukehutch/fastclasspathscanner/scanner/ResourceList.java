@@ -26,30 +26,30 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.lukehutch.fastclasspathscanner.utils;
+package io.github.lukehutch.fastclasspathscanner.scanner;
 
 import java.util.ArrayList;
 import java.util.Collection;
 
-/** An AutoCloseable list of AutoCloseable items. */
-public class AutoCloseableList<T extends AutoCloseable> extends ArrayList<T> implements AutoCloseable {
-    public AutoCloseableList() {
+/** An AutoCloseable list of AutoCloseable {@link Resource} objects. */
+public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
+    public ResourceList() {
         super();
     }
 
-    public AutoCloseableList(final int sizeHint) {
+    public ResourceList(final int sizeHint) {
         super(sizeHint);
     }
 
-    public AutoCloseableList(final Collection<T> collection) {
+    public ResourceList(final Collection<Resource> collection) {
         super(collection);
     }
 
     @Override
     public void close() {
-        for (final T item : this) {
+        for (final Resource resource : this) {
             try {
-                item.close();
+                resource.close();
             } catch (final Exception e) {
             }
         }

@@ -83,12 +83,12 @@ abstract class ClasspathElement {
     protected InterruptionChecker interruptionChecker;
 
     /** The list of all classpath resources found within whitelisted paths within this classpath element. */
-    protected List<ClasspathResource> fileMatches;
+    protected List<Resource> fileMatches;
 
     /**
      * The list of whitelisted classfiles found within this classpath resource, if scanFiles is true.
      */
-    protected List<ClasspathResource> classfileMatches;
+    protected List<Resource> classfileMatches;
 
     /** The map from File to last modified timestamp, if scanFiles is true. */
     protected Map<File, Long> fileToLastModified;
@@ -209,7 +209,7 @@ abstract class ClasspathElement {
         // Take the union of classfile and file match relative paths, since matches can be in both lists if a user
         // adds a custom file path matcher that matches paths ending in ".class"
         final HashSet<String> maskedRelativePaths = new HashSet<>();
-        for (final ClasspathResource res : classfileMatches) {
+        for (final Resource res : classfileMatches) {
             // Don't mask module-info.class, since all modules need this classfile to be read
             final String getPathRelativeToPackageRoot = res.getPathRelativeToPackageRoot();
             if (!getPathRelativeToPackageRoot.equals("module-info.class")
@@ -223,8 +223,8 @@ abstract class ClasspathElement {
         }
         if (!maskedRelativePaths.isEmpty()) {
             // Replace the lists of matching resources with filtered versions with masked paths removed
-            final List<ClasspathResource> filteredClassfileMatches = new ArrayList<>();
-            for (final ClasspathResource classfileMatch : classfileMatches) {
+            final List<Resource> filteredClassfileMatches = new ArrayList<>();
+            for (final Resource classfileMatch : classfileMatches) {
                 final String getPathRelativeToPackageRoot = classfileMatch.getPathRelativeToPackageRoot();
                 if (!maskedRelativePaths.contains(getPathRelativeToPackageRoot)) {
                     filteredClassfileMatches.add(classfileMatch);
@@ -248,7 +248,7 @@ abstract class ClasspathElement {
             final int classfileEndIdx, final ConcurrentLinkedQueue<ClassInfoUnlinked> classInfoUnlinked,
             final LogNode log) throws Exception {
         for (int i = classfileStartIdx; i < classfileEndIdx; i++) {
-            final ClasspathResource classfileResource = classfileMatches.get(i);
+            final Resource classfileResource = classfileMatches.get(i);
             try {
                 final LogNode logNode = log == null ? null
                         : log.log(classfileResource.getPathRelativeToPackageRoot(),

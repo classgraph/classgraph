@@ -69,9 +69,9 @@ class ClasspathElementDir extends ClasspathElement {
         }
     }
 
-    private ClasspathResource newClasspathResource(final File classpathEltFile,
-            final String pathRelativeToClasspathElt, final File classpathResourceFile) {
-        return new ClasspathResource() {
+    private Resource newClasspathResource(final File classpathEltFile, final String pathRelativeToClasspathElt,
+            final File classpathResourceFile) {
+        return new Resource() {
             private RandomAccessFile randomAccessFile;
             private FileChannel fileChannel;
 
