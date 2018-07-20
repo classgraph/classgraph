@@ -292,7 +292,8 @@ abstract class ClasspathElement {
     public abstract void scanPaths(LogNode log);
 
     /**
-     * Close the classpath element's resources, if needed (this closes and frees any open ZipFiles).
+     * Close the classpath element's resources, if needed (this closes and frees any open ZipFiles or
+     * ModuleReaders).
      */
     public abstract void close();
 }
