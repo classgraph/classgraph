@@ -1,7 +1,7 @@
 package com.xyz;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
+import io.github.lukehutch.fastclasspathscanner.ScanResult;
 
 public class GenerateClassGraphFigDotFile {
     public static void main(final String[] args) {

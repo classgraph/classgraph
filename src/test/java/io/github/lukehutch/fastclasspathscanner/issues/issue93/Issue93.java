@@ -8,7 +8,7 @@ import java.lang.annotation.RetentionPolicy;
 import org.junit.Test;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
+import io.github.lukehutch.fastclasspathscanner.ScanResult;
 
 public class Issue93 {
     private static final String PKG = Issue93.class.getPackage().getName();

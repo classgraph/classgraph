@@ -33,8 +33,9 @@ import java.lang.reflect.Array;
 import java.nio.file.Path;
 import java.util.Map;
 
-import io.github.lukehutch.fastclasspathscanner.scanner.ClasspathOrder;
-import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
+import io.github.lukehutch.fastclasspathscanner.ClassLoaderHandler;
+import io.github.lukehutch.fastclasspathscanner.ClasspathOrder;
+import io.github.lukehutch.fastclasspathscanner.ScanSpec;
 import io.github.lukehutch.fastclasspathscanner.utils.ClasspathUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;

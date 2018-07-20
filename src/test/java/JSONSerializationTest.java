@@ -8,9 +8,9 @@ import java.util.Map;
 import org.junit.Test;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
+import io.github.lukehutch.fastclasspathscanner.ScanResult;
 import io.github.lukehutch.fastclasspathscanner.json.JSONDeserializer;
 import io.github.lukehutch.fastclasspathscanner.json.JSONSerializer;
-import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
 
 @SuppressWarnings("unused")
 public class JSONSerializationTest {

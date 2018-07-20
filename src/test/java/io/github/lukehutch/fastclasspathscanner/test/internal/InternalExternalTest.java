@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.Test;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
+import io.github.lukehutch.fastclasspathscanner.ScanResult;
 import io.github.lukehutch.fastclasspathscanner.test.external.ExternalAnnotation;
 import io.github.lukehutch.fastclasspathscanner.test.external.ExternalInterface;
 import io.github.lukehutch.fastclasspathscanner.test.external.ExternalSuperclass;

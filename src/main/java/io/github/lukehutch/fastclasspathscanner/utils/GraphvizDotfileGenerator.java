@@ -36,16 +36,16 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import io.github.lukehutch.fastclasspathscanner.scanner.AnnotationInfo;
-import io.github.lukehutch.fastclasspathscanner.scanner.ClassInfo;
-import io.github.lukehutch.fastclasspathscanner.scanner.ClassInfoList;
-import io.github.lukehutch.fastclasspathscanner.scanner.FieldInfo;
-import io.github.lukehutch.fastclasspathscanner.scanner.MethodInfo;
-import io.github.lukehutch.fastclasspathscanner.scanner.MethodParameterInfo;
-import io.github.lukehutch.fastclasspathscanner.scanner.MethodTypeSignature;
-import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
-import io.github.lukehutch.fastclasspathscanner.scanner.ScanSpec;
-import io.github.lukehutch.fastclasspathscanner.scanner.TypeSignature;
+import io.github.lukehutch.fastclasspathscanner.AnnotationInfo;
+import io.github.lukehutch.fastclasspathscanner.ClassInfo;
+import io.github.lukehutch.fastclasspathscanner.ClassInfoList;
+import io.github.lukehutch.fastclasspathscanner.FieldInfo;
+import io.github.lukehutch.fastclasspathscanner.MethodInfo;
+import io.github.lukehutch.fastclasspathscanner.MethodParameterInfo;
+import io.github.lukehutch.fastclasspathscanner.MethodTypeSignature;
+import io.github.lukehutch.fastclasspathscanner.ScanResult;
+import io.github.lukehutch.fastclasspathscanner.ScanSpec;
+import io.github.lukehutch.fastclasspathscanner.TypeSignature;
 
 /** Builds a class graph visualization in Graphviz .dot file format. */
 public class GraphvizDotfileGenerator {

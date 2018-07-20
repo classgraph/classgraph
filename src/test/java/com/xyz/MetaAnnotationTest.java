@@ -46,7 +46,7 @@ import com.xyz.meta.K;
 import com.xyz.meta.L;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
+import io.github.lukehutch.fastclasspathscanner.ScanResult;
 
 public class MetaAnnotationTest {
     ScanResult scanResult = new FastClasspathScanner("com.xyz.meta").scan();

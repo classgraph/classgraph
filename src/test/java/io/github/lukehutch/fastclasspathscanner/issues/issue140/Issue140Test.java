@@ -36,9 +36,9 @@ import java.util.List;
 
 import org.junit.Test;
 
+import io.github.lukehutch.fastclasspathscanner.ClassInfo;
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-import io.github.lukehutch.fastclasspathscanner.scanner.ClassInfo;
-import io.github.lukehutch.fastclasspathscanner.scanner.FieldInfo;
+import io.github.lukehutch.fastclasspathscanner.FieldInfo;
 
 public class Issue140Test {
     // Order of fields is significant

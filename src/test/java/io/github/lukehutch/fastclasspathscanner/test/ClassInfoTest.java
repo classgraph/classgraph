@@ -9,9 +9,9 @@ import java.util.stream.Collectors;
 
 import org.junit.Test;
 
+import io.github.lukehutch.fastclasspathscanner.ClassInfo;
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-import io.github.lukehutch.fastclasspathscanner.scanner.ClassInfo;
-import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
+import io.github.lukehutch.fastclasspathscanner.ScanResult;
 import io.github.lukehutch.fastclasspathscanner.test.whitelisted.ClsSub;
 import io.github.lukehutch.fastclasspathscanner.test.whitelisted.ClsSubSub;
 import io.github.lukehutch.fastclasspathscanner.test.whitelisted.Iface;

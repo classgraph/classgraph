@@ -39,8 +39,8 @@ import java.util.Map;
 
 import org.junit.Test;
 
+import io.github.lukehutch.fastclasspathscanner.ClassInfo;
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-import io.github.lukehutch.fastclasspathscanner.scanner.ClassInfo;
 
 public class Issue148Test {
     @Test

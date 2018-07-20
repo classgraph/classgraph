@@ -28,8 +28,6 @@
  */
 package io.github.lukehutch.fastclasspathscanner;
 
-import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
-
 /**
  * A callback that can be used to processes the result of an asynchronous scan after scanning has completed and any
  * MatchProcessors have been run.

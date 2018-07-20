@@ -36,18 +36,18 @@ import java.lang.annotation.RetentionPolicy;
 
 import org.junit.Test;
 
+import io.github.lukehutch.fastclasspathscanner.AnnotationEnumValue;
+import io.github.lukehutch.fastclasspathscanner.AnnotationInfo;
+import io.github.lukehutch.fastclasspathscanner.AnnotationParamValue;
+import io.github.lukehutch.fastclasspathscanner.ClassInfo;
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
+import io.github.lukehutch.fastclasspathscanner.ScanResult;
 import io.github.lukehutch.fastclasspathscanner.issues.issue153.Issue153Test.ClassRefAnnotation;
 import io.github.lukehutch.fastclasspathscanner.issues.issue153.Issue153Test.EnumAnnotation;
 import io.github.lukehutch.fastclasspathscanner.issues.issue153.Issue153Test.FruitEnum;
 import io.github.lukehutch.fastclasspathscanner.issues.issue153.Issue153Test.NestedAnnotation;
 import io.github.lukehutch.fastclasspathscanner.issues.issue153.Issue153Test.StringAnnotation;
 import io.github.lukehutch.fastclasspathscanner.issues.issue153.Issue153Test.TwoParamAnnotation;
-import io.github.lukehutch.fastclasspathscanner.scanner.AnnotationEnumValue;
-import io.github.lukehutch.fastclasspathscanner.scanner.AnnotationInfo;
-import io.github.lukehutch.fastclasspathscanner.scanner.AnnotationParamValue;
-import io.github.lukehutch.fastclasspathscanner.scanner.ClassInfo;
-import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult;
 
 @StringAnnotation("classlabel")
 @TwoParamAnnotation(value1 = 'x', value2 = { 1, 2, 3 })

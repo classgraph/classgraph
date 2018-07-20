@@ -31,6 +31,7 @@ package io.github.lukehutch.fastclasspathscanner.classloaderhandler;
 import java.util.Arrays;
 import java.util.List;
 
+import io.github.lukehutch.fastclasspathscanner.ClassLoaderHandler;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 
 /** The registry for ClassLoaderHandler classes. */
@@ -51,7 +52,7 @@ public class ClassLoaderHandlerRegistry {
             new ClassLoaderHandlerRegistryEntry(WebsphereTraditionalClassLoaderHandler.class),
             new ClassLoaderHandlerRegistryEntry(OSGiDefaultClassLoaderHandler.class),
 
-            // Java 9 support
+            // JPMS support
             new ClassLoaderHandlerRegistryEntry(Java9ClassLoaderHandler.class),
 
             // Java 7/8 support (list last, as fallback)

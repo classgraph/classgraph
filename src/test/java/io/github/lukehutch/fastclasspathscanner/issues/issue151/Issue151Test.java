@@ -39,7 +39,7 @@ import java.lang.annotation.Target;
 import org.junit.Test;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-import io.github.lukehutch.fastclasspathscanner.scanner.MethodInfo;
+import io.github.lukehutch.fastclasspathscanner.MethodInfo;
 
 public class Issue151Test {
     @Test
