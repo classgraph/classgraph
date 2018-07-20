@@ -120,7 +120,9 @@ class ClasspathElementDir extends ClasspathElement {
             @Override
             public byte[] load() throws IOException {
                 read();
-                return byteBufferToByteArray();
+                final byte[] byteArray = byteBufferToByteArray();
+                close();
+                return byteArray;
             }
 
             @Override

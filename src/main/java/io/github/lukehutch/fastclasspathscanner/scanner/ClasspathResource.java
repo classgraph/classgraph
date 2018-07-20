@@ -38,7 +38,6 @@ import io.github.lukehutch.fastclasspathscanner.utils.FileUtils;
 public abstract class ClasspathResource implements AutoCloseable {
     protected InputStream inputStream;
     protected ByteBuffer byteBuffer;
-    protected byte[] byteArray;
     protected long length = -1L;
 
     // https://stackoverflow.com/questions/4332264/wrapping-a-bytebuffer-with-an-inputstream/6603018#6603018
@@ -51,11 +50,17 @@ public abstract class ClasspathResource implements AutoCloseable {
     }
 
     protected byte[] inputStreamToByteArray() throws IOException {
-        return byteArray == null ? byteArray = FileUtils.readAllBytes(inputStream, length, null) : byteArray;
+        return FileUtils.readAllBytes(inputStream, length, null);
     }
 
     protected byte[] byteBufferToByteArray() {
-        return byteArray == null ? byteArray = byteBuffer.array() : byteArray;
+        if (byteBuffer.hasArray()) {
+            return byteBuffer.array();
+        } else {
+            final byte[] byteArray = new byte[byteBuffer.remaining()];
+            byteBuffer.get(byteArray);
+            return byteArray;
+        }
     }
 
     /**
@@ -86,12 +91,11 @@ public abstract class ClasspathResource implements AutoCloseable {
      * (For some resources, length can never be determined.) Returns -1 if length is unknown.
      */
     public long getLength() {
-        return length >= 0L ? length : byteArray != null ? byteArray.length : -1L;
+        return length;
     }
 
     @Override
     public void close() {
-        byteArray = null;
         if (inputStream != null) {
             try {
                 inputStream.close();

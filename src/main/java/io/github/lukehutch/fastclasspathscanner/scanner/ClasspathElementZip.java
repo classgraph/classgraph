@@ -230,7 +230,9 @@ class ClasspathElementZip extends ClasspathElement {
             @Override
             public byte[] load() throws IOException {
                 read();
-                return inputStreamToByteArray();
+                final byte[] byteArray = inputStreamToByteArray();
+                close();
+                return byteArray;
             }
 
             @Override

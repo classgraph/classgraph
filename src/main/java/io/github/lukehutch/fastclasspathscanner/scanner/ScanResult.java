@@ -903,10 +903,7 @@ public class ScanResult {
     public void freeTempFiles(final LogNode log) {
         if (allResources != null) {
             for (final ClasspathResource classpathResource : allResources) {
-                try {
-                    classpathResource.close();
-                } catch (final Exception e) {
-                }
+                classpathResource.close();
             }
         }
         if (nestedJarHandler != null) {
