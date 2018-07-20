@@ -47,6 +47,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 
 import io.github.lukehutch.fastclasspathscanner.utils.ClassLoaderAndModuleFinder;
+import io.github.lukehutch.fastclasspathscanner.utils.ClasspathFinder;
+import io.github.lukehutch.fastclasspathscanner.utils.ClasspathOrModulePathEntry;
 import io.github.lukehutch.fastclasspathscanner.utils.InterruptionChecker;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.NestedJarHandler;

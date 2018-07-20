@@ -35,7 +35,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import io.github.lukehutch.fastclasspathscanner.AnnotationInfo.AnnotationClassRef;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 
 /**

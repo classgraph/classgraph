@@ -28,6 +28,7 @@
  */
 package io.github.lukehutch.fastclasspathscanner;
 
+import io.github.lukehutch.fastclasspathscanner.utils.ClasspathOrder;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 
 /**

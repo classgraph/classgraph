@@ -97,7 +97,6 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     MethodInfo() {
     }
 
-    /** Sets back-reference to scan result after scan is complete. */
     @Override
     void setScanResult(final ScanResult scanResult) {
         super.setScanResult(scanResult);

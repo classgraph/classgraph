@@ -30,8 +30,6 @@ package io.github.lukehutch.fastclasspathscanner;
 
 import java.lang.reflect.Array;
 
-import io.github.lukehutch.fastclasspathscanner.AnnotationInfo.AnnotationClassRef;
-
 /** A union type, used for typesafe serialization/deserialization to/from JSON. Only one field is ever set. */
 class AnnotationParamValueWrapper extends ScanResultObject {
     // Parameter value is split into different fields by type, so that serialization and deserialization

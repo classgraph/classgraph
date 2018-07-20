@@ -32,8 +32,8 @@ import java.net.URL;
 import java.net.URLClassLoader;
 
 import io.github.lukehutch.fastclasspathscanner.ClassLoaderHandler;
-import io.github.lukehutch.fastclasspathscanner.ClasspathOrder;
 import io.github.lukehutch.fastclasspathscanner.ScanSpec;
+import io.github.lukehutch.fastclasspathscanner.utils.ClasspathOrder;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 
 /** ClassLoaderHandler that is able to extract the URLs from a URLClassLoader. */

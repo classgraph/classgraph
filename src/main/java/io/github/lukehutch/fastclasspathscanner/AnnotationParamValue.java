@@ -30,8 +30,6 @@ package io.github.lukehutch.fastclasspathscanner;
 
 import java.lang.reflect.Array;
 
-import io.github.lukehutch.fastclasspathscanner.AnnotationInfo.AnnotationClassRef;
-
 /** A wrapper used to pair annotation parameter names with annotation parameter values. */
 public class AnnotationParamValue extends ScanResultObject implements Comparable<AnnotationParamValue> {
     String paramName;

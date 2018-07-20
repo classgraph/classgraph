@@ -39,6 +39,7 @@ import java.util.regex.Pattern;
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner.ClasspathElementFilter;
 import io.github.lukehutch.fastclasspathscanner.classloaderhandler.ClassLoaderHandlerRegistry;
 import io.github.lukehutch.fastclasspathscanner.classloaderhandler.ClassLoaderHandlerRegistry.ClassLoaderHandlerRegistryEntry;
+import io.github.lukehutch.fastclasspathscanner.utils.ClasspathFinder;
 import io.github.lukehutch.fastclasspathscanner.utils.JarUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 
@@ -744,7 +745,7 @@ public class ScanSpec {
      * be overridden by including "!!" in the scan spec. Disabling this blacklisting will increase the time or
      * memory required to scan the classpath.
      */
-    boolean blacklistSystemJars() {
+    public boolean blacklistSystemJars() {
         return blacklistSystemJarsOrModules;
     }
 
@@ -754,7 +755,7 @@ public class ScanSpec {
      * Get the list of all ClassLoaderHandlerRegistryEntry objects for user-defined ClassLoaderHandlers, followed by
      * the defaults in the ClassLoaderHandlerRegistry.
      */
-    List<ClassLoaderHandlerRegistryEntry> getAllClassLoaderHandlerRegistryEntries() {
+    public List<ClassLoaderHandlerRegistryEntry> getAllClassLoaderHandlerRegistryEntries() {
         // Get all manually-added ClassLoaderHandlers (these are added before the default ClassLoaderHandlers,
         // so that the behavior of the defaults can be overridden)
         List<ClassLoaderHandlerRegistryEntry> allClassLoaderHandlerRegistryEntries;
@@ -767,7 +768,8 @@ public class ScanSpec {
         return allClassLoaderHandlerRegistryEntries;
     }
 
-    public ClassLoaderHandler findClassLoaderHandlerForClassLoader(ClassLoader classLoader, LogNode log) {
+    public ClassLoaderHandler findClassLoaderHandlerForClassLoader(final ClassLoader classLoader,
+            final LogNode log) {
         return ClasspathFinder.findClassLoaderHandlerForClassLoader(this, classLoader, log);
     }
 }

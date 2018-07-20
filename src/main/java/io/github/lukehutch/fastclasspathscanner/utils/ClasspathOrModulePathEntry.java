@@ -26,28 +26,24 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.lukehutch.fastclasspathscanner;
+package io.github.lukehutch.fastclasspathscanner.utils;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.Map.Entry;
 import java.util.Set;
 
-import io.github.lukehutch.fastclasspathscanner.utils.ClasspathUtils;
-import io.github.lukehutch.fastclasspathscanner.utils.FastPathResolver;
-import io.github.lukehutch.fastclasspathscanner.utils.FileUtils;
-import io.github.lukehutch.fastclasspathscanner.utils.JarUtils;
-import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
-import io.github.lukehutch.fastclasspathscanner.utils.NestedJarHandler;
+import io.github.lukehutch.fastclasspathscanner.ModuleRef;
+import io.github.lukehutch.fastclasspathscanner.ScanSpec;
 
 /**
  * An entry in the classpath or module path. If the path is an http(s):// URL, the remote jar will be fetched and
  * cached if getFile() / isFile() etc. are called. If the path is a '!'-separated path to a nested jar, the
  * innermost jar will be extracted and cached on these calls.
  */
-class ClasspathOrModulePathEntry {
+public class ClasspathOrModulePathEntry {
     /** The ClassLoader(s) used to load classes for this classpath element */
-    ClassLoader[] classLoaders;
+    public ClassLoader[] classLoaders;
 
     /** Base path for path resolution. */
     private final String pathToResolveAgainst;

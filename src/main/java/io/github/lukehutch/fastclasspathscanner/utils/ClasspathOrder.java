@@ -26,7 +26,7 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.lukehutch.fastclasspathscanner;
+package io.github.lukehutch.fastclasspathscanner.utils;
 
 import java.io.File;
 import java.io.IOException;
@@ -34,9 +34,7 @@ import java.lang.reflect.Array;
 import java.util.LinkedHashSet;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner.ClasspathElementFilter;
-import io.github.lukehutch.fastclasspathscanner.utils.JarUtils;
-import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
-import io.github.lukehutch.fastclasspathscanner.utils.NestedJarHandler;
+import io.github.lukehutch.fastclasspathscanner.ScanSpec;
 
 /** A class to find the unique ordered classpath elements. */
 public class ClasspathOrder {
@@ -45,7 +43,7 @@ public class ClasspathOrder {
 
     private final LinkedHashSet<ClasspathOrModulePathEntry> classpathOrder = new LinkedHashSet<>();
 
-    ClasspathOrder(final ScanSpec scanSpec, final NestedJarHandler nestedJarHandler) {
+    public ClasspathOrder(final ScanSpec scanSpec, final NestedJarHandler nestedJarHandler) {
         this.scanSpec = scanSpec;
         this.nestedJarHandler = nestedJarHandler;
     }

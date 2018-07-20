@@ -38,6 +38,7 @@ import java.util.List;
 
 import io.github.lukehutch.fastclasspathscanner.ModuleRef.ModuleReaderProxy;
 import io.github.lukehutch.fastclasspathscanner.ScanSpec.ScanSpecPathMatch;
+import io.github.lukehutch.fastclasspathscanner.utils.ClasspathOrModulePathEntry;
 import io.github.lukehutch.fastclasspathscanner.utils.FileUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.InterruptionChecker;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;

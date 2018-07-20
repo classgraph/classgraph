@@ -784,7 +784,8 @@ public class ScanResult {
      * @return a reference to the loaded class, or null if the class could not be loaded and ignoreExceptions is
      *         true.
      */
-    Class<?> loadClass(final String className, final boolean ignoreExceptions) throws IllegalArgumentException {
+    public Class<?> loadClass(final String className, final boolean ignoreExceptions)
+            throws IllegalArgumentException {
         try {
             return loadClass(className, /* returnNullIfClassNotFound = */ ignoreExceptions, log);
         } catch (final Throwable e) {

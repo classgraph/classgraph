@@ -39,8 +39,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
-import io.github.lukehutch.fastclasspathscanner.utils.Parser.ParseException;
-
 /** Holds metadata about annotations. */
 public class AnnotationInfo extends ScanResultObject implements Comparable<AnnotationInfo> {
     String annotationName;
@@ -59,83 +57,6 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
                     a.setScanResult(scanResult);
                 }
             }
-        }
-    }
-
-    /**
-     * Stores a class descriptor in an annotation as a class type string, e.g. "[[[java/lang/String;" is stored as
-     * "String[][][]".
-     *
-     * <p>
-     * Use ReflectionUtils.typeStrToClass() to get a {@code Class<?>} reference from this class type string.
-     */
-    public static class AnnotationClassRef extends ScanResultObject {
-        String typeDescriptor;
-        transient TypeSignature typeSignature;
-        transient ScanResult scanResult;
-
-        AnnotationClassRef() {
-        }
-
-        @Override
-        void setScanResult(final ScanResult scanResult) {
-            super.setScanResult(scanResult);
-            if (this.typeSignature != null) {
-                this.typeSignature.setScanResult(scanResult);
-            }
-        }
-
-        AnnotationClassRef(final String classRefTypeDescriptor) {
-            this.typeDescriptor = classRefTypeDescriptor;
-        }
-
-        /**
-         * Get the type signature for a type reference used in an annotation parameter.
-         *
-         * <p>
-         * Call getType() to get a {@code Class<?>} reference for this class.
-         * 
-         * @return The type signature of the annotation class ref.
-         */
-        public TypeSignature getTypeSignature() {
-            if (typeSignature == null) {
-                try {
-                    typeSignature = TypeSignature.parse(typeDescriptor);
-                } catch (final ParseException e) {
-                    throw new IllegalArgumentException(e);
-                }
-            }
-            return typeSignature;
-        }
-
-        /**
-         * Get a class reference for a class-reference-typed value used in an annotation parameter. Causes the
-         * ClassLoader to load the class, if it is not already loaded.
-         * 
-         * @return The type signature of the annotation class ref, as a {@code Class<?>} reference.
-         * @throws IllegalArgumentException
-         *             if an exception or error is thrown while loading the class.
-         */
-        public Class<?> getClassRef() {
-            return getTypeSignature().instantiate();
-        }
-
-        @Override
-        public int hashCode() {
-            return getTypeSignature().hashCode();
-        }
-
-        @Override
-        public boolean equals(final Object obj) {
-            if (!(obj instanceof AnnotationClassRef)) {
-                return false;
-            }
-            return getTypeSignature().equals(((AnnotationClassRef) obj).getTypeSignature());
-        }
-
-        @Override
-        public String toString() {
-            return getTypeSignature().toString();
         }
     }
 

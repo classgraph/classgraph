@@ -26,24 +26,21 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.lukehutch.fastclasspathscanner;
+package io.github.lukehutch.fastclasspathscanner.utils;
 
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 
+import io.github.lukehutch.fastclasspathscanner.ClassLoaderHandler;
 import io.github.lukehutch.fastclasspathscanner.ClassLoaderHandler.DelegationOrder;
+import io.github.lukehutch.fastclasspathscanner.ScanSpec;
 import io.github.lukehutch.fastclasspathscanner.classloaderhandler.ClassLoaderHandlerRegistry;
 import io.github.lukehutch.fastclasspathscanner.classloaderhandler.ClassLoaderHandlerRegistry.ClassLoaderHandlerRegistryEntry;
-import io.github.lukehutch.fastclasspathscanner.utils.ClassLoaderAndModuleFinder;
-import io.github.lukehutch.fastclasspathscanner.utils.FileUtils;
-import io.github.lukehutch.fastclasspathscanner.utils.JarUtils;
-import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
-import io.github.lukehutch.fastclasspathscanner.utils.NestedJarHandler;
 
 /** A class to find the unique ordered classpath elements. */
-class ClasspathFinder {
+public class ClasspathFinder {
     static final String currDirPathStr = FileUtils.getCurrDirPathStr();
 
     private final List<ClasspathOrModulePathEntry> rawClasspathElements;
@@ -183,7 +180,7 @@ class ClasspathFinder {
     // -------------------------------------------------------------------------------------------------------------
 
     /** A class to find the unique ordered classpath elements. */
-    ClasspathFinder(final ScanSpec scanSpec, final NestedJarHandler nestedJarHandler, final LogNode log) {
+    public ClasspathFinder(final ScanSpec scanSpec, final NestedJarHandler nestedJarHandler, final LogNode log) {
         final LogNode classpathFinderLog = log == null ? null : log.log("Finding ClassLoaders");
 
         // Get environment ClassLoader order

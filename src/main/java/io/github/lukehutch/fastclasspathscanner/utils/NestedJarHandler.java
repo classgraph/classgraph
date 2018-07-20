@@ -50,8 +50,8 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 import io.github.lukehutch.fastclasspathscanner.ModuleRef;
-import io.github.lukehutch.fastclasspathscanner.ScanSpec;
 import io.github.lukehutch.fastclasspathscanner.ModuleRef.ModuleReaderProxy;
+import io.github.lukehutch.fastclasspathscanner.ScanSpec;
 
 /**
  * Unzip a jarfile within a jarfile to a temporary file on disk. Also handles the download of jars from http(s) URLs

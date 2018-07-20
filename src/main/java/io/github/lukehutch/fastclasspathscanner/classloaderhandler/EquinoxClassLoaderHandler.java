@@ -32,8 +32,8 @@ import java.lang.reflect.Array;
 import java.util.HashSet;
 
 import io.github.lukehutch.fastclasspathscanner.ClassLoaderHandler;
-import io.github.lukehutch.fastclasspathscanner.ClasspathOrder;
 import io.github.lukehutch.fastclasspathscanner.ScanSpec;
+import io.github.lukehutch.fastclasspathscanner.utils.ClasspathOrder;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
 
