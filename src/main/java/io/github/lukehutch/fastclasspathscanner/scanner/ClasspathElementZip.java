@@ -202,7 +202,6 @@ class ClasspathElementZip extends ClasspathElement {
 
             @Override
             public InputStream open() throws IOException {
-                read();
                 if (skipClasspathElement) {
                     // Shouldn't happen
                     throw new IOException("Jarfile could not be opened");
