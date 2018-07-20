@@ -38,10 +38,11 @@ import io.github.lukehutch.fastclasspathscanner.utils.FileUtils;
  * A classpath or module path resource (i.e. file) that was found in a whitelisted/non-blacklisted package inside a
  * classpath element or module.
  */
-public abstract class Resource implements AutoCloseable {
+public abstract class Resource implements AutoCloseable, Comparable<Resource> {
     protected InputStream inputStream;
     protected ByteBuffer byteBuffer;
     protected long length = -1L;
+    protected String toString;
 
     protected InputStream byteBufferToInputStream() {
         return inputStream == null ? inputStream = FileUtils.byteBufferToInputStream(byteBuffer) : inputStream;
@@ -110,6 +111,35 @@ public abstract class Resource implements AutoCloseable {
      */
     public long getLength() {
         return length;
+    }
+
+    protected abstract String toStringImpl();
+
+    @Override
+    public String toString() {
+        if (toString != null) {
+            return toString;
+        } else {
+            return toString = toStringImpl();
+        }
+    }
+
+    @Override
+    public int hashCode() {
+        return toString().hashCode();
+    }
+
+    @Override
+    public boolean equals(final Object obj) {
+        if (!(obj instanceof Resource)) {
+            return false;
+        }
+        return this.toString().equals(obj.toString());
+    }
+
+    @Override
+    public int compareTo(final Resource o) {
+        return toString().compareTo(o.toString());
     }
 
     /** Close the underlying InputStream, or release/unmap the underlying ByteBuffer. */

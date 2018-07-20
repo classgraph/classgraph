@@ -146,7 +146,7 @@ class ClasspathElementDir extends ClasspathElement {
             }
 
             @Override
-            public String toString() {
+            protected String toStringImpl() {
                 return "[dir " + classpathEltFile + "]/" + pathRelativeToClasspathElt;
             }
         };

@@ -245,7 +245,7 @@ class ClasspathElementZip extends ClasspathElement {
             }
 
             @Override
-            public String toString() {
+            protected String toStringImpl() {
                 return "[jar " + jarFile + "]/" + getPathRelativeToClasspathElement();
             }
         };

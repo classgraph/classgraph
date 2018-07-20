@@ -148,7 +148,7 @@ class ClasspathElementModule extends ClasspathElement {
             }
 
             @Override
-            public String toString() {
+            protected String toStringImpl() {
                 return "[module " + moduleRef.getModuleName() + "]/" + moduleResourcePath;
             }
         };
