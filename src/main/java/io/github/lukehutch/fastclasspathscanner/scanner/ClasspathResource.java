@@ -40,7 +40,6 @@ public abstract class ClasspathResource implements AutoCloseable {
     protected ByteBuffer byteBuffer;
     protected long length = -1L;
 
-    // https://stackoverflow.com/questions/4332264/wrapping-a-bytebuffer-with-an-inputstream/6603018#6603018
     protected InputStream byteBufferToInputStream() {
         return inputStream == null ? inputStream = FileUtils.byteBufferToInputStream(byteBuffer) : inputStream;
     }
@@ -77,13 +76,23 @@ public abstract class ClasspathResource implements AutoCloseable {
      */
     public abstract String getPathRelativeToClasspathElement();
 
-    /** Open an InputStream for a classpath resource. */
+    /**
+     * Open an InputStream for a classpath resource. Make sure you call {@link ClasspathResource#close()} when you
+     * are finished with the InputStream, so that the InputStream is closed.
+     */
     public abstract InputStream open() throws IOException;
 
-    /** Open a ByteBuffer for a classpath resource. */
+    /**
+     * Open a ByteBuffer for a classpath resource. Make sure you call {@link ClasspathResource#close()} when you are
+     * finished with the ByteBuffer, so that the ByteBuffer is released or unmapped.
+     */
     public abstract ByteBuffer read() throws IOException;
 
-    /** Load a classpath resource and return its content as a byte array. */
+    /**
+     * Load a classpath resource and return its content as a byte array. Automatically calls
+     * {@link ClasspathResource#close()} after loading the byte array and before returning it, so that the
+     * underlying InputStream is closed or the underlying ByteBuffer is released or unmapped.
+     */
     public abstract byte[] load() throws IOException;
 
     /**
@@ -94,6 +103,7 @@ public abstract class ClasspathResource implements AutoCloseable {
         return length;
     }
 
+    /** Close the underlying InputStream, or release/unmap the underlying ByteBuffer. */
     @Override
     public void close() {
         if (inputStream != null) {
