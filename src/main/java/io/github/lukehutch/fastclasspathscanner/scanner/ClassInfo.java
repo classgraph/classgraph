@@ -329,7 +329,7 @@ public class ClassInfo extends InfoObject implements Comparable<ClassInfo> {
      * @return The class type signature.
      */
     public ClassTypeSignature getTypeSignature() {
-        if (typeSignature == null) {
+        if (typeSignatureStr == null) {
             return null;
         }
         if (typeSignature == null) {
