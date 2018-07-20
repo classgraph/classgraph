@@ -211,9 +211,38 @@ public class ScanResult {
         if (allResources == null || allResources.isEmpty()) {
             return new AutoCloseableList<>(1);
         } else {
+            String path = resourcePath;
+            while (path.startsWith("/")) {
+                path = path.substring(1);
+            }
             final AutoCloseableList<ClasspathResource> filteredResources = new AutoCloseableList<>();
             for (final ClasspathResource classpathResource : allResources) {
-                if (classpathResource.getPathRelativeToPackageRoot().equals(resourcePath)) {
+                if (classpathResource.getPathRelativeToPackageRoot().equals(path)) {
+                    filteredResources.add(classpathResource);
+                }
+            }
+            return filteredResources;
+        }
+    }
+
+    /**
+     * Get a list of all resources found in whitelisted packages that have a path (relative to the package root of
+     * the classpath element) that starts with the requested path.
+     */
+    public AutoCloseableList<ClasspathResource> getAllResourcesWithPathPrefix(final String resourcePathPrefix) {
+        if (allResources == null || allResources.isEmpty()) {
+            return new AutoCloseableList<>(1);
+        } else {
+            String pathPrefix = resourcePathPrefix;
+            while (pathPrefix.startsWith("/")) {
+                pathPrefix = pathPrefix.substring(1);
+            }
+            if (!pathPrefix.endsWith("/") && !pathPrefix.isEmpty()) {
+                pathPrefix = pathPrefix + "/";
+            }
+            final AutoCloseableList<ClasspathResource> filteredResources = new AutoCloseableList<>();
+            for (final ClasspathResource classpathResource : allResources) {
+                if (classpathResource.getPathRelativeToPackageRoot().startsWith(pathPrefix)) {
                     filteredResources.add(classpathResource);
                 }
             }
