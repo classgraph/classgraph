@@ -229,7 +229,7 @@ public class ScanResult {
      * Get a list of all resources found in whitelisted packages that have a path (relative to the package root of
      * the classpath element) that starts with the requested path.
      */
-    public AutoCloseableList<ClasspathResource> getAllResourcesWithPathPrefix(final String resourcePathPrefix) {
+    public AutoCloseableList<ClasspathResource> getResourcesWithPathPrefix(final String resourcePathPrefix) {
         if (allResources == null || allResources.isEmpty()) {
             return new AutoCloseableList<>(1);
         } else {
@@ -251,7 +251,7 @@ public class ScanResult {
     }
 
     /** Get a list of all resources found in whitelisted packages that have the requested leafname. */
-    public AutoCloseableList<ClasspathResource> getAllResourcesWithLeafName(final String leafName) {
+    public AutoCloseableList<ClasspathResource> getResourcesWithLeafName(final String leafName) {
         if (allResources == null || allResources.isEmpty()) {
             return new AutoCloseableList<>(1);
         } else {
@@ -271,7 +271,7 @@ public class ScanResult {
      * Get a list of all resources found in whitelisted packages that have the requested extension (e.g. "xml" to
      * match all files ending in ".xml").
      */
-    public AutoCloseableList<ClasspathResource> getAllResourcesWithExtension(final String extension) {
+    public AutoCloseableList<ClasspathResource> getResourcesWithExtension(final String extension) {
         if (allResources == null || allResources.isEmpty()) {
             return new AutoCloseableList<>(1);
         } else {
@@ -293,7 +293,7 @@ public class ScanResult {
     /**
      * Get a list of all resources found in whitelisted packages that have a path matching the requested pattern.
      */
-    public AutoCloseableList<ClasspathResource> getAllResourcesMatchingPattern(final Pattern pattern) {
+    public AutoCloseableList<ClasspathResource> getResourcesMatchingPattern(final Pattern pattern) {
         if (allResources == null || allResources.isEmpty()) {
             return new AutoCloseableList<>(1);
         } else {
