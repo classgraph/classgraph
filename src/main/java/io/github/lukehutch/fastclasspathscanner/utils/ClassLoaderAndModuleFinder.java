@@ -197,6 +197,16 @@ public class ClassLoaderAndModuleFinder {
             }
         }
 
+        // Define a fallback classloader when classpath is overridden
+        if (scanSpec.overrideClasspath != null) {
+            final ClassLoader fallbackURLClassLoader = JarUtils
+                    .createURLClassLoaderFromPathString(scanSpec.overrideClasspath);
+            classLoaderFinalOrder.add(fallbackURLClassLoader);
+            if (log != null) {
+                log.log("Adding fallback URLClassLoader for overriden classpath: " + fallbackURLClassLoader);
+            }
+        }
+
         // Log all identified ClassLoaders
         if (classLoadersFoundLog != null) {
             for (final ClassLoader cl : classLoaderFinalOrder) {
