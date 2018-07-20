@@ -103,9 +103,10 @@ public abstract class ClasspathResource implements AutoCloseable {
     public abstract byte[] load() throws IOException;
 
     /**
-     * Get length of InputStream or ByteBuffer -- only set after calling {@link #open()} or {@link #read()}. (For
-     * some resources in jarfiles, length will be unknown even after calling {@link #open()} or {@link #read()}.)
-     * Returns -1 if length is unknown.
+     * Get length of InputStream or ByteBuffer. This only returns a valid value after calling {@link #open()} or
+     * {@link #read()}, and only if the underlying classpath element has length information for the classpath
+     * resource (some jarfiles may not have length information in their zip entries). Returns -1 if length is
+     * unknown.
      */
     public long getLength() {
         return length;
