@@ -280,7 +280,8 @@ abstract class ClasspathElement {
                 // Re-throw
                 throw e;
             } finally {
-                // Close classfile InputStream (and any associated ZipEntry); recycle ZipFile if applicable
+                // Close classfile InputStream (and any associated ZipEntry);
+                // recycle ZipFile or ModuleReaderProxy if applicable
                 classfileResource.close();
             }
         }
