@@ -53,7 +53,7 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
     /** A {@link FunctionalInterface} for consuming the contents of a {@link Resource} as a byte array. */
     @FunctionalInterface
     public interface ByteArrayConsumer {
-        public void accept(final byte[] byteArray);
+        public void accept(final Resource resource, final byte[] byteArray);
     }
 
     /**
@@ -74,7 +74,7 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
         for (final Resource resource : this) {
             try {
                 final byte[] resourceContent = resource.load();
-                byteArrayConsumer.accept(resourceContent);
+                byteArrayConsumer.accept(resource, resourceContent);
             } catch (final IOException e) {
                 if (!ignoreIOExceptions) {
                     throw new IllegalArgumentException("Could not load resource " + this, e);
@@ -103,7 +103,7 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
     /** A {@link FunctionalInterface} for consuming the contents of a {@link Resource} as an {@link InputStream}. */
     @FunctionalInterface
     public interface InputStreamConsumer {
-        public void accept(final InputStream inputStream);
+        public void accept(final Resource resource, final InputStream inputStream);
     }
 
     /**
@@ -125,7 +125,7 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
         for (final Resource resource : this) {
             try {
                 final InputStream inputStream = resource.open();
-                inputStreamConsumer.accept(inputStream);
+                inputStreamConsumer.accept(resource, inputStream);
             } catch (final IOException e) {
                 if (!ignoreIOExceptions) {
                     throw new IllegalArgumentException("Could not load resource " + this, e);
@@ -155,7 +155,7 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
     /** A {@link FunctionalInterface} for consuming the contents of a {@link Resource} as a {@link ByteBuffer}. */
     @FunctionalInterface
     public interface ByteBufferConsumer {
-        public void accept(final ByteBuffer byteBuffer);
+        public void accept(final Resource resource, final ByteBuffer byteBuffer);
     }
 
     /**
@@ -177,7 +177,7 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
         for (final Resource resource : this) {
             try {
                 final ByteBuffer byteBuffer = resource.read();
-                byteBufferConsumer.accept(byteBuffer);
+                byteBufferConsumer.accept(resource, byteBuffer);
             } catch (final IOException e) {
                 if (!ignoreIOExceptions) {
                     throw new IllegalArgumentException("Could not load resource " + this, e);
