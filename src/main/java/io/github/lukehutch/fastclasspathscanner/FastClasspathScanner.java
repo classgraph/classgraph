@@ -509,6 +509,26 @@ public class FastClasspathScanner {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * A callback that can be used to processes the result of an asynchronous scan after scanning has completed and
+     * any MatchProcessors have been run.
+     */
+    @FunctionalInterface
+    public interface ScanResultProcessor {
+        /**
+         * Process the result of an asynchronous scan after scanning has completed and any MatchProcessors have been
+         * run.
+         */
+        public void processScanResult(ScanResult scanResult);
+    }
+
+    /** A callback that can be called on scanning failure during an asynchronous scan. */
+    @FunctionalInterface
+    public interface FailureHandler {
+        /** Called on scanning failure during an asynchronous scan. */
+        public void onFailure(Throwable throwable);
+    }
+
+    /**
      * Asynchronously scans the classpath for matching files, and if runAsynchronously is true, also calls any
      * MatchProcessors if a match is identified.
      *

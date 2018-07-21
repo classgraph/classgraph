@@ -46,6 +46,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 
+import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner.FailureHandler;
+import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner.ScanResultProcessor;
 import io.github.lukehutch.fastclasspathscanner.utils.ClassLoaderAndModuleFinder;
 import io.github.lukehutch.fastclasspathscanner.utils.ClasspathFinder;
 import io.github.lukehutch.fastclasspathscanner.utils.ClasspathOrModulePathEntry;
@@ -59,7 +61,7 @@ import io.github.lukehutch.fastclasspathscanner.utils.WorkQueue.WorkQueuePreStar
 import io.github.lukehutch.fastclasspathscanner.utils.WorkQueue.WorkUnitProcessor;
 
 /** The classpath scanner. */
-public class Scanner implements Callable<ScanResult> {
+class Scanner implements Callable<ScanResult> {
     private final ScanSpec scanSpec;
     private final ExecutorService executorService;
     private final int numParallelTasks;

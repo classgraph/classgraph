@@ -202,10 +202,10 @@ public class ScanResult {
     }
 
     /**
-     * Get a list of all resources found in whitelisted packages that have a path (relative to the package root of
-     * the classpath element) matching the requested path.
+     * Get a list of all resources found in whitelisted packages that have the given path, relative to the package
+     * root of the classpath element. May match several resources, up to one per classpath element.
      */
-    public ResourceList getAllResourcesWithPath(final String resourcePath) {
+    public ResourceList getResourcesWithPath(final String resourcePath) {
         if (allResources == null || allResources.isEmpty()) {
             return new ResourceList(1);
         } else {
@@ -224,8 +224,8 @@ public class ScanResult {
     }
 
     /**
-     * Get a list of all resources found in whitelisted packages that have a path (relative to the package root of
-     * the classpath element) that starts with the requested path.
+     * Get a list of all resources found in whitelisted packages that have a path, relative to the package root of
+     * the classpath element, that starts with the requested path.
      */
     public ResourceList getResourcesWithPathPrefix(final String resourcePathPrefix) {
         if (allResources == null || allResources.isEmpty()) {
@@ -267,7 +267,7 @@ public class ScanResult {
 
     /**
      * Get a list of all resources found in whitelisted packages that have the requested extension (e.g. "xml" to
-     * match all files ending in ".xml").
+     * match all resources ending in ".xml").
      */
     public ResourceList getResourcesWithExtension(final String extension) {
         if (allResources == null || allResources.isEmpty()) {
@@ -289,7 +289,8 @@ public class ScanResult {
     }
 
     /**
-     * Get a list of all resources found in whitelisted packages that have a path matching the requested pattern.
+     * Get a list of all resources found in whitelisted packages that have a path, relative to the classpath package
+     * root, matching the requested pattern.
      */
     public ResourceList getResourcesMatchingPattern(final Pattern pattern) {
         if (allResources == null || allResources.isEmpty()) {

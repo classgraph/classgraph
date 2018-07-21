@@ -28,7 +28,7 @@
  */
 package io.github.lukehutch.fastclasspathscanner;
 
-public abstract class ScanResultObject {
+abstract class ScanResultObject {
     transient protected ScanResult scanResult;
 
     /** For internal use only (sets ScanResult backreferences in info objects after scan has completed). */
