@@ -57,8 +57,9 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
     }
 
     /**
-     * Fetch the content of each {@link Resource} in this {@link ResourceList} as a byte array, then close the
-     * underlying InputStream or ByteBuffer before passing the byte array to the given {@link ByteArrayConsumer}.
+     * Fetch the content of each {@link Resource} in this {@link ResourceList} as a byte array, pass the byte array
+     * to the given {@link ByteArrayConsumer}, then close the underlying InputStream or release the underlying
+     * ByteBuffer by calling {@link Resource#close()}.
      * 
      * @param byteArrayConsumer
      *            The {@link ByteArrayConsumer}.
@@ -86,8 +87,9 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
     }
 
     /**
-     * Fetch the content of each {@link Resource} in this {@link ResourceList} as a byte array, then close the
-     * underlying InputStream or ByteBuffer before passing the byte array to the given {@link ByteArrayConsumer}.
+     * Fetch the content of each {@link Resource} in this {@link ResourceList} as a byte array, pass the byte array
+     * to the given {@link ByteArrayConsumer}, then close the underlying InputStream or release the underlying
+     * ByteBuffer by calling {@link Resource#close()}.
      * 
      * @param byteArrayConsumer
      *            The {@link ByteArrayConsumer}.
@@ -109,7 +111,7 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
     /**
      * Fetch an {@link InputStream} for each {@link Resource} in this {@link ResourceList}, pass the
      * {@link InputStream} to the given {@link InputStreamConsumer}, then close the {@link InputStream} after the
-     * {@link InputStreamConsumer} returns.
+     * {@link InputStreamConsumer} returns, by calling {@link Resource#close()}.
      * 
      * @param inputStreamConsumer
      *            The {@link InputStreamConsumer}.
@@ -139,7 +141,7 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
     /**
      * Fetch an {@link InputStream} for each {@link Resource} in this {@link ResourceList}, pass the
      * {@link InputStream} to the given {@link InputStreamConsumer}, then close the {@link InputStream} after the
-     * {@link InputStreamConsumer} returns.
+     * {@link InputStreamConsumer} returns, by calling {@link Resource#close()}.
      * 
      * @param inputStreamConsumer
      *            The {@link InputStreamConsumer}.
@@ -160,8 +162,8 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
 
     /**
      * Read each {@link Resource} in this {@link ResourceList} as a {@link ByteBuffer}, pass the {@link ByteBuffer}
-     * to the given {@link InputStreamConsumer}, then close the {@link InputStream} after the
-     * {@link InputStreamConsumer} returns.
+     * to the given {@link InputStreamConsumer}, then release the {@link ByteBuffer} after the
+     * {@link ByteBufferConsumer} returns, by calling {@link Resource#close()}.
      * 
      * @param byteBufferConsumer
      *            The {@link ByteBufferConsumer}.
@@ -190,8 +192,8 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
 
     /**
      * Read each {@link Resource} in this {@link ResourceList} as a {@link ByteBuffer}, pass the {@link ByteBuffer}
-     * to the given {@link InputStreamConsumer}, then close the {@link InputStream} after the
-     * {@link InputStreamConsumer} returns.
+     * to the given {@link InputStreamConsumer}, then release the {@link ByteBuffer} after the
+     * {@link ByteBufferConsumer} returns, by calling {@link Resource#close()}.
      * 
      * @param byteBufferConsumer
      *            The {@link ByteBufferConsumer}.
