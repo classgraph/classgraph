@@ -69,12 +69,12 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
      *             if ignoreExceptions is false, and an {@link IOException} is thrown while trying to load any of
      *             the resources.
      */
-    public void forEachThenClose(ByteArrayConsumer byteArrayConsumer, boolean ignoreExceptions) {
-        for (Resource resource : this) {
+    public void forEachThenClose(final ByteArrayConsumer byteArrayConsumer, final boolean ignoreExceptions) {
+        for (final Resource resource : this) {
             try {
-                byte[] resourceContent = resource.load();
+                final byte[] resourceContent = resource.load();
                 byteArrayConsumer.accept(resourceContent);
-            } catch (IOException e) {
+            } catch (final IOException e) {
                 if (!ignoreExceptions) {
                     throw new IllegalArgumentException("Could not load resource " + this, e);
                 }
@@ -93,7 +93,7 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
      * @throws IllegalArgumentException
      *             if trying to load any of the resources results in an {@link IOException} being thrown.
      */
-    public void forEachThenClose(ByteArrayConsumer byteArrayConsumer) {
+    public void forEachThenClose(final ByteArrayConsumer byteArrayConsumer) {
         forEachThenClose(byteArrayConsumer, /* ignoreExceptions = */ false);
     }
 
@@ -119,12 +119,12 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
      *             if ignoreExceptions is false, and an {@link IOException} is thrown while trying to open any of
      *             the resources.
      */
-    public void forEachThenClose(InputStreamConsumer inputStreamConsumer, boolean ignoreExceptions) {
-        for (Resource resource : this) {
+    public void forEachThenClose(final InputStreamConsumer inputStreamConsumer, final boolean ignoreExceptions) {
+        for (final Resource resource : this) {
             try {
-                InputStream inputStream = resource.open();
+                final InputStream inputStream = resource.open();
                 inputStreamConsumer.accept(inputStream);
-            } catch (IOException e) {
+            } catch (final IOException e) {
                 if (!ignoreExceptions) {
                     throw new IllegalArgumentException("Could not load resource " + this, e);
                 }
@@ -144,7 +144,7 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
      * @throws IllegalArgumentException
      *             if trying to open any of the resources results in an {@link IOException} being thrown.
      */
-    public void forEachThenClose(InputStreamConsumer inputStreamConsumer) {
+    public void forEachThenClose(final InputStreamConsumer inputStreamConsumer) {
         forEachThenClose(inputStreamConsumer, /* ignoreExceptions = */ false);
     }
 
@@ -170,12 +170,12 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
      *             if ignoreExceptions is false, and an {@link IOException} is thrown while trying to load any of
      *             the resources.
      */
-    public void forEachThenClose(ByteBufferConsumer byteBufferConsumer, boolean ignoreExceptions) {
-        for (Resource resource : this) {
+    public void forEachThenClose(final ByteBufferConsumer byteBufferConsumer, final boolean ignoreExceptions) {
+        for (final Resource resource : this) {
             try {
-                ByteBuffer byteBuffer = resource.read();
+                final ByteBuffer byteBuffer = resource.read();
                 byteBufferConsumer.accept(byteBuffer);
-            } catch (IOException e) {
+            } catch (final IOException e) {
                 if (!ignoreExceptions) {
                     throw new IllegalArgumentException("Could not load resource " + this, e);
                 }
@@ -195,7 +195,7 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
      * @throws IllegalArgumentException
      *             if trying to load any of the resources results in an {@link IOException} being thrown.
      */
-    public void forEachThenClose(ByteBufferConsumer byteBufferConsumer) {
+    public void forEachThenClose(final ByteBufferConsumer byteBufferConsumer) {
         forEachThenClose(byteBufferConsumer, /* ignoreExceptions = */ false);
     }
 

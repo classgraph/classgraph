@@ -34,11 +34,13 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.regex.Pattern;
 
 import io.github.lukehutch.fastclasspathscanner.utils.AutoCloseableExecutorService;
 import io.github.lukehutch.fastclasspathscanner.utils.JarUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.VersionFinder;
+import io.github.lukehutch.fastclasspathscanner.utils.WhiteBlackList;
 
 /**
  * Uber-fast, ultra-lightweight Java classpath scanner. Scans the classpath by parsing the classfile binary format
@@ -52,13 +54,9 @@ import io.github.lukehutch.fastclasspathscanner.utils.VersionFinder;
  * https://github.com/lukehutch/fast-classpath-scanner/wiki
  */
 public class FastClasspathScanner {
-    /**
-     * The scanning specification (whitelisted and blacklisted packages, etc.), as passed into the constructor.
-     */
-    private final String[] scanSpecArgs;
 
-    /** The scanning specification, parsed. */
-    private ScanSpec scanSpec;
+    /** The scanning specification. */
+    private final ScanSpec scanSpec = new ScanSpec();
 
     /**
      * The default number of worker threads to use while scanning. This number gave the best results on a relatively
@@ -71,28 +69,8 @@ public class FastClasspathScanner {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /**
-     * Construct a FastClasspathScanner instance. You can pass a scanning specification to the constructor to
-     * describe what should be scanned -- see the docs for info:
-     *
-     * <p>
-     * https://github.com/lukehutch/fast-classpath-scanner/wiki/2.-Constructor
-     *
-     * <p>
-     * The scanSpec, if non-empty, prevents irrelevant classpath entries from being unecessarily scanned, which can
-     * be time-consuming.
-     *
-     * <p>
-     * Note that calling the constructor does not start the scan, you must separately call .scan() to perform the
-     * actual scan.
-     *
-     * @param scanSpec
-     *            The constructor accepts a list of whitelisted package prefixes / jar names to scan, as well as
-     *            blacklisted packages/jars not to scan, where blacklisted entries are prefixed with the '-'
-     *            character. See https://github.com/lukehutch/fast-classpath-scanner/wiki/2.-Constructor for info.
-     */
-    public FastClasspathScanner(final String... scanSpec) {
-        this.scanSpecArgs = scanSpec;
+    /** Construct a FastClasspathScanner instance. */
+    public FastClasspathScanner() {
     }
 
     /**
@@ -102,19 +80,6 @@ public class FastClasspathScanner {
      */
     public static final String getVersion() {
         return VersionFinder.getVersion();
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Lazy initializer for scanSpec. (This is lazy so that you have a chance to call verbose() before the ScanSpec
-     * constructor tries to log something.)
-     */
-    private synchronized ScanSpec getScanSpec() {
-        if (scanSpec == null) {
-            scanSpec = new ScanSpec(scanSpecArgs, log == null ? null : log.log("Parsing scan spec"));
-        }
-        return scanSpec;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -140,7 +105,7 @@ public class FastClasspathScanner {
      * @return this (for method chaining).
      */
     public FastClasspathScanner ignoreFieldVisibility() {
-        getScanSpec().ignoreFieldVisibility = true;
+        scanSpec.ignoreFieldVisibility = true;
         return this;
     }
 
@@ -152,7 +117,7 @@ public class FastClasspathScanner {
      * @return this (for method chaining).
      */
     public FastClasspathScanner ignoreMethodVisibility() {
-        getScanSpec().ignoreMethodVisibility = true;
+        scanSpec.ignoreMethodVisibility = true;
         return this;
     }
 
@@ -163,7 +128,7 @@ public class FastClasspathScanner {
      * @return this (for method chaining).
      */
     public FastClasspathScanner enableFieldInfo() {
-        getScanSpec().enableFieldInfo = true;
+        scanSpec.enableFieldInfo = true;
         return this;
     }
 
@@ -175,7 +140,7 @@ public class FastClasspathScanner {
      */
     public FastClasspathScanner enableStaticFinalFieldConstValues() {
         enableFieldInfo();
-        getScanSpec().enableAnnotationInfo = true;
+        scanSpec.enableAnnotationInfo = true;
         return this;
     }
 
@@ -186,7 +151,7 @@ public class FastClasspathScanner {
      * @return this (for method chaining).
      */
     public FastClasspathScanner enableMethodInfo() {
-        getScanSpec().enableMethodInfo = true;
+        scanSpec.enableMethodInfo = true;
         return this;
     }
 
@@ -198,7 +163,7 @@ public class FastClasspathScanner {
      * @return this (for method chaining).
      */
     public FastClasspathScanner enableAnnotationInfo() {
-        getScanSpec().enableAnnotationInfo = true;
+        scanSpec.enableAnnotationInfo = true;
         return this;
     }
 
@@ -208,7 +173,7 @@ public class FastClasspathScanner {
      * @return this (for method chaining).
      */
     public FastClasspathScanner disableRuntimeInvisibleAnnotations() {
-        getScanSpec().disableRuntimeInvisibleAnnotations = true;
+        scanSpec.disableRuntimeInvisibleAnnotations = true;
         return this;
     }
 
@@ -219,7 +184,7 @@ public class FastClasspathScanner {
      * @return this (for method chaining).
      */
     public FastClasspathScanner disableClassfileScanning() {
-        getScanSpec().scanClassfiles = false;
+        scanSpec.scanClassfiles = false;
         return this;
     }
 
@@ -229,7 +194,7 @@ public class FastClasspathScanner {
      * @return this (for method chaining).
      */
     public FastClasspathScanner disableJarScanning() {
-        getScanSpec().scanJars = false;
+        scanSpec.scanJars = false;
         return this;
     }
 
@@ -239,7 +204,7 @@ public class FastClasspathScanner {
      * @return this (for method chaining).
      */
     public FastClasspathScanner disableDirScanning() {
-        getScanSpec().scanDirs = false;
+        scanSpec.scanDirs = false;
         return this;
     }
 
@@ -249,22 +214,7 @@ public class FastClasspathScanner {
      * @return this (for method chaining).
      */
     public FastClasspathScanner disableModuleScanning() {
-        getScanSpec().scanModules = false;
-        return this;
-    }
-
-    /**
-     * Allows you to scan default packages (with package name "") without scanning sub-packages unless they are
-     * whitelisted. This may be needed in some cases because if you add the package name "" to the whitelist, that
-     * package and all sub-packages (meaning everything) will be scanned. This method makes it possible to whitelist
-     * just the toplevel (default) package but not its sub-packages.
-     *
-     * @return this (for method chaining).
-     */
-    public FastClasspathScanner alwaysScanClasspathElementRoot() {
-        // TODO: add method for whitelisting directories non-recursively
-        getScanSpec().whitelistedPathsNonRecursive.add("");
-        getScanSpec().whitelistedPathsNonRecursive.add("/");
+        scanSpec.scanModules = false;
         return this;
     }
 
@@ -275,7 +225,7 @@ public class FastClasspathScanner {
      * @return this (for method chaining).
      */
     public FastClasspathScanner enableExternalClasses() {
-        getScanSpec().enableExternalClasses = true;
+        scanSpec.enableExternalClasses = true;
         return this;
     }
 
@@ -286,7 +236,7 @@ public class FastClasspathScanner {
      * @return this (for method chaining).
      */
     public FastClasspathScanner initializeLoadedClasses() {
-        getScanSpec().initializeLoadedClasses = true;
+        scanSpec.initializeLoadedClasses = true;
         return this;
     }
 
@@ -298,20 +248,7 @@ public class FastClasspathScanner {
      * @return this (for method chaining).
      */
     public FastClasspathScanner removeTemporaryFilesAfterScan() {
-        getScanSpec().removeTemporaryFilesAfterScan = true;
-        return this;
-    }
-
-    /**
-     * Disable recursive scanning. Causes only toplevel entries within each whitelisted package to be scanned, i.e.
-     * sub-packages of whitelisted packages will not be scanned. If no whitelisted packages were provided to the
-     * constructor, then only the toplevel directory within each classpath element will be scanned.
-     *
-     * @return this (for method chaining).
-     */
-    // TODO: remove this option, and make all whitelisting / blacklisting specified as either recursive or not
-    public FastClasspathScanner disableRecursiveScanning() {
-        getScanSpec().disableRecursiveScanning = true;
+        scanSpec.removeTemporaryFilesAfterScan = true;
         return this;
     }
 
@@ -328,7 +265,7 @@ public class FastClasspathScanner {
      * @return this (for method chaining).
      */
     public FastClasspathScanner stripZipSFXHeaders() {
-        getScanSpec().stripSFXHeader = true;
+        scanSpec.stripSFXHeader = true;
         return this;
     }
 
@@ -341,7 +278,7 @@ public class FastClasspathScanner {
      * @return this (for method chaining).
      */
     public FastClasspathScanner createClassLoaderForMatchingClasses() {
-        getScanSpec().createClassLoaderForMatchingClasses = true;
+        scanSpec.createClassLoaderForMatchingClasses = true;
         return this;
     }
 
@@ -360,7 +297,7 @@ public class FastClasspathScanner {
      */
     public FastClasspathScanner registerClassLoaderHandler(
             final Class<? extends ClassLoaderHandler> classLoaderHandlerClass) {
-        getScanSpec().registerClassLoaderHandler(classLoaderHandlerClass);
+        scanSpec.registerClassLoaderHandler(classLoaderHandlerClass);
         return this;
     }
 
@@ -379,7 +316,7 @@ public class FastClasspathScanner {
      * @return this (for method chaining).
      */
     public FastClasspathScanner overrideClasspath(final String overrideClasspath) {
-        getScanSpec().overrideClasspath(overrideClasspath);
+        scanSpec.overrideClasspath(overrideClasspath);
         return this;
     }
 
@@ -452,7 +389,7 @@ public class FastClasspathScanner {
      * @return this (for method chaining).
      */
     public FastClasspathScanner filterClasspathElements(final ClasspathElementFilter classpathElementFilter) {
-        getScanSpec().filterClasspathElements(classpathElementFilter);
+        scanSpec.filterClasspathElements(classpathElementFilter);
         return this;
     }
 
@@ -473,7 +410,7 @@ public class FastClasspathScanner {
      * @return this (for method chaining).
      */
     public FastClasspathScanner addClassLoader(final ClassLoader classLoader) {
-        getScanSpec().addClassLoader(classLoader);
+        scanSpec.addClassLoader(classLoader);
         return this;
     }
 
@@ -488,7 +425,7 @@ public class FastClasspathScanner {
      * @return this (for method chaining).
      */
     public FastClasspathScanner overrideClassLoaders(final ClassLoader... overrideClassLoaders) {
-        getScanSpec().overrideClassLoaders(overrideClassLoaders);
+        scanSpec.overrideClassLoaders(overrideClassLoaders);
         return this;
     }
 
@@ -496,13 +433,367 @@ public class FastClasspathScanner {
      * Ignore parent classloaders (i.e. only obtain paths to scan from classloader(s), do not also fetch paths from
      * parent classloader(s)).
      *
-     * <p>
-     * This call is ignored if overrideClasspath() is called.
-     *
      * @return this (for method chaining).
      */
     public FastClasspathScanner ignoreParentClassLoaders() {
-        getScanSpec().ignoreParentClassLoaders = true;
+        scanSpec.ignoreParentClassLoaders = true;
+        return this;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Scan one or more specific packages and their sub-packages.
+     *
+     * @param packageNames
+     *            The fully-qualified names of packages to scan (using '.' as a separator). May include a glob
+     *            wildcard ('*').
+     * @return this (for method chaining).
+     */
+    public FastClasspathScanner whitelistPackages(final String... packageNames) {
+        for (final String packageName : packageNames) {
+            // Whitelist package
+            scanSpec.packageWhiteBlackList.addToWhitelist(WhiteBlackList.normalizePackageOrClassName(packageName));
+            scanSpec.pathWhiteBlackList.addToWhitelist(WhiteBlackList.packageNameToPath(packageName));
+            if (!packageName.contains("*")) {
+                // Whitelist sub-packages
+                scanSpec.packagePrefixWhiteBlackList
+                        .addToWhitelist(WhiteBlackList.normalizePackageOrClassName(packageName) + ".");
+                scanSpec.pathPrefixWhiteBlackList
+                        .addToWhitelist(WhiteBlackList.packageNameToPath(packageName) + "/");
+            }
+        }
+        return this;
+    }
+
+    /**
+     * Scan one or more specific paths, and their sub-directories or nested paths.
+     *
+     * @param paths
+     *            The paths to scan, relative to the package root of the classpath element (with '/' as a
+     *            separator). May include a glob wildcard ('*').
+     * @return this (for method chaining).
+     */
+    public FastClasspathScanner whitelistPaths(final String... paths) {
+        for (final String path : paths) {
+            // Whitelist path
+            scanSpec.packageWhiteBlackList.addToWhitelist(WhiteBlackList.pathToPackageName(path));
+            scanSpec.pathWhiteBlackList.addToWhitelist(WhiteBlackList.normalizePath(path));
+            if (!path.contains("*")) {
+                // Whitelist sub-directories / nested paths
+                scanSpec.packagePrefixWhiteBlackList.addToWhitelist(WhiteBlackList.pathToPackageName(path) + ".");
+                scanSpec.pathPrefixWhiteBlackList.addToWhitelist(WhiteBlackList.normalizePath(path) + "/");
+            }
+        }
+        return this;
+    }
+
+    /**
+     * Scan one or more specific packages, without recursively scanning sub-packages unless they are themselves
+     * whitelisted.
+     * 
+     * <p>
+     * This may be particularly useful for scanning the package root ("") without recursively scanning everything in
+     * the jar, dir or module.
+     *
+     * @param packageNames
+     *            The fully-qualified names of packages to scan (with '.' as a separator).
+     * @return this (for method chaining).
+     */
+    public FastClasspathScanner whitelistPackagesNonRecursive(final String... packageNames) {
+        for (final String packageName : packageNames) {
+            if (packageName.contains("*")) {
+                throw new IllegalArgumentException("Cannot use a glob wildcard here: " + packageName);
+            }
+            // Whitelist package, but not sub-packages
+            scanSpec.packageWhiteBlackList.addToWhitelist(WhiteBlackList.normalizePackageOrClassName(packageName));
+            scanSpec.pathWhiteBlackList.addToWhitelist(WhiteBlackList.packageNameToPath(packageName));
+        }
+        return this;
+    }
+
+    /**
+     * Scan one or more specific paths, without recursively scanning sub-directories or nested paths unless they are
+     * themselves whitelisted.
+     * 
+     * <p>
+     * This may be particularly useful for scanning the package root ("") without recursively scanning everything in
+     * the jar, dir or module.
+     *
+     * @param paths
+     *            The paths to scan, relative to the package root of the classpath element (with '/' as a
+     *            separator).
+     * @return this (for method chaining).
+     */
+    public FastClasspathScanner whitelistPathsNonRecursive(final String... paths) {
+        for (final String path : paths) {
+            if (path.contains("*")) {
+                throw new IllegalArgumentException("Cannot use a glob wildcard here: " + path);
+            }
+            // Whitelist path, but not sub-directories / nested paths
+            scanSpec.packageWhiteBlackList.addToWhitelist(WhiteBlackList.pathToPackageName(path));
+            scanSpec.pathWhiteBlackList.addToWhitelist(WhiteBlackList.normalizePath(path));
+        }
+        return this;
+    }
+
+    /**
+     * Prevent the scanning of one or more specific packages and their sub-packages.
+     *
+     * @param packageNames
+     *            The fully-qualified names of packages to blacklist (with '.' as a separator). May include a glob
+     *            wildcard ('*').
+     * @return this (for method chaining).
+     */
+    public FastClasspathScanner blacklistPackages(final String... packageNames) {
+        for (final String packageName : packageNames) {
+            // Blacklisting always prevents further recursion, no need to blacklist sub-packages
+            scanSpec.packageWhiteBlackList.addToBlacklist(WhiteBlackList.normalizePackageOrClassName(packageName));
+            scanSpec.pathWhiteBlackList.addToBlacklist(WhiteBlackList.packageNameToPath(packageName));
+        }
+        return this;
+    }
+
+    /**
+     * Prevent the scanning of one or more specific paths and their sub-directories / nested paths.
+     *
+     * @param paths
+     *            The paths to blacklist (with '/' as a separator). May include a glob wildcard ('*').
+     * @return this (for method chaining).
+     */
+    public FastClasspathScanner blacklistPaths(final String... paths) {
+        for (final String path : paths) {
+            // Blacklisting always prevents further recursion, no need to blacklist sub-directories / nested paths
+            scanSpec.packageWhiteBlackList.addToBlacklist(WhiteBlackList.pathToPackageName(path));
+            scanSpec.pathWhiteBlackList.addToBlacklist(WhiteBlackList.normalizePath(path));
+        }
+        return this;
+    }
+
+    /**
+     * Scan one or more specific classes, without scanning other classes in the same package unless the package is
+     * itself whitelisted.
+     *
+     * @param classNames
+     *            The fully-qualified names of classes to scan (using '.' as a separator).
+     * @return this (for method chaining).
+     */
+    public FastClasspathScanner whitelistClasses(final String... classNames) {
+        for (final String className : classNames) {
+            if (className.contains("*")) {
+                throw new IllegalArgumentException("Cannot use a glob wildcard here: " + className);
+            }
+            // Whitelist the class itself
+            scanSpec.classWhiteBlackList.addToWhitelist(WhiteBlackList.normalizePackageOrClassName(className));
+            scanSpec.classfilePathWhiteBlackList.addToWhitelist(WhiteBlackList.classNameToClassfilePath(className));
+            final int lastDotIdx = className.lastIndexOf('.');
+            final String packageName = lastDotIdx < 0 ? "" : className.substring(0, lastDotIdx);
+            // Record the package containing the class, so we can recurse to this point even if the package
+            // is not itself whitelisted
+            scanSpec.classPackageWhiteBlackList
+                    .addToWhitelist(WhiteBlackList.normalizePackageOrClassName(packageName));
+            scanSpec.classPackagePathWhiteBlackList.addToWhitelist(WhiteBlackList.packageNameToPath(packageName));
+        }
+        return this;
+    }
+
+    /**
+     * Specifically blacklist one or more specific classes, preventing them from being scanned even if they are in a
+     * whitelisted package.
+     *
+     * @param classNames
+     *            The fully-qualified names of classes to blacklist (using '.' as a separator).
+     * @return this (for method chaining).
+     */
+    public FastClasspathScanner blacklistClasses(final String... classNames) {
+        for (final String className : classNames) {
+            if (className.contains("*")) {
+                throw new IllegalArgumentException("Cannot use a glob wildcard here: " + className);
+            }
+            scanSpec.classWhiteBlackList.addToBlacklist(WhiteBlackList.normalizePackageOrClassName(className));
+            scanSpec.classfilePathWhiteBlackList.addToBlacklist(WhiteBlackList.classNameToClassfilePath(className));
+        }
+        return this;
+    }
+
+    /**
+     * Blacklist one or more jars, preventing them from being scanned.
+     *
+     * @param jarLeafNames
+     *            The leafnames of the jars that should not be scanned (e.g. "badlib.jar"). May contain a wildcard
+     *            glob ('*').
+     * @return this (for method chaining).
+     */
+    public FastClasspathScanner blacklistJars(final String... jarLeafNames) {
+        for (final String jarLeafName : jarLeafNames) {
+            final String leafName = JarUtils.leafName(jarLeafName);
+            if (!leafName.equals(jarLeafName)) {
+                throw new IllegalArgumentException("Can only blacklist jars by leafname: " + jarLeafName);
+            }
+            scanSpec.jarWhiteBlackList.addToBlacklist(leafName);
+        }
+        return this;
+    }
+
+    /**
+     * Whitelist one or more jars in a JRE/JDK "lib/" or "ext/" directory (these directories are not scanned unless
+     * {@link #unBlacklistSystemPackages()} is called, by association with the JRE/JDK).
+     *
+     * @param jarLeafNames
+     *            The leafnames of the lib/ext jar(s) that should be scanned (e.g. "mylib.jar"). May contain a
+     *            wildcard glob ('*'). If you call this method with no parameters, all JRE/JDK "lib/" or "ext/" jars
+     *            will be whitelisted.
+     * @return this (for method chaining).
+     */
+    public FastClasspathScanner whitelistLibOrExtJars(final String... jarLeafNames) {
+        if (jarLeafNames.length == 0) {
+            // whitelist all lib or ext jars
+            for (final String libOrExtJar : JarUtils.getJreLibOrExtJars()) {
+                whitelistLibOrExtJars(libOrExtJar);
+            }
+        } else {
+            for (final String jarLeafName : jarLeafNames) {
+                final String leafName = JarUtils.leafName(jarLeafName);
+                if (!leafName.equals(jarLeafName)) {
+                    throw new IllegalArgumentException("Can only whitelist jars by leafname: " + jarLeafName);
+                }
+                if (jarLeafName.contains("*")) {
+                    // Compare wildcarded pattern against all jars in lib and ext dirs 
+                    final Pattern pattern = WhiteBlackList.globToPattern(jarLeafName);
+                    boolean found = false;
+                    for (final String libOrExtJarPath : JarUtils.getJreLibOrExtJars()) {
+                        final String libOrExtJarLeafName = JarUtils.leafName(libOrExtJarPath);
+                        if (pattern.matcher(libOrExtJarLeafName).matches()) {
+                            // Check for "*" in filename to prevent infinite recursion (shouldn't happen)
+                            if (!libOrExtJarLeafName.contains("*")) {
+                                whitelistLibOrExtJars(libOrExtJarLeafName);
+                            }
+                            found = true;
+                        }
+                    }
+                    if (!found && log != null) {
+                        log.log("Could not find lib or ext jar matching wildcard: " + jarLeafName);
+                    }
+                } else {
+                    // No wildcards, just whitelist the named jar, if present
+                    boolean found = false;
+                    for (final String libOrExtJarPath : JarUtils.getJreLibOrExtJars()) {
+                        final String libOrExtJarLeafName = JarUtils.leafName(libOrExtJarPath);
+                        if (jarLeafName.equals(libOrExtJarLeafName)) {
+                            scanSpec.libOrExtJarWhiteBlackList.addToWhitelist(jarLeafName);
+                            if (log != null) {
+                                log.log("Whitelisting lib or ext jar: " + libOrExtJarPath);
+                            }
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (!found && log != null) {
+                        log.log("Could not find lib or ext jar: " + jarLeafName);
+                    }
+                }
+            }
+        }
+        return this;
+    }
+
+    /**
+     * Blacklist one or more jars in a JRE/JDK "lib/" or "ext/" directory, preventing them from being scanned.
+     *
+     * @param jarLeafNames
+     *            The leafnames of the lib/ext jar(s) that should not be scanned (e.g. "badlib.jar"). May contain a
+     *            wildcard glob ('*'). If you call this method with no parameters, all JRE/JDK "lib/" or "ext/" jars
+     *            will be blacklisted.
+     * @return this (for method chaining).
+     */
+    public FastClasspathScanner blacklistLibOrExtJars(final String... jarLeafNames) {
+        if (jarLeafNames.length == 0) {
+            // Blacklist all lib or ext jars
+            for (final String libOrExtJar : JarUtils.getJreLibOrExtJars()) {
+                blacklistLibOrExtJars(libOrExtJar);
+            }
+        } else {
+            for (final String jarLeafName : jarLeafNames) {
+                final String leafName = JarUtils.leafName(jarLeafName);
+                if (!leafName.equals(jarLeafName)) {
+                    throw new IllegalArgumentException("Can only blacklist jars by leafname: " + jarLeafName);
+                }
+                if (jarLeafName.contains("*")) {
+                    // Compare wildcarded pattern against all jars in lib and ext dirs 
+                    final Pattern pattern = WhiteBlackList.globToPattern(jarLeafName);
+                    boolean found = false;
+                    for (final String libOrExtJarPath : JarUtils.getJreLibOrExtJars()) {
+                        final String libOrExtJarLeafName = JarUtils.leafName(libOrExtJarPath);
+                        if (pattern.matcher(libOrExtJarLeafName).matches()) {
+                            // Check for "*" in filename to prevent infinite recursion (shouldn't happen)
+                            if (!libOrExtJarLeafName.contains("*")) {
+                                blacklistLibOrExtJars(libOrExtJarLeafName);
+                            }
+                            found = true;
+                        }
+                    }
+                    if (!found && log != null) {
+                        log.log("Could not find lib or ext jar matching wildcard: " + jarLeafName);
+                    }
+                } else {
+                    // No wildcards, just blacklist the named jar, if present
+                    boolean found = false;
+                    for (final String libOrExtJarPath : JarUtils.getJreLibOrExtJars()) {
+                        final String libOrExtJarLeafName = JarUtils.leafName(libOrExtJarPath);
+                        if (jarLeafName.equals(libOrExtJarLeafName)) {
+                            scanSpec.libOrExtJarWhiteBlackList.addToBlacklist(jarLeafName);
+                            if (log != null) {
+                                log.log("Blacklisting lib or ext jar: " + libOrExtJarPath);
+                            }
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (!found && log != null) {
+                        log.log("Could not find lib or ext jar: " + jarLeafName);
+                    }
+                }
+            }
+        }
+        return this;
+    }
+
+    /**
+     * Whitelist one or more modules to scan.
+     *
+     * @param moduleNames
+     *            The names of the modules that should not be scanned. May contain a wildcard glob ('*').
+     * @return this (for method chaining).
+     */
+    public FastClasspathScanner whitelistModules(final String... moduleNames) {
+        for (final String moduleName : moduleNames) {
+            scanSpec.moduleWhiteBlackList.addToWhitelist(moduleName);
+        }
+        return this;
+    }
+
+    /**
+     * Blacklist one or more modules, preventing them from being scanned.
+     *
+     * @param moduleNames
+     *            The names of the modules that should not be scanned. May contain a wildcard glob ('*').
+     * @return this (for method chaining).
+     */
+    public FastClasspathScanner blacklistModules(final String... moduleNames) {
+        for (final String moduleName : moduleNames) {
+            scanSpec.moduleWhiteBlackList.addToBlacklist(moduleName);
+        }
+        return this;
+    }
+
+    /**
+     * Enables the scanning of system packages (java.*, jdk.*, oracle.*, etc.) -- these are not scanned by default
+     * for speed.
+     *
+     * @return this (for method chaining).
+     */
+    public FastClasspathScanner unBlacklistSystemPackages() {
+        scanSpec.blacklistSystemJarsOrModules = false;
         return this;
     }
 
@@ -559,7 +850,7 @@ public class FastClasspathScanner {
         // Drop the returned Future<ScanResult>, a ScanResultProcessor is used instead
         executorService.submit(
                 // Call MatchProcessors before returning if in async scanning mode
-                new Scanner(getScanSpec(), executorService, numParallelTasks, /* enableRecursiveScanning = */ true,
+                new Scanner(scanSpec, executorService, numParallelTasks, /* enableRecursiveScanning = */ true,
                         scanResultProcessor, failureHandler, log));
     }
 
@@ -593,7 +884,7 @@ public class FastClasspathScanner {
     public Future<ScanResult> scanAsync(final ExecutorService executorService, final int numParallelTasks) {
         return executorService.submit(
                 // Call MatchProcessors before returning if in async scanning mode
-                new Scanner(getScanSpec(), executorService, numParallelTasks, /* enableRecursiveScanning = */ true,
+                new Scanner(scanSpec, executorService, numParallelTasks, /* enableRecursiveScanning = */ true,
                         /* scanResultProcessor = */ null, /* failureHandler = */ null, log));
     }
 
@@ -622,9 +913,8 @@ public class FastClasspathScanner {
             // Start the scan and wait for completion
             final ScanResult scanResult = executorService.submit(
                     // Call MatchProcessors before returning if in async scanning mode
-                    new Scanner(getScanSpec(), executorService, numParallelTasks,
-                            /* enableRecursiveScanning = */ true, /* scanResultProcessor = */ null,
-                            /* failureHandler = */ null, log)) //
+                    new Scanner(scanSpec, executorService, numParallelTasks, /* enableRecursiveScanning = */ true,
+                            /* scanResultProcessor = */ null, /* failureHandler = */ null, log)) //
                     .get();
 
             // // TODO: test serialization and deserialization by serializing and then deserializing the ScanResult 
@@ -715,7 +1005,7 @@ public class FastClasspathScanner {
             try (AutoCloseableExecutorService executorService = new AutoCloseableExecutorService(
                     DEFAULT_NUM_WORKER_THREADS)) {
                 return executorService.submit( //
-                        new Scanner(getScanSpec(), executorService, DEFAULT_NUM_WORKER_THREADS,
+                        new Scanner(scanSpec, executorService, DEFAULT_NUM_WORKER_THREADS,
                                 /* enableRecursiveScanning = */ false, /* scanResultProcessor = */ null,
                                 /* failureHandler = */ null,
                                 log == null ? null : log.log("Getting unique classpath elements")))
@@ -768,7 +1058,7 @@ public class FastClasspathScanner {
             try (AutoCloseableExecutorService executorService = new AutoCloseableExecutorService(
                     DEFAULT_NUM_WORKER_THREADS)) {
                 return executorService.submit( //
-                        new Scanner(getScanSpec(), executorService, DEFAULT_NUM_WORKER_THREADS,
+                        new Scanner(scanSpec, executorService, DEFAULT_NUM_WORKER_THREADS,
                                 /* enableRecursiveScanning = */ false, /* scanResultProcessor = */ null,
                                 /* failureHandler = */ null,
                                 log == null ? null : log.log("Getting unique classpath elements")))

@@ -419,8 +419,7 @@ public class ClasspathOrModulePathEntry {
             }
             if (isFile) {
                 final String canonicalPath = getCanonicalPath(log);
-                if (scanSpec.blacklistSystemJars() && JarUtils.isJREJar(canonicalPath,
-                        scanSpec.whitelistedLibOrExtJarPaths, scanSpec.blacklistedLibOrExtJarPaths, log)) {
+                if (scanSpec.blacklistSystemJarsOrModules && JarUtils.isJREJar(canonicalPath, scanSpec, log)) {
                     // Don't scan system jars if they are blacklisted
                     if (log != null) {
                         log.log("Ignoring JRE jar: " + path);
@@ -430,6 +429,10 @@ public class ClasspathOrModulePathEntry {
                 // If a classpath entry is a file, it must be a jar. Jarfiles may not have a jar/zip extension (see
                 // Issue #166), so can't check extension. If the file is not a zipfile, opening it will fail during
                 // scanning.
+                return true;
+            } else {
+                // For directories, return true
+                return true;
             }
         } catch (final IOException e) {
             if (log != null) {
@@ -437,6 +440,5 @@ public class ClasspathOrModulePathEntry {
             }
             return false;
         }
-        return true;
     }
 }

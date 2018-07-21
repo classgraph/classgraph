@@ -209,9 +209,8 @@ public class ClasspathFinder {
                                 + "context classloader");
             }
         } else {
-            // If system jars are not blacklisted, or if there are whitelisted "lib/" or "ext/" jars,
-            // add the JRE jars to the beginning of the classpath (rt.jar will be first in the order).
-            if (!scanSpec.blacklistSystemJars() || !scanSpec.whitelistedLibOrExtJarPaths.isEmpty()) {
+            // If system jars are not blacklisted, add JRE jars to the beginning of the classpath
+            if (!scanSpec.blacklistSystemJarsOrModules) {
                 final List<String> jreJarPaths = JarUtils.getJreJarPaths();
                 if (log != null) {
                     log.log("Adding JRE/JDK jars to classpath:").log(jreJarPaths);
@@ -238,15 +237,10 @@ public class ClasspathFinder {
             final List<SimpleEntry<ClassLoader, ClassLoaderHandler>> ignoredClassLoaderAndHandlerOrder = //
                     new ArrayList<>();
             for (final ClassLoader envClassLoader : classLoaders) {
-                if (!scanSpec.blacklistSystemJars()
-                        || !envClassLoader.getClass().getName().startsWith("sun.misc.Launcher$ExtClassLoader")) {
-                    findClassLoaderHandlerForClassLoaderAndParents(scanSpec, envClassLoader,
-                            /* foundClassLoaders = */ new LinkedHashSet<ClassLoader>(),
-                            allClassLoaderHandlerRegistryEntries, classLoaderAndHandlerOrder,
-                            ignoredClassLoaderAndHandlerOrder, classpathFinderLog);
-                } else if (classpathFinderLog != null) {
-                    classpathFinderLog.log("Skipping system classloader " + envClassLoader.getClass().getName());
-                }
+                findClassLoaderHandlerForClassLoaderAndParents(scanSpec, envClassLoader,
+                        /* foundClassLoaders = */ new LinkedHashSet<ClassLoader>(),
+                        allClassLoaderHandlerRegistryEntries, classLoaderAndHandlerOrder,
+                        ignoredClassLoaderAndHandlerOrder, classpathFinderLog);
             }
 
             // Call each ClassLoaderHandler on its corresponding ClassLoader to get the classpath URLs or paths

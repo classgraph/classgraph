@@ -52,6 +52,7 @@ import io.github.lukehutch.fastclasspathscanner.utils.ClassLoaderAndModuleFinder
 import io.github.lukehutch.fastclasspathscanner.utils.ClasspathFinder;
 import io.github.lukehutch.fastclasspathscanner.utils.ClasspathOrModulePathEntry;
 import io.github.lukehutch.fastclasspathscanner.utils.InterruptionChecker;
+import io.github.lukehutch.fastclasspathscanner.utils.JarUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.NestedJarHandler;
 import io.github.lukehutch.fastclasspathscanner.utils.Recycler;
@@ -85,12 +86,17 @@ class Scanner implements Callable<ScanResult> {
             final boolean enableRecursiveScanning, final ScanResultProcessor scannResultProcessor,
             final FailureHandler failureHandler, final LogNode log) {
         this.scanSpec = scanSpec;
+        scanSpec.sortPrefixes();
+
         this.executorService = executorService;
         this.numParallelTasks = numParallelTasks;
         this.enableRecursiveScanning = enableRecursiveScanning;
         this.scanResultProcessor = scannResultProcessor;
         this.failureHandler = failureHandler;
         this.log = log;
+
+        // Add ScanSpec to beginning of log
+        scanSpec.log(log);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -279,19 +285,24 @@ class Scanner implements Callable<ScanResult> {
             final List<ClasspathOrModulePathEntry> rawClasspathEltOrder = new ArrayList<>();
 
             if (scanSpec.overrideClasspath == null && scanSpec.overrideClassLoaders == null) {
-                // Add modules to start of classpath order (in JDK9+)
+                // Add modules to start of classpath order, before traditional classpath
                 final List<ModuleRef> systemModules = classLoaderAndModuleFinder.getSystemModuleRefs();
                 if (systemModules != null) {
                     for (final ModuleRef systemModule : systemModules) {
                         final String moduleName = systemModule.getModuleName();
-                        if (((!scanSpec.blacklistSystemJarsOrModules && scanSpec.whitelistedModules.isEmpty())
-                                || scanSpec.whitelistedModules.contains(moduleName))
-                                && !scanSpec.blacklistedModules.contains(moduleName)) {
-                            rawClasspathEltOrder.add(new ClasspathOrModulePathEntry(systemModule, nestedJarHandler,
-                                    getRawElementsLog));
+                        if (!scanSpec.blacklistSystemJarsOrModules
+                                || !JarUtils.isInSystemPackageOrModule(moduleName)) {
+                            if (scanSpec.moduleWhiteBlackList.isWhitelistedAndNotBlacklisted(moduleName)) {
+                                rawClasspathEltOrder.add(new ClasspathOrModulePathEntry(systemModule,
+                                        nestedJarHandler, getRawElementsLog));
+                            } else {
+                                if (log != null) {
+                                    log.log("Skipping non-whitelisted or blacklisted system module: " + moduleName);
+                                }
+                            }
                         } else {
                             if (log != null) {
-                                log.log("Skipping blacklisted/non-whitelisted system module: " + moduleName);
+                                log.log("Skipping system module: " + moduleName);
                             }
                         }
                     }
@@ -300,29 +311,15 @@ class Scanner implements Callable<ScanResult> {
                 if (nonSystemModules != null) {
                     for (final ModuleRef nonSystemModule : nonSystemModules) {
                         final String moduleName = nonSystemModule.getModuleName();
-                        if ((scanSpec.whitelistedModules.isEmpty()
-                                || scanSpec.whitelistedModules.contains(moduleName))
-                                && !scanSpec.blacklistedModules.contains(moduleName)) {
+                        if (scanSpec.moduleWhiteBlackList.isWhitelistedAndNotBlacklisted(moduleName)) {
                             rawClasspathEltOrder.add(new ClasspathOrModulePathEntry(nonSystemModule,
                                     nestedJarHandler, getRawElementsLog));
                         } else {
                             if (log != null) {
-                                log.log("Skipping blacklisted/non-whitelisted module: " + moduleName);
+                                log.log("Skipping non-whitelisted or blacklisted module: " + moduleName);
                             }
                         }
                     }
-                }
-            }
-
-            // If there are no whitelisted modules, or the module whitelist contains the unnamed module
-            if ((scanSpec.whitelistedModules.isEmpty() || scanSpec.whitelistedModules.contains(""))
-                    && !scanSpec.blacklistedModules.contains("")) {
-                // Add non-module classpath elements to classpath order
-                rawClasspathEltOrder.addAll(classpathFinder.getRawClasspathElements());
-            } else {
-                if (log != null) {
-                    log.log("Skipping non-module classpath entries, since the unnamed module (\"\") is not "
-                            + "whitelisted, or is blacklisted");
                 }
             }
 
@@ -359,8 +356,8 @@ class Scanner implements Callable<ScanResult> {
                                             preScanLog.log("Ignoring because jar scanning has been disabled: "
                                                     + rawClasspathEltPath);
                                         }
-                                    } else if (isFile && !scanSpec
-                                            .jarIsWhitelisted(rawClasspathEltPath.getCanonicalPath(preScanLog))) {
+                                    } else if (isFile && !scanSpec.jarIsWhitelistedAndNotBlacklisted(
+                                            rawClasspathEltPath.getCanonicalPath(preScanLog))) {
                                         if (preScanLog != null) {
                                             preScanLog
                                                     .log("Ignoring jarfile that is blacklisted or not whitelisted: "
@@ -688,7 +685,9 @@ class Scanner implements Callable<ScanResult> {
             // No exceptions were thrown -- return scan result
             return scanResult;
 
-        } catch (final Throwable e) {
+        } catch (
+
+        final Throwable e) {
             // Remove temporary files if an exception was thrown
             if (this.nestedJarHandler != null) {
                 this.nestedJarHandler.close(log);

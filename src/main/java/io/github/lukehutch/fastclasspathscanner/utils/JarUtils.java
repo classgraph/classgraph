@@ -43,6 +43,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import io.github.lukehutch.fastclasspathscanner.ScanSpec;
+
 public class JarUtils {
     /**
      * On everything but Windows, where the path separator is ':', need to treat the colon in these substrings as
@@ -237,8 +239,7 @@ public class JarUtils {
 
     private static final List<String> JRE_JARS = new ArrayList<>();
     private static final Set<String> JRE_JARS_SET = new HashSet<>();
-    private static final Set<String> JRE_LIB_JARS = new HashSet<>();
-    private static final Set<String> JRE_EXT_JARS = new HashSet<>();
+    private static final Set<String> JRE_LIB_OR_EXT_JARS = new HashSet<>();
 
     // Find jars in JRE dirs ({java.home}, {java.home}/lib, {java.home}/lib/ext, etc.)
     static {
@@ -302,10 +303,8 @@ public class JarUtils {
                     if (!filePath.isEmpty()) {
                         if (filePath.endsWith(".jar")) {
                             jreJarPaths.add(filePath);
-                            if (isLib) {
-                                JRE_LIB_JARS.add(filePath);
-                            } else if (isExt) {
-                                JRE_EXT_JARS.add(filePath);
+                            if (isLib || isExt) {
+                                JRE_LIB_OR_EXT_JARS.add(filePath);
                             }
                         }
                     }
@@ -382,24 +381,18 @@ public class JarUtils {
         return JRE_JARS;
     }
 
-    /** Get the paths for any JRE/JDK "lib/" jars. */
-    public static Set<String> getJreExtJars() {
-        return JRE_EXT_JARS;
-    }
-
-    /** Get the paths for any JRE/JDK "ext/" jars. */
-    public static Set<String> getJreLibJars() {
-        return JRE_LIB_JARS;
+    /** Get the paths for any JRE/JDK "lib/" or "ext/" jars. */
+    public static Set<String> getJreLibOrExtJars() {
+        return JRE_LIB_OR_EXT_JARS;
     }
 
     /**
      * Determine whether a given jarfile is in a JRE system directory (jre, jre/lib, jre/lib/ext, etc.).
      */
-    public static boolean isJREJar(final String filePath, final Set<String> whitelistedLibOrExtJarPaths,
-            final Set<String> blacklistedLibOrExtJarPaths, final LogNode log) {
-        if (!whitelistedLibOrExtJarPaths.isEmpty() && whitelistedLibOrExtJarPaths.contains(filePath)
-                && !blacklistedLibOrExtJarPaths.contains(filePath)) {
-            // This is a whitelisted "lib/" or "ext/" jar, so don't consider this a system jar
+    public static boolean isJREJar(final String filePath, final ScanSpec scanSpec, final LogNode log) {
+        if (JRE_LIB_OR_EXT_JARS.contains(filePath)
+                && scanSpec.libOrExtJarWhiteBlackList.isSpecificallyWhitelistedAndNotBlacklisted(filePath)) {
+            // This is a whitelisted lib/ or ext/ jar, so de-associate it from the JRE/JDK
             return false;
         }
         return JRE_JARS_SET.contains(filePath);

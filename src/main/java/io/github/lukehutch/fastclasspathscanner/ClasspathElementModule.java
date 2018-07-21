@@ -172,8 +172,10 @@ class ClasspathElementModule extends ClasspathElement {
                 return;
             }
 
-            // Always scan a module if the root package needs to be scanned
-            boolean hasWhitelistedPackage = scanSpec.whitelistedPathsNonRecursive.contains("");
+            // Always scan a module if the root package needs to be scanned, since moduleRef.getModulePackages()
+            // will never return the empty package ("").
+            boolean hasWhitelistedPackage = scanSpec.packagePrefixWhiteBlackList
+                    .isSpecificallyWhitelistedAndNotBlacklisted("");
             if (!hasWhitelistedPackage) {
                 // Check if module contains any whitelisted non-root packages
                 final List<String> packages = moduleRef.getModulePackages();
