@@ -323,6 +323,9 @@ class Scanner implements Callable<ScanResult> {
                 }
             }
 
+            // Add traditional classpath entries to the classpath order
+            rawClasspathEltOrder.addAll(classpathFinder.getRawClasspathElements());
+
             // In parallel, resolve raw classpath elements to canonical paths, creating a ClasspathElement singleton
             // for each unique canonical path. Also check jars against jar whitelist/blacklist.
             final LogNode preScanLog = classpathFinderLog == null ? null
