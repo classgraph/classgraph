@@ -263,6 +263,7 @@ public class ModuleRef implements Comparable<ModuleRef> {
             }
         }
 
+        /** Calls ModuleReader#close(). */
         @Override
         public void close() throws Exception {
             moduleReader.close();

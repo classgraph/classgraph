@@ -275,6 +275,8 @@ class ClasspathElementModule extends ClasspathElement {
     @Override
     public void close() {
         if (moduleReaderProxyRecycler != null) {
+            // Will close all the ModuleReaderProxies, which will in turn call ModuleReader#close()
+            // on all open ModuleReaders.
             moduleReaderProxyRecycler.close();
         }
         moduleReaderProxyRecycler = null;
