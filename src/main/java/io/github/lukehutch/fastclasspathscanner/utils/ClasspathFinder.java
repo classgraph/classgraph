@@ -181,7 +181,7 @@ public class ClasspathFinder {
 
     /** A class to find the unique ordered classpath elements. */
     public ClasspathFinder(final ScanSpec scanSpec, final NestedJarHandler nestedJarHandler, final LogNode log) {
-        final LogNode classpathFinderLog = log == null ? null : log.log("Finding ClassLoaders");
+        final LogNode classpathFinderLog = log == null ? null : log.log("Finding ClassLoaders and modules");
 
         // Get environment ClassLoader order
         classLoaderAndModuleFinder = new ClassLoaderAndModuleFinder(scanSpec, classpathFinderLog);

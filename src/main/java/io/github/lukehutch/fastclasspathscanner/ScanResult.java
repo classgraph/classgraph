@@ -273,13 +273,17 @@ public class ScanResult {
         if (allResources == null || allResources.isEmpty()) {
             return new ResourceList(1);
         } else {
+            String bareExtension = extension;
+            while (bareExtension.startsWith(".")) {
+                bareExtension = bareExtension.substring(1);
+            }
             final ResourceList filteredResources = new ResourceList();
             for (final Resource classpathResource : allResources) {
                 final String relativePath = classpathResource.getPathRelativeToPackageRoot();
                 final int lastSlashIdx = relativePath.lastIndexOf('/');
                 final int lastDotIdx = relativePath.lastIndexOf('.');
                 if (lastDotIdx > lastSlashIdx) {
-                    if (relativePath.substring(lastDotIdx + 1).equalsIgnoreCase(extension)) {
+                    if (relativePath.substring(lastDotIdx + 1).equalsIgnoreCase(bareExtension)) {
                         filteredResources.add(classpathResource);
                     }
                 }
