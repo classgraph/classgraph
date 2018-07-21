@@ -28,6 +28,9 @@
  */
 package io.github.lukehutch.fastclasspathscanner;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 
@@ -45,6 +48,160 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
         super(collection);
     }
 
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** A {@link FunctionalInterface} for consuming the contents of a {@link Resource} as a byte array. */
+    @FunctionalInterface
+    public interface ByteArrayConsumer {
+        public void accept(final byte[] byteArray);
+    }
+
+    /**
+     * Fetch the content of each {@link Resource} in this {@link ResourceList} as a byte array, then close the
+     * underlying InputStream or ByteBuffer before passing the byte array to the given {@link ByteArrayConsumer}.
+     * 
+     * @param byteArrayConsumer
+     *            The {@link ByteArrayConsumer}.
+     * @param ignoreExceptions
+     *            if true, any {@link IOException} thrown while trying to load any of the resources will be silently
+     *            ignored.
+     * @throws IllegalArgumentException
+     *             if ignoreExceptions is false, and an {@link IOException} is thrown while trying to load any of
+     *             the resources.
+     */
+    public void forEachThenClose(ByteArrayConsumer byteArrayConsumer, boolean ignoreExceptions) {
+        for (Resource resource : this) {
+            try {
+                byte[] resourceContent = resource.load();
+                byteArrayConsumer.accept(resourceContent);
+            } catch (IOException e) {
+                if (!ignoreExceptions) {
+                    throw new IllegalArgumentException("Could not load resource " + this, e);
+                }
+            } finally {
+                resource.close();
+            }
+        }
+    }
+
+    /**
+     * Fetch the content of each {@link Resource} in this {@link ResourceList} as a byte array, then close the
+     * underlying InputStream or ByteBuffer before passing the byte array to the given {@link ByteArrayConsumer}.
+     * 
+     * @param byteArrayConsumer
+     *            The {@link ByteArrayConsumer}.
+     * @throws IllegalArgumentException
+     *             if trying to load any of the resources results in an {@link IOException} being thrown.
+     */
+    public void forEachThenClose(ByteArrayConsumer byteArrayConsumer) {
+        forEachThenClose(byteArrayConsumer, /* ignoreExceptions = */ false);
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** A {@link FunctionalInterface} for consuming the contents of a {@link Resource} as an {@link InputStream}. */
+    @FunctionalInterface
+    public interface InputStreamConsumer {
+        public void accept(final InputStream inputStream);
+    }
+
+    /**
+     * Fetch an {@link InputStream} for each {@link Resource} in this {@link ResourceList}, pass the
+     * {@link InputStream} to the given {@link InputStreamConsumer}, then close the {@link InputStream} after the
+     * {@link InputStreamConsumer} returns.
+     * 
+     * @param inputStreamConsumer
+     *            The {@link InputStreamConsumer}.
+     * @param ignoreExceptions
+     *            if true, any {@link IOException} thrown while trying to load any of the resources will be silently
+     *            ignored.
+     * @throws IllegalArgumentException
+     *             if ignoreExceptions is false, and an {@link IOException} is thrown while trying to open any of
+     *             the resources.
+     */
+    public void forEachThenClose(InputStreamConsumer inputStreamConsumer, boolean ignoreExceptions) {
+        for (Resource resource : this) {
+            try {
+                InputStream inputStream = resource.open();
+                inputStreamConsumer.accept(inputStream);
+            } catch (IOException e) {
+                if (!ignoreExceptions) {
+                    throw new IllegalArgumentException("Could not load resource " + this, e);
+                }
+            } finally {
+                resource.close();
+            }
+        }
+    }
+
+    /**
+     * Fetch an {@link InputStream} for each {@link Resource} in this {@link ResourceList}, pass the
+     * {@link InputStream} to the given {@link InputStreamConsumer}, then close the {@link InputStream} after the
+     * {@link InputStreamConsumer} returns.
+     * 
+     * @param inputStreamConsumer
+     *            The {@link InputStreamConsumer}.
+     * @throws IllegalArgumentException
+     *             if trying to open any of the resources results in an {@link IOException} being thrown.
+     */
+    public void forEachThenClose(InputStreamConsumer inputStreamConsumer) {
+        forEachThenClose(inputStreamConsumer, /* ignoreExceptions = */ false);
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** A {@link FunctionalInterface} for consuming the contents of a {@link Resource} as a {@link ByteBuffer}. */
+    @FunctionalInterface
+    public interface ByteBufferConsumer {
+        public void accept(final ByteBuffer byteBuffer);
+    }
+
+    /**
+     * Read each {@link Resource} in this {@link ResourceList} as a {@link ByteBuffer}, pass the {@link ByteBuffer}
+     * to the given {@link InputStreamConsumer}, then close the {@link InputStream} after the
+     * {@link InputStreamConsumer} returns.
+     * 
+     * @param byteBufferConsumer
+     *            The {@link ByteBufferConsumer}.
+     * @param ignoreExceptions
+     *            if true, any {@link IOException} thrown while trying to load any of the resources will be silently
+     *            ignored.
+     * @throws IllegalArgumentException
+     *             if ignoreExceptions is false, and an {@link IOException} is thrown while trying to load any of
+     *             the resources.
+     */
+    public void forEachThenClose(ByteBufferConsumer byteBufferConsumer, boolean ignoreExceptions) {
+        for (Resource resource : this) {
+            try {
+                ByteBuffer byteBuffer = resource.read();
+                byteBufferConsumer.accept(byteBuffer);
+            } catch (IOException e) {
+                if (!ignoreExceptions) {
+                    throw new IllegalArgumentException("Could not load resource " + this, e);
+                }
+            } finally {
+                resource.close();
+            }
+        }
+    }
+
+    /**
+     * Read each {@link Resource} in this {@link ResourceList} as a {@link ByteBuffer}, pass the {@link ByteBuffer}
+     * to the given {@link InputStreamConsumer}, then close the {@link InputStream} after the
+     * {@link InputStreamConsumer} returns.
+     * 
+     * @param byteBufferConsumer
+     *            The {@link ByteBufferConsumer}.
+     * @throws IllegalArgumentException
+     *             if trying to load any of the resources results in an {@link IOException} being thrown.
+     */
+    public void forEachThenClose(ByteBufferConsumer byteBufferConsumer) {
+        forEachThenClose(byteBufferConsumer, /* ignoreExceptions = */ false);
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** Close all the {@link Resource} objects in this {@link ResourceList}. */
     @Override
     public void close() {
         for (final Resource resource : this) {
