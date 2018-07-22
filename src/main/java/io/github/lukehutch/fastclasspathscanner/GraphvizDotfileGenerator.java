@@ -279,9 +279,12 @@ class GraphvizDotfileGenerator {
                 buf.append("</td>");
 
                 // Field name
-                buf.append("<td align='left' valign='top'><b>");
-                htmlEncode(fi.getFieldName(), buf);
-                buf.append("</b></td></tr>");
+                String fieldName = fi.getFieldName();
+                if (fieldName != null) {
+                    buf.append("<td align='left' valign='top'><b>");
+                    htmlEncode(fieldName, buf);
+                    buf.append("</b></td></tr>");
+                }
             }
             buf.append("</table>");
             buf.append("</td></tr>");
