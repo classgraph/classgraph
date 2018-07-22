@@ -448,11 +448,6 @@ public class GraphvizDotfileGenerator {
         buf.append("edge [fontname = \"Courier, Regular\"]\n");
 
         final ClassInfoList standardClassNodes = scanResult.getAllStandardClasses();
-        final ClassInfo objectClass = scanResult.getClassInfo("java.lang.Object");
-        if (objectClass != null) {
-            // java.lang.Object should never be shown
-            standardClassNodes.remove(objectClass);
-        }
         final ClassInfoList interfaceNodes = scanResult.getAllInterfaceClasses();
         final ClassInfoList annotationNodes = scanResult.getAllAnnotationClasses();
 
@@ -482,7 +477,8 @@ public class GraphvizDotfileGenerator {
         buf.append("\n");
         for (final ClassInfo classNode : standardClassNodes) {
             for (final ClassInfo directSuperclassNode : classNode.getSuperclasses().directOnly()) {
-                if (directSuperclassNode != null && allVisibleNodes.contains(directSuperclassNode.getClassName())) {
+                if (directSuperclassNode != null && allVisibleNodes.contains(directSuperclassNode.getClassName())
+                        && !directSuperclassNode.getClassName().equals("java.lang.Object")) {
                     // class --> superclass
                     buf.append("  \"" + classNode.getClassName() + "\" -> \"" + directSuperclassNode.getClassName()
                             + "\" [arrowsize=2.5]\n");
