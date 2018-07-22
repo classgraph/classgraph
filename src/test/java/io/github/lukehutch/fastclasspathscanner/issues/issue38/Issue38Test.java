@@ -13,15 +13,9 @@ public class Issue38Test {
     }
 
     @Test
-    public void testImplementsSuppressWarningsNonStrict() {
-        assertThat(new FastClasspathScanner(Issue38Test.class.getPackage().getName()).enableExternalClasses().scan()
-                .getNamesOfClassesImplementing(SuppressWarnings.class))
-                        .contains(ImplementsSuppressWarnings.class.getName());
-    }
-
-    @Test
     public void testImplementsSuppressWarnings() {
-        new FastClasspathScanner(Issue38Test.class.getPackage().getName()).scan()
-                .getNamesOfClassesImplementing(SuppressWarnings.class);
+        assertThat(new FastClasspathScanner().whitelistPackages(Issue38Test.class.getPackage().getName()).scan()
+                .getClassesImplementing(SuppressWarnings.class.getName()).getClassNames())
+                        .containsOnly(ImplementsSuppressWarnings.class.getName());
     }
 }

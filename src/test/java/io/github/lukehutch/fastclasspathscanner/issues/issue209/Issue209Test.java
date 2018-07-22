@@ -32,30 +32,21 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.util.ArrayList;
-import java.util.List;
 
 import org.junit.Test;
 
-import io.github.lukehutch.fastclasspathscanner.ClassInfo;
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.ScanResult;
 
 public class Issue209Test {
     @Test
     public void testSpringBootJarWithLibJars() {
-        final ScanResult result = new FastClasspathScanner( //
+        final ScanResult result = new FastClasspathScanner().whitelistPackages( //
                 "org.springframework.boot.loader.util", "com.foo", "issue209lib") //
-                        .overrideClassLoaders(new URLClassLoader(
-                                new URL[] { Issue209Test.class.getClassLoader().getResource("issue209.jar") })) //
-                        .scan();
-
-        final List<String> classNames = new ArrayList<>();
-        for (final ClassInfo ci : result.getClassNameToClassInfo().values()) {
-            final Class<?> classRef = ci.getClassRef();
-            classNames.add(classRef.getName());
-        }
-        assertThat(classNames).containsOnly(
+                .overrideClassLoaders(new URLClassLoader(
+                        new URL[] { Issue209Test.class.getClassLoader().getResource("issue209.jar") })) //
+                .scan();
+        assertThat(result.getAllClasses().getClassNames()).containsOnly(
                 // Test reading from /
                 "org.springframework.boot.loader.util.SystemPropertyUtils",
                 // Test reading from /BOOT-INF/classes
@@ -66,19 +57,13 @@ public class Issue209Test {
 
     @Test
     public void testSpringBootJarWithLibJarsUsingCustomClassLoader() {
-        final ScanResult result = new FastClasspathScanner( //
+        final ScanResult result = new FastClasspathScanner().whitelistPackages( //
                 "org.springframework.boot.loader.util", "com.foo", "issue209lib") //
-                        .overrideClassLoaders(new URLClassLoader(
-                                new URL[] { Issue209Test.class.getClassLoader().getResource("issue209.jar") })) //
-                        .createClassLoaderForMatchingClasses() //
-                        .scan();
-
-        final List<String> classNames = new ArrayList<>();
-        for (final ClassInfo ci : result.getClassNameToClassInfo().values()) {
-            final Class<?> classRef = ci.getClassRef();
-            classNames.add(classRef.getName());
-        }
-        assertThat(classNames).containsOnly(
+                .overrideClassLoaders(new URLClassLoader(
+                        new URL[] { Issue209Test.class.getClassLoader().getResource("issue209.jar") })) //
+                .createClassLoaderForMatchingClasses() //
+                .scan();
+        assertThat(result.getAllClasses().getClassNames()).containsOnly(
                 // Test reading from /
                 "org.springframework.boot.loader.util.SystemPropertyUtils",
                 // Test reading from /BOOT-INF/classes

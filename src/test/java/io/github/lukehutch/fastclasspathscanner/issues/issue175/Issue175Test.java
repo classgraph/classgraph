@@ -34,7 +34,6 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import org.junit.Test;
 
@@ -51,15 +50,13 @@ public class Issue175Test {
         final URL aJarURL = classLoader.getResource(aJarName);
         final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
-        final ScanResult result = new FastClasspathScanner("net.corda.core.contracts") //
+        final ScanResult result = new FastClasspathScanner().whitelistPackages("net.corda.core.contracts") //
                 .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().ignoreMethodVisibility()
                 .ignoreFieldVisibility().enableMethodInfo().enableFieldInfo().scan();
 
-        final Map<String, ClassInfo> allInfo = result.getClassNameToClassInfo();
-
         final List<String> methods = new ArrayList<>();
         for (final String className : result.getAllClasses().getClassNames()) {
-            final ClassInfo classInfo = allInfo.get(className);
+            final ClassInfo classInfo = result.getClassInfo(className);
             for (final MethodInfo method : classInfo.getMethodAndConstructorInfo()) {
                 methods.add(method.toString());
             }
@@ -77,15 +74,13 @@ public class Issue175Test {
         final URL aJarURL = classLoader.getResource(aJarName);
         final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
-        final ScanResult result = new FastClasspathScanner("net.corda.core") //
+        final ScanResult result = new FastClasspathScanner().whitelistPackages("net.corda.core") //
                 .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().ignoreMethodVisibility()
                 .ignoreFieldVisibility().enableMethodInfo().enableFieldInfo().scan();
 
-        final Map<String, ClassInfo> allInfo = result.getClassNameToClassInfo();
-
         final List<String> methods = new ArrayList<>();
         for (final String className : result.getAllClasses().getClassNames()) {
-            final ClassInfo classInfo = allInfo.get(className);
+            final ClassInfo classInfo = result.getClassInfo(className);
             for (final MethodInfo method : classInfo.getMethodAndConstructorInfo()) {
                 methods.add(method.toString());
             }
@@ -102,15 +97,13 @@ public class Issue175Test {
         final URL aJarURL = classLoader.getResource(aJarName);
         final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
-        final ScanResult result = new FastClasspathScanner("net.corda.core") //
+        final ScanResult result = new FastClasspathScanner().whitelistPackages("net.corda.core") //
                 .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().ignoreMethodVisibility()
                 .ignoreFieldVisibility().enableMethodInfo().enableFieldInfo().scan();
 
-        final Map<String, ClassInfo> allInfo = result.getClassNameToClassInfo();
-
         final List<String> methods = new ArrayList<>();
         for (final String className : result.getAllClasses().getClassNames()) {
-            final ClassInfo classInfo = allInfo.get(className);
+            final ClassInfo classInfo = result.getClassInfo(className);
             for (final MethodInfo method : classInfo.getMethodAndConstructorInfo()) {
                 methods.add(method.toString());
             }
@@ -130,15 +123,13 @@ public class Issue175Test {
         final URL aJarURL = classLoader.getResource(aJarName);
         final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
-        final ScanResult result = new FastClasspathScanner("net.corda.core.contracts") //
+        final ScanResult result = new FastClasspathScanner().whitelistPackages("net.corda.core.contracts") //
                 .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().ignoreMethodVisibility()
                 .ignoreFieldVisibility().enableMethodInfo().enableFieldInfo().scan();
 
-        final Map<String, ClassInfo> allInfo = result.getClassNameToClassInfo();
-
         final List<String> methods = new ArrayList<>();
         for (final String className : result.getAllClasses().getClassNames()) {
-            final ClassInfo classInfo = allInfo.get(className);
+            final ClassInfo classInfo = result.getClassInfo(className);
             for (final MethodInfo method : classInfo.getMethodAndConstructorInfo()) {
                 methods.add(method.toString());
             }
@@ -164,15 +155,13 @@ public class Issue175Test {
         final URL aJarURL = classLoader.getResource(aJarName);
         final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
-        final ScanResult result = new FastClasspathScanner("net.corda.testing.node") //
+        final ScanResult result = new FastClasspathScanner().whitelistPackages("net.corda.testing.node") //
                 .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().ignoreMethodVisibility()
                 .ignoreFieldVisibility().enableMethodInfo().enableFieldInfo().scan();
 
-        final Map<String, ClassInfo> allInfo = result.getClassNameToClassInfo();
-
         final List<String> methods = new ArrayList<>();
         for (final String className : result.getAllClasses().getClassNames()) {
-            final ClassInfo classInfo = allInfo.get(className);
+            final ClassInfo classInfo = result.getClassInfo(className);
             for (final MethodInfo method : classInfo.getMethodAndConstructorInfo()) {
                 methods.add(method.toString());
             }
@@ -227,15 +216,13 @@ public class Issue175Test {
         final URL aJarURL = classLoader.getResource(aJarName);
         final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
-        final ScanResult result = new FastClasspathScanner("net.corda.core.node.services.vault") //
+        final ScanResult result = new FastClasspathScanner().whitelistPackages("net.corda.core.node.services.vault") //
                 .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().ignoreMethodVisibility()
                 .ignoreFieldVisibility().enableMethodInfo().enableFieldInfo().scan();
 
-        final Map<String, ClassInfo> allInfo = result.getClassNameToClassInfo();
-
         final List<String> methods = new ArrayList<>();
         for (final String className : result.getAllClasses().getClassNames()) {
-            final ClassInfo classInfo = allInfo.get(className);
+            final ClassInfo classInfo = result.getClassInfo(className);
             for (final MethodInfo method : classInfo.getMethodAndConstructorInfo()) {
                 methods.add(method.toString());
             }
@@ -255,15 +242,13 @@ public class Issue175Test {
         final URL aJarURL = classLoader.getResource(aJarName);
         final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
-        final ScanResult result = new FastClasspathScanner("net.corda.client.jackson") //
+        final ScanResult result = new FastClasspathScanner().whitelistPackages("net.corda.client.jackson") //
                 .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().ignoreMethodVisibility()
                 .ignoreFieldVisibility().enableMethodInfo().enableFieldInfo().scan();
 
-        final Map<String, ClassInfo> allInfo = result.getClassNameToClassInfo();
-
         final List<String> methods = new ArrayList<>();
         for (final String className : result.getAllClasses().getClassNames()) {
-            final ClassInfo classInfo = allInfo.get(className);
+            final ClassInfo classInfo = result.getClassInfo(className);
             for (final MethodInfo method : classInfo.getMethodAndConstructorInfo()) {
                 methods.add(method.toString());
             }
@@ -292,15 +277,13 @@ public class Issue175Test {
         final URL aJarURL = classLoader.getResource(aJarName);
         final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
-        final ScanResult result = new FastClasspathScanner("net.corda.core.node.services.vault") //
+        final ScanResult result = new FastClasspathScanner().whitelistPackages("net.corda.core.node.services.vault") //
                 .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().ignoreMethodVisibility()
                 .ignoreFieldVisibility().enableMethodInfo().enableFieldInfo().scan();
 
-        final Map<String, ClassInfo> allInfo = result.getClassNameToClassInfo();
-
         final List<String> methods = new ArrayList<>();
         for (final String className : result.getAllClasses().getClassNames()) {
-            final ClassInfo classInfo = allInfo.get(className);
+            final ClassInfo classInfo = result.getClassInfo(className);
             for (final MethodInfo method : classInfo.getMethodAndConstructorInfo()) {
                 methods.add(method.toString());
             }
@@ -316,15 +299,13 @@ public class Issue175Test {
         final URL aJarURL = classLoader.getResource(aJarName);
         final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
-        final ScanResult result = new FastClasspathScanner("net.corda.client.jackson") //
+        final ScanResult result = new FastClasspathScanner().whitelistPackages("net.corda.client.jackson") //
                 .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().ignoreMethodVisibility()
                 .ignoreFieldVisibility().enableMethodInfo().enableFieldInfo().scan();
 
-        final Map<String, ClassInfo> allInfo = result.getClassNameToClassInfo();
-
         final List<String> methods = new ArrayList<>();
         for (final String className : result.getAllClasses().getClassNames()) {
-            final ClassInfo classInfo = allInfo.get(className);
+            final ClassInfo classInfo = result.getClassInfo(className);
             for (final MethodInfo method : classInfo.getMethodAndConstructorInfo()) {
                 methods.add(method.toString());
             }

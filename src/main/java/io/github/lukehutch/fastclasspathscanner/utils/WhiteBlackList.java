@@ -282,10 +282,7 @@ public abstract class WhiteBlackList {
         while (normalized.startsWith("/")) {
             normalized = normalized.substring(1);
         }
-        while (normalized.endsWith("/")) {
-            normalized = normalized.substring(0, normalized.length() - 1);
-        }
-        return normalized;
+        return normalized.endsWith("/") ? normalized : normalized + "/";
     }
 
     /** Remove initial and final '.' characters, if any. */
@@ -307,7 +304,7 @@ public abstract class WhiteBlackList {
 
     /** Convert a package name to a path. */
     public static String packageNameToPath(final String packageName) {
-        return normalizePackageOrClassName(packageName).replace('.', '/');
+        return normalizePackageOrClassName(packageName).replace('.', '/') + "/";
     }
 
     /** Convert a class name to a classfile path. */

@@ -59,7 +59,7 @@ public class ScanResult {
     /** The order of unique classpath elements. */
     private final List<ClasspathElement> classpathOrder;
 
-    /** The list of all files that were found in whitelisted packages. */
+    /** A list of all files that were found in whitelisted packages. */
     private ResourceList allResources;
 
     /**
@@ -132,7 +132,7 @@ public class ScanResult {
      *
      * @return The unique classpath elements.
      */
-    public List<File> getUniqueClasspathElements() {
+    public List<File> getClasspathFiles() {
         final List<File> classpathElementOrderFiles = new ArrayList<>();
         for (final ClasspathElement classpathElement : classpathOrder) {
             final ModuleRef modRef = classpathElement.getClasspathElementModuleRef();
@@ -158,8 +158,8 @@ public class ScanResult {
      * @return a the unique directories and jarfiles on the classpath, in classpath resolution order, as a path
      *         string.
      */
-    public String getUniqueClasspathElementsAsPathStr() {
-        return JarUtils.pathElementsToPathStr(getUniqueClasspathElements());
+    public String getClasspath() {
+        return JarUtils.pathElementsToPathStr(getClasspathFiles());
     }
 
     /**
@@ -167,7 +167,7 @@ public class ScanResult {
      *
      * @return The unique classpath element URLs.
      */
-    public List<URL> getUniqueClasspathElementURLs() {
+    public List<URL> getClasspathURLs() {
         final List<URL> classpathElementOrderURLs = new ArrayList<>();
         for (final ClasspathElement classpathElement : classpathOrder) {
             final ModuleRef modRef = classpathElement.getClasspathElementModuleRef();
@@ -369,7 +369,7 @@ public class ScanResult {
      */
     public ClassInfo getClassInfo(final String className) {
         if (!scanSpec.enableClassInfo) {
-            throw new IllegalArgumentException("Cannot get method info without calling "
+            throw new IllegalArgumentException("Cannot get class info without calling "
                     + "FastClasspathScanner#enableClassInfo() (or adding class or package whitelist/blacklist "
                     + "criteria) before starting the scan");
         }
@@ -383,7 +383,7 @@ public class ScanResult {
      */
     public ClassInfoList getAllClasses() {
         if (!scanSpec.enableClassInfo) {
-            throw new IllegalArgumentException("Cannot get method info without calling "
+            throw new IllegalArgumentException("Cannot get class info without calling "
                     + "FastClasspathScanner#enableClassInfo() (or adding class or package whitelist/blacklist "
                     + "criteria) before starting the scan");
         }
@@ -397,7 +397,7 @@ public class ScanResult {
      */
     public ClassInfoList getAllStandardClasses() {
         if (!scanSpec.enableClassInfo) {
-            throw new IllegalArgumentException("Cannot get method info without calling "
+            throw new IllegalArgumentException("Cannot get class info without calling "
                     + "FastClasspathScanner#enableClassInfo() (or adding class or package whitelist/blacklist "
                     + "criteria) before starting the scan");
         }
@@ -411,9 +411,9 @@ public class ScanResult {
      *            The name of the superclass.
      * @return A list of subclasses of the named superclass, or the empty list if none.
      */
-    public ClassInfoList getSubclassesOf(final String superclassName) {
+    public ClassInfoList getSubclasses(final String superclassName) {
         if (!scanSpec.enableClassInfo) {
-            throw new IllegalArgumentException("Cannot get method info without calling "
+            throw new IllegalArgumentException("Cannot get class info without calling "
                     + "FastClasspathScanner#enableClassInfo() (or adding class or package whitelist/blacklist "
                     + "criteria) before starting the scan");
         }
@@ -428,9 +428,9 @@ public class ScanResult {
      *            The name of the subclass.
      * @return A list of superclasses of the named subclass, or the empty list if none.
      */
-    public ClassInfoList getSuperclassesOf(final String subclassName) {
+    public ClassInfoList getSuperclasses(final String subclassName) {
         if (!scanSpec.enableClassInfo) {
-            throw new IllegalArgumentException("Cannot get method info without calling "
+            throw new IllegalArgumentException("Cannot get class info without calling "
                     + "FastClasspathScanner#enableClassInfo() (or adding class or package whitelist/blacklist "
                     + "criteria) before starting the scan");
         }
@@ -441,14 +441,13 @@ public class ScanResult {
     /**
      * Get classes that have a method with an annotation of the named type.
      *
-     * @param annotationName
+     * @param methodAnnotationName
      *            the name of the method annotation.
-     * @return The sorted list of classes with a method that has an annotation of the named type, or the empty list
-     *         if none.
+     * @return A list of classes with a method that has an annotation of the named type, or the empty list if none.
      */
-    public ClassInfoList getClassesWithMethodAnnotation(final String annotationName) {
+    public ClassInfoList getClassesWithMethodAnnotation(final String methodAnnotationName) {
         if (!scanSpec.enableClassInfo) {
-            throw new IllegalArgumentException("Cannot get method info without calling "
+            throw new IllegalArgumentException("Cannot get class info without calling "
                     + "FastClasspathScanner#enableClassInfo() (or adding class or package whitelist/blacklist "
                     + "criteria) before starting the scan");
         }
@@ -457,19 +456,18 @@ public class ScanResult {
                     "Please call FastClasspathScanner#enableMethodInfo() before calling scan() -- "
                             + "method annotation indexing is disabled by default for efficiency");
         }
-        final ClassInfo classInfo = classNameToClassInfo.get(annotationName);
+        final ClassInfo classInfo = classNameToClassInfo.get(methodAnnotationName);
         return classInfo == null ? ClassInfoList.EMPTY_LIST : classInfo.getClassesWithMethodAnnotation();
     }
 
     /**
      * Get classes that have a field with an annotation of the named type.
      *
-     * @param annotationName
+     * @param fieldAnnotationName
      *            the name of the field annotation.
-     * @return The sorted list of classes that have a field with an annotation of the named type, or the empty list
-     *         if none.
+     * @return A list of classes that have a field with an annotation of the named type, or the empty list if none.
      */
-    public ClassInfoList getClassesWithFieldAnnotation(final String annotationName) {
+    public ClassInfoList getClassesWithFieldAnnotation(final String fieldAnnotationName) {
         if (!scanSpec.enableClassInfo) {
             throw new IllegalArgumentException("Cannot get method info without calling "
                     + "FastClasspathScanner#enableClassInfo() (or adding class or package whitelist/blacklist "
@@ -480,7 +478,7 @@ public class ScanResult {
                     "Please call FastClasspathScanner#enableFieldAnnotationIndexing() before calling scan() -- "
                             + "field annotation indexing is disabled by default for efficiency");
         }
-        final ClassInfo classInfo = classNameToClassInfo.get(annotationName);
+        final ClassInfo classInfo = classNameToClassInfo.get(fieldAnnotationName);
         return classInfo == null ? ClassInfoList.EMPTY_LIST : classInfo.getClassesWithFieldAnnotation();
     }
 
@@ -488,12 +486,12 @@ public class ScanResult {
     // Interfaces
 
     /**
-     * Get all interface classes found during the scan, not including annotations. See also
-     * {@link #getAllInterfaceOrAnnotationClasses()}.
+     * Get all interface classes found during the scan (not including annotations, which are also technically
+     * interfaces). See also {@link #getAllInterfacesAndAnnotations()}.
      *
      * @return A list of all whitelisted interfaces found during the scan, or the empty list if none.
      */
-    public ClassInfoList getAllInterfaceClasses() {
+    public ClassInfoList getAllInterfaces() {
         if (!scanSpec.enableClassInfo) {
             throw new IllegalArgumentException("Cannot get method info without calling "
                     + "FastClasspathScanner#enableClassInfo() (or adding class or package whitelist/blacklist "
@@ -507,9 +505,9 @@ public class ScanResult {
      *
      * @param interfaceName
      *            The interface name.
-     * @return The sorted list of all subinterfaces of the named interface, or the empty list if none.
+     * @return A list of all subinterfaces of the named interface, or the empty list if none.
      */
-    public ClassInfoList getSubinterfacesOf(final String interfaceName) {
+    public ClassInfoList getSubinterfaces(final String interfaceName) {
         if (!scanSpec.enableClassInfo) {
             throw new IllegalArgumentException("Cannot get method info without calling "
                     + "FastClasspathScanner#enableClassInfo() (or adding class or package whitelist/blacklist "
@@ -524,16 +522,16 @@ public class ScanResult {
      *
      * @param subInterfaceName
      *            The subinterface name.
-     * @return The sorted list of superinterfaces of the named subinterface, or the empty list if none.
+     * @return A list of superinterfaces of the named subinterface, or the empty list if none.
      */
-    public ClassInfoList getSuperinterfacesOf(final String subInterfaceName) {
+    public ClassInfoList getSuperinterfaces(final String subInterfaceName) {
         if (!scanSpec.enableClassInfo) {
             throw new IllegalArgumentException("Cannot get method info without calling "
                     + "FastClasspathScanner#enableClassInfo() (or adding class or package whitelist/blacklist "
                     + "criteria) before starting the scan");
         }
         final ClassInfo classInfo = classNameToClassInfo.get(subInterfaceName);
-        return classInfo == null ? ClassInfoList.EMPTY_LIST : classInfo.getSuperinterfaces();
+        return classInfo == null ? ClassInfoList.EMPTY_LIST : classInfo.getInterfaces();
     }
 
     /**
@@ -542,7 +540,7 @@ public class ScanResult {
      *
      * @param interfaceName
      *            The interface name.
-     * @return The sorted list of all classes that implement the named interface, or the empty list if none.
+     * @return A list of all classes that implement the named interface, or the empty list if none.
      */
     public ClassInfoList getClassesImplementing(final String interfaceName) {
         if (!scanSpec.enableClassInfo) {
@@ -558,11 +556,11 @@ public class ScanResult {
     // Annotations
 
     /**
-     * Get all annotation classes found during the scan. See also {@link #getAllInterfaceOrAnnotationClasses()}.
+     * Get all annotation classes found during the scan. See also {@link #getAllInterfacesAndAnnotations()}.
      *
      * @return A list of all annotation classes found during the scan, or the empty list if none.
      */
-    public ClassInfoList getAllAnnotationClasses() {
+    public ClassInfoList getAllAnnotations() {
         if (!scanSpec.enableClassInfo) {
             throw new IllegalArgumentException("Cannot get method info without calling "
                     + "FastClasspathScanner#enableClassInfo() (or adding class or package whitelist/blacklist "
@@ -577,13 +575,13 @@ public class ScanResult {
      *
      * @return A list of all whitelisted interfaces found during the scan, or the empty list if none.
      */
-    public ClassInfoList getAllInterfaceOrAnnotationClasses() {
+    public ClassInfoList getAllInterfacesAndAnnotations() {
         if (!scanSpec.enableClassInfo) {
             throw new IllegalArgumentException("Cannot get method info without calling "
                     + "FastClasspathScanner#enableClassInfo() (or adding class or package whitelist/blacklist "
                     + "criteria) before starting the scan");
         }
-        return ClassInfo.getAllInterfaceOrAnnotationClasses(classNameToClassInfo.values(), scanSpec, this);
+        return ClassInfo.getAllInterfacesOrAnnotationClasses(classNameToClassInfo.values(), scanSpec, this);
     }
 
     /**
@@ -591,8 +589,8 @@ public class ScanResult {
      *
      * @param annotationName
      *            The name of the class annotation or meta-annotation.
-     * @return The sorted list of all non-annotation classes that were found with the named class annotation during
-     *         the scan, or the empty list if none.
+     * @return A list of all non-annotation classes that were found with the named class annotation during the scan,
+     *         or the empty list if none.
      */
     public ClassInfoList getClassesWithAnnotation(final String annotationName) {
         if (!scanSpec.enableClassInfo) {
@@ -605,11 +603,15 @@ public class ScanResult {
     }
 
     /**
-     * Get all annotations and meta-annotations on the named class.
+     * Get annotations on the named class. This only returns the annotating classes; to read annotation parameters,
+     * call {@link #getClassInfo(String)} to get the {@link ClassInfo} object for the named class, then if the
+     * {@link ClassInfo} object is non-null, call {@link ClassInfo#getAnnotationInfo()} to get detailed annotation
+     * info.
      *
      * @param className
-     *            The class name.
-     * @return The sorted list of annotations and meta-annotations on the named class, or the empty list if none.
+     *            The name of the class.
+     * @return A list of all annotation classes that were found with the named class annotation during the scan, or
+     *         the empty list if none.
      */
     public ClassInfoList getAnnotationsOnClass(final String className) {
         if (!scanSpec.enableClassInfo) {

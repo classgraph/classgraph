@@ -1004,7 +1004,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *
      * @return A list of all whitelisted interfaces found during the scan, or the empty list if none.
      */
-    static ClassInfoList getAllInterfaceOrAnnotationClasses(final Collection<ClassInfo> classes,
+    static ClassInfoList getAllInterfacesOrAnnotationClasses(final Collection<ClassInfo> classes,
             final ScanSpec scanSpec, final ScanResult scanResult) {
         return new ClassInfoList(ClassInfo.filterClassInfo(classes, scanSpec, ClassType.INTERFACE_OR_ANNOTATION),
                 null, scanResult);
@@ -1097,8 +1097,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get all direct and indirect superclasses of this class (i.e. the direct superclass(es) of this class, and
-     * their superclass(es), all the way up to the top of the class hierarchy).
+     * Get superclasses of this class. Does not include superinterfaces, if this is an interface (use
+     * {@link #getInterfaces()} to get superinterfaces of an interface.}
      *
      * @return the list of all superclasses of this class, or the empty list if none.
      */
@@ -1187,7 +1187,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get the subinterfaces of this interface.
+     * Get the subinterfaces of this interface (i.e. the interfaces extending this interface), if this is an
+     * interface, otherwise returns the empty list.
      *
      * @return the list of subinterfaces of this interface, or the empty list if none.
      */
@@ -1196,26 +1197,17 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get the superinterfaces of this interface.
-     *
-     * @return the list of superinterfaces of this interface, or the empty list if none.
-     */
-    public ClassInfoList getSuperinterfaces() {
-        return this.filterClassInfo(RelType.IMPLEMENTED_INTERFACES);
-    }
-
-    /**
-     * Get the interfaces implemented by this standard class, or by one of its superclasses.
+     * Get the interfaces implemented by this class or by one of its superclasses, if this is a standard class, or
+     * the superinterfaces extended by this interface, if this is an interface.
      *
      * @return the list of interfaces implemented by this standard class, or by one of its superclasses. Returns the
      *         empty list if none.
      */
-    public ClassInfoList getImplementedInterfaces() {
+    public ClassInfoList getInterfaces() {
         // Classes also implement the interfaces of their superclasses
-        final ClassInfoList superclasses = this.filterClassInfo(RelType.SUPERCLASSES);
         final ClassInfoList implementedInterfaces = this.filterClassInfo(RelType.IMPLEMENTED_INTERFACES);
         final Set<ClassInfo> allInterfaces = new HashSet<>(implementedInterfaces);
-        for (final ClassInfo superclass : superclasses) {
+        for (final ClassInfo superclass : this.filterClassInfo(RelType.SUPERCLASSES)) {
             final ClassInfoList superclassImplementedInterfaces = superclass
                     .filterClassInfo(RelType.IMPLEMENTED_INTERFACES);
             allInterfaces.addAll(superclassImplementedInterfaces);
@@ -1224,7 +1216,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get the classes that implement this interface, and their subclasses.
+     * Get the classes that implement this interface, and their subclasses, if this is an interface, otherwise
+     * returns the empty list.
      *
      * @return the list of classes implementing this interface, or the empty list if none.
      */
@@ -1310,17 +1303,16 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get the annotations and meta-annotations on this annotation class.
+     * Get the annotations and meta-annotations on this class. See also {@link #getAnnotationInfo()}.
      *
-     * @return the list of annotations and meta-annotations, if this is an annotation class, or the empty list if
-     *         none (or if this is not an annotation class).
+     * @return the list of annotations and meta-annotations on this class.
      */
     public ClassInfoList getAnnotations() {
         if (!scanSpec.enableAnnotationInfo) {
             throw new IllegalArgumentException("Cannot get annotations without calling "
                     + "FastClasspathScanner#enableAnnotationInfo() before starting the scan");
         }
-        return this.filterClassInfo(RelType.CLASS_ANNOTATIONS);
+        return this.filterClassInfo(RelType.CLASS_ANNOTATIONS, ClassType.ALL);
     }
 
     // -------------------------------------------------------------------------------------------------------------

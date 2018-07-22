@@ -67,11 +67,11 @@ public class MetaAnnotationTest {
     public void acrossCycle() {
         assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.H").directOnly().getClassNames())
                 .containsOnly("com.xyz.meta.I");
-        assertThat(scanResult.getAnnotationsOnClass("com.xyz.meta.H").directOnly().getClassNames())
+        assertThat(scanResult.getClassAnnotations("com.xyz.meta.H").directOnly().getClassNames())
                 .containsOnly("com.xyz.meta.I", "com.xyz.meta.K");
         assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.I").directOnly().getClassNames())
                 .containsOnly("com.xyz.meta.E", "com.xyz.meta.H");
-        assertThat(scanResult.getAnnotationsOnClass("com.xyz.meta.I").directOnly().getClassNames())
+        assertThat(scanResult.getClassAnnotations("com.xyz.meta.I").directOnly().getClassNames())
                 .containsOnly("com.xyz.meta.L", "com.xyz.meta.H");
         assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.K").directOnly().getClassNames())
                 .containsOnly("com.xyz.meta.H");
@@ -87,10 +87,9 @@ public class MetaAnnotationTest {
 
     @Test
     public void namesOfMetaAnnotations() {
-        assertThat(scanResult.getAnnotationsOnClass("com.xyz.meta.A").getClassNames())
-                .containsOnly("com.xyz.meta.J", "com.xyz.meta.F");
-        assertThat(scanResult.getAnnotationsOnClass("com.xyz.meta.C").getClassNames())
-                .containsOnly("com.xyz.meta.G");
+        assertThat(scanResult.getClassAnnotations("com.xyz.meta.A").getClassNames()).containsOnly("com.xyz.meta.J",
+                "com.xyz.meta.F");
+        assertThat(scanResult.getClassAnnotations("com.xyz.meta.C").getClassNames()).containsOnly("com.xyz.meta.G");
     }
 
     @Test

@@ -75,18 +75,19 @@ public class TestMethodMetaAnnotation {
     @Test
     @ExternalAnnotation
     public void testClassMetaAnnotation() {
-        final List<String> testClasses = new FastClasspathScanner(
-                TestMethodMetaAnnotation.class.getPackage().getName()).scan()
-                        .getNamesOfClassesWithAnnotation(MetaAnnotation.class.getName());
+        final List<String> testClasses = new FastClasspathScanner()
+                .whitelistPackages(TestMethodMetaAnnotation.class.getPackage().getName()).scan()
+                .getNamesOfClassesWithAnnotation(MetaAnnotation.class.getName());
         assertThat(testClasses).containsOnly(MetaAnnotatedClass.class.getName());
     }
 
     @Test
     @ExternalAnnotation
     public void testMethodMetaAnnotation() throws Exception {
-        final List<String> testClasses = new FastClasspathScanner(
-                TestMethodMetaAnnotation.class.getPackage().getName()).enableMethodAnnotationIndexing().scan()
-                        .getNamesOfClassesWithMethodAnnotation(MetaAnnotation.class.getName());
+        final List<String> testClasses = new FastClasspathScanner()
+                .whitelistPackages(TestMethodMetaAnnotation.class.getPackage().getName())
+                .enableMethodAnnotationIndexing().scan()
+                .getNamesOfClassesWithMethodAnnotation(MetaAnnotation.class.getName());
         assertThat(testClasses).containsOnly(ClassWithMetaAnnotatedMethod.class.getName());
     }
 }

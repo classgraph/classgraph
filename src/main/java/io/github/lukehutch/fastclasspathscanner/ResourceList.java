@@ -70,8 +70,7 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
      *             if ignoreExceptions is false, and an {@link IOException} is thrown while trying to load any of
      *             the resources.
      */
-    public void forEachByteArrayThenClose(final ByteArrayConsumer byteArrayConsumer,
-            final boolean ignoreIOExceptions) {
+    public void forEachByteArray(final ByteArrayConsumer byteArrayConsumer, final boolean ignoreIOExceptions) {
         for (final Resource resource : this) {
             try {
                 final byte[] resourceContent = resource.load();
@@ -96,8 +95,8 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
      * @throws IllegalArgumentException
      *             if trying to load any of the resources results in an {@link IOException} being thrown.
      */
-    public void forEachByteArrayThenClose(final ByteArrayConsumer byteArrayConsumer) {
-        forEachByteArrayThenClose(byteArrayConsumer, /* ignoreIOExceptions = */ false);
+    public void forEachByteArray(final ByteArrayConsumer byteArrayConsumer) {
+        forEachByteArray(byteArrayConsumer, /* ignoreIOExceptions = */ false);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -122,7 +121,7 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
      *             if ignoreExceptions is false, and an {@link IOException} is thrown while trying to open any of
      *             the resources.
      */
-    public void forEachInputStreamThenClose(final InputStreamConsumer inputStreamConsumer,
+    public void forEachInputStream(final InputStreamConsumer inputStreamConsumer,
             final boolean ignoreIOExceptions) {
         for (final Resource resource : this) {
             try {
@@ -148,8 +147,8 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
      * @throws IllegalArgumentException
      *             if trying to open any of the resources results in an {@link IOException} being thrown.
      */
-    public void forEachInputStreamThenClose(final InputStreamConsumer inputStreamConsumer) {
-        forEachInputStreamThenClose(inputStreamConsumer, /* ignoreIOExceptions = */ false);
+    public void forEachInputStream(final InputStreamConsumer inputStreamConsumer) {
+        forEachInputStream(inputStreamConsumer, /* ignoreIOExceptions = */ false);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -174,8 +173,7 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
      *             if ignoreExceptions is false, and an {@link IOException} is thrown while trying to load any of
      *             the resources.
      */
-    public void forEachByteBufferThenClose(final ByteBufferConsumer byteBufferConsumer,
-            final boolean ignoreIOExceptions) {
+    public void forEachByteBuffer(final ByteBufferConsumer byteBufferConsumer, final boolean ignoreIOExceptions) {
         for (final Resource resource : this) {
             try {
                 final ByteBuffer byteBuffer = resource.read();
@@ -200,8 +198,24 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
      * @throws IllegalArgumentException
      *             if trying to load any of the resources results in an {@link IOException} being thrown.
      */
-    public void forEachByteBufferThenClose(final ByteBufferConsumer byteBufferConsumer) {
-        forEachByteBufferThenClose(byteBufferConsumer, /* ignoreIOExceptions = */ false);
+    public void forEachByteBuffer(final ByteBufferConsumer byteBufferConsumer) {
+        forEachByteBuffer(byteBufferConsumer, /* ignoreIOExceptions = */ false);
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    @Override
+    public String toString() {
+        final StringBuilder buf = new StringBuilder();
+        buf.append('[');
+        for (int i = 0, n = size(); i < n; i++) {
+            if (i > 0) {
+                buf.append(", ");
+            }
+            buf.append(get(i));
+        }
+        buf.append(']');
+        return buf.toString();
     }
 
     // -------------------------------------------------------------------------------------------------------------

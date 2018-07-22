@@ -9,7 +9,7 @@ import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 public class Issue78Test {
     @Test
     public void issue78() {
-        assertThat(new FastClasspathScanner(Issue78Test.class.getName()).scan().getNamesOfAllStandardClasses())
-                .containsOnly(Issue78Test.class.getName());
+        assertThat(new FastClasspathScanner().whitelistClasses(Issue78Test.class.getName()).verbose().scan()
+                .getAllClasses().getClassNames()).containsOnly(Issue78Test.class.getName());
     }
 }

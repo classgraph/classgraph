@@ -34,8 +34,8 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.junit.Test;
 import org.ops4j.pax.url.mvn.MavenResolvers;
@@ -55,13 +55,12 @@ public class Issue193Test {
 
         // Scan the classpath -- used to throw an exception for Stack, since companion object inherits
         // from different class
-        final List<String> classes = new ArrayList<>();
-        new FastClasspathScanner("scala.collection.immutable").overrideClassLoaders(classLoader)
-                .matchAllClasses(c -> {
-                    if (c.getName().endsWith("$")) {
-                        classes.add(c.getName());
-                    }
-                }).scan();
+        final List<String> classes = new FastClasspathScanner() //
+                .whitelistPackages("scala.collection.immutable") //
+                .overrideClassLoaders(classLoader) //
+                .scan() //
+                .getAllClasses() //
+                .getClassNames().stream().filter(name -> name.endsWith("$")).collect(Collectors.toList());
         assertThat(classes).contains("scala.collection.immutable.Stack$");
     }
 }

@@ -167,7 +167,7 @@ public class FastClasspathScanner {
      *
      * @return this (for method chaining).
      */
-    public FastClasspathScanner enableStaticFinalFieldConstValues() {
+    public FastClasspathScanner enableStaticFinalFieldConstInitializerValues() {
         enableFieldInfo();
         scanSpec.enableAnnotationInfo = true;
         return this;
@@ -468,8 +468,7 @@ public class FastClasspathScanner {
                 // Whitelist sub-packages
                 scanSpec.packagePrefixWhiteBlackList
                         .addToWhitelist(WhiteBlackList.normalizePackageOrClassName(packageName) + ".");
-                scanSpec.pathPrefixWhiteBlackList
-                        .addToWhitelist(WhiteBlackList.packageNameToPath(packageName) + "/");
+                scanSpec.pathPrefixWhiteBlackList.addToWhitelist(WhiteBlackList.packageNameToPath(packageName));
             }
         }
         return this;
@@ -491,7 +490,7 @@ public class FastClasspathScanner {
             if (!path.contains("*")) {
                 // Whitelist sub-directories / nested paths
                 scanSpec.packagePrefixWhiteBlackList.addToWhitelist(WhiteBlackList.pathToPackageName(path) + ".");
-                scanSpec.pathPrefixWhiteBlackList.addToWhitelist(WhiteBlackList.normalizePath(path) + "/");
+                scanSpec.pathPrefixWhiteBlackList.addToWhitelist(WhiteBlackList.normalizePath(path));
             }
         }
         return this;
@@ -517,7 +516,7 @@ public class FastClasspathScanner {
             }
             // Whitelist package, but not sub-packages
             scanSpec.packageWhiteBlackList.addToWhitelist(WhiteBlackList.normalizePackageOrClassName(packageName));
-            scanSpec.pathWhiteBlackList.addToWhitelist(WhiteBlackList.packageNameToPath(packageName) + "/");
+            scanSpec.pathWhiteBlackList.addToWhitelist(WhiteBlackList.packageNameToPath(packageName));
         }
         return this;
     }
@@ -566,8 +565,7 @@ public class FastClasspathScanner {
                 // Blacklist sub-packages (zipfile entries can occur in any order)
                 scanSpec.packagePrefixWhiteBlackList
                         .addToBlacklist(WhiteBlackList.normalizePackageOrClassName(packageName) + ".");
-                scanSpec.pathPrefixWhiteBlackList
-                        .addToBlacklist(WhiteBlackList.packageNameToPath(packageName) + "/");
+                scanSpec.pathPrefixWhiteBlackList.addToBlacklist(WhiteBlackList.packageNameToPath(packageName));
             }
         }
         return this;
@@ -588,7 +586,7 @@ public class FastClasspathScanner {
             if (!path.contains("*")) {
                 // Blacklist sub-directories / nested paths
                 scanSpec.packagePrefixWhiteBlackList.addToBlacklist(WhiteBlackList.pathToPackageName(path) + ".");
-                scanSpec.pathPrefixWhiteBlackList.addToBlacklist(WhiteBlackList.normalizePath(path) + "/");
+                scanSpec.pathPrefixWhiteBlackList.addToBlacklist(WhiteBlackList.normalizePath(path));
             }
         }
         return this;
@@ -638,6 +636,25 @@ public class FastClasspathScanner {
             }
             scanSpec.classWhiteBlackList.addToBlacklist(WhiteBlackList.normalizePackageOrClassName(className));
             scanSpec.classfilePathWhiteBlackList.addToBlacklist(WhiteBlackList.classNameToClassfilePath(className));
+        }
+        return this;
+    }
+
+    /**
+     * Whitelist one or more jars. This will cause only the whitelisted jars to be scanned.
+     *
+     * @param jarLeafNames
+     *            The leafnames of the jars that should be scanned (e.g. "badlib.jar"). May contain a wildcard glob
+     *            ('*').
+     * @return this (for method chaining).
+     */
+    public FastClasspathScanner whitelistJars(final String... jarLeafNames) {
+        for (final String jarLeafName : jarLeafNames) {
+            final String leafName = JarUtils.leafName(jarLeafName);
+            if (!leafName.equals(jarLeafName)) {
+                throw new IllegalArgumentException("Can only whitelist jars by leafname: " + jarLeafName);
+            }
+            scanSpec.jarWhiteBlackList.addToWhitelist(leafName);
         }
         return this;
     }
@@ -1029,7 +1046,7 @@ public class FastClasspathScanner {
      * @return a {@code List<File>} consisting of the unique directories and jarfiles on the classpath, in classpath
      *         resolution order.
      */
-    public List<File> getUniqueClasspathElements() {
+    public List<File> getClasspathFiles() {
         try {
             try (AutoCloseableExecutorService executorService = new AutoCloseableExecutorService(
                     DEFAULT_NUM_WORKER_THREADS)) {
@@ -1038,7 +1055,7 @@ public class FastClasspathScanner {
                                 /* enableRecursiveScanning = */ false, /* scanResultProcessor = */ null,
                                 /* failureHandler = */ null,
                                 log == null ? null : log.log("Getting unique classpath elements")))
-                        .get().getUniqueClasspathElements();
+                        .get().getClasspathFiles();
             }
         } catch (final InterruptedException e) {
             if (log != null) {
@@ -1068,8 +1085,8 @@ public class FastClasspathScanner {
      * @return a classpath path string consisting of the unique directories and jarfiles on the classpath, in
      *         classpath resolution order.
      */
-    public String getUniqueClasspathElementsAsPathStr() {
-        return JarUtils.pathElementsToPathStr(getUniqueClasspathElements());
+    public String getClasspath() {
+        return JarUtils.pathElementsToPathStr(getClasspathFiles());
     }
 
     /**
@@ -1082,7 +1099,7 @@ public class FastClasspathScanner {
      * @return a classpath path string consisting of the unique directories and jarfiles on the classpath, in
      *         classpath resolution order.
      */
-    public List<URL> getUniqueClasspathElementURLs() {
+    public List<URL> getClasspathURLs() {
         try {
             try (AutoCloseableExecutorService executorService = new AutoCloseableExecutorService(
                     DEFAULT_NUM_WORKER_THREADS)) {
@@ -1091,7 +1108,7 @@ public class FastClasspathScanner {
                                 /* enableRecursiveScanning = */ false, /* scanResultProcessor = */ null,
                                 /* failureHandler = */ null,
                                 log == null ? null : log.log("Getting unique classpath elements")))
-                        .get().getUniqueClasspathElementURLs();
+                        .get().getClasspathURLs();
             }
         } catch (final InterruptedException e) {
             if (log != null) {

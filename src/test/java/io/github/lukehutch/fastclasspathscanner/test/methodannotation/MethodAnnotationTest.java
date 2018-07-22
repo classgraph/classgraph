@@ -44,7 +44,8 @@ public class MethodAnnotationTest {
     @Test
     @ExternalAnnotation
     public void getNamesOfClassesWithMethodAnnotation() throws Exception {
-        final List<String> testClasses = new FastClasspathScanner(MethodAnnotationTest.class.getPackage().getName())
+        final List<String> testClasses = new FastClasspathScanner()
+                .whitelistPackages(MethodAnnotationTest.class.getPackage().getName())
                 .enableMethodAnnotationIndexing().scan()
                 .getNamesOfClassesWithMethodAnnotation(ExternalAnnotation.class.getName());
         assertThat(testClasses).containsOnly(MethodAnnotationTest.class.getName());
@@ -54,7 +55,7 @@ public class MethodAnnotationTest {
     @ExternalAnnotation
     public void methodAnnotationMatchProcessor() throws Exception {
         final List<String> matchingMethodNames = new ArrayList<>();
-        new FastClasspathScanner(MethodAnnotationTest.class.getPackage().getName())
+        new FastClasspathScanner().whitelistPackages(MethodAnnotationTest.class.getPackage().getName())
                 .matchClassesWithMethodAnnotation(ExternalAnnotation.class, new MethodAnnotationMatchProcessor() {
                     @Override
                     public void processMatch(final Class<?> matchingClass, final Executable matchingMethod) {
@@ -69,7 +70,7 @@ public class MethodAnnotationTest {
     @ExternalAnnotation
     public void methodAnnotationMatchProcessorIgnoringVisibility() throws Exception {
         final List<String> matchingMethodNames = new ArrayList<>();
-        new FastClasspathScanner(MethodAnnotationTest.class.getPackage().getName())
+        new FastClasspathScanner().whitelistPackages(MethodAnnotationTest.class.getPackage().getName())
                 .matchClassesWithMethodAnnotation(ExternalAnnotation.class, new MethodAnnotationMatchProcessor() {
                     @Override
                     public void processMatch(final Class<?> matchingClass, final Executable matchingMethod) {

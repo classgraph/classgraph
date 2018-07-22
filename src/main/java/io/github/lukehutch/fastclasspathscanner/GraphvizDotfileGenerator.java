@@ -35,7 +35,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import io.github.lukehutch.fastclasspathscanner.ClassInfo.ClassType;
 import io.github.lukehutch.fastclasspathscanner.ClassInfo.RelType;
 
 /** Builds a class graph visualization in Graphviz .dot file format. */
@@ -235,7 +234,7 @@ class GraphvizDotfileGenerator {
             final List<AnnotationInfo> annotationInfoSorted = new ArrayList<>(annotationInfo);
             Collections.sort(annotationInfoSorted);
             for (final AnnotationInfo ai : annotationInfoSorted) {
-                String annotationName = ai.getAnnotationName();
+                final String annotationName = ai.getAnnotationName();
                 if (!annotationName.startsWith("java.lang.annotation.")) {
                     buf.append("<tr>");
                     buf.append("<td align='center' valign='top'>");
@@ -434,8 +433,8 @@ class GraphvizDotfileGenerator {
         buf.append("edge [fontname = \"Courier, Regular\"]\n");
 
         final ClassInfoList standardClassNodes = scanResult.getAllStandardClasses();
-        final ClassInfoList interfaceNodes = scanResult.getAllInterfaceClasses();
-        final ClassInfoList annotationNodes = scanResult.getAllAnnotationClasses();
+        final ClassInfoList interfaceNodes = scanResult.getAllInterfaces();
+        final ClassInfoList annotationNodes = scanResult.getAllAnnotations();
 
         for (final ClassInfo node : standardClassNodes) {
             buf.append("\"").append(node.getClassName()).append("\"");
@@ -471,7 +470,7 @@ class GraphvizDotfileGenerator {
                 }
             }
 
-            for (final ClassInfo implementedInterfaceNode : classNode.getImplementedInterfaces().directOnly()) {
+            for (final ClassInfo implementedInterfaceNode : classNode.getInterfaces().directOnly()) {
                 if (allVisibleNodes.contains(implementedInterfaceNode.getClassName())) {
                     // class --<> implemented interface
                     buf.append("  \"" + classNode.getClassName() + "\" -> \""
@@ -516,7 +515,7 @@ class GraphvizDotfileGenerator {
             }
         }
         for (final ClassInfo interfaceNode : interfaceNodes) {
-            for (final ClassInfo superinterfaceNode : interfaceNode.getSuperinterfaces().directOnly()) {
+            for (final ClassInfo superinterfaceNode : interfaceNode.getInterfaces().directOnly()) {
                 if (allVisibleNodes.contains(superinterfaceNode.getClassName())) {
                     // interface --<> superinterface
                     buf.append("  \"" + interfaceNode.getClassName() + "\" -> \""
@@ -525,7 +524,8 @@ class GraphvizDotfileGenerator {
             }
         }
         for (final ClassInfo annotationNode : annotationNodes) {
-            for (final ClassInfo annotatedClassNode : annotationNode.getClassesWithAnnotation().directOnly()) {
+            for (final ClassInfo annotatedClassNode : annotationNode
+                    .filterClassInfo(RelType.CLASSES_WITH_CLASS_ANNOTATION).directOnly()) {
                 if (allVisibleNodes.contains(annotatedClassNode.getClassName())) {
                     // annotated class --o annotation
                     buf.append("  \"" + annotatedClassNode.getClassName() + "\" -> \""
@@ -533,7 +533,7 @@ class GraphvizDotfileGenerator {
                 }
             }
             for (final ClassInfo classWithMethodAnnotationNode : annotationNode
-                    .filterClassInfo(RelType.CLASSES_WITH_METHOD_ANNOTATION, ClassType.ALL).directOnly()) {
+                    .filterClassInfo(RelType.CLASSES_WITH_METHOD_ANNOTATION).directOnly()) {
                 if (allVisibleNodes.contains(classWithMethodAnnotationNode.getClassName())) {
                     // class with method annotation --o method annotation
                     buf.append("  \"" + classWithMethodAnnotationNode.getClassName() + "\" -> \""
@@ -541,7 +541,7 @@ class GraphvizDotfileGenerator {
                 }
             }
             for (final ClassInfo classWithMethodAnnotationNode : annotationNode
-                    .filterClassInfo(RelType.CLASSES_WITH_FIELD_ANNOTATION, ClassType.ALL).directOnly()) {
+                    .filterClassInfo(RelType.CLASSES_WITH_FIELD_ANNOTATION).directOnly()) {
                 if (allVisibleNodes.contains(classWithMethodAnnotationNode.getClassName())) {
                     // class with field annotation --o method annotation
                     buf.append("  \"" + classWithMethodAnnotationNode.getClassName() + "\" -> \""

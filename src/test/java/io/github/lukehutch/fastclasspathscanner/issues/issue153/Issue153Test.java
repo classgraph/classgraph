@@ -116,13 +116,14 @@ public class Issue153Test {
 
     @Test
     public void classAnnotationParameters() throws IOException {
-        final ScanResult scanResult = new FastClasspathScanner(pkg) //
+        final ScanResult scanResult = new FastClasspathScanner() //
+                .whitelistPackages(pkg) //
                 .enableMethodInfo() //
                 .enableFieldInfo() //
+                .enableAnnotationInfo() //
                 .scan();
         final ClassInfo classInfo = scanResult //
-                .getClassNameToClassInfo() //
-                .get(Issue153Test.class.getName());
+                .getClassInfo(Issue153Test.class.getName());
 
         // Read class annotation parameters
         assertThat(classInfo.getAnnotationInfo().toString()) //
@@ -151,7 +152,7 @@ public class Issue153Test {
         // Make sure enum constants can be instantiated
         final AnnotationInfo annotation2 = classInfo.getAnnotationInfo().get(2);
         final AnnotationParamValue annotationParam0 = annotation2.getAnnotationParamValues().get(0);
-        final Object bananaRef = ((AnnotationEnumValue) annotationParam0.getParamValue()).getEnumValueRef();
+        final Object bananaRef = ((AnnotationEnumValue) annotationParam0.getParamValue()).getEnumValue();
         assertThat(bananaRef.getClass()).isEqualTo(FruitEnum.class);
         assertThat(bananaRef.toString()).isEqualTo(FruitEnum.BANANA.toString());
     }

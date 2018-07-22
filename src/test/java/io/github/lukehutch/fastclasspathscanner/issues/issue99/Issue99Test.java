@@ -39,9 +39,9 @@ public class Issue99Test {
     public void issue99Test() {
         final String jarPath = Issue99Test.class.getClassLoader().getResource("nested-jars-level1.zip").getPath()
                 + "!level2.jar!level3.jar!classpath1/classpath2";
-        assertThat(new FastClasspathScanner().overrideClasspath(jarPath).scan().getAllClasses().getClassNames())
-                .containsOnly("com.test.Test");
-        assertThat(new FastClasspathScanner("-jar:level3.jar").overrideClasspath(jarPath).scan().getAllClasses()
-                .getClassNames()).isEmpty();
+        assertThat(new FastClasspathScanner().overrideClasspath(jarPath).enableClassInfo().scan().getAllClasses()
+                .getClassNames()).containsOnly("com.test.Test");
+        assertThat(new FastClasspathScanner().overrideClasspath(jarPath).enableClassInfo()
+                .blacklistJars("level3.jar").scan().getAllClasses().getClassNames()).isEmpty();
     }
 }

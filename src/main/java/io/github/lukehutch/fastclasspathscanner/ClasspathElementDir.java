@@ -236,8 +236,8 @@ class ClasspathElementDir extends ClasspathElement {
 
                 // Class can only be scanned if it's within a whitelisted path subtree, or if it is a classfile that
                 // has been specifically-whitelisted
-                if (!inWhitelistedPath && (matchStatus != ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE
-                        || !scanSpec.isSpecificallyWhitelistedClass(fileInDirRelativePath))) {
+                if (!inWhitelistedPath && !(matchStatus == ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE
+                        && scanSpec.isSpecificallyWhitelistedClass(fileInDirRelativePath))) {
                     // Ignore files that are siblings of specifically-whitelisted files, but that are not themselves
                     // specifically whitelisted
                     continue;

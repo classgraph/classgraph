@@ -2,6 +2,9 @@ package io.github.lukehutch.fastclasspathscanner.issues;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.io.File;
+import java.util.List;
+
 import org.junit.Test;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
@@ -9,8 +12,9 @@ import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 public class TestGetUniqueClasspathElements {
     @Test
     public void testGetUniqueClasspathElements() {
-        assertThat(new FastClasspathScanner("!!").getUniqueClasspathElements()).isNotEmpty();
-        assertThat(new FastClasspathScanner("!!").getUniqueClasspathElementURLs()).isNotEmpty();
-        assertThat(new FastClasspathScanner("!!").getUniqueClasspathElementsAsPathStr()).isNotEmpty();
+        final List<File> classpathElements = new FastClasspathScanner().whitelistPackages("com.xyz")
+                .getUniqueClasspathElements();
+        System.out.println(classpathElements);
+        assertThat(classpathElements).isNotEmpty();
     }
 }

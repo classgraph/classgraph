@@ -324,7 +324,6 @@ public class ScanSpec {
      */
     ScanSpecPathMatch dirWhitelistMatchStatus(final String relativePath) {
         // In blacklisted path
-
         if (pathWhiteBlackList.isBlacklisted(relativePath)) {
             // The directory is blacklisted.
             return ScanSpecPathMatch.HAS_BLACKLISTED_PATH_PREFIX;
@@ -335,18 +334,20 @@ public class ScanSpec {
         }
 
         // At whitelisted path
-
-        if (classfilePathWhiteBlackList.isSpecificallyWhitelistedAndNotBlacklisted(relativePath)) {
-            // Reached a package containing a specifically-whitelisted class
-            return ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE;
+        if (pathWhiteBlackList.whitelistIsEmpty() && classPackagePathWhiteBlackList.whitelistIsEmpty()) {
+            // There are no whitelisted packages, so everything non-blacklisted is whitelisted
+            return ScanSpecPathMatch.AT_WHITELISTED_PATH;
         }
-        if (pathWhiteBlackList.isWhitelistedAndNotBlacklisted(relativePath)) {
+        if (pathWhiteBlackList.isSpecificallyWhitelistedAndNotBlacklisted(relativePath)) {
             // Reached a whitelisted path
             return ScanSpecPathMatch.AT_WHITELISTED_PATH;
         }
+        if (classPackagePathWhiteBlackList.isSpecificallyWhitelistedAndNotBlacklisted(relativePath)) {
+            // Reached a package containing a specifically-whitelisted class
+            return ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE;
+        }
 
         // Ancestor of whitelisted path
-
         if (relativePath.equals("/")) {
             // The default package is always the ancestor of whitelisted paths (need to keep recursing)
             return ScanSpecPathMatch.ANCESTOR_OF_WHITELISTED_PATH;
@@ -361,14 +362,12 @@ public class ScanSpec {
         }
 
         // Descendant of whitelisted path
-
         if (pathPrefixWhiteBlackList.isSpecificallyWhitelisted(relativePath)) {
             // Path prefix matches one in the whitelist
             return ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX;
         }
 
         // Not in whitelisted path
-
         return ScanSpecPathMatch.NOT_WITHIN_WHITELISTED_PATH;
     }
 
@@ -377,7 +376,7 @@ public class ScanSpec {
      * specifically-whitelisted (and non-blacklisted) classfile's relative path.
      */
     boolean isSpecificallyWhitelistedClass(final String relativePath) {
-        return pathWhiteBlackList.isSpecificallyWhitelistedAndNotBlacklisted(relativePath);
+        return classfilePathWhiteBlackList.isSpecificallyWhitelistedAndNotBlacklisted(relativePath);
     }
 
     /** Returns true if the class is specifically blacklisted, or is within a blacklisted package. */

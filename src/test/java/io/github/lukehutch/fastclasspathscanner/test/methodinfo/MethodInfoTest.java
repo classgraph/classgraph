@@ -57,8 +57,8 @@ public class MethodInfoTest {
     public void methodInfoNotEnabled() throws Exception {
         try {
             // .enableSaveMethodInfo() not called
-            new FastClasspathScanner(MethodInfoTest.class.getPackage().getName()).scan().getClassNameToClassInfo()
-                    .get(MethodInfoTest.class.getName()).getMethodInfo();
+            new FastClasspathScanner().whitelistPackages(MethodInfoTest.class.getPackage().getName()).scan()
+                    .getClassNameToClassInfo().get(MethodInfoTest.class.getName()).getMethodInfo();
             throw new RuntimeException("Fail");
         } catch (final Exception e) {
             // Pass
@@ -67,8 +67,9 @@ public class MethodInfoTest {
 
     @Test
     public void getMethodInfo() throws Exception {
-        final Map<String, ClassInfo> classNameToClassInfo = new FastClasspathScanner(
-                MethodInfoTest.class.getPackage().getName()).enableMethodInfo().scan().getClassNameToClassInfo();
+        final Map<String, ClassInfo> classNameToClassInfo = new FastClasspathScanner()
+                .whitelistPackages(MethodInfoTest.class.getPackage().getName()).enableMethodInfo().scan()
+                .getClassNameToClassInfo();
 
         final List<String> methodInfoStrs = new ArrayList<>();
         final List<MethodInfo> methodInfo = classNameToClassInfo.get(MethodInfoTest.class.getName())
@@ -90,8 +91,9 @@ public class MethodInfoTest {
 
     @Test
     public void getConstructorInfo() throws Exception {
-        final Map<String, ClassInfo> classNameToClassInfo = new FastClasspathScanner(
-                MethodInfoTest.class.getPackage().getName()).enableMethodInfo().scan().getClassNameToClassInfo();
+        final Map<String, ClassInfo> classNameToClassInfo = new FastClasspathScanner()
+                .whitelistPackages(MethodInfoTest.class.getPackage().getName()).enableMethodInfo().scan()
+                .getClassNameToClassInfo();
 
         final List<String> constructorInfoStrs = new ArrayList<>();
         final List<MethodInfo> constructorInfo = classNameToClassInfo.get(MethodInfoTest.class.getName())
@@ -105,9 +107,9 @@ public class MethodInfoTest {
 
     @Test
     public void getMethodInfoIgnoringVisibility() throws Exception {
-        final Map<String, ClassInfo> classNameToClassInfo = new FastClasspathScanner(
-                MethodInfoTest.class.getPackage().getName()).enableMethodInfo().ignoreMethodVisibility().scan()
-                        .getClassNameToClassInfo();
+        final Map<String, ClassInfo> classNameToClassInfo = new FastClasspathScanner()
+                .whitelistPackages(MethodInfoTest.class.getPackage().getName()).enableMethodInfo()
+                .ignoreMethodVisibility().scan().getClassNameToClassInfo();
         final List<String> methodInfoStrs = new ArrayList<>();
         for (final MethodInfo methodInfo : classNameToClassInfo.get(MethodInfoTest.class.getName())
                 .getMethodInfo()) {

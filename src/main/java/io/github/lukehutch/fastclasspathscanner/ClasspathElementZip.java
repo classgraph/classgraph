@@ -343,8 +343,7 @@ class ClasspathElementZip extends ClasspathElement {
                 final boolean parentRelativePathChanged = prevParentRelativePath == null
                         || !parentRelativePath.equals(prevParentRelativePath);
                 final ScanSpecPathMatch parentMatchStatus = //
-                        parentRelativePathChanged
-                                ? scanSpec.dirWhitelistMatchStatus(parentRelativePath)
+                        parentRelativePathChanged ? scanSpec.dirWhitelistMatchStatus(parentRelativePath)
                                 : prevParentMatchStatus;
                 prevParentRelativePath = parentRelativePath;
                 prevParentMatchStatus = parentMatchStatus;

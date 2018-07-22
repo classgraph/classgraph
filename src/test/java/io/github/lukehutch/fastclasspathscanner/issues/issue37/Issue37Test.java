@@ -48,14 +48,12 @@ public class Issue37Test {
     public void issue37Test() {
         final List<String> methodNames = new ArrayList<>();
         final String pkg = Issue37Test.class.getPackage().getName();
-        new FastClasspathScanner(pkg) //
-                .enableMethodAnnotationIndexing() //
-                .matchClassesWithMethodAnnotation(Issue37Annotation.class, (matchingClass, matchingMethod) -> {
-                    methodNames.add(matchingMethod.getName());
-                }) //
-                .scan();
-        // For some reason in the JRE, constructor names are fully-qualified, method names are not :~)
-        assertThat(methodNames).containsExactly(Issue37Test.class.getName(), "issue37Test");
+        new FastClasspathScanner().whitelistPackages(pkg) //
+                .enableMethodInfo() //
+                .scan() //
+                .getAllClasses() //
+                .forEach(ci -> ci.getMethodAndConstructorInfo().forEach(mi -> methodNames.add(mi.getMethodName())));
+        assertThat(methodNames).containsExactly("<init>", "issue37Test", "unannotatedMethod");
     }
 
     public void unannotatedMethod() {

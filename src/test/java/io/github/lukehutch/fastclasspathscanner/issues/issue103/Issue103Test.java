@@ -51,7 +51,7 @@ public class Issue103Test {
     static {
         // Test that synchronous scanning from class initializer is allowed (and does not deadlock)
         try {
-            new FastClasspathScanner(Issue103Test.class.getPackage().getName())
+            new FastClasspathScanner().whitelistPackages(Issue103Test.class.getPackage().getName())
                     .matchAllClasses(c -> classesFoundSync.add(c.getName())).scan();
         } catch (final RuntimeException e) {
             exceptionCaughtSync = true;
@@ -61,7 +61,7 @@ public class Issue103Test {
         try {
             // Test that async scanning is disallowed from class initializer, to prevent deadlock
             try {
-                new FastClasspathScanner(Issue103Test.class.getPackage().getName())
+                new FastClasspathScanner().whitelistPackages(Issue103Test.class.getPackage().getName())
                         .matchAllClasses(c -> classesFoundAsync.add(c.getName())).scanAsync(es, 1).get();
             } catch (final Exception e) {
                 exceptionCaughtAsync = true;
@@ -69,7 +69,7 @@ public class Issue103Test {
 
             // Test that async scanning with no MatchProcessors allowed from class initializer.
             try {
-                new FastClasspathScanner(Issue103Test.class.getPackage().getName()) //
+                new FastClasspathScanner().whitelistPackages(Issue103Test.class.getPackage().getName()) //
                         .scanAsync(es, 1).get();
             } catch (final Exception e) {
                 exceptionCaughtAsyncWithoutMatchProcessors = true;
@@ -97,8 +97,9 @@ public class Issue103Test {
         final CountDownLatch scanProcessorRunLatch = new CountDownLatch(1);
         final CountDownLatch failureHandlerLatch = new CountDownLatch(1);
         try {
-            new FastClasspathScanner(Issue103Test.class.getPackage().getName()).scanAsync(executorService, 4,
-                    scanResult -> scanProcessorRunLatch.countDown(), throwable -> failureHandlerLatch.countDown());
+            new FastClasspathScanner().whitelistPackages(Issue103Test.class.getPackage().getName()).scanAsync(
+                    executorService, 4, scanResult -> scanProcessorRunLatch.countDown(),
+                    throwable -> failureHandlerLatch.countDown());
             boolean scanResultProcessorRun = false;
             try {
                 scanResultProcessorRun |= scanProcessorRunLatch.await(5, TimeUnit.SECONDS);
@@ -122,8 +123,8 @@ public class Issue103Test {
         final ExecutorService executorService = Executors.newFixedThreadPool(4);
         final CountDownLatch failureHandlerLatch = new CountDownLatch(1);
         try {
-            new FastClasspathScanner(Issue103Test.class.getPackage().getName()).scanAsync(executorService, 4,
-                    scanResult -> {
+            new FastClasspathScanner().whitelistPackages(Issue103Test.class.getPackage().getName())
+                    .scanAsync(executorService, 4, scanResult -> {
                         throw new RuntimeException("Intentional Exception during ScanResultProcessor");
                     }, throwable -> failureHandlerLatch.countDown());
             boolean failureHandlerRun = false;

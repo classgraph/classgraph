@@ -39,7 +39,7 @@ public class Issue107Test {
     public void issue107Test() {
         // Package annotations should have "package-info" as their class name
         final String pkg = Issue107Test.class.getPackage().getName();
-        assertThat(new FastClasspathScanner(pkg).scan().getNamesOfClassesWithAnnotation(PackageAnnotation.class))
-                .containsOnly(pkg + ".package-info");
+        assertThat(new FastClasspathScanner().whitelistPackages(pkg).scan()
+                .getNamesOfClassesWithAnnotation(PackageAnnotation.class)).containsOnly(pkg + ".package-info");
     }
 }

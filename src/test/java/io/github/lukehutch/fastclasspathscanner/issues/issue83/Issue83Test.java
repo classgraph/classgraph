@@ -3,8 +3,8 @@ package io.github.lukehutch.fastclasspathscanner.issues.issue83;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.net.URL;
-import java.net.URLClassLoader;
 import java.util.ArrayList;
+import java.util.List;
 
 import org.junit.Test;
 
@@ -16,12 +16,9 @@ public class Issue83Test {
     @Test
     public void jarWhitelist() {
         assertThat(jarPathURL).isNotNull();
-        final ArrayList<String> paths = new ArrayList<>();
-        new FastClasspathScanner("jar:nested-jars-level1.zip")
-                .addClassLoader(new URLClassLoader(new URL[] { jarPathURL }))
-                .matchFilenamePattern(".*", (final String relativePath, final byte[] fileContents) -> {
-                    paths.add(relativePath);
-                }).scan();
+        final List<String> paths = new ArrayList<>();
+        new FastClasspathScanner().overrideClasspath(jarPathURL).whitelistJars("nested-jars-level1.zip").scan()
+                .getAllResources().forEach(res -> paths.add(res.getPathRelativeToPackageRoot()));
         assertThat(paths).contains("level2.jar");
     }
 
@@ -29,11 +26,8 @@ public class Issue83Test {
     public void jarBlacklist() {
         assertThat(jarPathURL).isNotNull();
         final ArrayList<String> paths = new ArrayList<>();
-        new FastClasspathScanner("-jar:nested-jars-level1.zip")
-                .addClassLoader(new URLClassLoader(new URL[] { jarPathURL }))
-                .matchFilenamePattern(".*", (final String relativePath, final byte[] fileContents) -> {
-                    paths.add(relativePath);
-                }).scan();
+        new FastClasspathScanner().overrideClasspath(jarPathURL).blacklistJars("nested-jars-level1.zip").scan()
+                .getAllResources().forEach(res -> paths.add(res.getPathRelativeToPackageRoot()));
         assertThat(paths).doesNotContain("level2.jar");
     }
 }

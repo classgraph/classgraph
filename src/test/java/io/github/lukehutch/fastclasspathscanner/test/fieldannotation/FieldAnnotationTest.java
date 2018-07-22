@@ -51,9 +51,9 @@ public class FieldAnnotationTest {
 
     @Test
     public void getNamesOfClassesWithFieldAnnotation() throws Exception {
-        final List<String> testClasses = new FastClasspathScanner(FieldAnnotationTest.class.getPackage().getName())
-                .enableFieldAnnotationIndexing().scan()
-                .getNamesOfClassesWithFieldAnnotation(ExternalAnnotation.class.getName());
+        final List<String> testClasses = new FastClasspathScanner()
+                .whitelistPackages(FieldAnnotationTest.class.getPackage().getName()).enableFieldAnnotationIndexing()
+                .scan().getNamesOfClassesWithFieldAnnotation(ExternalAnnotation.class.getName());
         assertThat(testClasses).containsOnly(FieldAnnotationTest.class.getName());
     }
 
@@ -61,7 +61,7 @@ public class FieldAnnotationTest {
     @ExternalAnnotation
     public void fieldAnnotationMatchProcessor() throws Exception {
         final List<String> matchingFieldNames = new ArrayList<>();
-        new FastClasspathScanner(FieldAnnotationTest.class.getPackage().getName())
+        new FastClasspathScanner().whitelistPackages(FieldAnnotationTest.class.getPackage().getName())
                 .matchClassesWithFieldAnnotation(ExternalAnnotation.class, new FieldAnnotationMatchProcessor() {
                     @Override
                     public void processMatch(final Class<?> matchingClass, final Field matchingMethod) {
@@ -75,7 +75,7 @@ public class FieldAnnotationTest {
     @ExternalAnnotation
     public void fieldAnnotationMatchProcessorIgnoringVisibility() throws Exception {
         final List<String> matchingFieldNames = new ArrayList<>();
-        new FastClasspathScanner(FieldAnnotationTest.class.getPackage().getName())
+        new FastClasspathScanner().whitelistPackages(FieldAnnotationTest.class.getPackage().getName())
                 .matchClassesWithFieldAnnotation(ExternalAnnotation.class, new FieldAnnotationMatchProcessor() {
                     @Override
                     public void processMatch(final Class<?> matchingClass, final Field matchingMethod) {

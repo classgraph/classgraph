@@ -38,14 +38,16 @@ import io.github.lukehutch.fastclasspathscanner.ScanResult;
 public class Issue101Test {
     @Test
     public void nonInheritedAnnotation() {
-        final ScanResult scanResult = new FastClasspathScanner(Issue101Test.class.getPackage().getName()).scan();
+        final ScanResult scanResult = new FastClasspathScanner()
+                .whitelistPackages(Issue101Test.class.getPackage().getName()).scan();
         assertThat(scanResult.getNamesOfClassesWithAnnotation(NonInheritedAnnotation.class))
                 .containsOnly(AnnotatedClass.class.getName());
     }
 
     @Test
     public void inheritedAnnotation() {
-        final ScanResult scanResult = new FastClasspathScanner(Issue101Test.class.getPackage().getName()).scan();
+        final ScanResult scanResult = new FastClasspathScanner()
+                .whitelistPackages(Issue101Test.class.getPackage().getName()).scan();
         assertThat(scanResult.getNamesOfClassesWithAnnotation(InheritedAnnotation.class)).containsOnly(
                 AnnotatedClass.class.getName(), NonAnnotatedSubclass.class.getName(),
                 AnnotatedInterface.class.getName());
@@ -53,7 +55,8 @@ public class Issue101Test {
 
     @Test
     public void inheritedMetaAnnotation() {
-        final ScanResult scanResult = new FastClasspathScanner(Issue101Test.class.getPackage().getName()).scan();
+        final ScanResult scanResult = new FastClasspathScanner()
+                .whitelistPackages(Issue101Test.class.getPackage().getName()).scan();
         assertThat(scanResult.getNamesOfClassesWithAnnotation(InheritedMetaAnnotation.class))
                 .containsOnly(AnnotatedClass.class.getName(), NonAnnotatedSubclass.class.getName());
     }

@@ -305,7 +305,7 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
      * 
      * @return The constant final initializer value of the field, or null if none.
      */
-    public Object getConstFinalValue() {
+    public Object getConstInitializerValue() {
         return constValue;
     }
 

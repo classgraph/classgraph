@@ -52,7 +52,7 @@ public class Issue100Test {
         // Class issue100.Test with field "a" should mask class of same name with field "b", because "...a.jar" is
         // earlier in classpath than "...b.jar"
         final ArrayList<String> fieldNames1 = new ArrayList<>();
-        new FastClasspathScanner("issue100") //
+        new FastClasspathScanner().whitelistPackages("issue100") //
                 .overrideClassLoaders(overrideClassLoader).matchAllClasses(klass -> {
                     for (final Field f : klass.getFields()) {
                         fieldNames1.add(f.getName());
@@ -67,7 +67,7 @@ public class Issue100Test {
         // the official stance is that using jar whitelisting/blacklisting in cases where a class is defined
         // multiple times will result in undefined behavior.
         final ArrayList<String> fieldNames2 = new ArrayList<>();
-        new FastClasspathScanner("issue100", "jar:" + bJarName) //
+        new FastClasspathScanner().whitelistPackages("issue100", "jar:" + bJarName) //
                 .overrideClassLoaders(overrideClassLoader).matchAllClasses(klass -> {
                     for (final Field f : klass.getFields()) {
                         fieldNames2.add(f.getName());

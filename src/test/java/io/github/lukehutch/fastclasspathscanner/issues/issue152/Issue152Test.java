@@ -56,12 +56,11 @@ public class Issue152Test {
     @Test
     public void issue152Test() throws IOException {
         final String pkg = Issue152Test.class.getPackage().getName();
-        final ClassInfo classInfo = new FastClasspathScanner(pkg) //
+        final ClassInfo classInfo = new FastClasspathScanner().whitelistPackages(pkg) //
                 .enableMethodInfo() //
                 .enableFieldInfo() //
                 .scan() //
-                .getClassNameToClassInfo() //
-                .get(Issue152Test.class.getName());
+                .getClassInfo(Issue152Test.class.getName());
         assertThat(classInfo //
                 .getMethodInfo("testMethod") //
                 .get(0).toString()) //

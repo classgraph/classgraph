@@ -43,11 +43,10 @@ public class Issue146Test {
         // Scans io.github.lukehutch.fastclasspathscanner.issues.issue146.CompiledWithJDK8, which is in
         // src/test/resources
         final String pkg = Issue146Test.class.getPackage().getName();
-        final MethodInfo methodInfo = new FastClasspathScanner(pkg) //
+        final MethodInfo methodInfo = new FastClasspathScanner().whitelistPackages(pkg) //
                 .enableMethodInfo() //
                 .scan() //
-                .getClassNameToClassInfo() //
-                .get(pkg + "." + "CompiledWithJDK8") //
+                .getClassInfo(pkg + "." + "CompiledWithJDK8") //
                 .getMethodInfo("method") //
                 .get(0);
         assertThat(methodInfo.toString()) //

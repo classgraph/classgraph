@@ -21,8 +21,8 @@ public class Issue74Test {
 
     @Test
     public void issue74() {
-        assertThat(new FastClasspathScanner(Issue74Test.class.getPackage().getName()).scan()
-                .getNamesOfClassesImplementing(Function.class.getName())).containsOnly(
+        assertThat(new FastClasspathScanner().whitelistPackages(Issue74Test.class.getPackage().getName()).scan()
+                .getClassesImplementing(Function.class.getName()).getClassNames()).containsOnly(
                         FunctionAdapter.class.getName(), ImplementsFunction.class.getName(),
                         ExtendsFunctionAdapter.class.getName());
     }

@@ -50,8 +50,12 @@ public class ClassInfoList implements List<ClassInfo> {
             final ScanResult scanResult) {
         this.reachableClasses = reachableClasses == null ? Collections.<ClassInfo> emptyList() : reachableClasses;
         Collections.sort(reachableClasses);
-        this.directlyRelatedClasses = directlyRelatedClasses == null || directlyRelatedClasses.isEmpty() ? null
-                : new ClassInfoList(directlyRelatedClasses, null, scanResult);
+        // Make directlyRelatedClasses idempotent
+        final List<ClassInfo> directlyRelatedClassesNotNull = directlyRelatedClasses == null
+                ? Collections.<ClassInfo> emptyList()
+                : directlyRelatedClasses;
+        this.directlyRelatedClasses = (reachableClasses == directlyRelatedClasses) ? this
+                : new ClassInfoList(directlyRelatedClassesNotNull, directlyRelatedClassesNotNull, scanResult);
         this.scanResult = scanResult;
     }
 
@@ -59,9 +63,7 @@ public class ClassInfoList implements List<ClassInfo> {
     public ClassInfoList(final Collection<ClassInfo> reachableClasses,
             final Collection<ClassInfo> directlyRelatedClasses, final ScanResult scanResult) {
         this(reachableClasses == null ? null : new ArrayList<>(reachableClasses),
-                directlyRelatedClasses == null || directlyRelatedClasses.isEmpty() ? null
-                        : new ArrayList<>(directlyRelatedClasses),
-                scanResult);
+                directlyRelatedClasses == null ? null : new ArrayList<>(directlyRelatedClasses), scanResult);
     }
 
     /** Unmodifiable empty ClassInfoList. */
@@ -372,4 +374,19 @@ public class ClassInfoList implements List<ClassInfo> {
         return new ClassInfoList(reachableClassesDifference, directlyRelatedClassesDifference, scanResult);
     }
 
+    // -------------------------------------------------------------------------------------------------------------
+
+    @Override
+    public String toString() {
+        final StringBuilder buf = new StringBuilder();
+        buf.append('[');
+        for (int i = 0, n = reachableClasses.size(); i < n; i++) {
+            if (i > 0) {
+                buf.append(", ");
+            }
+            buf.append(reachableClasses.get(i));
+        }
+        buf.append(']');
+        return buf.toString();
+    }
 }
