@@ -79,6 +79,7 @@ public class ClassFieldCache {
         }
     }
 
+    /** Placeholder class to signify no constructor was found previously. */
     private static class NoConstructor {
         @SuppressWarnings("unused")
         public NoConstructor() {

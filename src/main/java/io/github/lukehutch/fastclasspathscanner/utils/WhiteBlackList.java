@@ -36,40 +36,245 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 /** A class storing whitelist or blacklist criteria. */
-public class WhiteBlackList {
+public abstract class WhiteBlackList {
     /** Whitelisted items (whole-string match) */
-    private Set<String> whitelist;
+    protected Set<String> whitelist;
     /** Blacklisted items (whole-string match) */
-    private Set<String> blacklist;
+    protected Set<String> blacklist;
     /** Whitelisted items (prefix match) */
-    private List<String> whitelistPrefixes;
+    protected List<String> whitelistPrefixes;
     /** Blacklisted items (prefix match) */
-    private List<String> blacklistPrefixes;
-    /** Whitelist glob strings (saved in serialization to JSON) */
-    private Set<String> whitelistGlobs;
-    /** Blacklist glob strings (saved in serialization to JSON) */
-    private Set<String> blacklistGlobs;
-    /** Whitelist regexp patterns */
-    private transient List<Pattern> whitelistPatterns;
-    /** Blacklist regexp patterns */
-    private transient List<Pattern> blacklistPatterns;
-
-    /** The type of match to perform. */
-    public enum MatchType {
-        PREFIX, LEAFNAME, WHOLE_STRING;
-    }
-
-    /** The type of match to perform. */
-    public WhiteBlackList.MatchType matchType;
+    protected List<String> blacklistPrefixes;
+    /** Whitelist glob strings. (Serialized to JSON, for logging purposes.) */
+    protected Set<String> whitelistGlobs;
+    /** Blacklist glob strings. (Serialized to JSON, for logging purposes.) */
+    protected Set<String> blacklistGlobs;
+    /** Whitelist regexp patterns. (Not serialized to JSON.) */
+    protected transient List<Pattern> whitelistPatterns;
+    /** Blacklist regexp patterns. (Not serialized to JSON.) */
+    protected transient List<Pattern> blacklistPatterns;
 
     /** Constructor for deserialization. */
     public WhiteBlackList() {
     }
 
-    /** Constructor for deserialization. */
-    public WhiteBlackList(final WhiteBlackList.MatchType matchType) {
-        this.matchType = matchType;
+    /** Whitelist/blacklist for prefix strings. */
+    public static class WhiteBlackListPrefix extends WhiteBlackList {
+        /** Add to the whitelist. */
+        @Override
+        public void addToWhitelist(final String str) {
+            if (str.contains("*")) {
+                throw new IllegalArgumentException("Cannot use a glob wildcard here: " + str);
+            }
+            if (this.whitelistPrefixes == null) {
+                this.whitelistPrefixes = new ArrayList<>();
+            }
+            this.whitelistPrefixes.add(str);
+        }
+
+        /** Add to the blacklist. */
+        @Override
+        public void addToBlacklist(final String str) {
+            if (str.contains("*")) {
+                throw new IllegalArgumentException("Cannot use a glob wildcard here: " + str);
+            }
+            if (this.blacklistPrefixes == null) {
+                this.blacklistPrefixes = new ArrayList<>();
+            }
+            this.blacklistPrefixes.add(str);
+        }
+
+        /** Check if the requested string has a whitelisted/non-blacklisted prefix. */
+        @Override
+        public boolean isWhitelistedAndNotBlacklisted(final String str) {
+            boolean isWhitelisted = whitelistPrefixes == null;
+            if (!isWhitelisted) {
+                for (final String prefix : whitelistPrefixes) {
+                    if (str.startsWith(prefix)) {
+                        isWhitelisted = true;
+                        break;
+                    }
+                }
+            }
+            if (!isWhitelisted) {
+                return false;
+            }
+            if (blacklistPrefixes != null) {
+                for (final String prefix : blacklistPrefixes) {
+                    if (str.startsWith(prefix)) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+
+        /** Check if the requested string has a whitelisted prefix. */
+        @Override
+        public boolean isWhitelisted(final String str) {
+            boolean isWhitelisted = whitelistPrefixes == null;
+            if (!isWhitelisted) {
+                for (final String prefix : whitelistPrefixes) {
+                    if (str.startsWith(prefix)) {
+                        isWhitelisted = true;
+                        break;
+                    }
+                }
+            }
+            return isWhitelisted;
+        }
+
+        /** Prefix-of-prefix is invalid. */
+        @Override
+        public boolean whitelistHasPrefix(final String str) {
+            throw new IllegalArgumentException("Can only find prefixes of whole strings");
+        }
+
+        /** Check if the requested string has a blacklisted prefix. */
+        @Override
+        public boolean isBlacklisted(final String str) {
+            if (blacklistPrefixes != null) {
+                for (final String prefix : blacklistPrefixes) {
+                    if (str.startsWith(prefix)) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
     }
+
+    /** Whitelist/blacklist for whole-strings matches. */
+    public static class WhiteBlackListWholeString extends WhiteBlackList {
+        /** Add to the whitelist. */
+        @Override
+        public void addToWhitelist(final String str) {
+            if (str.contains("*")) {
+                if (this.whitelistGlobs == null) {
+                    this.whitelistGlobs = new HashSet<>();
+                    this.whitelistPatterns = new ArrayList<>();
+                }
+                this.whitelistGlobs.add(str);
+                this.whitelistPatterns.add(globToPattern(str));
+            } else {
+                if (this.whitelist == null) {
+                    this.whitelist = new HashSet<>();
+                }
+                this.whitelist.add(str);
+            }
+        }
+
+        /** Add to the blacklist. */
+        @Override
+        public void addToBlacklist(final String str) {
+            if (str.contains("*")) {
+                if (this.blacklistGlobs == null) {
+                    this.blacklistGlobs = new HashSet<>();
+                    this.blacklistPatterns = new ArrayList<>();
+                }
+                this.blacklistGlobs.add(str);
+                this.blacklistPatterns.add(globToPattern(str));
+            } else {
+                if (this.blacklist == null) {
+                    this.blacklist = new HashSet<>();
+                }
+                this.blacklist.add(str);
+            }
+        }
+
+        /** Check if the requested string is whitelisted and not blacklisted. */
+        @Override
+        public boolean isWhitelistedAndNotBlacklisted(final String str) {
+            return ((whitelist == null && whitelistPatterns == null)
+                    || (whitelist != null && whitelist.contains(str)) || matchesPatternList(str, whitelistPatterns))
+                    && (blacklist == null || !blacklist.contains(str))
+                    && !matchesPatternList(str, blacklistPatterns);
+        }
+
+        /** Check if the requested string is whitelisted. */
+        @Override
+        public boolean isWhitelisted(final String str) {
+            return (whitelist == null && whitelistPatterns == null)
+                    || (whitelist != null && whitelist.contains(str)) || matchesPatternList(str, whitelistPatterns);
+        }
+
+        /** Check if the requested string is a prefix of a whitelisted string. */
+        @Override
+        public boolean whitelistHasPrefix(final String str) {
+            if (whitelist == null) {
+                return false;
+            }
+            for (final String w : whitelist) {
+                if (w.startsWith(str)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /** Check if the requested string is blacklisted. */
+        @Override
+        public boolean isBlacklisted(final String str) {
+            return (blacklist != null && blacklist.contains(str)) || matchesPatternList(str, blacklistPatterns);
+        }
+    }
+
+    /** Whitelist/blacklist for prefix strings. */
+    public static class WhiteBlackListLeafname extends WhiteBlackListWholeString {
+        /** Add to the whitelist. */
+        @Override
+        public void addToWhitelist(final String str) {
+            super.addToWhitelist(JarUtils.leafName(str));
+        }
+
+        /** Add to the blacklist. */
+        @Override
+        public void addToBlacklist(final String str) {
+            super.addToBlacklist(JarUtils.leafName(str));
+        }
+
+        /** Check if the requested string is whitelisted and not blacklisted. */
+        @Override
+        public boolean isWhitelistedAndNotBlacklisted(final String str) {
+            return super.isWhitelistedAndNotBlacklisted(JarUtils.leafName(str));
+        }
+
+        /** Check if the requested string is whitelisted. */
+        @Override
+        public boolean isWhitelisted(final String str) {
+            return super.isWhitelisted(JarUtils.leafName(str));
+        }
+
+        /** Prefix tests are invalid for jar leafnames. */
+        @Override
+        public boolean whitelistHasPrefix(final String str) {
+            throw new IllegalArgumentException("Can only find prefixes of whole strings");
+        }
+
+        /** Check if the requested string is blacklisted. */
+        @Override
+        public boolean isBlacklisted(final String str) {
+            return super.isBlacklisted(JarUtils.leafName(str));
+        }
+    }
+
+    /** Add to the whitelist. */
+    public abstract void addToWhitelist(final String str);
+
+    /** Add to the blacklist. */
+    public abstract void addToBlacklist(final String str);
+
+    /** Check if the requested string is whitelisted and not blacklisted. */
+    public abstract boolean isWhitelistedAndNotBlacklisted(final String str);
+
+    /** Check if the requested string is whitelisted. */
+    public abstract boolean isWhitelisted(final String str);
+
+    /** Check if the requested string is a prefix of a whitelisted string. */
+    public abstract boolean whitelistHasPrefix(final String str);
+
+    /** Check if the requested string is blacklisted. */
+    public abstract boolean isBlacklisted(final String str);
 
     /** Remove initial and final '/' characters, if any. */
     public static String normalizePath(final String path) {
@@ -118,56 +323,6 @@ public class WhiteBlackList {
         return Pattern.compile("^" + glob.replace(".", "\\.").replace("*", ".*") + "$");
     }
 
-    public void addToWhitelist(final String str) {
-        final boolean isGlob = str.contains("*");
-        if (matchType == MatchType.PREFIX) {
-            if (isGlob) {
-                throw new IllegalArgumentException("Cannot use a glob wildcard here: " + str);
-            }
-            if (this.whitelistPrefixes == null) {
-                this.whitelistPrefixes = new ArrayList<>();
-            }
-            this.whitelistPrefixes.add(str);
-        } else if (isGlob) {
-            if (this.whitelistGlobs == null) {
-                this.whitelistGlobs = new HashSet<>();
-                this.whitelistPatterns = new ArrayList<>();
-            }
-            this.whitelistGlobs.add(str);
-            this.whitelistPatterns.add(globToPattern(str));
-        } else {
-            if (this.whitelist == null) {
-                this.whitelist = new HashSet<>();
-            }
-            this.whitelist.add(str);
-        }
-    }
-
-    public void addToBlacklist(final String str) {
-        final boolean isGlob = str.contains("*");
-        if (matchType == MatchType.PREFIX) {
-            if (isGlob) {
-                throw new IllegalArgumentException("Cannot use a glob wildcard here: " + str);
-            }
-            if (this.blacklistPrefixes == null) {
-                this.blacklistPrefixes = new ArrayList<>();
-            }
-            this.blacklistPrefixes.add(str);
-        } else if (isGlob) {
-            if (this.blacklistGlobs == null) {
-                this.blacklistGlobs = new HashSet<>();
-                this.blacklistPatterns = new ArrayList<>();
-            }
-            this.blacklistGlobs.add(str);
-            this.blacklistPatterns.add(globToPattern(str));
-        } else {
-            if (this.blacklist == null) {
-                this.blacklist = new HashSet<>();
-            }
-            this.blacklist.add(str);
-        }
-    }
-
     private static boolean matchesPatternList(final String str, final List<Pattern> patterns) {
         if (patterns != null) {
             for (final Pattern pattern : patterns) {
@@ -177,97 +332,6 @@ public class WhiteBlackList {
             }
         }
         return false;
-    }
-
-    /**
-     * If patterns have not yet been compiled, compile them. This should only be run in a single-threaded context,
-     * since this can only happen when a ScanResult and ScanSpec are being deserialized from JSON.
-     */
-    private void compilePatterns() {
-        if (whitelistPatterns == null && whitelistGlobs != null) {
-            whitelistPatterns = new ArrayList<>();
-            for (final String globStr : whitelistGlobs) {
-                whitelistPatterns.add(globToPattern(globStr));
-            }
-        }
-        if (blacklistPatterns == null && blacklistGlobs != null) {
-            blacklistPatterns = new ArrayList<>();
-            for (final String globStr : blacklistGlobs) {
-                blacklistPatterns.add(globToPattern(globStr));
-            }
-        }
-    }
-
-    /** Check if the requested string is whitelisted and not blacklisted. */
-    public boolean isWhitelistedAndNotBlacklisted(final String str) {
-        if (matchType == MatchType.PREFIX) {
-            // Test if this string has a whitelisted/non-blacklisted prefix
-            boolean isWhitelisted = whitelistPrefixes == null;
-            if (!isWhitelisted) {
-                for (final String prefix : whitelistPrefixes) {
-                    if (str.startsWith(prefix)) {
-                        isWhitelisted = true;
-                        break;
-                    }
-                }
-            }
-            if (!isWhitelisted) {
-                return false;
-            }
-            if (blacklistPrefixes != null) {
-                for (final String prefix : blacklistPrefixes) {
-                    if (str.startsWith(prefix)) {
-                        return false;
-                    }
-                }
-            }
-            return true;
-
-        } else {
-            compilePatterns();
-            final String stringToTest =
-                    // If testing a jar leafname, strip off everything but the leafname
-                    matchType == MatchType.LEAFNAME ? JarUtils.leafName(str) :
-                    // Otherwise match the whole string
-                            str;
-
-            // Perform whitelist/blacklist test on whole string (possibly as pattern)
-            return ((whitelist == null && whitelistPatterns == null)
-                    || (whitelist != null && whitelist.contains(stringToTest))
-                    || matchesPatternList(stringToTest, whitelistPatterns))
-                    && (blacklist == null || !blacklist.contains(stringToTest))
-                    && !matchesPatternList(stringToTest, blacklistPatterns);
-        }
-    }
-
-    /** Check if the requested string is whitelisted. */
-    public boolean isWhitelisted(final String str) {
-        if (matchType == MatchType.PREFIX) {
-            // Test if this string has a whitelisted/non-blacklisted prefix
-            boolean isWhitelisted = whitelistPrefixes == null;
-            if (!isWhitelisted) {
-                for (final String prefix : whitelistPrefixes) {
-                    if (str.startsWith(prefix)) {
-                        isWhitelisted = true;
-                        break;
-                    }
-                }
-            }
-            return isWhitelisted;
-
-        } else {
-            compilePatterns();
-            final String stringToTest =
-                    // If testing a jar leafname, strip off everything but the leafname
-                    matchType == MatchType.LEAFNAME ? JarUtils.leafName(str) :
-                    // Otherwise match the whole string
-                            str;
-
-            // Perform whitelist/blacklist test on whole string (possibly as pattern)
-            return (whitelist == null && whitelistPatterns == null)
-                    || (whitelist != null && whitelist.contains(stringToTest))
-                    || matchesPatternList(stringToTest, whitelistPatterns);
-        }
     }
 
     /** Returns true if there were no whitelist criteria added. */
@@ -284,48 +348,11 @@ public class WhiteBlackList {
     }
 
     /**
-     * Check if the requested string is blacklisted.
+     * Check if the requested string is <i>specifically</i> whitelisted, i.e. will not return true if the whitelist
+     * is empty.
      */
-    public boolean isBlacklisted(final String str) {
-        if (matchType == MatchType.PREFIX) {
-            // Test if this string has a blacklisted prefix
-            if (blacklistPrefixes != null) {
-                for (final String prefix : blacklistPrefixes) {
-                    if (str.startsWith(prefix)) {
-                        return true;
-                    }
-                }
-            }
-            return false;
-
-        } else {
-            compilePatterns();
-            final String stringToTest =
-                    // If testing a jar leafname, strip off everything but the leafname
-                    matchType == MatchType.LEAFNAME ? JarUtils.leafName(str) :
-                    // Otherwise match the whole string
-                            str;
-
-            // Perform whitelist/blacklist test on whole string (possibly as pattern)
-            return (blacklist != null && blacklist.contains(stringToTest))
-                    || matchesPatternList(stringToTest, blacklistPatterns);
-        }
-    }
-
-    /** Check if the requested string is a prefix of a whitelisted string. */
-    public boolean whitelistHasPrefix(final String str) {
-        if (matchType != MatchType.WHOLE_STRING) {
-            throw new IllegalArgumentException("Can only find prefixes of whole strings");
-        }
-        if (whitelist == null) {
-            return false;
-        }
-        for (final String w : whitelist) {
-            if (w.startsWith(str)) {
-                return true;
-            }
-        }
-        return false;
+    public boolean isSpecificallyWhitelisted(final String str) {
+        return !whitelistIsEmpty() && isWhitelisted(str);
     }
 
     /** Need to sort prefixes to ensure correct whitelist/blacklist evaluation (see Issue #167). */
