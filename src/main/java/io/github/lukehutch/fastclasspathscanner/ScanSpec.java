@@ -325,8 +325,12 @@ public class ScanSpec {
     ScanSpecPathMatch dirWhitelistMatchStatus(final String relativePath) {
         // In blacklisted path
 
+        if (pathWhiteBlackList.isBlacklisted(relativePath)) {
+            // The directory is blacklisted.
+            return ScanSpecPathMatch.HAS_BLACKLISTED_PATH_PREFIX;
+        }
         if (pathPrefixWhiteBlackList.isBlacklisted(relativePath)) {
-            // The directory or its ancestor is blacklisted.
+            // An prefix of this path is blacklisted.
             return ScanSpecPathMatch.HAS_BLACKLISTED_PATH_PREFIX;
         }
 

@@ -562,6 +562,13 @@ public class FastClasspathScanner {
             // Blacklisting always prevents further recursion, no need to blacklist sub-packages
             scanSpec.packageWhiteBlackList.addToBlacklist(WhiteBlackList.normalizePackageOrClassName(packageName));
             scanSpec.pathWhiteBlackList.addToBlacklist(WhiteBlackList.packageNameToPath(packageName));
+            if (!packageName.contains("*")) {
+                // Blacklist sub-packages (zipfile entries can occur in any order)
+                scanSpec.packagePrefixWhiteBlackList
+                        .addToBlacklist(WhiteBlackList.normalizePackageOrClassName(packageName) + ".");
+                scanSpec.pathPrefixWhiteBlackList
+                        .addToBlacklist(WhiteBlackList.packageNameToPath(packageName) + "/");
+            }
         }
         return this;
     }
@@ -578,6 +585,11 @@ public class FastClasspathScanner {
             // Blacklisting always prevents further recursion, no need to blacklist sub-directories / nested paths
             scanSpec.packageWhiteBlackList.addToBlacklist(WhiteBlackList.pathToPackageName(path));
             scanSpec.pathWhiteBlackList.addToBlacklist(WhiteBlackList.normalizePath(path));
+            if (!path.contains("*")) {
+                // Blacklist sub-directories / nested paths
+                scanSpec.packagePrefixWhiteBlackList.addToBlacklist(WhiteBlackList.pathToPackageName(path) + ".");
+                scanSpec.pathPrefixWhiteBlackList.addToBlacklist(WhiteBlackList.normalizePath(path) + "/");
+            }
         }
         return this;
     }
