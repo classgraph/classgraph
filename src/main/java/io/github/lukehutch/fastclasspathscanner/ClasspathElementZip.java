@@ -340,9 +340,10 @@ class ClasspathElementZip extends ClasspathElement {
                 final int lastSlashIdx = relativePath.lastIndexOf("/");
                 final String parentRelativePath = lastSlashIdx < 0 ? "/"
                         : relativePath.substring(0, lastSlashIdx + 1);
-                final boolean parentRelativePathChanged = !parentRelativePath.equals(prevParentRelativePath);
+                final boolean parentRelativePathChanged = prevParentRelativePath == null
+                        || !parentRelativePath.equals(prevParentRelativePath);
                 final ScanSpecPathMatch parentMatchStatus = //
-                        prevParentRelativePath == null || parentRelativePathChanged
+                        parentRelativePathChanged
                                 ? scanSpec.dirWhitelistMatchStatus(parentRelativePath)
                                 : prevParentMatchStatus;
                 prevParentRelativePath = parentRelativePath;

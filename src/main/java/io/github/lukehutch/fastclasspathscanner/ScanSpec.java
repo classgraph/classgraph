@@ -340,7 +340,7 @@ public class ScanSpec {
             // Reached a package containing a specifically-whitelisted class
             return ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE;
         }
-        if (pathWhiteBlackList.isSpecificallyWhitelistedAndNotBlacklisted(relativePath)) {
+        if (pathWhiteBlackList.isWhitelistedAndNotBlacklisted(relativePath)) {
             // Reached a whitelisted path
             return ScanSpecPathMatch.AT_WHITELISTED_PATH;
         }
