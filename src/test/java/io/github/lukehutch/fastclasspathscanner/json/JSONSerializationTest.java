@@ -138,10 +138,10 @@ public class JSONSerializationTest {
     @Test
     public void testSerializeThenDeserializeScanResult() {
         final ScanResult scanResult = new FastClasspathScanner()
-                .whitelistPackagesNonRecursive(JSONSerializationTest.class.getPackage().getName()).verbose().scan();
+                .whitelistPackagesNonRecursive(JSONSerializationTest.class.getPackage().getName())
+                .ignoreClassVisibility().scan();
         final int indent = 2;
         final String scanResultJSON = scanResult.toJSON(indent);
-        System.out.println(scanResultJSON);
         final ScanResult scanResultDeserialized = ScanResult.fromJSON(scanResultJSON);
         final String scanResultReserializedJSON = scanResultDeserialized.toJSON(indent);
         assertThat(scanResultReserializedJSON).isEqualTo(scanResultJSON);
