@@ -43,16 +43,16 @@ public class DisableRecursiveScanningTest {
 
     @Test
     public void nonRootPackage() throws Exception {
-        final List<String> allClasses = new FastClasspathScanner(PKG).disableRecursiveScanning().scan()
-                .getNamesOfAllClasses();
+        final List<String> allClasses = new FastClasspathScanner().whitelistPackagesNonRecursive(PKG).scan()
+                .getAllClasses().getClassNames();
         assertThat(allClasses).contains(Cls.class.getName());
         assertThat(allClasses).doesNotContain(BlacklistedSub.class.getName());
     }
 
     @Test
     public void rootPackage() throws Exception {
-        final List<String> allClasses = new FastClasspathScanner().disableRecursiveScanning().scan()
-                .getNamesOfAllClasses();
+        final List<String> allClasses = new FastClasspathScanner().whitelistPackagesNonRecursive("").scan()
+                .getAllClasses().getClassNames();
         assertThat(allClasses).contains(ClassInDefaultPackage.class.getName());
         assertThat(allClasses).doesNotContain(Cls.class.getName());
     }

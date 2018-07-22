@@ -39,7 +39,7 @@ public class Issue46Test {
     public void issue46Test() {
         final String jarPath = Issue46Test.class.getClassLoader().getResource("nested-jars-level1.zip").getPath()
                 + "!level2.jar!level3.jar!classpath1/classpath2";
-        assertThat(new FastClasspathScanner().overrideClasspath(jarPath).scan().getNamesOfAllClasses())
+        assertThat(new FastClasspathScanner().overrideClasspath(jarPath).scan().getAllClasses().getClassNames())
                 .containsOnly("com.test.Test");
     }
 }

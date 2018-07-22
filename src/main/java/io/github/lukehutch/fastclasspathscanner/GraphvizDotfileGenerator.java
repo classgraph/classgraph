@@ -35,6 +35,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import io.github.lukehutch.fastclasspathscanner.ClassInfo.ClassType;
+import io.github.lukehutch.fastclasspathscanner.ClassInfo.RelType;
+
 /** Builds a class graph visualization in Graphviz .dot file format. */
 class GraphvizDotfileGenerator {
 
@@ -232,10 +235,13 @@ class GraphvizDotfileGenerator {
             final List<AnnotationInfo> annotationInfoSorted = new ArrayList<>(annotationInfo);
             Collections.sort(annotationInfoSorted);
             for (final AnnotationInfo ai : annotationInfoSorted) {
-                buf.append("<tr>");
-                buf.append("<td align='center' valign='top'>");
-                htmlEncode(ai.toString(), buf);
-                buf.append("</td></tr>");
+                String annotationName = ai.getAnnotationName();
+                if (!annotationName.startsWith("java.lang.annotation.")) {
+                    buf.append("<tr>");
+                    buf.append("<td align='center' valign='top'>");
+                    htmlEncode(ai.toString(), buf);
+                    buf.append("</td></tr>");
+                }
             }
         }
 
@@ -253,7 +259,7 @@ class GraphvizDotfileGenerator {
                 buf.append("<td align='right' valign='top'>");
 
                 // Field Annotations
-                List<AnnotationInfo> fieldAnnotationInfo = fi.annotationInfo;
+                final List<AnnotationInfo> fieldAnnotationInfo = fi.annotationInfo;
                 if (fieldAnnotationInfo != null) {
                     for (final AnnotationInfo ai : fieldAnnotationInfo) {
                         if (buf.charAt(buf.length() - 1) != ' ') {
@@ -279,12 +285,10 @@ class GraphvizDotfileGenerator {
                 buf.append("</td>");
 
                 // Field name
-                String fieldName = fi.getFieldName();
-                if (fieldName != null) {
-                    buf.append("<td align='left' valign='top'><b>");
-                    htmlEncode(fieldName, buf);
-                    buf.append("</b></td></tr>");
-                }
+                buf.append("<td align='left' valign='top'><b>");
+                final String fieldName = fi.getFieldName();
+                htmlEncode(fieldName, buf);
+                buf.append("</b></td></tr>");
             }
             buf.append("</table>");
             buf.append("</td></tr>");
@@ -307,7 +311,7 @@ class GraphvizDotfileGenerator {
                     // Method annotations
                     // TODO: wrap this cell if the contents get too long
                     buf.append("<td align='right' valign='top'>");
-                    List<AnnotationInfo> methodAnnotationInfo = mi.annotationInfo;
+                    final List<AnnotationInfo> methodAnnotationInfo = mi.annotationInfo;
                     if (methodAnnotationInfo != null) {
                         for (final AnnotationInfo ai : methodAnnotationInfo) {
                             if (buf.charAt(buf.length() - 1) != ' ') {
@@ -528,22 +532,16 @@ class GraphvizDotfileGenerator {
                             + annotationNode.getClassName() + "\" [arrowhead=dot, arrowsize=2.5]\n");
                 }
             }
-            for (final ClassInfo annotatedClassNode : annotationNode.getAnnotations().directOnly()) {
-                if (allVisibleNodes.contains(annotatedClassNode.getClassName())) {
-                    // annotation --o meta-annotation
-                    buf.append("  \"" + annotatedClassNode.getClassName() + "\" -> \""
-                            + annotationNode.getClassName() + "\" [arrowhead=dot, arrowsize=2.5]\n");
-                }
-            }
-            for (final ClassInfo classWithMethodAnnotationNode : annotationNode.getClassesWithMethodAnnotation()
-                    .directOnly()) {
+            for (final ClassInfo classWithMethodAnnotationNode : annotationNode
+                    .filterClassInfo(RelType.CLASSES_WITH_METHOD_ANNOTATION, ClassType.ALL).directOnly()) {
                 if (allVisibleNodes.contains(classWithMethodAnnotationNode.getClassName())) {
                     // class with method annotation --o method annotation
                     buf.append("  \"" + classWithMethodAnnotationNode.getClassName() + "\" -> \""
                             + annotationNode.getClassName() + "\" [arrowhead=odot, arrowsize=2.5]\n");
                 }
             }
-            for (final ClassInfo classWithMethodAnnotationNode : annotationNode.getClassesWithFieldAnnotation()) {
+            for (final ClassInfo classWithMethodAnnotationNode : annotationNode
+                    .filterClassInfo(RelType.CLASSES_WITH_FIELD_ANNOTATION, ClassType.ALL).directOnly()) {
                 if (allVisibleNodes.contains(classWithMethodAnnotationNode.getClassName())) {
                     // class with field annotation --o method annotation
                     buf.append("  \"" + classWithMethodAnnotationNode.getClassName() + "\" -> \""

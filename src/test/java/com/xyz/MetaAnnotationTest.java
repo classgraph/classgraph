@@ -30,74 +30,95 @@ package com.xyz;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import org.junit.Test;
+import java.io.File;
 
-import com.xyz.meta.A;
-import com.xyz.meta.B;
-import com.xyz.meta.C;
-import com.xyz.meta.D;
-import com.xyz.meta.E;
-import com.xyz.meta.F;
-import com.xyz.meta.G;
-import com.xyz.meta.H;
-import com.xyz.meta.I;
-import com.xyz.meta.J;
-import com.xyz.meta.K;
-import com.xyz.meta.L;
+import org.junit.Test;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.ScanResult;
 
 public class MetaAnnotationTest {
-    ScanResult scanResult = new FastClasspathScanner("com.xyz.meta").scan();
+    ScanResult scanResult = new FastClasspathScanner().whitelistPackages("com.xyz.meta").enableAnnotationInfo()
+            .scan();
 
     @Test
     public void oneLevel() {
-        assertThat(scanResult.getNamesOfClassesWithAnnotation(E.class)).containsOnly(B.class.getName());
-        assertThat(scanResult.getNamesOfClassesWithAnnotation(F.class)).containsOnly(B.class.getName(),
-                A.class.getName());
-        assertThat(scanResult.getNamesOfClassesWithAnnotation(G.class)).containsOnly(C.class.getName());
+        assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.E").directOnly().getClassNames())
+                .containsOnly("com.xyz.meta.B");
+        assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.F").directOnly().getClassNames())
+                .containsOnly("com.xyz.meta.B", "com.xyz.meta.A");
+        assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.G").directOnly().getClassNames())
+                .containsOnly("com.xyz.meta.C");
     }
 
     @Test
     public void twoLevels() {
-        assertThat(scanResult.getNamesOfClassesWithAnnotation(I.class)).containsOnly(B.class.getName());
-        assertThat(scanResult.getNamesOfClassesWithAnnotation(J.class)).containsOnly(B.class.getName(),
-                A.class.getName());
+        assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.J").getClassNames())
+                .containsOnly("com.xyz.meta.F", "com.xyz.meta.E", "com.xyz.meta.B", "com.xyz.meta.A");
     }
 
     @Test
     public void threeLevels() {
-        // for (Class<?> c : new Class<?>[] { A.class, B.class, C.class }) { System.out.println(c.getSimpleName() +
-        // " " + scanner.getNamesOfAnnotationsOnClass(c)); } for (Class<?> c : new Class<?>[] { D.class, E.class,
-        // F.class, G.class, H.class, I.class, J.class, K.class, L.class }) { System.out.println(c.getSimpleName() +
-        // " " + scanner.getNamesOfMetaAnnotationsOnAnnotation(c)); }
-        assertThat(scanResult.getNamesOfClassesWithAnnotation(L.class)).containsOnly(B.class.getName());
+        assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.L").getClassNames())
+                .containsOnly("com.xyz.meta.I", "com.xyz.meta.E", "com.xyz.meta.B", "com.xyz.meta.H");
     }
 
     @Test
     public void acrossCycle() {
-        assertThat(scanResult.getNamesOfClassesWithAnnotation(H.class)).containsOnly(B.class.getName());
-        assertThat(scanResult.getNamesOfClassesWithAnnotation(K.class)).containsOnly(B.class.getName());
-        assertThat(scanResult.getNamesOfClassesWithAnnotation(D.class)).containsOnly(B.class.getName());
-        assertThat(scanResult.getNamesOfAnnotationsOnClass(B.class)).containsOnly(E.class.getName(),
-                F.class.getName(), H.class.getName(), I.class.getName(), J.class.getName(), K.class.getName(),
-                L.class.getName(), D.class.getName());
+        assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.H").directOnly().getClassNames())
+                .containsOnly("com.xyz.meta.I");
+        assertThat(scanResult.getAnnotationsOnClass("com.xyz.meta.H").directOnly().getClassNames())
+                .containsOnly("com.xyz.meta.I", "com.xyz.meta.K");
+        assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.I").directOnly().getClassNames())
+                .containsOnly("com.xyz.meta.E", "com.xyz.meta.H");
+        assertThat(scanResult.getAnnotationsOnClass("com.xyz.meta.I").directOnly().getClassNames())
+                .containsOnly("com.xyz.meta.L", "com.xyz.meta.H");
+        assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.K").directOnly().getClassNames())
+                .containsOnly("com.xyz.meta.H");
+        assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.D").directOnly().getClassNames())
+                .containsOnly("com.xyz.meta.K");
+    }
+
+    @Test
+    public void cycleAnnotatesSelf() {
+        assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.I").getClassNames())
+                .containsOnly("com.xyz.meta.E", "com.xyz.meta.B", "com.xyz.meta.H", "com.xyz.meta.I");
     }
 
     @Test
     public void namesOfMetaAnnotations() {
-        assertThat(scanResult.getNamesOfAnnotationsOnClass(A.class)).containsOnly(J.class.getName(),
-                F.class.getName());
-        assertThat(scanResult.getNamesOfAnnotationsOnClass(C.class)).containsOnly(G.class.getName());
+        assertThat(scanResult.getAnnotationsOnClass("com.xyz.meta.A").getClassNames())
+                .containsOnly("com.xyz.meta.J", "com.xyz.meta.F");
+        assertThat(scanResult.getAnnotationsOnClass("com.xyz.meta.C").getClassNames())
+                .containsOnly("com.xyz.meta.G");
     }
 
     @Test
-    public void annotationsAnyOf() {
-        assertThat(scanResult.getNamesOfClassesWithAnnotationsAnyOf(J.class, G.class))
-                .containsOnly(B.class.getName(), A.class.getName(), C.class.getName());
-        assertThat(scanResult.getNamesOfClassesWithAnnotationsAllOf(I.class, J.class, G.class)).isEmpty();
-        assertThat(scanResult.getNamesOfClassesWithAnnotationsAllOf(I.class, J.class))
-                .containsOnly(B.class.getName());
+    public void union() {
+        assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.J")
+                .union(scanResult.getClassesWithAnnotation("com.xyz.meta.G")).directOnly().getClassNames())
+                        .containsOnly("com.xyz.meta.E", "com.xyz.meta.F", "com.xyz.meta.C");
+        assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.I")
+                .union(scanResult.getClassesWithAnnotation("com.xyz.meta.J")).getClassNames()).containsOnly(
+                        "com.xyz.meta.A", "com.xyz.meta.B", "com.xyz.meta.F", "com.xyz.meta.E", "com.xyz.meta.H",
+                        "com.xyz.meta.I");
+        assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.I")
+                .union(scanResult.getClassesWithAnnotation("com.xyz.meta.J")).directOnly().getClassNames())
+                        .containsOnly("com.xyz.meta.F", "com.xyz.meta.E", "com.xyz.meta.H");
+    }
+
+    @Test
+    public void intersect() {
+        assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.I")
+                .intersect(scanResult.getClassesWithAnnotation("com.xyz.meta.J")).getClassNames())
+                        .containsOnly("com.xyz.meta.E", "com.xyz.meta.B");
+        assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.I")
+                .intersect(scanResult.getClassesWithAnnotation("com.xyz.meta.J")).directOnly().getClassNames())
+                        .containsOnly("com.xyz.meta.E");
+    }
+
+    public static void main(final String[] args) throws Exception {
+        new FastClasspathScanner().whitelistPackages("com.xyz.meta").enableAnnotationInfo().scan()
+                .generateClassGraphDotFile(new File("/tmp/x.dot"));
     }
 }

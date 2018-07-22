@@ -506,7 +506,7 @@ class ClassfileBinaryParser {
                 }
             } else {
                 final int fieldNameCpIdx = inputStreamOrByteBuffer.readUnsignedShort();
-                String fieldName = getConstantPoolString(fieldNameCpIdx);
+                final String fieldName = getConstantPoolString(fieldNameCpIdx);
                 final int fieldTypeDescriptorCpIdx = inputStreamOrByteBuffer.readUnsignedShort();
                 final char fieldTypeDescriptorFirstChar = (char) getConstantPoolStringFirstByte(
                         fieldTypeDescriptorCpIdx);

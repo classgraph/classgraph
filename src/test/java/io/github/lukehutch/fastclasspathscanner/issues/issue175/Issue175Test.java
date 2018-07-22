@@ -58,7 +58,7 @@ public class Issue175Test {
         final Map<String, ClassInfo> allInfo = result.getClassNameToClassInfo();
 
         final List<String> methods = new ArrayList<>();
-        for (final String className : result.getNamesOfAllClasses()) {
+        for (final String className : result.getAllClasses().getClassNames()) {
             final ClassInfo classInfo = allInfo.get(className);
             for (final MethodInfo method : classInfo.getMethodAndConstructorInfo()) {
                 methods.add(method.toString());
@@ -84,7 +84,7 @@ public class Issue175Test {
         final Map<String, ClassInfo> allInfo = result.getClassNameToClassInfo();
 
         final List<String> methods = new ArrayList<>();
-        for (final String className : result.getNamesOfAllClasses()) {
+        for (final String className : result.getAllClasses().getClassNames()) {
             final ClassInfo classInfo = allInfo.get(className);
             for (final MethodInfo method : classInfo.getMethodAndConstructorInfo()) {
                 methods.add(method.toString());
@@ -109,7 +109,7 @@ public class Issue175Test {
         final Map<String, ClassInfo> allInfo = result.getClassNameToClassInfo();
 
         final List<String> methods = new ArrayList<>();
-        for (final String className : result.getNamesOfAllClasses()) {
+        for (final String className : result.getAllClasses().getClassNames()) {
             final ClassInfo classInfo = allInfo.get(className);
             for (final MethodInfo method : classInfo.getMethodAndConstructorInfo()) {
                 methods.add(method.toString());
@@ -137,7 +137,7 @@ public class Issue175Test {
         final Map<String, ClassInfo> allInfo = result.getClassNameToClassInfo();
 
         final List<String> methods = new ArrayList<>();
-        for (final String className : result.getNamesOfAllClasses()) {
+        for (final String className : result.getAllClasses().getClassNames()) {
             final ClassInfo classInfo = allInfo.get(className);
             for (final MethodInfo method : classInfo.getMethodAndConstructorInfo()) {
                 methods.add(method.toString());
@@ -171,7 +171,7 @@ public class Issue175Test {
         final Map<String, ClassInfo> allInfo = result.getClassNameToClassInfo();
 
         final List<String> methods = new ArrayList<>();
-        for (final String className : result.getNamesOfAllClasses()) {
+        for (final String className : result.getAllClasses().getClassNames()) {
             final ClassInfo classInfo = allInfo.get(className);
             for (final MethodInfo method : classInfo.getMethodAndConstructorInfo()) {
                 methods.add(method.toString());
@@ -234,7 +234,7 @@ public class Issue175Test {
         final Map<String, ClassInfo> allInfo = result.getClassNameToClassInfo();
 
         final List<String> methods = new ArrayList<>();
-        for (final String className : result.getNamesOfAllClasses()) {
+        for (final String className : result.getAllClasses().getClassNames()) {
             final ClassInfo classInfo = allInfo.get(className);
             for (final MethodInfo method : classInfo.getMethodAndConstructorInfo()) {
                 methods.add(method.toString());
@@ -262,7 +262,7 @@ public class Issue175Test {
         final Map<String, ClassInfo> allInfo = result.getClassNameToClassInfo();
 
         final List<String> methods = new ArrayList<>();
-        for (final String className : result.getNamesOfAllClasses()) {
+        for (final String className : result.getAllClasses().getClassNames()) {
             final ClassInfo classInfo = allInfo.get(className);
             for (final MethodInfo method : classInfo.getMethodAndConstructorInfo()) {
                 methods.add(method.toString());
@@ -299,7 +299,7 @@ public class Issue175Test {
         final Map<String, ClassInfo> allInfo = result.getClassNameToClassInfo();
 
         final List<String> methods = new ArrayList<>();
-        for (final String className : result.getNamesOfAllClasses()) {
+        for (final String className : result.getAllClasses().getClassNames()) {
             final ClassInfo classInfo = allInfo.get(className);
             for (final MethodInfo method : classInfo.getMethodAndConstructorInfo()) {
                 methods.add(method.toString());
@@ -323,7 +323,7 @@ public class Issue175Test {
         final Map<String, ClassInfo> allInfo = result.getClassNameToClassInfo();
 
         final List<String> methods = new ArrayList<>();
-        for (final String className : result.getNamesOfAllClasses()) {
+        for (final String className : result.getAllClasses().getClassNames()) {
             final ClassInfo classInfo = allInfo.get(className);
             for (final MethodInfo method : classInfo.getMethodAndConstructorInfo()) {
                 methods.add(method.toString());

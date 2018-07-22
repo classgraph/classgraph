@@ -91,6 +91,9 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
     public FieldInfo(final String className, final String fieldName, final int modifiers,
             final String typeDescriptorStr, final String typeSignatureStr, final Object constValue,
             final List<AnnotationInfo> annotationInfo) {
+        if (fieldName == null) {
+            throw new IllegalArgumentException();
+        }
         this.className = className;
         this.fieldName = fieldName;
         this.modifiers = modifiers;

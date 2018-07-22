@@ -43,8 +43,8 @@ public class DefaultPackageTest {
 
     @Test
     public void scan() throws Exception {
-        final List<String> allClasses = new FastClasspathScanner().disableRecursiveScanning().scan()
-                .getNamesOfAllClasses();
+        final List<String> allClasses = new FastClasspathScanner().whitelistPackagesNonRecursive("").scan()
+                .getAllClasses().getClassNames();
         assertThat(allClasses).contains(DefaultPackageTest.class.getName());
         assertThat(allClasses).contains(ClassInDefaultPackage.class.getName());
         assertThat(allClasses).doesNotContain(Cls.class.getName());
@@ -55,7 +55,8 @@ public class DefaultPackageTest {
 
     @Test
     public void scanWithWhitelist() throws Exception {
-        final List<String> allClasses = new FastClasspathScanner(WHITELIST_PACKAGE).scan().getNamesOfAllClasses();
+        final List<String> allClasses = new FastClasspathScanner().whitelistPackages(WHITELIST_PACKAGE).scan()
+                .getAllClasses().getClassNames();
         assertThat(allClasses).doesNotContain(DefaultPackageTest.class.getName());
         assertThat(allClasses).contains(BlacklistedSub.class.getName());
         assertThat(allClasses).contains(Cls.class.getName());
