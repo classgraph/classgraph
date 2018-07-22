@@ -245,9 +245,8 @@ abstract class ClasspathElement {
     // -------------------------------------------------------------------------------------------------------------
 
     /** Parse any classfiles for any whitelisted classes found within this classpath element. */
-    void parseClassfiles(final ClassfileBinaryParser classfileBinaryParser, final int classfileStartIdx,
-            final int classfileEndIdx, final ConcurrentLinkedQueue<ClassInfoUnlinked> classInfoUnlinked,
-            final LogNode log) throws Exception {
+    void parseClassfiles(final int classfileStartIdx, final int classfileEndIdx,
+            final ConcurrentLinkedQueue<ClassInfoUnlinked> classInfoUnlinked, final LogNode log) throws Exception {
         for (int i = classfileStartIdx; i < classfileEndIdx; i++) {
             final Resource classfileResource = classfileMatches.get(i);
             try {
@@ -255,11 +254,10 @@ abstract class ClasspathElement {
                         : log.log(classfileResource.getPathRelativeToPackageRoot(),
                                 "Parsing classfile " + classfileResource);
                 // Parse classpath binary format, creating a ClassInfoUnlinked object
-                final ClassInfoUnlinked thisClassInfoUnlinked = classfileBinaryParser
+                final ClassInfoUnlinked thisClassInfoUnlinked = new ClassfileBinaryParser()
                         .readClassInfoFromClassfileHeader(this, classfileResource.getPathRelativeToPackageRoot(),
                                 // Open classfile as an InputStream
-                                // TODO: convert this to use ByteBuffer rather than InputStream
-                                /* inputStream = */ classfileResource.open(), //
+                                /* inputStreamOrByteBuffer = */ classfileResource.openOrRead(), //
                                 scanSpec, logNode);
                 // If class was successfully read, output new ClassInfoUnlinked object
                 if (thisClassInfoUnlinked != null) {

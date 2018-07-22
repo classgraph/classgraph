@@ -33,6 +33,7 @@ import java.io.InputStream;
 import java.nio.ByteBuffer;
 
 import io.github.lukehutch.fastclasspathscanner.utils.FileUtils;
+import io.github.lukehutch.fastclasspathscanner.utils.InputStreamOrByteBufferAdapter;
 
 /**
  * A classpath or module path resource (i.e. file) that was found in a whitelisted/non-blacklisted package inside a
@@ -102,6 +103,12 @@ public abstract class Resource implements AutoCloseable, Comparable<Resource> {
      * InputStream is closed or the underlying ByteBuffer is released or unmapped.
      */
     public abstract byte[] load() throws IOException;
+
+    /**
+     * Open a {@link ByteBuffer}, if there is an efficient underlying mechanism for opening one, otherwise open an
+     * {@link InputStream}.
+     */
+    abstract InputStreamOrByteBufferAdapter openOrRead() throws IOException;
 
     /**
      * Get length of InputStream or ByteBuffer. This only returns a valid value after calling {@link #open()} or

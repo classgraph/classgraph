@@ -44,6 +44,7 @@ import io.github.lukehutch.fastclasspathscanner.utils.ClasspathOrModulePathEntry
 import io.github.lukehutch.fastclasspathscanner.utils.ClasspathUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.FastPathResolver;
 import io.github.lukehutch.fastclasspathscanner.utils.FileUtils;
+import io.github.lukehutch.fastclasspathscanner.utils.InputStreamOrByteBufferAdapter;
 import io.github.lukehutch.fastclasspathscanner.utils.InterruptionChecker;
 import io.github.lukehutch.fastclasspathscanner.utils.JarfileMetadataReader;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
@@ -223,6 +224,11 @@ class ClasspathElementZip extends ClasspathElement {
             }
 
             @Override
+            InputStreamOrByteBufferAdapter openOrRead() throws IOException {
+                return InputStreamOrByteBufferAdapter.create(open());
+            }
+
+            @Override
             public ByteBuffer read() throws IOException {
                 open();
                 return inputStreamToByteBuffer();
@@ -238,6 +244,7 @@ class ClasspathElementZip extends ClasspathElement {
 
             @Override
             public void close() {
+                super.close();
                 if (zipFile != null) {
                     zipFileRecycler.release(zipFile);
                     zipFile = null;

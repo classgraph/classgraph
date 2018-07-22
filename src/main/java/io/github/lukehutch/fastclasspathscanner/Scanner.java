@@ -55,7 +55,6 @@ import io.github.lukehutch.fastclasspathscanner.utils.InterruptionChecker;
 import io.github.lukehutch.fastclasspathscanner.utils.JarUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.NestedJarHandler;
-import io.github.lukehutch.fastclasspathscanner.utils.Recycler;
 import io.github.lukehutch.fastclasspathscanner.utils.SingletonMap;
 import io.github.lukehutch.fastclasspathscanner.utils.WorkQueue;
 import io.github.lukehutch.fastclasspathscanner.utils.WorkQueue.WorkQueuePreStartHook;
@@ -548,32 +547,16 @@ class Scanner implements Callable<ScanResult> {
                             new ConcurrentLinkedQueue<>();
                     final LogNode classfileScanLog = log == null ? null
                             : log.log("Scanning classfile binary headers");
-                    try (final Recycler<ClassfileBinaryParser, RuntimeException> classfileBinaryParserRecycler = //
-                            new Recycler<ClassfileBinaryParser, RuntimeException>() {
+                    final List<ClassfileParserChunk> classfileParserChunks = getClassfileParserChunks(
+                            classpathOrder);
+                    WorkQueue.runWorkQueue(classfileParserChunks, executorService, numParallelTasks,
+                            new WorkUnitProcessor<ClassfileParserChunk>() {
                                 @Override
-                                public ClassfileBinaryParser newInstance() {
-                                    return new ClassfileBinaryParser();
+                                public void processWorkUnit(final ClassfileParserChunk chunk) throws Exception {
+                                    chunk.classpathElement.parseClassfiles(chunk.classfileStartIdx,
+                                            chunk.classfileEndIdx, classInfoUnlinked, classfileScanLog);
                                 }
-                            }) {
-                        final List<ClassfileParserChunk> classfileParserChunks = getClassfileParserChunks(
-                                classpathOrder);
-                        WorkQueue.runWorkQueue(classfileParserChunks, executorService, numParallelTasks,
-                                new WorkUnitProcessor<ClassfileParserChunk>() {
-                                    @Override
-                                    public void processWorkUnit(final ClassfileParserChunk chunk) throws Exception {
-                                        ClassfileBinaryParser classfileBinaryParser = null;
-                                        try {
-                                            classfileBinaryParser = classfileBinaryParserRecycler.acquire();
-                                            chunk.classpathElement.parseClassfiles(classfileBinaryParser,
-                                                    chunk.classfileStartIdx, chunk.classfileEndIdx,
-                                                    classInfoUnlinked, classfileScanLog);
-                                        } finally {
-                                            classfileBinaryParserRecycler.release(classfileBinaryParser);
-                                            classfileBinaryParser = null;
-                                        }
-                                    }
-                                }, interruptionChecker, classfileScanLog);
-                    }
+                            }, interruptionChecker, classfileScanLog);
                     if (classfileScanLog != null) {
                         classfileScanLog.addElapsedTime();
                     }

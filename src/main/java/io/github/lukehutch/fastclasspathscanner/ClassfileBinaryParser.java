@@ -29,12 +29,12 @@
 package io.github.lukehutch.fastclasspathscanner;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import io.github.lukehutch.fastclasspathscanner.utils.InputStreamOrByteBufferAdapter;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 
 /**
@@ -42,240 +42,16 @@ import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
  * This class should only be used by a single thread at a time, but can be re-used to scan multiple classfiles in
  * sequence, to avoid re-allocating buffer memory.
  */
-class ClassfileBinaryParser implements AutoCloseable {
+class ClassfileBinaryParser {
     /**
      * The InputStream for the current classfile. Set by each call to readClassInfoFromClassfileHeader().
      */
-    // TODO: migrate this to ByteBuffer
-    private InputStream inputStream;
+    private InputStreamOrByteBufferAdapter inputStreamOrByteBuffer;
 
     /**
      * The name of the current classfile. Determined early in the call to readClassInfoFromClassfileHeader().
      */
     private String className;
-
-    @Override
-    public void close() {
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Buffer size for initial read. We can save some time by reading most of the classfile header in a single read
-     * at the beginning of the scan.
-     *
-     * <p>
-     * (If chunk sizes are too small, significant overhead is expended in refilling the buffer. If they are too
-     * large, significant overhead is expended in decompressing more of the classfile header than is needed. Testing
-     * on a large classpath indicates that the defaults are reasonably optimal.)
-     */
-    private static final int INITIAL_BUFFER_CHUNK_SIZE = 16384;
-
-    /** Buffer size for classfile reader. */
-    private static final int SUBSEQUENT_BUFFER_CHUNK_SIZE = 4096;
-
-    /** Bytes read from the beginning of the classfile. This array is reused across calls. */
-    private byte[] buf = new byte[INITIAL_BUFFER_CHUNK_SIZE];
-
-    /** The current read index in the classfileBytes array. */
-    private int curr = 0;
-
-    /** Bytes used in the classfileBytes array. */
-    private int used = 0;
-
-    /**
-     * Read another chunk of size BUFFER_CHUNK_SIZE from the InputStream; double the size of the buffer if necessary
-     * to accommodate the new chunk.
-     */
-    private void readMore(final int bytesRequired) throws IOException, InterruptedException {
-        final int extraBytesNeeded = bytesRequired - (used - curr);
-        int bytesToRequest = extraBytesNeeded + SUBSEQUENT_BUFFER_CHUNK_SIZE;
-        final int maxNewUsed = used + bytesToRequest;
-        if (maxNewUsed > buf.length) {
-            // Ran out of space, need to increase the size of the buffer
-            int newBufLen = buf.length;
-            while (newBufLen < maxNewUsed) {
-                newBufLen <<= 1;
-                if (newBufLen <= 0) {
-                    // Handle overflow
-                    throw new IOException("Classfile is bigger than 2GB, cannot read it");
-                }
-            }
-            buf = Arrays.copyOf(buf, newBufLen);
-        }
-        int extraBytesStillNotRead = extraBytesNeeded;
-        while (extraBytesStillNotRead > 0) {
-            final int bytesRead = inputStream.read(buf, used, bytesToRequest);
-            if (Thread.currentThread().isInterrupted()) {
-                throw new InterruptedException();
-            }
-            if (bytesRead > 0) {
-                used += bytesRead;
-                bytesToRequest -= bytesRead;
-                extraBytesStillNotRead -= bytesRead;
-            } else {
-                // EOF
-                if (extraBytesStillNotRead > 0) {
-                    throw new IOException("Premature EOF while reading classfile");
-                } else {
-                    break;
-                }
-            }
-        }
-    }
-
-    /** Read an unsigned byte from the buffer. */
-    private int readUnsignedByte() throws IOException, InterruptedException {
-        if (curr > used - 1) {
-            readMore(1);
-        }
-        return buf[curr++] & 0xff;
-    }
-
-    /** Read an unsigned byte from the buffer at a specific offset before the current read point. */
-    @SuppressWarnings("unused")
-    private int readUnsignedByte(final int offset) {
-        return buf[offset] & 0xff;
-    }
-
-    /** Read an unsigned short from the buffer. */
-    private int readUnsignedShort() throws IOException, InterruptedException {
-        if (curr > used - 2) {
-            readMore(2);
-        }
-        final int val = ((buf[curr] & 0xff) << 8) | (buf[curr + 1] & 0xff);
-        curr += 2;
-        return val;
-    }
-
-    /** Read an unsigned short from the buffer at a specific offset before the current read point. */
-    private int readUnsignedShort(final int offset) {
-        return ((buf[offset] & 0xff) << 8) | (buf[offset + 1] & 0xff);
-    }
-
-    /** Read an int from the buffer. */
-    private int readInt() throws IOException, InterruptedException {
-        if (curr > used - 4) {
-            readMore(4);
-        }
-        final int val = ((buf[curr] & 0xff) << 24) | ((buf[curr + 1] & 0xff) << 16) | ((buf[curr + 2] & 0xff) << 8)
-                | (buf[curr + 3] & 0xff);
-        curr += 4;
-        return val;
-    }
-
-    /** Read an int from the buffer at a specific offset before the current read point. */
-    private int readInt(final int offset) throws IOException {
-        return ((buf[offset] & 0xff) << 24) | ((buf[offset + 1] & 0xff) << 16) | ((buf[offset + 2] & 0xff) << 8)
-                | (buf[offset + 3] & 0xff);
-    }
-
-    /** Read a long from the buffer. */
-    @SuppressWarnings("unused")
-    private long readLong() throws IOException, InterruptedException {
-        if (curr > used - 8) {
-            readMore(8);
-        }
-        final long val = (((long) (((buf[curr] & 0xff) << 24) | ((buf[curr + 1] & 0xff) << 16)
-                | ((buf[curr + 2] & 0xff) << 8) | (buf[curr + 3] & 0xff))) << 32) | ((buf[curr + 4] & 0xff) << 24)
-                | ((buf[curr + 5] & 0xff) << 16) | ((buf[curr + 6] & 0xff) << 8) | (buf[curr + 7] & 0xff);
-        curr += 8;
-        return val;
-    }
-
-    /** Read a long from the buffer at a specific offset before the current read point. */
-    private long readLong(final int offset) throws IOException {
-        return (((long) (((buf[offset] & 0xff) << 24) | ((buf[offset + 1] & 0xff) << 16)
-                | ((buf[offset + 2] & 0xff) << 8) | (buf[offset + 3] & 0xff))) << 32)
-                | ((buf[offset + 4] & 0xff) << 24) | ((buf[offset + 5] & 0xff) << 16)
-                | ((buf[offset + 6] & 0xff) << 8) | (buf[offset + 7] & 0xff);
-    }
-
-    /** Skip the given number of bytes in the input stream. */
-    private void skip(final int bytesToSkip) throws IOException, InterruptedException {
-        if (curr > used - bytesToSkip) {
-            readMore(bytesToSkip);
-        }
-        curr += bytesToSkip;
-    }
-
-    /**
-     * Reads the "modified UTF8" format defined in the Java classfile spec, optionally replacing '/' with '.', and
-     * optionally removing the prefix "L" and the suffix ";".
-     */
-    private String readString(final int strStart, final boolean replaceSlashWithDot,
-            final boolean stripLSemicolon) {
-        final int utfLen = readUnsignedShort(strStart);
-        final int utfStart = strStart + 2;
-        final char[] chars = new char[utfLen];
-        int c, c2, c3, c4;
-        int byteIdx = 0;
-        int charIdx = 0;
-        for (; byteIdx < utfLen; byteIdx++) {
-            c = buf[utfStart + byteIdx] & 0xff;
-            if (c > 127) {
-                break;
-            }
-            chars[charIdx++] = (char) (replaceSlashWithDot && c == '/' ? '.' : c);
-        }
-        while (byteIdx < utfLen) {
-            c = buf[utfStart + byteIdx] & 0xff;
-            switch (c >> 4) {
-            case 0:
-            case 1:
-            case 2:
-            case 3:
-            case 4:
-            case 5:
-            case 6:
-            case 7:
-                byteIdx++;
-                chars[charIdx++] = (char) (replaceSlashWithDot && c == '/' ? '.' : c);
-                break;
-            case 12:
-            case 13:
-                byteIdx += 2;
-                if (byteIdx > utfLen) {
-                    throw new RuntimeException("Bad modified UTF8");
-                }
-                c2 = buf[utfStart + byteIdx - 1];
-                if ((c2 & 0xc0) != 0x80) {
-                    throw new RuntimeException("Bad modified UTF8");
-                }
-                c4 = ((c & 0x1f) << 6) | (c2 & 0x3f);
-                chars[charIdx++] = (char) (replaceSlashWithDot && c4 == '/' ? '.' : c4);
-                break;
-            case 14:
-                byteIdx += 3;
-                if (byteIdx > utfLen) {
-                    throw new RuntimeException("Bad modified UTF8");
-                }
-                c2 = buf[utfStart + byteIdx - 2];
-                c3 = buf[utfStart + byteIdx - 1];
-                if (((c2 & 0xc0) != 0x80) || ((c3 & 0xc0) != 0x80)) {
-                    throw new RuntimeException("Bad modified UTF8");
-                }
-                c4 = ((c & 0x0f) << 12) | ((c2 & 0x3f) << 6) | ((c3 & 0x3f) << 0);
-                chars[charIdx++] = (char) (replaceSlashWithDot && c4 == '/' ? '.' : c4);
-                break;
-            default:
-                throw new RuntimeException("Bad modified UTF8");
-            }
-        }
-        if (charIdx == utfLen && !stripLSemicolon) {
-            return new String(chars);
-        } else {
-            if (stripLSemicolon) {
-                if (charIdx < 2 || chars[0] != 'L' || chars[charIdx - 1] != ';') {
-                    throw new RuntimeException("Expected string to start with 'L' and end with ';', got \""
-                            + new String(chars) + "\"");
-                }
-                return new String(chars, 1, charIdx - 2);
-            } else {
-                return new String(chars, 0, charIdx);
-            }
-        }
-    }
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -344,7 +120,8 @@ class ClassfileBinaryParser implements AutoCloseable {
             final boolean stripLSemicolon) {
         final int constantPoolStringOffset = getConstantPoolStringOffset(cpIdx, /* subFieldIdx = */ 0);
         return constantPoolStringOffset == 0 ? null
-                : readString(constantPoolStringOffset, replaceSlashWithDot, stripLSemicolon);
+                : inputStreamOrByteBuffer.readString(constantPoolStringOffset, replaceSlashWithDot,
+                        stripLSemicolon);
     }
 
     /**
@@ -359,7 +136,7 @@ class ClassfileBinaryParser implements AutoCloseable {
     private String getConstantPoolString(final int cpIdx, final int subFieldIdx) {
         final int constantPoolStringOffset = getConstantPoolStringOffset(cpIdx, subFieldIdx);
         return constantPoolStringOffset == 0 ? null
-                : readString(constantPoolStringOffset, /* replaceSlashWithDot = */ false,
+                : inputStreamOrByteBuffer.readString(constantPoolStringOffset, /* replaceSlashWithDot = */ false,
                         /* stripLSemicolon = */ false);
     }
 
@@ -376,11 +153,11 @@ class ClassfileBinaryParser implements AutoCloseable {
         if (constantPoolStringOffset == 0) {
             return '\0';
         }
-        final int utfLen = readUnsignedShort(constantPoolStringOffset);
+        final int utfLen = inputStreamOrByteBuffer.readUnsignedShort(constantPoolStringOffset);
         if (utfLen == 0) {
             return '\0';
         }
-        return buf[constantPoolStringOffset + 2];
+        return inputStreamOrByteBuffer.buf[constantPoolStringOffset + 2];
     }
 
     /**
@@ -407,14 +184,14 @@ class ClassfileBinaryParser implements AutoCloseable {
         if (strOffset == 0) {
             return otherString == null;
         }
-        final int strLen = readUnsignedShort(strOffset);
+        final int strLen = inputStreamOrByteBuffer.readUnsignedShort(strOffset);
         final int otherLen = otherString.length();
         if (strLen != otherLen) {
             return false;
         }
         final int strStart = strOffset + 2;
         for (int i = 0; i < strLen; i++) {
-            if ((char) (buf[strStart + i] & 0xff) != otherString.charAt(i)) {
+            if ((char) (inputStreamOrByteBuffer.buf[strStart + i] & 0xff) != otherString.charAt(i)) {
                 return false;
             }
         }
@@ -432,7 +209,7 @@ class ClassfileBinaryParser implements AutoCloseable {
             return getConstantPoolString(cpIdx, /* subFieldIdx = */ 0);
         case 3: // int, short, char, byte, boolean are all represented by Constant_INTEGER
         {
-            final int intVal = readInt(offset[cpIdx]);
+            final int intVal = inputStreamOrByteBuffer.readInt(offset[cpIdx]);
             switch (fieldTypeDescriptorFirstChar) {
             case 'I':
                 return Integer.valueOf(intVal);
@@ -451,11 +228,11 @@ class ClassfileBinaryParser implements AutoCloseable {
             }
         }
         case 4: // float
-            return Float.valueOf(Float.intBitsToFloat(readInt(offset[cpIdx])));
+            return Float.valueOf(Float.intBitsToFloat(inputStreamOrByteBuffer.readInt(offset[cpIdx])));
         case 5: // long
-            return Long.valueOf(readLong(offset[cpIdx]));
+            return Long.valueOf(inputStreamOrByteBuffer.readLong(offset[cpIdx]));
         case 6: // double
-            return Double.valueOf(Double.longBitsToDouble(readLong(offset[cpIdx])));
+            return Double.valueOf(Double.longBitsToDouble(inputStreamOrByteBuffer.readLong(offset[cpIdx])));
         default:
             // FastClasspathScanner doesn't currently do anything with the other types
             throw new RuntimeException("Unknown constant pool tag " + tag + ", "
@@ -469,14 +246,15 @@ class ClassfileBinaryParser implements AutoCloseable {
     /** Read annotation entry from classfile. */
     private AnnotationInfo readAnnotation() throws IOException, InterruptedException {
         // Lcom/xyz/Annotation; -> Lcom.xyz.Annotation;
-        final String annotationClassName = getConstantPoolClassDescriptor(readUnsignedShort());
-        final int numElementValuePairs = readUnsignedShort();
+        final String annotationClassName = getConstantPoolClassDescriptor(
+                inputStreamOrByteBuffer.readUnsignedShort());
+        final int numElementValuePairs = inputStreamOrByteBuffer.readUnsignedShort();
         List<AnnotationParamValue> paramVals = null;
         if (numElementValuePairs > 0) {
             paramVals = new ArrayList<>(numElementValuePairs);
         }
         for (int i = 0; i < numElementValuePairs; i++) {
-            final String paramName = getConstantPoolString(readUnsignedShort()); // skip(2); // element_name_index
+            final String paramName = getConstantPoolString(inputStreamOrByteBuffer.readUnsignedShort()); // skip(2); // element_name_index
             final Object paramValue = readAnnotationElementValue();
             paramVals.add(new AnnotationParamValue(paramName, paramValue));
         }
@@ -485,42 +263,51 @@ class ClassfileBinaryParser implements AutoCloseable {
 
     /** Read annotation element value from classfile. */
     private Object readAnnotationElementValue() throws IOException, InterruptedException {
-        final int tag = (char) readUnsignedByte();
+        final int tag = (char) inputStreamOrByteBuffer.readUnsignedByte();
         switch (tag) {
         case 'B':
-            return Byte.valueOf((byte) readInt(offset[readUnsignedShort()]));
+            return Byte.valueOf(
+                    (byte) inputStreamOrByteBuffer.readInt(offset[inputStreamOrByteBuffer.readUnsignedShort()]));
         case 'C':
-            return Character.valueOf((char) readInt(offset[readUnsignedShort()]));
+            return Character.valueOf(
+                    (char) inputStreamOrByteBuffer.readInt(offset[inputStreamOrByteBuffer.readUnsignedShort()]));
         case 'D':
-            return Double.valueOf(Double.longBitsToDouble(readLong(offset[readUnsignedShort()])));
+            return Double.valueOf(Double.longBitsToDouble(
+                    inputStreamOrByteBuffer.readLong(offset[inputStreamOrByteBuffer.readUnsignedShort()])));
         case 'F':
-            return Float.valueOf(Float.intBitsToFloat(readInt(offset[readUnsignedShort()])));
+            return Float.valueOf(Float.intBitsToFloat(
+                    inputStreamOrByteBuffer.readInt(offset[inputStreamOrByteBuffer.readUnsignedShort()])));
         case 'I':
-            return Integer.valueOf(readInt(offset[readUnsignedShort()]));
+            return Integer
+                    .valueOf(inputStreamOrByteBuffer.readInt(offset[inputStreamOrByteBuffer.readUnsignedShort()]));
         case 'J':
-            return Long.valueOf(readLong(offset[readUnsignedShort()]));
+            return Long
+                    .valueOf(inputStreamOrByteBuffer.readLong(offset[inputStreamOrByteBuffer.readUnsignedShort()]));
         case 'S':
-            return Short.valueOf((short) readInt(offset[readUnsignedShort()]));
+            return Short.valueOf(
+                    (short) inputStreamOrByteBuffer.readInt(offset[inputStreamOrByteBuffer.readUnsignedShort()]));
         case 'Z':
-            return Boolean.valueOf(readInt(offset[readUnsignedShort()]) != 0);
+            return Boolean.valueOf(
+                    inputStreamOrByteBuffer.readInt(offset[inputStreamOrByteBuffer.readUnsignedShort()]) != 0);
         case 's':
-            return getConstantPoolString(readUnsignedShort());
+            return getConstantPoolString(inputStreamOrByteBuffer.readUnsignedShort());
         case 'e': {
             // Return type is AnnotatinEnumVal.
-            final String className = getConstantPoolClassDescriptor(readUnsignedShort());
-            final String constName = getConstantPoolString(readUnsignedShort());
+            final String className = getConstantPoolClassDescriptor(inputStreamOrByteBuffer.readUnsignedShort());
+            final String constName = getConstantPoolString(inputStreamOrByteBuffer.readUnsignedShort());
             return new AnnotationEnumValue(className, constName);
         }
         case 'c':
             // Return type is AnnotationClassRef (for class references in annotations)
-            final String classRefTypeDescriptor = getConstantPoolString(readUnsignedShort());
+            final String classRefTypeDescriptor = getConstantPoolString(
+                    inputStreamOrByteBuffer.readUnsignedShort());
             return new AnnotationClassRef(classRefTypeDescriptor);
         case '@':
             // Complex (nested) annotation. Return type is AnnotationInfo.
             return readAnnotation();
         case '[':
             // Return type is Object[] (of nested annotation element values)
-            final int count = readUnsignedShort();
+            final int count = inputStreamOrByteBuffer.readUnsignedShort();
             final Object[] arr = new Object[count];
             for (int i = 0; i < count; ++i) {
                 // Nested annotation element value
@@ -545,37 +332,26 @@ class ClassfileBinaryParser implements AutoCloseable {
      *             if the operation was interrupted.
      */
     ClassInfoUnlinked readClassInfoFromClassfileHeader(final ClasspathElement classpathElement,
-            final String relativePath, final InputStream inputStream, final ScanSpec scanSpec, final LogNode log)
-            throws IOException, InterruptedException {
+            final String relativePath, final InputStreamOrByteBufferAdapter inputStreamOrByteBuffer,
+            final ScanSpec scanSpec, final LogNode log) throws IOException, InterruptedException {
 
-        // This class instance can be reused across scans, to avoid re-allocating the buffer. Initialize/clear
-        // fields for each new run.
-        this.inputStream = inputStream;
-        className = null;
-        curr = 0;
+        this.inputStreamOrByteBuffer = inputStreamOrByteBuffer;
 
-        // Read first bufferful
-        used = 0;
-        for (int bytesRead; used < INITIAL_BUFFER_CHUNK_SIZE
-                && (bytesRead = inputStream.read(buf, used, INITIAL_BUFFER_CHUNK_SIZE - used)) != -1;) {
-            used += bytesRead;
-        }
-        if (used == 0) {
-            throw new IOException("Classfile " + relativePath + " is empty");
-        }
+        // Read the initial chunk of data into the buffer
+        inputStreamOrByteBuffer.readInitialChunk();
 
         // Check magic number
-        if (readInt() != 0xCAFEBABE) {
+        if (inputStreamOrByteBuffer.readInt() != 0xCAFEBABE) {
             throw new IOException("Classfile " + relativePath + " does not have correct classfile magic number");
         }
 
         // Minor version
-        readUnsignedShort();
+        inputStreamOrByteBuffer.readUnsignedShort();
         // Major version
-        readUnsignedShort();
+        inputStreamOrByteBuffer.readUnsignedShort();
 
         // Read size of constant pool
-        final int cpCount = readUnsignedShort();
+        final int cpCount = inputStreamOrByteBuffer.readUnsignedShort();
 
         // Allocate storage for constant pool, or reuse storage if there's enough left from the previous scan
         if (offset == null || offset.length < cpCount) {
@@ -587,54 +363,54 @@ class ClassfileBinaryParser implements AutoCloseable {
 
         // Read constant pool entries
         for (int i = 1; i < cpCount; ++i) {
-            tag[i] = readUnsignedByte();
-            offset[i] = curr;
+            tag[i] = inputStreamOrByteBuffer.readUnsignedByte();
+            offset[i] = inputStreamOrByteBuffer.curr;
             switch (tag[i]) {
             case 1: // Modified UTF8
-                final int strLen = readUnsignedShort();
-                skip(strLen);
+                final int strLen = inputStreamOrByteBuffer.readUnsignedShort();
+                inputStreamOrByteBuffer.skip(strLen);
                 break;
             case 3: // int, short, char, byte, boolean are all represented by Constant_INTEGER
             case 4: // float
-                skip(4);
+                inputStreamOrByteBuffer.skip(4);
                 break;
             case 5: // long
             case 6: // double
-                skip(8);
+                inputStreamOrByteBuffer.skip(8);
                 i++; // double slot
                 break;
             case 7: // Class
             case 8: // String
                 // Forward or backward indirect reference to a modified UTF8 entry
-                indirectStringRefs[i] = readUnsignedShort();
+                indirectStringRefs[i] = inputStreamOrByteBuffer.readUnsignedShort();
                 // (no need to copy bytes over, we use indirectStringRef instead for these fields)
                 break;
             case 9: // field ref
             case 10: // method ref
             case 11: // interface ref
-                skip(4);
+                inputStreamOrByteBuffer.skip(4);
                 break;
             case 12: // name and type
-                final int nameRef = readUnsignedShort();
-                final int typeRef = readUnsignedShort();
+                final int nameRef = inputStreamOrByteBuffer.readUnsignedShort();
+                final int typeRef = inputStreamOrByteBuffer.readUnsignedShort();
                 indirectStringRefs[i] = (nameRef << 16) | typeRef;
                 break;
             case 15: // method handle
-                skip(3);
+                inputStreamOrByteBuffer.skip(3);
                 break;
             case 16: // method type
-                skip(2);
+                inputStreamOrByteBuffer.skip(2);
                 break;
             case 18: // invoke dynamic
-                skip(4);
+                inputStreamOrByteBuffer.skip(4);
                 break;
             case 19: // module (for module-info.class in JDK9+)
                 // see https://docs.oracle.com/javase/specs/jvms/se9/html/jvms-4.html#jvms-4.4
-                skip(2);
+                inputStreamOrByteBuffer.skip(2);
                 break;
             case 20: // package (for module-info.class in JDK9+)
                 // see https://docs.oracle.com/javase/specs/jvms/se9/html/jvms-4.html#jvms-4.4
-                skip(2);
+                inputStreamOrByteBuffer.skip(2);
                 break;
             default:
                 throw new RuntimeException("Unknown constant pool tag " + tag[i] + " in classfile " + relativePath
@@ -644,7 +420,7 @@ class ClassfileBinaryParser implements AutoCloseable {
         }
 
         // Modifier flags
-        final int classModifierFlags = readUnsignedShort();
+        final int classModifierFlags = inputStreamOrByteBuffer.readUnsignedShort();
         final boolean isInterface = (classModifierFlags & 0x0200) != 0;
         final boolean isAnnotation = (classModifierFlags & 0x2000) != 0;
         final boolean isModule = (classModifierFlags & 0x8000) != 0;
@@ -655,7 +431,7 @@ class ClassfileBinaryParser implements AutoCloseable {
         }
 
         // The fully-qualified class name of this class, with slashes replaced with dots
-        final String classNamePath = getConstantPoolString(readUnsignedShort());
+        final String classNamePath = getConstantPoolString(inputStreamOrByteBuffer.readUnsignedShort());
         className = classNamePath.replace('/', '.');
         if ("java.lang.Object".equals(className)) {
             // Don't process java.lang.Object (it has a null superclass), though you can still search for classes
@@ -691,7 +467,7 @@ class ClassfileBinaryParser implements AutoCloseable {
         }
 
         // Superclass name, with slashes replaced with dots
-        final String superclassName = getConstantPoolClassName(readUnsignedShort());
+        final String superclassName = getConstantPoolClassName(inputStreamOrByteBuffer.readUnsignedShort());
 
         // Create holder object for the class information. This is "unlinked", in the sense that it is not linked to
         // other class info references at this point.
@@ -702,17 +478,17 @@ class ClassfileBinaryParser implements AutoCloseable {
         classInfoUnlinked.addSuperclass(superclassName);
 
         // Interfaces
-        final int interfaceCount = readUnsignedShort();
+        final int interfaceCount = inputStreamOrByteBuffer.readUnsignedShort();
         for (int i = 0; i < interfaceCount; i++) {
-            final String interfaceName = getConstantPoolClassName(readUnsignedShort());
+            final String interfaceName = getConstantPoolClassName(inputStreamOrByteBuffer.readUnsignedShort());
             classInfoUnlinked.addImplementedInterface(interfaceName);
         }
 
         // Fields
-        final int fieldCount = readUnsignedShort();
+        final int fieldCount = inputStreamOrByteBuffer.readUnsignedShort();
         for (int i = 0; i < fieldCount; i++) {
             // Info on modifier flags: http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.5
-            final int fieldModifierFlags = readUnsignedShort();
+            final int fieldModifierFlags = inputStreamOrByteBuffer.readUnsignedShort();
             final boolean isPublicField = ((fieldModifierFlags & 0x0001) == 0x0001);
             final boolean isStaticFinalField = ((fieldModifierFlags & 0x0018) == 0x0018);
             final boolean fieldIsVisible = isPublicField || scanSpec.ignoreFieldVisibility;
@@ -720,22 +496,22 @@ class ClassfileBinaryParser implements AutoCloseable {
                     && isStaticFinalField && fieldIsVisible;
             if (!fieldIsVisible || (!scanSpec.enableFieldInfo && !getStaticFinalFieldConstValue)) {
                 // Skip field
-                readUnsignedShort(); // fieldNameCpIdx
-                readUnsignedShort(); // fieldTypeDescriptorCpIdx
-                final int attributesCount = readUnsignedShort();
+                inputStreamOrByteBuffer.readUnsignedShort(); // fieldNameCpIdx
+                inputStreamOrByteBuffer.readUnsignedShort(); // fieldTypeDescriptorCpIdx
+                final int attributesCount = inputStreamOrByteBuffer.readUnsignedShort();
                 for (int j = 0; j < attributesCount; j++) {
-                    readUnsignedShort(); // attributeNameCpIdx
-                    final int attributeLength = readInt(); // == 2
-                    skip(attributeLength);
+                    inputStreamOrByteBuffer.readUnsignedShort(); // attributeNameCpIdx
+                    final int attributeLength = inputStreamOrByteBuffer.readInt(); // == 2
+                    inputStreamOrByteBuffer.skip(attributeLength);
                 }
             } else {
-                final int fieldNameCpIdx = readUnsignedShort();
+                final int fieldNameCpIdx = inputStreamOrByteBuffer.readUnsignedShort();
                 String fieldName = null;
                 if (getStaticFinalFieldConstValue) {
                     // Only decode fieldName if needed
                     fieldName = getConstantPoolString(fieldNameCpIdx);
                 }
-                final int fieldTypeDescriptorCpIdx = readUnsignedShort();
+                final int fieldTypeDescriptorCpIdx = inputStreamOrByteBuffer.readUnsignedShort();
                 final char fieldTypeDescriptorFirstChar = (char) getConstantPoolStringFirstByte(
                         fieldTypeDescriptorCpIdx);
                 String fieldTypeDescriptor = null;
@@ -744,16 +520,16 @@ class ClassfileBinaryParser implements AutoCloseable {
 
                 Object fieldConstValue = null;
                 List<AnnotationInfo> fieldAnnotationInfo = null;
-                final int attributesCount = readUnsignedShort();
+                final int attributesCount = inputStreamOrByteBuffer.readUnsignedShort();
                 for (int j = 0; j < attributesCount; j++) {
-                    final int attributeNameCpIdx = readUnsignedShort();
-                    final int attributeLength = readInt(); // == 2
+                    final int attributeNameCpIdx = inputStreamOrByteBuffer.readUnsignedShort();
+                    final int attributeLength = inputStreamOrByteBuffer.readInt(); // == 2
                     // See if field name matches one of the requested names for this class, and if it does, check if
                     // it is initialized with a constant value
                     if ((getStaticFinalFieldConstValue)
                             && constantPoolStringEquals(attributeNameCpIdx, "ConstantValue")) {
                         // http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.7.2
-                        final int cpIdx = readUnsignedShort();
+                        final int cpIdx = inputStreamOrByteBuffer.readUnsignedShort();
                         fieldConstValue = getFieldConstantPoolValue(tag[cpIdx], fieldTypeDescriptorFirstChar,
                                 cpIdx);
                         // Store static final field match in ClassInfo object
@@ -761,13 +537,13 @@ class ClassfileBinaryParser implements AutoCloseable {
                             classInfoUnlinked.addFieldConstantValue(fieldName, fieldConstValue);
                         }
                     } else if (fieldIsVisible && constantPoolStringEquals(attributeNameCpIdx, "Signature")) {
-                        fieldTypeSignature = getConstantPoolString(readUnsignedShort());
+                        fieldTypeSignature = getConstantPoolString(inputStreamOrByteBuffer.readUnsignedShort());
                     } else if (scanSpec.enableAnnotationInfo //
                             && (constantPoolStringEquals(attributeNameCpIdx, "RuntimeVisibleAnnotations")
                                     || (!scanSpec.disableRuntimeInvisibleAnnotations && constantPoolStringEquals(
                                             attributeNameCpIdx, "RuntimeInvisibleAnnotations")))) {
                         // Read annotation names
-                        final int fieldAnnotationCount = readUnsignedShort();
+                        final int fieldAnnotationCount = inputStreamOrByteBuffer.readUnsignedShort();
                         if (fieldAnnotationInfo == null && fieldAnnotationCount > 0) {
                             fieldAnnotationInfo = new ArrayList<>(1);
                         }
@@ -778,7 +554,7 @@ class ClassfileBinaryParser implements AutoCloseable {
                         }
                     } else {
                         // No match, just skip attribute
-                        skip(attributeLength);
+                        inputStreamOrByteBuffer.skip(attributeLength);
                     }
                 }
                 if (scanSpec.enableFieldInfo && fieldIsVisible) {
@@ -789,10 +565,10 @@ class ClassfileBinaryParser implements AutoCloseable {
         }
 
         // Methods
-        final int methodCount = readUnsignedShort();
+        final int methodCount = inputStreamOrByteBuffer.readUnsignedShort();
         for (int i = 0; i < methodCount; i++) {
             // Info on modifier flags: http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.6
-            final int methodModifierFlags = readUnsignedShort();
+            final int methodModifierFlags = inputStreamOrByteBuffer.readUnsignedShort();
             final boolean isPublicMethod = ((methodModifierFlags & 0x0001) == 0x0001);
             final boolean methodIsVisible = isPublicMethod || scanSpec.ignoreMethodVisibility;
 
@@ -800,14 +576,14 @@ class ClassfileBinaryParser implements AutoCloseable {
             String methodTypeDescriptor = null;
             String methodTypeSignature = null;
             if (scanSpec.enableMethodInfo || isAnnotation) { // Annotations store defaults in method_info
-                final int methodNameCpIdx = readUnsignedShort();
+                final int methodNameCpIdx = inputStreamOrByteBuffer.readUnsignedShort();
                 methodName = getConstantPoolString(methodNameCpIdx);
-                final int methodTypeDescriptorCpIdx = readUnsignedShort();
+                final int methodTypeDescriptorCpIdx = inputStreamOrByteBuffer.readUnsignedShort();
                 methodTypeDescriptor = getConstantPoolString(methodTypeDescriptorCpIdx);
             } else {
-                skip(4); // name_index, descriptor_index
+                inputStreamOrByteBuffer.skip(4); // name_index, descriptor_index
             }
-            final int attributesCount = readUnsignedShort();
+            final int attributesCount = inputStreamOrByteBuffer.readUnsignedShort();
             String[] methodParameterNames = null;
             int[] methodParameterModifiers = null;
             AnnotationInfo[][] methodParameterAnnotations = null;
@@ -816,20 +592,20 @@ class ClassfileBinaryParser implements AutoCloseable {
             if (!methodIsVisible || (!scanSpec.enableMethodInfo && !isAnnotation)) {
                 // Skip method attributes
                 for (int j = 0; j < attributesCount; j++) {
-                    skip(2); // attribute_name_index
-                    final int attributeLength = readInt();
-                    skip(attributeLength);
+                    inputStreamOrByteBuffer.skip(2); // attribute_name_index
+                    final int attributeLength = inputStreamOrByteBuffer.readInt();
+                    inputStreamOrByteBuffer.skip(attributeLength);
                 }
             } else {
                 // Look for method annotations
                 for (int j = 0; j < attributesCount; j++) {
-                    final int attributeNameCpIdx = readUnsignedShort();
-                    final int attributeLength = readInt();
+                    final int attributeNameCpIdx = inputStreamOrByteBuffer.readUnsignedShort();
+                    final int attributeLength = inputStreamOrByteBuffer.readInt();
                     if (scanSpec.enableAnnotationInfo
                             && (constantPoolStringEquals(attributeNameCpIdx, "RuntimeVisibleAnnotations")
                                     || (!scanSpec.disableRuntimeInvisibleAnnotations && constantPoolStringEquals(
                                             attributeNameCpIdx, "RuntimeInvisibleAnnotations")))) {
-                        final int methodAnnotationCount = readUnsignedShort();
+                        final int methodAnnotationCount = inputStreamOrByteBuffer.readUnsignedShort();
                         if (methodAnnotationInfo == null && methodAnnotationCount > 0) {
                             methodAnnotationInfo = new ArrayList<>(1);
                         }
@@ -844,10 +620,10 @@ class ClassfileBinaryParser implements AutoCloseable {
                             && (constantPoolStringEquals(attributeNameCpIdx, "RuntimeVisibleParameterAnnotations")
                                     || (!scanSpec.disableRuntimeInvisibleAnnotations && constantPoolStringEquals(
                                             attributeNameCpIdx, "RuntimeInvisibleParameterAnnotations")))) {
-                        final int paramCount = readUnsignedByte();
+                        final int paramCount = inputStreamOrByteBuffer.readUnsignedByte();
                         methodParameterAnnotations = new AnnotationInfo[paramCount][];
                         for (int k = 0; k < paramCount; k++) {
-                            final int numAnnotations = readUnsignedShort();
+                            final int numAnnotations = inputStreamOrByteBuffer.readUnsignedShort();
                             methodParameterAnnotations[k] = numAnnotations == 0 ? NO_ANNOTATIONS
                                     : new AnnotationInfo[numAnnotations];
                             for (int l = 0; l < numAnnotations; l++) {
@@ -857,18 +633,18 @@ class ClassfileBinaryParser implements AutoCloseable {
                     } else if (constantPoolStringEquals(attributeNameCpIdx, "MethodParameters")) {
                         // Read method parameters. For Java, these are only produced in JDK8+, and only if the
                         // commandline switch `-parameters` is provided at compiletime.
-                        final int paramCount = readUnsignedByte();
+                        final int paramCount = inputStreamOrByteBuffer.readUnsignedByte();
                         methodParameterNames = new String[paramCount];
                         methodParameterModifiers = new int[paramCount];
                         for (int k = 0; k < paramCount; k++) {
-                            final int cpIdx = readUnsignedShort();
+                            final int cpIdx = inputStreamOrByteBuffer.readUnsignedShort();
                             // If the constant pool index is zero, then the parameter is unnamed => use null
                             methodParameterNames[k] = cpIdx == 0 ? null : getConstantPoolString(cpIdx);
-                            methodParameterModifiers[k] = readUnsignedShort();
+                            methodParameterModifiers[k] = inputStreamOrByteBuffer.readUnsignedShort();
                         }
                     } else if (constantPoolStringEquals(attributeNameCpIdx, "Signature")) {
                         // Add type params to method type signature
-                        methodTypeSignature = getConstantPoolString(readUnsignedShort());
+                        methodTypeSignature = getConstantPoolString(inputStreamOrByteBuffer.readUnsignedShort());
                     } else if (constantPoolStringEquals(attributeNameCpIdx, "AnnotationDefault")) {
                         // Get annotation parameter default values
                         if (annotationParamDefaultValues == null) {
@@ -878,7 +654,7 @@ class ClassfileBinaryParser implements AutoCloseable {
                         annotationParamDefaultValues
                                 .add(new AnnotationParamValue(methodName, annotationParamDefaultValue));
                     } else {
-                        skip(attributeLength);
+                        inputStreamOrByteBuffer.skip(attributeLength);
                     }
                 }
             }
@@ -895,37 +671,39 @@ class ClassfileBinaryParser implements AutoCloseable {
         }
 
         // Attributes (including class annotations, class type variables, etc.)
-        final int attributesCount = readUnsignedShort();
+        final int attributesCount = inputStreamOrByteBuffer.readUnsignedShort();
         for (int i = 0; i < attributesCount; i++) {
-            final int attributeNameCpIdx = readUnsignedShort();
-            final int attributeLength = readInt();
+            final int attributeNameCpIdx = inputStreamOrByteBuffer.readUnsignedShort();
+            final int attributeLength = inputStreamOrByteBuffer.readInt();
             if (scanSpec.enableAnnotationInfo //
                     && (constantPoolStringEquals(attributeNameCpIdx, "RuntimeVisibleAnnotations")
                             || (!scanSpec.disableRuntimeInvisibleAnnotations && constantPoolStringEquals(
                                     attributeNameCpIdx, "RuntimeInvisibleAnnotations")))) {
-                final int annotationCount = readUnsignedShort();
+                final int annotationCount = inputStreamOrByteBuffer.readUnsignedShort();
                 for (int m = 0; m < annotationCount; m++) {
                     final AnnotationInfo classAnnotation = readAnnotation();
                     classInfoUnlinked.addClassAnnotation(classAnnotation);
                 }
             } else if (constantPoolStringEquals(attributeNameCpIdx, "InnerClasses")) {
-                final int numInnerClasses = readUnsignedShort();
+                final int numInnerClasses = inputStreamOrByteBuffer.readUnsignedShort();
                 for (int j = 0; j < numInnerClasses; j++) {
-                    final int innerClassInfoCpIdx = readUnsignedShort();
-                    final int outerClassInfoCpIdx = readUnsignedShort();
+                    final int innerClassInfoCpIdx = inputStreamOrByteBuffer.readUnsignedShort();
+                    final int outerClassInfoCpIdx = inputStreamOrByteBuffer.readUnsignedShort();
                     if (innerClassInfoCpIdx != 0 && outerClassInfoCpIdx != 0) {
                         classInfoUnlinked.addClassContainment(getConstantPoolClassName(innerClassInfoCpIdx),
                                 getConstantPoolClassName(outerClassInfoCpIdx));
                     }
-                    skip(2); // inner_name_idx
-                    skip(2); // inner_class_access_flags
+                    inputStreamOrByteBuffer.skip(2); // inner_name_idx
+                    inputStreamOrByteBuffer.skip(2); // inner_class_access_flags
                 }
             } else if (constantPoolStringEquals(attributeNameCpIdx, "Signature")) {
                 // Get class type signature, including type variables
-                classInfoUnlinked.addTypeSignature(getConstantPoolString(readUnsignedShort()));
+                classInfoUnlinked
+                        .addTypeSignature(getConstantPoolString(inputStreamOrByteBuffer.readUnsignedShort()));
             } else if (constantPoolStringEquals(attributeNameCpIdx, "EnclosingMethod")) {
-                final String innermostEnclosingClassName = getConstantPoolClassName(readUnsignedShort());
-                final int enclosingMethodCpIdx = readUnsignedShort();
+                final String innermostEnclosingClassName = getConstantPoolClassName(
+                        inputStreamOrByteBuffer.readUnsignedShort());
+                final int enclosingMethodCpIdx = inputStreamOrByteBuffer.readUnsignedShort();
                 String enclosingMethodName;
                 if (enclosingMethodCpIdx == 0) {
                     // A cpIdx of 0 (which is an invalid value) is used for anonymous inner classes declared in
@@ -941,7 +719,7 @@ class ClassfileBinaryParser implements AutoCloseable {
                 // class
                 classInfoUnlinked.addEnclosingMethod(innermostEnclosingClassName + "." + enclosingMethodName);
             } else {
-                skip(attributeLength);
+                inputStreamOrByteBuffer.skip(attributeLength);
             }
         }
         return classInfoUnlinked;

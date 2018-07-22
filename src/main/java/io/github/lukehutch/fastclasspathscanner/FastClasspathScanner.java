@@ -663,7 +663,7 @@ public class FastClasspathScanner {
         if (jarLeafNames.length == 0) {
             // whitelist all lib or ext jars
             for (final String libOrExtJar : JarUtils.getJreLibOrExtJars()) {
-                whitelistLibOrExtJars(libOrExtJar);
+                whitelistLibOrExtJars(JarUtils.leafName(libOrExtJar));
             }
         } else {
             for (final String jarLeafName : jarLeafNames) {
@@ -807,6 +807,8 @@ public class FastClasspathScanner {
      * @return this (for method chaining).
      */
     public FastClasspathScanner unBlacklistSystemPackages() {
+        // Scan JRE lib and ext dirs
+        whitelistLibOrExtJars();
         scanSpec.blacklistSystemJarsOrModules = false;
         return this;
     }
