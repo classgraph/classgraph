@@ -1,3 +1,5 @@
+package io.github.lukehutch.fastclasspathscanner.json;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.ArrayList;
@@ -9,8 +11,6 @@ import org.junit.Test;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.ScanResult;
-import io.github.lukehutch.fastclasspathscanner.json.JSONDeserializer;
-import io.github.lukehutch.fastclasspathscanner.json.JSONSerializer;
 
 @SuppressWarnings("unused")
 public class JSONSerializationTest {
@@ -137,10 +137,13 @@ public class JSONSerializationTest {
 
     @Test
     public void testSerializeThenDeserializeScanResult() {
-        final ScanResult scanResult = new FastClasspathScanner().disableRecursiveScanning().scan();
-        final String scanResultJSON = scanResult.toJSON();
+        final ScanResult scanResult = new FastClasspathScanner()
+                .whitelistPackagesNonRecursive(JSONSerializationTest.class.getPackage().getName()).verbose().scan();
+        final int indent = 2;
+        final String scanResultJSON = scanResult.toJSON(indent);
+        System.out.println(scanResultJSON);
         final ScanResult scanResultDeserialized = ScanResult.fromJSON(scanResultJSON);
-        final String scanResultReserializedJSON = scanResultDeserialized.toJSON();
+        final String scanResultReserializedJSON = scanResultDeserialized.toJSON(indent);
         assertThat(scanResultReserializedJSON).isEqualTo(scanResultJSON);
     }
 }

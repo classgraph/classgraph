@@ -18,14 +18,17 @@ public class V4Test {
         //                    System.out.println(string.substring(0, Math.min(120, string.length())));
         //                });
 
+        final long t0 = System.nanoTime();
         new FastClasspathScanner() //
-                .verbose() //
+                // .verbose() //
                 .unBlacklistSystemPackages() //
                 .enableClassInfo() //
+                .whitelistPackages("com.xyz") //
                 .scan() //
                 .getAllClasses() //
                 .getClassNames() //
-                .forEach(System.out::println);
+        ;//.forEach(System.out::println);
+        System.out.println((System.nanoTime() - t0) * 1.0e-9);
     }
 
 }
