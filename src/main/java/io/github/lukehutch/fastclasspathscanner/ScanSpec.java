@@ -109,8 +109,8 @@ public class ScanSpec {
     /** If true, scan modules. */
     public boolean scanModules = true;
 
-    /** If true, scan classfile bytecodes. */
-    public boolean scanClassfiles = true;
+    /** If true, scan classfile bytecodes, producing {@link ClassInfo} objects. */
+    public boolean enableClassInfo = false;
 
     /**
      * If true, enables the saving of field info during the scan. This information can be obtained using
@@ -149,14 +149,17 @@ public class ScanSpec {
     public boolean blacklistSystemJarsOrModules = true;
 
     /**
-     * If true, ignore field visibility (affects finding classes with fields of a given type, and matching of static
-     * final fields with constant initializers). If false, fields must be public to be indexed/matched.
+     * If true, ignore class visibility. If false, classes must be public to be scanned.
+     */
+    public boolean ignoreClassVisibility;
+
+    /**
+     * If true, ignore field visibility. If false, fields must be public to be scanned.
      */
     public boolean ignoreFieldVisibility = false;
 
     /**
-     * If true, ignore method visibility (affects finding methods with annotations of a given type). If false,
-     * methods must be public to be indexed/matched.
+     * If true, ignore method visibility. If false, methods must be public to be scanned.
      */
     public boolean ignoreMethodVisibility = false;
 

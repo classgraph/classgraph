@@ -357,7 +357,7 @@ class ClasspathElementZip extends ClasspathElement {
                     subLog.log(relativePath, "Found whitelisted file: " + relativePath);
                 }
 
-                if (scanSpec.scanClassfiles) {
+                if (scanSpec.enableClassInfo) {
                     // Store relative paths of any classfiles encountered
                     if (FileUtils.isClassfile(relativePath)) {
                         classfileMatches.add(newClasspathResource(classpathEltZipFile, packageRootPrefix,

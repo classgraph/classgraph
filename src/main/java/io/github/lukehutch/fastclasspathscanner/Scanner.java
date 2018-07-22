@@ -538,7 +538,7 @@ class Scanner implements Callable<ScanResult> {
                 }
 
                 final Map<String, ClassInfo> classNameToClassInfo = new HashMap<>();
-                if (!scanSpec.scanClassfiles) {
+                if (!scanSpec.enableClassInfo) {
                     if (log != null) {
                         log.log("Classfile scanning is disabled");
                     }

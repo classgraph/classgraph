@@ -369,8 +369,10 @@ public class ScanResult {
      * @return The ClassInfo object for the named class, or null if the class was not found.
      */
     public ClassInfo getClassInfo(final String className) {
-        if (!scanSpec.scanClassfiles) {
-            throw new IllegalArgumentException("Classfile scanning was disabled");
+        if (!scanSpec.enableClassInfo) {
+            throw new IllegalArgumentException("Cannot get method info without calling "
+                    + "FastClasspathScanner#enableClassInfo() (or adding class or package whitelist/blacklist "
+                    + "criteria) before starting the scan");
         }
         return classNameToClassInfo.get(className);
     }
@@ -381,8 +383,10 @@ public class ScanResult {
      * @return A list of all whitelisted classes found during the scan, or the empty list if none.
      */
     public ClassInfoList getAllClasses() {
-        if (!scanSpec.scanClassfiles) {
-            throw new IllegalArgumentException("Classfile scanning was disabled");
+        if (!scanSpec.enableClassInfo) {
+            throw new IllegalArgumentException("Cannot get method info without calling "
+                    + "FastClasspathScanner#enableClassInfo() (or adding class or package whitelist/blacklist "
+                    + "criteria) before starting the scan");
         }
         return ClassInfo.getAllClasses(classNameToClassInfo.values(), scanSpec, this);
     }
@@ -393,8 +397,10 @@ public class ScanResult {
      * @return A list of all whitelisted standard classes found during the scan, or the empty list if none.
      */
     public ClassInfoList getAllStandardClasses() {
-        if (!scanSpec.scanClassfiles) {
-            throw new IllegalArgumentException("Classfile scanning was disabled");
+        if (!scanSpec.enableClassInfo) {
+            throw new IllegalArgumentException("Cannot get method info without calling "
+                    + "FastClasspathScanner#enableClassInfo() (or adding class or package whitelist/blacklist "
+                    + "criteria) before starting the scan");
         }
         return ClassInfo.getAllStandardClasses(classNameToClassInfo.values(), scanSpec, this);
     }
@@ -407,8 +413,10 @@ public class ScanResult {
      * @return A list of subclasses of the named superclass, or the empty list if none.
      */
     public ClassInfoList getSubclassesOf(final String superclassName) {
-        if (!scanSpec.scanClassfiles) {
-            throw new IllegalArgumentException("Classfile scanning was disabled");
+        if (!scanSpec.enableClassInfo) {
+            throw new IllegalArgumentException("Cannot get method info without calling "
+                    + "FastClasspathScanner#enableClassInfo() (or adding class or package whitelist/blacklist "
+                    + "criteria) before starting the scan");
         }
         final ClassInfo superclass = classNameToClassInfo.get(superclassName);
         return superclass == null ? ClassInfoList.EMPTY_LIST : superclass.getSubclasses();
@@ -422,8 +430,10 @@ public class ScanResult {
      * @return A list of superclasses of the named subclass, or the empty list if none.
      */
     public ClassInfoList getSuperclassesOf(final String subclassName) {
-        if (!scanSpec.scanClassfiles) {
-            throw new IllegalArgumentException("Classfile scanning was disabled");
+        if (!scanSpec.enableClassInfo) {
+            throw new IllegalArgumentException("Cannot get method info without calling "
+                    + "FastClasspathScanner#enableClassInfo() (or adding class or package whitelist/blacklist "
+                    + "criteria) before starting the scan");
         }
         final ClassInfo subclass = classNameToClassInfo.get(subclassName);
         return subclass == null ? ClassInfoList.EMPTY_LIST : subclass.getSuperclasses();
@@ -438,8 +448,10 @@ public class ScanResult {
      *         if none.
      */
     public ClassInfoList getClassesWithMethodAnnotation(final String annotationName) {
-        if (!scanSpec.scanClassfiles) {
-            throw new IllegalArgumentException("Classfile scanning was disabled");
+        if (!scanSpec.enableClassInfo) {
+            throw new IllegalArgumentException("Cannot get method info without calling "
+                    + "FastClasspathScanner#enableClassInfo() (or adding class or package whitelist/blacklist "
+                    + "criteria) before starting the scan");
         }
         if (!scanSpec.enableMethodInfo) {
             throw new IllegalArgumentException(
@@ -459,8 +471,10 @@ public class ScanResult {
      *         if none.
      */
     public ClassInfoList getClassesWithFieldAnnotation(final String annotationName) {
-        if (!scanSpec.scanClassfiles) {
-            throw new IllegalArgumentException("Classfile scanning was disabled");
+        if (!scanSpec.enableClassInfo) {
+            throw new IllegalArgumentException("Cannot get method info without calling "
+                    + "FastClasspathScanner#enableClassInfo() (or adding class or package whitelist/blacklist "
+                    + "criteria) before starting the scan");
         }
         if (!scanSpec.enableFieldInfo) {
             throw new IllegalArgumentException(
@@ -481,8 +495,10 @@ public class ScanResult {
      * @return A list of all whitelisted interfaces found during the scan, or the empty list if none.
      */
     public ClassInfoList getAllInterfaceClasses() {
-        if (!scanSpec.scanClassfiles) {
-            throw new IllegalArgumentException("Classfile scanning was disabled");
+        if (!scanSpec.enableClassInfo) {
+            throw new IllegalArgumentException("Cannot get method info without calling "
+                    + "FastClasspathScanner#enableClassInfo() (or adding class or package whitelist/blacklist "
+                    + "criteria) before starting the scan");
         }
         return ClassInfo.getAllImplementedInterfaceClasses(classNameToClassInfo.values(), scanSpec, this);
     }
@@ -495,8 +511,10 @@ public class ScanResult {
      * @return The sorted list of all subinterfaces of the named interface, or the empty list if none.
      */
     public ClassInfoList getSubinterfacesOf(final String interfaceName) {
-        if (!scanSpec.scanClassfiles) {
-            throw new IllegalArgumentException("Classfile scanning was disabled");
+        if (!scanSpec.enableClassInfo) {
+            throw new IllegalArgumentException("Cannot get method info without calling "
+                    + "FastClasspathScanner#enableClassInfo() (or adding class or package whitelist/blacklist "
+                    + "criteria) before starting the scan");
         }
         final ClassInfo classInfo = classNameToClassInfo.get(interfaceName);
         return classInfo == null ? ClassInfoList.EMPTY_LIST : classInfo.getSubinterfaces();
@@ -510,8 +528,10 @@ public class ScanResult {
      * @return The sorted list of superinterfaces of the named subinterface, or the empty list if none.
      */
     public ClassInfoList getSuperinterfacesOf(final String subInterfaceName) {
-        if (!scanSpec.scanClassfiles) {
-            throw new IllegalArgumentException("Classfile scanning was disabled");
+        if (!scanSpec.enableClassInfo) {
+            throw new IllegalArgumentException("Cannot get method info without calling "
+                    + "FastClasspathScanner#enableClassInfo() (or adding class or package whitelist/blacklist "
+                    + "criteria) before starting the scan");
         }
         final ClassInfo classInfo = classNameToClassInfo.get(subInterfaceName);
         return classInfo == null ? ClassInfoList.EMPTY_LIST : classInfo.getSuperinterfaces();
@@ -526,8 +546,10 @@ public class ScanResult {
      * @return The sorted list of all classes that implement the named interface, or the empty list if none.
      */
     public ClassInfoList getClassesImplementing(final String interfaceName) {
-        if (!scanSpec.scanClassfiles) {
-            throw new IllegalArgumentException("Classfile scanning was disabled");
+        if (!scanSpec.enableClassInfo) {
+            throw new IllegalArgumentException("Cannot get method info without calling "
+                    + "FastClasspathScanner#enableClassInfo() (or adding class or package whitelist/blacklist "
+                    + "criteria) before starting the scan");
         }
         final ClassInfo classInfo = classNameToClassInfo.get(interfaceName);
         return classInfo == null ? ClassInfoList.EMPTY_LIST : classInfo.getClassesImplementing();
@@ -542,8 +564,10 @@ public class ScanResult {
      * @return A list of all annotation classes found during the scan, or the empty list if none.
      */
     public ClassInfoList getAllAnnotationClasses() {
-        if (!scanSpec.scanClassfiles) {
-            throw new IllegalArgumentException("Classfile scanning was disabled");
+        if (!scanSpec.enableClassInfo) {
+            throw new IllegalArgumentException("Cannot get method info without calling "
+                    + "FastClasspathScanner#enableClassInfo() (or adding class or package whitelist/blacklist "
+                    + "criteria) before starting the scan");
         }
         return ClassInfo.getAllAnnotationClasses(classNameToClassInfo.values(), scanSpec, this);
     }
@@ -555,8 +579,10 @@ public class ScanResult {
      * @return A list of all whitelisted interfaces found during the scan, or the empty list if none.
      */
     public ClassInfoList getAllInterfaceOrAnnotationClasses() {
-        if (!scanSpec.scanClassfiles) {
-            throw new IllegalArgumentException("Classfile scanning was disabled");
+        if (!scanSpec.enableClassInfo) {
+            throw new IllegalArgumentException("Cannot get method info without calling "
+                    + "FastClasspathScanner#enableClassInfo() (or adding class or package whitelist/blacklist "
+                    + "criteria) before starting the scan");
         }
         return ClassInfo.getAllInterfaceOrAnnotationClasses(classNameToClassInfo.values(), scanSpec, this);
     }
@@ -570,8 +596,10 @@ public class ScanResult {
      *         the scan, or the empty list if none.
      */
     public ClassInfoList getClassesWithAnnotation(final String annotationName) {
-        if (!scanSpec.scanClassfiles) {
-            throw new IllegalArgumentException("Classfile scanning was disabled");
+        if (!scanSpec.enableClassInfo) {
+            throw new IllegalArgumentException("Cannot get method info without calling "
+                    + "FastClasspathScanner#enableClassInfo() (or adding class or package whitelist/blacklist "
+                    + "criteria) before starting the scan");
         }
         final ClassInfo classInfo = classNameToClassInfo.get(annotationName);
         return classInfo == null ? ClassInfoList.EMPTY_LIST : classInfo.getClassesWithAnnotation();
@@ -585,8 +613,10 @@ public class ScanResult {
      * @return The sorted list of annotations and meta-annotations on the named class, or the empty list if none.
      */
     public ClassInfoList getAnnotationsOnClass(final String className) {
-        if (!scanSpec.scanClassfiles) {
-            throw new IllegalArgumentException("Classfile scanning was disabled");
+        if (!scanSpec.enableClassInfo) {
+            throw new IllegalArgumentException("Cannot get method info without calling "
+                    + "FastClasspathScanner#enableClassInfo() (or adding class or package whitelist/blacklist "
+                    + "criteria) before starting the scan");
         }
         final ClassInfo classInfo = classNameToClassInfo.get(className);
         return classInfo == null ? ClassInfoList.EMPTY_LIST : classInfo.getAnnotations();
@@ -624,8 +654,10 @@ public class ScanResult {
      */
     public String generateClassGraphDotFile(final float sizeX, final float sizeY, final boolean showFields,
             final boolean showMethods) {
-        if (!scanSpec.scanClassfiles) {
-            throw new IllegalArgumentException("Classfile scanning was disabled");
+        if (!scanSpec.enableClassInfo) {
+            throw new IllegalArgumentException("Cannot get method info without calling "
+                    + "FastClasspathScanner#enableClassInfo() (or adding class or package whitelist/blacklist "
+                    + "criteria) before starting the scan");
         }
         return GraphvizDotfileGenerator.generateClassGraphDotFile(this, sizeX, sizeY, showFields, showMethods,
                 scanSpec);
@@ -980,8 +1012,10 @@ public class ScanResult {
      *            If greater than 0, JSON will be formatted (indented), otherwise it will be minified (un-indented).
      */
     public String toJSON(final int indentWidth) {
-        if (!scanSpec.scanClassfiles) {
-            throw new IllegalArgumentException("Classfile scanning was disabled");
+        if (!scanSpec.enableClassInfo) {
+            throw new IllegalArgumentException("Cannot get method info without calling "
+                    + "FastClasspathScanner#enableClassInfo() (or adding class or package whitelist/blacklist "
+                    + "criteria) before starting the scan");
         }
         return JSONSerializer.serializeObject(
                 new SerializationFormat(CURRENT_SERIALIZATION_FORMAT, scanSpec, classNameToClassInfo), indentWidth,

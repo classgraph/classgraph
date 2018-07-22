@@ -243,7 +243,7 @@ class ClasspathElementDir extends ClasspathElement {
 
                 fileToLastModified.put(fileInDir, fileInDir.lastModified());
 
-                if (scanSpec.scanClassfiles) {
+                if (scanSpec.enableClassInfo) {
                     // Store relative paths of any classfiles encountered
                     if (FileUtils.isClassfile(fileInDirRelativePath)) {
                         classfileMatches.add(newClasspathResource(classpathElt, fileInDirRelativePath, fileInDir));

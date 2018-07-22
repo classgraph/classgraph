@@ -97,22 +97,40 @@ public class FastClasspathScanner {
     }
 
     /**
-     * Causes field visibility to be ignored, enabling private, package-private and protected fields to be scanned.
-     * This affects finding classes with fields of a given type, as well as matching static final fields with
-     * constant initializers, and saving FieldInfo for the class. If false, fields must be public to be
-     * indexed/matched.
+     * Enables the scanning of classfiles, producing {@link ClassInfo} objects in the {@link ScanResult}.
      *
      * @return this (for method chaining).
      */
-    public FastClasspathScanner ignoreFieldVisibility() {
-        scanSpec.ignoreFieldVisibility = true;
+    public FastClasspathScanner enableClassInfo() {
+        scanSpec.enableClassInfo = true;
+        return this;
+    }
+
+    /**
+     * Causes class visibility to be ignored, enabling private, package-private and protected classes to be scanned.
+     * By default, only public classes are scanned.
+     *
+     * @return this (for method chaining).
+     */
+    public FastClasspathScanner ignoreClassVisibility() {
+        scanSpec.ignoreClassVisibility = true;
+        return this;
+    }
+
+    /**
+     * Enables the saving of method info during the scan. This information can be obtained using
+     * {@link ClassInfo#getMethodInfo()} etc. By default, method info is not scanned.
+     *
+     * @return this (for method chaining).
+     */
+    public FastClasspathScanner enableMethodInfo() {
+        scanSpec.enableMethodInfo = true;
         return this;
     }
 
     /**
      * Causes method visibility to be ignored, enabling private, package-private and protected methods to be
-     * scanned. This affects finding classes that have methods with a given annotation, and also the saving of
-     * MethodInfo for the class. If false, methods must be public for the containing classes to be indexed/matched.
+     * scanned. By default, only public methods are scanned.
      *
      * @return this (for method chaining).
      */
@@ -123,7 +141,7 @@ public class FastClasspathScanner {
 
     /**
      * Enables the saving of field info during the scan. This information can be obtained using
-     * {@link ClassInfo#getFieldInfo()}. By default, field info is not scanned, for efficiency.
+     * {@link ClassInfo#getFieldInfo()}. By default, field info is not scanned.
      *
      * @return this (for method chaining).
      */
@@ -133,8 +151,19 @@ public class FastClasspathScanner {
     }
 
     /**
+     * Causes field visibility to be ignored, enabling private, package-private and protected fields to be scanned.
+     * By default, only public fields are scanned.
+     *
+     * @return this (for method chaining).
+     */
+    public FastClasspathScanner ignoreFieldVisibility() {
+        scanSpec.ignoreFieldVisibility = true;
+        return this;
+    }
+
+    /**
      * Enables the saving of static final field constant initializer values. By default, constant initializer values
-     * are not stored, for efficiency. Calls {@link #enableFieldInfo}.
+     * are not scanned. Automatically calls {@link #enableFieldInfo()}.
      *
      * @return this (for method chaining).
      */
@@ -145,20 +174,10 @@ public class FastClasspathScanner {
     }
 
     /**
-     * Enables the saving of method info during the scan. This information can be obtained using
-     * {@link ClassInfo#getMethodInfo()} etc. By default, method info is not scanned, for efficiency.
-     *
-     * @return this (for method chaining).
-     */
-    public FastClasspathScanner enableMethodInfo() {
-        scanSpec.enableMethodInfo = true;
-        return this;
-    }
-
-    /**
      * Enables the saving of annotation info (for class, field, method and method parameter annotations) during the
-     * scan. This information can be obtained using {@link ClassInfo#getAnnotationInfo()} etc. By default,
-     * annotation info is not scanned, for efficiency.
+     * scan. This information can be obtained using {@link ClassInfo#getAnnotationInfo()},
+     * {@link FieldInfo#getAnnotationInfo()}, {@link MethodInfo#getParameterAnnotationInfo()}, and
+     * {@link MethodParameterInfo#getAnnotationInfo()}. By default, annotation info is not scanned.
      *
      * @return this (for method chaining).
      */
@@ -168,23 +187,12 @@ public class FastClasspathScanner {
     }
 
     /**
-     * Causes only runtime visible annotations to be scanned (runtime invisible annotations will be ignored).
+     * Causes only runtime visible annotations to be scanned (causes runtime invisible annotations to be ignored).
      *
      * @return this (for method chaining).
      */
     public FastClasspathScanner disableRuntimeInvisibleAnnotations() {
         scanSpec.disableRuntimeInvisibleAnnotations = true;
-        return this;
-    }
-
-    /**
-     * Disables the scanning of classfiles (causes only resources to be obtainable from the {@link ScanResult}, not
-     * {@link ClassInfo} objects).
-     *
-     * @return this (for method chaining).
-     */
-    public FastClasspathScanner disableClassfileScanning() {
-        scanSpec.scanClassfiles = false;
         return this;
     }
 
@@ -443,7 +451,7 @@ public class FastClasspathScanner {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Scan one or more specific packages and their sub-packages.
+     * Scan one or more specific packages and their sub-packages. (Automatically calls {@link #enableClassInfo()}.)
      *
      * @param packageNames
      *            The fully-qualified names of packages to scan (using '.' as a separator). May include a glob
@@ -451,6 +459,7 @@ public class FastClasspathScanner {
      * @return this (for method chaining).
      */
     public FastClasspathScanner whitelistPackages(final String... packageNames) {
+        enableClassInfo();
         for (final String packageName : packageNames) {
             // Whitelist package
             scanSpec.packageWhiteBlackList.addToWhitelist(WhiteBlackList.normalizePackageOrClassName(packageName));
@@ -490,7 +499,7 @@ public class FastClasspathScanner {
 
     /**
      * Scan one or more specific packages, without recursively scanning sub-packages unless they are themselves
-     * whitelisted.
+     * whitelisted. (Automatically calls {@link #enableClassInfo()}.)
      * 
      * <p>
      * This may be particularly useful for scanning the package root ("") without recursively scanning everything in
@@ -501,6 +510,7 @@ public class FastClasspathScanner {
      * @return this (for method chaining).
      */
     public FastClasspathScanner whitelistPackagesNonRecursive(final String... packageNames) {
+        enableClassInfo();
         for (final String packageName : packageNames) {
             if (packageName.contains("*")) {
                 throw new IllegalArgumentException("Cannot use a glob wildcard here: " + packageName);
@@ -538,7 +548,8 @@ public class FastClasspathScanner {
     }
 
     /**
-     * Prevent the scanning of one or more specific packages and their sub-packages.
+     * Prevent the scanning of one or more specific packages and their sub-packages. (Automatically calls
+     * {@link #enableClassInfo()}.)
      *
      * @param packageNames
      *            The fully-qualified names of packages to blacklist (with '.' as a separator). May include a glob
@@ -546,6 +557,7 @@ public class FastClasspathScanner {
      * @return this (for method chaining).
      */
     public FastClasspathScanner blacklistPackages(final String... packageNames) {
+        enableClassInfo();
         for (final String packageName : packageNames) {
             // Blacklisting always prevents further recursion, no need to blacklist sub-packages
             scanSpec.packageWhiteBlackList.addToBlacklist(WhiteBlackList.normalizePackageOrClassName(packageName));
@@ -572,13 +584,14 @@ public class FastClasspathScanner {
 
     /**
      * Scan one or more specific classes, without scanning other classes in the same package unless the package is
-     * itself whitelisted.
+     * itself whitelisted. (Automatically calls {@link #enableClassInfo()}.)
      *
      * @param classNames
      *            The fully-qualified names of classes to scan (using '.' as a separator).
      * @return this (for method chaining).
      */
     public FastClasspathScanner whitelistClasses(final String... classNames) {
+        enableClassInfo();
         for (final String className : classNames) {
             if (className.contains("*")) {
                 throw new IllegalArgumentException("Cannot use a glob wildcard here: " + className);
@@ -599,13 +612,14 @@ public class FastClasspathScanner {
 
     /**
      * Specifically blacklist one or more specific classes, preventing them from being scanned even if they are in a
-     * whitelisted package.
+     * whitelisted package. (Automatically calls {@link #enableClassInfo()}.)
      *
      * @param classNames
      *            The fully-qualified names of classes to blacklist (using '.' as a separator).
      * @return this (for method chaining).
      */
     public FastClasspathScanner blacklistClasses(final String... classNames) {
+        enableClassInfo();
         for (final String className : classNames) {
             if (className.contains("*")) {
                 throw new IllegalArgumentException("Cannot use a glob wildcard here: " + className);

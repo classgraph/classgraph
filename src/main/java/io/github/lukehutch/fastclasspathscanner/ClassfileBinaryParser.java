@@ -30,6 +30,7 @@ package io.github.lukehutch.fastclasspathscanner;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -637,8 +638,8 @@ class ClassfileBinaryParser implements AutoCloseable {
                 break;
             default:
                 throw new RuntimeException("Unknown constant pool tag " + tag[i] + " in classfile " + relativePath
-                        + " (element size unknown, cannot continue reading class. Please report this on "
-                        + "the FastClasspathScanner GitHub page.");
+                        + " (element size unknown, cannot continue reading class). Please report this at "
+                        + "https://github.com/lukehutch/fast-classpath-scanner/issues");
             }
         }
 
@@ -655,10 +656,21 @@ class ClassfileBinaryParser implements AutoCloseable {
 
         // The fully-qualified class name of this class, with slashes replaced with dots
         final String classNamePath = getConstantPoolString(readUnsignedShort());
-        final String className = classNamePath.replace('/', '.');
+        className = classNamePath.replace('/', '.');
         if ("java.lang.Object".equals(className)) {
             // Don't process java.lang.Object (it has a null superclass), though you can still search for classes
-            // that are subclasses of java.lang.Object if you add "!" to the scan spec.
+            // that are subclasses of java.lang.Object (as an external class).
+            if (log != null) {
+                log.log("Skipping " + className);
+            }
+            return null;
+        }
+
+        // Check class visibility modifiers
+        if (!scanSpec.ignoreClassVisibility && !Modifier.isPublic(classModifierFlags)) {
+            if (log != null) {
+                log.log("Skipping non-public class: " + className);
+            }
             return null;
         }
 
