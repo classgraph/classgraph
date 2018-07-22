@@ -284,7 +284,7 @@ public abstract class InputStreamOrByteBufferAdapter {
             if (len == 0) {
                 return 0;
             }
-            int bytesToRead = Math.min(len, byteBuffer.remaining());
+            final int bytesToRead = Math.min(len, byteBuffer.remaining());
             if (bytesToRead == 0) {
                 // Return -1, as per InputStream#read() contract
                 return -1;

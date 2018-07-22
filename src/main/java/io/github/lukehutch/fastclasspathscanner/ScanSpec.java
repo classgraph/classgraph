@@ -39,7 +39,9 @@ import io.github.lukehutch.fastclasspathscanner.utils.ClasspathFinder;
 import io.github.lukehutch.fastclasspathscanner.utils.JarUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
 import io.github.lukehutch.fastclasspathscanner.utils.WhiteBlackList;
-import io.github.lukehutch.fastclasspathscanner.utils.WhiteBlackList.MatchType;
+import io.github.lukehutch.fastclasspathscanner.utils.WhiteBlackList.WhiteBlackListLeafname;
+import io.github.lukehutch.fastclasspathscanner.utils.WhiteBlackList.WhiteBlackListPrefix;
+import io.github.lukehutch.fastclasspathscanner.utils.WhiteBlackList.WhiteBlackListWholeString;
 
 /**
  * Parses the scanning specification that was passed to the FastClasspathScanner constructor, and finds all
@@ -54,42 +56,42 @@ public class ScanSpec {
     // -------------------------------------------------------------------------------------------------------------
 
     /** Package white/blacklist (with separator '.'). */
-    public WhiteBlackList packageWhiteBlackList = new WhiteBlackList(MatchType.WHOLE_STRING);
+    public WhiteBlackListWholeString packageWhiteBlackList = new WhiteBlackListWholeString();
 
     /** Package prefix white/blacklist, for recursive scanning (with separator '.', ending in '.'). */
-    public WhiteBlackList packagePrefixWhiteBlackList = new WhiteBlackList(MatchType.PREFIX);
+    public WhiteBlackListPrefix packagePrefixWhiteBlackList = new WhiteBlackListPrefix();
 
     /** Path white/blacklist (with separator '/'). */
-    public WhiteBlackList pathWhiteBlackList = new WhiteBlackList(MatchType.WHOLE_STRING);
+    public WhiteBlackListWholeString pathWhiteBlackList = new WhiteBlackListWholeString();
 
     /** Path prefix white/blacklist, for recursive scanning (with separator '/', ending in '/'). */
-    public WhiteBlackList pathPrefixWhiteBlackList = new WhiteBlackList(MatchType.PREFIX);
+    public WhiteBlackListPrefix pathPrefixWhiteBlackList = new WhiteBlackListPrefix();
 
     /** Class white/blacklist (fully-qualified class names, with separator '.'). */
-    public WhiteBlackList classWhiteBlackList = new WhiteBlackList(MatchType.WHOLE_STRING);
+    public WhiteBlackListWholeString classWhiteBlackList = new WhiteBlackListWholeString();
 
     /** Classfile white/blacklist (path to classfiles, with separator '/', ending in ".class"). */
-    public WhiteBlackList classfilePathWhiteBlackList = new WhiteBlackList(MatchType.WHOLE_STRING);
+    public WhiteBlackListWholeString classfilePathWhiteBlackList = new WhiteBlackListWholeString();
 
     /** Package containing white/blacklisted classes (with separator '.'). */
-    public WhiteBlackList classPackageWhiteBlackList = new WhiteBlackList(MatchType.WHOLE_STRING);
+    public WhiteBlackListWholeString classPackageWhiteBlackList = new WhiteBlackListWholeString();
 
     /** Path to white/blacklisted classes (with separator '/'). */
-    public WhiteBlackList classPackagePathWhiteBlackList = new WhiteBlackList(MatchType.WHOLE_STRING);
+    public WhiteBlackListWholeString classPackagePathWhiteBlackList = new WhiteBlackListWholeString();
 
     /** Module white/blacklist (with separator '.'). */
-    public WhiteBlackList moduleWhiteBlackList = new WhiteBlackList(MatchType.WHOLE_STRING);
+    public WhiteBlackListWholeString moduleWhiteBlackList = new WhiteBlackListWholeString();
 
     /** Jar white/blacklist (leafname only, ending in ".jar"). */
-    public WhiteBlackList jarWhiteBlackList = new WhiteBlackList(MatchType.LEAFNAME);
+    public WhiteBlackListLeafname jarWhiteBlackList = new WhiteBlackListLeafname();
 
     /** lib/ext jar white/blacklist (leafname only, ending in ".jar"). */
-    public WhiteBlackList libOrExtJarWhiteBlackList = new WhiteBlackList(MatchType.LEAFNAME);
+    public WhiteBlackListLeafname libOrExtJarWhiteBlackList = new WhiteBlackListLeafname();
 
     /** Need to sort prefixes to ensure correct whitelist/blacklist evaluation (see Issue #167). */
     void sortPrefixes() {
         for (final Field field : ScanSpec.class.getDeclaredFields()) {
-            if (field.getType() == WhiteBlackList.class) {
+            if (WhiteBlackList.class.isAssignableFrom(field.getType())) {
                 try {
                     ((WhiteBlackList) field.get(this)).sortPrefixes();
                 } catch (final Exception e) {
@@ -356,7 +358,7 @@ public class ScanSpec {
 
         // Descendant of whitelisted path
 
-        if (pathPrefixWhiteBlackList.isWhitelisted(relativePath)) {
+        if (pathPrefixWhiteBlackList.isSpecificallyWhitelisted(relativePath)) {
             // Path prefix matches one in the whitelist
             return ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX;
         }

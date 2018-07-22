@@ -517,7 +517,7 @@ public class FastClasspathScanner {
             }
             // Whitelist package, but not sub-packages
             scanSpec.packageWhiteBlackList.addToWhitelist(WhiteBlackList.normalizePackageOrClassName(packageName));
-            scanSpec.pathWhiteBlackList.addToWhitelist(WhiteBlackList.packageNameToPath(packageName));
+            scanSpec.pathWhiteBlackList.addToWhitelist(WhiteBlackList.packageNameToPath(packageName) + "/");
         }
         return this;
     }
@@ -802,7 +802,8 @@ public class FastClasspathScanner {
 
     /**
      * Enables the scanning of system packages (java.*, jdk.*, oracle.*, etc.) -- these are not scanned by default
-     * for speed.
+     * for speed. Calls {#whitelistLibOrExtJars()} with no parameters, to enable scanning of jars in JRE/JDK "lib/"
+     * and "ext/" directories.
      *
      * @return this (for method chaining).
      */
