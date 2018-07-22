@@ -232,7 +232,7 @@ public class WhiteBlackList {
                             str;
 
             // Perform whitelist/blacklist test on whole string (possibly as pattern)
-            return ((whitelist == null && whitelistPatterns != null && whitelistPatterns.isEmpty())
+            return ((whitelist == null && whitelistPatterns == null)
                     || (whitelist != null && whitelist.contains(stringToTest))
                     || matchesPatternList(stringToTest, whitelistPatterns))
                     && (blacklist == null || !blacklist.contains(stringToTest))
@@ -264,7 +264,7 @@ public class WhiteBlackList {
                             str;
 
             // Perform whitelist/blacklist test on whole string (possibly as pattern)
-            return (whitelist == null && whitelistPatterns != null && whitelistPatterns.isEmpty())
+            return (whitelist == null && whitelistPatterns == null)
                     || (whitelist != null && whitelist.contains(stringToTest))
                     || matchesPatternList(stringToTest, whitelistPatterns);
         }
