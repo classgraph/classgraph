@@ -26,29 +26,17 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.lukehutch.fastclasspathscanner.utils;
+package io.github.lukehutch.fastclasspathscanner;
 
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import io.github.lukehutch.fastclasspathscanner.AnnotationInfo;
-import io.github.lukehutch.fastclasspathscanner.ClassInfo;
-import io.github.lukehutch.fastclasspathscanner.ClassInfoList;
-import io.github.lukehutch.fastclasspathscanner.FieldInfo;
-import io.github.lukehutch.fastclasspathscanner.MethodInfo;
-import io.github.lukehutch.fastclasspathscanner.MethodParameterInfo;
-import io.github.lukehutch.fastclasspathscanner.MethodTypeSignature;
-import io.github.lukehutch.fastclasspathscanner.ScanResult;
-import io.github.lukehutch.fastclasspathscanner.ScanSpec;
-import io.github.lukehutch.fastclasspathscanner.TypeSignature;
-
 /** Builds a class graph visualization in Graphviz .dot file format. */
-public class GraphvizDotfileGenerator {
+class GraphvizDotfileGenerator {
 
     private static final int PARAM_WRAP_WIDTH = 40;
 
@@ -237,17 +225,12 @@ public class GraphvizDotfileGenerator {
                 Integer.toString(b >> 4, 16), Integer.toString(b & 0xf, 16));
 
         // Class annotations
-        final List<AnnotationInfo> annotationInfo = ci.getAnnotationInfo();
+        final List<AnnotationInfo> annotationInfo = ci.annotationInfo;
         if (annotationInfo != null && annotationInfo.size() > 0) {
             buf.append("<tr><td colspan='3' bgcolor='" + darkerColor
                     + "'><font point-size='12'><b>ANNOTATIONS</b></font></td></tr>");
             final List<AnnotationInfo> annotationInfoSorted = new ArrayList<>(annotationInfo);
-            Collections.sort(annotationInfoSorted, new Comparator<AnnotationInfo>() {
-                @Override
-                public int compare(final AnnotationInfo a1, final AnnotationInfo a2) {
-                    return a1.getAnnotationName().compareTo(a2.getAnnotationName());
-                }
-            });
+            Collections.sort(annotationInfoSorted);
             for (final AnnotationInfo ai : annotationInfoSorted) {
                 buf.append("<tr>");
                 buf.append("<td align='center' valign='top'>");
@@ -257,29 +240,27 @@ public class GraphvizDotfileGenerator {
         }
 
         // Fields
-        final List<FieldInfo> fieldInfo = ci.getFieldInfo();
+        final List<FieldInfo> fieldInfo = ci.fieldInfo;
         if (showFields && fieldInfo != null && fieldInfo.size() > 0) {
             buf.append("<tr><td colspan='3' bgcolor='" + darkerColor + "'><font point-size='12'><b>"
                     + (scanSpec.ignoreFieldVisibility ? "" : "PUBLIC ") + "FIELDS</b></font></td></tr>");
             buf.append("<tr><td cellpadding='0'>");
             buf.append("<table border='0' cellborder='0'>");
             final List<FieldInfo> fieldInfoSorted = new ArrayList<>(fieldInfo);
-            Collections.sort(fieldInfoSorted, new Comparator<FieldInfo>() {
-                @Override
-                public int compare(final FieldInfo f1, final FieldInfo f2) {
-                    return f1.getFieldName().compareTo(f2.getFieldName());
-                }
-            });
+            Collections.sort(fieldInfoSorted);
             for (final FieldInfo fi : fieldInfoSorted) {
                 buf.append("<tr>");
                 buf.append("<td align='right' valign='top'>");
 
                 // Field Annotations
-                for (final AnnotationInfo ai : fi.getAnnotationInfo()) {
-                    if (buf.charAt(buf.length() - 1) != ' ') {
-                        buf.append(' ');
+                List<AnnotationInfo> fieldAnnotationInfo = fi.annotationInfo;
+                if (fieldAnnotationInfo != null) {
+                    for (final AnnotationInfo ai : fieldAnnotationInfo) {
+                        if (buf.charAt(buf.length() - 1) != ' ') {
+                            buf.append(' ');
+                        }
+                        htmlEncode(ai.toString(), buf);
                     }
-                    htmlEncode(ai.toString(), buf);
                 }
 
                 // Field modifiers
@@ -307,19 +288,14 @@ public class GraphvizDotfileGenerator {
         }
 
         // Methods
-        final List<MethodInfo> methodInfo = ci.getMethodInfo();
+        final List<MethodInfo> methodInfo = ci.methodInfo;
         if (showMethods && methodInfo != null && methodInfo.size() > 0) {
             buf.append("<tr><td cellpadding='0'>");
             buf.append("<table border='0' cellborder='0'>");
             buf.append("<tr><td colspan='3' bgcolor='" + darkerColor + "'><font point-size='12'><b>"
                     + (scanSpec.ignoreMethodVisibility ? "" : "PUBLIC ") + "METHODS</b></font></td></tr>");
             final List<MethodInfo> methodInfoSorted = new ArrayList<>(methodInfo);
-            Collections.sort(methodInfoSorted, new Comparator<MethodInfo>() {
-                @Override
-                public int compare(final MethodInfo f1, final MethodInfo f2) {
-                    return f1.getMethodName().compareTo(f2.getMethodName());
-                }
-            });
+            Collections.sort(methodInfoSorted);
             for (final MethodInfo mi : methodInfoSorted) {
                 // Don't list static initializer blocks
                 if (!mi.getMethodName().equals("<clinit>")) {
@@ -328,11 +304,14 @@ public class GraphvizDotfileGenerator {
                     // Method annotations
                     // TODO: wrap this cell if the contents get too long
                     buf.append("<td align='right' valign='top'>");
-                    for (final AnnotationInfo ai : mi.getAnnotationInfo()) {
-                        if (buf.charAt(buf.length() - 1) != ' ') {
-                            buf.append(' ');
+                    List<AnnotationInfo> methodAnnotationInfo = mi.annotationInfo;
+                    if (methodAnnotationInfo != null) {
+                        for (final AnnotationInfo ai : methodAnnotationInfo) {
+                            if (buf.charAt(buf.length() - 1) != ' ') {
+                                buf.append(' ');
+                            }
+                            htmlEncode(ai.toString(), buf);
                         }
-                        htmlEncode(ai.toString(), buf);
                     }
 
                     // Method modifiers
@@ -383,7 +362,7 @@ public class GraphvizDotfileGenerator {
                             }
 
                             // Param annotation
-                            final AnnotationInfo[] paramAnnotationInfo = paramInfo[i].getAnnotationInfo();
+                            final AnnotationInfo[] paramAnnotationInfo = paramInfo[i].annotationInfo;
                             if (paramAnnotationInfo != null) {
                                 for (final AnnotationInfo ai : paramAnnotationInfo) {
                                     final String ais = ai.toString();
@@ -394,8 +373,8 @@ public class GraphvizDotfileGenerator {
                                         htmlEncode(ais, buf);
                                         wrapPos += 1 + ais.length();
                                         if (wrapPos > PARAM_WRAP_WIDTH) {
-                                            buf.append(
-                                                    "</td></tr><tr><td></td><td></td><td align='left' valign='top'>");
+                                            buf.append("</td></tr><tr><td></td><td></td>"
+                                                    + "<td align='left' valign='top'>");
                                             wrapPos = 0;
                                         }
                                     }
@@ -494,7 +473,7 @@ public class GraphvizDotfileGenerator {
             }
 
             final Set<String> referencedFieldTypeNames = new HashSet<>();
-            final List<FieldInfo> fieldInfo = classNode.getFieldInfo();
+            final List<FieldInfo> fieldInfo = classNode.fieldInfo;
             if (fieldInfo != null) {
                 for (final FieldInfo fi : fieldInfo) {
                     final TypeSignature fieldSig = fi.getTypeSignature();
@@ -512,7 +491,7 @@ public class GraphvizDotfileGenerator {
             }
 
             final Set<String> referencedMethodTypeNames = new HashSet<>();
-            final List<MethodInfo> methodInfo = classNode.getMethodInfo();
+            final List<MethodInfo> methodInfo = classNode.methodInfo;
             if (methodInfo != null) {
                 for (final MethodInfo mi : methodInfo) {
                     final MethodTypeSignature methodSig = mi.getTypeSignature();

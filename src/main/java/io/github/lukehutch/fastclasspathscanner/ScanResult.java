@@ -46,7 +46,6 @@ import java.util.regex.Pattern;
 import io.github.lukehutch.fastclasspathscanner.json.JSONDeserializer;
 import io.github.lukehutch.fastclasspathscanner.json.JSONSerializer;
 import io.github.lukehutch.fastclasspathscanner.utils.ClassLoaderAndModuleFinder;
-import io.github.lukehutch.fastclasspathscanner.utils.GraphvizDotfileGenerator;
 import io.github.lukehutch.fastclasspathscanner.utils.JarUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.JarfileMetadataReader;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
@@ -640,16 +639,14 @@ public class ScanResult {
      *            The GraphViz layout width in inches.
      * @param showFields
      *            If true, show fields within class nodes in the graph. To show field info,
-     *            {@link io.github.lukehutch.fastclasspathscanner.FastClasspathScanner#enableFieldInfo()} should be
-     *            called before scanning. You may also want to call
-     *            {@link io.github.lukehutch.fastclasspathscanner.FastClasspathScanner#ignoreFieldVisibility()}
-     *            before scanning, to show non-public fields.
+     *            {@link FastClasspathScanner#enableFieldInfo()} should be called before scanning. You may also want
+     *            to call {@link FastClasspathScanner#ignoreFieldVisibility()} before scanning, to show non-public
+     *            fields.
      * @param showMethods
      *            If true, show methods within class nodes in the graph. To show method info,
-     *            {@link io.github.lukehutch.fastclasspathscanner.FastClasspathScanner#enableMethodInfo()} should be
-     *            called before scanning. You may also want to call
-     *            {@link io.github.lukehutch.fastclasspathscanner.FastClasspathScanner#ignoreMethodVisibility()}
-     *            before scanning, to show non-public methods.
+     *            {@link FastClasspathScanner#enableMethodInfo()} should be called before scanning. You may also
+     *            want to call {@link FastClasspathScanner#ignoreMethodVisibility()} before scanning, to show
+     *            non-public methods.
      * @return the GraphViz file contents.
      */
     public String generateClassGraphDotFile(final float sizeX, final float sizeY, final boolean showFields,
@@ -666,13 +663,10 @@ public class ScanResult {
     /**
      * Generate a .dot file which can be fed into GraphViz for layout and visualization of the class graph. Methods
      * and fields are shown, if method and field info have been enabled respectively, via
-     * {@link io.github.lukehutch.fastclasspathscanner.FastClasspathScanner#enableMethodInfo()} and
-     * {@link io.github.lukehutch.fastclasspathscanner.FastClasspathScanner#enableFieldInfo()}. Only public
-     * methods/fields are shown, unless
-     * {@link io.github.lukehutch.fastclasspathscanner.FastClasspathScanner#ignoreMethodVisibility()} and/or
-     * {@link io.github.lukehutch.fastclasspathscanner.FastClasspathScanner#ignoreFieldVisibility()} has been
-     * called. The sizeX and sizeY parameters are the image output size to use (in inches) when GraphViz is asked to
-     * render the .dot file.
+     * {@link FastClasspathScanner#enableMethodInfo()} and {@link FastClasspathScanner#enableFieldInfo()}. Only
+     * public methods/fields are shown, unless {@link FastClasspathScanner#ignoreMethodVisibility()} and/or
+     * {@link FastClasspathScanner#ignoreFieldVisibility()} has been called. The sizeX and sizeY parameters are the
+     * image output size to use (in inches) when GraphViz is asked to render the .dot file.
      *
      * @param sizeX
      *            The GraphViz layout width in inches.
@@ -687,12 +681,9 @@ public class ScanResult {
     /**
      * Generate a .dot file which can be fed into GraphViz for layout and visualization of the class graph. Methods
      * and fields are shown, if method and field info have been enabled respectively, via
-     * {@link io.github.lukehutch.fastclasspathscanner.FastClasspathScanner#enableMethodInfo()} and
-     * {@link io.github.lukehutch.fastclasspathscanner.FastClasspathScanner#enableFieldInfo()}. Only public
-     * methods/fields are shown, unless
-     * {@link io.github.lukehutch.fastclasspathscanner.FastClasspathScanner#ignoreMethodVisibility()} and/or
-     * {@link io.github.lukehutch.fastclasspathscanner.FastClasspathScanner#ignoreFieldVisibility()} has been
-     * called. The size defaults to 10.5 x 8 inches.
+     * {@link FastClasspathScanner#enableMethodInfo()} and {@link FastClasspathScanner#enableFieldInfo()}. Only
+     * public methods/fields are shown, unless {@link FastClasspathScanner#ignoreMethodVisibility()} and/or
+     * {@link FastClasspathScanner#ignoreFieldVisibility()} has been called. The size defaults to 10.5 x 8 inches.
      *
      * @return the GraphViz file contents.
      */
@@ -704,12 +695,10 @@ public class ScanResult {
     /**
      * Generate a .dot file which can be fed into GraphViz for layout and visualization of the class graph, and save
      * it to the specified file. Methods and fields are shown, if method and field info have been enabled
-     * respectively, via {@link io.github.lukehutch.fastclasspathscanner.FastClasspathScanner#enableMethodInfo()}
-     * and {@link io.github.lukehutch.fastclasspathscanner.FastClasspathScanner#enableFieldInfo()}. Only public
-     * methods/fields are shown, unless
-     * {@link io.github.lukehutch.fastclasspathscanner.FastClasspathScanner#ignoreMethodVisibility()} and/or
-     * {@link io.github.lukehutch.fastclasspathscanner.FastClasspathScanner#ignoreFieldVisibility()} has been
-     * called. The size defaults to 10.5 x 8 inches.
+     * respectively, via {@link FastClasspathScanner#enableMethodInfo()} and
+     * {@link FastClasspathScanner#enableFieldInfo()}. Only public methods/fields are shown, unless
+     * {@link FastClasspathScanner#ignoreMethodVisibility()} and/or
+     * {@link FastClasspathScanner#ignoreFieldVisibility()} has been called. The size defaults to 10.5 x 8 inches.
      *
      * @param file
      *            the file to save the GraphViz .dot file to.
