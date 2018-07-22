@@ -103,7 +103,7 @@ public class FileUtils {
      */
     public static InputStream byteBufferToInputStream(final ByteBuffer byteBuffer) {
         return new InputStream() {
-            ByteBuffer buf = byteBuffer;
+            final ByteBuffer buf = byteBuffer;
 
             @Override
             public int read() throws IOException {
