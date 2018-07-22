@@ -494,7 +494,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     // -------------------------------------------------------------------------------------------------------------
 
     /** How classes are related. */
-    private static enum RelType {
+    static enum RelType {
 
         // Classes:
 
@@ -879,7 +879,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     // -------------------------------------------------------------------------------------------------------------
 
     /** The class type to return. */
-    private static enum ClassType {
+    static enum ClassType {
         /** Get all class types. */
         ALL,
         /** A standard class (not an interface or annotation). */
@@ -1061,7 +1061,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /** Get the classes related to this one in the specified way. */
-    private ClassInfoList filterClassInfo(final RelType relType, final ClassType... classTypes) {
+    ClassInfoList filterClassInfo(final RelType relType, final ClassType... classTypes) {
         final Entry<Set<ClassInfo>, Set<ClassInfo>> reachableAndDirectlyRelatedClasses = //
                 getReachableAndDirectlyRelatedClasses(relType);
         final Set<ClassInfo> reachableClasses = reachableAndDirectlyRelatedClasses.getKey();
@@ -1192,8 +1192,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return the list of subinterfaces of this interface, or the empty list if none.
      */
     public ClassInfoList getSubinterfaces() {
-        return !isImplementedInterface() ? ClassInfoList.EMPTY_LIST
-                : this.filterClassInfo(RelType.CLASSES_IMPLEMENTING, ClassType.IMPLEMENTED_INTERFACE);
+        return this.filterClassInfo(RelType.CLASSES_IMPLEMENTING, ClassType.IMPLEMENTED_INTERFACE);
     }
 
     /**
@@ -1202,8 +1201,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return the list of superinterfaces of this interface, or the empty list if none.
      */
     public ClassInfoList getSuperinterfaces() {
-        return !isImplementedInterface() ? ClassInfoList.EMPTY_LIST
-                : this.filterClassInfo(RelType.IMPLEMENTED_INTERFACES);
+        return this.filterClassInfo(RelType.IMPLEMENTED_INTERFACES);
     }
 
     /**
@@ -1213,20 +1211,16 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         empty list if none.
      */
     public ClassInfoList getImplementedInterfaces() {
-        if (!isStandardClass()) {
-            return ClassInfoList.EMPTY_LIST;
-        } else {
-            // Classes also implement the interfaces of their superclasses
-            final ClassInfoList superclasses = this.filterClassInfo(RelType.SUPERCLASSES);
-            final ClassInfoList implementedInterfaces = this.filterClassInfo(RelType.IMPLEMENTED_INTERFACES);
-            final Set<ClassInfo> allInterfaces = new HashSet<>(implementedInterfaces);
-            for (final ClassInfo superclass : superclasses) {
-                final ClassInfoList superclassImplementedInterfaces = superclass
-                        .filterClassInfo(RelType.IMPLEMENTED_INTERFACES);
-                allInterfaces.addAll(superclassImplementedInterfaces);
-            }
-            return new ClassInfoList(allInterfaces, implementedInterfaces.directOnly(), scanResult);
+        // Classes also implement the interfaces of their superclasses
+        final ClassInfoList superclasses = this.filterClassInfo(RelType.SUPERCLASSES);
+        final ClassInfoList implementedInterfaces = this.filterClassInfo(RelType.IMPLEMENTED_INTERFACES);
+        final Set<ClassInfo> allInterfaces = new HashSet<>(implementedInterfaces);
+        for (final ClassInfo superclass : superclasses) {
+            final ClassInfoList superclassImplementedInterfaces = superclass
+                    .filterClassInfo(RelType.IMPLEMENTED_INTERFACES);
+            allInterfaces.addAll(superclassImplementedInterfaces);
         }
+        return new ClassInfoList(allInterfaces, implementedInterfaces.directOnly(), scanResult);
     }
 
     /**
@@ -1235,18 +1229,14 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return the list of classes implementing this interface, or the empty list if none.
      */
     public ClassInfoList getClassesImplementing() {
-        if (!isImplementedInterface()) {
-            return ClassInfoList.EMPTY_LIST;
-        } else {
-            // Subclasses of implementing classes also implement the interface
-            final ClassInfoList implementingClasses = this.filterClassInfo(RelType.CLASSES_IMPLEMENTING);
-            final Set<ClassInfo> allImplementingClasses = new HashSet<>(implementingClasses);
-            for (final ClassInfo implementingClass : implementingClasses) {
-                final ClassInfoList implementingSubclasses = implementingClass.filterClassInfo(RelType.SUBCLASSES);
-                allImplementingClasses.addAll(implementingSubclasses);
-            }
-            return new ClassInfoList(allImplementingClasses, implementingClasses.directOnly(), scanResult);
+        // Subclasses of implementing classes also implement the interface
+        final ClassInfoList implementingClasses = this.filterClassInfo(RelType.CLASSES_IMPLEMENTING);
+        final Set<ClassInfo> allImplementingClasses = new HashSet<>(implementingClasses);
+        for (final ClassInfo implementingClass : implementingClasses) {
+            final ClassInfoList implementingSubclasses = implementingClass.filterClassInfo(RelType.SUBCLASSES);
+            allImplementingClasses.addAll(implementingSubclasses);
         }
+        return new ClassInfoList(allImplementingClasses, implementingClasses.directOnly(), scanResult);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -1263,9 +1253,6 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         if (!scanSpec.enableAnnotationInfo) {
             throw new IllegalArgumentException("Cannot get classes with annotation without calling "
                     + "FastClasspathScanner#enableAnnotationInfo() before starting the scan");
-        }
-        if (!isAnnotation()) {
-            return ClassInfoList.EMPTY_LIST;
         }
         final ClassInfoList classesWithAnnotation = this.filterClassInfo(RelType.CLASSES_WITH_CLASS_ANNOTATION);
         boolean isInherited = false;
@@ -1284,9 +1271,10 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             for (final ClassInfo classWithAnnotation : classesWithAnnotation) {
                 classesWithAnnotationAndTheirSubclasses.addAll(classWithAnnotation.getSubclasses());
             }
-            return new ClassInfoList(classesWithAnnotationAndTheirSubclasses, classesWithAnnotation, scanResult);
+            return new ClassInfoList(classesWithAnnotationAndTheirSubclasses, classesWithAnnotation.directOnly(),
+                    scanResult);
         } else {
-            return new ClassInfoList(classesWithAnnotation, null, scanResult);
+            return classesWithAnnotation;
         }
     }
 
@@ -1332,8 +1320,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             throw new IllegalArgumentException("Cannot get annotations without calling "
                     + "FastClasspathScanner#enableAnnotationInfo() before starting the scan");
         }
-        return !isAnnotation() ? ClassInfoList.EMPTY_LIST
-                : this.filterClassInfo(RelType.CLASS_ANNOTATIONS, ClassType.ALL);
+        return this.filterClassInfo(RelType.CLASS_ANNOTATIONS);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -1511,7 +1498,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                     + "FastClasspathScanner#enableAnnotationInfo() and FastClasspathScanner#enableMethodInfo() "
                     + "before starting the scan");
         }
-        return this.filterClassInfo(RelType.CLASSES_WITH_METHOD_ANNOTATION, ClassType.ALL);
+        return this.filterClassInfo(RelType.CLASSES_WITH_METHOD_ANNOTATION);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -1618,6 +1605,6 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                     + "FastClasspathScanner#enableAnnotationInfo() and FastClasspathScanner#enableFieldInfo() "
                     + "before starting the scan");
         }
-        return this.filterClassInfo(RelType.CLASSES_WITH_FIELD_ANNOTATION, ClassType.ALL);
+        return this.filterClassInfo(RelType.CLASSES_WITH_FIELD_ANNOTATION);
     }
 }
