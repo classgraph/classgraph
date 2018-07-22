@@ -40,8 +40,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import io.github.lukehutch.fastclasspathscanner.json.JSONUtils.ParameterizedTypeImpl;
-
 /**
  * Fast, lightweight Java object to JSON serializer, and JSON to Java object deserializer. Handles cycles in the
  * object graph by inserting reference ids.

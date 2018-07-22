@@ -35,8 +35,6 @@ import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.lang.reflect.WildcardType;
 
-import io.github.lukehutch.fastclasspathscanner.json.JSONUtils.ParameterizedTypeImpl;
-
 /** A list of element type TypeVariableToResolvedType. */
 class TypeResolutions {
     TypeVariable<?>[] typeVariables;
