@@ -151,7 +151,6 @@ public abstract class InputStreamOrByteBufferAdapter {
     }
 
     /** Read a long from the buffer. */
-    @SuppressWarnings("unused")
     public long readLong() throws IOException, InterruptedException {
         if (curr > used - 8) {
             readMore(8);
