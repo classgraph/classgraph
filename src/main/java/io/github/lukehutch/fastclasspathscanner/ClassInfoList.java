@@ -369,8 +369,10 @@ public class ClassInfoList implements List<ClassInfo> {
      */
     public ClassInfoList union(final ClassInfoList... others) {
         final Set<ClassInfo> reachableClassesUnion = new HashSet<>(reachableClasses);
-        final Set<ClassInfo> directlyRelatedClassesUnion = directlyRelatedClasses == null ? new HashSet<>()
-                : new HashSet<>(directlyRelatedClasses);
+        final Set<ClassInfo> directlyRelatedClassesUnion = new HashSet<>();
+        if (directlyRelatedClasses != null) {
+            directlyRelatedClassesUnion.addAll(directlyRelatedClasses);
+        }
         for (final ClassInfoList other : others) {
             reachableClassesUnion.addAll(other);
             if (other.directlyRelatedClasses != null) {
@@ -389,15 +391,17 @@ public class ClassInfoList implements List<ClassInfo> {
      */
     public ClassInfoList intersect(final ClassInfoList... others) {
         final Set<ClassInfo> reachableClassesIntersection = new HashSet<>(reachableClasses);
-        final Set<ClassInfo> directlyRelatedClassesIntersecion = directlyRelatedClasses == null ? new HashSet<>()
-                : new HashSet<>(directlyRelatedClasses);
+        final Set<ClassInfo> directlyRelatedClassesIntersection = new HashSet<>();
+        if (directlyRelatedClasses != null) {
+            directlyRelatedClassesIntersection.addAll(directlyRelatedClasses);
+        }
         for (final ClassInfoList other : others) {
             reachableClassesIntersection.retainAll(other);
             if (other.directlyRelatedClasses != null) {
-                directlyRelatedClassesIntersecion.retainAll(other.directlyRelatedClasses);
+                directlyRelatedClassesIntersection.retainAll(other.directlyRelatedClasses);
             }
         }
-        return new ClassInfoList(reachableClassesIntersection, directlyRelatedClassesIntersecion);
+        return new ClassInfoList(reachableClassesIntersection, directlyRelatedClassesIntersection);
     }
 
     /**
@@ -409,8 +413,10 @@ public class ClassInfoList implements List<ClassInfo> {
      */
     public ClassInfoList exclude(final ClassInfoList other) {
         final Set<ClassInfo> reachableClassesDifference = new HashSet<>(reachableClasses);
-        final Set<ClassInfo> directlyRelatedClassesDifference = directlyRelatedClasses == null ? new HashSet<>()
-                : new HashSet<>(directlyRelatedClasses);
+        final Set<ClassInfo> directlyRelatedClassesDifference = new HashSet<>();
+        if (directlyRelatedClasses != null) {
+            directlyRelatedClassesDifference.addAll(directlyRelatedClasses);
+        }
         reachableClassesDifference.removeAll(other);
         if (other.directlyRelatedClasses != null) {
             directlyRelatedClassesDifference.removeAll(other.directlyRelatedClasses);
