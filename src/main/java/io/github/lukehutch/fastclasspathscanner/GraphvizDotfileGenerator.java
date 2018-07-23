@@ -419,7 +419,8 @@ class GraphvizDotfileGenerator {
      * .dot file.
      */
     static String generateClassGraphDotFile(final ClassInfoList classInfoList, final float sizeX, final float sizeY,
-            final boolean showFields, final boolean showMethods, final ScanSpec scanSpec) {
+            final boolean showFields, final boolean showMethods, final boolean showAnnotations,
+            final ScanSpec scanSpec) {
         final StringBuilder buf = new StringBuilder();
         buf.append("digraph {\n");
         buf.append("size=\"" + sizeX + "," + sizeY + "\";\n");
@@ -523,29 +524,31 @@ class GraphvizDotfileGenerator {
                 }
             }
         }
-        for (final ClassInfo annotationNode : annotationNodes) {
-            for (final ClassInfo annotatedClassNode : annotationNode
-                    .filterClassInfo(RelType.CLASSES_WITH_CLASS_ANNOTATION).directOnly()) {
-                if (allVisibleNodes.contains(annotatedClassNode.getName())) {
-                    // annotated class --o annotation
-                    buf.append("  \"" + annotatedClassNode.getName() + "\" -> \"" + annotationNode.getName()
-                            + "\" [arrowhead=dot, arrowsize=2.5]\n");
+        if (showAnnotations) {
+            for (final ClassInfo annotationNode : annotationNodes) {
+                for (final ClassInfo annotatedClassNode : annotationNode
+                        .filterClassInfo(RelType.CLASSES_WITH_CLASS_ANNOTATION).directOnly()) {
+                    if (allVisibleNodes.contains(annotatedClassNode.getName())) {
+                        // annotated class --o annotation
+                        buf.append("  \"" + annotatedClassNode.getName() + "\" -> \"" + annotationNode.getName()
+                                + "\" [arrowhead=dot, arrowsize=2.5]\n");
+                    }
                 }
-            }
-            for (final ClassInfo classWithMethodAnnotationNode : annotationNode
-                    .filterClassInfo(RelType.CLASSES_WITH_METHOD_ANNOTATION).directOnly()) {
-                if (allVisibleNodes.contains(classWithMethodAnnotationNode.getName())) {
-                    // class with method annotation --o method annotation
-                    buf.append("  \"" + classWithMethodAnnotationNode.getName() + "\" -> \""
-                            + annotationNode.getName() + "\" [arrowhead=odot, arrowsize=2.5]\n");
+                for (final ClassInfo classWithMethodAnnotationNode : annotationNode
+                        .filterClassInfo(RelType.CLASSES_WITH_METHOD_ANNOTATION).directOnly()) {
+                    if (allVisibleNodes.contains(classWithMethodAnnotationNode.getName())) {
+                        // class with method annotation --o method annotation
+                        buf.append("  \"" + classWithMethodAnnotationNode.getName() + "\" -> \""
+                                + annotationNode.getName() + "\" [arrowhead=odot, arrowsize=2.5]\n");
+                    }
                 }
-            }
-            for (final ClassInfo classWithMethodAnnotationNode : annotationNode
-                    .filterClassInfo(RelType.CLASSES_WITH_FIELD_ANNOTATION).directOnly()) {
-                if (allVisibleNodes.contains(classWithMethodAnnotationNode.getName())) {
-                    // class with field annotation --o method annotation
-                    buf.append("  \"" + classWithMethodAnnotationNode.getName() + "\" -> \""
-                            + annotationNode.getName() + "\" [arrowhead=odot, arrowsize=2.5]\n");
+                for (final ClassInfo classWithMethodAnnotationNode : annotationNode
+                        .filterClassInfo(RelType.CLASSES_WITH_FIELD_ANNOTATION).directOnly()) {
+                    if (allVisibleNodes.contains(classWithMethodAnnotationNode.getName())) {
+                        // class with field annotation --o method annotation
+                        buf.append("  \"" + classWithMethodAnnotationNode.getName() + "\" -> \""
+                                + annotationNode.getName() + "\" [arrowhead=odot, arrowsize=2.5]\n");
+                    }
                 }
             }
         }
