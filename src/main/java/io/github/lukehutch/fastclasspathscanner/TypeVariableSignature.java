@@ -50,12 +50,7 @@ public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
     @Override
     void setScanResult(final ScanResult scanResult) {
         super.setScanResult(scanResult);
-        if (this.containingMethodSignature != null) {
-            this.containingMethodSignature.setScanResult(scanResult);
-        }
-        if (this.containingClassSignature != null) {
-            this.containingClassSignature.setScanResult(scanResult);
-        }
+        // No need to set type signature in containing class or method, they will have already been set
     }
 
     /**
