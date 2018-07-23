@@ -436,6 +436,8 @@ public class ClassInfoList implements List<ClassInfo> {
         return new ClassInfoList(reachableClassesDifference, directlyRelatedClassesDifference);
     }
 
+    // -------------------------------------------------------------------------------------------------------------
+
     /**
      * Filter a {@link ClassInfoList} using a predicate mapping a {@link ClassInfo} object to a boolean, producing
      * another {@link ClassInfoList} for all items in the list for which the predicate is true.
