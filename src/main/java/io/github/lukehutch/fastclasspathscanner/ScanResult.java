@@ -54,7 +54,7 @@ import io.github.lukehutch.fastclasspathscanner.utils.NestedJarHandler;
 /** The result of a scan. */
 public class ScanResult {
     /** The scan spec. */
-    private final ScanSpec scanSpec;
+    final ScanSpec scanSpec;
 
     /** The order of unique classpath elements. */
     private final List<ClasspathElement> classpathOrder;
@@ -88,14 +88,6 @@ public class ScanResult {
     /** The log. */
     private final LogNode log;
 
-    /** Called after deserialization. */
-    void setFields(final ScanSpec scanSpec) {
-        for (final ClassInfo classInfo : classNameToClassInfo.values()) {
-            classInfo.setFields(scanSpec);
-            classInfo.setScanResult(this);
-        }
-    }
-
     // -------------------------------------------------------------------------------------------------------------
 
     /** The result of a scan. Make sure you call complete() after calling the constructor. */
@@ -118,9 +110,11 @@ public class ScanResult {
         this.nestedJarHandler = nestedJarHandler;
         this.log = log;
 
-        // Add some post-scan backrefs from info objects to this ScanResult and to the scan spec
+        // Add backrefs from info objects back to this ScanResult
         if (classNameToClassInfo != null) {
-            setFields(scanSpec);
+            for (final ClassInfo classInfo : classNameToClassInfo.values()) {
+                classInfo.setScanResult(this);
+            }
         }
     }
 

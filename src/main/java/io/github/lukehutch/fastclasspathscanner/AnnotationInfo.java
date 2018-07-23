@@ -42,7 +42,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
     String annotationName;
     List<AnnotationParamValue> annotationParamValues;
 
-    // Set when a ClassInfo class adds this class as an annotation
+    /** Link back to the ClassInfo class containing default annotation param values. */
     private ClassInfo classInfo;
 
     /** Default constructor for deserialization. */

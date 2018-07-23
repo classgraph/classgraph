@@ -118,9 +118,6 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /** The classloaders to try to load this class with before calling a MatchProcessor. */
     transient ClassLoader[] classLoaders;
 
-    /** The scan spec. */
-    transient ScanSpec scanSpec;
-
     /** Info on class annotations, including optional annotation param values. */
     AnnotationInfoList annotationInfo;
 
@@ -139,7 +136,25 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /** The set of classes related to this one. */
     Map<RelType, Set<ClassInfo>> relatedClasses = new HashMap<>();
 
+    private transient ScanSpec scanSpec;
+
     // -------------------------------------------------------------------------------------------------------------
+
+    /** Default constructor for deserialization. */
+    ClassInfo() {
+    }
+
+    private ClassInfo(final String className, final int classModifiers, final boolean isExternalClass,
+            final ScanSpec scanSpec) {
+        this.className = className;
+        if (className.endsWith(";")) {
+            // Spot check to make sure class names were parsed from descriptors
+            throw new RuntimeException("Bad class name");
+        }
+        this.modifiers = classModifiers;
+        this.isExternalClass = isExternalClass;
+        this.scanSpec = scanSpec;
+    }
 
     @Override
     void setScanResult(final ScanResult scanResult) {
@@ -160,41 +175,10 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         if (methodInfo != null) {
             for (final MethodInfo mi : methodInfo) {
                 mi.setScanResult(scanResult);
+                mi.classInfo = this;
+                mi.className = this.className;
             }
         }
-    }
-
-    /** Sets back-reference to ScanSpec after deserialization. */
-    void setFields(final ScanSpec scanSpec) {
-        this.scanSpec = scanSpec;
-        if (this.methodInfo != null) {
-            for (final MethodInfo methodInfo : this.methodInfo) {
-                methodInfo.classInfo = this;
-                methodInfo.className = this.className;
-                methodInfo.scanSpec = scanSpec;
-            }
-        }
-        if (this.fieldInfo != null) {
-            for (final FieldInfo fieldInfo : this.fieldInfo) {
-                fieldInfo.scanSpec = scanSpec;
-            }
-        }
-    }
-
-    /** Default constructor for deserialization. */
-    ClassInfo() {
-    }
-
-    private ClassInfo(final String className, final int classModifiers, final boolean isExternalClass,
-            final ScanSpec scanSpec) {
-        this.className = className;
-        if (className.endsWith(";")) {
-            // Spot check to make sure class names were parsed from descriptors
-            throw new RuntimeException("Bad class name");
-        }
-        this.modifiers = classModifiers;
-        this.isExternalClass = isExternalClass;
-        this.scanSpec = scanSpec;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -760,8 +744,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * should be run in single threaded context.
      */
     static ClassInfo addScannedClass(final String className, final int classModifiers, final boolean isInterface,
-            final boolean isAnnotation, final ScanSpec scanSpec, final Map<String, ClassInfo> classNameToClassInfo,
-            final ClasspathElement classpathElement, final LogNode log) {
+            final boolean isAnnotation, final Map<String, ClassInfo> classNameToClassInfo,
+            final ClasspathElement classpathElement, final ScanSpec scanSpec, final LogNode log) {
         boolean classEncounteredMultipleTimes = false;
         ClassInfo classInfo = classNameToClassInfo.get(className);
         if (classInfo == null) {

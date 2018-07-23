@@ -46,9 +46,6 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     /** Defining class ClassInfo. */
     transient ClassInfo classInfo;
 
-    /** The ScanSpec. */
-    transient ScanSpec scanSpec;
-
     /** Method name. */
     String methodName;
 
@@ -94,6 +91,8 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     /** Aligned method parameter info */
     transient MethodParameterInfo[] methodParameterInfo;
 
+    transient private ScanSpec scanSpec;
+
     /** Default constructor for deserialization. */
     MethodInfo() {
     }
@@ -138,11 +137,13 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
      *            The parameter modifiers.
      * @param parameterAnnotationInfo
      *            The parameter {@link AnnotationInfo}.
+     * @param scanSpec
+     *            The {@link ScanSpec}.
      */
     public MethodInfo(final String className, final String methodName,
             final AnnotationInfoList methodAnnotationInfo, final int modifiers, final String typeDescriptorStr,
             final String typeSignatureStr, final String[] parameterNames, final int[] parameterModifiers,
-            final AnnotationInfo[][] parameterAnnotationInfo) {
+            final AnnotationInfo[][] parameterAnnotationInfo, final ScanSpec scanSpec) {
         this.className = className;
         this.methodName = methodName;
         this.modifiers = modifiers;
@@ -153,6 +154,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
         this.parameterAnnotationInfo = parameterAnnotationInfo;
         this.annotationInfo = methodAnnotationInfo == null || methodAnnotationInfo.isEmpty() ? null
                 : methodAnnotationInfo;
+        this.scanSpec = scanSpec;
     }
 
     // -------------------------------------------------------------------------------------------------------------

@@ -86,10 +86,12 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
      *            The static constant value the field is initialized to, if any.
      * @param annotationInfo
      *            {@link AnnotationInfo} for any annotations on the field.
+     * @param scanSpec
+     *            The {@link ScanSpec}.
      */
     public FieldInfo(final String className, final String fieldName, final int modifiers,
             final String typeDescriptorStr, final String typeSignatureStr, final Object constInitializerValue,
-            final AnnotationInfoList annotationInfo) {
+            final AnnotationInfoList annotationInfo, final ScanSpec scanSpec) {
         if (fieldName == null) {
             throw new IllegalArgumentException();
         }
@@ -101,6 +103,8 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
 
         this.constInitializerValue = constInitializerValue;
         this.annotationInfo = annotationInfo == null || annotationInfo.isEmpty() ? null : annotationInfo;
+
+        this.scanSpec = scanSpec;
     }
 
     /**

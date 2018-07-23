@@ -121,7 +121,7 @@ class ClassInfoUnlinked {
     /** Link classes. Not threadsafe, should be run in a single-threaded context. */
     void link(final ScanSpec scanSpec, final Map<String, ClassInfo> classNameToClassInfo, final LogNode log) {
         final ClassInfo classInfo = ClassInfo.addScannedClass(className, classModifiers, isInterface, isAnnotation,
-                scanSpec, classNameToClassInfo, classpathElement, log);
+                classNameToClassInfo, classpathElement, scanSpec, log);
         if (superclassName != null) {
             classInfo.addSuperclass(superclassName, classNameToClassInfo);
         }
