@@ -345,22 +345,22 @@ public class FastClasspathScannerTest {
 
     @Test
     public void generateGraphVizFile() {
-        final String dotFile = new FastClasspathScanner().whitelistPackages(ROOT_PACKAGE).scan()
+        final String dotFile = new FastClasspathScanner().whitelistPackages(ROOT_PACKAGE).enableAllInfo().scan()
                 .generateClassGraphDotFile(20, 20);
         assertThat(dotFile).contains("\"" + ClsSub.class.getName() + "\" -> \"" + Cls.class.getName() + "\"");
     }
 
     @Test
     public void testGetClasspathElements() {
-        assertThat(new FastClasspathScanner().whitelistPackages(ROOT_PACKAGE).getClasspathFiles().size())
-                .isGreaterThan(0);
+        assertThat(new FastClasspathScanner().whitelistPackages(ROOT_PACKAGE).enableAllInfo().getClasspathFiles()
+                .size()).isGreaterThan(0);
     }
 
     @Test
     public void getManifest() throws Exception {
         final AtomicBoolean foundManifest = new AtomicBoolean();
-        new FastClasspathScanner().whitelistPaths("META-INF").scan().getResourcesWithLeafName("MANIFEST.MF")
-                .forEach(r -> foundManifest.set(true));
+        new FastClasspathScanner().whitelistPaths("META-INF").enableAllInfo().scan()
+                .getResourcesWithLeafName("MANIFEST.MF").forEach(r -> foundManifest.set(true));
         assertThat(foundManifest.get()).isTrue();
     }
 }

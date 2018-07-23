@@ -39,25 +39,31 @@ public class Issue101Test {
     @Test
     public void nonInheritedAnnotation() {
         final ScanResult scanResult = new FastClasspathScanner()
-                .whitelistPackages(Issue101Test.class.getPackage().getName()).enableAnnotationInfo().scan();
+                .whitelistPackages(Issue101Test.class.getPackage().getName()).enableAllInfo().scan();
         assertThat(scanResult.getClassesWithAnnotation(NonInheritedAnnotation.class.getName()).getClassNames())
                 .containsOnly(AnnotatedClass.class.getName());
     }
 
     @Test
+    public void inheritedMetaAnnotation() {
+        final ScanResult scanResult = new FastClasspathScanner()
+                .whitelistPackages(Issue101Test.class.getPackage().getName()).enableAllInfo().scan();
+        assertThat(scanResult.getClassesWithAnnotation(InheritedMetaAnnotation.class.getName()).getStandardClasses()
+                .getClassNames()).containsOnly(AnnotatedClass.class.getName(),
+                        NonAnnotatedSubclass.class.getName());
+    }
+
+    @Test
     public void inheritedAnnotation() {
         final ScanResult scanResult = new FastClasspathScanner()
-                .whitelistPackages(Issue101Test.class.getPackage().getName()).enableAnnotationInfo().scan();
+                .whitelistPackages(Issue101Test.class.getPackage().getName()).enableAllInfo().scan();
         assertThat(scanResult.getClassesWithAnnotation(InheritedAnnotation.class.getName()).getClassNames())
                 .containsOnly(AnnotatedClass.class.getName(), NonAnnotatedSubclass.class.getName(),
                         AnnotatedInterface.class.getName());
     }
 
-    @Test
-    public void inheritedMetaAnnotation() {
-        final ScanResult scanResult = new FastClasspathScanner()
-                .whitelistPackages(Issue101Test.class.getPackage().getName()).enableAnnotationInfo().scan();
-        assertThat(scanResult.getClassesWithAnnotation(InheritedMetaAnnotation.class.getName()).getClassNames())
-                .containsOnly(AnnotatedClass.class.getName(), NonAnnotatedSubclass.class.getName());
-    }
+    //    public static void main(String[] args) throws Exception {
+    //        new FastClasspathScanner().whitelistPackages(Issue101Test.class.getPackage().getName()).enableAllInfo()
+    //                .scan().generateClassGraphDotFile(new File("/tmp/graph.dot"));
+    //    }
 }

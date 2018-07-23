@@ -47,7 +47,7 @@ public abstract class Recycler<T extends AutoCloseable, E extends Exception> imp
         if (instance != null) {
             return instance;
         }
-        final T newInstance = newInstance();  // May throw exception E
+        final T newInstance = newInstance(); // May throw exception E
         if (newInstance != null) {
             allocatedInstances.add(newInstance);
             return newInstance;

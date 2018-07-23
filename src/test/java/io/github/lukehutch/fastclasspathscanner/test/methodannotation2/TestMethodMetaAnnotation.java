@@ -74,10 +74,21 @@ public class TestMethodMetaAnnotation {
 
     @Test
     @ExternalAnnotation
-    public void testClassMetaAnnotation() {
+    public void testMetaAnnotation() {
         final List<String> testClasses = new FastClasspathScanner()
                 .whitelistPackages(TestMethodMetaAnnotation.class.getPackage().getName()).enableAnnotationInfo()
                 .scan().getClassesWithAnnotation(MetaAnnotation.class.getName()).getClassNames();
+        assertThat(testClasses).containsOnly(MethodAnnotation.class.getName(), ClassAnnotation.class.getName(),
+                MetaAnnotatedClass.class.getName());
+    }
+
+    @Test
+    @ExternalAnnotation
+    public void testMetaAnnotationStandardClassesOnly() {
+        final List<String> testClasses = new FastClasspathScanner()
+                .whitelistPackages(TestMethodMetaAnnotation.class.getPackage().getName()).enableAnnotationInfo()
+                .scan().getClassesWithAnnotation(MetaAnnotation.class.getName()).getStandardClasses()
+                .getClassNames();
         assertThat(testClasses).containsOnly(MetaAnnotatedClass.class.getName());
     }
 

@@ -49,6 +49,7 @@ public class Issue151Test {
         final String pkg = Issue151Test.class.getPackage().getName();
         final MethodInfo methodInfo = new FastClasspathScanner().whitelistPackages(pkg) //
                 .enableMethodInfo() //
+                .enableAnnotationInfo() //
                 .scan() //
                 .getClassInfo(Issue151Test.class.getName()) //
                 .getMethodInfo("method") //

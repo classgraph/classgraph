@@ -29,7 +29,7 @@ public class IssuesTest {
                         .contains(Impl1.class.getName());
         assertThat(new FastClasspathScanner().whitelistPackages(Impl1.class.getPackage().getName())
                 .enableExternalClasses().scan().getSuperclasses(Impl1Sub.class.getName()).getClassNames())
-                        .contains(Object.class.getName());
+                        .containsOnly(Impl1.class.getName());
     }
 
     @Test
@@ -44,7 +44,7 @@ public class IssuesTest {
         assertThat(new FastClasspathScanner()
                 .whitelistPackages(InternalExtendsExternal.class.getPackage().getName()).enableExternalClasses()
                 .scan().getSuperclasses(InternalExtendsExternal.class.getName()).getClassNames())
-                        .containsExactly(ExternalSuperclass.class.getName());
+                        .containsOnly(ExternalSuperclass.class.getName());
     }
 
     @Test
@@ -52,7 +52,7 @@ public class IssuesTest {
         assertThat(
                 new FastClasspathScanner().whitelistPackages(InternalExtendsExternal.class.getPackage().getName())
                         .scan().getSubclasses(ExternalSuperclass.class.getName()).getClassNames())
-                                .containsExactly(InternalExtendsExternal.class.getName());
+                                .containsOnly(InternalExtendsExternal.class.getName());
     }
 
     @Test
@@ -60,6 +60,6 @@ public class IssuesTest {
         assertThat(new FastClasspathScanner()
                 .whitelistPackages(InternalExtendsExternal.class.getPackage().getName()).enableExternalClasses()
                 .scan().getSubclasses(ExternalSuperclass.class.getName()).getClassNames())
-                        .containsExactly(InternalExtendsExternal.class.getName());
+                        .containsOnly(InternalExtendsExternal.class.getName());
     }
 }
