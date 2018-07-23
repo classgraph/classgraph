@@ -369,7 +369,7 @@ public class ClassInfoList implements List<ClassInfo> {
      */
     public ClassInfoList union(final ClassInfoList... others) {
         final Set<ClassInfo> reachableClassesUnion = new HashSet<>(reachableClasses);
-        final Set<ClassInfo> directlyRelatedClassesUnion = directlyRelatedClasses == null ? new HashSet<>()
+        final Set<ClassInfo> directlyRelatedClassesUnion = directlyRelatedClasses == null ? new HashSet<ClassInfo>()
                 : new HashSet<>(directlyRelatedClasses);
         for (final ClassInfoList other : others) {
             reachableClassesUnion.addAll(other);
@@ -389,7 +389,8 @@ public class ClassInfoList implements List<ClassInfo> {
      */
     public ClassInfoList intersect(final ClassInfoList... others) {
         final Set<ClassInfo> reachableClassesIntersection = new HashSet<>(reachableClasses);
-        final Set<ClassInfo> directlyRelatedClassesIntersecion = directlyRelatedClasses == null ? new HashSet<>()
+        final Set<ClassInfo> directlyRelatedClassesIntersecion = directlyRelatedClasses == null
+                ? new HashSet<ClassInfo>()
                 : new HashSet<>(directlyRelatedClasses);
         for (final ClassInfoList other : others) {
             reachableClassesIntersection.retainAll(other);
@@ -409,7 +410,8 @@ public class ClassInfoList implements List<ClassInfo> {
      */
     public ClassInfoList exclude(final ClassInfoList other) {
         final Set<ClassInfo> reachableClassesDifference = new HashSet<>(reachableClasses);
-        final Set<ClassInfo> directlyRelatedClassesDifference = directlyRelatedClasses == null ? new HashSet<>()
+        final Set<ClassInfo> directlyRelatedClassesDifference = directlyRelatedClasses == null
+                ? new HashSet<ClassInfo>()
                 : new HashSet<>(directlyRelatedClasses);
         reachableClassesDifference.removeAll(other);
         if (other.directlyRelatedClasses != null) {
