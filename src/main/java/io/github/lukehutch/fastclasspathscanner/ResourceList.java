@@ -60,7 +60,7 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
      *          element. For example, for a resource path of "BOOT-INF/classes/com/xyz/resource.xml" and a package
      *          root of "BOOT-INF/classes/", returns "com/xyz/resource.xml".
      */
-    public List<String> getAllPathsRelativeToPackageRoot() {
+    public List<String> getPathsRelativeToPackageRoot() {
         final List<String> resourcePaths = new ArrayList<>(this.size());
         for (final Resource resource : this) {
             resourcePaths.add(resource.getPathRelativeToPackageRoot());
@@ -76,7 +76,7 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
      *          resource path of "BOOT-INF/classes/com/xyz/resource.xml", returns
      *          "BOOT-INF/classes/com/xyz/resource.xml" (even if the package root is "BOOT-INF/classes/").
      */
-    public List<String> getAllPathsRelativeToClasspathElement() {
+    public List<String> getPathsRelativeToClasspathElement() {
         final List<String> resourcePaths = new ArrayList<>(this.size());
         for (final Resource resource : this) {
             resourcePaths.add(resource.getPathRelativeToClasspathElement());
@@ -91,7 +91,7 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
      *          resource path of "BOOT-INF/classes/com/xyz/resource.xml", returns
      *          "BOOT-INF/classes/com/xyz/resource.xml" (even if the package root is "BOOT-INF/classes/").
      */
-    public List<URL> getAllURLs() {
+    public List<URL> getURLs() {
         final List<URL> resourceURLs = new ArrayList<>(this.size());
         for (final Resource resource : this) {
             resourceURLs.add(resource.getURL());
