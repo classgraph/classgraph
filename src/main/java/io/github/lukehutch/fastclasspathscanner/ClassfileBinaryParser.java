@@ -528,10 +528,6 @@ class ClassfileBinaryParser {
                         final int cpIdx = inputStreamOrByteBuffer.readUnsignedShort();
                         fieldConstValue = getFieldConstantPoolValue(tag[cpIdx], fieldTypeDescriptorFirstChar,
                                 cpIdx);
-                        // Store static final field match in ClassInfo object
-                        if (getStaticFinalFieldConstValue) {
-                            classInfoUnlinked.addFieldConstantValue(fieldName, fieldConstValue);
-                        }
                     } else if (fieldIsVisible && constantPoolStringEquals(attributeNameCpIdx, "Signature")) {
                         fieldTypeSignature = getConstantPoolString(inputStreamOrByteBuffer.readUnsignedShort());
                     } else if (scanSpec.enableAnnotationInfo //

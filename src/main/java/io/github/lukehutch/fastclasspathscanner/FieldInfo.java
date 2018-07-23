@@ -45,8 +45,11 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
     String typeDescriptorStr;
     transient TypeSignature typeSignature;
     transient TypeSignature typeDescriptor;
-    Object constValue;
+    Object constInitializerValue;
     AnnotationInfoList annotationInfo;
+
+    /** The scan spec. */
+    transient ScanSpec scanSpec;
 
     /** Default constructor for deserialization. */
     FieldInfo() {
@@ -79,13 +82,13 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
      *            The field type descriptor.
      * @param typeSignatureStr
      *            The field type signature.
-     * @param constValue
+     * @param constInitializerValue
      *            The static constant value the field is initialized to, if any.
      * @param annotationInfo
      *            {@link AnnotationInfo} for any annotations on the field.
      */
     public FieldInfo(final String className, final String fieldName, final int modifiers,
-            final String typeDescriptorStr, final String typeSignatureStr, final Object constValue,
+            final String typeDescriptorStr, final String typeSignatureStr, final Object constInitializerValue,
             final AnnotationInfoList annotationInfo) {
         if (fieldName == null) {
             throw new IllegalArgumentException();
@@ -96,7 +99,7 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
         this.typeDescriptorStr = typeDescriptorStr;
         this.typeSignatureStr = typeSignatureStr;
 
-        this.constValue = constValue;
+        this.constInitializerValue = constInitializerValue;
         this.annotationInfo = annotationInfo == null || annotationInfo.isEmpty() ? null : annotationInfo;
     }
 
@@ -302,7 +305,7 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
      * @return The constant final initializer value of the field, or null if none.
      */
     public Object getConstInitializerValue() {
-        return constValue;
+        return constInitializerValue;
     }
 
     /**
@@ -313,6 +316,10 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
      *         {@link AnnotationInfo} objects, or the empty list if none.
      */
     public AnnotationInfoList getAnnotationInfo() {
+        if (!scanSpec.enableAnnotationInfo) {
+            throw new IllegalArgumentException(
+                    "Please call FastClasspathScanner#enableAnnotationInfo() before #scan()");
+        }
         return annotationInfo == null ? AnnotationInfoList.EMPTY_LIST : annotationInfo;
     }
 
@@ -376,15 +383,16 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
         buf.append(' ');
         buf.append(fieldName);
 
-        if (constValue != null) {
+        if (constInitializerValue != null) {
             buf.append(" = ");
-            if (constValue instanceof String) {
-                buf.append("\"" + ((String) constValue).replace("\\", "\\\\").replace("\"", "\\\"") + "\"");
-            } else if (constValue instanceof Character) {
-                buf.append("'" + ((Character) constValue).toString().replace("\\", "\\\\").replaceAll("'", "\\'")
-                        + "'");
+            if (constInitializerValue instanceof String) {
+                buf.append(
+                        "\"" + ((String) constInitializerValue).replace("\\", "\\\\").replace("\"", "\\\"") + "\"");
+            } else if (constInitializerValue instanceof Character) {
+                buf.append("'" + ((Character) constInitializerValue).toString().replace("\\", "\\\\")
+                        .replaceAll("'", "\\'") + "'");
             } else {
-                buf.append(constValue.toString());
+                buf.append(constInitializerValue.toString());
             }
         }
 

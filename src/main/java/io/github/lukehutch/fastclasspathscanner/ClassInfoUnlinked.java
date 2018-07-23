@@ -30,10 +30,8 @@ package io.github.lukehutch.fastclasspathscanner;
 
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 
 import io.github.lukehutch.fastclasspathscanner.utils.Join;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
@@ -52,7 +50,6 @@ class ClassInfoUnlinked {
     private String superclassName;
     private List<String> implementedInterfaces;
     private AnnotationInfoList classAnnotations;
-    private Map<String, Object> staticFinalFieldValues;
     private String fullyQualifiedContainingMethodName;
     private List<SimpleEntry<String, String>> classContainmentEntries;
     List<AnnotationParamValue> annotationParamDefaultValues;
@@ -90,13 +87,6 @@ class ClassInfoUnlinked {
             classAnnotations = new AnnotationInfoList();
         }
         classAnnotations.add(classAnnotation);
-    }
-
-    void addFieldConstantValue(final String fieldName, final Object staticFinalFieldValue) {
-        if (staticFinalFieldValues == null) {
-            staticFinalFieldValues = new HashMap<>();
-        }
-        staticFinalFieldValues.put(fieldName, staticFinalFieldValue);
     }
 
     void addFieldInfo(final FieldInfo fieldInfo) {
@@ -145,11 +135,6 @@ class ClassInfoUnlinked {
                 classInfo.addClassAnnotation(classAnnotation, classNameToClassInfo);
             }
         }
-        if (staticFinalFieldValues != null) {
-            for (final Entry<String, Object> ent : staticFinalFieldValues.entrySet()) {
-                classInfo.addStaticFinalFieldConstantInitializerValue(ent.getKey(), ent.getValue());
-            }
-        }
         if (classContainmentEntries != null) {
             ClassInfo.addClassContainment(classContainmentEntries, scanSpec, classNameToClassInfo);
         }
@@ -190,13 +175,6 @@ class ClassInfoUnlinked {
             }
             if (fieldInfoList != null) {
                 subLog.log("Field info: " + Join.join(", ", fieldInfoList));
-            }
-            if (staticFinalFieldValues != null) {
-                final List<String> fieldInitializers = new ArrayList<>();
-                for (final Entry<String, Object> ent : staticFinalFieldValues.entrySet()) {
-                    fieldInitializers.add(ent.getKey() + " = " + ent.getValue());
-                }
-                subLog.log("Static final field values: " + Join.join(", ", fieldInitializers));
             }
             if (typeSignature != null) {
                 ClassTypeSignature typeSig = null;

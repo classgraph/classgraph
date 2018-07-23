@@ -46,6 +46,9 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     /** Defining class ClassInfo. */
     transient ClassInfo classInfo;
 
+    /** The ScanSpec. */
+    transient ScanSpec scanSpec;
+
     /** Method name. */
     String methodName;
 
@@ -719,6 +722,10 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
      *         parameter annotations are present.
      */
     public AnnotationInfo[][] getParameterAnnotationInfo() {
+        if (!scanSpec.enableAnnotationInfo) {
+            throw new IllegalArgumentException(
+                    "Please call FastClasspathScanner#enableAnnotationInfo() before #scan()");
+        }
         final MethodParameterInfo[] parameterInfo = getParameterInfo();
         boolean hasAnnotations = false;
         for (int i = 0; i < parameterInfo.length; i++) {
@@ -845,6 +852,10 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
      *         {@link AnnotationInfo} objects, or the empty list if none.
      */
     public AnnotationInfoList getAnnotationInfo() {
+        if (!scanSpec.enableAnnotationInfo) {
+            throw new IllegalArgumentException(
+                    "Please call FastClasspathScanner#enableAnnotationInfo() before #scan()");
+        }
         return annotationInfo == null ? AnnotationInfoList.EMPTY_LIST : annotationInfo;
     }
 

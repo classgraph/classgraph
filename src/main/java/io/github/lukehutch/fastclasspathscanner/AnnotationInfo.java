@@ -111,7 +111,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
 
     /** Returns the list of default parameter values for this annotation, or the empty list if there are none. */
     public List<AnnotationParamValue> getDefaultParameterValues() {
-        List<AnnotationParamValue> annotationDefaultParamValues = classInfo.getAnnotationDefaultParamValues();
+        final List<AnnotationParamValue> annotationDefaultParamValues = classInfo.getAnnotationDefaultParamValues();
         return annotationDefaultParamValues == null ? Collections.<AnnotationParamValue> emptyList()
                 : annotationDefaultParamValues;
     }

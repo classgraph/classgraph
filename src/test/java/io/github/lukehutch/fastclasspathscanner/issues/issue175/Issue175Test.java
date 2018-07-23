@@ -75,8 +75,7 @@ public class Issue175Test {
         final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
         final ScanResult result = new FastClasspathScanner().whitelistPackages("net.corda.core") //
-                .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().ignoreMethodVisibility()
-                .ignoreFieldVisibility().enableMethodInfo().enableFieldInfo().scan();
+                .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableAllInfo().scan();
 
         final List<String> methods = new ArrayList<>();
         for (final String className : result.getAllClasses().getClassNames()) {
@@ -98,8 +97,7 @@ public class Issue175Test {
         final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
         final ScanResult result = new FastClasspathScanner().whitelistPackages("net.corda.core") //
-                .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().ignoreMethodVisibility()
-                .ignoreFieldVisibility().enableMethodInfo().enableFieldInfo().scan();
+                .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableAllInfo().scan();
 
         final List<String> methods = new ArrayList<>();
         for (final String className : result.getAllClasses().getClassNames()) {
@@ -124,8 +122,7 @@ public class Issue175Test {
         final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
         final ScanResult result = new FastClasspathScanner().whitelistPackages("net.corda.core.contracts") //
-                .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().ignoreMethodVisibility()
-                .ignoreFieldVisibility().enableMethodInfo().enableFieldInfo().scan();
+                .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableAllInfo().scan();
 
         final List<String> methods = new ArrayList<>();
         for (final String className : result.getAllClasses().getClassNames()) {
@@ -156,8 +153,7 @@ public class Issue175Test {
         final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
         final ScanResult result = new FastClasspathScanner().whitelistPackages("net.corda.testing.node") //
-                .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().ignoreMethodVisibility()
-                .ignoreFieldVisibility().enableMethodInfo().enableFieldInfo().scan();
+                .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableAllInfo().scan();
 
         final List<String> methods = new ArrayList<>();
         for (final String className : result.getAllClasses().getClassNames()) {
@@ -217,8 +213,7 @@ public class Issue175Test {
         final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
         final ScanResult result = new FastClasspathScanner().whitelistPackages("net.corda.core.node.services.vault") //
-                .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().ignoreMethodVisibility()
-                .ignoreFieldVisibility().enableMethodInfo().enableFieldInfo().scan();
+                .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableAllInfo().scan();
 
         final List<String> methods = new ArrayList<>();
         for (final String className : result.getAllClasses().getClassNames()) {
@@ -243,8 +238,7 @@ public class Issue175Test {
         final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
         final ScanResult result = new FastClasspathScanner().whitelistPackages("net.corda.client.jackson") //
-                .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().ignoreMethodVisibility()
-                .ignoreFieldVisibility().enableMethodInfo().enableFieldInfo().scan();
+                .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableAllInfo().scan();
 
         final List<String> methods = new ArrayList<>();
         for (final String className : result.getAllClasses().getClassNames()) {
@@ -278,8 +272,7 @@ public class Issue175Test {
         final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
         final ScanResult result = new FastClasspathScanner().whitelistPackages("net.corda.core.node.services.vault") //
-                .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().ignoreMethodVisibility()
-                .ignoreFieldVisibility().enableMethodInfo().enableFieldInfo().scan();
+                .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableAllInfo().scan();
 
         final List<String> methods = new ArrayList<>();
         for (final String className : result.getAllClasses().getClassNames()) {
@@ -300,8 +293,7 @@ public class Issue175Test {
         final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
         final ScanResult result = new FastClasspathScanner().whitelistPackages("net.corda.client.jackson") //
-                .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().ignoreMethodVisibility()
-                .ignoreFieldVisibility().enableMethodInfo().enableFieldInfo().scan();
+                .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableAllInfo().scan();
 
         final List<String> methods = new ArrayList<>();
         for (final String className : result.getAllClasses().getClassNames()) {
