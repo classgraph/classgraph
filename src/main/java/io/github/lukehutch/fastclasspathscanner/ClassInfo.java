@@ -136,7 +136,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /** The set of classes related to this one. */
     Map<RelType, Set<ClassInfo>> relatedClasses = new HashMap<>();
 
-    private transient ScanSpec scanSpec;
+    transient ScanSpec scanSpec;
 
     // -------------------------------------------------------------------------------------------------------------
 

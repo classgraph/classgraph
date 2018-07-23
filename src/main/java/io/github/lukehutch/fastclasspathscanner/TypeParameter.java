@@ -162,32 +162,6 @@ public class TypeParameter extends HierarchicalTypeSignature {
         return buf.toString();
     }
 
-    /** Parse a {@link TypeParameter}. */
-    private static TypeParameter parse(final Parser parser) throws ParseException {
-        if (!TypeUtils.getIdentifierToken(parser)) {
-            throw new ParseException(parser, "Could not parse identifier token");
-        }
-        final String identifier = parser.currToken();
-        // classBound may be null
-        final ReferenceTypeSignature classBound = ReferenceTypeSignature.parseClassBound(parser);
-        List<ReferenceTypeSignature> interfaceBounds;
-        if (parser.peek() == ':') {
-            interfaceBounds = new ArrayList<>();
-            while (parser.peek() == ':') {
-                parser.expect(':');
-                final ReferenceTypeSignature interfaceTypeSignature = ReferenceTypeSignature
-                        .parseReferenceTypeSignature(parser);
-                if (interfaceTypeSignature == null) {
-                    throw new ParseException(parser, "Missing interface type signature");
-                }
-                interfaceBounds.add(interfaceTypeSignature);
-            }
-        } else {
-            interfaceBounds = Collections.emptyList();
-        }
-        return new TypeParameter(identifier, classBound, interfaceBounds);
-    }
-
     /** Parse a list of {@link TypeParameter}s. */
     static List<TypeParameter> parseList(final Parser parser) throws ParseException {
         if (parser.peek() != '<') {
@@ -199,7 +173,28 @@ public class TypeParameter extends HierarchicalTypeSignature {
             if (!parser.hasMore()) {
                 throw new ParseException(parser, "Missing '>'");
             }
-            typeParams.add(TypeParameter.parse(parser));
+            if (!TypeUtils.getIdentifierToken(parser)) {
+                throw new ParseException(parser, "Could not parse identifier token");
+            }
+            final String identifier = parser.currToken();
+            // classBound may be null
+            final ReferenceTypeSignature classBound = ReferenceTypeSignature.parseClassBound(parser);
+            List<ReferenceTypeSignature> interfaceBounds;
+            if (parser.peek() == ':') {
+                interfaceBounds = new ArrayList<>();
+                while (parser.peek() == ':') {
+                    parser.expect(':');
+                    final ReferenceTypeSignature interfaceTypeSignature = ReferenceTypeSignature
+                            .parseReferenceTypeSignature(parser);
+                    if (interfaceTypeSignature == null) {
+                        throw new ParseException(parser, "Missing interface type signature");
+                    }
+                    interfaceBounds.add(interfaceTypeSignature);
+                }
+            } else {
+                interfaceBounds = Collections.emptyList();
+            }
+            typeParams.add(new TypeParameter(identifier, classBound, interfaceBounds));
         }
         parser.expect('>');
         return typeParams;

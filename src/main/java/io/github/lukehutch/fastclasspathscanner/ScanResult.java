@@ -29,8 +29,6 @@
 package io.github.lukehutch.fastclasspathscanner;
 
 import java.io.File;
-import java.io.IOException;
-import java.io.PrintWriter;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -586,94 +584,6 @@ public class ScanResult {
         }
         final ClassInfo classInfo = classNameToClassInfo.get(className);
         return classInfo == null ? ClassInfoList.EMPTY_LIST : classInfo.getAnnotations();
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Generate a .dot file which can be fed into GraphViz for layout and visualization of the class graph. The
-     * sizeX and sizeY parameters are the image output size to use (in inches) when GraphViz is asked to render the
-     * .dot file.
-     * 
-     * <p>
-     * Note that if you call this with showFields or showMethods set to false, but with method and/or field info
-     * enabled during scanning, then arrows will still be added between classes even if the field or method that
-     * created that dependency is not shown.
-     *
-     * @param sizeX
-     *            The GraphViz layout width in inches.
-     * @param sizeY
-     *            The GraphViz layout width in inches.
-     * @param showFields
-     *            If true, show fields within class nodes in the graph. To show field info,
-     *            {@link FastClasspathScanner#enableFieldInfo()} should be called before scanning. You may also want
-     *            to call {@link FastClasspathScanner#ignoreFieldVisibility()} before scanning, to show non-public
-     *            fields.
-     * @param showMethods
-     *            If true, show methods within class nodes in the graph. To show method info,
-     *            {@link FastClasspathScanner#enableMethodInfo()} should be called before scanning. You may also
-     *            want to call {@link FastClasspathScanner#ignoreMethodVisibility()} before scanning, to show
-     *            non-public methods.
-     * @return the GraphViz file contents.
-     */
-    public String generateClassGraphDotFile(final float sizeX, final float sizeY, final boolean showFields,
-            final boolean showMethods) {
-        if (!scanSpec.enableClassInfo) {
-            throw new IllegalArgumentException("Please call FastClasspathScanner#enableClassInfo() before #scan()");
-        }
-        return GraphvizDotfileGenerator.generateClassGraphDotFile(this, sizeX, sizeY, showFields, showMethods,
-                scanSpec);
-    }
-
-    /**
-     * Generate a .dot file which can be fed into GraphViz for layout and visualization of the class graph. Methods
-     * and fields are shown, if method and field info have been enabled respectively, via
-     * {@link FastClasspathScanner#enableMethodInfo()} and {@link FastClasspathScanner#enableFieldInfo()}. Only
-     * public methods/fields are shown, unless {@link FastClasspathScanner#ignoreMethodVisibility()} and/or
-     * {@link FastClasspathScanner#ignoreFieldVisibility()} has been called. The sizeX and sizeY parameters are the
-     * image output size to use (in inches) when GraphViz is asked to render the .dot file.
-     *
-     * @param sizeX
-     *            The GraphViz layout width in inches.
-     * @param sizeY
-     *            The GraphViz layout width in inches.
-     * @return the GraphViz file contents.
-     */
-    public String generateClassGraphDotFile(final float sizeX, final float sizeY) {
-        return generateClassGraphDotFile(sizeX, sizeY, /* showFields = */ true, /* showMethods = */ true);
-    }
-
-    /**
-     * Generate a .dot file which can be fed into GraphViz for layout and visualization of the class graph. Methods
-     * and fields are shown, if method and field info have been enabled respectively, via
-     * {@link FastClasspathScanner#enableMethodInfo()} and {@link FastClasspathScanner#enableFieldInfo()}. Only
-     * public methods/fields are shown, unless {@link FastClasspathScanner#ignoreMethodVisibility()} and/or
-     * {@link FastClasspathScanner#ignoreFieldVisibility()} has been called. The size defaults to 10.5 x 8 inches.
-     *
-     * @return the GraphViz file contents.
-     */
-    public String generateClassGraphDotFile() {
-        return generateClassGraphDotFile(/* sizeX = */ 10.5f, /* sizeY = */ 8f, /* showFields = */ true,
-                /* showMethods = */ true);
-    }
-
-    /**
-     * Generate a .dot file which can be fed into GraphViz for layout and visualization of the class graph, and save
-     * it to the specified file. Methods and fields are shown, if method and field info have been enabled
-     * respectively, via {@link FastClasspathScanner#enableMethodInfo()} and
-     * {@link FastClasspathScanner#enableFieldInfo()}. Only public methods/fields are shown, unless
-     * {@link FastClasspathScanner#ignoreMethodVisibility()} and/or
-     * {@link FastClasspathScanner#ignoreFieldVisibility()} has been called. The size defaults to 10.5 x 8 inches.
-     *
-     * @param file
-     *            the file to save the GraphViz .dot file to.
-     * @throws IOException
-     *             if the file could not be saved.
-     */
-    public void generateClassGraphDotFile(final File file) throws IOException {
-        try (final PrintWriter writer = new PrintWriter(file)) {
-            writer.print(generateClassGraphDotFile());
-        }
     }
 
     // -------------------------------------------------------------------------------------------------------------

@@ -418,8 +418,8 @@ class GraphvizDotfileGenerator {
      * sizeX and sizeY parameters are the image output size to use (in inches) when GraphViz is asked to render the
      * .dot file.
      */
-    public static String generateClassGraphDotFile(final ScanResult scanResult, final float sizeX,
-            final float sizeY, final boolean showFields, final boolean showMethods, final ScanSpec scanSpec) {
+    static String generateClassGraphDotFile(final ClassInfoList classInfoList, final float sizeX, final float sizeY,
+            final boolean showFields, final boolean showMethods, final ScanSpec scanSpec) {
         final StringBuilder buf = new StringBuilder();
         buf.append("digraph {\n");
         buf.append("size=\"" + sizeX + "," + sizeY + "\";\n");
@@ -432,9 +432,9 @@ class GraphvizDotfileGenerator {
         buf.append("node [fontname = \"Courier, Regular\"]\n");
         buf.append("edge [fontname = \"Courier, Regular\"]\n");
 
-        final ClassInfoList standardClassNodes = scanResult.getAllStandardClasses();
-        final ClassInfoList interfaceNodes = scanResult.getAllInterfaces();
-        final ClassInfoList annotationNodes = scanResult.getAllAnnotations();
+        final ClassInfoList standardClassNodes = classInfoList.getStandardClasses();
+        final ClassInfoList interfaceNodes = classInfoList.getInterfaces();
+        final ClassInfoList annotationNodes = classInfoList.getAnnotations();
 
         for (final ClassInfo node : standardClassNodes) {
             buf.append("\"").append(node.getName()).append("\"");
