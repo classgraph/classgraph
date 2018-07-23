@@ -316,6 +316,22 @@ public class ClassInfoList implements List<ClassInfo> {
         }
     }
 
+    /**
+     * Get the string representations of all classes in this list (with annotations, modifiers, etc.), obtained by
+     * calling {@link ClassInfo#toString()}.
+     */
+    public List<String> getClassStrs() {
+        if (this.isEmpty()) {
+            return Collections.<String> emptyList();
+        } else {
+            final List<String> toStringVals = new ArrayList<>(this.size());
+            for (final ClassInfo ci : this) {
+                toStringVals.add(ci.toString());
+            }
+            return toStringVals;
+        }
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /** Return true if this {@link ClassInfo} list contains a class with the given name. */

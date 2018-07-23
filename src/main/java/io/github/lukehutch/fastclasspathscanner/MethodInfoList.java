@@ -107,11 +107,27 @@ public class MethodInfoList extends ArrayList<MethodInfo> {
         if (this.isEmpty()) {
             return Collections.<String> emptyList();
         } else {
-            final List<String> classNames = new ArrayList<>(this.size());
+            final List<String> methodNames = new ArrayList<>(this.size());
             for (final MethodInfo mi : this) {
-                classNames.add(mi.getMethodName());
+                methodNames.add(mi.getMethodName());
             }
-            return classNames;
+            return methodNames;
+        }
+    }
+
+    /**
+     * Get the string representations of all methods in this list (with annotations, modifiers, params, etc.),
+     * obtained by calling {@link MethodInfo#toString()}.
+     */
+    public List<String> getMethodStrs() {
+        if (this.isEmpty()) {
+            return Collections.<String> emptyList();
+        } else {
+            final List<String> toStringVals = new ArrayList<>(this.size());
+            for (final MethodInfo mi : this) {
+                toStringVals.add(mi.toString());
+            }
+            return toStringVals;
         }
     }
 

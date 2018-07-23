@@ -107,11 +107,27 @@ public class FieldInfoList extends ArrayList<FieldInfo> {
         if (this.isEmpty()) {
             return Collections.<String> emptyList();
         } else {
-            final List<String> classNames = new ArrayList<>(this.size());
+            final List<String> fieldNames = new ArrayList<>(this.size());
             for (final FieldInfo fi : this) {
-                classNames.add(fi.getFieldName());
+                fieldNames.add(fi.getFieldName());
             }
-            return classNames;
+            return fieldNames;
+        }
+    }
+
+    /**
+     * Get the string representations of all fields in this list (with annotations, modifiers, etc.), obtained by
+     * calling {@link FieldInfo#toString()}.
+     */
+    public List<String> getFieldStrs() {
+        if (this.isEmpty()) {
+            return Collections.<String> emptyList();
+        } else {
+            final List<String> toStringVals = new ArrayList<>(this.size());
+            for (final FieldInfo fi : this) {
+                toStringVals.add(fi.toString());
+            }
+            return toStringVals;
         }
     }
 
