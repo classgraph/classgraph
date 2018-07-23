@@ -122,16 +122,15 @@ class ClasspathElementZip extends ClasspathElement {
 
         ZipFile zipFile = null;
         try {
-            try {
-                zipFile = zipFileRecycler.acquire();
-            } catch (final IOException e) {
-                if (log != null) {
-                    log.log("Exception opening zipfile " + classpathEltZipFile + " : " + e.getMessage());
-                }
-                skipClasspathElement = true;
-                return;
+            zipFile = zipFileRecycler.acquire();
+        } catch (final IOException e) {
+            if (log != null) {
+                log.log("Exception opening zipfile " + classpathEltZipFile + " : " + e.getMessage());
             }
-
+            skipClasspathElement = true;
+            return;
+        }
+        try {
             // Parse the manifest entry if present
             if (jarfileMetadataReader != null && jarfileMetadataReader.classPathEntriesToScan != null) {
                 final LogNode childClasspathLog = log == null ? null
@@ -182,7 +181,10 @@ class ClasspathElementZip extends ClasspathElement {
                 fileToLastModified = new HashMap<>();
             }
         } finally {
-            zipFileRecycler.release(zipFile);
+            if (zipFile != null) {
+                zipFileRecycler.release(zipFile);
+                zipFile = null;
+            }
         }
     }
 
@@ -289,16 +291,15 @@ class ClasspathElementZip extends ClasspathElement {
                         + (path.equals(canonicalPath) ? "" : " ; canonical path: " + canonicalPath));
         ZipFile zipFile = null;
         try {
-            try {
-                zipFile = zipFileRecycler.acquire();
-            } catch (final IOException e) {
-                if (subLog != null) {
-                    subLog.log("Exception opening zipfile " + classpathEltZipFile + " : " + e);
-                }
-                skipClasspathElement = true;
-                return;
+            zipFile = zipFileRecycler.acquire();
+        } catch (final IOException e) {
+            if (subLog != null) {
+                subLog.log("Exception opening zipfile " + classpathEltZipFile + " : " + e);
             }
-
+            skipClasspathElement = true;
+            return;
+        }
+        try {
             // Support specification of a classpath root within a jarfile, e.g. "spring-project.jar!/BOOT-INF/classes"
             final int requiredPrefixLen = packageRootPrefix.length();
 
@@ -393,7 +394,10 @@ class ClasspathElementZip extends ClasspathElement {
             fileToLastModified.put(classpathEltZipFile, classpathEltZipFile.lastModified());
 
         } finally {
-            zipFileRecycler.release(zipFile);
+            if (zipFile != null) {
+                zipFileRecycler.release(zipFile);
+                zipFile = null;
+            }
         }
         if (subLog != null) {
             subLog.addElapsedTime();

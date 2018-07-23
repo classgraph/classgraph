@@ -216,10 +216,9 @@ public class NestedJarHandler {
                     // Get the ZipFile recycler for the parent jar's canonical path
                     final Recycler<ZipFile, IOException> parentJarRecycler = zipFileToRecyclerMap
                             .getOrCreateSingleton(parentJarFile.getCanonicalFile(), log);
-                    ZipFile parentZipFile = null;
+                    ZipFile parentZipFile = parentJarRecycler.acquire();
                     try {
                         // Look up the child path within the parent zipfile
-                        parentZipFile = parentJarRecycler.acquire();
                         ZipEntry childZipEntry;
                         if (childPath.endsWith("/")) {
                             childZipEntry = parentZipFile.getEntry(childPath);
@@ -281,6 +280,7 @@ public class NestedJarHandler {
 
                     } finally {
                         parentJarRecycler.release(parentZipFile);
+                        parentZipFile = null;
                     }
                 }
             }

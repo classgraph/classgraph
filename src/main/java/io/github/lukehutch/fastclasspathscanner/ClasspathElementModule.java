@@ -118,7 +118,6 @@ class ClasspathElementModule extends ClasspathElement {
                             throw new RuntimeException("Tried to open classpath resource twice");
                         }
                         moduleReaderProxy = moduleReaderProxyRecycler.acquire();
-
                         byteBuffer = moduleReaderProxy.read(moduleResourcePath);
                         length = byteBuffer.remaining();
                         return byteBuffer;
@@ -151,14 +150,14 @@ class ClasspathElementModule extends ClasspathElement {
 
             @Override
             public void close() {
-                if (byteBuffer != null) {
-                    try {
-                        moduleReaderProxy.release(byteBuffer);
-                    } catch (final Exception e) {
-                    }
-                    byteBuffer = null;
-                }
                 if (moduleReaderProxy != null) {
+                    if (byteBuffer != null) {
+                        try {
+                            moduleReaderProxy.release(byteBuffer);
+                        } catch (final Exception e) {
+                        }
+                        byteBuffer = null;
+                    }
                     moduleReaderProxyRecycler.release(moduleReaderProxy);
                     moduleReaderProxy = null;
                 }
@@ -180,16 +179,15 @@ class ClasspathElementModule extends ClasspathElement {
                 : log.log(moduleLocationStr, "Scanning module classpath entry " + classpathEltPath);
         ModuleReaderProxy moduleReaderProxy = null;
         try {
-            try {
-                moduleReaderProxy = moduleReaderProxyRecycler.acquire();
-            } catch (final IOException e) {
-                if (subLog != null) {
-                    subLog.log("Exception opening module " + classpathEltPath, e);
-                }
-                skipClasspathElement = true;
-                return;
+            moduleReaderProxy = moduleReaderProxyRecycler.acquire();
+        } catch (final IOException e) {
+            if (subLog != null) {
+                subLog.log("Exception opening module " + classpathEltPath, e);
             }
-
+            skipClasspathElement = true;
+            return;
+        }
+        try {
             // Always scan a module if the root package needs to be scanned, since moduleRef.getModulePackages()
             // will never return the empty package ("").
             boolean hasWhitelistedPackage = scanSpec.packagePrefixWhiteBlackList
@@ -282,7 +280,10 @@ class ClasspathElementModule extends ClasspathElement {
             }
 
         } finally {
-            moduleReaderProxyRecycler.release(moduleReaderProxy);
+            if (moduleReaderProxy != null) {
+                moduleReaderProxyRecycler.release(moduleReaderProxy);
+                moduleReaderProxy = null;
+            }
         }
         if (subLog != null) {
             subLog.addElapsedTime();

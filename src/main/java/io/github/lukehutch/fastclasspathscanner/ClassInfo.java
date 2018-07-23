@@ -1309,20 +1309,24 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         for (final ClassInfo superclass : getSuperclasses()) {
             for (final ClassInfo superclassAnnotationClass : superclass
                     .filterClassInfo(RelType.CLASS_ANNOTATIONS)) {
-                boolean isInherited = false;
-                for (final ClassInfo superclassAnnotationClassMetaAnnotation : //
-                superclassAnnotationClass.relatedClasses.get(RelType.CLASS_ANNOTATIONS)) {
-                    if (superclassAnnotationClassMetaAnnotation.getClassName().equals(Inherited.class.getName())) {
-                        isInherited = true;
-                        break;
+                Set<ClassInfo> superclassAnnotations = superclassAnnotationClass.relatedClasses
+                        .get(RelType.CLASS_ANNOTATIONS);
+                if (superclassAnnotations != null) {
+                    boolean isInherited = false;
+                    for (final ClassInfo superclassAnnotationClassMetaAnnotation : superclassAnnotations) {
+                        if (superclassAnnotationClassMetaAnnotation.getClassName()
+                                .equals(Inherited.class.getName())) {
+                            isInherited = true;
+                            break;
+                        }
                     }
-                }
-                if (isInherited) {
-                    // inheritedSuperclassAnnotations is an inherited annotation
-                    if (inheritedSuperclassAnnotations == null) {
-                        inheritedSuperclassAnnotations = new HashSet<>();
+                    if (isInherited) {
+                        // inheritedSuperclassAnnotations is an inherited annotation
+                        if (inheritedSuperclassAnnotations == null) {
+                            inheritedSuperclassAnnotations = new HashSet<>();
+                        }
+                        inheritedSuperclassAnnotations.add(superclassAnnotationClass);
                     }
-                    inheritedSuperclassAnnotations.add(superclassAnnotationClass);
                 }
             }
         }
@@ -1552,9 +1556,6 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         return methodInfoList;
     }
 
-    // -------------------------------------------------------------------------------------------------------------
-    // Method annotations
-
     /**
      * Get the method annotations or meta-annotations on this class.
      *
@@ -1565,7 +1566,12 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             throw new IllegalArgumentException("Please call FastClasspathScanner#enableMethodInfo() and "
                     + "#enableAnnotationInfo() before #scan()");
         }
-        return this.filterClassInfo(RelType.METHOD_ANNOTATIONS, ClassType.ANNOTATION);
+        ClassInfoList methodAnnotations = this.filterClassInfo(RelType.METHOD_ANNOTATIONS, ClassType.ANNOTATION);
+        Set<ClassInfo> methodAnnotationsAndMetaAnnotations = new HashSet<>(methodAnnotations);
+        for (ClassInfo methodAnnotation : methodAnnotations) {
+            methodAnnotationsAndMetaAnnotations.addAll(methodAnnotation.filterClassInfo(RelType.CLASS_ANNOTATIONS));
+        }
+        return new ClassInfoList(methodAnnotationsAndMetaAnnotations, methodAnnotations);
     }
 
     /**
@@ -1579,7 +1585,25 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             throw new IllegalArgumentException("Please call FastClasspathScanner#enableMethodInfo() and "
                     + "#enableAnnotationInfo() before #scan()");
         }
-        return this.filterClassInfo(RelType.CLASSES_WITH_METHOD_ANNOTATION);
+        ClassInfoList classesWithDirectlyAnnotatedMethods = this
+                .filterClassInfo(RelType.CLASSES_WITH_METHOD_ANNOTATION);
+        ClassInfoList annotationsWithThisMetaAnnotation = this
+                .filterClassInfo(RelType.CLASSES_WITH_CLASS_ANNOTATION, ClassType.ANNOTATION);
+        if (annotationsWithThisMetaAnnotation.isEmpty()) {
+            // This annotation does not meta-annotate another annotation that annotates a method
+            return classesWithDirectlyAnnotatedMethods;
+        } else {
+            // Take the union of all classes with methods directly annotated by this annotation,
+            // and classes with methods meta-annotated by this annotation
+            Set<ClassInfo> allClassesWithAnnotatedOrMetaAnnotatedMethods = new HashSet<>(
+                    classesWithDirectlyAnnotatedMethods);
+            for (ClassInfo metaAnnotatedAnnotation : annotationsWithThisMetaAnnotation) {
+                allClassesWithAnnotatedOrMetaAnnotatedMethods
+                        .addAll(metaAnnotatedAnnotation.filterClassInfo(RelType.CLASSES_WITH_METHOD_ANNOTATION));
+            }
+            return new ClassInfoList(allClassesWithAnnotatedOrMetaAnnotatedMethods,
+                    classesWithDirectlyAnnotatedMethods);
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -1643,9 +1667,6 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         return fieldNameToFieldInfo.get(fieldName);
     }
 
-    // -------------------------------------------------------------------------------------------------------------
-    // Field annotations
-
     /**
      * Get the field annotations on this class.
      *
@@ -1656,10 +1677,13 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             throw new IllegalArgumentException("Please call FastClasspathScanner#enableFieldInfo() and "
                     + "FastClasspathScanner#enableAnnotationInfo() before #scan()");
         }
-        return this.filterClassInfo(RelType.FIELD_ANNOTATIONS, ClassType.ANNOTATION);
+        ClassInfoList fieldAnnotations = this.filterClassInfo(RelType.FIELD_ANNOTATIONS, ClassType.ANNOTATION);
+        Set<ClassInfo> fieldAnnotationsAndMetaAnnotations = new HashSet<>(fieldAnnotations);
+        for (ClassInfo fieldAnnotation : fieldAnnotations) {
+            fieldAnnotationsAndMetaAnnotations.addAll(fieldAnnotation.filterClassInfo(RelType.CLASS_ANNOTATIONS));
+        }
+        return new ClassInfoList(fieldAnnotationsAndMetaAnnotations, fieldAnnotations);
     }
-
-    // -------------
 
     /**
      * Get the classes that have a field with this annotation or meta-annotation.
@@ -1672,6 +1696,24 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             throw new IllegalArgumentException("Please call FastClasspathScanner#enableFieldInfo() and "
                     + "FastClasspathScanner#enableAnnotationInfo() before #scan()");
         }
-        return this.filterClassInfo(RelType.CLASSES_WITH_FIELD_ANNOTATION);
+        ClassInfoList classesWithDirectlyAnnotatedFields = this
+                .filterClassInfo(RelType.CLASSES_WITH_FIELD_ANNOTATION);
+        ClassInfoList annotationsWithThisMetaAnnotation = this
+                .filterClassInfo(RelType.CLASSES_WITH_CLASS_ANNOTATION, ClassType.ANNOTATION);
+        if (annotationsWithThisMetaAnnotation.isEmpty()) {
+            // This annotation does not meta-annotate another annotation that annotates a field
+            return classesWithDirectlyAnnotatedFields;
+        } else {
+            // Take the union of all classes with fields directly annotated by this annotation,
+            // and classes with fields meta-annotated by this annotation
+            Set<ClassInfo> allClassesWithAnnotatedOrMetaAnnotatedFields = new HashSet<>(
+                    classesWithDirectlyAnnotatedFields);
+            for (ClassInfo metaAnnotatedAnnotation : annotationsWithThisMetaAnnotation) {
+                allClassesWithAnnotatedOrMetaAnnotatedFields
+                        .addAll(metaAnnotatedAnnotation.filterClassInfo(RelType.CLASSES_WITH_FIELD_ANNOTATION));
+            }
+            return new ClassInfoList(allClassesWithAnnotatedOrMetaAnnotatedFields,
+                    classesWithDirectlyAnnotatedFields);
+        }
     }
 }
