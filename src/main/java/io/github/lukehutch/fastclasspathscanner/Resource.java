@@ -30,6 +30,8 @@ package io.github.lukehutch.fastclasspathscanner;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.nio.ByteBuffer;
 
 import io.github.lukehutch.fastclasspathscanner.utils.FileUtils;
@@ -86,6 +88,16 @@ public abstract class Resource implements AutoCloseable, Comparable<Resource> {
     public abstract String getPathRelativeToClasspathElement();
 
     /**
+     * Get a URL representing the resource's location. May point to a temporary file that FastClasspathScanner
+     * extracted an inner jar or directory to, or downloaded a remote jar to. You may or may not be able to fetch
+     * content from the URL, because in the case of system modules, the URL is an internal "jrt:/" URL format.
+     * 
+     * @throws IllegalArgumentException
+     *             if a {@link MalformedURLException} occurred while trying to construct the URL.
+     */
+    public abstract URL getURL();
+
+    /**
      * Open an InputStream for a classpath resource. Make sure you call {@link Resource#close()} when you are
      * finished with the InputStream, so that the InputStream is closed.
      */
@@ -122,6 +134,7 @@ public abstract class Resource implements AutoCloseable, Comparable<Resource> {
 
     protected abstract String toStringImpl();
 
+    /** Return a string representation of the resource's location. */
     @Override
     public String toString() {
         if (toString != null) {

@@ -30,9 +30,11 @@ package io.github.lukehutch.fastclasspathscanner;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URL;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 
 /** An AutoCloseable list of AutoCloseable {@link Resource} objects. */
 public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
@@ -46,6 +48,55 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
 
     public ResourceList(final Collection<Resource> collection) {
         super(collection);
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Returns a list containing the path of each {@link Resource} in this list, relative to the package root within
+     * its respective classpath element.
+     * 
+     * @returns the paths of each {@link Resource} relative to the package root within its respective classpath
+     *          element. For example, for a resource path of "BOOT-INF/classes/com/xyz/resource.xml" and a package
+     *          root of "BOOT-INF/classes/", returns "com/xyz/resource.xml".
+     */
+    public List<String> getAllPathsRelativeToPackageRoot() {
+        final List<String> resourcePaths = new ArrayList<>(this.size());
+        for (final Resource resource : this) {
+            resourcePaths.add(resource.getPathRelativeToPackageRoot());
+        }
+        return resourcePaths;
+    }
+
+    /**
+     * Returns a list containing the path of each {@link Resource} in this list, relative to its respective
+     * classpath element.
+     * 
+     * @returns the paths of of each {@link Resource} within its respective classpath element. For example, for a
+     *          resource path of "BOOT-INF/classes/com/xyz/resource.xml", returns
+     *          "BOOT-INF/classes/com/xyz/resource.xml" (even if the package root is "BOOT-INF/classes/").
+     */
+    public List<String> getAllPathsRelativeToClasspathElement() {
+        final List<String> resourcePaths = new ArrayList<>(this.size());
+        for (final Resource resource : this) {
+            resourcePaths.add(resource.getPathRelativeToClasspathElement());
+        }
+        return resourcePaths;
+    }
+
+    /**
+     * Returns a list of the URLs of each {@link Resource} in this list.
+     * 
+     * @returns the paths of of each {@link Resource} within its respective classpath element. For example, for a
+     *          resource path of "BOOT-INF/classes/com/xyz/resource.xml", returns
+     *          "BOOT-INF/classes/com/xyz/resource.xml" (even if the package root is "BOOT-INF/classes/").
+     */
+    public List<URL> getAllURLs() {
+        final List<URL> resourceURLs = new ArrayList<>(this.size());
+        for (final Resource resource : this) {
+            resourceURLs.add(resource.getURL());
+        }
+        return resourceURLs;
     }
 
     // -------------------------------------------------------------------------------------------------------------

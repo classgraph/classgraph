@@ -31,6 +31,8 @@ package io.github.lukehutch.fastclasspathscanner;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -90,6 +92,16 @@ class ClasspathElementModule extends ClasspathElement {
             @Override
             public String getPathRelativeToClasspathElement() {
                 return moduleResourcePath;
+            }
+
+            @Override
+            public URL getURL() {
+                try {
+                    return new URL(new URL(moduleRef.getModuleLocationStr()).toString() + "!" + moduleResourcePath);
+                } catch (final MalformedURLException e) {
+                    throw new IllegalArgumentException("Could not form URL for module location: "
+                            + moduleRef.getModuleLocationStr() + " ; path: " + moduleResourcePath);
+                }
             }
 
             @Override

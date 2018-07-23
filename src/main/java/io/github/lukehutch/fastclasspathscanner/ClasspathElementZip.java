@@ -31,6 +31,8 @@ package io.github.lukehutch.fastclasspathscanner;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -200,6 +202,16 @@ class ClasspathElementZip extends ClasspathElement {
                 return pathRelativeToClasspathElt == null
                         ? pathRelativeToClasspathElt = packageRootPrefix + pathRelativeToPackageRoot
                         : pathRelativeToClasspathElt;
+            }
+
+            @Override
+            public URL getURL() {
+                try {
+                    return new URL(jarFile.toURI().toURL().toString() + "!" + getPathRelativeToClasspathElement());
+                } catch (final MalformedURLException e) {
+                    throw new IllegalArgumentException("Could not form URL for jarfile: " + jarFile + " ; path: "
+                            + pathRelativeToClasspathElt);
+                }
             }
 
             @Override
