@@ -31,41 +31,31 @@ package io.github.lukehutch.fastclasspathscanner.issues.issue148;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
 
 import org.junit.Test;
 
-import io.github.lukehutch.fastclasspathscanner.ClassInfo;
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 
 public class Issue148Test {
     @Test
     public void issue148Test() throws IOException {
-        final String pkg = Issue148Test.class.getPackage().getName();
-        final Map<String, ClassInfo> classNameToClassInfo = new FastClasspathScanner().whitelistPackages(pkg).scan()
-                .getClassNameToClassInfo();
-
-        final List<ClassInfo> classInfoSorted = new ArrayList<>(classNameToClassInfo.values());
-        Collections.sort(classInfoSorted, new Comparator<ClassInfo>() {
+        @SuppressWarnings("unused")
+        final Runnable anonymousInnerClass1 = new Runnable() {
             @Override
-            public int compare(final ClassInfo o1, final ClassInfo o2) {
-                return o1.getClassName().compareTo(o2.getClassName());
+            public void run() {
             }
-        });
+        };
 
+        final String pkg = Issue148Test.class.getPackage().getName();
         final StringBuilder buf = new StringBuilder();
-        for (final ClassInfo ci : classInfoSorted) {
+        new FastClasspathScanner().whitelistPackages(pkg).enableAllInfo().scan().getAllClasses().forEach(ci -> {
             buf.append(ci.getClassName() + "|");
             buf.append(ci.isInnerClass() + " " + ci.isAnonymousInnerClass() + " " + ci.isOuterClass() + "|");
-            buf.append(ci.getInnerClassNames() + "|");
-            buf.append(ci.getOuterClassName() + "|");
-            buf.append(ci.getFullyQualifiedContainingMethodName() + "\n" //
-                    + "");
-        }
+            buf.append(ci.getInnerClasses().getClassNames() + "|");
+            buf.append(ci.getOuterClasses().getClassNames() + "|");
+            buf.append(ci.getFullyQualifiedContainingMethodName() + "\n");
+        });
+
         final String bufStr = buf.toString().replace(pkg + ".", "");
 
         // System.out.println("\"" + bufStr.replace("\n", "\\n\" //\n+\"") + "\"");

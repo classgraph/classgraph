@@ -30,56 +30,44 @@ package io.github.lukehutch.fastclasspathscanner.test.methodannotation;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.lang.reflect.Executable;
-import java.util.ArrayList;
 import java.util.List;
 
 import org.junit.Test;
 
+import io.github.lukehutch.fastclasspathscanner.ClassInfo;
+import io.github.lukehutch.fastclasspathscanner.ClassInfoList;
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-import io.github.lukehutch.fastclasspathscanner.matchprocessor.MethodAnnotationMatchProcessor;
+import io.github.lukehutch.fastclasspathscanner.MethodInfo;
 import io.github.lukehutch.fastclasspathscanner.test.external.ExternalAnnotation;
 
 public class MethodAnnotationTest {
     @Test
-    @ExternalAnnotation
     public void getNamesOfClassesWithMethodAnnotation() throws Exception {
         final List<String> testClasses = new FastClasspathScanner()
-                .whitelistPackages(MethodAnnotationTest.class.getPackage().getName())
-                .enableMethodAnnotationIndexing().scan()
-                .getNamesOfClassesWithMethodAnnotation(ExternalAnnotation.class.getName());
+                .whitelistPackages(MethodAnnotationTest.class.getPackage().getName()).enableMethodInfo()
+                .enableAnnotationInfo().scan().getClassesWithMethodAnnotation(ExternalAnnotation.class.getName())
+                .getClassNames();
+        assertThat(testClasses).isEmpty();
+    }
+
+    @Test
+    public void getNamesOfClassesWithMethodAnnotationIgnoringVisibility() throws Exception {
+        final ClassInfoList classesWithMethodAnnotation = new FastClasspathScanner()
+                .whitelistPackages(MethodAnnotationTest.class.getPackage().getName()).enableMethodInfo()
+                .enableAnnotationInfo().ignoreMethodVisibility().scan()
+                .getClassesWithMethodAnnotation(ExternalAnnotation.class.getName());
+        final List<String> testClasses = classesWithMethodAnnotation.getClassNames();
         assertThat(testClasses).containsOnly(MethodAnnotationTest.class.getName());
-    }
-
-    @Test
-    @ExternalAnnotation
-    public void methodAnnotationMatchProcessor() throws Exception {
-        final List<String> matchingMethodNames = new ArrayList<>();
-        new FastClasspathScanner().whitelistPackages(MethodAnnotationTest.class.getPackage().getName())
-                .matchClassesWithMethodAnnotation(ExternalAnnotation.class, new MethodAnnotationMatchProcessor() {
-                    @Override
-                    public void processMatch(final Class<?> matchingClass, final Executable matchingMethod) {
-                        matchingMethodNames.add(matchingMethod.getName());
-                    }
-                }).scan();
-        assertThat(matchingMethodNames).containsOnly("getNamesOfClassesWithMethodAnnotation",
-                "methodAnnotationMatchProcessor", "methodAnnotationMatchProcessorIgnoringVisibility");
-    }
-
-    @Test
-    @ExternalAnnotation
-    public void methodAnnotationMatchProcessorIgnoringVisibility() throws Exception {
-        final List<String> matchingMethodNames = new ArrayList<>();
-        new FastClasspathScanner().whitelistPackages(MethodAnnotationTest.class.getPackage().getName())
-                .matchClassesWithMethodAnnotation(ExternalAnnotation.class, new MethodAnnotationMatchProcessor() {
-                    @Override
-                    public void processMatch(final Class<?> matchingClass, final Executable matchingMethod) {
-                        matchingMethodNames.add(matchingMethod.getName());
-                    }
-                }).ignoreMethodVisibility().scan();
-        assertThat(matchingMethodNames).containsOnly("getNamesOfClassesWithMethodAnnotation",
-                "methodAnnotationMatchProcessor", "methodAnnotationMatchProcessorIgnoringVisibility",
-                "privateMethodWithAnnotation");
+        boolean found = false;
+        for (final ClassInfo ci : classesWithMethodAnnotation) {
+            for (final MethodInfo mi : ci.getMethodInfo()) {
+                if (mi.getAnnotationInfo().containsAnnotationNamed(ExternalAnnotation.class.getName())) {
+                    assertThat(mi.getMethodName().equals("privateMethodWithAnnotation"));
+                    found = true;
+                }
+            }
+        }
+        assertThat(found).isEqualTo(true);
     }
 
     public void methodWithoutAnnotation() {

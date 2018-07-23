@@ -30,9 +30,7 @@ package io.github.lukehutch.fastclasspathscanner.issues.issue166;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.io.File;
 import java.net.URL;
-import java.util.ArrayList;
 
 import org.junit.Test;
 
@@ -42,34 +40,22 @@ public class Issue166Test {
     @Test
     public void issue166Test() {
         final URL jarURL = Issue166Test.class.getClassLoader().getResource("issue166-jar-without-extension");
-        final ArrayList<String> fileNames = new ArrayList<>();
-        new FastClasspathScanner().overrideClasspath(jarURL) //
-                .matchFilenamePattern(".*",
-                        (final File classpathElt, final String relativePath) -> fileNames.add(relativePath))
-                .scan();
-        assertThat(fileNames).containsOnly("Issue166.txt");
+        assertThat(new FastClasspathScanner().overrideClasspath(jarURL).scan().getAllResources()
+                .getPathsRelativeToPackageRoot()).containsOnly("Issue166.txt");
     }
 
     @Test
     public void testNonJarFileOnClasspath() {
         final URL nonJarURL = Issue166Test.class.getClassLoader().getResource("file-content-test.txt");
-        final ArrayList<String> fileNames = new ArrayList<>();
-        new FastClasspathScanner().overrideClasspath(nonJarURL) //
-                .matchFilenamePattern(".*",
-                        (final File classpathElt, final String relativePath) -> fileNames.add(relativePath))
-                .scan();
-        assertThat(fileNames).isEmpty();
+        assertThat(new FastClasspathScanner().overrideClasspath(nonJarURL).scan().getAllResources()
+                .getPathsRelativeToPackageRoot()).isEmpty();
     }
 
     @Test
     public void testNonExistentJarFileOnClasspath() {
         final URL nonJarURL = Issue166Test.class.getClassLoader().getResource("file-content-test.txt");
         final String nonExistentURL = nonJarURL.toString() + "-file-that-does-not-exist";
-        final ArrayList<String> fileNames = new ArrayList<>();
-        new FastClasspathScanner().overrideClasspath(nonExistentURL) //
-                .matchFilenamePattern(".*",
-                        (final File classpathElt, final String relativePath) -> fileNames.add(relativePath))
-                .scan();
-        assertThat(fileNames).isEmpty();
+        assertThat(new FastClasspathScanner().overrideClasspath(nonExistentURL).scan().getAllResources()
+                .getPathsRelativeToPackageRoot()).isEmpty();
     }
 }

@@ -30,7 +30,6 @@ package io.github.lukehutch.fastclasspathscanner.issues.issue100;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.lang.reflect.Field;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
@@ -38,6 +37,7 @@ import java.util.ArrayList;
 import org.junit.Test;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
+import io.github.lukehutch.fastclasspathscanner.FieldInfo;
 
 public class Issue100Test {
     @Test
@@ -52,27 +52,26 @@ public class Issue100Test {
         // Class issue100.Test with field "a" should mask class of same name with field "b", because "...a.jar" is
         // earlier in classpath than "...b.jar"
         final ArrayList<String> fieldNames1 = new ArrayList<>();
-        new FastClasspathScanner().whitelistPackages("issue100") //
-                .overrideClassLoaders(overrideClassLoader).matchAllClasses(klass -> {
-                    for (final Field f : klass.getFields()) {
-                        fieldNames1.add(f.getName());
+        new FastClasspathScanner().overrideClassLoaders(overrideClassLoader).whitelistPackages("issue100")
+                .enableFieldInfo().verbose().scan().getAllClasses().forEach(ci -> {
+                    for (final FieldInfo f : ci.getFieldInfo()) {
+                        fieldNames1.add(f.getFieldName());
                     }
-                }).scan();
+                });
         assertThat(fieldNames1).containsOnly("a");
 
         // However, if "...b.jar" is specifically whitelisted, "...a.jar" should not be visible. Originally, the
         // version of the class in "...a.jar" was supposed to mask the same class in "...b.jar" (#100). However,
-        // this resulted in a slowdown in scan time (#117). Also, even if "...b.jar" is whitelisted, scanning with a
-        // MatchProcessor (which calls the current classloader) will actually end up loading "...a.jar". Therefore,
-        // the official stance is that using jar whitelisting/blacklisting in cases where a class is defined
-        // multiple times will result in undefined behavior.
+        // this resulted in a slowdown in scan time (#117). Since classloading behavior is undefined if you override
+        // the classpath (or in this case, the classloaders), we should only see field "b" in "...b.jar" (which is
+        // what we actually see through scanning the whitelisted jar, "bJarName").
         final ArrayList<String> fieldNames2 = new ArrayList<>();
-        new FastClasspathScanner().whitelistPackages("issue100", "jar:" + bJarName) //
-                .overrideClassLoaders(overrideClassLoader).matchAllClasses(klass -> {
-                    for (final Field f : klass.getFields()) {
-                        fieldNames2.add(f.getName());
+        new FastClasspathScanner().overrideClassLoaders(overrideClassLoader).whitelistPackages("issue100")
+                .whitelistJars(bJarName).enableFieldInfo().scan().getAllClasses().forEach(ci -> {
+                    for (final FieldInfo f : ci.getFieldInfo()) {
+                        fieldNames2.add(f.getFieldName());
                     }
-                }).scan();
-        assertThat(fieldNames2).containsOnly("a");
+                });
+        assertThat(fieldNames2).containsOnly("b");
     }
 }

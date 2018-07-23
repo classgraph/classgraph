@@ -30,32 +30,27 @@ package io.github.lukehutch.fastclasspathscanner.test.fieldinfo;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import org.junit.Test;
 
-import io.github.lukehutch.fastclasspathscanner.ClassInfo;
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-import io.github.lukehutch.fastclasspathscanner.FieldInfo;
 import io.github.lukehutch.fastclasspathscanner.test.external.ExternalAnnotation;
 
 public class FieldInfoTest {
     @ExternalAnnotation
-    public final int publicFieldWithAnnotation = 3;
+    public static final int publicFieldWithAnnotation = 3;
 
     @ExternalAnnotation
-    private final String privateFieldWithAnnotation = "test";
+    private static final String privateFieldWithAnnotation = "test";
 
     public int fieldWithoutAnnotation;
 
     @Test
     public void fieldInfoNotEnabled() throws Exception {
         try {
-            // .enableSaveFieldInfo() not called
             new FastClasspathScanner().whitelistPackages(FieldInfoTest.class.getPackage().getName()).scan()
-                    .getClassNameToClassInfo().get(FieldInfoTest.class.getName()).getFieldInfo();
+                    .getClassInfo(FieldInfoTest.class.getName()).getFieldInfo();
             throw new RuntimeException("Fail");
         } catch (final Exception e) {
             // Pass
@@ -64,31 +59,25 @@ public class FieldInfoTest {
 
     @Test
     public void getFieldInfo() throws Exception {
-        final Map<String, ClassInfo> classNameToClassInfo = new FastClasspathScanner()
-                .whitelistPackages(FieldInfoTest.class.getPackage().getName()).enableFieldInfo().scan()
-                .getClassNameToClassInfo();
-        final List<String> fieldInfoStrs = new ArrayList<>();
-        for (final FieldInfo fieldInfo : classNameToClassInfo.get(FieldInfoTest.class.getName()).getFieldInfo()) {
-            fieldInfoStrs.add(fieldInfo.toString());
-        }
+        final List<String> fieldInfoStrs = new FastClasspathScanner()
+                .whitelistPackages(FieldInfoTest.class.getPackage().getName()).enableFieldInfo()
+                .enableStaticFinalFieldConstantInitializerValues().enableAnnotationInfo().scan()
+                .getClassInfo(FieldInfoTest.class.getName()).getFieldInfo().getFieldStrs();
         assertThat(fieldInfoStrs).containsOnly(
-                "@" + ExternalAnnotation.class.getName() + " public final int publicFieldWithAnnotation = 3",
+                "@" + ExternalAnnotation.class.getName() + " public static final int publicFieldWithAnnotation = 3",
                 "public int fieldWithoutAnnotation");
     }
 
     @Test
     public void getFieldInfoIgnoringVisibility() throws Exception {
-        final Map<String, ClassInfo> classNameToClassInfo = new FastClasspathScanner()
+        final List<String> fieldInfoStrs = new FastClasspathScanner()
                 .whitelistPackages(FieldInfoTest.class.getPackage().getName()).enableFieldInfo()
-                .ignoreFieldVisibility().scan().getClassNameToClassInfo();
-        final List<String> fieldInfoStrs = new ArrayList<>();
-        for (final FieldInfo fieldInfo : classNameToClassInfo.get(FieldInfoTest.class.getName()).getFieldInfo()) {
-            fieldInfoStrs.add(fieldInfo.toString());
-        }
+                .enableStaticFinalFieldConstantInitializerValues().enableAnnotationInfo().ignoreFieldVisibility()
+                .scan().getClassInfo(FieldInfoTest.class.getName()).getFieldInfo().getFieldStrs();
         assertThat(fieldInfoStrs).containsOnly(
-                "@" + ExternalAnnotation.class.getName() + " public final int publicFieldWithAnnotation = 3",
+                "@" + ExternalAnnotation.class.getName() + " public static final int publicFieldWithAnnotation = 3",
                 "@" + ExternalAnnotation.class.getName()
-                        + " private final java.lang.String privateFieldWithAnnotation = \"test\"",
+                        + " private static final java.lang.String privateFieldWithAnnotation = \"test\"",
                 "public int fieldWithoutAnnotation");
     }
 }

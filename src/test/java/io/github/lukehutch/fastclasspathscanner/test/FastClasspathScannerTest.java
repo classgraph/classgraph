@@ -40,7 +40,6 @@ import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.FieldInfo;
 import io.github.lukehutch.fastclasspathscanner.ScanResult;
 import io.github.lukehutch.fastclasspathscanner.test.blacklisted.BlacklistedAnnotation;
-import io.github.lukehutch.fastclasspathscanner.test.blacklisted.BlacklistedInterface;
 import io.github.lukehutch.fastclasspathscanner.test.blacklisted.BlacklistedSubclass;
 import io.github.lukehutch.fastclasspathscanner.test.blacklisted.BlacklistedSubinterface;
 import io.github.lukehutch.fastclasspathscanner.test.blacklisted.BlacklistedSuperclass;
@@ -96,9 +95,9 @@ public class FastClasspathScannerTest {
 
     @Test
     public void scanWithWhitelistAndBlacklist() throws Exception {
-        final List<String> allClasses = new FastClasspathScanner()
-                .whitelistPackages(WHITELIST_PACKAGE, "-" + BlacklistedSub.class.getPackage().getName()).scan()
-                .getAllClasses().getClassNames();
+        final List<String> allClasses = new FastClasspathScanner().whitelistPackages(WHITELIST_PACKAGE)
+                .blacklistPackages(BlacklistedSub.class.getPackage().getName()).scan().getAllClasses()
+                .getClassNames();
         assertThat(allClasses).contains(Cls.class.getName());
         assertThat(allClasses).doesNotContain(FastClasspathScanner.class.getName());
         assertThat(allClasses).doesNotContain(FastClasspathScannerTest.class.getName());
@@ -122,15 +121,14 @@ public class FastClasspathScannerTest {
     @Test
     public void scanSubAndSuperinterface() throws Exception {
         final ScanResult scanResult = new FastClasspathScanner().whitelistPackages(WHITELIST_PACKAGE).scan();
-        final List<String> subinterfaces = scanResult.getSubinterfaces(Iface.class.getName()).getClassNames();
+        final List<String> subinterfaces = scanResult.getClassesImplementing(Iface.class.getName()).getClassNames();
         assertThat(subinterfaces).doesNotContain(Iface.class.getName());
         assertThat(subinterfaces).contains(IfaceSub.class.getName());
         assertThat(subinterfaces).contains(IfaceSubSub.class.getName());
-        final List<String> subsubinterfaces = scanResult.getSubinterfaces(IfaceSubSub.class.getName())
-                .getClassNames();
-        assertThat(subsubinterfaces).doesNotContain(IfaceSubSub.class.getName());
-        assertThat(subsubinterfaces).contains(IfaceSub.class.getName());
-        assertThat(subsubinterfaces).contains(Iface.class.getName());
+        final List<String> superinterfaces = scanResult.getInterfaces(IfaceSubSub.class.getName()).getClassNames();
+        assertThat(superinterfaces).doesNotContain(IfaceSubSub.class.getName());
+        assertThat(superinterfaces).contains(IfaceSub.class.getName());
+        assertThat(superinterfaces).contains(Iface.class.getName());
     }
 
     @Test
@@ -187,7 +185,8 @@ public class FastClasspathScannerTest {
         assertThat(scanResult.getSubclasses(Whitelisted.class.getName()).getClassNames()).isEmpty();
         assertThat(scanResult.getClassesImplementing(WhitelistedInterface.class.getName()).getClassNames())
                 .isEmpty();
-        assertThat(scanResult.getSubinterfaces(WhitelistedInterface.class.getName()).getClassNames()).isEmpty();
+        assertThat(scanResult.getClassesImplementing(WhitelistedInterface.class.getName()).getClassNames())
+                .isEmpty();
     }
 
     @Test
@@ -207,13 +206,15 @@ public class FastClasspathScannerTest {
 
     @Test
     public void testBlacklistedPlaceholderNotReturned() throws Exception {
-        final ScanResult scanResult = new FastClasspathScanner()
-                .whitelistPackages(ROOT_PACKAGE, "-" + BlacklistedAnnotation.class.getPackage().getName()).scan();
+        final ScanResult scanResult = new FastClasspathScanner().whitelistPackages(ROOT_PACKAGE)
+                .blacklistPackages(BlacklistedAnnotation.class.getPackage().getName()).enableAnnotationInfo()
+                .scan();
         assertThat(scanResult.getSuperclasses(Whitelisted.class.getName()).getClassNames()).isEmpty();
         assertThat(scanResult.getSubclasses(Whitelisted.class.getName()).getClassNames()).isEmpty();
         assertThat(scanResult.getClassesImplementing(WhitelistedInterface.class.getName()).getClassNames())
                 .isEmpty();
-        assertThat(scanResult.getSubinterfaces(WhitelistedInterface.class.getName()).getClassNames()).isEmpty();
+        assertThat(scanResult.getClassesImplementing(WhitelistedInterface.class.getName()).getClassNames())
+                .isEmpty();
         assertThat(scanResult.getAnnotationsOnClass(WhitelistedInterface.class.getName()).getClassNames())
                 .isEmpty();
     }
@@ -248,7 +249,8 @@ public class FastClasspathScannerTest {
         assertThat(scanResult.getSubclasses(Whitelisted.class.getName()).getClassNames()).isEmpty();
         assertThat(scanResult.getClassesImplementing(WhitelistedInterface.class.getName()).getClassNames())
                 .isEmpty();
-        assertThat(scanResult.getSubinterfaces(WhitelistedInterface.class.getName()).getClassNames()).isEmpty();
+        assertThat(scanResult.getClassesImplementing(WhitelistedInterface.class.getName()).getClassNames())
+                .isEmpty();
         assertThat(scanResult.getClassesWithAnnotation(BlacklistedAnnotation.class.getName()).getClassNames());
     }
 
@@ -268,14 +270,15 @@ public class FastClasspathScannerTest {
 
     @Test
     public void testVisibleIfNotBlacklisted() throws Exception {
-        final ScanResult scanResult = new FastClasspathScanner().whitelistPackages(ROOT_PACKAGE).scan();
+        final ScanResult scanResult = new FastClasspathScanner().whitelistPackages(ROOT_PACKAGE)
+                .enableAnnotationInfo().scan();
         assertThat(scanResult.getSuperclasses(Whitelisted.class.getName()).getClassNames())
                 .containsExactly(BlacklistedSuperclass.class.getName());
         assertThat(scanResult.getSubclasses(Whitelisted.class.getName()).getClassNames())
                 .containsExactly(BlacklistedSubclass.class.getName());
         assertThat(scanResult.getClassesImplementing(WhitelistedInterface.class.getName()).getClassNames())
-                .containsExactly(BlacklistedInterface.class.getName());
-        assertThat(scanResult.getSubinterfaces(WhitelistedInterface.class.getName()).getClassNames())
+                .containsExactly(BlacklistedSubinterface.class.getName());
+        assertThat(scanResult.getClassesImplementing(WhitelistedInterface.class.getName()).getClassNames())
                 .containsExactly(BlacklistedSubinterface.class.getName());
         assertThat(scanResult.getClassesWithAnnotation(BlacklistedAnnotation.class.getName()).getClassNames())
                 .containsExactly(Whitelisted.class.getName());
@@ -293,7 +296,7 @@ public class FastClasspathScannerTest {
     public void scanStaticFinalFieldName() throws Exception {
         int numInitializers = 0;
         for (final FieldInfo fieldInfo : new FastClasspathScanner().whitelistPackages(WHITELIST_PACKAGE)
-                .enableStaticFinalFieldConstInitializerValues().scan().getClassInfo(StaticField.class.getName())
+                .enableStaticFinalFieldConstantInitializerValues().scan().getClassInfo(StaticField.class.getName())
                 .getFieldInfo()) {
             if (fieldInfo.getConstInitializerValue() != null) {
                 numInitializers++;
@@ -311,8 +314,8 @@ public class FastClasspathScannerTest {
         }
         int numInitializers = 0;
         for (final FieldInfo fieldInfo : new FastClasspathScanner().whitelistPackages(WHITELIST_PACKAGE)
-                .enableStaticFinalFieldConstInitializerValues().scan().getClassInfo(StaticField.class.getName())
-                .getFieldInfo()) {
+                .enableStaticFinalFieldConstantInitializerValues().ignoreFieldVisibility().scan()
+                .getClassInfo(StaticField.class.getName()).getFieldInfo()) {
             final Object constInitializerValue = fieldInfo.getConstInitializerValue();
             if (constInitializerValue != null) {
                 switch (fieldInfo.getFieldName()) {

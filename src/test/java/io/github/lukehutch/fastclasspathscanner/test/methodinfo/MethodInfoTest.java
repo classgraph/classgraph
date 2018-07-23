@@ -30,15 +30,11 @@ package io.github.lukehutch.fastclasspathscanner.test.methodinfo;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import org.junit.Test;
 
-import io.github.lukehutch.fastclasspathscanner.ClassInfo;
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-import io.github.lukehutch.fastclasspathscanner.MethodInfo;
 import io.github.lukehutch.fastclasspathscanner.test.external.ExternalAnnotation;
 
 public class MethodInfoTest {
@@ -58,7 +54,7 @@ public class MethodInfoTest {
         try {
             // .enableSaveMethodInfo() not called
             new FastClasspathScanner().whitelistPackages(MethodInfoTest.class.getPackage().getName()).scan()
-                    .getClassNameToClassInfo().get(MethodInfoTest.class.getName()).getMethodInfo();
+                    .getClassInfo(MethodInfoTest.class.getName()).getMethodInfo();
             throw new RuntimeException("Fail");
         } catch (final Exception e) {
             // Pass
@@ -67,63 +63,39 @@ public class MethodInfoTest {
 
     @Test
     public void getMethodInfo() throws Exception {
-        final Map<String, ClassInfo> classNameToClassInfo = new FastClasspathScanner()
-                .whitelistPackages(MethodInfoTest.class.getPackage().getName()).enableMethodInfo().scan()
-                .getClassNameToClassInfo();
-
-        final List<String> methodInfoStrs = new ArrayList<>();
-        final List<MethodInfo> methodInfo = classNameToClassInfo.get(MethodInfoTest.class.getName())
-                .getMethodInfo();
-        assertThat(methodInfo).isNotNull();
-        for (final MethodInfo mi : methodInfo) {
-            methodInfoStrs.add(mi.toString());
-        }
-        assertThat(methodInfoStrs).containsOnly( //
-                "@" + ExternalAnnotation.class.getName() //
-                        + " public final int publicMethodWithArgs"
-                        + "(java.lang.String, char, long, float[], byte[][], "
-                        + "java.util.List<java.lang.Float>, int[]...)",
-                "@" + Test.class.getName() + " public void methodInfoNotEnabled()",
-                "@" + Test.class.getName() + " public void getMethodInfo()",
-                "@" + Test.class.getName() + " public void getConstructorInfo()",
-                "@" + Test.class.getName() + " public void getMethodInfoIgnoringVisibility()");
+        assertThat(new FastClasspathScanner().whitelistPackages(MethodInfoTest.class.getPackage().getName())
+                .enableMethodInfo().scan().getClassInfo(MethodInfoTest.class.getName()).getMethodInfo()
+                .getMethodStrs()).containsOnly( //
+                        "@" + ExternalAnnotation.class.getName() //
+                                + " public final int publicMethodWithArgs"
+                                + "(java.lang.String, char, long, float[], byte[][], "
+                                + "java.util.List<java.lang.Float>, int[]...)",
+                        "@" + Test.class.getName() + " public void methodInfoNotEnabled()",
+                        "@" + Test.class.getName() + " public void getMethodInfo()",
+                        "@" + Test.class.getName() + " public void getConstructorInfo()",
+                        "@" + Test.class.getName() + " public void getMethodInfoIgnoringVisibility()");
     }
 
     @Test
     public void getConstructorInfo() throws Exception {
-        final Map<String, ClassInfo> classNameToClassInfo = new FastClasspathScanner()
-                .whitelistPackages(MethodInfoTest.class.getPackage().getName()).enableMethodInfo().scan()
-                .getClassNameToClassInfo();
-
-        final List<String> constructorInfoStrs = new ArrayList<>();
-        final List<MethodInfo> constructorInfo = classNameToClassInfo.get(MethodInfoTest.class.getName())
-                .getConstructorInfo();
-        assertThat(constructorInfo).isNotNull();
-        for (final MethodInfo ci : constructorInfo) {
-            constructorInfoStrs.add(ci.toString());
-        }
-        assertThat(constructorInfoStrs).containsOnly("public <init>()");
+        assertThat(new FastClasspathScanner().whitelistPackages(MethodInfoTest.class.getPackage().getName())
+                .enableMethodInfo().scan().getClassInfo(MethodInfoTest.class.getName()).getConstructorInfo()
+                .getMethodStrs()).containsOnly("public <init>()");
     }
 
     @Test
     public void getMethodInfoIgnoringVisibility() throws Exception {
-        final Map<String, ClassInfo> classNameToClassInfo = new FastClasspathScanner()
-                .whitelistPackages(MethodInfoTest.class.getPackage().getName()).enableMethodInfo()
-                .ignoreMethodVisibility().scan().getClassNameToClassInfo();
-        final List<String> methodInfoStrs = new ArrayList<>();
-        for (final MethodInfo methodInfo : classNameToClassInfo.get(MethodInfoTest.class.getName())
-                .getMethodInfo()) {
-            methodInfoStrs.add(methodInfo.toString());
-        }
-        assertThat(methodInfoStrs).containsOnly( //
-                "@" + ExternalAnnotation.class.getName() //
-                        + " public final int publicMethodWithArgs"
-                        + "(java.lang.String, char, long, float[], byte[][], "
-                        + "java.util.List<java.lang.Float>, int[]...)",
-                "private static java.lang.String[] privateMethod()",
-                "@" + Test.class.getName() + " public void methodInfoNotEnabled()",
-                "@" + Test.class.getName() + " public void getMethodInfo()",
-                "@" + Test.class.getName() + " public void getConstructorInfo()",
-                "@" + Test.class.getName() + " public void getMethodInfoIgnoringVisibility()");
+        assertThat(new FastClasspathScanner().whitelistPackages(MethodInfoTest.class.getPackage().getName())
+                .enableMethodInfo().ignoreMethodVisibility().scan().getClassInfo(MethodInfoTest.class.getName())
+                .getMethodInfo().getMethodStrs()).containsOnly( //
+                        "@" + ExternalAnnotation.class.getName() //
+                                + " public final int publicMethodWithArgs"
+                                + "(java.lang.String, char, long, float[], byte[][], "
+                                + "java.util.List<java.lang.Float>, int[]...)",
+                        "private static java.lang.String[] privateMethod()",
+                        "@" + Test.class.getName() + " public void methodInfoNotEnabled()",
+                        "@" + Test.class.getName() + " public void getMethodInfo()",
+                        "@" + Test.class.getName() + " public void getConstructorInfo()",
+                        "@" + Test.class.getName() + " public void getMethodInfoIgnoringVisibility()");
     }
 }

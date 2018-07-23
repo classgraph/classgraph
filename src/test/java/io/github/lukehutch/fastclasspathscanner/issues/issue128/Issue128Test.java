@@ -40,7 +40,6 @@ import java.util.List;
 import org.junit.Test;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-import io.github.lukehutch.fastclasspathscanner.matchprocessor.FileMatchContentsProcessor;
 
 public class Issue128Test {
 
@@ -57,14 +56,8 @@ public class Issue128Test {
         // Test a nested jar inside a jar fetched over HTTP
         final List<String> filesInsideLevel3 = new ArrayList<>();
         final URL jarURL = new URL(NESTED_JAR_URL);
-        new FastClasspathScanner().overrideClassLoaders(new URLClassLoader(new URL[] { jarURL }, null))
-                .matchFilenamePattern(".*", new FileMatchContentsProcessor() {
-                    @Override
-                    public void processMatch(final String relativePath, final byte[] fileContents)
-                            throws IOException {
-                        filesInsideLevel3.add(relativePath);
-                    }
-                }).scan();
+        new FastClasspathScanner().overrideClassLoaders(new URLClassLoader(new URL[] { jarURL }, null)).scan()
+                .getAllResources().forEach(r -> filesInsideLevel3.add(r.getPathRelativeToPackageRoot()));
         if (filesInsideLevel3.isEmpty()) {
             // If there were no files inside jar, it is possible that remote jar could not be downloaded
             try (InputStream is = jarURL.openStream()) {

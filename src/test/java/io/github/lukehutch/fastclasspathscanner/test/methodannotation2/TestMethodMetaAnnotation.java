@@ -76,8 +76,8 @@ public class TestMethodMetaAnnotation {
     @ExternalAnnotation
     public void testClassMetaAnnotation() {
         final List<String> testClasses = new FastClasspathScanner()
-                .whitelistPackages(TestMethodMetaAnnotation.class.getPackage().getName()).scan()
-                .getNamesOfClassesWithAnnotation(MetaAnnotation.class.getName());
+                .whitelistPackages(TestMethodMetaAnnotation.class.getPackage().getName()).enableAnnotationInfo()
+                .scan().getClassesWithAnnotation(MetaAnnotation.class.getName()).getClassNames();
         assertThat(testClasses).containsOnly(MetaAnnotatedClass.class.getName());
     }
 
@@ -85,9 +85,9 @@ public class TestMethodMetaAnnotation {
     @ExternalAnnotation
     public void testMethodMetaAnnotation() throws Exception {
         final List<String> testClasses = new FastClasspathScanner()
-                .whitelistPackages(TestMethodMetaAnnotation.class.getPackage().getName())
-                .enableMethodAnnotationIndexing().scan()
-                .getNamesOfClassesWithMethodAnnotation(MetaAnnotation.class.getName());
+                .whitelistPackages(TestMethodMetaAnnotation.class.getPackage().getName()).enableMethodInfo()
+                .enableAnnotationInfo().scan().getClassesWithMethodAnnotation(MetaAnnotation.class.getName())
+                .getClassNames();
         assertThat(testClasses).containsOnly(ClassWithMetaAnnotatedMethod.class.getName());
     }
 }
