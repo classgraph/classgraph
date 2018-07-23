@@ -372,7 +372,7 @@ public class ClassInfoList implements List<ClassInfo> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Find the union of this ClassInfoList with one or more others.
+     * Find the union of this {@link ClassInfoList} with one or more others.
      *
      * @param others
      *            The other {@link ClassInfoList}s to union with this one.
@@ -394,7 +394,7 @@ public class ClassInfoList implements List<ClassInfo> {
     }
 
     /**
-     * Find the intersection of this ClassInfoList with one or more others.
+     * Find the intersection of this {@link ClassInfoList} with one or more others.
      *
      * @param others
      *            The other {@link ClassInfoList}s to intersect with this one.
@@ -416,7 +416,8 @@ public class ClassInfoList implements List<ClassInfo> {
     }
 
     /**
-     * Find the set difference between this ClassInfoList and another ClassInfoList, i.e. (this \ other).
+     * Find the set difference between this {@link ClassInfoList} and another {@link ClassInfoList}, i.e. (this \
+     * other).
      *
      * @param other
      *            The other {@link ClassInfoList} to subtract from this one.
@@ -433,6 +434,49 @@ public class ClassInfoList implements List<ClassInfo> {
             directlyRelatedClassesDifference.removeAll(other.directlyRelatedClasses);
         }
         return new ClassInfoList(reachableClassesDifference, directlyRelatedClassesDifference);
+    }
+
+    /**
+     * Filter a {@link ClassInfoList} using a predicate mapping a {@link ClassInfo} object to a boolean, producing
+     * another {@link ClassInfoList} for all items in the list for which the predicate is true.
+     */
+    @FunctionalInterface
+    public interface ClassInfoFilter {
+        /**
+         * Whether or not to allow a {@link ClassInfo} list item through the filter.
+         *
+         * @param classInfo
+         *            The {@link ClassInfo} item to filter.
+         * @return Whether or not to allow the item through the filter. If true, the item is copied to the output
+         *         list; if false, it is excluded.
+         */
+        public boolean accept(ClassInfo classInfo);
+    }
+
+    /**
+     * Find the set difference between this ClassInfoList and another ClassInfoList, i.e. (this \ other).
+     *
+     * @param filter
+     *            The {@link ClassInfoFilter} to apply.
+     * @return The set difference of this {@link ClassInfoList} and other, i.e. (this \ other).
+     */
+    public ClassInfoList filter(final ClassInfoFilter filter) {
+        final List<ClassInfo> reachableClassesFiltered = new ArrayList<>();
+        for (final ClassInfo ci : reachableClasses) {
+            if (filter.accept(ci)) {
+                reachableClassesFiltered.add(ci);
+            }
+        }
+        if (reachableClasses == directlyRelatedClasses) {
+            return new ClassInfoList(reachableClassesFiltered, reachableClassesFiltered);
+        }
+        final List<ClassInfo> directlyRelatedClassesFiltered = new ArrayList<>();
+        for (final ClassInfo ci : directlyRelatedClasses) {
+            if (filter.accept(ci)) {
+                directlyRelatedClassesFiltered.add(ci);
+            }
+        }
+        return new ClassInfoList(reachableClassesFiltered, directlyRelatedClassesFiltered);
     }
 
     // -------------------------------------------------------------------------------------------------------------
