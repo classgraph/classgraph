@@ -134,7 +134,7 @@ public class ScanSpec {
     public boolean enableAnnotationInfo = false;
 
     /** Enable the storing of constant initializer values for static final fields in ClassInfo objects. */
-    public boolean enableStaticFinalFieldConstValues = false;
+    public boolean enableStaticFinalFieldConstantInitializerValues = false;
 
     /**
      * If true, allow external classes (classes outside of whitelisted packages) to be returned in the ScanResult,

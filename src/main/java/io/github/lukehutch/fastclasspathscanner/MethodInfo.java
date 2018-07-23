@@ -30,7 +30,6 @@ package io.github.lukehutch.fastclasspathscanner;
 
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -743,57 +742,6 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
         return annotationInfo;
     }
 
-    /**
-     * Returns the unique annotation names for annotations on each method parameter, if any parameters have
-     * annotations, else returns null.
-     *
-     * Note that it is always faster to call {@link #getParameterInfo()} and get the parameter information from the
-     * returned list of {@link MethodParameterInfo} objects, since this method calls that to compile its results.
-     * 
-     * @return The method parameter annotation names, as an array of Strings, or null if no parameter annotations
-     *         are presest.
-     */
-    public String[][] getParameterAnnotationNames() {
-        final AnnotationInfo[][] paramAnnotationInfo = getParameterAnnotationInfo();
-        if (paramAnnotationInfo == null) {
-            return null;
-        }
-        final String[][] paramAnnotationNames = new String[paramAnnotationInfo.length][];
-        for (int i = 0; i < paramAnnotationInfo.length; i++) {
-            paramAnnotationNames[i] = AnnotationInfo.getUniqueAnnotationNamesSorted(paramAnnotationInfo[i]);
-        }
-        return paramAnnotationNames;
-    }
-
-    /**
-     * Returns the unique annotation types for annotations on each method parameter, if any parameters have
-     * annotations, else returns null. Causes the classloader to load each parameter type's class, if not already
-     * loaded.
-     *
-     * Note that it is always faster to call {@link #getParameterInfo()} and get the parameter information from the
-     * returned list of {@link MethodParameterInfo} objects, since this method calls that to compile its results.
-     * 
-     * @return The method parameter annotation types, as an array of Strings, or null if no parameter annotations
-     *         are present.
-     * @throws IllegalArgumentException
-     *             if an exception or error is thrown when loading any of the paramater types.
-     */
-    public Class<?>[][] getParameterAnnotationTypes() {
-        final String[][] paramAnnotationNames = getParameterAnnotationNames();
-        if (paramAnnotationNames == null) {
-            return null;
-        }
-        final Class<?>[][] parameterAnnotationTypes = new Class<?>[paramAnnotationNames.length][];
-        for (int i = 0; i < paramAnnotationNames.length; i++) {
-            parameterAnnotationTypes[i] = new Class<?>[paramAnnotationNames[i].length];
-            for (int j = 0; j < paramAnnotationNames[i].length; j++) {
-                parameterAnnotationTypes[i][j] = scanResult.loadClass(paramAnnotationNames[i][j],
-                        /* ignoreExceptions = */ false);
-            }
-        }
-        return parameterAnnotationTypes;
-    }
-
     // -------------------------------------------------------------------------------------------------------------
 
     /**
@@ -890,37 +838,6 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     }
 
     // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Returns the names of annotations on the method.
-     * 
-     * @return The names of annotations on this method, or the empty list if none.
-     */
-    public List<String> getAnnotationNames() {
-        return annotationInfo == null ? Collections.<String> emptyList()
-                : Arrays.asList(AnnotationInfo.getUniqueAnnotationNamesSorted(annotationInfo));
-    }
-
-    /**
-     * Returns a list of {@code Class<?>} references for the annotations on this method. Note that this calls
-     * Class.forName() on the annotation types, which will cause each annotation class to be loaded. Causes the
-     * classloader to load each annotation's class, if not already loaded.
-     * 
-     * @return a list of {@code Class<?>} references for the annotations on this method, or the empty list if none.
-     * @throws IllegalArgumentException
-     *             if an exception or error was thrown while loading any of the annotation classes.
-     */
-    public List<Class<?>> getAnnotationTypes() throws IllegalArgumentException {
-        if (annotationInfo == null || annotationInfo.isEmpty()) {
-            return Collections.<Class<?>> emptyList();
-        } else {
-            final List<Class<?>> annotationClassRefs = new ArrayList<>();
-            for (final String annotationName : getAnnotationNames()) {
-                annotationClassRefs.add(scanResult.loadClass(annotationName, /* ignoreExceptions = */ false));
-            }
-            return annotationClassRefs;
-        }
-    }
 
     /**
      * Get a list of annotations on this method, along with any annotation parameter values.

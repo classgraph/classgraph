@@ -501,30 +501,14 @@ public class ScanResult {
     }
 
     /**
-     * Get all subinterfaces of the named interface.
-     *
-     * @param interfaceName
-     *            The interface name.
-     * @return A list of all subinterfaces of the named interface, or the empty list if none.
-     */
-    public ClassInfoList getSubinterfaces(final String interfaceName) {
-        if (!scanSpec.enableClassInfo) {
-            throw new IllegalArgumentException("Cannot get method info without calling "
-                    + "FastClasspathScanner#enableClassInfo() (or adding class or package whitelist/blacklist "
-                    + "criteria) before starting the scan");
-        }
-        final ClassInfo classInfo = classNameToClassInfo.get(interfaceName);
-        return classInfo == null ? ClassInfoList.EMPTY_LIST : classInfo.getSubinterfaces();
-    }
-
-    /**
-     * Get all superinterfaces of the named interface.
+     * Get all interfaces implemented by the named class or by one of its superclasses, if this is a standard class,
+     * or the superinterfaces extended by this interface, if this is an interface.
      *
      * @param subInterfaceName
      *            The subinterface name.
      * @return A list of superinterfaces of the named subinterface, or the empty list if none.
      */
-    public ClassInfoList getSuperinterfaces(final String subInterfaceName) {
+    public ClassInfoList getInterfaces(final String subInterfaceName) {
         if (!scanSpec.enableClassInfo) {
             throw new IllegalArgumentException("Cannot get method info without calling "
                     + "FastClasspathScanner#enableClassInfo() (or adding class or package whitelist/blacklist "

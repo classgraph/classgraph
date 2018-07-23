@@ -29,8 +29,6 @@
 package io.github.lukehutch.fastclasspathscanner;
 
 import java.lang.reflect.Modifier;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -307,36 +305,6 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
      */
     public Object getConstInitializerValue() {
         return constValue;
-    }
-
-    /**
-     * Returns the names of unique annotations on the field.
-     * 
-     * @return The names of unique annotations on the field, or the empty list if none.
-     */
-    public List<String> getAnnotationNames() {
-        return annotationInfo == null ? Collections.<String> emptyList()
-                : Arrays.asList(AnnotationInfo.getUniqueAnnotationNamesSorted(annotationInfo));
-    }
-
-    /**
-     * Returns {@code Class<?>} references for the unique annotations on this field. Note that this calls
-     * Class.forName() on the annotation types, which will cause each annotation class to be loaded.
-     *
-     * @return {@code Class<?>} references for the unique annotations on this field.
-     * @throws IllegalArgumentException
-     *             if the annotation type could not be loaded.
-     */
-    public List<Class<?>> getAnnotationTypes() throws IllegalArgumentException {
-        if (annotationInfo == null || annotationInfo.isEmpty()) {
-            return Collections.<Class<?>> emptyList();
-        } else {
-            final List<Class<?>> annotationClassRefs = new ArrayList<>();
-            for (final String annotationName : getAnnotationNames()) {
-                annotationClassRefs.add(scanResult.loadClass(annotationName, /* ignoreExceptions = */ false));
-            }
-            return annotationClassRefs;
-        }
     }
 
     /**

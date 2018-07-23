@@ -334,7 +334,13 @@ public class ClassInfoList implements List<ClassInfo> {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Find the union of this ClassInfoList with one or more others. */
+    /**
+     * Find the union of this ClassInfoList with one or more others.
+     *
+     * @param others
+     *            The other {@link ClassInfoList}s to union with this one.
+     * @return The union of this {@link ClassInfoList} with the others.
+     */
     public ClassInfoList union(final ClassInfoList... others) {
         final Set<ClassInfo> reachableClassesUnion = new HashSet<>(reachableClasses);
         final Set<ClassInfo> directlyRelatedClassesUnion = directlyRelatedClasses == null ? new HashSet<>()
@@ -348,7 +354,13 @@ public class ClassInfoList implements List<ClassInfo> {
         return new ClassInfoList(reachableClassesUnion, directlyRelatedClassesUnion, scanResult);
     }
 
-    /** Find the intersection of this ClassInfoList with one or more others. */
+    /**
+     * Find the intersection of this ClassInfoList with one or more others.
+     *
+     * @param others
+     *            The other {@link ClassInfoList}s to intersect with this one.
+     * @return The intersection of this {@link ClassInfoList} with the others.
+     */
     public ClassInfoList intersect(final ClassInfoList... others) {
         final Set<ClassInfo> reachableClassesIntersection = new HashSet<>(reachableClasses);
         final Set<ClassInfo> directlyRelatedClassesIntersecion = directlyRelatedClasses == null ? new HashSet<>()
@@ -362,7 +374,13 @@ public class ClassInfoList implements List<ClassInfo> {
         return new ClassInfoList(reachableClassesIntersection, directlyRelatedClassesIntersecion, scanResult);
     }
 
-    /** Find the set difference between this ClassInfoList and another ClassInfoList, i.e. (this \ other). */
+    /**
+     * Find the set difference between this ClassInfoList and another ClassInfoList, i.e. (this \ other).
+     *
+     * @param other
+     *            The other {@link ClassInfoList} to subtract from this one.
+     * @return The set difference of this {@link ClassInfoList} and other, i.e. (this \ other).
+     */
     public ClassInfoList exclude(final ClassInfoList other) {
         final Set<ClassInfo> reachableClassesDifference = new HashSet<>(reachableClasses);
         final Set<ClassInfo> directlyRelatedClassesDifference = directlyRelatedClasses == null ? new HashSet<>()
@@ -372,6 +390,115 @@ public class ClassInfoList implements List<ClassInfo> {
             directlyRelatedClassesDifference.removeAll(other.directlyRelatedClasses);
         }
         return new ClassInfoList(reachableClassesDifference, directlyRelatedClassesDifference, scanResult);
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Filter this {@link ClassInfoList} to include only standard classes (classes that are not interfaces or
+     * annotations).
+     * 
+     * @return The filtered list, containing only standard classes.
+     */
+    public ClassInfoList getStandardClasses() {
+        final List<ClassInfo> reachableClassesFiltered = new ArrayList<>(reachableClasses.size());
+        for (final ClassInfo classInfo : reachableClasses) {
+            if (classInfo.isStandardClass()) {
+                reachableClassesFiltered.add(classInfo);
+            }
+        }
+        if (directlyRelatedClasses == reachableClasses) {
+            // Avoid duplicating work
+            return new ClassInfoList(reachableClassesFiltered, reachableClassesFiltered, scanResult);
+        } else {
+            final List<ClassInfo> directlyRelatedClassesFiltered = new ArrayList<>(directlyRelatedClasses.size());
+            for (final ClassInfo classInfo : directlyRelatedClasses) {
+                if (classInfo.isStandardClass()) {
+                    directlyRelatedClassesFiltered.add(classInfo);
+                }
+            }
+            return new ClassInfoList(reachableClassesFiltered, directlyRelatedClassesFiltered, scanResult);
+        }
+    }
+
+    /**
+     * Filter this {@link ClassInfoList} to include only interfaces (N.B. this includes annotations, since they are
+     * technically interfaces, and can be implemented). See also {@link #getImplementedInterfaces()}.
+     * 
+     * @return The filtered list, containing only interfaces.
+     */
+    public ClassInfoList getInterfaces() {
+        final List<ClassInfo> reachableClassesFiltered = new ArrayList<>(reachableClasses.size());
+        for (final ClassInfo classInfo : reachableClasses) {
+            if (classInfo.isInterface()) {
+                reachableClassesFiltered.add(classInfo);
+            }
+        }
+        if (directlyRelatedClasses == reachableClasses) {
+            // Avoid duplicating work
+            return new ClassInfoList(reachableClassesFiltered, reachableClassesFiltered, scanResult);
+        } else {
+            final List<ClassInfo> directlyRelatedClassesFiltered = new ArrayList<>(directlyRelatedClasses.size());
+            for (final ClassInfo classInfo : directlyRelatedClasses) {
+                if (classInfo.isInterface()) {
+                    directlyRelatedClassesFiltered.add(classInfo);
+                }
+            }
+            return new ClassInfoList(reachableClassesFiltered, directlyRelatedClassesFiltered, scanResult);
+        }
+    }
+
+    /**
+     * Filter this {@link ClassInfoList} to include only implemented interfaces, i.e. non-annotation interfaces, or
+     * annotations that have been implemented by a class.
+     * 
+     * @return The filtered list, containing only implemented interfaces.
+     */
+    public ClassInfoList getImplementedInterfaces() {
+        final List<ClassInfo> reachableClassesFiltered = new ArrayList<>(reachableClasses.size());
+        for (final ClassInfo classInfo : reachableClasses) {
+            if (classInfo.isInterface()) {
+                reachableClassesFiltered.add(classInfo);
+            }
+        }
+        if (directlyRelatedClasses == reachableClasses) {
+            // Avoid duplicating work
+            return new ClassInfoList(reachableClassesFiltered, reachableClassesFiltered, scanResult);
+        } else {
+            final List<ClassInfo> directlyRelatedClassesFiltered = new ArrayList<>(directlyRelatedClasses.size());
+            for (final ClassInfo classInfo : directlyRelatedClasses) {
+                if (classInfo.isInterface()) {
+                    directlyRelatedClassesFiltered.add(classInfo);
+                }
+            }
+            return new ClassInfoList(reachableClassesFiltered, directlyRelatedClassesFiltered, scanResult);
+        }
+    }
+
+    /**
+     * Filter this {@link ClassInfoList} to include only annotations.
+     * 
+     * @return The filtered list, containing only annotations.
+     */
+    public ClassInfoList getAnnotations() {
+        final List<ClassInfo> reachableClassesFiltered = new ArrayList<>(reachableClasses.size());
+        for (final ClassInfo classInfo : reachableClasses) {
+            if (classInfo.isInterface()) {
+                reachableClassesFiltered.add(classInfo);
+            }
+        }
+        if (directlyRelatedClasses == reachableClasses) {
+            // Avoid duplicating work
+            return new ClassInfoList(reachableClassesFiltered, reachableClassesFiltered, scanResult);
+        } else {
+            final List<ClassInfo> directlyRelatedClassesFiltered = new ArrayList<>(directlyRelatedClasses.size());
+            for (final ClassInfo classInfo : directlyRelatedClasses) {
+                if (classInfo.isInterface()) {
+                    directlyRelatedClassesFiltered.add(classInfo);
+                }
+            }
+            return new ClassInfoList(reachableClassesFiltered, directlyRelatedClassesFiltered, scanResult);
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------

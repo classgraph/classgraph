@@ -52,8 +52,6 @@ class ClassInfoUnlinked {
     private String superclassName;
     private List<String> implementedInterfaces;
     private List<AnnotationInfo> classAnnotations;
-    private List<AnnotationInfo> methodAnnotations;
-    private List<AnnotationInfo> fieldAnnotations;
     private Map<String, Object> staticFinalFieldValues;
     private String fullyQualifiedContainingMethodName;
     private List<SimpleEntry<String, String>> classContainmentEntries;
@@ -92,20 +90,6 @@ class ClassInfoUnlinked {
             classAnnotations = new ArrayList<>();
         }
         classAnnotations.add(classAnnotation);
-    }
-
-    void addMethodAnnotation(final AnnotationInfo methodAnnotation) {
-        if (methodAnnotations == null) {
-            methodAnnotations = new ArrayList<>();
-        }
-        methodAnnotations.add(methodAnnotation);
-    }
-
-    void addFieldAnnotation(final AnnotationInfo fieldAnnotation) {
-        if (fieldAnnotations == null) {
-            fieldAnnotations = new ArrayList<>();
-        }
-        fieldAnnotations.add(fieldAnnotation);
     }
 
     void addFieldConstantValue(final String fieldName, final Object staticFinalFieldValue) {
@@ -161,16 +145,6 @@ class ClassInfoUnlinked {
                 classInfo.addClassAnnotation(classAnnotation, classNameToClassInfo);
             }
         }
-        if (methodAnnotations != null) {
-            for (final AnnotationInfo methodAnnotation : methodAnnotations) {
-                classInfo.addMethodAnnotation(methodAnnotation, classNameToClassInfo);
-            }
-        }
-        if (fieldAnnotations != null) {
-            for (final AnnotationInfo fieldAnnotation : fieldAnnotations) {
-                classInfo.addFieldAnnotation(fieldAnnotation, classNameToClassInfo);
-            }
-        }
         if (staticFinalFieldValues != null) {
             for (final Entry<String, Object> ent : staticFinalFieldValues.entrySet()) {
                 classInfo.addStaticFinalFieldConstantInitializerValue(ent.getKey(), ent.getValue());
@@ -211,11 +185,11 @@ class ClassInfoUnlinked {
             if (classAnnotations != null) {
                 subLog.log("Class annotations: " + Join.join(", ", classAnnotations));
             }
-            if (methodAnnotations != null) {
-                subLog.log("Method annotations: " + Join.join(", ", methodAnnotations));
+            if (methodInfoList != null) {
+                subLog.log("Method info: " + Join.join(", ", methodInfoList));
             }
-            if (fieldAnnotations != null) {
-                subLog.log("Field annotations: " + Join.join(", ", fieldAnnotations));
+            if (fieldInfoList != null) {
+                subLog.log("Field info: " + Join.join(", ", fieldInfoList));
             }
             if (staticFinalFieldValues != null) {
                 final List<String> fieldInitializers = new ArrayList<>();

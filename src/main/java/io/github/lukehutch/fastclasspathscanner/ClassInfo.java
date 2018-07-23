@@ -69,6 +69,12 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /** True if the classfile indicated this is an annotation. */
     boolean isAnnotation;
 
+    /**
+     * This annotation has the {@link Inherited} meta-annotation, which means that any class that this annotation is
+     * applied to also implicitly causes the annotation to annotate all subclasses too.
+     */
+    boolean isInherited;
+
     /** The class type signature string. */
     String typeSignatureStr;
 
@@ -576,6 +582,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         return classInfoSet.add(classInfo);
     }
 
+    private static final int ANNOTATION_CLASS_MODIFIER = 0x2000;
+
     /**
      * Get a ClassInfo object, or create it if it doesn't exist. N.B. not threadsafe, so ClassInfo objects should
      * only ever be constructed by a single thread.
@@ -586,6 +594,13 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         if (classInfo == null) {
             classNameToClassInfo.put(className,
                     classInfo = new ClassInfo(className, classModifiers, /* isExternalClass = */ true, scanSpec));
+        }
+        classInfo.modifiers |= classModifiers;
+        if ((classModifiers & ANNOTATION_CLASS_MODIFIER) != 0) {
+            classInfo.isAnnotation = true;
+        }
+        if ((classModifiers & Modifier.INTERFACE) != 0) {
+            classInfo.isInterface = true;
         }
         return classInfo;
     }
@@ -598,48 +613,6 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             this.addRelatedClass(RelType.SUPERCLASSES, superclassClassInfo);
             superclassClassInfo.addRelatedClass(RelType.SUBCLASSES, this);
         }
-    }
-
-    private static final int ANNOTATION_CLASS_MODIFIER = 0x2000;
-
-    /** Add an annotation to this class. */
-    void addClassAnnotation(final AnnotationInfo classAnnotationInfo,
-            final Map<String, ClassInfo> classNameToClassInfo) {
-        final ClassInfo annotationClassInfo = getOrCreateClassInfo(classAnnotationInfo.annotationName,
-                ANNOTATION_CLASS_MODIFIER, scanSpec, classNameToClassInfo);
-        annotationClassInfo.isAnnotation = true;
-        if (this.annotationInfo == null) {
-            this.annotationInfo = new ArrayList<>();
-        }
-        this.annotationInfo.add(classAnnotationInfo);
-        annotationClassInfo.modifiers |= 0x2000; // Modifier.ANNOTATION
-        classAnnotationInfo.addDefaultValues(annotationClassInfo.annotationDefaultParamValues);
-        this.addRelatedClass(RelType.CLASS_ANNOTATIONS, annotationClassInfo);
-        annotationClassInfo.addRelatedClass(RelType.CLASSES_WITH_CLASS_ANNOTATION, this);
-    }
-
-    /** Add a method annotation to this class. */
-    void addMethodAnnotation(final AnnotationInfo methodAnnotationInfo,
-            final Map<String, ClassInfo> classNameToClassInfo) {
-        final ClassInfo annotationClassInfo = getOrCreateClassInfo(methodAnnotationInfo.annotationName,
-                ANNOTATION_CLASS_MODIFIER, scanSpec, classNameToClassInfo);
-        annotationClassInfo.isAnnotation = true;
-        annotationClassInfo.modifiers |= 0x2000; // Modifier.ANNOTATION
-        methodAnnotationInfo.addDefaultValues(annotationClassInfo.annotationDefaultParamValues);
-        this.addRelatedClass(RelType.METHOD_ANNOTATIONS, annotationClassInfo);
-        annotationClassInfo.addRelatedClass(RelType.CLASSES_WITH_METHOD_ANNOTATION, this);
-    }
-
-    /** Add a field annotation to this class. */
-    void addFieldAnnotation(final AnnotationInfo fieldAnnotationInfo,
-            final Map<String, ClassInfo> classNameToClassInfo) {
-        final ClassInfo annotationClassInfo = getOrCreateClassInfo(fieldAnnotationInfo.annotationName,
-                ANNOTATION_CLASS_MODIFIER, scanSpec, classNameToClassInfo);
-        annotationClassInfo.isAnnotation = true;
-        annotationClassInfo.modifiers |= 0x2000; // Modifier.ANNOTATION
-        fieldAnnotationInfo.addDefaultValues(annotationClassInfo.annotationDefaultParamValues);
-        this.addRelatedClass(RelType.FIELD_ANNOTATIONS, annotationClassInfo);
-        annotationClassInfo.addRelatedClass(RelType.CLASSES_WITH_FIELD_ANNOTATION, this);
     }
 
     /** Add an implemented interface to this class. */
@@ -680,15 +653,42 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         this.staticFinalFieldNameToConstantInitializerValue.put(fieldName, constValue);
     }
 
+    /** Add an annotation to this class. */
+    void addClassAnnotation(final AnnotationInfo classAnnotationInfo,
+            final Map<String, ClassInfo> classNameToClassInfo) {
+        final ClassInfo annotationClassInfo = getOrCreateClassInfo(classAnnotationInfo.getAnnotationName(),
+                ANNOTATION_CLASS_MODIFIER, scanSpec, classNameToClassInfo);
+        if (this.annotationInfo == null) {
+            this.annotationInfo = new ArrayList<>();
+        }
+        this.annotationInfo.add(classAnnotationInfo);
+
+        this.addRelatedClass(RelType.CLASS_ANNOTATIONS, annotationClassInfo);
+        annotationClassInfo.addRelatedClass(RelType.CLASSES_WITH_CLASS_ANNOTATION, this);
+
+        // Add back-ref from classAnnotationInfo to the annotation class' ClassInfo
+        classAnnotationInfo.classInfo = annotationClassInfo;
+
+        // Record use of @Inherited meta-annotation
+        if (classAnnotationInfo.getAnnotationName().equals(Inherited.class.getName())) {
+            isInherited = true;
+        }
+    }
+
     /** Add field info. */
     void addFieldInfo(final List<FieldInfo> fieldInfoList, final Map<String, ClassInfo> classNameToClassInfo) {
         for (final FieldInfo fieldInfo : fieldInfoList) {
             final List<AnnotationInfo> fieldAnnotationInfoList = fieldInfo.annotationInfo;
             if (fieldAnnotationInfoList != null) {
                 for (final AnnotationInfo fieldAnnotationInfo : fieldAnnotationInfoList) {
-                    final ClassInfo classInfo = getOrCreateClassInfo(fieldAnnotationInfo.annotationName,
-                            ANNOTATION_CLASS_MODIFIER, scanSpec, classNameToClassInfo);
-                    fieldAnnotationInfo.addDefaultValues(classInfo.annotationDefaultParamValues);
+                    final ClassInfo annotationClassInfo = getOrCreateClassInfo(
+                            fieldAnnotationInfo.getAnnotationName(), ANNOTATION_CLASS_MODIFIER, scanSpec,
+                            classNameToClassInfo);
+                    // Mark this class as having a field with this annotation
+                    this.addRelatedClass(RelType.FIELD_ANNOTATIONS, annotationClassInfo);
+
+                    // Add back-ref from fieldAnnotationInfo to the annotation class' ClassInfo
+                    fieldAnnotationInfo.classInfo = annotationClassInfo;
                 }
             }
         }
@@ -705,9 +705,14 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             final List<AnnotationInfo> methodAnnotationInfoList = methodInfo.annotationInfo;
             if (methodAnnotationInfoList != null) {
                 for (final AnnotationInfo methodAnnotationInfo : methodAnnotationInfoList) {
-                    methodAnnotationInfo.addDefaultValues(
-                            getOrCreateClassInfo(methodAnnotationInfo.annotationName, ANNOTATION_CLASS_MODIFIER,
-                                    scanSpec, classNameToClassInfo).annotationDefaultParamValues);
+                    final ClassInfo annotationClassInfo = getOrCreateClassInfo(
+                            methodAnnotationInfo.getAnnotationName(), ANNOTATION_CLASS_MODIFIER, scanSpec,
+                            classNameToClassInfo);
+                    // Mark this class as having a method with this annotation
+                    this.addRelatedClass(RelType.METHOD_ANNOTATIONS, annotationClassInfo);
+
+                    // Add back-ref from methodAnnotationInfo to the annotation class' ClassInfo
+                    methodAnnotationInfo.classInfo = annotationClassInfo;
                 }
             }
             final AnnotationInfo[][] methodParamAnnotationInfoList = methodInfo.parameterAnnotationInfo;
@@ -716,11 +721,12 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                     final AnnotationInfo[] paramAnnotationInfoArr = methodParamAnnotationInfoList[i];
                     if (paramAnnotationInfoArr != null) {
                         for (int j = 0; j < paramAnnotationInfoArr.length; j++) {
-                            final AnnotationInfo paramAnnotationInfo = paramAnnotationInfoArr[j];
-                            paramAnnotationInfo
-                                    .addDefaultValues(getOrCreateClassInfo(paramAnnotationInfo.annotationName,
-                                            ANNOTATION_CLASS_MODIFIER, scanSpec,
-                                            classNameToClassInfo).annotationDefaultParamValues);
+                            final AnnotationInfo methodParamAnnotationInfo = paramAnnotationInfoArr[j];
+                            final ClassInfo annotationClassInfo = getOrCreateClassInfo(
+                                    methodParamAnnotationInfo.getAnnotationName(), ANNOTATION_CLASS_MODIFIER,
+                                    scanSpec, classNameToClassInfo);
+                            // Add back-ref from methodParamAnnotationInfo to the annotation class' ClassInfo
+                            methodParamAnnotationInfo.classInfo = annotationClassInfo;
                         }
                     }
                 }
@@ -1097,13 +1103,30 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get superclasses of this class. Does not include superinterfaces, if this is an interface (use
+     * Get all superclasses of this class. Does not include superinterfaces, if this is an interface (use
      * {@link #getInterfaces()} to get superinterfaces of an interface.}
      *
      * @return the list of all superclasses of this class, or the empty list if none.
      */
     public ClassInfoList getSuperclasses() {
         return this.filterClassInfo(RelType.SUPERCLASSES);
+    }
+
+    /**
+     * Get the single direct superclass of this class, or null if none. Does not return the superinterfaces, if this
+     * is an interface (use {@link #getInterfaces()} to get superinterfaces of an interface.}
+     *
+     * @return the superclass of this class, or null if none.
+     */
+    public ClassInfo getSuperclass() {
+        final Set<ClassInfo> superClasses = relatedClasses.get(RelType.SUPERCLASSES);
+        if (superClasses == null || superClasses.isEmpty()) {
+            return null;
+        } else if (superClasses.size() > 2) {
+            throw new IllegalArgumentException("More than one superclass: " + superClasses);
+        } else {
+            return superClasses.iterator().next();
+        }
     }
 
     /**
@@ -1187,16 +1210,6 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get the subinterfaces of this interface (i.e. the interfaces extending this interface), if this is an
-     * interface, otherwise returns the empty list.
-     *
-     * @return the list of subinterfaces of this interface, or the empty list if none.
-     */
-    public ClassInfoList getSubinterfaces() {
-        return this.filterClassInfo(RelType.CLASSES_IMPLEMENTING, ClassType.IMPLEMENTED_INTERFACE);
-    }
-
-    /**
      * Get the interfaces implemented by this class or by one of its superclasses, if this is a standard class, or
      * the superinterfaces extended by this interface, if this is an interface.
      *
@@ -1236,8 +1249,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     // Annotations
 
     /**
-     * Get the standard classes and non-annotation interfaces that are annotated by this annotation. Also handles
-     * the {@link Inherited} meta-annotation.
+     * Get the standard classes and non-annotation interfaces that are annotated by this annotation.
+     * 
+     * <p>
+     * Also handles the {@link Inherited} meta-annotation, which causes an annotation to annotate a class and all of
+     * its subclasses.
      *
      * @return the list of standard classes and non-annotation interfaces that are annotated by the annotation
      *         corresponding to this ClassInfo class, or the empty list if none.
@@ -1247,7 +1263,12 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             throw new IllegalArgumentException("Cannot get classes with annotation without calling "
                     + "FastClasspathScanner#enableAnnotationInfo() before starting the scan");
         }
-        final ClassInfoList classesWithAnnotation = this.filterClassInfo(RelType.CLASSES_WITH_CLASS_ANNOTATION);
+        if (!isAnnotation) {
+            throw new IllegalArgumentException("Class is not an annotation: " + getClassName());
+        }
+
+        // Check if any of the meta-annotations on this annotation are @Inherited,
+        // which causes an annotation to annotate a class and all of its subclasses.
         boolean isInherited = false;
         final Set<ClassInfo> metaAnnotations = relatedClasses.get(RelType.CLASS_ANNOTATIONS);
         if (metaAnnotations != null) {
@@ -1258,8 +1279,12 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 }
             }
         }
+
+        // Get classes that have this annotation
+        final ClassInfoList classesWithAnnotation = this.filterClassInfo(RelType.CLASSES_WITH_CLASS_ANNOTATION);
+
         if (isInherited) {
-            // Handle @Inherited annotation
+            // If this is an inherited annotation, add into the result all subclasses of the annotated classes 
             final Set<ClassInfo> classesWithAnnotationAndTheirSubclasses = new HashSet<>(classesWithAnnotation);
             for (final ClassInfo classWithAnnotation : classesWithAnnotation) {
                 classesWithAnnotationAndTheirSubclasses.addAll(classWithAnnotation.getSubclasses());
@@ -1267,6 +1292,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             return new ClassInfoList(classesWithAnnotationAndTheirSubclasses, classesWithAnnotation.directOnly(),
                     scanResult);
         } else {
+            // If not inherited, only return the annotated classes
             return classesWithAnnotation;
         }
     }
@@ -1303,7 +1329,12 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get the annotations and meta-annotations on this class. See also {@link #getAnnotationInfo()}.
+     * Get the annotations and meta-annotations on this class. (Call {@link #getAnnotationInfo()} instead, if you
+     * need the parameter values of annotations, rather than just the annotation classes.)
+     * 
+     * <p>
+     * Also handles the {@link Inherited} meta-annotation, which causes an annotation to annotate a class and all of
+     * its subclasses.
      *
      * @return the list of annotations and meta-annotations on this class.
      */
@@ -1312,7 +1343,41 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             throw new IllegalArgumentException("Cannot get annotations without calling "
                     + "FastClasspathScanner#enableAnnotationInfo() before starting the scan");
         }
-        return this.filterClassInfo(RelType.CLASS_ANNOTATIONS, ClassType.ALL);
+
+        // Get all annotations on this class
+        final ClassInfoList annotationClasses = this.filterClassInfo(RelType.CLASS_ANNOTATIONS);
+
+        // Check for any @Inherited annotations on superclasses
+        Set<ClassInfo> inheritedSuperclassAnnotations = null;
+        for (final ClassInfo superclass : getSuperclasses()) {
+            for (final ClassInfo superclassAnnotationClass : superclass
+                    .filterClassInfo(RelType.CLASS_ANNOTATIONS)) {
+                boolean isInherited = false;
+                for (final ClassInfo superclassAnnotationClassMetaAnnotation : //
+                superclassAnnotationClass.relatedClasses.get(RelType.CLASS_ANNOTATIONS)) {
+                    if (superclassAnnotationClassMetaAnnotation.getClassName().equals(Inherited.class.getName())) {
+                        isInherited = true;
+                        break;
+                    }
+                }
+                if (isInherited) {
+                    // inheritedSuperclassAnnotations is an inherited annotation
+                    if (inheritedSuperclassAnnotations == null) {
+                        inheritedSuperclassAnnotations = new HashSet<>();
+                    }
+                    inheritedSuperclassAnnotations.add(superclassAnnotationClass);
+                }
+            }
+        }
+
+        if (inheritedSuperclassAnnotations == null) {
+            // No inherited superclass annotations
+            return annotationClasses;
+        } else {
+            // Merge inherited superclass annotations and annotations on this class
+            inheritedSuperclassAnnotations.addAll(annotationClasses);
+            return new ClassInfoList(inheritedSuperclassAnnotations, annotationClasses.directOnly(), scanResult);
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------

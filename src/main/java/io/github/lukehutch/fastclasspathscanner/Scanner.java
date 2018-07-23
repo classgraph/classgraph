@@ -626,8 +626,9 @@ class Scanner implements Callable<ScanResult> {
                     // Build the class graph: convert ClassInfoUnlinked to linked ClassInfo objects.
                     final LogNode classGraphLog = log == null ? null : log.log("Building class graph");
                     for (final ClassInfoUnlinked c : classInfoUnlinked) {
-                        // Need to do two passes, so that annotation default parameter vals are available when linking
-                        // non-attribute classes. In first pass, link annotations with default parameter vals.
+                        // Need to do two passes, so that annotation default parameter vals are available
+                        // when linking non-annotation classes. In first pass, link annotations with default
+                        // parameter vals.
                         if (c.annotationParamDefaultValues != null) {
                             c.link(scanSpec, classNameToClassInfo, classGraphLog);
                         }

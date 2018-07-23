@@ -254,7 +254,7 @@ class ClassfileBinaryParser {
             paramVals = new ArrayList<>(numElementValuePairs);
         }
         for (int i = 0; i < numElementValuePairs; i++) {
-            final String paramName = getConstantPoolString(inputStreamOrByteBuffer.readUnsignedShort()); // skip(2); // element_name_index
+            final String paramName = getConstantPoolString(inputStreamOrByteBuffer.readUnsignedShort());
             final Object paramValue = readAnnotationElementValue();
             paramVals.add(new AnnotationParamValue(paramName, paramValue));
         }
@@ -469,8 +469,8 @@ class ClassfileBinaryParser {
         // Superclass name, with slashes replaced with dots
         final String superclassName = getConstantPoolClassName(inputStreamOrByteBuffer.readUnsignedShort());
 
-        // Create holder object for the class information. This is "unlinked", in the sense that it is not linked to
-        // other class info references at this point.
+        // Create holder object for the class information. This is "unlinked", in the sense that it is
+        // not linked other class info references at this point.
         final ClassInfoUnlinked classInfoUnlinked = new ClassInfoUnlinked(className, classModifierFlags,
                 isInterface, isAnnotation, classpathElement);
 
@@ -492,7 +492,7 @@ class ClassfileBinaryParser {
             final boolean isPublicField = ((fieldModifierFlags & 0x0001) == 0x0001);
             final boolean isStaticFinalField = ((fieldModifierFlags & 0x0018) == 0x0018);
             final boolean fieldIsVisible = isPublicField || scanSpec.ignoreFieldVisibility;
-            final boolean getStaticFinalFieldConstValue = scanSpec.enableStaticFinalFieldConstValues
+            final boolean getStaticFinalFieldConstValue = scanSpec.enableStaticFinalFieldConstantInitializerValues
                     && isStaticFinalField && fieldIsVisible;
             if (!fieldIsVisible || (!scanSpec.enableFieldInfo && !getStaticFinalFieldConstValue)) {
                 // Skip field
@@ -520,8 +520,8 @@ class ClassfileBinaryParser {
                 for (int j = 0; j < attributesCount; j++) {
                     final int attributeNameCpIdx = inputStreamOrByteBuffer.readUnsignedShort();
                     final int attributeLength = inputStreamOrByteBuffer.readInt(); // == 2
-                    // See if field name matches one of the requested names for this class, and if it does, check if
-                    // it is initialized with a constant value
+                    // See if field name matches one of the requested names for this class, and if it does,
+                    // check if it is initialized with a constant value
                     if ((getStaticFinalFieldConstValue)
                             && constantPoolStringEquals(attributeNameCpIdx, "ConstantValue")) {
                         // http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.7.2
@@ -545,7 +545,6 @@ class ClassfileBinaryParser {
                         }
                         for (int k = 0; k < fieldAnnotationCount; k++) {
                             final AnnotationInfo fieldAnnotation = readAnnotation();
-                            classInfoUnlinked.addFieldAnnotation(fieldAnnotation);
                             fieldAnnotationInfo.add(fieldAnnotation);
                         }
                     } else {
@@ -607,9 +606,6 @@ class ClassfileBinaryParser {
                         }
                         for (int k = 0; k < methodAnnotationCount; k++) {
                             final AnnotationInfo annotationInfo = readAnnotation();
-                            if (scanSpec.enableMethodInfo) {
-                                classInfoUnlinked.addMethodAnnotation(annotationInfo);
-                            }
                             methodAnnotationInfo.add(annotationInfo);
                         }
                     } else if (scanSpec.enableAnnotationInfo

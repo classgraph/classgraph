@@ -97,6 +97,30 @@ public class FastClasspathScanner {
     }
 
     /**
+     * Enables the scanning of all classes, fields, methods, annotations, and static final field constant
+     * initializer values, and ignores all visibility modifiers, so that both public and non-public classes, fields
+     * and methods are all scanned.
+     * 
+     * <p>
+     * Calls {@link #enableClassInfo()}, {@link #enableFieldInfo()}, {@link #enableMethodInfo()},
+     * {@link #enableAnnotationInfo()}, {@link #enableStaticFinalFieldConstantInitializerValues()},
+     * {@link #ignoreClassVisibility()}, {@link #ignoreFieldVisibility()}, and {@link #ignoreMethodVisibility()}.
+     *
+     * @return this (for method chaining).
+     */
+    public FastClasspathScanner enableAllInfo() {
+        enableClassInfo();
+        enableFieldInfo();
+        enableMethodInfo();
+        enableAnnotationInfo();
+        enableStaticFinalFieldConstantInitializerValues();
+        ignoreClassVisibility();
+        ignoreFieldVisibility();
+        ignoreMethodVisibility();
+        return this;
+    }
+
+    /**
      * Enables the scanning of classfiles, producing {@link ClassInfo} objects in the {@link ScanResult}.
      *
      * @return this (for method chaining).
@@ -167,9 +191,9 @@ public class FastClasspathScanner {
      *
      * @return this (for method chaining).
      */
-    public FastClasspathScanner enableStaticFinalFieldConstInitializerValues() {
+    public FastClasspathScanner enableStaticFinalFieldConstantInitializerValues() {
         enableFieldInfo();
-        scanSpec.enableAnnotationInfo = true;
+        scanSpec.enableStaticFinalFieldConstantInitializerValues = true;
         return this;
     }
 
@@ -461,6 +485,11 @@ public class FastClasspathScanner {
     public FastClasspathScanner whitelistPackages(final String... packageNames) {
         enableClassInfo();
         for (final String packageName : packageNames) {
+            if (packageName.startsWith("!") || packageName.startsWith("-")) {
+                // TODO: temp
+                throw new IllegalArgumentException(
+                        "This style of whitelisting/blacklisting is no longer supported: " + packageName);
+            }
             // Whitelist package
             scanSpec.packageWhiteBlackList.addToWhitelist(WhiteBlackList.normalizePackageOrClassName(packageName));
             scanSpec.pathWhiteBlackList.addToWhitelist(WhiteBlackList.packageNameToPath(packageName));

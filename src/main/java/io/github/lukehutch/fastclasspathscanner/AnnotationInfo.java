@@ -29,20 +29,20 @@
 package io.github.lukehutch.fastclasspathscanner;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Set;
 
-/** Holds metadata about annotations. */
+/** Holds metadata about a specific annotation instance on a class, method or field. */
 public class AnnotationInfo extends ScanResultObject implements Comparable<AnnotationInfo> {
+
     String annotationName;
     List<AnnotationParamValue> annotationParamValues;
+
+    // Set when a ClassInfo class adds this class as an annotation
+    ClassInfo classInfo;
 
     /** Default constructor for deserialization. */
     AnnotationInfo() {
@@ -70,42 +70,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      */
     public AnnotationInfo(final String annotationName, final List<AnnotationParamValue> annotationParamValues) {
         this.annotationName = annotationName;
-        // Sort the annotation parameter values into order for consistency
-        if (annotationParamValues != null) {
-            Collections.sort(annotationParamValues);
-        }
         this.annotationParamValues = annotationParamValues;
-    }
-
-    /**
-     * Add a set of default values, stored in an annotation class' classfile, to a concrete instance of that
-     * annotation. The defaults are overwritten by any annotation parameter values in the concrete annotation.
-     * 
-     * @param defaultAnnotationParamValues
-     *            the default parameter values for the annotation.
-     */
-    void addDefaultValues(final List<AnnotationParamValue> defaultAnnotationParamValues) {
-        if (defaultAnnotationParamValues != null && !defaultAnnotationParamValues.isEmpty()) {
-            if (this.annotationParamValues == null || this.annotationParamValues.isEmpty()) {
-                this.annotationParamValues = new ArrayList<>(defaultAnnotationParamValues);
-            } else {
-                // Overwrite defaults with non-defaults
-                final Map<String, Object> allParamValues = new HashMap<>();
-                for (final AnnotationParamValue annotationParamValue : defaultAnnotationParamValues) {
-                    allParamValues.put(annotationParamValue.paramName, annotationParamValue.paramValue.get());
-                }
-                for (final AnnotationParamValue annotationParamValue : this.annotationParamValues) {
-                    allParamValues.put(annotationParamValue.paramName, annotationParamValue.paramValue.get());
-                }
-                this.annotationParamValues.clear();
-                for (final Entry<String, Object> ent : allParamValues.entrySet()) {
-                    this.annotationParamValues.add(new AnnotationParamValue(ent.getKey(), ent.getValue()));
-                }
-            }
-        }
-        if (this.annotationParamValues != null) {
-            Collections.sort(this.annotationParamValues);
-        }
     }
 
     /**
@@ -115,6 +80,15 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      */
     public String getAnnotationName() {
         return annotationName;
+    }
+
+    /**
+     * Get the {@link ClassInfo} object for the annotation class of this annotation.
+     * 
+     * @return The {@link ClassInfo} object for this annotation.
+     */
+    public ClassInfo getClassInfo() {
+        return classInfo;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -136,7 +110,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      *             if ignoreExceptions is false and there was a problem loading the annotation class.
      */
     public <T> Class<T> getClassRef(final Class<T> superinterfaceType, final boolean ignoreExceptions) {
-        return scanResult.loadClass(annotationName, superinterfaceType, ignoreExceptions);
+        return scanResult.loadClass(getAnnotationName(), superinterfaceType, ignoreExceptions);
     }
 
     /**
@@ -168,7 +142,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      *             if ignoreExceptions is false and there was a problem loading the annotation class.
      */
     public Class<?> getClassRef(final boolean ignoreExceptions) {
-        return scanResult.loadClass(annotationName, ignoreExceptions);
+        return scanResult.loadClass(getAnnotationName(), ignoreExceptions);
     }
 
     /**
@@ -186,17 +160,42 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the parameter value of the annotation.
+     * Get the parameter value of this annotation, including any default values inherited from the annotation class
+     * definition.
      * 
-     * @return The annotation parameter values.
+     * @return The annotation parameter values, including any default values, or the empty list if none.
      */
     public List<AnnotationParamValue> getAnnotationParamValues() {
-        return annotationParamValues;
+        final List<AnnotationParamValue> defaultParamValues = classInfo.annotationDefaultParamValues;
+
+        // Check if one or both of the defaults and the values in this annotation instance are null (empty)
+        if (defaultParamValues == null && annotationParamValues == null) {
+            return Collections.<AnnotationParamValue> emptyList();
+        } else if (defaultParamValues == null) {
+            return annotationParamValues;
+        } else if (annotationParamValues == null) {
+            return defaultParamValues;
+        }
+
+        // Overwrite defaults with non-defaults
+        final Map<String, Object> allParamValues = new HashMap<>();
+        for (final AnnotationParamValue defaultParamValue : defaultParamValues) {
+            allParamValues.put(defaultParamValue.paramName, defaultParamValue.paramValue.get());
+        }
+        for (final AnnotationParamValue annotationParamValue : this.annotationParamValues) {
+            allParamValues.put(annotationParamValue.paramName, annotationParamValue.paramValue.get());
+        }
+        final List<AnnotationParamValue> result = new ArrayList<>();
+        for (final Entry<String, Object> ent : allParamValues.entrySet()) {
+            result.add(new AnnotationParamValue(ent.getKey(), ent.getValue()));
+        }
+        Collections.sort(result);
+        return result;
     }
 
     @Override
     public int compareTo(final AnnotationInfo o) {
-        final int diff = annotationName.compareTo(o.annotationName);
+        final int diff = getAnnotationName().compareTo(o.getAnnotationName());
         if (diff != 0) {
             return diff;
         }
@@ -235,7 +234,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
 
     @Override
     public int hashCode() {
-        int h = annotationName.hashCode();
+        int h = getAnnotationName().hashCode();
         if (annotationParamValues != null) {
             for (int i = 0; i < annotationParamValues.size(); i++) {
                 final AnnotationParamValue e = annotationParamValues.get(i);
@@ -252,7 +251,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      *            The buffer.
      */
     public void toString(final StringBuilder buf) {
-        buf.append("@" + annotationName);
+        buf.append("@" + getAnnotationName());
         if (annotationParamValues != null) {
             buf.append('(');
             for (int i = 0; i < annotationParamValues.size(); i++) {
@@ -275,57 +274,5 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
         final StringBuilder buf = new StringBuilder();
         toString(buf);
         return buf.toString();
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    private static final String[] EMPTY_STRING_ARRAY = new String[0];
-
-    /**
-     * From a collection of AnnotationInfo objects, extract the annotation names, uniquify them, and sort them.
-     * 
-     * @param annotationInfo
-     *            The annotation info.
-     * @return The sorted, uniquified annotation names.
-     */
-    public static String[] getUniqueAnnotationNamesSorted(final Collection<AnnotationInfo> annotationInfo) {
-        if (annotationInfo == null || annotationInfo.isEmpty()) {
-            return EMPTY_STRING_ARRAY;
-        }
-        final Set<String> annotationNamesSet = new HashSet<>();
-        for (final AnnotationInfo annotation : annotationInfo) {
-            annotationNamesSet.add(annotation.annotationName);
-        }
-        final String[] annotationNamesSorted = new String[annotationNamesSet.size()];
-        int i = 0;
-        for (final String annotationName : annotationNamesSet) {
-            annotationNamesSorted[i++] = annotationName;
-        }
-        Arrays.sort(annotationNamesSorted);
-        return annotationNamesSorted;
-    }
-
-    /**
-     * From an array of AnnotationInfo objects, extract the annotation names, uniquify them, and sort them.
-     * 
-     * @param annotationInfo
-     *            The annotation info.
-     * @return The sorted, uniquified annotation names.
-     */
-    public static String[] getUniqueAnnotationNamesSorted(final AnnotationInfo[] annotationInfo) {
-        if (annotationInfo == null || annotationInfo.length == 0) {
-            return EMPTY_STRING_ARRAY;
-        }
-        final Set<String> annotationNamesSet = new HashSet<>();
-        for (final AnnotationInfo annotation : annotationInfo) {
-            annotationNamesSet.add(annotation.annotationName);
-        }
-        final String[] annotationNamesSorted = new String[annotationNamesSet.size()];
-        int i = 0;
-        for (final String annotationName : annotationNamesSet) {
-            annotationNamesSorted[i++] = annotationName;
-        }
-        Arrays.sort(annotationNamesSorted);
-        return annotationNamesSorted;
     }
 }
