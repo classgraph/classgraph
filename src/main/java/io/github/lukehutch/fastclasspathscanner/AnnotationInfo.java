@@ -109,9 +109,11 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
         return classInfo.isInherited;
     }
 
-    /** Returns the list of default parameter values for this annotation. */
+    /** Returns the list of default parameter values for this annotation, or the empty list if there are none. */
     public List<AnnotationParamValue> getDefaultParameterValues() {
-        return classInfo.getAnnotationDefaultParamValues();
+        List<AnnotationParamValue> annotationDefaultParamValues = classInfo.getAnnotationDefaultParamValues();
+        return annotationDefaultParamValues == null ? Collections.<AnnotationParamValue> emptyList()
+                : annotationDefaultParamValues;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -184,15 +186,11 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
 
     /**
      * Get the parameter value of this annotation, including any default values inherited from the annotation class
-     * definition.
+     * definition, or the empty list if none.
      * 
      * @return The annotation parameter values, including any default values, or the empty list if none.
      */
     public List<AnnotationParamValue> getAnnotationParamValues() {
-        if (classInfo == null) {
-            System.out.println("here");
-        }
-
         final List<AnnotationParamValue> defaultParamValues = classInfo.annotationDefaultParamValues;
 
         // Check if one or both of the defaults and the values in this annotation instance are null (empty)
@@ -280,7 +278,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
     public void toString(final StringBuilder buf) {
         buf.append("@" + getAnnotationName());
         final List<AnnotationParamValue> paramVals = getAnnotationParamValues();
-        if (paramVals != null) {
+        if (paramVals != null && !paramVals.isEmpty()) {
             buf.append('(');
             for (int i = 0; i < paramVals.size(); i++) {
                 if (i > 0) {
