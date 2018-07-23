@@ -67,6 +67,16 @@ class AnnotationParamValueWrapper extends ScanResultObject {
         }
     }
 
+    void setClassInfo(final ClassInfo classInfo) {
+        if (annotationInfo != null) {
+            annotationInfo.setClassInfo(classInfo);
+        } else if (annotationValueArray != null) {
+            for (final AnnotationParamValueWrapper annotationValue : annotationValueArray) {
+                annotationValue.setClassInfo(classInfo);
+            }
+        }
+    }
+
     /** Default constructor for deserialization. */
     public AnnotationParamValueWrapper() {
     }

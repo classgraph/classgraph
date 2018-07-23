@@ -35,6 +35,6 @@ import io.github.lukehutch.fastclasspathscanner.MethodTypeSignature;
 public class Issue159Test {
     @Test
     public void classAnnotationParameters() throws Exception {
-        MethodTypeSignature.parse("()Z");
+        MethodTypeSignature.parse(null, "()Z", null);
     }
 }

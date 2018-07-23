@@ -28,6 +28,7 @@
  */
 package io.github.lukehutch.fastclasspathscanner;
 
+import java.lang.annotation.Inherited;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -42,7 +43,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
     List<AnnotationParamValue> annotationParamValues;
 
     // Set when a ClassInfo class adds this class as an annotation
-    ClassInfo classInfo;
+    private ClassInfo classInfo;
 
     /** Default constructor for deserialization. */
     AnnotationInfo() {
@@ -55,6 +56,18 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
             for (final AnnotationParamValue a : annotationParamValues) {
                 if (a != null) {
                     a.setScanResult(scanResult);
+                }
+            }
+        }
+    }
+
+    /** Set the ClassInfo value (so that the annotation default parameter values can be read). */
+    void setClassInfo(final ClassInfo classInfo) {
+        this.classInfo = classInfo;
+        if (annotationParamValues != null) {
+            for (final AnnotationParamValue a : annotationParamValues) {
+                if (a != null) {
+                    a.setClassInfo(classInfo);
                 }
             }
         }
@@ -89,6 +102,16 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      */
     public ClassInfo getClassInfo() {
         return classInfo;
+    }
+
+    /** Returns true if this annotation is meta-annotated with {@link Inherited}. */
+    public boolean isInherited() {
+        return classInfo.isInherited;
+    }
+
+    /** Returns the list of default parameter values for this annotation. */
+    public List<AnnotationParamValue> getDefaultParameterValues() {
+        return classInfo.getAnnotationDefaultParamValues();
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -166,6 +189,10 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      * @return The annotation parameter values, including any default values, or the empty list if none.
      */
     public List<AnnotationParamValue> getAnnotationParamValues() {
+        if (classInfo == null) {
+            System.out.println("here");
+        }
+
         final List<AnnotationParamValue> defaultParamValues = classInfo.annotationDefaultParamValues;
 
         // Check if one or both of the defaults and the values in this annotation instance are null (empty)
@@ -252,7 +279,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      */
     public void toString(final StringBuilder buf) {
         buf.append("@" + getAnnotationName());
-        List<AnnotationParamValue> paramVals = getAnnotationParamValues();
+        final List<AnnotationParamValue> paramVals = getAnnotationParamValues();
         if (paramVals != null) {
             buf.append('(');
             for (int i = 0; i < paramVals.size(); i++) {

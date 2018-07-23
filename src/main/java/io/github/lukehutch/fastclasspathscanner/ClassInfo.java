@@ -663,7 +663,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         annotationClassInfo.addRelatedClass(RelType.CLASSES_WITH_CLASS_ANNOTATION, this);
 
         // Add back-ref from classAnnotationInfo to the annotation class' ClassInfo
-        classAnnotationInfo.classInfo = annotationClassInfo;
+        classAnnotationInfo.setClassInfo(annotationClassInfo);
 
         // Record use of @Inherited meta-annotation
         if (classAnnotationInfo.getAnnotationName().equals(Inherited.class.getName())) {
@@ -685,7 +685,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                     annotationClassInfo.addRelatedClass(RelType.CLASSES_WITH_FIELD_ANNOTATION, this);
 
                     // Add back-ref from fieldAnnotationInfo to the annotation class' ClassInfo
-                    fieldAnnotationInfo.classInfo = annotationClassInfo;
+                    fieldAnnotationInfo.setClassInfo(annotationClassInfo);
                 }
             }
         }
@@ -710,7 +710,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                     annotationClassInfo.addRelatedClass(RelType.CLASSES_WITH_METHOD_ANNOTATION, this);
 
                     // Add back-ref from methodAnnotationInfo to the annotation class' ClassInfo
-                    methodAnnotationInfo.classInfo = annotationClassInfo;
+                    methodAnnotationInfo.setClassInfo(annotationClassInfo);
                 }
             }
             final AnnotationInfo[][] methodParamAnnotationInfoList = methodInfo.parameterAnnotationInfo;
@@ -724,7 +724,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                                     methodParamAnnotationInfo.getAnnotationName(), ANNOTATION_CLASS_MODIFIER,
                                     scanSpec, classNameToClassInfo);
                             // Add back-ref from methodParamAnnotationInfo to the annotation class' ClassInfo
-                            methodParamAnnotationInfo.classInfo = annotationClassInfo;
+                            methodParamAnnotationInfo.setClassInfo(annotationClassInfo);
                         }
                     }
                 }
@@ -1366,7 +1366,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         AnnotationInfoList inheritedSuperclassAnnotations = null;
         for (final ClassInfo superclass : getSuperclasses()) {
             for (final AnnotationInfo superclassAnnotationInfo : superclass.getAnnotationInfo()) {
-                if (superclassAnnotationInfo.classInfo.isInherited) {
+                if (superclassAnnotationInfo.isInherited()) {
                     // inheritedSuperclassAnnotations is an inherited annotation
                     if (inheritedSuperclassAnnotations == null) {
                         inheritedSuperclassAnnotations = new AnnotationInfoList();

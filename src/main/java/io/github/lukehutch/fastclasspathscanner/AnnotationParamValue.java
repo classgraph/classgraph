@@ -43,6 +43,12 @@ public class AnnotationParamValue extends ScanResultObject implements Comparable
         }
     }
 
+    void setClassInfo(final ClassInfo classInfo) {
+        if (paramValue != null) {
+            paramValue.setClassInfo(classInfo);
+        }
+    }
+
     /** Default constructor for deserialization. */
     AnnotationParamValue() {
     }
