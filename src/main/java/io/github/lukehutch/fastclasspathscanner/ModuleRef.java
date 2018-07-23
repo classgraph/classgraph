@@ -278,7 +278,7 @@ public class ModuleRef implements Comparable<ModuleRef> {
     /**
      * Get all visible ModuleReferences in all layers, given an array of stack frame {@code Class<?>} references.
      */
-    public static List<ModuleRef> findModuleRefs(final Class<?>[] callStack) {
+    static List<ModuleRef> findModuleRefs(final Class<?>[] callStack) {
         Deque<Object> /* Deque<ModuleLayer> */ layers = null;
         final HashSet<Object> /* HashSet<ModuleLayer> */ visited = new HashSet<>();
         for (int i = 0; i < callStack.length; i++) {
