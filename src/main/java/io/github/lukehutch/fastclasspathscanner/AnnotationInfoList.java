@@ -51,52 +51,52 @@ public class AnnotationInfoList extends ArrayList<AnnotationInfo> {
     static final AnnotationInfoList EMPTY_LIST = new AnnotationInfoList() {
         @Override
         public boolean add(final AnnotationInfo e) {
-            throw new IllegalArgumentException(AnnotationInfoList.class.getSimpleName() + " is immutable");
+            throw new IllegalArgumentException("List  is immutable");
         }
 
         @Override
         public void add(final int index, final AnnotationInfo element) {
-            throw new IllegalArgumentException(AnnotationInfoList.class.getSimpleName() + " is immutable");
+            throw new IllegalArgumentException("List  is immutable");
         }
 
         @Override
         public boolean remove(final Object o) {
-            throw new IllegalArgumentException(AnnotationInfoList.class.getSimpleName() + " is immutable");
+            throw new IllegalArgumentException("List  is immutable");
         }
 
         @Override
         public AnnotationInfo remove(final int index) {
-            throw new IllegalArgumentException(AnnotationInfoList.class.getSimpleName() + " is immutable");
+            throw new IllegalArgumentException("List  is immutable");
         }
 
         @Override
         public boolean addAll(final Collection<? extends AnnotationInfo> c) {
-            throw new IllegalArgumentException(AnnotationInfoList.class.getSimpleName() + " is immutable");
+            throw new IllegalArgumentException("List  is immutable");
         }
 
         @Override
         public boolean addAll(final int index, final Collection<? extends AnnotationInfo> c) {
-            throw new IllegalArgumentException(AnnotationInfoList.class.getSimpleName() + " is immutable");
+            throw new IllegalArgumentException("List  is immutable");
         }
 
         @Override
         public boolean removeAll(final Collection<?> c) {
-            throw new IllegalArgumentException(AnnotationInfoList.class.getSimpleName() + " is immutable");
+            throw new IllegalArgumentException("List  is immutable");
         }
 
         @Override
         public boolean retainAll(final Collection<?> c) {
-            throw new IllegalArgumentException(AnnotationInfoList.class.getSimpleName() + " is immutable");
+            throw new IllegalArgumentException("List  is immutable");
         }
 
         @Override
         public void clear() {
-            throw new IllegalArgumentException(AnnotationInfoList.class.getSimpleName() + " is immutable");
+            throw new IllegalArgumentException("List  is immutable");
         }
 
         @Override
         public AnnotationInfo set(final int index, final AnnotationInfo element) {
-            throw new IllegalArgumentException(AnnotationInfoList.class.getSimpleName() + " is immutable");
+            throw new IllegalArgumentException("List  is immutable");
         }
     };
 

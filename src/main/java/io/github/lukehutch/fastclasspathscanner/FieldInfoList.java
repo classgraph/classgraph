@@ -53,52 +53,52 @@ public class FieldInfoList extends ArrayList<FieldInfo> {
     static final FieldInfoList EMPTY_LIST = new FieldInfoList() {
         @Override
         public boolean add(final FieldInfo e) {
-            throw new IllegalArgumentException(FieldInfoList.class.getSimpleName() + " is immutable");
+            throw new IllegalArgumentException("List is immutable");
         }
 
         @Override
         public void add(final int index, final FieldInfo element) {
-            throw new IllegalArgumentException(FieldInfoList.class.getSimpleName() + " is immutable");
+            throw new IllegalArgumentException("List is immutable");
         }
 
         @Override
         public boolean remove(final Object o) {
-            throw new IllegalArgumentException(FieldInfoList.class.getSimpleName() + " is immutable");
+            throw new IllegalArgumentException("List is immutable");
         }
 
         @Override
         public FieldInfo remove(final int index) {
-            throw new IllegalArgumentException(FieldInfoList.class.getSimpleName() + " is immutable");
+            throw new IllegalArgumentException("List is immutable");
         }
 
         @Override
         public boolean addAll(final Collection<? extends FieldInfo> c) {
-            throw new IllegalArgumentException(FieldInfoList.class.getSimpleName() + " is immutable");
+            throw new IllegalArgumentException("List is immutable");
         }
 
         @Override
         public boolean addAll(final int index, final Collection<? extends FieldInfo> c) {
-            throw new IllegalArgumentException(FieldInfoList.class.getSimpleName() + " is immutable");
+            throw new IllegalArgumentException("List is immutable");
         }
 
         @Override
         public boolean removeAll(final Collection<?> c) {
-            throw new IllegalArgumentException(FieldInfoList.class.getSimpleName() + " is immutable");
+            throw new IllegalArgumentException("List is immutable");
         }
 
         @Override
         public boolean retainAll(final Collection<?> c) {
-            throw new IllegalArgumentException(FieldInfoList.class.getSimpleName() + " is immutable");
+            throw new IllegalArgumentException("List is immutable");
         }
 
         @Override
         public void clear() {
-            throw new IllegalArgumentException(FieldInfoList.class.getSimpleName() + " is immutable");
+            throw new IllegalArgumentException("List is immutable");
         }
 
         @Override
         public FieldInfo set(final int index, final FieldInfo element) {
-            throw new IllegalArgumentException(FieldInfoList.class.getSimpleName() + " is immutable");
+            throw new IllegalArgumentException("List is immutable");
         }
     };
 

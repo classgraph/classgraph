@@ -53,52 +53,52 @@ public class MethodInfoList extends ArrayList<MethodInfo> {
     static final MethodInfoList EMPTY_LIST = new MethodInfoList() {
         @Override
         public boolean add(final MethodInfo e) {
-            throw new IllegalArgumentException(MethodInfoList.class.getSimpleName() + " is immutable");
+            throw new IllegalArgumentException("List is immutable");
         }
 
         @Override
         public void add(final int index, final MethodInfo element) {
-            throw new IllegalArgumentException(MethodInfoList.class.getSimpleName() + " is immutable");
+            throw new IllegalArgumentException("List is immutable");
         }
 
         @Override
         public boolean remove(final Object o) {
-            throw new IllegalArgumentException(MethodInfoList.class.getSimpleName() + " is immutable");
+            throw new IllegalArgumentException("List is immutable");
         }
 
         @Override
         public MethodInfo remove(final int index) {
-            throw new IllegalArgumentException(MethodInfoList.class.getSimpleName() + " is immutable");
+            throw new IllegalArgumentException("List is immutable");
         }
 
         @Override
         public boolean addAll(final Collection<? extends MethodInfo> c) {
-            throw new IllegalArgumentException(MethodInfoList.class.getSimpleName() + " is immutable");
+            throw new IllegalArgumentException("List is immutable");
         }
 
         @Override
         public boolean addAll(final int index, final Collection<? extends MethodInfo> c) {
-            throw new IllegalArgumentException(MethodInfoList.class.getSimpleName() + " is immutable");
+            throw new IllegalArgumentException("List is immutable");
         }
 
         @Override
         public boolean removeAll(final Collection<?> c) {
-            throw new IllegalArgumentException(MethodInfoList.class.getSimpleName() + " is immutable");
+            throw new IllegalArgumentException("List is immutable");
         }
 
         @Override
         public boolean retainAll(final Collection<?> c) {
-            throw new IllegalArgumentException(MethodInfoList.class.getSimpleName() + " is immutable");
+            throw new IllegalArgumentException("List is immutable");
         }
 
         @Override
         public void clear() {
-            throw new IllegalArgumentException(MethodInfoList.class.getSimpleName() + " is immutable");
+            throw new IllegalArgumentException("List is immutable");
         }
 
         @Override
         public MethodInfo set(final int index, final MethodInfo element) {
-            throw new IllegalArgumentException(MethodInfoList.class.getSimpleName() + " is immutable");
+            throw new IllegalArgumentException("List is immutable");
         }
     };
 
