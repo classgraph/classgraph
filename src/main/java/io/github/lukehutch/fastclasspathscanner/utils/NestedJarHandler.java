@@ -49,8 +49,8 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
+import io.github.lukehutch.fastclasspathscanner.ModuleReaderProxy;
 import io.github.lukehutch.fastclasspathscanner.ModuleRef;
-import io.github.lukehutch.fastclasspathscanner.ModuleRef.ModuleReaderProxy;
 import io.github.lukehutch.fastclasspathscanner.ScanSpec;
 
 /**

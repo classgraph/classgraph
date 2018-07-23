@@ -30,9 +30,7 @@ package io.github.lukehutch.fastclasspathscanner;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.URI;
-import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -45,7 +43,7 @@ import java.util.Set;
 import io.github.lukehutch.fastclasspathscanner.utils.JarUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
 
-/** Work with modules using reflection, until support for JDK 8 and earlier is removed. */
+/** A ModuleReference proxy, written using reflection to preserve backwards compatibility with JDK 7 and 8. */
 public class ModuleRef implements Comparable<ModuleRef> {
     /** The name of the module. */
     private final String moduleName;
@@ -248,114 +246,7 @@ public class ModuleRef implements Comparable<ModuleRef> {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    public static class ModuleReaderProxy implements AutoCloseable {
-        private final AutoCloseable moduleReader;
-
-        ModuleReaderProxy(final ModuleRef moduleRef) throws IOException {
-            try {
-                moduleReader = (AutoCloseable) ReflectionUtils.invokeMethod(moduleRef.getModuleReference(), "open",
-                        /* throwException = */ true);
-                if (moduleReader == null) {
-                    throw new IllegalArgumentException("moduleReference.open() should not return null");
-                }
-            } catch (final SecurityException e) {
-                throw new IOException("Could not open module " + moduleRef.getModuleName(), e);
-            }
-        }
-
-        /** Calls ModuleReader#close(). */
-        @Override
-        public void close() throws Exception {
-            moduleReader.close();
-        }
-
-        /** Class<Collector> collectorClass = Class.forName("java.util.stream.Collector"); */
-        private static Class<?> collectorClass;
-        /** Collector<Object, ?, List<Object>> collectorsToList = Collectors.toList(); */
-        private static Object collectorsToList;
-        static {
-            collectorClass = ReflectionUtils.classForNameOrNull("java.util.stream.Collector");
-            final Class<?> collectorsClass = ReflectionUtils.classForNameOrNull("java.util.stream.Collectors");
-            if (collectorsClass != null) {
-                collectorsToList = ReflectionUtils.invokeStaticMethod(collectorsClass, "toList",
-                        /* throwException = */ true);
-            }
-        }
-
-        /**
-         * Get the list of resources accessible to a ModuleReader.
-         * 
-         * From the documentation for ModuleReader#list(): "Whether the stream of elements includes names
-         * corresponding to directories in the module is module reader specific. In lazy implementations then an
-         * IOException may be thrown when using the stream to list the module contents. If this occurs then the
-         * IOException will be wrapped in an java.io.UncheckedIOException and thrown from the method that caused the
-         * access to be attempted. SecurityException may also be thrown when using the stream to list the module
-         * contents and access is denied by the security manager."
-         */
-        public List<String> list() throws Exception {
-            if (collectorsToList == null) {
-                throw new IllegalArgumentException("Could not call Collectors.toList()");
-            }
-            final Object /* Stream<String> */ resourcesStream = ReflectionUtils.invokeMethod(moduleReader, "list",
-                    /* throwException = */ true);
-            if (resourcesStream == null) {
-                throw new IllegalArgumentException("Could not call moduleReader.list()");
-            }
-            final Object resourcesList = ReflectionUtils.invokeMethod(resourcesStream, "collect", collectorClass,
-                    collectorsToList, /* throwException = */ true);
-            if (resourcesList == null) {
-                throw new IllegalArgumentException(
-                        "Could not call moduleReader.list().collect(Collectors.toList())");
-            }
-            @SuppressWarnings("unchecked")
-            final List<String> resourcesListTyped = (List<String>) resourcesList;
-            return resourcesListTyped;
-        }
-
-        /** Use the proxied ModuleReader to open the named resource as an InputStream. */
-        public InputStream open(final String name) throws Exception {
-            final Object /* Optional<InputStream> */ optionalInputStream = ReflectionUtils
-                    .invokeMethod(moduleReader, "open", String.class, name, /* throwException = */ true);
-            if (optionalInputStream == null) {
-                throw new IllegalArgumentException("Could not call moduleReader.open(name)");
-            }
-            final Object /* InputStream */ inputStream = ReflectionUtils.invokeMethod(optionalInputStream, "get",
-                    /* throwException = */ true);
-            if (inputStream == null) {
-                throw new IllegalArgumentException("Could not call moduleReader.open(name).get()");
-            }
-            return (InputStream) inputStream;
-        }
-
-        /**
-         * Use the proxied ModuleReader to open the named resource as a ByteBuffer. Call release(byteBuffer) when
-         * you have finished with the ByteBuffer.
-         * 
-         * @throws OutOfMemoryError
-         *             if the resource is larger than Integer.MAX_VALUE, the maximum capacity of a byte buffer.
-         */
-        public ByteBuffer read(final String name) throws Exception, OutOfMemoryError {
-            final Object /* Optional<ByteBuffer> */ optionalByteBuffer = ReflectionUtils.invokeMethod(moduleReader,
-                    "read", String.class, name, /* throwException = */ true);
-            if (optionalByteBuffer == null) {
-                throw new IllegalArgumentException("Could not call moduleReader.open(name)");
-            }
-            final Object /* ByteBuffer */ byteBuffer = ReflectionUtils.invokeMethod(optionalByteBuffer, "get",
-                    /* throwException = */ true);
-            if (byteBuffer == null) {
-                throw new IllegalArgumentException("Could not call moduleReader.read(name).get()");
-            }
-            return (ByteBuffer) byteBuffer;
-        }
-
-        /** Release a ByteBuffer allocated by calling read(name). */
-        public void release(final ByteBuffer byteBuffer) {
-            ReflectionUtils.invokeMethod(moduleReader, "release", ByteBuffer.class, byteBuffer,
-                    /* throwException = */ true);
-        }
-    }
-
-    /** Open the module, returning a ModuleReader. */
+    /** Open the module, returning a {@link ModuleReaderProxy}. */
     public ModuleReaderProxy open() throws IOException {
         return new ModuleReaderProxy(this);
     }
@@ -363,10 +254,10 @@ public class ModuleRef implements Comparable<ModuleRef> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Recursively find the topological sort order of ancestral layers. The JDK (as of 10.0.0.1) uses a broken DFS
-     * ordering for layer resolution in ModuleLayer#layers() and Configuration#configurations(), but I reported this
-     * bug, so hopefully this will be fixed, and topological ordering will be the correct long-term layer resolution
-     * order.
+     * Recursively find the topological sort order of ancestral layers. The JDK (as of 10.0.0.1) uses a broken
+     * (non-topological) DFS ordering for layer resolution in ModuleLayer#layers() and
+     * Configuration#configurations() but when I reported this bug on the Jigsaw mailing list, Alan didn't see what
+     * the problem was...
      */
     private static void findLayerOrder(final Object /* ModuleLayer */ layer,
             final Set<Object> /* Set<ModuleLayer> */ visited,
