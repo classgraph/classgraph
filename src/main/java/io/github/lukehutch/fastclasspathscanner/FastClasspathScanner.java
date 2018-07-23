@@ -1156,4 +1156,38 @@ public class FastClasspathScanner {
             }
         }
     }
+
+    /**
+     * Returns {@ModuleRef} references for all the visible modules.
+     * 
+     * @return a list of {@link ModuleRef} references for all the visible modules.
+     */
+    public List<ModuleRef> getModules() {
+        try {
+            try (AutoCloseableExecutorService executorService = new AutoCloseableExecutorService(
+                    DEFAULT_NUM_WORKER_THREADS)) {
+                return executorService.submit( //
+                        new Scanner(scanSpec, executorService, DEFAULT_NUM_WORKER_THREADS,
+                                /* enableRecursiveScanning = */ false, /* scanResultProcessor = */ null,
+                                /* failureHandler = */ null,
+                                log == null ? null : log.log("Getting unique classpath elements")))
+                        .get().getModules();
+            }
+        } catch (final InterruptedException e) {
+            if (log != null) {
+                log.log("Thread interrupted while getting modules");
+            }
+            throw new IllegalArgumentException("Scan interrupted", e);
+        } catch (final ExecutionException e) {
+            if (log != null) {
+                log.log("Exception while getting modules", e);
+            }
+            final Throwable cause = e.getCause();
+            throw new RuntimeException(cause == null ? e : cause);
+        } finally {
+            if (log != null) {
+                log.flush();
+            }
+        }
+    }
 }

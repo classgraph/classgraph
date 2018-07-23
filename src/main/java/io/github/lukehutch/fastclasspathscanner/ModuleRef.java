@@ -72,7 +72,7 @@ public class ModuleRef implements Comparable<ModuleRef> {
     /** The ClassLoader that loads classes in the module. May be null, to represent the bootstrap classloader. */
     private final ClassLoader classLoader;
 
-    public ModuleRef(final Object moduleReference, final Object moduleLayer) {
+    ModuleRef(final Object moduleReference, final Object moduleLayer) {
         if (moduleReference == null) {
             throw new IllegalArgumentException("moduleReference cannot be null");
         }

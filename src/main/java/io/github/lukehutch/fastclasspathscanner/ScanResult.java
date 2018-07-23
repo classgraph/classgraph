@@ -183,6 +183,18 @@ public class ScanResult {
         return classpathElementOrderURLs;
     }
 
+    /** Returns {@ModuleRef} references for all the visible modules. */
+    public List<ModuleRef> getModules() {
+        final List<ModuleRef> moduleRefs = new ArrayList<>();
+        for (final ClasspathElement classpathElement : classpathOrder) {
+            final ModuleRef moduleRef = classpathElement.getClasspathElementModuleRef();
+            if (moduleRef != null) {
+                moduleRefs.add(moduleRef);
+            }
+        }
+        return moduleRefs;
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /** Get a list of all resources (including classfiles and non-classfiles) found in whitelisted packages. */
