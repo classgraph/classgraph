@@ -201,7 +201,7 @@ class ClassInfoUnlinked {
             if (typeSignature != null) {
                 ClassTypeSignature typeSig = null;
                 try {
-                    typeSig = ClassTypeSignature.parse(typeSignature);
+                    typeSig = ClassTypeSignature.parse(typeSignature, /* scanResult = */ null);
                 } catch (final ParseException e) {
                 }
                 subLog.log("Class type signature: " + (typeSig == null ? typeSignature

@@ -212,11 +212,14 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
      * 
      * @param typeDescriptor
      *            The class type signature or class type descriptor to parse.
+     * @param scanResult
+     *            The {@link ScanResult} (for classloading).
      * @return The parsed class type signature or class type descriptor.
      * @throws ParseException
      *             If the class type signature could not be parsed.
      */
-    public static ClassTypeSignature parse(final String typeDescriptor) throws ParseException {
+    public static ClassTypeSignature parse(final String typeDescriptor, final ScanResult scanResult)
+            throws ParseException {
         final Parser parser = new Parser(typeDescriptor);
         final List<TypeParameter> typeParameters = TypeParameter.parseList(parser);
         final ClassRefTypeSignature superclassSignature = ClassRefTypeSignature.parse(parser);
@@ -246,6 +249,7 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
                 typeVariableSignature.containingClassSignature = classSignature;
             }
         }
+        classSignature.setScanResult(scanResult);
         return classSignature;
     }
 }

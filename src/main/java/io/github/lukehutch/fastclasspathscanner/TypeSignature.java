@@ -88,20 +88,24 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
      * 
      * @param typeDescriptor
      *            The type descriptor or type signature to parse.
+     * @param scanResult
+     *            The {@link ScanResult} (for classloading).
      * @return The parsed type descriptor or type signature.
      * @throws ParseException
      *             If type signature could not be parsed.
      */
-    public static TypeSignature parse(final String typeDescriptor) throws ParseException {
+    public static TypeSignature parse(final String typeDescriptor, final ScanResult scanResult)
+            throws ParseException {
         final Parser parser = new Parser(typeDescriptor);
         TypeSignature typeSignature;
-        typeSignature = TypeSignature.parse(parser);
+        typeSignature = parse(parser);
         if (typeSignature == null) {
             throw new ParseException(parser, "Could not parse type signature");
         }
         if (parser.hasMore()) {
             throw new ParseException(parser, "Extra characters at end of type descriptor");
         }
+        typeSignature.setScanResult(scanResult);
         return typeSignature;
     }
 }

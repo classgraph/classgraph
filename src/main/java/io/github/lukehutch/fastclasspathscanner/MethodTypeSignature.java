@@ -207,32 +207,21 @@ public class MethodTypeSignature extends HierarchicalTypeSignature {
     }
 
     /**
-     * Parse a method signature (ignores class context, i.e. no ClassInfo needs to be provided -- this means that
-     * type variables cannot be resolved to the matching type parameter).
-     * 
-     * @param typeDescriptor
-     *            The low-level internal method type descriptor or type signature to parse.
-     * @return The parsed type signature of the method.
-     * @throws ParseException
-     *             If method type signature could not be parsed.
-     */
-    public static MethodTypeSignature parse(final String typeDescriptor) throws ParseException {
-        return MethodTypeSignature.parse(/* classInfo = */ null, typeDescriptor);
-    }
-
-    /**
      * Parse a method signature.
      * 
      * @param classInfo
-     *            The {@link ClassInfo} of the containing class.
+     *            The {@link ClassInfo} of the containing class (for resolving type variables declared in the
+     *            class).
      * @param typeDescriptor
      *            The type descriptor of the method.
+     * @param scanResult
+     *            The {@link ScanResult} (for classloading).
      * @return The parsed method type signature.
      * @throws ParseException
      *             If method type signature could not be parsed.
      */
-    public static MethodTypeSignature parse(final ClassInfo classInfo, final String typeDescriptor)
-            throws ParseException {
+    public static MethodTypeSignature parse(final ClassInfo classInfo, final String typeDescriptor,
+            final ScanResult scanResult) throws ParseException {
         final Parser parser = new Parser(typeDescriptor);
         final List<TypeParameter> typeParameters = TypeParameter.parseList(parser);
         parser.expect('(');
@@ -292,6 +281,7 @@ public class MethodTypeSignature extends HierarchicalTypeSignature {
                 }
             }
         }
+        methodSignature.setScanResult(scanResult);
         return methodSignature;
     }
 }

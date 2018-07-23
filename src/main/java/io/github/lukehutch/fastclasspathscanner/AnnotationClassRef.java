@@ -68,7 +68,7 @@ public class AnnotationClassRef extends ScanResultObject {
     public TypeSignature getTypeSignature() {
         if (typeSignature == null) {
             try {
-                typeSignature = TypeSignature.parse(typeDescriptor);
+                typeSignature = TypeSignature.parse(typeDescriptor, scanResult);
             } catch (final ParseException e) {
                 throw new IllegalArgumentException(e);
             }

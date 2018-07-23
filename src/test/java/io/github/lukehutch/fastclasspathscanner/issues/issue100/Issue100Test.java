@@ -53,7 +53,7 @@ public class Issue100Test {
         // earlier in classpath than "...b.jar"
         final ArrayList<String> fieldNames1 = new ArrayList<>();
         new FastClasspathScanner().overrideClassLoaders(overrideClassLoader).whitelistPackages("issue100")
-                .enableFieldInfo().verbose().scan().getAllClasses().forEach(ci -> {
+                .enableFieldInfo().scan().getAllClasses().forEach(ci -> {
                     for (final FieldInfo f : ci.getFieldInfo()) {
                         fieldNames1.add(f.getFieldName());
                     }

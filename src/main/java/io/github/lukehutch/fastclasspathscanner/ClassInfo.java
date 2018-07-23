@@ -394,7 +394,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         }
         if (typeSignature == null) {
             try {
-                typeSignature = ClassTypeSignature.parse(typeSignatureStr);
+                typeSignature = ClassTypeSignature.parse(typeSignatureStr, scanResult);
             } catch (final ParseException e) {
                 throw new IllegalArgumentException(e);
             }
