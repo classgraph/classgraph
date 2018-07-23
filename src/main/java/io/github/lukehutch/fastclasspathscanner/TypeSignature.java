@@ -39,26 +39,11 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
     /**
      * Instantiate the type signature into a {@code Class<?>} reference.
      * 
-     * @param ignoreExceptions
-     *            if true, return null rather than throwing IllegalArgumentException if an exception or error is
-     *            thrown while trying to load or instantiate this type.
-     * @throws IllegalArgumentException
-     *             if ignoreExceptions is false and an exception or error is thrown while trying to load or
-     *             instantiate this type.
-     * @return The instantiation of the type signature as a {@code Class<?>} reference.
-     */
-    public abstract Class<?> instantiate(boolean ignoreExceptions);
-
-    /**
-     * Instantiate the type signature into a {@code Class<?>} reference.
-     * 
      * @throws IllegalArgumentException
      *             if an exception or error is thrown while trying to load or instantiate this type.
      * @return The instantiation of the type signature as a {@code Class<?>} reference.
      */
-    public Class<?> instantiate() {
-        return instantiate(/* ignoreExceptions = */ false);
-    }
+    public abstract Class<?> loadClass();
 
     /**
      * Compare base types, ignoring generic type parameters.

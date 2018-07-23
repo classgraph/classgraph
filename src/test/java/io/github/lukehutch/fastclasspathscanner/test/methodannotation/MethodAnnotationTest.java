@@ -46,7 +46,7 @@ public class MethodAnnotationTest {
         final List<String> testClasses = new FastClasspathScanner()
                 .whitelistPackages(MethodAnnotationTest.class.getPackage().getName()).enableMethodInfo()
                 .enableAnnotationInfo().scan().getClassesWithMethodAnnotation(ExternalAnnotation.class.getName())
-                .getClassNames();
+                .getNames();
         assertThat(testClasses).isEmpty();
     }
 
@@ -56,13 +56,13 @@ public class MethodAnnotationTest {
                 .whitelistPackages(MethodAnnotationTest.class.getPackage().getName()).enableMethodInfo()
                 .enableAnnotationInfo().ignoreMethodVisibility().scan()
                 .getClassesWithMethodAnnotation(ExternalAnnotation.class.getName());
-        final List<String> testClasses = classesWithMethodAnnotation.getClassNames();
+        final List<String> testClasses = classesWithMethodAnnotation.getNames();
         assertThat(testClasses).containsOnly(MethodAnnotationTest.class.getName());
         boolean found = false;
         for (final ClassInfo ci : classesWithMethodAnnotation) {
             for (final MethodInfo mi : ci.getMethodInfo()) {
-                if (mi.getAnnotationInfo().containsAnnotationNamed(ExternalAnnotation.class.getName())) {
-                    assertThat(mi.getMethodName().equals("privateMethodWithAnnotation"));
+                if (mi.getAnnotationInfo().containsName(ExternalAnnotation.class.getName())) {
+                    assertThat(mi.getName().equals("privateMethodWithAnnotation"));
                     found = true;
                 }
             }

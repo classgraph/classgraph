@@ -55,7 +55,7 @@ public class Issue175Test {
                 .ignoreFieldVisibility().enableMethodInfo().enableFieldInfo().scan();
 
         final List<String> methods = new ArrayList<>();
-        for (final String className : result.getAllClasses().getClassNames()) {
+        for (final String className : result.getAllClasses().getNames()) {
             final ClassInfo classInfo = result.getClassInfo(className);
             for (final MethodInfo method : classInfo.getMethodAndConstructorInfo()) {
                 methods.add(method.toString());
@@ -78,7 +78,7 @@ public class Issue175Test {
                 .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableAllInfo().scan();
 
         final List<String> methods = new ArrayList<>();
-        for (final String className : result.getAllClasses().getClassNames()) {
+        for (final String className : result.getAllClasses().getNames()) {
             final ClassInfo classInfo = result.getClassInfo(className);
             for (final MethodInfo method : classInfo.getMethodAndConstructorInfo()) {
                 methods.add(method.toString());
@@ -100,7 +100,7 @@ public class Issue175Test {
                 .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableAllInfo().scan();
 
         final List<String> methods = new ArrayList<>();
-        for (final String className : result.getAllClasses().getClassNames()) {
+        for (final String className : result.getAllClasses().getNames()) {
             final ClassInfo classInfo = result.getClassInfo(className);
             for (final MethodInfo method : classInfo.getMethodAndConstructorInfo()) {
                 methods.add(method.toString());
@@ -125,7 +125,7 @@ public class Issue175Test {
                 .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableAllInfo().scan();
 
         final List<String> methods = new ArrayList<>();
-        for (final String className : result.getAllClasses().getClassNames()) {
+        for (final String className : result.getAllClasses().getNames()) {
             final ClassInfo classInfo = result.getClassInfo(className);
             for (final MethodInfo method : classInfo.getMethodAndConstructorInfo()) {
                 methods.add(method.toString());
@@ -156,7 +156,7 @@ public class Issue175Test {
                 .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableAllInfo().scan();
 
         final List<String> methods = new ArrayList<>();
-        for (final String className : result.getAllClasses().getClassNames()) {
+        for (final String className : result.getAllClasses().getNames()) {
             final ClassInfo classInfo = result.getClassInfo(className);
             for (final MethodInfo method : classInfo.getMethodAndConstructorInfo()) {
                 methods.add(method.toString());
@@ -216,7 +216,7 @@ public class Issue175Test {
                 .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableAllInfo().scan();
 
         final List<String> methods = new ArrayList<>();
-        for (final String className : result.getAllClasses().getClassNames()) {
+        for (final String className : result.getAllClasses().getNames()) {
             final ClassInfo classInfo = result.getClassInfo(className);
             for (final MethodInfo method : classInfo.getMethodAndConstructorInfo()) {
                 methods.add(method.toString());
@@ -241,7 +241,7 @@ public class Issue175Test {
                 .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableAllInfo().scan();
 
         final List<String> methods = new ArrayList<>();
-        for (final String className : result.getAllClasses().getClassNames()) {
+        for (final String className : result.getAllClasses().getNames()) {
             final ClassInfo classInfo = result.getClassInfo(className);
             for (final MethodInfo method : classInfo.getMethodAndConstructorInfo()) {
                 methods.add(method.toString());
@@ -275,7 +275,7 @@ public class Issue175Test {
                 .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableAllInfo().scan();
 
         final List<String> methods = new ArrayList<>();
-        for (final String className : result.getAllClasses().getClassNames()) {
+        for (final String className : result.getAllClasses().getNames()) {
             final ClassInfo classInfo = result.getClassInfo(className);
             for (final MethodInfo method : classInfo.getMethodAndConstructorInfo()) {
                 methods.add(method.toString());
@@ -296,7 +296,7 @@ public class Issue175Test {
                 .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableAllInfo().scan();
 
         final List<String> methods = new ArrayList<>();
-        for (final String className : result.getAllClasses().getClassNames()) {
+        for (final String className : result.getAllClasses().getNames()) {
             final ClassInfo classInfo = result.getClassInfo(className);
             for (final MethodInfo method : classInfo.getMethodAndConstructorInfo()) {
                 methods.add(method.toString());

@@ -220,7 +220,7 @@ public class ScanResult {
             }
             final ResourceList filteredResources = new ResourceList();
             for (final Resource classpathResource : allResources) {
-                if (classpathResource.getPathRelativeToPackageRoot().equals(path)) {
+                if (classpathResource.getPath().equals(path)) {
                     filteredResources.add(classpathResource);
                 }
             }
@@ -245,7 +245,7 @@ public class ScanResult {
             }
             final ResourceList filteredResources = new ResourceList();
             for (final Resource classpathResource : allResources) {
-                if (classpathResource.getPathRelativeToPackageRoot().startsWith(pathPrefix)) {
+                if (classpathResource.getPath().startsWith(pathPrefix)) {
                     filteredResources.add(classpathResource);
                 }
             }
@@ -260,7 +260,7 @@ public class ScanResult {
         } else {
             final ResourceList filteredResources = new ResourceList();
             for (final Resource classpathResource : allResources) {
-                final String relativePath = classpathResource.getPathRelativeToPackageRoot();
+                final String relativePath = classpathResource.getPath();
                 final int lastSlashIdx = relativePath.lastIndexOf('/');
                 if (relativePath.substring(lastSlashIdx + 1).equals(leafName)) {
                     filteredResources.add(classpathResource);
@@ -284,7 +284,7 @@ public class ScanResult {
             }
             final ResourceList filteredResources = new ResourceList();
             for (final Resource classpathResource : allResources) {
-                final String relativePath = classpathResource.getPathRelativeToPackageRoot();
+                final String relativePath = classpathResource.getPath();
                 final int lastSlashIdx = relativePath.lastIndexOf('/');
                 final int lastDotIdx = relativePath.lastIndexOf('.');
                 if (lastDotIdx > lastSlashIdx) {
@@ -307,7 +307,7 @@ public class ScanResult {
         } else {
             final ResourceList filteredResources = new ResourceList();
             for (final Resource classpathResource : allResources) {
-                final String relativePath = classpathResource.getPathRelativeToPackageRoot();
+                final String relativePath = classpathResource.getPath();
                 if (pattern.matcher(relativePath).matches()) {
                     filteredResources.add(classpathResource);
                 }
@@ -950,7 +950,7 @@ public class ScanResult {
                 /* log = */ null).getClassLoaders();
         final Map<String, ClassInfo> classNameToClassInfo = new HashMap<>();
         for (final ClassInfo ci : deserialized.allClassInfo) {
-            classNameToClassInfo.put(ci.getClassName(), ci);
+            classNameToClassInfo.put(ci.getName(), ci);
         }
         final ScanResult scanResult = new ScanResult(deserialized.scanSpec,
                 /* classpathOrder = */ Collections.<ClasspathElement> emptyList(), envClassLoaderOrder,

@@ -42,7 +42,7 @@ public class Issue107Test {
         assertThat(new FastClasspathScanner().whitelistPackages(pkg).enableAnnotationInfo()
                 // package-info is a non-public class
                 .ignoreClassVisibility() //
-                .scan().getClassesWithAnnotation(PackageAnnotation.class.getName()).getClassNames())
+                .scan().getClassesWithAnnotation(PackageAnnotation.class.getName()).getNames())
                         .containsOnly(pkg + ".package-info");
     }
 }

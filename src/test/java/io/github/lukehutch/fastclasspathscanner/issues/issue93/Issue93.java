@@ -34,9 +34,9 @@ public class Issue93 {
     public void classRetentionIsDefault() {
         final ScanResult scanResult = new FastClasspathScanner().whitelistPackages(PKG).enableAnnotationInfo()
                 .ignoreClassVisibility().scan();
-        assertThat(scanResult.getClassesWithAnnotation(RetentionClass.class.getName()).getClassNames())
+        assertThat(scanResult.getClassesWithAnnotation(RetentionClass.class.getName()).getNames())
                 .containsOnly(RetentionClassAnnotated.class.getName());
-        assertThat(scanResult.getClassesWithAnnotation(RetentionRuntime.class.getName()).getClassNames())
+        assertThat(scanResult.getClassesWithAnnotation(RetentionRuntime.class.getName()).getNames())
                 .containsOnly(RetentionRuntimeAnnotated.class.getName());
     }
 
@@ -48,8 +48,8 @@ public class Issue93 {
     public void classRetentionIsNotVisibleWithRetentionPolicyRUNTIME() {
         final ScanResult scanResult = new FastClasspathScanner().whitelistPackages(PKG).enableAnnotationInfo()
                 .ignoreClassVisibility().disableRuntimeInvisibleAnnotations().scan();
-        assertThat(scanResult.getClassesWithAnnotation(RetentionClass.class.getName()).getClassNames()).isEmpty();
-        assertThat(scanResult.getClassesWithAnnotation(RetentionRuntime.class.getName()).getClassNames())
+        assertThat(scanResult.getClassesWithAnnotation(RetentionClass.class.getName()).getNames()).isEmpty();
+        assertThat(scanResult.getClassesWithAnnotation(RetentionRuntime.class.getName()).getNames())
                 .containsOnly(RetentionRuntimeAnnotated.class.getName());
     }
 }

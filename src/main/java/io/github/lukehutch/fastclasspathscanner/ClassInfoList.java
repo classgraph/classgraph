@@ -221,14 +221,13 @@ public class ClassInfoList implements List<ClassInfo> {
      *             any of the classes.
      * @return The loaded {@code Class<?>} objects corresponding to each {@link ClassInfo} object in this list.
      */
-    public <T> List<Class<T>> getClassRefs(final Class<T> superclassOrInterfaceType,
-            final boolean ignoreExceptions) {
+    public <T> List<Class<T>> loadClasss(final Class<T> superclassOrInterfaceType, final boolean ignoreExceptions) {
         if (this.isEmpty()) {
             return Collections.<Class<T>> emptyList();
         } else {
             final List<Class<T>> classRefs = new ArrayList<>();
             for (final ClassInfo classInfo : this) {
-                final Class<T> classRef = classInfo.scanResult.loadClass(classInfo.getClassName(),
+                final Class<T> classRef = classInfo.scanResult.loadClass(classInfo.getName(),
                         superclassOrInterfaceType, ignoreExceptions);
                 if (classRef != null) {
                     classRefs.add(classRef);
@@ -254,8 +253,8 @@ public class ClassInfoList implements List<ClassInfo> {
      *             if an exception or error was thrown while trying to load or cast any of the classes.
      * @return The loaded {@code Class<?>} objects corresponding to each {@link ClassInfo} object in this list.
      */
-    public <T> List<Class<T>> getClassRefs(final Class<T> superclassOrInterfaceType) {
-        return getClassRefs(superclassOrInterfaceType, /* ignoreExceptions = */ false);
+    public <T> List<Class<T>> loadClasss(final Class<T> superclassOrInterfaceType) {
+        return loadClasss(superclassOrInterfaceType, /* ignoreExceptions = */ false);
     }
 
     /**
@@ -272,15 +271,14 @@ public class ClassInfoList implements List<ClassInfo> {
      *             classes.
      * @return The loaded {@code Class<?>} objects corresponding to each {@link ClassInfo} object in this list.
      */
-    public List<Class<?>> getClassRefs(final boolean ignoreExceptions) {
+    public List<Class<?>> loadClasss(final boolean ignoreExceptions) {
         if (this.isEmpty()) {
             return Collections.<Class<?>> emptyList();
         } else {
             final List<Class<?>> classRefs = new ArrayList<>();
             // Try loading each class
             for (final ClassInfo classInfo : this) {
-                final Class<?> classRef = classInfo.scanResult.loadClass(classInfo.getClassName(),
-                        ignoreExceptions);
+                final Class<?> classRef = classInfo.scanResult.loadClass(classInfo.getName(), ignoreExceptions);
                 if (classRef != null) {
                     classRefs.add(classRef);
                 }
@@ -297,30 +295,30 @@ public class ClassInfoList implements List<ClassInfo> {
      *             if an exception or error was thrown while trying to load any of the classes.
      * @return The loaded {@code Class<?>} objects corresponding to each {@link ClassInfo} object in this list.
      */
-    public List<Class<?>> getClassRefs() {
-        return getClassRefs(/* ignoreExceptions = */ false);
+    public List<Class<?>> loadClasss() {
+        return loadClasss(/* ignoreExceptions = */ false);
     }
 
     // -------------------------------------------------------------------------------------------------------------
 
     /** Get the names of all classes in this list. */
-    public List<String> getClassNames() {
+    public List<String> getNames() {
         if (this.isEmpty()) {
             return Collections.<String> emptyList();
         } else {
-            final List<String> classNames = new ArrayList<>(this.size());
+            final List<String> names = new ArrayList<>(this.size());
             for (final ClassInfo ci : this) {
-                classNames.add(ci.getClassName());
+                names.add(ci.getName());
             }
-            return classNames;
+            return names;
         }
     }
 
     /**
-     * Get the string representations of all classes in this list (with annotations, modifiers, etc.), obtained by
-     * calling {@link ClassInfo#toString()}.
+     * Get the string representations of all classes in this list (with annotations, modifiers, etc.), by calling
+     * {@link ClassInfo#toString()} on each item in the list.
      */
-    public List<String> getClassStrs() {
+    public List<String> getAsStrings() {
         if (this.isEmpty()) {
             return Collections.<String> emptyList();
         } else {
@@ -335,13 +333,23 @@ public class ClassInfoList implements List<ClassInfo> {
     // -------------------------------------------------------------------------------------------------------------
 
     /** Return true if this {@link ClassInfo} list contains a class with the given name. */
-    public boolean containsClassNamed(final String className) {
+    public boolean containsName(final String className) {
         for (final ClassInfo ci : this) {
-            if (ci.getClassName().equals(className)) {
+            if (ci.getName().equals(className)) {
                 return true;
             }
         }
         return false;
+    }
+
+    /** Return the {@link ClassInfo} object in the list with the given name, or null if not found. */
+    public ClassInfo get(final String name) {
+        for (final ClassInfo ci : this) {
+            if (ci.getName().equals(name)) {
+                return ci;
+            }
+        }
+        return null;
     }
 
     // -------------------------------------------------------------------------------------------------------------

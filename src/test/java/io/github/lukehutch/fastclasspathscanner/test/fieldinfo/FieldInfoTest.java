@@ -62,7 +62,7 @@ public class FieldInfoTest {
         final List<String> fieldInfoStrs = new FastClasspathScanner()
                 .whitelistPackages(FieldInfoTest.class.getPackage().getName()).enableFieldInfo()
                 .enableStaticFinalFieldConstantInitializerValues().enableAnnotationInfo().scan()
-                .getClassInfo(FieldInfoTest.class.getName()).getFieldInfo().getFieldStrs();
+                .getClassInfo(FieldInfoTest.class.getName()).getFieldInfo().getAsStrings();
         assertThat(fieldInfoStrs).containsOnly(
                 "@" + ExternalAnnotation.class.getName() + " public static final int publicFieldWithAnnotation = 3",
                 "public int fieldWithoutAnnotation");
@@ -73,7 +73,7 @@ public class FieldInfoTest {
         final List<String> fieldInfoStrs = new FastClasspathScanner()
                 .whitelistPackages(FieldInfoTest.class.getPackage().getName()).enableFieldInfo()
                 .enableStaticFinalFieldConstantInitializerValues().enableAnnotationInfo().ignoreFieldVisibility()
-                .scan().getClassInfo(FieldInfoTest.class.getName()).getFieldInfo().getFieldStrs();
+                .scan().getClassInfo(FieldInfoTest.class.getName()).getFieldInfo().getAsStrings();
         assertThat(fieldInfoStrs).containsOnly(
                 "@" + ExternalAnnotation.class.getName() + " public static final int publicFieldWithAnnotation = 3",
                 "@" + ExternalAnnotation.class.getName()

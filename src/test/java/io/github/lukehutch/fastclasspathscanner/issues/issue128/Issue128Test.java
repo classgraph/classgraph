@@ -57,7 +57,7 @@ public class Issue128Test {
         final List<String> filesInsideLevel3 = new ArrayList<>();
         final URL jarURL = new URL(NESTED_JAR_URL);
         new FastClasspathScanner().overrideClassLoaders(new URLClassLoader(new URL[] { jarURL }, null)).scan()
-                .getAllResources().forEach(r -> filesInsideLevel3.add(r.getPathRelativeToPackageRoot()));
+                .getAllResources().forEach(r -> filesInsideLevel3.add(r.getPath()));
         if (filesInsideLevel3.isEmpty()) {
             // If there were no files inside jar, it is possible that remote jar could not be downloaded
             try (InputStream is = jarURL.openStream()) {

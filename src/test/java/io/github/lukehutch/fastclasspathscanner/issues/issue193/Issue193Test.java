@@ -60,7 +60,7 @@ public class Issue193Test {
                 .overrideClassLoaders(classLoader) //
                 .scan() //
                 .getAllClasses() //
-                .getClassNames().stream().filter(name -> name.endsWith("$")).collect(Collectors.toList());
+                .getNames().stream().filter(name -> name.endsWith("$")).collect(Collectors.toList());
         assertThat(classes).contains("scala.collection.immutable.Stack$");
     }
 }

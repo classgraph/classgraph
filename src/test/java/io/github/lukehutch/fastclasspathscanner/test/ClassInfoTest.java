@@ -29,14 +29,14 @@ public class ClassInfoTest {
     @Test
     public void useClassNameToClassInfo() {
         final List<String> impls = scanResult.getClassInfo(Iface.class.getName()).getClassesImplementing()
-                .getClassNames();
+                .getNames();
         assertThat(impls.contains(Impl1.class.getName())).isTrue();
     }
 
     @Test
     public void stream() throws Exception {
         assertThat( //
-                scanResult.getAllClasses().getClassNames().stream().filter(n -> n.contains("ClsSub")) //
+                scanResult.getAllClasses().getNames().stream().filter(n -> n.contains("ClsSub")) //
                         .collect(Collectors.toSet())) //
                                 .containsOnly(ClsSub.class.getName(), ClsSubSub.class.getName());
     }
@@ -45,9 +45,8 @@ public class ClassInfoTest {
     public void streamHasSuperInterfaceDirect() throws Exception {
         assertThat( //
                 scanResult.getAllClasses().stream() //
-                        .filter(ci -> ci.getInterfaces().directOnly().getClassNames()
-                                .contains(Iface.class.getName())) //
-                        .map(ci -> ci.getClassName()) //
+                        .filter(ci -> ci.getInterfaces().directOnly().getNames().contains(Iface.class.getName())) //
+                        .map(ci -> ci.getName()) //
                         .collect(Collectors.toSet())) //
                                 .containsOnly(IfaceSub.class.getName(), Impl2.class.getName());
     }
@@ -56,8 +55,8 @@ public class ClassInfoTest {
     public void streamHasSuperInterface() throws Exception {
         assertThat( //
                 scanResult.getAllClasses().stream() //
-                        .filter(ci -> ci.getInterfaces().getClassNames().contains(Iface.class.getName())) //
-                        .map(ci -> ci.getClassName()) //
+                        .filter(ci -> ci.getInterfaces().getNames().contains(Iface.class.getName())) //
+                        .map(ci -> ci.getName()) //
                         .collect(Collectors.toSet())) //
                                 .containsOnly(IfaceSub.class.getName(), IfaceSubSub.class.getName(),
                                         Impl2.class.getName(), Impl2Sub.class.getName(),
@@ -69,7 +68,7 @@ public class ClassInfoTest {
     public void implementsInterfaceDirect() {
         assertThat( //
                 scanResult.getClassesImplementing(Iface.class.getName()).directOnly().stream() //
-                        .map(ci -> ci.getClassName()) //
+                        .map(ci -> ci.getName()) //
                         .collect(Collectors.toList())) //
                                 .containsOnly(IfaceSub.class.getName(), Impl2.class.getName());
     }
@@ -78,7 +77,7 @@ public class ClassInfoTest {
     public void implementsInterface() {
         assertThat( //
                 scanResult.getClassesImplementing(Iface.class.getName()).stream() //
-                        .map(ci -> ci.getClassName()) //
+                        .map(ci -> ci.getName()) //
                         .collect(Collectors.toList())) //
                                 .containsOnly(Impl1.class.getName(), Impl1Sub.class.getName(),
                                         Impl1SubSub.class.getName(), Impl2.class.getName(),
@@ -89,9 +88,9 @@ public class ClassInfoTest {
     @Test
     public void multiCriteria() {
         final Set<String> matches = scanResult.getAllClasses().stream() //
-                .filter(ci -> ci.getInterfaces().getClassNames().contains(Iface.class.getName())) //
-                .filter(ci -> ci.getSuperclasses().getClassNames().contains(Impl1.class.getName())) //
-                .map(ci -> ci.getClassName()) //
+                .filter(ci -> ci.getInterfaces().getNames().contains(Iface.class.getName())) //
+                .filter(ci -> ci.getSuperclasses().getNames().contains(Impl1.class.getName())) //
+                .map(ci -> ci.getName()) //
                 .collect(Collectors.toSet());
         assertThat(matches).containsOnly(Impl1Sub.class.getName(), Impl1SubSub.class.getName());
     }

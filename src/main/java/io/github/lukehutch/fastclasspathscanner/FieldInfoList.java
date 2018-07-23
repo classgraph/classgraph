@@ -31,9 +31,7 @@ package io.github.lukehutch.fastclasspathscanner;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 /** A list of {@link FieldInfo} objects. */
 public class FieldInfoList extends ArrayList<FieldInfo> {
@@ -102,24 +100,26 @@ public class FieldInfoList extends ArrayList<FieldInfo> {
         }
     };
 
+    // -------------------------------------------------------------------------------------------------------------
+
     /** Get the names of all fields in this list. */
-    public List<String> getFieldNames() {
+    public List<String> getNames() {
         if (this.isEmpty()) {
             return Collections.<String> emptyList();
         } else {
             final List<String> fieldNames = new ArrayList<>(this.size());
             for (final FieldInfo fi : this) {
-                fieldNames.add(fi.getFieldName());
+                fieldNames.add(fi.getName());
             }
             return fieldNames;
         }
     }
 
     /**
-     * Get the string representations of all fields in this list (with annotations, modifiers, etc.), obtained by
-     * calling {@link FieldInfo#toString()}.
+     * Get the string representations of all fields in this list (with annotations, modifiers, etc.), by calling
+     * {@link FieldInfo#toString()} on each item in the list.
      */
-    public List<String> getFieldStrs() {
+    public List<String> getAsStrings() {
         if (this.isEmpty()) {
             return Collections.<String> emptyList();
         } else {
@@ -131,27 +131,25 @@ public class FieldInfoList extends ArrayList<FieldInfo> {
         }
     }
 
+    // -------------------------------------------------------------------------------------------------------------
+
     /** Return true if this list contains a field with the given name. */
-    public boolean containsFieldNamed(final String fieldName) {
+    public boolean containsName(final String name) {
         for (final FieldInfo fi : this) {
-            if (fi.getFieldName().equals(fieldName)) {
+            if (fi.getName().equals(name)) {
                 return true;
             }
         }
         return false;
     }
 
-    /**
-     * Returns a list of all unique annotation types on the fields in this list, as a list of {@link ClassInfo}
-     * objects.
-     */
-    public ClassInfoList getUniqueFieldAnnotationTypes(final String fieldName) {
-        final Set<ClassInfo> allUniqueAnnotations = new HashSet<>();
+    /** Return the {@link FieldInfo} object in the list with the given name, or null if not found. */
+    public FieldInfo get(final String name) {
         for (final FieldInfo fi : this) {
-            for (final AnnotationInfo ai : fi.getAnnotationInfo()) {
-                allUniqueAnnotations.add(ai.getClassInfo());
+            if (fi.getName().equals(name)) {
+                return fi;
             }
         }
-        return new ClassInfoList(allUniqueAnnotations, allUniqueAnnotations);
+        return null;
     }
 }

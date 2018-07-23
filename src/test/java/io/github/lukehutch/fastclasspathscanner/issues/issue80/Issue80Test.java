@@ -10,6 +10,6 @@ public class Issue80Test {
     @Test
     public void issue80() {
         assertThat(new FastClasspathScanner().unBlacklistSystemPackages().enableClassInfo().scan()
-                .getAllStandardClasses().getClassNames()).contains("java.util.ArrayList");
+                .getAllStandardClasses().getNames()).contains("java.util.ArrayList");
     }
 }

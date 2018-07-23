@@ -108,12 +108,8 @@ public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
     }
 
     @Override
-    public Class<?> instantiate(final boolean ignoreExceptions) {
-        if (ignoreExceptions) {
-            return null;
-        } else {
-            throw new IllegalArgumentException("Cannot instantiate a type variable");
-        }
+    public Class<?> loadClass() {
+        throw new IllegalArgumentException("Cannot instantiate a type variable");
     }
 
     @Override

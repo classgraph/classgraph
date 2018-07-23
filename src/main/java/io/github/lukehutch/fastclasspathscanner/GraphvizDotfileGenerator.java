@@ -202,7 +202,7 @@ class GraphvizDotfileGenerator {
                 + "</td></tr>");
 
         // Package name
-        final String className = ci.getClassName();
+        final String className = ci.getName();
         final int dotIdx = className.lastIndexOf('.');
         if (dotIdx > 0) {
             buf.append("<tr><td><b>");
@@ -232,7 +232,7 @@ class GraphvizDotfileGenerator {
             final AnnotationInfoList annotationInfoSorted = new AnnotationInfoList(annotationInfo);
             Collections.sort(annotationInfoSorted);
             for (final AnnotationInfo ai : annotationInfoSorted) {
-                final String annotationName = ai.getAnnotationName();
+                final String annotationName = ai.getName();
                 if (!annotationName.startsWith("java.lang.annotation.")) {
                     buf.append("<tr>");
                     buf.append("<td align='center' valign='top'>");
@@ -283,7 +283,7 @@ class GraphvizDotfileGenerator {
 
                 // Field name
                 buf.append("<td align='left' valign='top'><b>");
-                final String fieldName = fi.getFieldName();
+                final String fieldName = fi.getName();
                 htmlEncode(fieldName, buf);
                 buf.append("</b></td></tr>");
             }
@@ -302,7 +302,7 @@ class GraphvizDotfileGenerator {
             Collections.sort(methodInfoSorted);
             for (final MethodInfo mi : methodInfoSorted) {
                 // Don't list static initializer blocks
-                if (!mi.getMethodName().equals("<clinit>")) {
+                if (!mi.getName().equals("<clinit>")) {
                     buf.append("<tr>");
 
                     // Method annotations
@@ -330,9 +330,9 @@ class GraphvizDotfileGenerator {
                     if (buf.charAt(buf.length() - 1) != ' ') {
                         buf.append(' ');
                     }
-                    if (!mi.getMethodName().equals("<init>")) {
+                    if (!mi.getName().equals("<init>")) {
                         // Don't list return type for constructors
-                        htmlEncode(mi.getResultType().toString(), buf);
+                        htmlEncode(mi.getTypeSignatureOrTypeDescriptor().toString(), buf);
                     } else {
                         buf.append("<b>&lt;constructor&gt;</b>");
                     }
@@ -341,11 +341,13 @@ class GraphvizDotfileGenerator {
                     // Method name
                     buf.append("<td align='left' valign='top'>");
                     buf.append("<b>");
-                    if (mi.getMethodName().equals("<init>")) {
+                    if (mi.getName().equals("<init>")) {
                         // Show class name for constructors
-                        htmlEncode(mi.getClassName().substring(mi.getClassName().lastIndexOf('.') + 1), buf);
+                        htmlEncode(
+                                mi.getDefiningClassName().substring(mi.getDefiningClassName().lastIndexOf('.') + 1),
+                                buf);
                     } else {
-                        htmlEncode(mi.getMethodName(), buf);
+                        htmlEncode(mi.getName(), buf);
                     }
                     buf.append("</b>&nbsp;");
                     buf.append("</td>");
@@ -435,44 +437,44 @@ class GraphvizDotfileGenerator {
         final ClassInfoList annotationNodes = scanResult.getAllAnnotations();
 
         for (final ClassInfo node : standardClassNodes) {
-            buf.append("\"").append(node.getClassName()).append("\"");
+            buf.append("\"").append(node.getName()).append("\"");
             labelClassNodeHTML(node, "box", "fff2b6", showFields, showMethods, scanSpec, buf);
             buf.append(";\n");
         }
 
         for (final ClassInfo node : interfaceNodes) {
-            buf.append("\"").append(node.getClassName()).append("\"");
+            buf.append("\"").append(node.getName()).append("\"");
             labelClassNodeHTML(node, "diamond", "b6e7ff", showFields, showMethods, scanSpec, buf);
             buf.append(";\n");
         }
 
         for (final ClassInfo node : annotationNodes) {
-            buf.append("\"").append(node.getClassName()).append("\"");
+            buf.append("\"").append(node.getName()).append("\"");
             labelClassNodeHTML(node, "oval", "f3c9ff", showFields, showMethods, scanSpec, buf);
             buf.append(";\n");
         }
 
         final Set<String> allVisibleNodes = new HashSet<>();
-        allVisibleNodes.addAll(standardClassNodes.getClassNames());
-        allVisibleNodes.addAll(interfaceNodes.getClassNames());
-        allVisibleNodes.addAll(annotationNodes.getClassNames());
+        allVisibleNodes.addAll(standardClassNodes.getNames());
+        allVisibleNodes.addAll(interfaceNodes.getNames());
+        allVisibleNodes.addAll(annotationNodes.getNames());
 
         buf.append("\n");
         for (final ClassInfo classNode : standardClassNodes) {
             for (final ClassInfo directSuperclassNode : classNode.getSuperclasses().directOnly()) {
-                if (directSuperclassNode != null && allVisibleNodes.contains(directSuperclassNode.getClassName())
-                        && !directSuperclassNode.getClassName().equals("java.lang.Object")) {
+                if (directSuperclassNode != null && allVisibleNodes.contains(directSuperclassNode.getName())
+                        && !directSuperclassNode.getName().equals("java.lang.Object")) {
                     // class --> superclass
-                    buf.append("  \"" + classNode.getClassName() + "\" -> \"" + directSuperclassNode.getClassName()
+                    buf.append("  \"" + classNode.getName() + "\" -> \"" + directSuperclassNode.getName()
                             + "\" [arrowsize=2.5]\n");
                 }
             }
 
             for (final ClassInfo implementedInterfaceNode : classNode.getInterfaces().directOnly()) {
-                if (allVisibleNodes.contains(implementedInterfaceNode.getClassName())) {
+                if (allVisibleNodes.contains(implementedInterfaceNode.getName())) {
                     // class --<> implemented interface
-                    buf.append("  \"" + classNode.getClassName() + "\" -> \""
-                            + implementedInterfaceNode.getClassName() + "\" [arrowhead=diamond, arrowsize=2.5]\n");
+                    buf.append("  \"" + classNode.getName() + "\" -> \"" + implementedInterfaceNode.getName()
+                            + "\" [arrowhead=diamond, arrowsize=2.5]\n");
                 }
             }
 
@@ -489,7 +491,7 @@ class GraphvizDotfileGenerator {
             for (final String fieldTypeName : referencedFieldTypeNames) {
                 if (allVisibleNodes.contains(fieldTypeName) && !"java.lang.Object".equals(fieldTypeName)) {
                     // class --[ ] field type (open box)
-                    buf.append("  \"" + fieldTypeName + "\" -> \"" + classNode.getClassName()
+                    buf.append("  \"" + fieldTypeName + "\" -> \"" + classNode.getName()
                             + "\" [arrowtail=obox, arrowsize=2.5, dir=back]\n");
                 }
             }
@@ -507,43 +509,43 @@ class GraphvizDotfileGenerator {
             for (final String methodTypeName : referencedMethodTypeNames) {
                 if (allVisibleNodes.contains(methodTypeName) && !"java.lang.Object".equals(methodTypeName)) {
                     // class --[#] method type (filled box)
-                    buf.append("  \"" + methodTypeName + "\" -> \"" + classNode.getClassName()
+                    buf.append("  \"" + methodTypeName + "\" -> \"" + classNode.getName()
                             + "\" [arrowtail=box, arrowsize=2.5, dir=back]\n");
                 }
             }
         }
         for (final ClassInfo interfaceNode : interfaceNodes) {
             for (final ClassInfo superinterfaceNode : interfaceNode.getInterfaces().directOnly()) {
-                if (allVisibleNodes.contains(superinterfaceNode.getClassName())) {
+                if (allVisibleNodes.contains(superinterfaceNode.getName())) {
                     // interface --<> superinterface
-                    buf.append("  \"" + interfaceNode.getClassName() + "\" -> \""
-                            + superinterfaceNode.getClassName() + "\" [arrowhead=diamond, arrowsize=2.5]\n");
+                    buf.append("  \"" + interfaceNode.getName() + "\" -> \"" + superinterfaceNode.getName()
+                            + "\" [arrowhead=diamond, arrowsize=2.5]\n");
                 }
             }
         }
         for (final ClassInfo annotationNode : annotationNodes) {
             for (final ClassInfo annotatedClassNode : annotationNode
                     .filterClassInfo(RelType.CLASSES_WITH_CLASS_ANNOTATION).directOnly()) {
-                if (allVisibleNodes.contains(annotatedClassNode.getClassName())) {
+                if (allVisibleNodes.contains(annotatedClassNode.getName())) {
                     // annotated class --o annotation
-                    buf.append("  \"" + annotatedClassNode.getClassName() + "\" -> \""
-                            + annotationNode.getClassName() + "\" [arrowhead=dot, arrowsize=2.5]\n");
+                    buf.append("  \"" + annotatedClassNode.getName() + "\" -> \"" + annotationNode.getName()
+                            + "\" [arrowhead=dot, arrowsize=2.5]\n");
                 }
             }
             for (final ClassInfo classWithMethodAnnotationNode : annotationNode
                     .filterClassInfo(RelType.CLASSES_WITH_METHOD_ANNOTATION).directOnly()) {
-                if (allVisibleNodes.contains(classWithMethodAnnotationNode.getClassName())) {
+                if (allVisibleNodes.contains(classWithMethodAnnotationNode.getName())) {
                     // class with method annotation --o method annotation
-                    buf.append("  \"" + classWithMethodAnnotationNode.getClassName() + "\" -> \""
-                            + annotationNode.getClassName() + "\" [arrowhead=odot, arrowsize=2.5]\n");
+                    buf.append("  \"" + classWithMethodAnnotationNode.getName() + "\" -> \""
+                            + annotationNode.getName() + "\" [arrowhead=odot, arrowsize=2.5]\n");
                 }
             }
             for (final ClassInfo classWithMethodAnnotationNode : annotationNode
                     .filterClassInfo(RelType.CLASSES_WITH_FIELD_ANNOTATION).directOnly()) {
-                if (allVisibleNodes.contains(classWithMethodAnnotationNode.getClassName())) {
+                if (allVisibleNodes.contains(classWithMethodAnnotationNode.getName())) {
                     // class with field annotation --o method annotation
-                    buf.append("  \"" + classWithMethodAnnotationNode.getClassName() + "\" -> \""
-                            + annotationNode.getClassName() + "\" [arrowhead=odot, arrowsize=2.5]\n");
+                    buf.append("  \"" + classWithMethodAnnotationNode.getName() + "\" -> \""
+                            + annotationNode.getName() + "\" [arrowhead=odot, arrowsize=2.5]\n");
                 }
             }
         }

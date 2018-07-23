@@ -59,7 +59,7 @@ public class BaseTypeSignature extends TypeSignature {
     }
 
     @Override
-    public Class<?> instantiate(final boolean ignoreExceptions) {
+    public Class<?> loadClass() {
         switch (baseType) {
         case "byte":
             return byte.class;
@@ -80,11 +80,7 @@ public class BaseTypeSignature extends TypeSignature {
         case "void":
             return void.class;
         default:
-            if (ignoreExceptions) {
-                return null;
-            } else {
-                throw new IllegalArgumentException("Unknown base type " + baseType);
-            }
+            throw new IllegalArgumentException("Unknown base type " + baseType);
         }
     }
 

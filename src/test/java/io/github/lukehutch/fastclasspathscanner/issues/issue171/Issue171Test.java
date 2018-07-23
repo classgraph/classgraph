@@ -19,7 +19,7 @@ public class Issue171Test {
                 .whitelistPackagesNonRecursive("hello", "org.springframework.boot")
                 .overrideClasspath(jarURL + "!/" + "BOOT-INF/classes") //
                 .scan() //
-                .getAllClasses().getClassNames();
+                .getAllClasses().getNames();
 
         assertThat(classNames).contains("hello.HelloController",
                 // BOOT-INF/lib should be added automatically to the classpath to be scanned

@@ -15,7 +15,7 @@ public class Issue38Test {
     @Test
     public void testImplementsSuppressWarnings() {
         assertThat(new FastClasspathScanner().whitelistPackages(Issue38Test.class.getPackage().getName()).scan()
-                .getClassesImplementing(SuppressWarnings.class.getName()).getClassNames())
+                .getClassesImplementing(SuppressWarnings.class.getName()).getNames())
                         .containsOnly(ImplementsSuppressWarnings.class.getName());
     }
 }

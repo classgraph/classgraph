@@ -139,7 +139,7 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
 
     /** Instantiate class ref. Type arguments are ignored. */
     @Override
-    public Class<?> instantiate(final boolean ignoreExceptions) {
+    public Class<?> loadClass() {
         final StringBuilder buf = new StringBuilder();
         buf.append(className);
         for (int i = 0; i < suffixes.size(); i++) {
@@ -147,7 +147,7 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
             buf.append(suffixes.get(i));
         }
         final String classNameWithSuffixes = buf.toString();
-        return scanResult.loadClass(classNameWithSuffixes, ignoreExceptions);
+        return scanResult.loadClass(classNameWithSuffixes, /* ignoreExceptions = */ false);
     }
 
     /**

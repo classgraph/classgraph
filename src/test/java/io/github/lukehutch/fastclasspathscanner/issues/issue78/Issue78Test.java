@@ -10,6 +10,6 @@ public class Issue78Test {
     @Test
     public void issue78() {
         assertThat(new FastClasspathScanner().whitelistClasses(Issue78Test.class.getName()).scan().getAllClasses()
-                .getClassNames()).containsOnly(Issue78Test.class.getName());
+                .getNames()).containsOnly(Issue78Test.class.getName());
     }
 }

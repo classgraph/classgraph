@@ -54,7 +54,7 @@ public class Issue167Test {
         assertEquals(classNames,
                 new FastClasspathScanner()
                         .whitelistPackagesNonRecursive(packages.toArray(new String[packages.size()])).scan()
-                        .getAllClasses().getClassNames());
+                        .getAllClasses().getNames());
     }
 
     @Test
@@ -63,6 +63,6 @@ public class Issue167Test {
         Collections.reverse(reversedPackages);
         assertEquals(classNames, new FastClasspathScanner()
                 .whitelistPackagesNonRecursive(reversedPackages.toArray(new String[reversedPackages.size()])).scan()
-                .getAllClasses().getClassNames());
+                .getAllClasses().getNames());
     }
 }

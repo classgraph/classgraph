@@ -84,19 +84,17 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
         elementTypeSignature.getAllReferencedClassNames(classNameListOut);
     }
 
-    private static Class<?> arrayify(final Class<?> cls, final int arrayDims) {
-        if (arrayDims == 0) {
+    @Override
+    public Class<?> loadClass() {
+        final Class<?> cls = elementTypeSignature.loadClass();
+        if (numArrayDims == 0) {
+            // Should not happen
             return cls;
         } else {
-            final int[] zeroes = (int[]) Array.newInstance(int.class, arrayDims);
+            final int[] zeroes = (int[]) Array.newInstance(int.class, numArrayDims);
             return Array.newInstance(cls, zeroes).getClass();
         }
-    }
 
-    @Override
-    public Class<?> instantiate(final boolean ignoreExceptions) {
-        final Class<?> elementClassRef = elementTypeSignature.instantiate(ignoreExceptions);
-        return arrayify(elementClassRef, numArrayDims);
     }
 
     @Override

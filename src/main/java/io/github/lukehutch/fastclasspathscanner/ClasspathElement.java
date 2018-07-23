@@ -212,7 +212,7 @@ abstract class ClasspathElement {
         final HashSet<String> maskedRelativePaths = new HashSet<>();
         for (final Resource res : classfileMatches) {
             // Don't mask module-info.class, since all modules need this classfile to be read
-            final String getPathRelativeToPackageRoot = res.getPathRelativeToPackageRoot();
+            final String getPathRelativeToPackageRoot = res.getPath();
             if (!getPathRelativeToPackageRoot.equals("module-info.class")
                     && !getPathRelativeToPackageRoot.endsWith("/module-info.class")) {
                 if (!classpathRelativePathsFound.add(getPathRelativeToPackageRoot)) {
@@ -226,7 +226,7 @@ abstract class ClasspathElement {
             // Replace the lists of matching resources with filtered versions with masked paths removed
             final List<Resource> filteredClassfileMatches = new ArrayList<>();
             for (final Resource classfileMatch : classfileMatches) {
-                final String getPathRelativeToPackageRoot = classfileMatch.getPathRelativeToPackageRoot();
+                final String getPathRelativeToPackageRoot = classfileMatch.getPath();
                 if (!maskedRelativePaths.contains(getPathRelativeToPackageRoot)) {
                     filteredClassfileMatches.add(classfileMatch);
                 } else {
@@ -251,11 +251,10 @@ abstract class ClasspathElement {
             final Resource classfileResource = classfileMatches.get(i);
             try {
                 final LogNode logNode = log == null ? null
-                        : log.log(classfileResource.getPathRelativeToPackageRoot(),
-                                "Parsing classfile " + classfileResource);
+                        : log.log(classfileResource.getPath(), "Parsing classfile " + classfileResource);
                 // Parse classpath binary format, creating a ClassInfoUnlinked object
                 final ClassInfoUnlinked thisClassInfoUnlinked = new ClassfileBinaryParser()
-                        .readClassInfoFromClassfileHeader(this, classfileResource.getPathRelativeToPackageRoot(),
+                        .readClassInfoFromClassfileHeader(this, classfileResource.getPath(),
                                 // Open classfile as an InputStream
                                 /* inputStreamOrByteBuffer = */ classfileResource.openOrRead(), //
                                 scanSpec, logNode);

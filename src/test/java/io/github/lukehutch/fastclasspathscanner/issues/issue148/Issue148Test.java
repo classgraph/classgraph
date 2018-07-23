@@ -49,10 +49,10 @@ public class Issue148Test {
         final String pkg = Issue148Test.class.getPackage().getName();
         final StringBuilder buf = new StringBuilder();
         new FastClasspathScanner().whitelistPackages(pkg).enableAllInfo().scan().getAllClasses().forEach(ci -> {
-            buf.append(ci.getClassName() + "|");
+            buf.append(ci.getName() + "|");
             buf.append(ci.isInnerClass() + " " + ci.isAnonymousInnerClass() + " " + ci.isOuterClass() + "|");
-            buf.append(ci.getInnerClasses().getClassNames() + "|");
-            buf.append(ci.getOuterClasses().getClassNames() + "|");
+            buf.append(ci.getInnerClasses().getNames() + "|");
+            buf.append(ci.getOuterClasses().getNames() + "|");
             buf.append(ci.getFullyQualifiedContainingMethodName() + "\n");
         });
 

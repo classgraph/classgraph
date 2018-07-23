@@ -76,18 +76,6 @@ public class AnnotationClassRef extends ScanResultObject {
         return typeSignature;
     }
 
-    /**
-     * Get a class reference for a class-reference-typed value used in an annotation parameter. Causes the
-     * ClassLoader to load the class, if it is not already loaded.
-     * 
-     * @return The type signature of the annotation class ref, as a {@code Class<?>} reference.
-     * @throws IllegalArgumentException
-     *             if an exception or error is thrown while loading the class.
-     */
-    public Class<?> getClassRef() {
-        return getTypeSignature().instantiate();
-    }
-
     @Override
     public int hashCode() {
         return getTypeSignature().hashCode();

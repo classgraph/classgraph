@@ -31,9 +31,7 @@ package io.github.lukehutch.fastclasspathscanner;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 /** A list of {@link MethodInfo} objects. */
 public class MethodInfoList extends ArrayList<MethodInfo> {
@@ -102,24 +100,26 @@ public class MethodInfoList extends ArrayList<MethodInfo> {
         }
     };
 
+    // -------------------------------------------------------------------------------------------------------------
+
     /** Get the names of all methods in this list. */
-    public List<String> getMethodNames() {
+    public List<String> getNames() {
         if (this.isEmpty()) {
             return Collections.<String> emptyList();
         } else {
             final List<String> methodNames = new ArrayList<>(this.size());
             for (final MethodInfo mi : this) {
-                methodNames.add(mi.getMethodName());
+                methodNames.add(mi.getName());
             }
             return methodNames;
         }
     }
 
     /**
-     * Get the string representations of all methods in this list (with annotations, modifiers, params, etc.),
-     * obtained by calling {@link MethodInfo#toString()}.
+     * Get the string representations of all methods in this list (with annotations, modifiers, params, etc.), by
+     * calling {@link MethodInfo#toString()} on each item in the list.
      */
-    public List<String> getMethodStrs() {
+    public List<String> getAsStrings() {
         if (this.isEmpty()) {
             return Collections.<String> emptyList();
         } else {
@@ -131,48 +131,25 @@ public class MethodInfoList extends ArrayList<MethodInfo> {
         }
     }
 
+    // -------------------------------------------------------------------------------------------------------------
+
     /** Return true if this list contains a method with the given name. */
-    public boolean containsMethodNamed(final String methodName) {
+    public boolean containsName(final String methodName) {
         for (final MethodInfo mi : this) {
-            if (mi.getMethodName().equals(methodName)) {
+            if (mi.getName().equals(methodName)) {
                 return true;
             }
         }
         return false;
     }
 
-    /**
-     * Returns a list of all unique annotation types on the methods in this list, as a list of {@link ClassInfo}
-     * objects.
-     */
-    public ClassInfoList getUniqueMethodAnnotationTypes(final String methodName) {
-        final Set<ClassInfo> allUniqueAnnotations = new HashSet<>();
+    /** Return the {@link MethodInfo} object in the list with the given name, or null if not found. */
+    public MethodInfo get(final String name) {
         for (final MethodInfo mi : this) {
-            for (final AnnotationInfo ai : mi.getAnnotationInfo()) {
-                allUniqueAnnotations.add(ai.getClassInfo());
+            if (mi.getName().equals(name)) {
+                return mi;
             }
         }
-        return new ClassInfoList(allUniqueAnnotations, allUniqueAnnotations);
-    }
-
-    /**
-     * Returns a list of all unique annotation types on the parameters of methods in this list, as a list of
-     * {@link ClassInfo} objects.
-     */
-    public ClassInfoList getUniqueMethodParameterAnnotationTypes(final String methodName) {
-        final Set<ClassInfo> allUniqueAnnotations = new HashSet<>();
-        for (final MethodInfo mi : this) {
-            final AnnotationInfo[][] pi = mi.getParameterAnnotationInfo();
-            if (pi != null) {
-                for (int i = 0; i < pi.length; i++) {
-                    final AnnotationInfo[] pai = pi[i];
-                    for (int j = 0; j < pai.length; j++) {
-                        final AnnotationInfo parameterAnnotationInfo = pai[j];
-                        allUniqueAnnotations.add(parameterAnnotationInfo.getClassInfo());
-                    }
-                }
-            }
-        }
-        return new ClassInfoList(allUniqueAnnotations, allUniqueAnnotations);
+        return null;
     }
 }

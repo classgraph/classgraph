@@ -76,14 +76,14 @@ public abstract class Resource implements AutoCloseable, Comparable<Resource> {
      *          example, for a resource path of "BOOT-INF/classes/com/xyz/resource.xml" and a package root of
      *          "BOOT-INF/classes/", returns "com/xyz/resource.xml".
      */
-    public abstract String getPathRelativeToPackageRoot();
+    public abstract String getPath();
 
     /**
      * Returns the path of this classpath resource within the classpath element.
      * 
      * @returns the path of this classpath resource within the classpath element. For example, for a resource path
-     *          of "BOOT-INF/classes/com/xyz/resource.xml", returns "BOOT-INF/classes/com/xyz/resource.xml" (even if
-     *          the package root is "BOOT-INF/classes/").
+     *          of "BOOT-INF/classes/com/xyz/resource.xml", returns "BOOT-INF/classes/com/xyz/resource.xml", even if
+     *          the package root is "BOOT-INF/classes/".
      */
     public abstract String getPathRelativeToClasspathElement();
 

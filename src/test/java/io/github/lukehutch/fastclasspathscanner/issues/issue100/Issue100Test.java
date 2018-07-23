@@ -55,7 +55,7 @@ public class Issue100Test {
         new FastClasspathScanner().overrideClassLoaders(overrideClassLoader).whitelistPackages("issue100")
                 .enableFieldInfo().scan().getAllClasses().forEach(ci -> {
                     for (final FieldInfo f : ci.getFieldInfo()) {
-                        fieldNames1.add(f.getFieldName());
+                        fieldNames1.add(f.getName());
                     }
                 });
         assertThat(fieldNames1).containsOnly("a");
@@ -69,7 +69,7 @@ public class Issue100Test {
         new FastClasspathScanner().overrideClassLoaders(overrideClassLoader).whitelistPackages("issue100")
                 .whitelistJars(bJarName).enableFieldInfo().scan().getAllClasses().forEach(ci -> {
                     for (final FieldInfo f : ci.getFieldInfo()) {
-                        fieldNames2.add(f.getFieldName());
+                        fieldNames2.add(f.getName());
                     }
                 });
         assertThat(fieldNames2).containsOnly("b");

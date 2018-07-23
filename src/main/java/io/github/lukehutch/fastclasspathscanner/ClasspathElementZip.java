@@ -195,7 +195,7 @@ class ClasspathElementZip extends ClasspathElement {
             private String pathRelativeToClasspathElt = null;
 
             @Override
-            public String getPathRelativeToPackageRoot() {
+            public String getPath() {
                 return pathRelativeToPackageRoot;
             }
 

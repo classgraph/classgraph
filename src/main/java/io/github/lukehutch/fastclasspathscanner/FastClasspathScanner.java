@@ -200,8 +200,8 @@ public class FastClasspathScanner {
     /**
      * Enables the saving of annotation info (for class, field, method and method parameter annotations) during the
      * scan. This information can be obtained using {@link ClassInfo#getAnnotationInfo()},
-     * {@link FieldInfo#getAnnotationInfo()}, {@link MethodInfo#getParameterAnnotationInfo()}, and
-     * {@link MethodParameterInfo#getAnnotationInfo()}. By default, annotation info is not scanned.
+     * {@link FieldInfo#getAnnotationInfo()}, and {@link MethodParameterInfo#getAnnotationInfo()}. By default,
+     * annotation info is not scanned.
      *
      * @return this (for method chaining).
      */
@@ -262,7 +262,7 @@ public class FastClasspathScanner {
     }
 
     /**
-     * Causes classes loaded using {@link ClassInfo#getClassRef()} to be are initialized after class loading (the
+     * Causes classes loaded using {@link ClassInfo#loadClass()} to be are initialized after class loading (the
      * default is to not initialize classes).
      *
      * @return this (for method chaining).

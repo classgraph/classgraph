@@ -18,7 +18,7 @@ public class Issue83Test {
         assertThat(jarPathURL).isNotNull();
         final List<String> paths = new ArrayList<>();
         new FastClasspathScanner().overrideClasspath(jarPathURL).whitelistJars("nested-jars-level1.zip").scan()
-                .getAllResources().forEach(res -> paths.add(res.getPathRelativeToPackageRoot()));
+                .getAllResources().forEach(res -> paths.add(res.getPath()));
         assertThat(paths).contains("level2.jar");
     }
 
@@ -27,7 +27,7 @@ public class Issue83Test {
         assertThat(jarPathURL).isNotNull();
         final ArrayList<String> paths = new ArrayList<>();
         new FastClasspathScanner().overrideClasspath(jarPathURL).blacklistJars("nested-jars-level1.zip").scan()
-                .getAllResources().forEach(res -> paths.add(res.getPathRelativeToPackageRoot()));
+                .getAllResources().forEach(res -> paths.add(res.getPath()));
         assertThat(paths).doesNotContain("level2.jar");
     }
 }

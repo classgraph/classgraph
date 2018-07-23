@@ -51,7 +51,8 @@ public class Issue140Test {
         assertThat(ci).isNotNull();
         final FieldInfoList allFieldInfo = ci.getFieldInfo();
         assertThat(allFieldInfo.size()).isEqualTo(2);
-        assertThat(allFieldInfo.get(0).getType()).isEqualTo(int.class);
-        assertThat(allFieldInfo.get(1).getType()).isEqualTo(Array.newInstance(String.class, 0).getClass());
+        assertThat(allFieldInfo.get(0).getTypeSignatureOrTypeDescriptor().loadClass()).isEqualTo(int.class);
+        assertThat(allFieldInfo.get(1).getTypeSignatureOrTypeDescriptor().loadClass())
+                .isEqualTo(Array.newInstance(String.class, 0).getClass());
     }
 }

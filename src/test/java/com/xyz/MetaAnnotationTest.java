@@ -41,77 +41,76 @@ public class MetaAnnotationTest {
 
     @Test
     public void oneLevel() {
-        assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.E").directOnly().getClassNames())
+        assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.E").directOnly().getNames())
                 .containsOnly("com.xyz.meta.B");
-        assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.F").directOnly().getClassNames())
+        assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.F").directOnly().getNames())
                 .containsOnly("com.xyz.meta.B", "com.xyz.meta.A");
-        assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.G").directOnly().getClassNames())
+        assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.G").directOnly().getNames())
                 .containsOnly("com.xyz.meta.C");
     }
 
     @Test
     public void twoLevels() {
-        assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.J").getClassNames())
-                .containsOnly("com.xyz.meta.F", "com.xyz.meta.E", "com.xyz.meta.B", "com.xyz.meta.A");
+        assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.J").getNames()).containsOnly("com.xyz.meta.F",
+                "com.xyz.meta.E", "com.xyz.meta.B", "com.xyz.meta.A");
     }
 
     @Test
     public void threeLevels() {
-        assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.L").getClassNames())
-                .containsOnly("com.xyz.meta.I", "com.xyz.meta.E", "com.xyz.meta.B", "com.xyz.meta.H");
+        assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.L").getNames()).containsOnly("com.xyz.meta.I",
+                "com.xyz.meta.E", "com.xyz.meta.B", "com.xyz.meta.H");
     }
 
     @Test
     public void acrossCycle() {
-        assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.H").directOnly().getClassNames())
+        assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.H").directOnly().getNames())
                 .containsOnly("com.xyz.meta.I");
-        assertThat(scanResult.getAnnotationsOnClass("com.xyz.meta.H").directOnly().getClassNames())
+        assertThat(scanResult.getAnnotationsOnClass("com.xyz.meta.H").directOnly().getNames())
                 .containsOnly("com.xyz.meta.I", "com.xyz.meta.K");
-        assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.I").directOnly().getClassNames())
+        assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.I").directOnly().getNames())
                 .containsOnly("com.xyz.meta.E", "com.xyz.meta.H");
-        assertThat(scanResult.getAnnotationsOnClass("com.xyz.meta.I").directOnly().getClassNames())
+        assertThat(scanResult.getAnnotationsOnClass("com.xyz.meta.I").directOnly().getNames())
                 .containsOnly("com.xyz.meta.L", "com.xyz.meta.H");
-        assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.K").directOnly().getClassNames())
+        assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.K").directOnly().getNames())
                 .containsOnly("com.xyz.meta.H");
-        assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.D").directOnly().getClassNames())
+        assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.D").directOnly().getNames())
                 .containsOnly("com.xyz.meta.K");
     }
 
     @Test
     public void cycleAnnotatesSelf() {
-        assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.I").getClassNames())
-                .containsOnly("com.xyz.meta.E", "com.xyz.meta.B", "com.xyz.meta.H", "com.xyz.meta.I");
+        assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.I").getNames()).containsOnly("com.xyz.meta.E",
+                "com.xyz.meta.B", "com.xyz.meta.H", "com.xyz.meta.I");
     }
 
     @Test
     public void namesOfMetaAnnotations() {
-        assertThat(scanResult.getAnnotationsOnClass("com.xyz.meta.A").getClassNames())
-                .containsOnly("com.xyz.meta.J", "com.xyz.meta.F");
-        assertThat(scanResult.getAnnotationsOnClass("com.xyz.meta.C").getClassNames())
-                .containsOnly("com.xyz.meta.G");
+        assertThat(scanResult.getAnnotationsOnClass("com.xyz.meta.A").getNames()).containsOnly("com.xyz.meta.J",
+                "com.xyz.meta.F");
+        assertThat(scanResult.getAnnotationsOnClass("com.xyz.meta.C").getNames()).containsOnly("com.xyz.meta.G");
     }
 
     @Test
     public void union() {
         assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.J")
-                .union(scanResult.getClassesWithAnnotation("com.xyz.meta.G")).directOnly().getClassNames())
+                .union(scanResult.getClassesWithAnnotation("com.xyz.meta.G")).directOnly().getNames())
                         .containsOnly("com.xyz.meta.E", "com.xyz.meta.F", "com.xyz.meta.C");
         assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.I")
-                .union(scanResult.getClassesWithAnnotation("com.xyz.meta.J")).getClassNames()).containsOnly(
+                .union(scanResult.getClassesWithAnnotation("com.xyz.meta.J")).getNames()).containsOnly(
                         "com.xyz.meta.A", "com.xyz.meta.B", "com.xyz.meta.F", "com.xyz.meta.E", "com.xyz.meta.H",
                         "com.xyz.meta.I");
         assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.I")
-                .union(scanResult.getClassesWithAnnotation("com.xyz.meta.J")).directOnly().getClassNames())
+                .union(scanResult.getClassesWithAnnotation("com.xyz.meta.J")).directOnly().getNames())
                         .containsOnly("com.xyz.meta.F", "com.xyz.meta.E", "com.xyz.meta.H");
     }
 
     @Test
     public void intersect() {
         assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.I")
-                .intersect(scanResult.getClassesWithAnnotation("com.xyz.meta.J")).getClassNames())
+                .intersect(scanResult.getClassesWithAnnotation("com.xyz.meta.J")).getNames())
                         .containsOnly("com.xyz.meta.E", "com.xyz.meta.B");
         assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.I")
-                .intersect(scanResult.getClassesWithAnnotation("com.xyz.meta.J")).directOnly().getClassNames())
+                .intersect(scanResult.getClassesWithAnnotation("com.xyz.meta.J")).directOnly().getNames())
                         .containsOnly("com.xyz.meta.E");
     }
 }

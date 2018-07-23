@@ -65,7 +65,7 @@ public class MethodInfoTest {
     public void getMethodInfo() throws Exception {
         assertThat(new FastClasspathScanner().whitelistPackages(MethodInfoTest.class.getPackage().getName())
                 .enableMethodInfo().enableAnnotationInfo().scan().getClassInfo(MethodInfoTest.class.getName())
-                .getMethodInfo().getMethodStrs()).containsOnly( //
+                .getMethodInfo().getAsStrings()).containsOnly( //
                         "@" + ExternalAnnotation.class.getName() //
                                 + " public final int publicMethodWithArgs"
                                 + "(java.lang.String, char, long, float[], byte[][], "
@@ -80,14 +80,14 @@ public class MethodInfoTest {
     public void getConstructorInfo() throws Exception {
         assertThat(new FastClasspathScanner().whitelistPackages(MethodInfoTest.class.getPackage().getName())
                 .enableMethodInfo().scan().getClassInfo(MethodInfoTest.class.getName()).getConstructorInfo()
-                .getMethodStrs()).containsOnly("public <init>()");
+                .getAsStrings()).containsOnly("public <init>()");
     }
 
     @Test
     public void getMethodInfoIgnoringVisibility() throws Exception {
         assertThat(new FastClasspathScanner().whitelistPackages(MethodInfoTest.class.getPackage().getName())
                 .enableMethodInfo().enableAnnotationInfo().ignoreMethodVisibility().scan()
-                .getClassInfo(MethodInfoTest.class.getName()).getMethodInfo().getMethodStrs()).containsOnly( //
+                .getClassInfo(MethodInfoTest.class.getName()).getMethodInfo().getAsStrings()).containsOnly( //
                         "@" + ExternalAnnotation.class.getName() //
                                 + " public final int publicMethodWithArgs"
                                 + "(java.lang.String, char, long, float[], byte[][], "

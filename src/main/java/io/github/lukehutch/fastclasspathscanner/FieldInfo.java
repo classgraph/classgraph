@@ -38,8 +38,9 @@ import io.github.lukehutch.fastclasspathscanner.utils.TypeUtils;
  * classfile for the class.
  */
 public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo> {
-    transient String className;
-    String fieldName;
+    String definingClassName;
+    ClassInfo definingClassInfo;
+    String name;
     int modifiers;
     String typeSignatureStr;
     String typeDescriptorStr;
@@ -72,7 +73,7 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
     }
 
     /**
-     * @param className
+     * @param definingClassName
      *            The class the field is defined within.
      * @param fieldName
      *            The name of the field.
@@ -89,14 +90,14 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
      * @param scanSpec
      *            The {@link ScanSpec}.
      */
-    public FieldInfo(final String className, final String fieldName, final int modifiers,
+    public FieldInfo(final String definingClassName, final String fieldName, final int modifiers,
             final String typeDescriptorStr, final String typeSignatureStr, final Object constInitializerValue,
             final AnnotationInfoList annotationInfo, final ScanSpec scanSpec) {
         if (fieldName == null) {
             throw new IllegalArgumentException();
         }
-        this.className = className;
-        this.fieldName = fieldName;
+        this.definingClassName = definingClassName;
+        this.name = fieldName;
         this.modifiers = modifiers;
         this.typeDescriptorStr = typeDescriptorStr;
         this.typeSignatureStr = typeSignatureStr;
@@ -112,8 +113,17 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
      * 
      * @return The name of the class this field is defined within.
      */
-    public String getClassName() {
-        return className;
+    public String getDefiningClassName() {
+        return definingClassName;
+    }
+
+    /**
+     * Get the class this field is defined within.
+     * 
+     * @return The class this field is defined within.
+     */
+    public ClassInfo getDefiningClassInfo() {
+        return definingClassInfo;
     }
 
     /**
@@ -121,18 +131,8 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
      * 
      * @return The name of the field.
      */
-    public String getFieldName() {
-        return fieldName;
-    }
-
-    /**
-     * Deprecated, use getModifierStr() instead.
-     * 
-     * @return The modifiers as a string.
-     */
-    @Deprecated
-    public String getModifierStrs() {
-        return getModifierStr();
+    public String getName() {
+        return name;
     }
 
     /**
@@ -274,9 +274,9 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
     }
 
     /**
-     * Returns the parsed type signature for the field, possibly including type parameters. If the type signature is
-     * null, indicating that no type signature information is available for this field, returns the parsed type
-     * descriptor instead.
+     * Returns the type signature for the field, possibly including type parameters. If the type signature is null,
+     * indicating that no type signature information is available for this field, returns the type descriptor
+     * instead.
      * 
      * @return The parsed type signature for the field, or if not available, the parsed type descriptor for the
      *         field.
@@ -288,19 +288,6 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
         } else {
             return getTypeDescriptor();
         }
-    }
-
-    /**
-     * Returns the {@code Class<?>} reference for the field. Note that this calls Class.forName() on the field type,
-     * which will cause the class to be loaded, and possibly initialized. If the class is initialized, this can
-     * trigger side effects.
-     * 
-     * @return The{@code Class<?>} reference for the field.
-     * @throws IllegalArgumentException
-     *             if the field type could not be loaded.
-     */
-    public Class<?> getType() throws IllegalArgumentException {
-        return getTypeDescriptor().instantiate(/* ignoreExceptions = */ false);
     }
 
     /**
@@ -340,23 +327,23 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
             return false;
         }
         final FieldInfo other = (FieldInfo) obj;
-        return className.equals(other.className) && fieldName.equals(other.fieldName);
+        return definingClassName.equals(other.definingClassName) && name.equals(other.name);
     }
 
     /** Use hash code of class name and field name. */
     @Override
     public int hashCode() {
-        return fieldName.hashCode() + className.hashCode() * 11;
+        return name.hashCode() + definingClassName.hashCode() * 11;
     }
 
     /** Sort in order of class name then field name */
     @Override
     public int compareTo(final FieldInfo other) {
-        final int diff = className.compareTo(other.className);
+        final int diff = definingClassName.compareTo(other.definingClassName);
         if (diff != 0) {
             return diff;
         }
-        return fieldName.compareTo(other.fieldName);
+        return name.compareTo(other.name);
     }
 
     @Override
@@ -385,7 +372,7 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
         buf.append(getTypeSignatureOrTypeDescriptor().toString());
 
         buf.append(' ');
-        buf.append(fieldName);
+        buf.append(name);
 
         if (constInitializerValue != null) {
             buf.append(" = ");

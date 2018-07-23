@@ -57,29 +57,13 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
      * its respective classpath element.
      * 
      * @returns the paths of each {@link Resource} relative to the package root within its respective classpath
-     *          element. For example, for a resource path of "BOOT-INF/classes/com/xyz/resource.xml" and a package
+     *          element. For example, given a resource path of "BOOT-INF/classes/com/xyz/resource.xml" and a package
      *          root of "BOOT-INF/classes/", returns "com/xyz/resource.xml".
      */
-    public List<String> getPathsRelativeToPackageRoot() {
+    public List<String> getPaths() {
         final List<String> resourcePaths = new ArrayList<>(this.size());
         for (final Resource resource : this) {
-            resourcePaths.add(resource.getPathRelativeToPackageRoot());
-        }
-        return resourcePaths;
-    }
-
-    /**
-     * Returns a list containing the path of each {@link Resource} in this list, relative to its respective
-     * classpath element.
-     * 
-     * @returns the paths of of each {@link Resource} within its respective classpath element. For example, for a
-     *          resource path of "BOOT-INF/classes/com/xyz/resource.xml", returns
-     *          "BOOT-INF/classes/com/xyz/resource.xml" (even if the package root is "BOOT-INF/classes/").
-     */
-    public List<String> getPathsRelativeToClasspathElement() {
-        final List<String> resourcePaths = new ArrayList<>(this.size());
-        for (final Resource resource : this) {
-            resourcePaths.add(resource.getPathRelativeToClasspathElement());
+            resourcePaths.add(resource.getPath());
         }
         return resourcePaths;
     }

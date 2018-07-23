@@ -50,7 +50,7 @@ public class FieldAndMethodAnnotationTest {
         final List<String> testClasses = new FastClasspathScanner()
                 .whitelistPackages(FieldAndMethodAnnotationTest.class.getPackage().getName()).enableFieldInfo()
                 .enableAnnotationInfo().scan().getClassesWithFieldAnnotation(ExternalAnnotation.class.getName())
-                .getClassNames();
+                .getNames();
         assertThat(testClasses).isEmpty();
     }
 
@@ -59,7 +59,7 @@ public class FieldAndMethodAnnotationTest {
         final List<String> testClasses = new FastClasspathScanner()
                 .whitelistPackages(FieldAndMethodAnnotationTest.class.getPackage().getName()).enableFieldInfo()
                 .ignoreFieldVisibility().enableAnnotationInfo().scan()
-                .getClassesWithFieldAnnotation(ExternalAnnotation.class.getName()).getClassNames();
+                .getClassesWithFieldAnnotation(ExternalAnnotation.class.getName()).getNames();
         assertThat(testClasses).containsOnly(FieldAndMethodAnnotationTest.class.getName());
     }
 
@@ -69,7 +69,7 @@ public class FieldAndMethodAnnotationTest {
         final List<String> testClasses = new FastClasspathScanner()
                 .whitelistPackages(FieldAndMethodAnnotationTest.class.getPackage().getName()).enableMethodInfo()
                 .enableAnnotationInfo().scan().getClassesWithMethodAnnotation(ExternalAnnotation.class.getName())
-                .getClassNames();
+                .getNames();
         assertThat(testClasses).containsOnly(FieldAndMethodAnnotationTest.class.getName());
     }
 }

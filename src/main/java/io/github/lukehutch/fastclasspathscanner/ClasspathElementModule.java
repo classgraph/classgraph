@@ -84,7 +84,7 @@ class ClasspathElementModule extends ClasspathElement {
             private ModuleReaderProxy moduleReaderProxy = null;
 
             @Override
-            public String getPathRelativeToPackageRoot() {
+            public String getPath() {
                 return moduleResourcePath;
             }
 

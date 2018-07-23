@@ -52,7 +52,7 @@ public class Issue37Test {
                 .enableMethodInfo() //
                 .scan() //
                 .getAllClasses() //
-                .forEach(ci -> ci.getMethodAndConstructorInfo().forEach(mi -> methodNames.add(mi.getMethodName())));
+                .forEach(ci -> ci.getMethodAndConstructorInfo().forEach(mi -> methodNames.add(mi.getName())));
         assertThat(methodNames).containsExactly("<init>", "issue37Test", "unannotatedMethod");
     }
 

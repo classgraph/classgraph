@@ -80,7 +80,7 @@ class ClasspathElementDir extends ClasspathElement {
             private FileChannel fileChannel;
 
             @Override
-            public String getPathRelativeToPackageRoot() {
+            public String getPath() {
                 return pathRelativeToClasspathElt;
             }
 

@@ -39,7 +39,7 @@ import java.util.Map.Entry;
 /** Holds metadata about a specific annotation instance on a class, method or field. */
 public class AnnotationInfo extends ScanResultObject implements Comparable<AnnotationInfo> {
 
-    String annotationName;
+    String name;
     List<AnnotationParamValue> annotationParamValues;
 
     /** Link back to the ClassInfo class containing default annotation param values. */
@@ -76,13 +76,13 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * @param annotationName
+     * @param name
      *            The name of the annotation.
      * @param annotationParamValues
      *            The annotation parameter values, or null if none.
      */
-    public AnnotationInfo(final String annotationName, final List<AnnotationParamValue> annotationParamValues) {
-        this.annotationName = annotationName;
+    public AnnotationInfo(final String name, final List<AnnotationParamValue> annotationParamValues) {
+        this.name = name;
         this.annotationParamValues = annotationParamValues;
     }
 
@@ -91,8 +91,8 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      * 
      * @return The annotation name.
      */
-    public String getAnnotationName() {
-        return annotationName;
+    public String getName() {
+        return name;
     }
 
     /**
@@ -134,8 +134,8 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      * @throws IllegalArgumentException
      *             if ignoreExceptions is false and there was a problem loading the annotation class.
      */
-    public <T> Class<T> getClassRef(final Class<T> superinterfaceType, final boolean ignoreExceptions) {
-        return scanResult.loadClass(getAnnotationName(), superinterfaceType, ignoreExceptions);
+    public <T> Class<T> loadClass(final Class<T> superinterfaceType, final boolean ignoreExceptions) {
+        return scanResult.loadClass(getName(), superinterfaceType, ignoreExceptions);
     }
 
     /**
@@ -153,8 +153,8 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      * @throws IllegalArgumentException
      *             if there was a problem loading the annotation class.
      */
-    public <T> Class<T> getClassRef(final Class<T> superinterfaceType) {
-        return getClassRef(superinterfaceType, /* ignoreExceptions = */ false);
+    public <T> Class<T> loadClass(final Class<T> superinterfaceType) {
+        return loadClass(superinterfaceType, /* ignoreExceptions = */ false);
     }
 
     /**
@@ -166,8 +166,8 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      * @throws IllegalArgumentException
      *             if ignoreExceptions is false and there was a problem loading the annotation class.
      */
-    public Class<?> getClassRef(final boolean ignoreExceptions) {
-        return scanResult.loadClass(getAnnotationName(), ignoreExceptions);
+    public Class<?> loadClass(final boolean ignoreExceptions) {
+        return scanResult.loadClass(getName(), ignoreExceptions);
     }
 
     /**
@@ -178,8 +178,8 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      * @throws IllegalArgumentException
      *             if there were problems loading the annotation class.
      */
-    public Class<?> getClassRef() {
-        return getClassRef(/* ignoreExceptions = */ false);
+    public Class<?> loadClass() {
+        return loadClass(/* ignoreExceptions = */ false);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -220,7 +220,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
 
     @Override
     public int compareTo(final AnnotationInfo o) {
-        final int diff = getAnnotationName().compareTo(o.getAnnotationName());
+        final int diff = getName().compareTo(o.getName());
         if (diff != 0) {
             return diff;
         }
@@ -259,7 +259,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
 
     @Override
     public int hashCode() {
-        int h = getAnnotationName().hashCode();
+        int h = getName().hashCode();
         if (annotationParamValues != null) {
             for (int i = 0; i < annotationParamValues.size(); i++) {
                 final AnnotationParamValue e = annotationParamValues.get(i);
@@ -276,7 +276,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      *            The buffer.
      */
     public void toString(final StringBuilder buf) {
-        buf.append("@" + getAnnotationName());
+        buf.append("@" + getName());
         final List<AnnotationParamValue> paramVals = getAnnotationParamValues();
         if (paramVals != null && !paramVals.isEmpty()) {
             buf.append('(');

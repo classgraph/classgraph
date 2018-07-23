@@ -100,26 +100,56 @@ public class AnnotationInfoList extends ArrayList<AnnotationInfo> {
         }
     };
 
+    // -------------------------------------------------------------------------------------------------------------
+
     /** Get the names of all annotations in this list. */
-    public List<String> getAnnotationNames() {
+    public List<String> getNames() {
         if (this.isEmpty()) {
             return Collections.<String> emptyList();
         } else {
             final List<String> classNames = new ArrayList<>(this.size());
             for (final AnnotationInfo ai : this) {
-                classNames.add(ai.getAnnotationName());
+                classNames.add(ai.getName());
             }
             return classNames;
         }
     }
 
+    /**
+     * Get the string representations of all annotations in this list (with meta-annotations, etc.), by calling
+     * {@link AnnotationInfo#toString()} on each item in the list.
+     */
+    public List<String> getAsStrings() {
+        if (this.isEmpty()) {
+            return Collections.<String> emptyList();
+        } else {
+            final List<String> toStringVals = new ArrayList<>(this.size());
+            for (final AnnotationInfo ai : this) {
+                toStringVals.add(ai.toString());
+            }
+            return toStringVals;
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
     /** Return true if this list contains a annotation with the given name. */
-    public boolean containsAnnotationNamed(final String annotationName) {
+    public boolean containsName(final String annotationName) {
         for (final AnnotationInfo ai : this) {
-            if (ai.getAnnotationName().equals(annotationName)) {
+            if (ai.getName().equals(annotationName)) {
                 return true;
             }
         }
         return false;
+    }
+
+    /** Return the {@link AnnotationInfo} object in the list with the given name, or null if not found. */
+    public AnnotationInfo get(final String annotationName) {
+        for (final AnnotationInfo ai : this) {
+            if (ai.getName().equals(annotationName)) {
+                return ai;
+            }
+        }
+        return null;
     }
 }
