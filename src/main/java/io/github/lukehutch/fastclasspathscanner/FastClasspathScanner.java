@@ -43,15 +43,12 @@ import io.github.lukehutch.fastclasspathscanner.utils.VersionFinder;
 import io.github.lukehutch.fastclasspathscanner.utils.WhiteBlackList;
 
 /**
- * Uber-fast, ultra-lightweight Java classpath scanner. Scans the classpath by parsing the classfile binary format
- * directly rather than by using reflection. (Reflection causes the classloader to load each class, which can take
- * an order of magnitude more time than parsing the classfile directly.)
+ * Uber-fast, ultra-lightweight Java classpath and module path scanner. Scans classfiles in the classpath and/or
+ * module path by parsing the classfile binary format directly rather than by using reflection.
  *
  * <p>
- * Documentation:
- *
- * <p>
- * https://github.com/lukehutch/fast-classpath-scanner/wiki
+ * Documentation: <a href= "https://github.com/lukehutch/fast-classpath-scanner/wiki">
+ * https://github.com/lukehutch/fast-classpath-scanner/wiki</a>
  */
 public class FastClasspathScanner {
 
