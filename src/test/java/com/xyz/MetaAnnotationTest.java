@@ -30,8 +30,6 @@ package com.xyz;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.io.File;
-
 import org.junit.Test;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
@@ -67,11 +65,11 @@ public class MetaAnnotationTest {
     public void acrossCycle() {
         assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.H").directOnly().getClassNames())
                 .containsOnly("com.xyz.meta.I");
-        assertThat(scanResult.getClassAnnotations("com.xyz.meta.H").directOnly().getClassNames())
+        assertThat(scanResult.getAnnotationsOnClass("com.xyz.meta.H").directOnly().getClassNames())
                 .containsOnly("com.xyz.meta.I", "com.xyz.meta.K");
         assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.I").directOnly().getClassNames())
                 .containsOnly("com.xyz.meta.E", "com.xyz.meta.H");
-        assertThat(scanResult.getClassAnnotations("com.xyz.meta.I").directOnly().getClassNames())
+        assertThat(scanResult.getAnnotationsOnClass("com.xyz.meta.I").directOnly().getClassNames())
                 .containsOnly("com.xyz.meta.L", "com.xyz.meta.H");
         assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.K").directOnly().getClassNames())
                 .containsOnly("com.xyz.meta.H");
@@ -87,9 +85,10 @@ public class MetaAnnotationTest {
 
     @Test
     public void namesOfMetaAnnotations() {
-        assertThat(scanResult.getClassAnnotations("com.xyz.meta.A").getClassNames()).containsOnly("com.xyz.meta.J",
-                "com.xyz.meta.F");
-        assertThat(scanResult.getClassAnnotations("com.xyz.meta.C").getClassNames()).containsOnly("com.xyz.meta.G");
+        assertThat(scanResult.getAnnotationsOnClass("com.xyz.meta.A").getClassNames())
+                .containsOnly("com.xyz.meta.J", "com.xyz.meta.F");
+        assertThat(scanResult.getAnnotationsOnClass("com.xyz.meta.C").getClassNames())
+                .containsOnly("com.xyz.meta.G");
     }
 
     @Test
@@ -114,10 +113,5 @@ public class MetaAnnotationTest {
         assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.I")
                 .intersect(scanResult.getClassesWithAnnotation("com.xyz.meta.J")).directOnly().getClassNames())
                         .containsOnly("com.xyz.meta.E");
-    }
-
-    public static void main(final String[] args) throws Exception {
-        new FastClasspathScanner().whitelistPackages("com.xyz.meta").enableAnnotationInfo().scan()
-                .generateClassGraphDotFile(new File("/tmp/x.dot"));
     }
 }

@@ -30,7 +30,6 @@ package io.github.lukehutch.fastclasspathscanner;
 
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 import io.github.lukehutch.fastclasspathscanner.utils.Parser.ParseException;
@@ -54,7 +53,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     int modifiers;
 
     /** Method annotations. */
-    List<AnnotationInfo> annotationInfo;
+    AnnotationInfoList annotationInfo;
 
     /**
      * The JVM-internal type descriptor (missing type parameters, but including types for synthetic and mandated
@@ -138,7 +137,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
      *            The parameter {@link AnnotationInfo}.
      */
     public MethodInfo(final String className, final String methodName,
-            final List<AnnotationInfo> methodAnnotationInfo, final int modifiers, final String typeDescriptorStr,
+            final AnnotationInfoList methodAnnotationInfo, final int modifiers, final String typeDescriptorStr,
             final String typeSignatureStr, final String[] parameterNames, final int[] parameterModifiers,
             final AnnotationInfo[][] parameterAnnotationInfo) {
         this.className = className;
@@ -845,8 +844,8 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
      * @return a list of annotations on this method, along with any annotation parameter values, wrapped in
      *         {@link AnnotationInfo} objects, or the empty list if none.
      */
-    public List<AnnotationInfo> getAnnotationInfo() {
-        return annotationInfo == null ? Collections.<AnnotationInfo> emptyList() : annotationInfo;
+    public AnnotationInfoList getAnnotationInfo() {
+        return annotationInfo == null ? AnnotationInfoList.EMPTY_LIST : annotationInfo;
     }
 
     /** Test class name, method name and type descriptor for equals(). */

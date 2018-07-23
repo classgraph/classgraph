@@ -28,11 +28,9 @@
  */
 package io.github.lukehutch.fastclasspathscanner;
 
-import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 import io.github.lukehutch.fastclasspathscanner.ClassInfo.RelType;
@@ -227,11 +225,11 @@ class GraphvizDotfileGenerator {
                 Integer.toString(b >> 4, 16), Integer.toString(b & 0xf, 16));
 
         // Class annotations
-        final List<AnnotationInfo> annotationInfo = ci.annotationInfo;
+        final AnnotationInfoList annotationInfo = ci.annotationInfo;
         if (annotationInfo != null && annotationInfo.size() > 0) {
             buf.append("<tr><td colspan='3' bgcolor='" + darkerColor
                     + "'><font point-size='12'><b>ANNOTATIONS</b></font></td></tr>");
-            final List<AnnotationInfo> annotationInfoSorted = new ArrayList<>(annotationInfo);
+            final AnnotationInfoList annotationInfoSorted = new AnnotationInfoList(annotationInfo);
             Collections.sort(annotationInfoSorted);
             for (final AnnotationInfo ai : annotationInfoSorted) {
                 final String annotationName = ai.getAnnotationName();
@@ -245,20 +243,20 @@ class GraphvizDotfileGenerator {
         }
 
         // Fields
-        final List<FieldInfo> fieldInfo = ci.fieldInfo;
+        final FieldInfoList fieldInfo = ci.fieldInfo;
         if (showFields && fieldInfo != null && fieldInfo.size() > 0) {
             buf.append("<tr><td colspan='3' bgcolor='" + darkerColor + "'><font point-size='12'><b>"
                     + (scanSpec.ignoreFieldVisibility ? "" : "PUBLIC ") + "FIELDS</b></font></td></tr>");
             buf.append("<tr><td cellpadding='0'>");
             buf.append("<table border='0' cellborder='0'>");
-            final List<FieldInfo> fieldInfoSorted = new ArrayList<>(fieldInfo);
+            final FieldInfoList fieldInfoSorted = new FieldInfoList(fieldInfo);
             Collections.sort(fieldInfoSorted);
             for (final FieldInfo fi : fieldInfoSorted) {
                 buf.append("<tr>");
                 buf.append("<td align='right' valign='top'>");
 
                 // Field Annotations
-                final List<AnnotationInfo> fieldAnnotationInfo = fi.annotationInfo;
+                final AnnotationInfoList fieldAnnotationInfo = fi.annotationInfo;
                 if (fieldAnnotationInfo != null) {
                     for (final AnnotationInfo ai : fieldAnnotationInfo) {
                         if (buf.charAt(buf.length() - 1) != ' ') {
@@ -294,13 +292,13 @@ class GraphvizDotfileGenerator {
         }
 
         // Methods
-        final List<MethodInfo> methodInfo = ci.methodInfo;
+        final MethodInfoList methodInfo = ci.methodInfo;
         if (showMethods && methodInfo != null && methodInfo.size() > 0) {
             buf.append("<tr><td cellpadding='0'>");
             buf.append("<table border='0' cellborder='0'>");
             buf.append("<tr><td colspan='3' bgcolor='" + darkerColor + "'><font point-size='12'><b>"
                     + (scanSpec.ignoreMethodVisibility ? "" : "PUBLIC ") + "METHODS</b></font></td></tr>");
-            final List<MethodInfo> methodInfoSorted = new ArrayList<>(methodInfo);
+            final MethodInfoList methodInfoSorted = new MethodInfoList(methodInfo);
             Collections.sort(methodInfoSorted);
             for (final MethodInfo mi : methodInfoSorted) {
                 // Don't list static initializer blocks
@@ -310,7 +308,7 @@ class GraphvizDotfileGenerator {
                     // Method annotations
                     // TODO: wrap this cell if the contents get too long
                     buf.append("<td align='right' valign='top'>");
-                    final List<AnnotationInfo> methodAnnotationInfo = mi.annotationInfo;
+                    final AnnotationInfoList methodAnnotationInfo = mi.annotationInfo;
                     if (methodAnnotationInfo != null) {
                         for (final AnnotationInfo ai : methodAnnotationInfo) {
                             if (buf.charAt(buf.length() - 1) != ' ') {
@@ -479,7 +477,7 @@ class GraphvizDotfileGenerator {
             }
 
             final Set<String> referencedFieldTypeNames = new HashSet<>();
-            final List<FieldInfo> fieldInfo = classNode.fieldInfo;
+            final FieldInfoList fieldInfo = classNode.fieldInfo;
             if (fieldInfo != null) {
                 for (final FieldInfo fi : fieldInfo) {
                     final TypeSignature fieldSig = fi.getTypeSignature();
@@ -497,7 +495,7 @@ class GraphvizDotfileGenerator {
             }
 
             final Set<String> referencedMethodTypeNames = new HashSet<>();
-            final List<MethodInfo> methodInfo = classNode.methodInfo;
+            final MethodInfoList methodInfo = classNode.methodInfo;
             if (methodInfo != null) {
                 for (final MethodInfo mi : methodInfo) {
                     final MethodTypeSignature methodSig = mi.getTypeSignature();

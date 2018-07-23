@@ -29,8 +29,6 @@
 package io.github.lukehutch.fastclasspathscanner;
 
 import java.lang.reflect.Modifier;
-import java.util.Collections;
-import java.util.List;
 
 import io.github.lukehutch.fastclasspathscanner.utils.Parser.ParseException;
 import io.github.lukehutch.fastclasspathscanner.utils.TypeUtils;
@@ -48,7 +46,7 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
     transient TypeSignature typeSignature;
     transient TypeSignature typeDescriptor;
     Object constValue;
-    List<AnnotationInfo> annotationInfo;
+    AnnotationInfoList annotationInfo;
 
     /** Default constructor for deserialization. */
     FieldInfo() {
@@ -88,7 +86,7 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
      */
     public FieldInfo(final String className, final String fieldName, final int modifiers,
             final String typeDescriptorStr, final String typeSignatureStr, final Object constValue,
-            final List<AnnotationInfo> annotationInfo) {
+            final AnnotationInfoList annotationInfo) {
         if (fieldName == null) {
             throw new IllegalArgumentException();
         }
@@ -314,8 +312,8 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
      * @return A list of annotations on this field, along with any annotation parameter values, wrapped in
      *         {@link AnnotationInfo} objects, or the empty list if none.
      */
-    public List<AnnotationInfo> getAnnotationInfo() {
-        return annotationInfo == null ? Collections.<AnnotationInfo> emptyList() : annotationInfo;
+    public AnnotationInfoList getAnnotationInfo() {
+        return annotationInfo == null ? AnnotationInfoList.EMPTY_LIST : annotationInfo;
     }
 
     /** Use class name and field name for equals(). */

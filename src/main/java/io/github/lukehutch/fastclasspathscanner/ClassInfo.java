@@ -50,7 +50,6 @@ import java.util.Set;
 import io.github.lukehutch.fastclasspathscanner.json.Id;
 import io.github.lukehutch.fastclasspathscanner.utils.JarUtils;
 import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
-import io.github.lukehutch.fastclasspathscanner.utils.MultiMapKeyToList;
 import io.github.lukehutch.fastclasspathscanner.utils.Parser.ParseException;
 import io.github.lukehutch.fastclasspathscanner.utils.TypeUtils;
 
@@ -123,19 +122,16 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     transient ScanSpec scanSpec;
 
     /** Info on class annotations, including optional annotation param values. */
-    List<AnnotationInfo> annotationInfo;
+    AnnotationInfoList annotationInfo;
 
     /** Info on fields. */
-    List<FieldInfo> fieldInfo;
+    FieldInfoList fieldInfo;
 
     /** Reverse mapping from field name to FieldInfo. */
     transient Map<String, FieldInfo> fieldNameToFieldInfo;
 
     /** Info on fields. */
-    List<MethodInfo> methodInfo;
-
-    /** Reverse mapping from method name to MethodInfo. */
-    transient MultiMapKeyToList<String, MethodInfo> methodNameToMethodInfo;
+    MethodInfoList methodInfo;
 
     /** For annotations, the default values of parameters. */
     List<AnnotationParamValue> annotationDefaultParamValues;
@@ -659,7 +655,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         final ClassInfo annotationClassInfo = getOrCreateClassInfo(classAnnotationInfo.getAnnotationName(),
                 ANNOTATION_CLASS_MODIFIER, scanSpec, classNameToClassInfo);
         if (this.annotationInfo == null) {
-            this.annotationInfo = new ArrayList<>();
+            this.annotationInfo = new AnnotationInfoList(2);
         }
         this.annotationInfo.add(classAnnotationInfo);
 
@@ -676,9 +672,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /** Add field info. */
-    void addFieldInfo(final List<FieldInfo> fieldInfoList, final Map<String, ClassInfo> classNameToClassInfo) {
+    void addFieldInfo(final FieldInfoList fieldInfoList, final Map<String, ClassInfo> classNameToClassInfo) {
         for (final FieldInfo fieldInfo : fieldInfoList) {
-            final List<AnnotationInfo> fieldAnnotationInfoList = fieldInfo.annotationInfo;
+            final AnnotationInfoList fieldAnnotationInfoList = fieldInfo.annotationInfo;
             if (fieldAnnotationInfoList != null) {
                 for (final AnnotationInfo fieldAnnotationInfo : fieldAnnotationInfoList) {
                     final ClassInfo annotationClassInfo = getOrCreateClassInfo(
@@ -700,9 +696,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /** Add method info. */
-    void addMethodInfo(final List<MethodInfo> methodInfoList, final Map<String, ClassInfo> classNameToClassInfo) {
+    void addMethodInfo(final MethodInfoList methodInfoList, final Map<String, ClassInfo> classNameToClassInfo) {
         for (final MethodInfo methodInfo : methodInfoList) {
-            final List<AnnotationInfo> methodAnnotationInfoList = methodInfo.annotationInfo;
+            final AnnotationInfoList methodAnnotationInfoList = methodInfo.annotationInfo;
             if (methodAnnotationInfoList != null) {
                 for (final AnnotationInfo methodAnnotationInfo : methodAnnotationInfoList) {
                     final ClassInfo annotationClassInfo = getOrCreateClassInfo(
@@ -968,7 +964,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     static ClassInfoList getAllClasses(final Collection<ClassInfo> classes, final ScanSpec scanSpec,
             final ScanResult scanResult) {
-        return new ClassInfoList(ClassInfo.filterClassInfo(classes, scanSpec, ClassType.ALL), null, scanResult);
+        return new ClassInfoList(ClassInfo.filterClassInfo(classes, scanSpec, ClassType.ALL));
     }
 
     /**
@@ -978,8 +974,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     static ClassInfoList getAllStandardClasses(final Collection<ClassInfo> classes, final ScanSpec scanSpec,
             final ScanResult scanResult) {
-        return new ClassInfoList(ClassInfo.filterClassInfo(classes, scanSpec, ClassType.STANDARD_CLASS), null,
-                scanResult);
+        return new ClassInfoList(ClassInfo.filterClassInfo(classes, scanSpec, ClassType.STANDARD_CLASS));
     }
 
     /**
@@ -989,8 +984,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     static ClassInfoList getAllImplementedInterfaceClasses(final Collection<ClassInfo> classes,
             final ScanSpec scanSpec, final ScanResult scanResult) {
-        return new ClassInfoList(ClassInfo.filterClassInfo(classes, scanSpec, ClassType.IMPLEMENTED_INTERFACE),
-                null, scanResult);
+        return new ClassInfoList(ClassInfo.filterClassInfo(classes, scanSpec, ClassType.IMPLEMENTED_INTERFACE));
     }
 
     /**
@@ -1000,8 +994,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     static ClassInfoList getAllAnnotationClasses(final Collection<ClassInfo> classes, final ScanSpec scanSpec,
             final ScanResult scanResult) {
-        return new ClassInfoList(ClassInfo.filterClassInfo(classes, scanSpec, ClassType.ANNOTATION), null,
-                scanResult);
+        return new ClassInfoList(ClassInfo.filterClassInfo(classes, scanSpec, ClassType.ANNOTATION));
     }
 
     /**
@@ -1012,8 +1005,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     static ClassInfoList getAllInterfacesOrAnnotationClasses(final Collection<ClassInfo> classes,
             final ScanSpec scanSpec, final ScanResult scanResult) {
-        return new ClassInfoList(ClassInfo.filterClassInfo(classes, scanSpec, ClassType.INTERFACE_OR_ANNOTATION),
-                null, scanResult);
+        return new ClassInfoList(ClassInfo.filterClassInfo(classes, scanSpec, ClassType.INTERFACE_OR_ANNOTATION));
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -1077,7 +1069,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         final Set<ClassInfo> directlyRelatedClasses = reachableAndDirectlyRelatedClasses.getValue();
 
         return new ClassInfoList(filterClassInfo(reachableClasses, scanSpec),
-                filterClassInfo(directlyRelatedClasses, scanSpec), scanResult);
+                filterClassInfo(directlyRelatedClasses, scanSpec));
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -1225,7 +1217,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                     .filterClassInfo(RelType.IMPLEMENTED_INTERFACES);
             allInterfaces.addAll(superclassImplementedInterfaces);
         }
-        return new ClassInfoList(allInterfaces, implementedInterfaces.directOnly(), scanResult);
+        return new ClassInfoList(allInterfaces, implementedInterfaces.directOnly());
     }
 
     /**
@@ -1235,6 +1227,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return the list of classes implementing this interface, or the empty list if none.
      */
     public ClassInfoList getClassesImplementing() {
+        if (!isInterface) {
+            throw new IllegalArgumentException("Class is not an interface: " + getClassName());
+        }
         // Subclasses of implementing classes also implement the interface
         final ClassInfoList implementingClasses = this.filterClassInfo(RelType.CLASSES_IMPLEMENTING);
         final Set<ClassInfo> allImplementingClasses = new HashSet<>(implementingClasses);
@@ -1242,7 +1237,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             final ClassInfoList implementingSubclasses = implementingClass.filterClassInfo(RelType.SUBCLASSES);
             allImplementingClasses.addAll(implementingSubclasses);
         }
-        return new ClassInfoList(allImplementingClasses, implementingClasses.directOnly(), scanResult);
+        return new ClassInfoList(allImplementingClasses, implementingClasses.directOnly());
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -1289,43 +1284,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             for (final ClassInfo classWithAnnotation : classesWithAnnotation) {
                 classesWithAnnotationAndTheirSubclasses.addAll(classWithAnnotation.getSubclasses());
             }
-            return new ClassInfoList(classesWithAnnotationAndTheirSubclasses, classesWithAnnotation.directOnly(),
-                    scanResult);
+            return new ClassInfoList(classesWithAnnotationAndTheirSubclasses, classesWithAnnotation.directOnly());
         } else {
             // If not inherited, only return the annotated classes
             return classesWithAnnotation;
         }
-    }
-
-    /**
-     * Get a list of annotations on this method, along with any annotation parameter values, wrapped in
-     * {@link AnnotationInfo} objects, or the empty list if none.
-     * 
-     * @return A list of {@link AnnotationInfo} objects for the annotations on this method, or the empty list if
-     *         none.
-     */
-    public List<AnnotationInfo> getAnnotationInfo() {
-        if (!scanSpec.enableAnnotationInfo) {
-            throw new IllegalArgumentException("Cannot get annotation info without calling "
-                    + "FastClasspathScanner#enableAnnotationInfo() before starting the scan");
-        }
-        return annotationInfo == null ? Collections.<AnnotationInfo> emptyList() : annotationInfo;
-    }
-
-    /**
-     * If this is an annotation, and it has default parameter values, returns a list of the default parameter
-     * values, otherwise returns the empty list.
-     * 
-     * @return If this is an annotation class, the list of {@link AnnotationParamValue} objects for each of the
-     *         default parameter values for this annotation, otherwise the empty list.
-     */
-    public List<AnnotationParamValue> getAnnotationDefaultParamValues() {
-        if (!scanSpec.enableAnnotationInfo) {
-            throw new IllegalArgumentException("Cannot get annotation default parameter values without calling "
-                    + "FastClasspathScanner#enableAnnotationInfo() before starting the scan");
-        }
-        return annotationDefaultParamValues == null ? Collections.<AnnotationParamValue> emptyList()
-                : annotationDefaultParamValues;
     }
 
     /**
@@ -1376,8 +1339,69 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         } else {
             // Merge inherited superclass annotations and annotations on this class
             inheritedSuperclassAnnotations.addAll(annotationClasses);
-            return new ClassInfoList(inheritedSuperclassAnnotations, annotationClasses.directOnly(), scanResult);
+            return new ClassInfoList(inheritedSuperclassAnnotations, annotationClasses.directOnly());
         }
+    }
+
+    /**
+     * Get a list of annotations on this method, along with any annotation parameter values, as a list of
+     * {@link AnnotationInfo} objects, or the empty list if none.
+     * 
+     * <p>
+     * Also handles the {@link Inherited} meta-annotation, which causes an annotation to annotate a class and all of
+     * its subclasses.
+     * 
+     * @return A list of {@link AnnotationInfo} objects for the annotations on this method, or the empty list if
+     *         none.
+     */
+    public AnnotationInfoList getAnnotationInfo() {
+        if (!scanSpec.enableAnnotationInfo) {
+            throw new IllegalArgumentException("Cannot get annotation info without calling "
+                    + "FastClasspathScanner#enableAnnotationInfo() before starting the scan");
+        }
+
+        // Check for any @Inherited annotations on superclasses
+        AnnotationInfoList inheritedSuperclassAnnotations = null;
+        for (final ClassInfo superclass : getSuperclasses()) {
+            for (final AnnotationInfo superclassAnnotationInfo : superclass.getAnnotationInfo()) {
+                if (superclassAnnotationInfo.classInfo.isInherited) {
+                    // inheritedSuperclassAnnotations is an inherited annotation
+                    if (inheritedSuperclassAnnotations == null) {
+                        inheritedSuperclassAnnotations = new AnnotationInfoList();
+                    }
+                    inheritedSuperclassAnnotations.add(superclassAnnotationInfo);
+                }
+            }
+        }
+
+        if (inheritedSuperclassAnnotations == null) {
+            // No inherited superclass annotations
+            return annotationInfo;
+        } else {
+            // Merge inherited superclass annotations and annotations on this class
+            inheritedSuperclassAnnotations.addAll(annotationInfo);
+            Collections.sort(inheritedSuperclassAnnotations);
+            return inheritedSuperclassAnnotations;
+        }
+    }
+
+    /**
+     * If this is an annotation, and it has default parameter values, returns a list of the default parameter
+     * values, otherwise returns the empty list.
+     * 
+     * @return If this is an annotation class, the list of {@link AnnotationParamValue} objects for each of the
+     *         default parameter values for this annotation, otherwise the empty list.
+     */
+    public List<AnnotationParamValue> getAnnotationDefaultParamValues() {
+        if (!scanSpec.enableAnnotationInfo) {
+            throw new IllegalArgumentException("Cannot get annotation default parameter values without calling "
+                    + "FastClasspathScanner#enableAnnotationInfo() before starting the scan");
+        }
+        if (!isAnnotation) {
+            throw new IllegalArgumentException("Class is not an annotation: " + getClassName());
+        }
+        return annotationDefaultParamValues == null ? Collections.<AnnotationParamValue> emptyList()
+                : annotationDefaultParamValues;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -1401,15 +1425,15 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @throws IllegalArgumentException
      *             if FastClasspathScanner#enableMethodInfo() was not called prior to initiating the scan.
      */
-    public List<MethodInfo> getMethodInfo() {
+    public MethodInfoList getMethodInfo() {
         if (!scanSpec.enableMethodInfo) {
             throw new IllegalArgumentException("Cannot get method info without calling "
                     + "FastClasspathScanner#enableMethodInfo() before starting the scan");
         }
         if (methodInfo == null) {
-            return Collections.<MethodInfo> emptyList();
+            return MethodInfoList.EMPTY_LIST;
         } else {
-            final List<MethodInfo> nonConstructorMethods = new ArrayList<>();
+            final MethodInfoList nonConstructorMethods = new MethodInfoList();
             for (final MethodInfo mi : methodInfo) {
                 final String methodName = mi.getMethodName();
                 if (!methodName.equals("<init>") && !methodName.equals("<clinit>")) {
@@ -1438,15 +1462,15 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @throws IllegalArgumentException
      *             if FastClasspathScanner#enableMethodInfo() was not called prior to initiating the scan.
      */
-    public List<MethodInfo> getConstructorInfo() {
+    public MethodInfoList getConstructorInfo() {
         if (!scanSpec.enableMethodInfo) {
             throw new IllegalArgumentException("Cannot get method info without calling "
                     + "FastClasspathScanner#enableMethodInfo() before starting the scan");
         }
         if (methodInfo == null) {
-            return Collections.<MethodInfo> emptyList();
+            return MethodInfoList.EMPTY_LIST;
         } else {
-            final List<MethodInfo> nonConstructorMethods = new ArrayList<>();
+            final MethodInfoList nonConstructorMethods = new MethodInfoList();
             for (final MethodInfo mi : methodInfo) {
                 final String methodName = mi.getMethodName();
                 if (methodName.equals("<init>")) {
@@ -1477,12 +1501,12 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @throws IllegalArgumentException
      *             if FastClasspathScanner#enableMethodInfo() was not called prior to initiating the scan.
      */
-    public List<MethodInfo> getMethodAndConstructorInfo() {
+    public MethodInfoList getMethodAndConstructorInfo() {
         if (!scanSpec.enableMethodInfo) {
             throw new IllegalArgumentException("Cannot get method info without calling "
                     + "FastClasspathScanner#enableMethodInfo() before starting the scan");
         }
-        return methodInfo == null ? Collections.<MethodInfo> emptyList() : methodInfo;
+        return methodInfo == null ? MethodInfoList.EMPTY_LIST : methodInfo;
     }
 
     /**
@@ -1507,23 +1531,31 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @throws IllegalArgumentException
      *             if FastClasspathScanner#enableMethodInfo() was not called prior to initiating the scan.
      */
-    public List<MethodInfo> getMethodInfo(final String methodName) {
+    public MethodInfoList getMethodInfo(final String methodName) {
         if (!scanSpec.enableMethodInfo) {
             throw new IllegalArgumentException("Cannot get method info without calling "
                     + "FastClasspathScanner#enableMethodInfo() before starting the scan");
         }
         if (methodInfo == null) {
-            return null;
+            return MethodInfoList.EMPTY_LIST;
         }
-        if (methodNameToMethodInfo == null) {
-            // Lazily build reverse mapping cache
-            methodNameToMethodInfo = new MultiMapKeyToList<>();
-            for (final MethodInfo f : methodInfo) {
-                methodNameToMethodInfo.put(f.getMethodName(), f);
+        boolean hasMethodWithName = false;
+        for (final MethodInfo f : methodInfo) {
+            if (f.getMethodName().equals(methodName)) {
+                hasMethodWithName = true;
+                break;
             }
         }
-        final List<MethodInfo> methodList = methodNameToMethodInfo.get(methodName);
-        return methodList == null ? Collections.<MethodInfo> emptyList() : methodList;
+        if (!hasMethodWithName) {
+            return MethodInfoList.EMPTY_LIST;
+        }
+        final MethodInfoList methodInfoList = new MethodInfoList();
+        for (final MethodInfo f : methodInfo) {
+            if (f.getMethodName().equals(methodName)) {
+                methodInfoList.add(f);
+            }
+        }
+        return methodInfoList;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -1587,12 +1619,12 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @throws IllegalArgumentException
      *             if FastClasspathScanner#enableFieldInfo() was not called prior to initiating the scan.
      */
-    public List<FieldInfo> getFieldInfo() {
+    public FieldInfoList getFieldInfo() {
         if (!scanSpec.enableFieldInfo) {
             throw new IllegalArgumentException("Cannot get field info without calling "
                     + "FastClasspathScanner#enableFieldInfo() before starting the scan");
         }
-        return fieldInfo == null ? Collections.<FieldInfo> emptyList() : fieldInfo;
+        return fieldInfo == null ? FieldInfoList.EMPTY_LIST : fieldInfo;
     }
 
     /**

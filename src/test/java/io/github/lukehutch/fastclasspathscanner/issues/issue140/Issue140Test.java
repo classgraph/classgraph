@@ -32,13 +32,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
 import java.lang.reflect.Array;
-import java.util.List;
 
 import org.junit.Test;
 
 import io.github.lukehutch.fastclasspathscanner.ClassInfo;
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-import io.github.lukehutch.fastclasspathscanner.FieldInfo;
+import io.github.lukehutch.fastclasspathscanner.FieldInfoList;
 
 public class Issue140Test {
     // Order of fields is significant
@@ -50,7 +49,7 @@ public class Issue140Test {
         final ClassInfo ci = new FastClasspathScanner().whitelistPackages(Issue140Test.class.getPackage().getName())
                 .enableFieldInfo().scan().getClassInfo(Issue140Test.class.getName());
         assertThat(ci).isNotNull();
-        final List<FieldInfo> allFieldInfo = ci.getFieldInfo();
+        final FieldInfoList allFieldInfo = ci.getFieldInfo();
         assertThat(allFieldInfo.size()).isEqualTo(2);
         assertThat(allFieldInfo.get(0).getType()).isEqualTo(int.class);
         assertThat(allFieldInfo.get(1).getType()).isEqualTo(Array.newInstance(String.class, 0).getClass());

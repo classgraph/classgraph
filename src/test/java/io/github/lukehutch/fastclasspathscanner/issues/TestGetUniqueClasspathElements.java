@@ -13,8 +13,7 @@ public class TestGetUniqueClasspathElements {
     @Test
     public void testGetUniqueClasspathElements() {
         final List<File> classpathElements = new FastClasspathScanner().whitelistPackages("com.xyz")
-                .getUniqueClasspathElements();
-        System.out.println(classpathElements);
+                .getClasspathFiles();
         assertThat(classpathElements).isNotEmpty();
     }
 }

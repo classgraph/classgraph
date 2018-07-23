@@ -37,17 +37,22 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.Set;
 
-/** Holds a list of {@link ClassInfo} objects. */
+/**
+ * A list of {@link ClassInfo} objects, which stores both reachable classes (obtained through a given class
+ * relationship, either by direct relationship or through an indirect path), and directly related classes (classes
+ * reachable through a direct relationship only).
+ * 
+ * <p>
+ * By default, this list returns reachable classes. By calling {@link #directOnly()}, you can get the directly
+ * related classes.
+ */
 public class ClassInfoList implements List<ClassInfo> {
 
     private final List<ClassInfo> reachableClasses;
     private final ClassInfoList directlyRelatedClasses;
 
-    private final ScanResult scanResult;
-
     /** A list of {@link ClassInfo} objects. */
-    public ClassInfoList(final List<ClassInfo> reachableClasses, final List<ClassInfo> directlyRelatedClasses,
-            final ScanResult scanResult) {
+    public ClassInfoList(final List<ClassInfo> reachableClasses, final List<ClassInfo> directlyRelatedClasses) {
         this.reachableClasses = reachableClasses == null ? Collections.<ClassInfo> emptyList() : reachableClasses;
         Collections.sort(reachableClasses);
         // Make directlyRelatedClasses idempotent
@@ -55,19 +60,23 @@ public class ClassInfoList implements List<ClassInfo> {
                 ? Collections.<ClassInfo> emptyList()
                 : directlyRelatedClasses;
         this.directlyRelatedClasses = (reachableClasses == directlyRelatedClasses) ? this
-                : new ClassInfoList(directlyRelatedClassesNotNull, directlyRelatedClassesNotNull, scanResult);
-        this.scanResult = scanResult;
+                : new ClassInfoList(directlyRelatedClassesNotNull, directlyRelatedClassesNotNull);
     }
 
     /** A list of {@link ClassInfo} objects. */
     public ClassInfoList(final Collection<ClassInfo> reachableClasses,
-            final Collection<ClassInfo> directlyRelatedClasses, final ScanResult scanResult) {
+            final Collection<ClassInfo> directlyRelatedClasses) {
         this(reachableClasses == null ? null : new ArrayList<>(reachableClasses),
-                directlyRelatedClasses == null ? null : new ArrayList<>(directlyRelatedClasses), scanResult);
+                directlyRelatedClasses == null ? null : new ArrayList<>(directlyRelatedClasses));
+    }
+
+    /** A list of {@link ClassInfo} objects. */
+    public ClassInfoList(final Collection<ClassInfo> reachableClasses) {
+        this(reachableClasses, reachableClasses);
     }
 
     /** Unmodifiable empty ClassInfoList. */
-    static final ClassInfoList EMPTY_LIST = new ClassInfoList(Collections.<ClassInfo> emptyList(), null, null);
+    static final ClassInfoList EMPTY_LIST = new ClassInfoList(Collections.<ClassInfo> emptyList(), null);
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -142,7 +151,17 @@ public class ClassInfoList implements List<ClassInfo> {
     }
 
     @Override
+    public void add(final int index, final ClassInfo element) {
+        throw new IllegalArgumentException(ClassInfoList.class.getSimpleName() + " is immutable");
+    }
+
+    @Override
     public boolean remove(final Object o) {
+        throw new IllegalArgumentException(ClassInfoList.class.getSimpleName() + " is immutable");
+    }
+
+    @Override
+    public ClassInfo remove(final int index) {
         throw new IllegalArgumentException(ClassInfoList.class.getSimpleName() + " is immutable");
     }
 
@@ -173,16 +192,6 @@ public class ClassInfoList implements List<ClassInfo> {
 
     @Override
     public ClassInfo set(final int index, final ClassInfo element) {
-        throw new IllegalArgumentException(ClassInfoList.class.getSimpleName() + " is immutable");
-    }
-
-    @Override
-    public void add(final int index, final ClassInfo element) {
-        throw new IllegalArgumentException(ClassInfoList.class.getSimpleName() + " is immutable");
-    }
-
-    @Override
-    public ClassInfo remove(final int index) {
         throw new IllegalArgumentException(ClassInfoList.class.getSimpleName() + " is immutable");
     }
 
@@ -219,8 +228,8 @@ public class ClassInfoList implements List<ClassInfo> {
         } else {
             final List<Class<T>> classRefs = new ArrayList<>();
             for (final ClassInfo classInfo : this) {
-                final Class<T> classRef = scanResult.loadClass(classInfo.getClassName(), superclassOrInterfaceType,
-                        ignoreExceptions);
+                final Class<T> classRef = classInfo.scanResult.loadClass(classInfo.getClassName(),
+                        superclassOrInterfaceType, ignoreExceptions);
                 if (classRef != null) {
                     classRefs.add(classRef);
                 }
@@ -270,7 +279,8 @@ public class ClassInfoList implements List<ClassInfo> {
             final List<Class<?>> classRefs = new ArrayList<>();
             // Try loading each class
             for (final ClassInfo classInfo : this) {
-                final Class<?> classRef = scanResult.loadClass(classInfo.getClassName(), ignoreExceptions);
+                final Class<?> classRef = classInfo.scanResult.loadClass(classInfo.getClassName(),
+                        ignoreExceptions);
                 if (classRef != null) {
                     classRefs.add(classRef);
                 }
@@ -351,7 +361,7 @@ public class ClassInfoList implements List<ClassInfo> {
                 directlyRelatedClassesUnion.addAll(other.directlyRelatedClasses);
             }
         }
-        return new ClassInfoList(reachableClassesUnion, directlyRelatedClassesUnion, scanResult);
+        return new ClassInfoList(reachableClassesUnion, directlyRelatedClassesUnion);
     }
 
     /**
@@ -371,7 +381,7 @@ public class ClassInfoList implements List<ClassInfo> {
                 directlyRelatedClassesIntersecion.retainAll(other.directlyRelatedClasses);
             }
         }
-        return new ClassInfoList(reachableClassesIntersection, directlyRelatedClassesIntersecion, scanResult);
+        return new ClassInfoList(reachableClassesIntersection, directlyRelatedClassesIntersecion);
     }
 
     /**
@@ -389,7 +399,7 @@ public class ClassInfoList implements List<ClassInfo> {
         if (other.directlyRelatedClasses != null) {
             directlyRelatedClassesDifference.removeAll(other.directlyRelatedClasses);
         }
-        return new ClassInfoList(reachableClassesDifference, directlyRelatedClassesDifference, scanResult);
+        return new ClassInfoList(reachableClassesDifference, directlyRelatedClassesDifference);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -409,7 +419,7 @@ public class ClassInfoList implements List<ClassInfo> {
         }
         if (directlyRelatedClasses == reachableClasses) {
             // Avoid duplicating work
-            return new ClassInfoList(reachableClassesFiltered, reachableClassesFiltered, scanResult);
+            return new ClassInfoList(reachableClassesFiltered, reachableClassesFiltered);
         } else {
             final List<ClassInfo> directlyRelatedClassesFiltered = new ArrayList<>(directlyRelatedClasses.size());
             for (final ClassInfo classInfo : directlyRelatedClasses) {
@@ -417,7 +427,7 @@ public class ClassInfoList implements List<ClassInfo> {
                     directlyRelatedClassesFiltered.add(classInfo);
                 }
             }
-            return new ClassInfoList(reachableClassesFiltered, directlyRelatedClassesFiltered, scanResult);
+            return new ClassInfoList(reachableClassesFiltered, directlyRelatedClassesFiltered);
         }
     }
 
@@ -436,7 +446,7 @@ public class ClassInfoList implements List<ClassInfo> {
         }
         if (directlyRelatedClasses == reachableClasses) {
             // Avoid duplicating work
-            return new ClassInfoList(reachableClassesFiltered, reachableClassesFiltered, scanResult);
+            return new ClassInfoList(reachableClassesFiltered, reachableClassesFiltered);
         } else {
             final List<ClassInfo> directlyRelatedClassesFiltered = new ArrayList<>(directlyRelatedClasses.size());
             for (final ClassInfo classInfo : directlyRelatedClasses) {
@@ -444,7 +454,7 @@ public class ClassInfoList implements List<ClassInfo> {
                     directlyRelatedClassesFiltered.add(classInfo);
                 }
             }
-            return new ClassInfoList(reachableClassesFiltered, directlyRelatedClassesFiltered, scanResult);
+            return new ClassInfoList(reachableClassesFiltered, directlyRelatedClassesFiltered);
         }
     }
 
@@ -463,7 +473,7 @@ public class ClassInfoList implements List<ClassInfo> {
         }
         if (directlyRelatedClasses == reachableClasses) {
             // Avoid duplicating work
-            return new ClassInfoList(reachableClassesFiltered, reachableClassesFiltered, scanResult);
+            return new ClassInfoList(reachableClassesFiltered, reachableClassesFiltered);
         } else {
             final List<ClassInfo> directlyRelatedClassesFiltered = new ArrayList<>(directlyRelatedClasses.size());
             for (final ClassInfo classInfo : directlyRelatedClasses) {
@@ -471,7 +481,7 @@ public class ClassInfoList implements List<ClassInfo> {
                     directlyRelatedClassesFiltered.add(classInfo);
                 }
             }
-            return new ClassInfoList(reachableClassesFiltered, directlyRelatedClassesFiltered, scanResult);
+            return new ClassInfoList(reachableClassesFiltered, directlyRelatedClassesFiltered);
         }
     }
 
@@ -489,7 +499,7 @@ public class ClassInfoList implements List<ClassInfo> {
         }
         if (directlyRelatedClasses == reachableClasses) {
             // Avoid duplicating work
-            return new ClassInfoList(reachableClassesFiltered, reachableClassesFiltered, scanResult);
+            return new ClassInfoList(reachableClassesFiltered, reachableClassesFiltered);
         } else {
             final List<ClassInfo> directlyRelatedClassesFiltered = new ArrayList<>(directlyRelatedClasses.size());
             for (final ClassInfo classInfo : directlyRelatedClasses) {
@@ -497,7 +507,7 @@ public class ClassInfoList implements List<ClassInfo> {
                     directlyRelatedClassesFiltered.add(classInfo);
                 }
             }
-            return new ClassInfoList(reachableClassesFiltered, directlyRelatedClassesFiltered, scanResult);
+            return new ClassInfoList(reachableClassesFiltered, directlyRelatedClassesFiltered);
         }
     }
 

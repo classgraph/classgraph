@@ -30,18 +30,14 @@ package io.github.lukehutch.fastclasspathscanner.test.fieldannotation;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.lang.reflect.Field;
-import java.util.ArrayList;
 import java.util.List;
 
 import org.junit.Test;
 
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-import io.github.lukehutch.fastclasspathscanner.matchprocessor.FieldAnnotationMatchProcessor;
 import io.github.lukehutch.fastclasspathscanner.test.external.ExternalAnnotation;
 
-public class FieldAnnotationTest {
-    @ExternalAnnotation
+public class FieldAndMethodAnnotationTest {
     public int publicFieldWithAnnotation;
 
     @ExternalAnnotation
@@ -52,36 +48,28 @@ public class FieldAnnotationTest {
     @Test
     public void getNamesOfClassesWithFieldAnnotation() throws Exception {
         final List<String> testClasses = new FastClasspathScanner()
-                .whitelistPackages(FieldAnnotationTest.class.getPackage().getName()).enableFieldAnnotationIndexing()
-                .scan().getNamesOfClassesWithFieldAnnotation(ExternalAnnotation.class.getName());
-        assertThat(testClasses).containsOnly(FieldAnnotationTest.class.getName());
+                .whitelistPackages(FieldAndMethodAnnotationTest.class.getPackage().getName()).enableFieldInfo()
+                .enableAnnotationInfo().scan().getClassesWithFieldAnnotation(ExternalAnnotation.class.getName())
+                .getClassNames();
+        assertThat(testClasses).isEmpty();
+    }
+
+    @Test
+    public void getNamesOfClassesWithFieldAnnotationIgnoringVisibility() throws Exception {
+        final List<String> testClasses = new FastClasspathScanner()
+                .whitelistPackages(FieldAndMethodAnnotationTest.class.getPackage().getName()).enableFieldInfo()
+                .ignoreFieldVisibility().enableAnnotationInfo().scan()
+                .getClassesWithFieldAnnotation(ExternalAnnotation.class.getName()).getClassNames();
+        assertThat(testClasses).containsOnly(FieldAndMethodAnnotationTest.class.getName());
     }
 
     @Test
     @ExternalAnnotation
-    public void fieldAnnotationMatchProcessor() throws Exception {
-        final List<String> matchingFieldNames = new ArrayList<>();
-        new FastClasspathScanner().whitelistPackages(FieldAnnotationTest.class.getPackage().getName())
-                .matchClassesWithFieldAnnotation(ExternalAnnotation.class, new FieldAnnotationMatchProcessor() {
-                    @Override
-                    public void processMatch(final Class<?> matchingClass, final Field matchingMethod) {
-                        matchingFieldNames.add(matchingMethod.getName());
-                    }
-                }).scan();
-        assertThat(matchingFieldNames).containsOnly("publicFieldWithAnnotation");
-    }
-
-    @Test
-    @ExternalAnnotation
-    public void fieldAnnotationMatchProcessorIgnoringVisibility() throws Exception {
-        final List<String> matchingFieldNames = new ArrayList<>();
-        new FastClasspathScanner().whitelistPackages(FieldAnnotationTest.class.getPackage().getName())
-                .matchClassesWithFieldAnnotation(ExternalAnnotation.class, new FieldAnnotationMatchProcessor() {
-                    @Override
-                    public void processMatch(final Class<?> matchingClass, final Field matchingMethod) {
-                        matchingFieldNames.add(matchingMethod.getName());
-                    }
-                }).ignoreFieldVisibility().scan();
-        assertThat(matchingFieldNames).containsOnly("publicFieldWithAnnotation", "privateFieldWithAnnotation");
+    public void getNamesOfClassesWithMethodAnnotation() throws Exception {
+        final List<String> testClasses = new FastClasspathScanner()
+                .whitelistPackages(FieldAndMethodAnnotationTest.class.getPackage().getName()).enableMethodInfo()
+                .enableAnnotationInfo().scan().getClassesWithMethodAnnotation(ExternalAnnotation.class.getName())
+                .getClassNames();
+        assertThat(testClasses).containsOnly(FieldAndMethodAnnotationTest.class.getName());
     }
 }

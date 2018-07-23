@@ -22,11 +22,14 @@ public class V4Test {
         new FastClasspathScanner() //
                 // .verbose() //
                 .unBlacklistSystemPackages() //
-                .enableClassInfo() //
-                .whitelistPackages("com.xyz") //
+                .enableClassInfo()
+                //.enableMethodInfo().enableFieldInfo() //
+                .ignoreClassVisibility() //
+                // .ignoreMethodVisibility().ignoreFieldVisibility() //
+                // .whitelistPackages("com.xyz") //
                 .scan() //
-                .getAllClasses() //
-                .getClassNames() //
+        // .getAllClasses() //
+        // .getClassNames() //
         ;//.forEach(System.out::println);
         System.out.println((System.nanoTime() - t0) * 1.0e-9);
     }

@@ -515,7 +515,7 @@ class ClassfileBinaryParser {
                 fieldTypeDescriptor = getConstantPoolString(fieldTypeDescriptorCpIdx);
 
                 Object fieldConstValue = null;
-                List<AnnotationInfo> fieldAnnotationInfo = null;
+                AnnotationInfoList fieldAnnotationInfo = null;
                 final int attributesCount = inputStreamOrByteBuffer.readUnsignedShort();
                 for (int j = 0; j < attributesCount; j++) {
                     final int attributeNameCpIdx = inputStreamOrByteBuffer.readUnsignedShort();
@@ -541,7 +541,7 @@ class ClassfileBinaryParser {
                         // Read annotation names
                         final int fieldAnnotationCount = inputStreamOrByteBuffer.readUnsignedShort();
                         if (fieldAnnotationInfo == null && fieldAnnotationCount > 0) {
-                            fieldAnnotationInfo = new ArrayList<>(1);
+                            fieldAnnotationInfo = new AnnotationInfoList(1);
                         }
                         for (int k = 0; k < fieldAnnotationCount; k++) {
                             final AnnotationInfo fieldAnnotation = readAnnotation();
@@ -583,7 +583,7 @@ class ClassfileBinaryParser {
             int[] methodParameterModifiers = null;
             AnnotationInfo[][] methodParameterAnnotations = null;
             List<AnnotationParamValue> annotationParamDefaultValues = null;
-            List<AnnotationInfo> methodAnnotationInfo = null;
+            AnnotationInfoList methodAnnotationInfo = null;
             if (!methodIsVisible || (!scanSpec.enableMethodInfo && !isAnnotation)) {
                 // Skip method attributes
                 for (int j = 0; j < attributesCount; j++) {
@@ -602,7 +602,7 @@ class ClassfileBinaryParser {
                                             attributeNameCpIdx, "RuntimeInvisibleAnnotations")))) {
                         final int methodAnnotationCount = inputStreamOrByteBuffer.readUnsignedShort();
                         if (methodAnnotationInfo == null && methodAnnotationCount > 0) {
-                            methodAnnotationInfo = new ArrayList<>(1);
+                            methodAnnotationInfo = new AnnotationInfoList(1);
                         }
                         for (int k = 0; k < methodAnnotationCount; k++) {
                             final AnnotationInfo annotationInfo = readAnnotation();

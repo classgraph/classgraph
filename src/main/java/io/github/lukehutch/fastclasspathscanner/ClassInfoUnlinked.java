@@ -51,14 +51,14 @@ class ClassInfoUnlinked {
     // Superclass (can be null if no superclass, or if superclass is blacklisted)
     private String superclassName;
     private List<String> implementedInterfaces;
-    private List<AnnotationInfo> classAnnotations;
+    private AnnotationInfoList classAnnotations;
     private Map<String, Object> staticFinalFieldValues;
     private String fullyQualifiedContainingMethodName;
     private List<SimpleEntry<String, String>> classContainmentEntries;
     List<AnnotationParamValue> annotationParamDefaultValues;
     final ClasspathElement classpathElement;
-    List<FieldInfo> fieldInfoList;
-    List<MethodInfo> methodInfoList;
+    FieldInfoList fieldInfoList;
+    MethodInfoList methodInfoList;
     private String typeSignature;
 
     ClassInfoUnlinked(final String className, final int classModifiers, final boolean isInterface,
@@ -87,7 +87,7 @@ class ClassInfoUnlinked {
 
     void addClassAnnotation(final AnnotationInfo classAnnotation) {
         if (classAnnotations == null) {
-            classAnnotations = new ArrayList<>();
+            classAnnotations = new AnnotationInfoList();
         }
         classAnnotations.add(classAnnotation);
     }
@@ -101,14 +101,14 @@ class ClassInfoUnlinked {
 
     void addFieldInfo(final FieldInfo fieldInfo) {
         if (fieldInfoList == null) {
-            fieldInfoList = new ArrayList<>();
+            fieldInfoList = new FieldInfoList();
         }
         fieldInfoList.add(fieldInfo);
     }
 
     void addMethodInfo(final MethodInfo methodInfo) {
         if (methodInfoList == null) {
-            methodInfoList = new ArrayList<>();
+            methodInfoList = new MethodInfoList();
         }
         methodInfoList.add(methodInfo);
     }

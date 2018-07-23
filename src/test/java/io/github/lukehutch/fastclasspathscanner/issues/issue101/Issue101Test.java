@@ -39,25 +39,25 @@ public class Issue101Test {
     @Test
     public void nonInheritedAnnotation() {
         final ScanResult scanResult = new FastClasspathScanner()
-                .whitelistPackages(Issue101Test.class.getPackage().getName()).scan();
-        assertThat(scanResult.getNamesOfClassesWithAnnotation(NonInheritedAnnotation.class))
+                .whitelistPackages(Issue101Test.class.getPackage().getName()).enableAnnotationInfo().scan();
+        assertThat(scanResult.getClassesWithAnnotation(NonInheritedAnnotation.class.getName()).getClassNames())
                 .containsOnly(AnnotatedClass.class.getName());
     }
 
     @Test
     public void inheritedAnnotation() {
         final ScanResult scanResult = new FastClasspathScanner()
-                .whitelistPackages(Issue101Test.class.getPackage().getName()).scan();
-        assertThat(scanResult.getNamesOfClassesWithAnnotation(InheritedAnnotation.class)).containsOnly(
-                AnnotatedClass.class.getName(), NonAnnotatedSubclass.class.getName(),
-                AnnotatedInterface.class.getName());
+                .whitelistPackages(Issue101Test.class.getPackage().getName()).enableAnnotationInfo().scan();
+        assertThat(scanResult.getClassesWithAnnotation(InheritedAnnotation.class.getName()).getClassNames())
+                .containsOnly(AnnotatedClass.class.getName(), NonAnnotatedSubclass.class.getName(),
+                        AnnotatedInterface.class.getName());
     }
 
     @Test
     public void inheritedMetaAnnotation() {
         final ScanResult scanResult = new FastClasspathScanner()
-                .whitelistPackages(Issue101Test.class.getPackage().getName()).scan();
-        assertThat(scanResult.getNamesOfClassesWithAnnotation(InheritedMetaAnnotation.class))
+                .whitelistPackages(Issue101Test.class.getPackage().getName()).enableAnnotationInfo().scan();
+        assertThat(scanResult.getClassesWithAnnotation(InheritedMetaAnnotation.class.getName()).getClassNames())
                 .containsOnly(AnnotatedClass.class.getName(), NonAnnotatedSubclass.class.getName());
     }
 }
