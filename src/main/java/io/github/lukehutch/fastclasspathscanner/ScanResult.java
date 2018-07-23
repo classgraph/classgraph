@@ -454,7 +454,12 @@ public class ScanResult {
         if (!scanSpec.enableMethodInfo) {
             throw new IllegalArgumentException(
                     "Please call FastClasspathScanner#enableMethodInfo() before calling scan() -- "
-                            + "method annotation indexing is disabled by default for efficiency");
+                            + "method info is disabled by default for efficiency");
+        }
+        if (!scanSpec.enableAnnotationInfo) {
+            throw new IllegalArgumentException(
+                    "Please call FastClasspathScanner#enableAnnotationInfo() before calling scan() -- "
+                            + "method annotation info is disabled by default for efficiency");
         }
         final ClassInfo classInfo = classNameToClassInfo.get(methodAnnotationName);
         return classInfo == null ? ClassInfoList.EMPTY_LIST : classInfo.getClassesWithMethodAnnotation();
@@ -475,8 +480,13 @@ public class ScanResult {
         }
         if (!scanSpec.enableFieldInfo) {
             throw new IllegalArgumentException(
-                    "Please call FastClasspathScanner#enableFieldAnnotationIndexing() before calling scan() -- "
-                            + "field annotation indexing is disabled by default for efficiency");
+                    "Please call FastClasspathScanner#enableFieldInfo() before calling scan() -- "
+                            + "field info is disabled by default for efficiency");
+        }
+        if (!scanSpec.enableAnnotationInfo) {
+            throw new IllegalArgumentException(
+                    "Please call FastClasspathScanner#enableAnnotationInfo() before calling scan() -- "
+                            + "field annotation info is disabled by default for efficiency");
         }
         final ClassInfo classInfo = classNameToClassInfo.get(fieldAnnotationName);
         return classInfo == null ? ClassInfoList.EMPTY_LIST : classInfo.getClassesWithFieldAnnotation();

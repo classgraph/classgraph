@@ -682,6 +682,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                             classNameToClassInfo);
                     // Mark this class as having a field with this annotation
                     this.addRelatedClass(RelType.FIELD_ANNOTATIONS, annotationClassInfo);
+                    annotationClassInfo.addRelatedClass(RelType.CLASSES_WITH_FIELD_ANNOTATION, this);
 
                     // Add back-ref from fieldAnnotationInfo to the annotation class' ClassInfo
                     fieldAnnotationInfo.classInfo = annotationClassInfo;
@@ -706,6 +707,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                             classNameToClassInfo);
                     // Mark this class as having a method with this annotation
                     this.addRelatedClass(RelType.METHOD_ANNOTATIONS, annotationClassInfo);
+                    annotationClassInfo.addRelatedClass(RelType.CLASSES_WITH_METHOD_ANNOTATION, this);
 
                     // Add back-ref from methodAnnotationInfo to the annotation class' ClassInfo
                     methodAnnotationInfo.classInfo = annotationClassInfo;
