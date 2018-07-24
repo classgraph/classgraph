@@ -79,7 +79,8 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
      * @throws ParseException
      *             If type signature could not be parsed.
      */
-    static TypeSignature parse(final String typeDescriptor, final ScanResult scanResult) throws ParseException {
+    public static TypeSignature parse(final String typeDescriptor, final ScanResult scanResult)
+            throws ParseException {
         final Parser parser = new Parser(typeDescriptor);
         TypeSignature typeSignature;
         typeSignature = parse(parser);

@@ -220,7 +220,7 @@ public class MethodTypeSignature extends HierarchicalTypeSignature {
      * @throws ParseException
      *             If method type signature could not be parsed.
      */
-    static MethodTypeSignature parse(final ClassInfo classInfo, final String typeDescriptor,
+    public static MethodTypeSignature parse(final ClassInfo classInfo, final String typeDescriptor,
             final ScanResult scanResult) throws ParseException {
         final Parser parser = new Parser(typeDescriptor);
         final List<TypeParameter> typeParameters = TypeParameter.parseList(parser);

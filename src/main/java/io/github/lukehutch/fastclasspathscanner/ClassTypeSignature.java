@@ -218,7 +218,7 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
      * @throws ParseException
      *             If the class type signature could not be parsed.
      */
-    static ClassTypeSignature parse(final String typeDescriptor, final ScanResult scanResult)
+    public static ClassTypeSignature parse(final String typeDescriptor, final ScanResult scanResult)
             throws ParseException {
         final Parser parser = new Parser(typeDescriptor);
         final List<TypeParameter> typeParameters = TypeParameter.parseList(parser);
