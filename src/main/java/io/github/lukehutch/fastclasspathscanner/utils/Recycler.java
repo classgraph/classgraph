@@ -43,8 +43,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  *               return new ZipFile(zipFilePath);
  *           }
  *       };
- *       
  *       try {
+ *           // Repeat the following as many times as needed, on as many threads as needed 
  *           ZipFile zipFile = recycler.acquire();
  *           try {
  *               // Read from zipFile -- don't put recycler.acquire() in the try block, otherwise the finally
@@ -56,6 +56,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  *           }
  *       } catch (IOException e) {
  *           // [...]
+ *       } finally {
+ *           recycler.close();
  *       }
  * </code>
  */
