@@ -648,7 +648,6 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /** Add field info. */
     void addFieldInfo(final FieldInfoList fieldInfoList, final Map<String, ClassInfo> classNameToClassInfo) {
         for (final FieldInfo fieldInfo : fieldInfoList) {
-            fieldInfo.definingClassInfo = this;
             final AnnotationInfoList fieldAnnotationInfoList = fieldInfo.annotationInfo;
             if (fieldAnnotationInfoList != null) {
                 for (final AnnotationInfo fieldAnnotationInfo : fieldAnnotationInfoList) {
@@ -662,6 +661,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                     fieldAnnotationInfo.setClassInfo(annotationClassInfo);
                 }
             }
+            // Add back-link from FieldInfo to the defining ClassInfo instance
+            fieldInfo.definingClassInfo = this;
         }
         if (this.fieldInfo == null) {
             this.fieldInfo = fieldInfoList;
@@ -673,7 +674,6 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /** Add method info. */
     void addMethodInfo(final MethodInfoList methodInfoList, final Map<String, ClassInfo> classNameToClassInfo) {
         for (final MethodInfo methodInfo : methodInfoList) {
-            methodInfo.definingClassInfo = this;
             final AnnotationInfoList methodAnnotationInfoList = methodInfo.annotationInfo;
             if (methodAnnotationInfoList != null) {
                 for (final AnnotationInfo methodAnnotationInfo : methodAnnotationInfoList) {
@@ -703,7 +703,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                     }
                 }
             }
-            // Add back-link from MethodInfo to enclosing ClassInfo instance
+            // Add back-link from MethodInfo to the defining ClassInfo instance
             methodInfo.definingClassInfo = this;
         }
         if (this.methodInfo == null) {

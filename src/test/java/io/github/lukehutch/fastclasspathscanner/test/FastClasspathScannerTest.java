@@ -338,7 +338,7 @@ public class FastClasspathScannerTest {
     @Test
     public void generateGraphVizFile() {
         final String dotFile = new FastClasspathScanner().whitelistPackages(ROOT_PACKAGE).enableAllInfo().scan()
-                .generateClassGraphDotFile(20, 20);
+                .getAllClasses().generateGraphVizDotFile(20, 20);
         assertThat(dotFile).contains("\"" + ClsSub.class.getName() + "\" -> \"" + Cls.class.getName() + "\"");
     }
 

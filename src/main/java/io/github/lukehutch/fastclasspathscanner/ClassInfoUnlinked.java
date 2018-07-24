@@ -170,6 +170,9 @@ class ClassInfoUnlinked {
             if (classAnnotations != null) {
                 subLog.log("Class annotations: " + Join.join(", ", classAnnotations));
             }
+            if (annotationParamDefaultValues != null) {
+                subLog.log("Annotation default param values: " + Join.join(", ", annotationParamDefaultValues));
+            }
             if (methodInfoList != null) {
                 subLog.log("Method info: " + Join.join(", ", methodInfoList));
             }
