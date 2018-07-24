@@ -33,6 +33,31 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 /**
  * Recycle instances of type T. The method T#close() is called when this class' own close() method is called. Use
  * RuntimeException for type E if the newInstance() method does not throw an exception.
+ * 
+ * Example usage:
+ * 
+ * <code>
+ *       Recycler<ZipFile, IOException> recycler = new Recycler<>() {
+ *           @Override
+ *           public ZipFile newInstance() throws IOException {
+ *               return new ZipFile(zipFilePath);
+ *           }
+ *       };
+ *       
+ *       try {
+ *           ZipFile zipFile = recycler.acquire();
+ *           try {
+ *               // Read from zipFile -- don't put recycler.acquire() in the try block, otherwise the finally
+ *               // block will try to release the zipfile even if recycler.acquire() failed
+ *               // [...]
+ *           } finally {
+ *               recycler.release(zipFile);
+ *               zipFile = null;
+ *           }
+ *       } catch (IOException e) {
+ *           // [...]
+ *       }
+ * </code>
  */
 public abstract class Recycler<T extends AutoCloseable, E extends Exception> implements AutoCloseable {
     /** Instances that have been allocated. */
