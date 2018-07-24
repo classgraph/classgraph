@@ -37,27 +37,27 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * Example usage:
  * 
  * <code>
- *       Recycler<ZipFile, IOException> recycler = new Recycler<>() {
- *           @Override
- *           public ZipFile newInstance() throws IOException {
- *               return new ZipFile(zipFilePath);
- *           }
- *       };
- *       try {
+ *       // Autoclose the Recycler when last instance has been released
+ *       try (Recycler<ZipFile, IOException> recycler = new Recycler<>() {
+ *               @Override
+ *               public ZipFile newInstance() throws IOException {
+ *                   return new ZipFile(zipFilePath);
+ *               }
+ *           }) {
  *           // Repeat the following as many times as needed, on as many threads as needed 
- *           ZipFile zipFile = recycler.acquire();
  *           try {
- *               // Read from zipFile -- don't put recycler.acquire() in the try block, otherwise the finally
- *               // block will try to release the zipfile even if recycler.acquire() failed
- *               // [...]
- *           } finally {
- *               recycler.release(zipFile);
- *               zipFile = null;
+ *               ZipFile zipFile = recycler.acquire();
+ *               try {
+ *                   // Read from zipFile -- don't put recycler.acquire() in this try block, otherwise the
+ *                   // finally block will try to release the zipfile even when recycler.acquire() failed
+ *                   // [...]
+ *               } finally {
+ *                   recycler.release(zipFile);
+ *                   zipFile = null;
+ *               }
+ *           } catch (IOException e) {
+ *               // May be thrown by recycler.acquire()
  *           }
- *       } catch (IOException e) {
- *           // [...]
- *       } finally {
- *           recycler.close();
  *       }
  * </code>
  */
