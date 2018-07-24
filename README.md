@@ -6,7 +6,7 @@ FastClasspathScanner handles a [huge number](#classpath-specification-mechanisms
 
 FastClasspathScanner reads the classfile bytecode format directly for speed, to avoid the overhead of loading classes, and to avoid the overhead and side effects of initializing classes (causing static initializer blocks to be run). After scanning, you get a collection of wrapper objects representing each class, method, field, and annotation found during the scan. These can be queried in a range of ways to find classes matching given criteria, without ever loading the classes. You can even generate a [GraphViz visualization of the class graph](https://raw.githubusercontent.com/lukehutch/fast-classpath-scanner/master/src/test/java/com/xyz/classgraph-fig.png).
 
-FastClasspathScanner can scan both the traditional classpath and the visible Java modules (Project Jigsaw / JDK 9+), but is also backwards and forwards compatible with JDK 7 and JDK 8. FastClasspathScanner has been [carefully optimized](https://github.com/lukehutch/fast-classpath-scanner/wiki#how-fast-is-fastclasspathscanner).
+FastClasspathScanner can scan both the traditional classpath and the visible Java modules (Project Jigsaw / JDK 9+), but is also backwards and forwards compatible with JDK 7 and JDK 8. FastClasspathScanner has been [carefully optimized](#how-fast-is-fastclasspathscanner).
 
 ## Status
 
@@ -65,7 +65,26 @@ FastClasspathScanner is the fastest classpath scanning mechanism:
 * FastClasspathScanner includes comprehensive mechanisms for whitelisting and blacklisting, so that only the necessary resources are scanned.
 * FastClasspathScanner uses memory-mapped files wherever possible (when scanning directories and modules) for extra speed.  
 
-In particular, FastClasspathScanner is typically several times faster at scanning large classpaths consisting of many directories or jarfiles than the widely-used library [Reflections](https://github.com/ronmamo/reflections). If FastClasspathScanner is slower than Reflections for your usecase, that is because it has discovered a [much larger set of classpath elements to scan]((#classpath-specification-mechanisms-handled-by-fastclasspathscanner)) than Reflections. You can limit what is scanned using whitelist / blacklist criteria (see the documentation).
+In particular, FastClasspathScanner is typically several times faster at scanning large classpaths consisting of many directories or jarfiles than the widely-used library [Reflections](https://github.com/ronmamo/reflections). If FastClasspathScanner is slower than Reflections for your usecase, that is because it has discovered a [much larger set of classpath elements to scan](#classpath-specification-mechanisms-handled-by-fastclasspathscanner) than Reflections. You can limit what is scanned using whitelist / blacklist criteria (see the documentation).
+
+### Alternatives
+
+Some other classpath scanning mechanisms include:
+
+* [Reflections](https://github.com/ronmamo/reflections)
+* [Corn Classpath Scanner](https://sites.google.com/site/javacornproject/corn-cps)
+* [annotation-detector](https://github.com/rmuller/infomas-asl/tree/master/annotation-detector)
+* [Scannotation](http://scannotation.sourceforge.net/)
+* [Sclasner](https://github.com/xitrum-framework/sclasner)
+* [Annovention](https://github.com/ngocdaothanh/annovention)
+* [ClassIndex](https://github.com/atteo/classindex) (compiletime annotation scanner/processor)
+* [Jandex](https://github.com/wildfly/Jandex) (Java annotation indexer, part of Wildfly)
+* [Spring](http://spring.io/) has built-in classpath scanning
+* [Hibernate](http://hibernate.org/) has the class [`org.hibernate.ejb.packaging.Scanner`](https://www.programcreek.com/java-api-examples/index.php?api=org.hibernate.ejb.packaging.Scanner).
+* [extcos -- the Extended Component Scanner](https://sourceforge.net/projects/extcos/)
+* [Javassist](http://jboss-javassist.github.io/javassist/)
+* [ObjectWeb ASM](http://asm.ow2.org/)
+* [bndtools](https://github.com/bndtools/bnd), which is able to ["crawl"/parse the bytecode of class files](https://github.com/bndtools/bnd/blob/master/biz.aQute.bndlib/src/aQute/bnd/osgi/Clazz.java) to find all imports/dependencies, among other things. 
 
 ## Downloading
 
@@ -101,25 +120,6 @@ To use FastClasspathScanner as a Java module, add the jar dependency to your pro
 ```
     requires io.github.lukehutch.fastclasspathscanner;
 ```
-
-### Alternatives
-
-Some other classpath scanning mechanisms include:
-
-* [Reflections](https://github.com/ronmamo/reflections)
-* [Corn Classpath Scanner](https://sites.google.com/site/javacornproject/corn-cps)
-* [annotation-detector](https://github.com/rmuller/infomas-asl/tree/master/annotation-detector)
-* [Scannotation](http://scannotation.sourceforge.net/)
-* [Sclasner](https://github.com/xitrum-framework/sclasner)
-* [Annovention](https://github.com/ngocdaothanh/annovention)
-* [ClassIndex](https://github.com/atteo/classindex) (compiletime annotation scanner/processor)
-* [Jandex](https://github.com/wildfly/Jandex) (Java annotation indexer, part of Wildfly)
-* [Spring](http://spring.io/) has built-in classpath scanning
-* [Hibernate](http://hibernate.org/) has the class [`org.hibernate.ejb.packaging.Scanner`](https://www.programcreek.com/java-api-examples/index.php?api=org.hibernate.ejb.packaging.Scanner).
-* [extcos -- the Extended Component Scanner](https://sourceforge.net/projects/extcos/)
-* [Javassist](http://jboss-javassist.github.io/javassist/)
-* [ObjectWeb ASM](http://asm.ow2.org/)
-* [bndtools](https://github.com/bndtools/bnd), which is able to ["crawl"/parse the bytecode of class files](https://github.com/bndtools/bnd/blob/master/biz.aQute.bndlib/src/aQute/bnd/osgi/Clazz.java) to find all imports/dependencies, among other things. 
 
 ## Mailing List
 
