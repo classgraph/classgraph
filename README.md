@@ -8,8 +8,6 @@ FastClasspathScanner reads the classfile bytecode format directly for speed, to 
 
 FastClasspathScanner can scan both the traditional classpath and the visible Java modules (Project Jigsaw / JDK 9+), but is also backwards and forwards compatible with JDK 7 and JDK 8. FastClasspathScanner has been [carefully optimized](https://github.com/lukehutch/fast-classpath-scanner/wiki#how-fast-is-fastclasspathscanner).
 
-FastClasspathScanner is stable, feature complete, and optimized. Every effort is made to fix bugs quickly when they are reported.
-
 ## Status
 
 **Version 4 has been released**, with a completely revamped API. See the [release notes](https://github.com/lukehutch/fast-classpath-scanner/releases/tag/fast-classpath-scanner-4.0.0) for information on porting from the older API. 
