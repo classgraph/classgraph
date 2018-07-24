@@ -1,37 +1,14 @@
 # FastClasspathScanner
 
-FastClasspathScanner is an uber-fast, ultra-lightweight classpath scanner, module scanner, and annotation processor for Java, Scala, Kotlin and other JVM languages. FastClasspathScanner can scan the classpath and module path either at build-time (e.g. to implement annotation processing for Android), or dynamically at runtime.  FastClasspathScanner handles a [huge number](https://github.com/lukehutch/fast-classpath-scanner/wiki#fastclasspathscanner-handles-a-number-of-classloaders-and-classpath--module-path-specification-mechanisms) of classpath specification mechanisms found in the wild.
+FastClasspathScanner is an uber-fast, ultra-lightweight classpath scanner, module scanner, and annotation processor for Java, Scala, Kotlin and other JVM languages. FastClasspathScanner can scan the classpath and module path either at build-time (e.g. to implement annotation processing for Android), or dynamically at runtime. FastClasspathScanner handles a [huge number](#classpath--module-path-specification-mechanisms-handled-by-fastclasspathscanner) of classpath specification mechanisms found in the wild.
 
-FastClasspathScanner reads the classfile bytecode format directly for speed, to avoid the overhead of loading classes, and to avoid the overhead and side effects of initializing classes (causing static initializer blocks to be run).
+FastClasspathScanner reads the classfile bytecode format directly for speed, to avoid the overhead of loading classes, and to avoid the overhead and side effects of initializing classes (causing static initializer blocks to be run). After scanning, you get a collection of wrapper objects representing each class, method, field, and annotation found during the scan. These can be queried in a range of ways to find classes matching given criteria, without ever loading the classes. You can even generate a [GraphViz visualization of the class graph](https://raw.githubusercontent.com/lukehutch/fast-classpath-scanner/master/src/test/java/com/xyz/classgraph-fig.png).
 
-FastClasspathScanner can scan both the traditional classpath and the visible Java modules (Project Jigsaw / JDK 9+), but is also backwards and forwards compatible with JDK 7 and JDK 8. FastClasspathScanner has been [carefully optimized](https://github.com/lukehutch/fast-classpath-scanner/wiki#how-fast-is-fastclasspathscanner). The project is stable and actively maintained.
-
-**What is classpath scanning?** Classpath scanning involves scanning directories and jar/zip files on the classpath to find files (especially classfiles) that meet certain criteria. In many ways, classpath scanning offers the *inverse of the Java class API and/or reflection:* for example, the Java class API can tell you the superclass of a given class, or give you the list of annotations on a class; classpath scanning can find all subclasses of a given class, or find all classes that are annotated with a given annotation.
-
-**FastClasspathScanner is able to:**
-
-* [Find classes that subclass/extend a given class](https://github.com/lukehutch/fast-classpath-scanner/wiki/3.1.-Finding-subclasses-or-superclasses).
-* [Find classes that implement an interface](https://github.com/lukehutch/fast-classpath-scanner/wiki/3.2.-Finding-classes-that-implement-an-interface) or one of its subinterfaces, or whose superclasses implement the interface or one of its subinterfaces.
-* [Find interfaces that extend a given interface](https://github.com/lukehutch/fast-classpath-scanner/wiki/3.3.-Finding-subinterfaces-or-superinterfaces) or one of its subinterfaces.
-* [Find classes that have a specific class annotation or meta-annotation](https://github.com/lukehutch/fast-classpath-scanner/wiki/3.4.-Finding-classes-with-specific-annotations-or-meta-annotations).
-* [Find classes that have methods with a given annotation](https://github.com/lukehutch/fast-classpath-scanner/wiki/3.5-Finding-classes-that-have-methods-or-fields-with-a-given-annotation).
-* [Find classes that have fields with a given annotation](https://github.com/lukehutch/fast-classpath-scanner/wiki/3.5-Finding-classes-that-have-methods-or-fields-with-a-given-annotation).
-* Read the constant literal initializer value in a classfile's constant pool for a [specified static final field](https://github.com/lukehutch/fast-classpath-scanner/wiki/3.6.-Reading-constant-initializer-values-of-static-final-fields).
-* Determine the [containment hierarchy](https://github.com/lukehutch/fast-classpath-scanner/wiki/1.-Usage#getting-information-on-class-containment) between outer classes and inner classes (including anonymous inner classes).
-* Find files (even non-classfiles) anywhere on the classpath that have a [path that matches a given string or regular expression, or with a specific file extension](https://github.com/lukehutch/fast-classpath-scanner/wiki/3.7.-Finding-classpath-files-based-on-filename-pattern).
-* Return a list of the [names of all classes, interfaces and/or annotations on the classpath](https://github.com/lukehutch/fast-classpath-scanner/wiki/3.8.-Enumerating-all-classes-on-the-classpath) (after whitelist and blacklist filtering).
-* Return a list of [all directories and files on the classpath](https://github.com/lukehutch/fast-classpath-scanner/wiki/1.-Usage#listing-classpath-elements) (i.e. all classpath elements) as a list of File objects, with the list deduplicated and filtered to include only classpath directories and files that actually exist, saving you from the complexities of working with the classpath and classloaders.
-* [Detect changes](https://github.com/lukehutch/fast-classpath-scanner/wiki/1.-Usage#detecting-changes-to-classpath-contents) to the files within the classpath since the first time the classpath was scanned.
-* [Serialize a class graph to JSON, and deserialize back from JSON](https://github.com/lukehutch/fast-classpath-scanner/wiki/1.-Usage#build-time-scanning-serializing-scanresult-to-json). This can be used for build-time scanning, for example to support Android, and it can also be used for analysis of the class graph. ([Example of serialized JSON, for the class graph shown below.](https://raw.githubusercontent.com/lukehutch/fast-classpath-scanner/master/src/test/java/com/xyz/classgraph.json))
-* [Generate a GraphViz .dot file](https://github.com/lukehutch/fast-classpath-scanner/wiki/3.9.-Generating-a-GraphViz-dot-file-from-the-classgraph) from the class graph for visualization purposes, as shown below. A class graph visualization depicts connections between classes, interfaces, annotations and meta-annotations, and connections between classes and the types of their fields.
-
-<p align="center">
-  <a href="https://raw.githubusercontent.com/lukehutch/fast-classpath-scanner/master/src/test/java/com/xyz/classgraph-fig.png">
-    <img src="https://github.com/lukehutch/fast-classpath-scanner/blob/master/src/test/java/com/xyz/classgraph-fig.png" alt="Class graph visualization"/>
-  </a>
-</p>
+FastClasspathScanner can scan both the traditional classpath and the visible Java modules (Project Jigsaw / JDK 9+), but is also backwards and forwards compatible with JDK 7 and JDK 8. FastClasspathScanner has been [carefully optimized](https://github.com/lukehutch/fast-classpath-scanner/wiki#how-fast-is-fastclasspathscanner).
 
 ## Status
+
+*Update:* Version 4 has been released, with a completely revamped API. See the [release notes](https://github.com/lukehutch/fast-classpath-scanner/releases/tag/fast-classpath-scanner-4.0.0) for information on porting from the older API. 
 
 FastClasspathScanner is stable, feature complete, and optimized. Every effort is made to fix bugs quickly when they are reported.
 
@@ -39,49 +16,44 @@ FastClasspathScanner is stable, feature complete, and optimized. Every effort is
 
 ## Documentation
 
-### Wiki
+* [See the wiki for documentation and usage information.](https://github.com/lukehutch/fast-classpath-scanner/wiki)
+* [See the JavaDoc for full API documentation.](https://javadoc.io/doc/io.github.lukehutch/fast-classpath-scanner/)
 
-[See the wiki for full documentation.](https://github.com/lukehutch/fast-classpath-scanner/wiki)
+## Classpath / module path specification mechanisms handled by FastClasspathScanner
 
-### JavaDoc
+FastClasspathScanner 
 
-JavaDoc for the core classes:
-
-* API entry point:
-  * [FastClasspathScanner](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/FastClasspathScanner.html)
-* MatchProcessors:
-  * Classes:
-    * [ClassMatchProcessor](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/matchprocessor/ClassMatchProcessor.html)
-    * [SubclassMatchProcessor](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/matchprocessor/SubclassMatchProcessor.html)
-  * Annotations:
-    * [ClassAnnotationMatchProcessor](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/matchprocessor/ClassAnnotationMatchProcessor.html)
-    * [FieldAnnotationMatchProcessor](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/matchprocessor/FieldAnnotationMatchProcessor.html)
-    * [MethodAnnotationMatchProcessor](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/matchprocessor/MethodAnnotationMatchProcessor.html)
-  * Interfaces:
-    * [SubinterfaceMatchProcessor](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/matchprocessor/SubinterfaceMatchProcessor.html)
-    * [ImplementingClassMatchProcessor](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/matchprocessor/ImplementingClassMatchProcessor.html)
-  * Fields:
-    * [StaticFinalFieldMatchProcessor](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/matchprocessor/StaticFinalFieldMatchProcessor.html)
-  * Files:
-    * [FilenameMatchProcessor](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/matchprocessor/FilenameMatchProcessor.html)
-    * [FileMatchProcessor](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/matchprocessor/FileMatchProcessor.html)
-    * [FileMatchContentsProcessor](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/matchprocessor/FileMatchContentsProcessor.html)
-    * [FileMatchProcessorWithContext](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/matchprocessor/FileMatchProcessorWithContext.html)
-    * [FileMatchContentsProcessorWithContext](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/matchprocessor/FileMatchContentsProcessorWithContext.html)
-* Scan results:
-  * [ScanResult](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/scanner/ScanResult.html)
-  * [ClassInfo](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/scanner/ClassInfo.html)
-  * [MethodInfo](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/scanner/MethodInfo.html)
-  * [FieldInfo](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/scanner/FieldInfo.html)
-* Exceptions:
-  * [MatchProcessorException](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/MatchProcessorException.html)
-  * [ScanInterruptedException](http://javadoc.io/page/io.github.lukehutch/fast-classpath-scanner/latest/io/github/lukehutch/fastclasspathscanner/ScanInterruptedException.html)
-
-## Mailing List
-
-Feel free to subscribe to the [FastClasspathScanner-Users](https://groups.google.com/d/forum/fastclasspathscanner-users) email list for updates, or to ask questions.
-
-There is also a [Gitter room](https://gitter.im/fast-classpath-scanner/Lobby) for discussion of FCS.
+* The **JDK 9+ module path (Project Jigsaw)**. FastClasspathScanner uses [this mechanism](https://stackoverflow.com/questions/41932635/scanning-classpath-modulepath-in-runtime-in-java-9/45612376#45612376) to scan all visible modules, however it is entirely implemented with reflection, so that FastClasspathScanner can be compiled with JDK 7 for backwards compatibility.
+* The **standard (now legacy) Java `URLClassLoader`** and subclasses.
+* The **`java.class.path`** system property, supporting specification of the classpath using the `-cp` JRE commandline switch.
+* Classes added to **`lib/`** or **`ext/`** directories in the JDK or JRE (this is a rare but valid way to add classes to the classpath), or any other extension directories found in the **`java.ext.dirs`** system property.
+  * Note however that if you use this method to add jars to the classpath, and you want FastClasspathScanner to scan your jars, you'll have to [un-blacklist the scanning of system jars, or specifically whitelist the jars you added to these directories](https://github.com/lukehutch/fast-classpath-scanner/wiki/2.-Constructor#un-blacklisting-system-jars).
+* OS-specific site-wide `lib/` or `ext/` directories (i.e. directories where jarfiles may be installed such that they are accessible to all installed JREs and JDKs):
+  * `/usr/java/packages` on Linux
+  * `%SystemRoot%\Sun\Java` or `%SystemRoot%\Oracle\Java` on Windows
+  * `/System/Library/Java` on Mac OS X
+  * `/usr/jdk/packages` on Solaris
+* **Jarfiles specified using `http://` or `https://` URLs**. (Some ClassLoaders allow this: if present, these remote jars are downloaded to local temporary files. Note that if your classpath contains remote jars, they will be downloaded every time the classpath is scanned. Also note that both FastClasspathScanner and the ClassLoader will separately download the same jarfiles.)
+* **ZipSFX (self-extracting) jarfiles**, i.e. zipfiles with a Bash script or `.exe` section prepended before the `PK` zipfile marker. (These can be created by Spring-Boot.)
+* **Wildcarded classpath entries**, e.g. `lib/*` (which includes all jars and directories in `lib/` as separate classpath entries), which is allowed as of JDK 6. (Only whole-directory globs are currently supported, so `lib/proj*` doesn't work, but this should match the JRE's behavior.)
+* **[Class-Path references](https://docs.oracle.com/javase/tutorial/deployment/jar/downman.html) in a jarfile's `META-INF/MANIFEST.MF`**, whereby jarfiles may add other external jarfiles to their own classpaths. FastClasspathScanner is able to determine the transitive closure of these references, breaking cycles if necessary.
+* **Jarfiles within jarfiles** (to unlimited nesting depth), e.g.  
+    `project.jar!/BOOT-INF/lib/dependency.jar` , and classpath roots within jarfiles, e.g.  
+    `project.jar!/BOOT-INF/classes` , as required by The Spring, JBoss, and Felix classloaders, and probably others.
+* The **Spring** and **Spring-Boot** classloaders, including properly handling nested classpaths (jars within jars) in an optimal way.
+  * Also handles a special case, where you want to scan a Spring-Boot jar (or WAR), but the scanner is [not itself running within that jar](https://github.com/lukehutch/fast-classpath-scanner/issues/209). In this case, there is no classloader accessible to the scanner that knows how to load classes from the jar, since Spring-Boot has its own classloader contained in the jar. The package root is at `BOOT-INF/classes` or `WEB-INF/classes`, not at the root of the jarfile, meaning that `URLClassLoader` cannot load classes from that jar (`URLClassLoader` requires the package root to be the root directory of the jar). If you try loading classes through FastClasspathScanner, the package root of the jar (e.g. `BOOT-INF/classes`) is extracted to a temporary directory by FastClasspathScanner, and a custom `URLClassLoader` is automatically created to handle loading classes from the package root.
+* **lib jars within jars**, at the jar paths `lib`, `BOOT-INF/lib`, `WEB-INF/lib`, or `WEB-INF/lib-provided`. FastClasspathScanner can locate lib jars to scan within these common paths, even when these jars are not explicitly listed on the classpath in the form `file:/path/to/my-spring-project.jar!/BOOT-INF/lib/libjar.jar`. This is needed if you are trying to scan a Spring-Boot jar (or WAR), but the scanner is not running within that jar, and you need to scan the lib dependencies within the jar, or load classes from a package root (`BOOT-INF/classes`) that depend upon classes in a lib directory (`BOOT-INF/lib`). These lib dependencies are implicitly added by the Spring-Boot classloader, so if you're not running within that classloader, FastClasspathScanner will automatically construct a classloader for you that simulates the Spring-Boot classloader, but can run outside the Spring-Boot jar.
+* **Bridging classloading across multiple different classloaders**: If you try to load a class from a jar that is handled by one classloader, and it depends upon a class that is defined in a jar handled by a different classloader, you will get a `ClassNotFoundException`, `UnsatisfiedLinkError`, `NoClassDefFoundError` etc. FastClasspathScanner can handle this case if you call `FastClasspathScanner#createClassLoaderForMatchingClasses()` before `#scan()`. It will create a new "bridging" `URLClassLoader` that is able to load all whitelisted classes discovered during the scan. This is helpful in cases where you have multiple classpath entries containing jars-within-jars (`BOOT-INF/lib/*.lib`) or jars with non-root package roots (`BOOT-INF/classes`), where these jars have interdependencies that span different classloaders.
+* The **JBoss WildFly** classloader, including JARs and WARs nested inside EARs.
+* The **WebLogic** classloader.
+* The **OSGi Eclipse** DefaultClassLoader.
+* The **OSGi Equinox** classloader (e.g. for Eclipse PDE).
+* The **Apache Felix** (OSGi reimplementation) classloader.
+* The **[traditional Websphere](http://www-01.ibm.com/support/docview.wss?uid=swg27023549&aid=1)** classloader.
+* The **Websphere Liberty** classloader.
+* The **Ant** classloader.
+* Any unknown classloader with a predictable method such as `getClasspath()`, `getClassPath()`, `getURLs()` etc. (a number of method and field names are tried).
+* FastClasspathScanner handles both **`PARENT_FIRST` and `PARENT_LAST` classloader delegation modes** (primarily used by Websphere), in order to resolve classpath elements in the correct order. (Standard Java classloaders use `PARENT_FIRST` delegation.)
 
 ## Downloading
 
@@ -115,6 +87,42 @@ mvn -Dmaven.test.skip=true package
 To use FastClasspathScanner as a Java module, add the jar dependency to your project using one of the above methods, then add the following to your `module-info.java`: 
 
 ```    requires io.github.lukehutch.fastclasspathscanner;```
+
+### Alternatives
+
+Some other classpath scanning mechanisms include:
+
+* [Reflections](https://github.com/ronmamo/reflections)
+* [Corn Classpath Scanner](https://sites.google.com/site/javacornproject/corn-cps)
+* [annotation-detector](https://github.com/rmuller/infomas-asl/tree/master/annotation-detector)
+* [Scannotation](http://scannotation.sourceforge.net/)
+* [Sclasner](https://github.com/xitrum-framework/sclasner)
+* [Annovention](https://github.com/ngocdaothanh/annovention)
+* [ClassIndex](https://github.com/atteo/classindex) (compiletime annotation scanner/processor)
+* [Jandex](https://github.com/wildfly/Jandex) (Java annotation indexer, part of Wildfly)
+* [Spring](http://spring.io/) has built-in classpath scanning
+* [Hibernate](http://hibernate.org/) has the class [`org.hibernate.ejb.packaging.Scanner`](https://www.programcreek.com/java-api-examples/index.php?api=org.hibernate.ejb.packaging.Scanner).
+* [extcos -- the Extended Component Scanner](https://sourceforge.net/projects/extcos/)
+* [Javassist](http://jboss-javassist.github.io/javassist/)
+* [ObjectWeb ASM](http://asm.ow2.org/)
+* [bndtools](https://github.com/bndtools/bnd), which is able to ["crawl"/parse the bytecode of class files](https://github.com/bndtools/bnd/blob/master/biz.aQute.bndlib/src/aQute/bnd/osgi/Clazz.java) to find all imports/dependencies, among other things. 
+
+## Mailing List
+
+Feel free to subscribe to the [FastClasspathScanner-Users](https://groups.google.com/d/forum/fastclasspathscanner-users) email list for updates, or to ask questions.
+
+There is also a [Gitter room](https://gitter.im/fast-classpath-scanner/Lobby) for discussion of FCS.
+
+## Author
+
+FastClasspathScanner was written by Luke Hutchison:
+
+* https://github.com/lukehutch
+* [@LH](http://twitter.com/LH) on Twitter
+
+Please donate if this library makes your life easier:
+
+[![](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=luke.hutch@gmail.com&lc=US&item_name=Luke%20Hutchison&item_number=FastClasspathScanner&no_note=0&currency_code=USD&bn=PP-DonationsBF:btn_donateCC_LG.gif:NonHostedGuest)
 
 ## License
 
