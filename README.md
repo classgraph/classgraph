@@ -1,16 +1,18 @@
 # FastClasspathScanner
 
-FastClasspathScanner is an uber-fast, ultra-lightweight classpath scanner, module scanner, and annotation processor for Java, Scala, Kotlin and other JVM languages. FastClasspathScanner can scan the classpath and module path either at build-time (e.g. to implement annotation processing for Android), or dynamically at runtime. FastClasspathScanner handles a [huge number](#classpath--module-path-specification-mechanisms-handled-by-fastclasspathscanner) of classpath specification mechanisms found in the wild.
+FastClasspathScanner is an uber-fast, ultra-lightweight classpath scanner, module scanner, and annotation processor for Java, Scala, Kotlin and other JVM languages. Classpath and module path scanning offers the inverse of the Java class API and/or reflection: for example, the Java class API can tell you the superclass of a given class, or give you the list of annotations on a class; classpath scanning can find all subclasses of a given class, or find all classes that are annotated with a given annotation.
+
+FastClasspathScanner handles a [huge number](#classpath-specification-mechanisms-handled-by-fastclasspathscanner) of classpath specification mechanisms found in the wild. FastClasspathScanner can scan the classpath and module path either at build-time (e.g. to implement annotation processing for Android), or dynamically at runtime.
 
 FastClasspathScanner reads the classfile bytecode format directly for speed, to avoid the overhead of loading classes, and to avoid the overhead and side effects of initializing classes (causing static initializer blocks to be run). After scanning, you get a collection of wrapper objects representing each class, method, field, and annotation found during the scan. These can be queried in a range of ways to find classes matching given criteria, without ever loading the classes. You can even generate a [GraphViz visualization of the class graph](https://raw.githubusercontent.com/lukehutch/fast-classpath-scanner/master/src/test/java/com/xyz/classgraph-fig.png).
 
 FastClasspathScanner can scan both the traditional classpath and the visible Java modules (Project Jigsaw / JDK 9+), but is also backwards and forwards compatible with JDK 7 and JDK 8. FastClasspathScanner has been [carefully optimized](https://github.com/lukehutch/fast-classpath-scanner/wiki#how-fast-is-fastclasspathscanner).
 
+FastClasspathScanner is stable, feature complete, and optimized. Every effort is made to fix bugs quickly when they are reported.
+
 ## Status
 
-*Update:* Version 4 has been released, with a completely revamped API. See the [release notes](https://github.com/lukehutch/fast-classpath-scanner/releases/tag/fast-classpath-scanner-4.0.0) for information on porting from the older API. 
-
-FastClasspathScanner is stable, feature complete, and optimized. Every effort is made to fix bugs quickly when they are reported.
+**Version 4 has been released**, with a completely revamped API. See the [release notes](https://github.com/lukehutch/fast-classpath-scanner/releases/tag/fast-classpath-scanner-4.0.0) for information on porting from the older API. 
 
 [![Build Status](https://travis-ci.org/lukehutch/fast-classpath-scanner.png?branch=master)](https://travis-ci.org/lukehutch/fast-classpath-scanner)
 
@@ -19,9 +21,9 @@ FastClasspathScanner is stable, feature complete, and optimized. Every effort is
 * [See the wiki for documentation and usage information.](https://github.com/lukehutch/fast-classpath-scanner/wiki)
 * [See the JavaDoc for full API documentation.](https://javadoc.io/doc/io.github.lukehutch/fast-classpath-scanner/)
 
-## Classpath / module path specification mechanisms handled by FastClasspathScanner
+## Classpath specification mechanisms handled by FastClasspathScanner
 
-FastClasspathScanner 
+FastClasspathScanner handles the following classpath and module path specification mechanisms:
 
 * The **JDK 9+ module path (Project Jigsaw)**. FastClasspathScanner uses [this mechanism](https://stackoverflow.com/questions/41932635/scanning-classpath-modulepath-in-runtime-in-java-9/45612376#45612376) to scan all visible modules, however it is entirely implemented with reflection, so that FastClasspathScanner can be compiled with JDK 7 for backwards compatibility.
 * The **standard (now legacy) Java `URLClassLoader`** and subclasses.
@@ -86,7 +88,9 @@ mvn -Dmaven.test.skip=true package
 
 To use FastClasspathScanner as a Java module, add the jar dependency to your project using one of the above methods, then add the following to your `module-info.java`: 
 
-```    requires io.github.lukehutch.fastclasspathscanner;```
+```
+    requires io.github.lukehutch.fastclasspathscanner;
+```
 
 ### Alternatives
 
@@ -109,9 +113,8 @@ Some other classpath scanning mechanisms include:
 
 ## Mailing List
 
-Feel free to subscribe to the [FastClasspathScanner-Users](https://groups.google.com/d/forum/fastclasspathscanner-users) email list for updates, or to ask questions.
-
-There is also a [Gitter room](https://gitter.im/fast-classpath-scanner/Lobby) for discussion of FCS.
+* Feel free to subscribe to the [FastClasspathScanner-Users](https://groups.google.com/d/forum/fastclasspathscanner-users) email list for updates, or to ask questions.
+* There is also a [Gitter room](https://gitter.im/fast-classpath-scanner/Lobby) for discussion of FCS.
 
 ## Author
 
@@ -126,9 +129,9 @@ Please donate if this library makes your life easier:
 
 ## License
 
-The MIT License (MIT)
+**The MIT License (MIT)**
 
-Copyright (c) 2016 Luke Hutchison
+**Copyright (c) 2018 Luke Hutchison**
  
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
  
