@@ -29,7 +29,7 @@ FastClasspathScanner handles the following classpath and module path specificati
 * The **standard (now legacy) Java `URLClassLoader`** and subclasses.
 * The **`java.class.path`** system property, supporting specification of the classpath using the `-cp` JRE commandline switch.
 * Classes added to **`lib/`** or **`ext/`** directories in the JDK or JRE (this is a rare but valid way to add classes to the classpath), or any other extension directories found in the **`java.ext.dirs`** system property.
-  * Note however that if you use this method to add jars to the classpath, and you want FastClasspathScanner to scan your jars, you'll have to [un-blacklist the scanning of system jars, or specifically whitelist the jars you added to these directories](https://github.com/lukehutch/fast-classpath-scanner/wiki/2.-Constructor#un-blacklisting-system-jars).
+  * Note however that if you use this method to add jars to the classpath, and you want FastClasspathScanner to scan your jars, you'll have to un-blacklist the scanning of system jars, or specifically whitelist the lib/ext jars you want to scan (see the documentation for info).
 * OS-specific site-wide `lib/` or `ext/` directories (i.e. directories where jarfiles may be installed such that they are accessible to all installed JREs and JDKs):
   * `/usr/java/packages` on Linux
   * `%SystemRoot%\Sun\Java` or `%SystemRoot%\Oracle\Java` on Windows
@@ -56,6 +56,18 @@ FastClasspathScanner handles the following classpath and module path specificati
 * The **Ant** classloader.
 * Any unknown classloader with a predictable method such as `getClasspath()`, `getClassPath()`, `getURLs()` etc. (a number of method and field names are tried).
 * FastClasspathScanner handles both **`PARENT_FIRST` and `PARENT_LAST` classloader delegation modes** (primarily used by Websphere), in order to resolve classpath elements in the correct order. (Standard Java classloaders use `PARENT_FIRST` delegation.)
+
+## How fast is FastClasspathScanner?
+
+FastClasspathScanner is the fastest classpath scanning mechanism:
+
+* FastClasspathScanner parses the classfile binary format directly to determine the class graph. This is significantly faster than reflection-based methods, because no classloading needs to be performed to determine how classes are related, and additionally, class static initializer blocks don't need to be called (which can be time consuming, and can cause side effects).
+* FastClasspathScanner has been carefully profiled, tuned and parallelized so that multiple threads are concurrently engaged in reading from disk/SSD, decompressing jarfiles, and parsing classfiles. Consequently, FastClasspathScanner runs at close to the theoretical maximum possible speed for a classpath scanner, and scanning speed is primarily limited by raw filesystem bandwidth.
+* Wherever possible, lock-free datastructures are used to eliminate thread contention, and shared caches are used to avoid duplicating work. Additionally, FastClasspathScanner opens multiple `java.lang.ZipFile` instances for a given jarfile, up to one per thread, in order to circumvent a per-instance thread lock in the JRE `ZipFile` implementation.
+* FastClasspathScanner includes comprehensive mechanisms for whitelisting and blacklisting, so that only the necessary resources are scanned.
+* FastClasspathScanner uses memory-mapped files wherever possible (when scanning directories and modules) for extra speed.  
+
+In particular, FastClasspathScanner is typically several times faster at scanning large classpaths consisting of many directories or jarfiles than the widely-used library [Reflections](https://github.com/ronmamo/reflections). If FastClasspathScanner is slower than Reflections for your usecase, that is because it has discovered a [much larger set of classpath elements to scan]((#classpath-specification-mechanisms-handled-by-fastclasspathscanner)) than Reflections. You can limit what is scanned using whitelist / blacklist criteria (see the documentation).
 
 ## Downloading
 
