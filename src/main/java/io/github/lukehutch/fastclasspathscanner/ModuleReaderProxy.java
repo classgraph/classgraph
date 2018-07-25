@@ -53,8 +53,12 @@ public class ModuleReaderProxy implements AutoCloseable {
 
     /** Calls ModuleReader#close(). */
     @Override
-    public void close() throws Exception {
-        moduleReader.close();
+    public void close() {
+        try {
+            moduleReader.close();
+        } catch (Exception e) {
+            // Ignore
+        }
     }
 
     /** Class<Collector> collectorClass = Class.forName("java.util.stream.Collector"); */
