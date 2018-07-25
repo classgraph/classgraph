@@ -178,7 +178,7 @@ public class ScanResult {
             if (modRef != null) {
                 if (!modRef.isSystemModule()) {
                     // Add module files when they don't have a "jrt:/" scheme
-                    File moduleLocationFile = modRef.getModuleLocationFile();
+                    final File moduleLocationFile = modRef.getModuleLocationFile();
                     if (moduleLocationFile != null) {
                         classpathElementOrderFiles.add(moduleLocationFile);
                     }

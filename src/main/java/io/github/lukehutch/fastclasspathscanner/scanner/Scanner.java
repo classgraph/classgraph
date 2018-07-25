@@ -569,7 +569,7 @@ public class Scanner implements Callable<ScanResult> {
                             try {
                                 // Don't try to get classpath URL for modules (classloading from modules
                                 // will be handled by parent classloader)
-                                ModuleRef modRef = classpathElement.getClasspathElementModuleRef();
+                                final ModuleRef modRef = classpathElement.getClasspathElementModuleRef();
                                 if (modRef == null) {
                                     final File classpathEltFile = classpathElement.classpathEltPath
                                             .getFile(classLoaderLog);
