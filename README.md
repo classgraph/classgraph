@@ -10,7 +10,7 @@ FastClasspathScanner can scan both the traditional classpath and the visible Jav
 
 ## Status
 
-**Version 4 has been released**, with a completely revamped API. See the [release notes](https://github.com/lukehutch/fast-classpath-scanner/releases/tag/fast-classpath-scanner-4.0.0) for information on porting from the older API. 
+**Version 4.0.0-beta-1 has been released**, with a completely revamped API. See the [release notes](https://github.com/lukehutch/fast-classpath-scanner/releases/tag/fast-classpath-scanner-4.0.0-beta-1) for information on porting from the older API.
 
 [![Build Status](https://travis-ci.org/lukehutch/fast-classpath-scanner.png?branch=master)](https://travis-ci.org/lukehutch/fast-classpath-scanner)
 
