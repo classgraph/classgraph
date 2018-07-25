@@ -117,6 +117,10 @@ If when trying to run your code, you get the following exception, the problem is
 java.lang.NoClassDefFoundError: io/github/lukehutch/fastclasspathscanner/FastClasspathScanner
 ```  
 
+In this case, if you manually added the FastClasspathScanner jar to an Eclipse project, go to *Project Properties > Java Build Path > Libraries > Classpath > fast-classpath-scanner-X.Y.Z.jar*, open the dropdown, double click on *Is not modular*, and check the box at the top, *Defines one or more modules*, then *OK*, then *Apply and Save*.
+
+If you are launching from the commandline, make sure both your project and FastClasspathScanner are on the module path, not the classpath.  
+
 ### Building from source
 
 The following commands will build the most recent version of FastClasspathScanner from git master. The compiled package will then be in the "fast-classpath-scanner/target" directory.
