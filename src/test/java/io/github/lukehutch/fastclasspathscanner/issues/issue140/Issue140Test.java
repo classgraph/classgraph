@@ -56,14 +56,14 @@ public class Issue140Test {
         assertThat(allFieldInfo.size()).isEqualTo(2);
         final TypeSignature type0 = allFieldInfo.get(0).getTypeSignatureOrTypeDescriptor();
         assertThat(type0).isInstanceOf(BaseTypeSignature.class);
-        assertThat(((BaseTypeSignature) type0).getBaseType()).isEqualTo(int.class);
+        assertThat(((BaseTypeSignature) type0).getType()).isEqualTo(int.class);
         final TypeSignature type1 = allFieldInfo.get(1).getTypeSignatureOrTypeDescriptor();
         assertThat(type1).isInstanceOf(ArrayTypeSignature.class);
-        assertThat(((ArrayTypeSignature) type1).getNumArrayDims()).isEqualTo(1);
+        assertThat(((ArrayTypeSignature) type1).getNumDimensions()).isEqualTo(1);
         final TypeSignature elementTypeSignature = ((ArrayTypeSignature) type1).getElementTypeSignature();
         assertThat(elementTypeSignature).isInstanceOf(ClassRefTypeSignature.class);
         final ClassRefTypeSignature classRefTypeSignature = (ClassRefTypeSignature) elementTypeSignature;
-        assertThat(classRefTypeSignature.getClassName()).isEqualTo(String.class.getName());
+        assertThat(classRefTypeSignature.getBaseClassName()).isEqualTo(String.class.getName());
         assertThat(classRefTypeSignature.loadClass()).isEqualTo(String.class);
     }
 }
