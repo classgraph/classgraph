@@ -206,9 +206,9 @@ public class ClassInfoList implements List<ClassInfo> {
      * each {@link ClassInfo} object, if it is not already loaded.
      * 
      * <p>
-     * Important note: since {@code superclassOrInterfaceType} is a class reference for an already-loaded class, it
-     * is critical that {@code superclassOrInterfaceType} is loaded by the same classloader as the class referred to
-     * by each {@code ClassInfo} object, otherwise the class cast will fail.
+     * <b>Important note:</b> since {@code superclassOrInterfaceType} is a class reference for an already-loaded
+     * class, it is critical that {@code superclassOrInterfaceType} is loaded by the same classloader as the class
+     * referred to by this {@code ClassInfo} object, otherwise the class cast will fail.
      * 
      * @param superclassOrInterfaceType
      *            The type to cast each loaded class to.
@@ -246,9 +246,9 @@ public class ClassInfoList implements List<ClassInfo> {
      * each {@link ClassInfo} object, if it is not already loaded.
      * 
      * <p>
-     * Important note: since {@code superclassOrInterfaceType} is a class reference for an already-loaded class, it
-     * is critical that {@code superclassOrInterfaceType} is loaded by the same classloader as the class referred to
-     * by each {@code ClassInfo} object, otherwise the class cast will fail.
+     * <b>Important note:</b> since {@code superclassOrInterfaceType} is a class reference for an already-loaded
+     * class, it is critical that {@code superclassOrInterfaceType} is loaded by the same classloader as the class
+     * referred to by this {@code ClassInfo} object, otherwise the class cast will fail.
      * 
      * @param superclassOrInterfaceType
      *            The type to cast each loaded class to.
