@@ -38,19 +38,42 @@ abstract class ScanResultObject {
     protected abstract String getClassName();
 
     /** Return the {@link ClassInfo} object associated with this {@link ScanResultObject}. */
-    protected ClassInfo getClassInfo() {
+    ClassInfo getClassInfo() {
         final String className = getClassName();
         if (className == null) {
-            throw new IllegalArgumentException("Class name was not set");
+            throw new IllegalArgumentException("Class name is not set");
         }
         if (classInfo == null) {
             classInfo = scanResult.getClassInfo(className);
             if (classInfo == null) {
                 return null;
-                // TODO                throw new IllegalArgumentException("Could not find ClassInfo object for " + className);
             }
         }
         return classInfo;
+    }
+
+    /**
+     * Load the referenced class, if not already loaded, returning a {@code Class<?>} reference for the referenced
+     * class. First tries calling {@link #getClassInfo()} to get a {@link ClassInfo} object, then calls
+     * {@link ClassInfo#loadClass()}, so that the right {@link ClassLoader} is called. If {@link #getClassInfo()}
+     * returns null (meaning that the class is an "external class" that was not encountered during the scan), then
+     * instead calls {@link ScanResult#loadClass(String, boolean)}.
+     * 
+     * @return The {@code Class<?>} reference for the referenced class.
+     * @throws IllegalArgumentException
+     *             if the class could not be loaded.
+     */
+    Class<?> loadClass() {
+        final String className = getClassName();
+        if (className == null) {
+            throw new IllegalArgumentException("Class name is not set");
+        }
+        final ClassInfo classInfo = getClassInfo();
+        if (classInfo != null) {
+            return classInfo.loadClass();
+        } else {
+            return scanResult.loadClass(className, /* ignoreExceptions = */ false);
+        }
     }
 
     /** Get any class names referenced in type descriptors of this object. */

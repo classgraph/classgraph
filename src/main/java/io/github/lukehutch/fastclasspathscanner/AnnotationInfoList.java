@@ -133,7 +133,7 @@ public class AnnotationInfoList extends ArrayList<AnnotationInfo> {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Return true if this list contains a annotation with the given name. */
+    /** Return true if this list contains the annotation with the given name. */
     public boolean containsName(final String annotationName) {
         for (final AnnotationInfo ai : this) {
             if (ai.getName().equals(annotationName)) {

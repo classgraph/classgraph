@@ -290,7 +290,7 @@ public class FastClasspathScannerTest {
         for (final FieldInfo fieldInfo : new FastClasspathScanner().whitelistPackages(WHITELIST_PACKAGE)
                 .enableStaticFinalFieldConstantInitializerValues().scan().getClassInfo(StaticField.class.getName())
                 .getFieldInfo()) {
-            if (fieldInfo.getConstInitializerValue() != null) {
+            if (fieldInfo.getConstantInitializerValue() != null) {
                 numInitializers++;
             }
         }
@@ -308,7 +308,7 @@ public class FastClasspathScannerTest {
         for (final FieldInfo fieldInfo : new FastClasspathScanner().whitelistPackages(WHITELIST_PACKAGE)
                 .enableStaticFinalFieldConstantInitializerValues().ignoreFieldVisibility().scan()
                 .getClassInfo(StaticField.class.getName()).getFieldInfo()) {
-            final Object constInitializerValue = fieldInfo.getConstInitializerValue();
+            final Object constInitializerValue = fieldInfo.getConstantInitializerValue();
             if (constInitializerValue != null) {
                 switch (fieldInfo.getName()) {
                 case "stringField":

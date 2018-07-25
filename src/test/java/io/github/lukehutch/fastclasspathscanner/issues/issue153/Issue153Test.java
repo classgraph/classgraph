@@ -152,7 +152,7 @@ public class Issue153Test {
         // Make sure enum constants can be instantiated
         final AnnotationInfo annotation2 = classInfo.getAnnotationInfo().get(2);
         final AnnotationParameterValue annotationParam0 = annotation2.getParameterValues().get(0);
-        final Object bananaRef = ((AnnotationEnumValue) annotationParam0.getValue()).getEnumValue();
+        final Object bananaRef = ((AnnotationEnumValue) annotationParam0.getValue()).loadClassAndReturnEnumValue();
         assertThat(bananaRef.getClass()).isEqualTo(FruitEnum.class);
         assertThat(bananaRef.toString()).isEqualTo(FruitEnum.BANANA.toString());
     }

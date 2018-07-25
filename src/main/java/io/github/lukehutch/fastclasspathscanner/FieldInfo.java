@@ -277,7 +277,7 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
      * 
      * @return The constant final initializer value of the field, or null if none.
      */
-    public Object getConstInitializerValue() {
+    public Object getConstantInitializerValue() {
         if (!scanSpec.enableStaticFinalFieldConstantInitializerValues) {
             throw new IllegalArgumentException(
                     "Please call FastClasspathScanner#enableStaticFinalFieldConstantInitializerValues() "

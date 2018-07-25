@@ -114,6 +114,7 @@ public class AnnotationClassRef extends ScanResultObject {
      * @throws IllegalArgumentException
      *             if the class could not be loaded.
      */
+    @Override
     public Class<?> loadClass() {
         getTypeSignature();
         if (typeSignature instanceof BaseTypeSignature) {

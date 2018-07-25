@@ -231,8 +231,7 @@ public class ClassInfoList implements List<ClassInfo> {
         } else {
             final List<Class<T>> classRefs = new ArrayList<>();
             for (final ClassInfo classInfo : this) {
-                final Class<T> classRef = classInfo.scanResult.loadClass(classInfo.getName(),
-                        superclassOrInterfaceType, ignoreExceptions);
+                final Class<T> classRef = classInfo.loadClass(superclassOrInterfaceType, ignoreExceptions);
                 if (classRef != null) {
                     classRefs.add(classRef);
                 }
@@ -282,7 +281,7 @@ public class ClassInfoList implements List<ClassInfo> {
             final List<Class<?>> classRefs = new ArrayList<>();
             // Try loading each class
             for (final ClassInfo classInfo : this) {
-                final Class<?> classRef = classInfo.scanResult.loadClass(classInfo.getName(), ignoreExceptions);
+                final Class<?> classRef = classInfo.loadClass(ignoreExceptions);
                 if (classRef != null) {
                     classRefs.add(classRef);
                 }

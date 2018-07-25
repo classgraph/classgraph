@@ -122,13 +122,9 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
      * @throws IllegalArgumentException
      *             if the class could not be loaded.
      */
+    @Override
     public Class<?> loadClass() {
-        final ClassInfo classInfo = super.getClassInfo();
-        if (classInfo != null) {
-            return classInfo.loadClass();
-        } else {
-            return scanResult.loadClass(className, /* ignoreExceptions = */ false);
-        }
+        return super.loadClass();
     }
 
     /**

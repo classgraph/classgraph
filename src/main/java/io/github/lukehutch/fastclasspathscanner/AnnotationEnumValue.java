@@ -37,7 +37,7 @@ import java.util.Set;
  */
 public class AnnotationEnumValue extends ScanResultObject implements Comparable<AnnotationEnumValue> {
     String className;
-    String constName;
+    String valueName;
 
     /** Default constructor for deserialization. */
     AnnotationEnumValue() {
@@ -46,43 +46,50 @@ public class AnnotationEnumValue extends ScanResultObject implements Comparable<
     /**
      * @param className
      *            The enum class name.
-     * @param constName
-     *            The enum const name.
+     * @param constValueName
+     *            The enum const value name.
      */
-    public AnnotationEnumValue(final String className, final String constName) {
+    public AnnotationEnumValue(final String className, final String constValueName) {
         this.className = className;
-        this.constName = constName;
+        this.valueName = constValueName;
     }
 
-    /**
-     * Get the fully-qualified name of the enum value.
-     * 
-     * @return The name of the enum class.
-     */
-    public String getName() {
-        return className + "." + constName;
-    }
-
+    /** Return the name of the enum class. */
     @Override
-    protected String getClassName() {
+    public String getClassName() {
         return className;
     }
 
+    /** Return the name of the enum const value. */
+    public String getValueName() {
+        return valueName;
+    }
+
     /**
-     * Get the enum constant. Causes the ClassLoader to load the enum class.
+     * Get the fully-qualified name of the enum const value, i.e. (getClassName() + getConstValueName()).
+     * 
+     * @return The fully-qualified name of the enum const value, i.e. (getClassName() + getConstValueName()).
+     */
+    public String getName() {
+        return className + "." + valueName;
+    }
+
+    /**
+     * Loads the enum class, if it has not yet been loaded, instantiates the enum constants, and returns the enum
+     * constant value represented by this {@link AnnotationEnumValue}.
      * 
      * @return The enum constant value.
      * @throws IllegalArgumentException
      *             if the class could not be loaded, or the enum constant is invalid.
      */
-    public Object getEnumValue() throws IllegalArgumentException {
-        final Class<?> classRef = scanResult.loadClass(className, /* ignoreExceptions = */ false);
+    public Object loadClassAndReturnEnumValue() throws IllegalArgumentException {
+        final Class<?> classRef = super.loadClass();
         if (!classRef.isEnum()) {
             throw new IllegalArgumentException("Class " + className + " is not an enum");
         }
         Field field;
         try {
-            field = classRef.getDeclaredField(constName);
+            field = classRef.getDeclaredField(valueName);
         } catch (NoSuchFieldException | SecurityException e) {
             throw new IllegalArgumentException("Could not find enum constant " + toString(), e);
         }
@@ -105,7 +112,7 @@ public class AnnotationEnumValue extends ScanResultObject implements Comparable<
     @Override
     public int compareTo(final AnnotationEnumValue o) {
         final int diff = className.compareTo(o.className);
-        return diff == 0 ? constName.compareTo(o.constName) : diff;
+        return diff == 0 ? valueName.compareTo(o.valueName) : diff;
     }
 
     @Override
@@ -118,11 +125,11 @@ public class AnnotationEnumValue extends ScanResultObject implements Comparable<
 
     @Override
     public int hashCode() {
-        return className.hashCode() * 11 + constName.hashCode();
+        return className.hashCode() * 11 + valueName.hashCode();
     }
 
     @Override
     public String toString() {
-        return className + "." + constName;
+        return className + "." + valueName;
     }
 }

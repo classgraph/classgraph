@@ -252,6 +252,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @throws IllegalArgumentException
      *             if there were problems loading the class.
      */
+    @Override
     public Class<?> loadClass() {
         return loadClass(/* ignoreExceptions = */ false);
     }
@@ -1099,6 +1100,13 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
+     * Returns true if this class implements the named interface.
+     */
+    public boolean extendsSuperclass(final String superclassName) {
+        return getSuperclasses().containsName(superclassName);
+    }
+
+    /**
      * Returns true if this is an inner class (call isAnonymousInnerClass() to test if this is an anonymous inner
      * class). If true, the containing class can be determined by calling getOuterClasses() or getOuterClassNames().
      * 
@@ -1195,6 +1203,13 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             allInterfaces.addAll(superclassImplementedInterfaces);
         }
         return new ClassInfoList(allInterfaces, implementedInterfaces.directOnly());
+    }
+
+    /**
+     * Returns true if this class implements the named interface.
+     */
+    public boolean implementsInterface(final String interfaceName) {
+        return getInterfaces().containsName(interfaceName);
     }
 
     /**
@@ -1324,6 +1339,13 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
+     * Returns true if this class has the named annotation.
+     */
+    public boolean hasAnnotation(final String annotationName) {
+        return getAnnotations().containsName(annotationName);
+    }
+
+    /**
      * Get a list of annotations on this method, along with any annotation parameter values, as a list of
      * {@link AnnotationInfo} objects, or the empty list if none.
      * 
@@ -1339,7 +1361,6 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             throw new IllegalArgumentException(
                     "Please call FastClasspathScanner#enableAnnotationInfo() before #scan()");
         }
-
         // Check for any @Inherited annotations on superclasses
         AnnotationInfoList inheritedSuperclassAnnotations = null;
         for (final ClassInfo superclass : getSuperclasses()) {
@@ -1353,7 +1374,6 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 }
             }
         }
-
         if (inheritedSuperclassAnnotations == null) {
             // No inherited superclass annotations
             return annotationInfo;
@@ -1539,6 +1559,13 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
+     * Returns true if this class has the named method.
+     */
+    public boolean hasMethod(final String methodName) {
+        return getMethodInfo().containsName(methodName);
+    }
+
+    /**
      * Get the method annotations or meta-annotations on this class. N.B. these annotations do not contain specific
      * annotation parameters -- call {@link MethodInfo#getAnnotationInfo()} to get details on specific method
      * annotation instances.
@@ -1557,6 +1584,18 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             methodAnnotationsAndMetaAnnotations.addAll(methodAnnotation.filterClassInfo(RelType.CLASS_ANNOTATIONS));
         }
         return new ClassInfoList(methodAnnotationsAndMetaAnnotations, methodAnnotations);
+    }
+
+    /**
+     * Returns true if this class has the named method annotation.
+     */
+    public boolean hasMethodAnnotation(final String methodAnnotationName) {
+        for (final MethodInfo methodInfo : getMethodInfo()) {
+            if (methodInfo.getAnnotationInfo().containsName(methodAnnotationName)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -1653,6 +1692,13 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
+     * Returns true if this class has the named field.
+     */
+    public boolean hasField(final String fieldName) {
+        return getFieldInfo().containsName(fieldName);
+    }
+
+    /**
      * Get the field annotations on this class. N.B. these annotations do not contain specific annotation parameters
      * -- call {@link FieldInfo#getAnnotationInfo()} to get details on specific field annotation instances.
      *
@@ -1670,6 +1716,18 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             fieldAnnotationsAndMetaAnnotations.addAll(fieldAnnotation.filterClassInfo(RelType.CLASS_ANNOTATIONS));
         }
         return new ClassInfoList(fieldAnnotationsAndMetaAnnotations, fieldAnnotations);
+    }
+
+    /**
+     * Returns true if this class has the named field annotation.
+     */
+    public boolean hasFieldAnnotation(final String fieldAnnotationName) {
+        for (final FieldInfo fieldInfo : getFieldInfo()) {
+            if (fieldInfo.getAnnotationInfo().containsName(fieldAnnotationName)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
