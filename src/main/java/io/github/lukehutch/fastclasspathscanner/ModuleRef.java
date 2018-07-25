@@ -153,7 +153,7 @@ public class ModuleRef implements Comparable<ModuleRef> {
         return descriptor;
     }
 
-    /** Returns the list of packages in the module. */
+    /** Returns the list of packages in the module. (Does not include non-package directories.) */
     public List<String> getPackages() {
         return packages;
     }

@@ -50,7 +50,7 @@ public class BaseTypeSignature extends TypeSignature {
      * 
      * @return The base type.
      */
-    public String getBaseTypeStr() {
+    public String getTypeStr() {
         return baseType;
     }
 
@@ -59,7 +59,7 @@ public class BaseTypeSignature extends TypeSignature {
      * 
      * @return The base type class reference.
      */
-    public Class<?> getBaseType() {
+    public Class<?> getType() {
         switch (baseType) {
         case "byte":
             return byte.class;

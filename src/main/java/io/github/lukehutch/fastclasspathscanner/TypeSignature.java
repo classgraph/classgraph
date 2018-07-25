@@ -32,8 +32,9 @@ import io.github.lukehutch.fastclasspathscanner.utils.Parser;
 import io.github.lukehutch.fastclasspathscanner.utils.Parser.ParseException;
 
 /**
- * A type signature for a reference type or base type. Subclasses are ReferenceTypeSignature (ClassTypeSignature,
- * TypeVariableSignature, or ArrayTypeSignature) and BaseTypeSignature.
+ * A type signature for a reference type or base type. Subclasses are {@link ReferenceTypeSignature} (whose own
+ * subclasses are {@link ClassRefTypeSignature}, {@link TypeVariableSignature}, and {@link ArrayTypeSignature}), and
+ * {@link BaseTypeSignature}.
  */
 public abstract class TypeSignature extends HierarchicalTypeSignature {
     /**

@@ -636,13 +636,13 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
                             "Got non-array type for last parameter of varargs method " + name);
                 }
                 final ArrayTypeSignature arrayType = (ArrayTypeSignature) paramType;
-                if (arrayType.getNumArrayDims() == 0) {
+                if (arrayType.getNumDimensions() == 0) {
                     throw new IllegalArgumentException(
                             "Got a zero-dimension array type for last parameter of varargs method " + name);
                 }
                 // Replace last "[]" with "..."
                 buf.append(
-                        new ArrayTypeSignature(arrayType.getElementTypeSignature(), arrayType.getNumArrayDims() - 1)
+                        new ArrayTypeSignature(arrayType.getElementTypeSignature(), arrayType.getNumDimensions() - 1)
                                 .toString());
                 buf.append("...");
             } else {

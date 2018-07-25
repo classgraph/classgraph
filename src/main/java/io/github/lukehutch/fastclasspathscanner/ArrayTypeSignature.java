@@ -39,7 +39,7 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
     final TypeSignature elementTypeSignature;
 
     /** The number of array dimensions. */
-    final int numArrayDims;
+    final int numDims;
 
     @Override
     void setScanResult(final ScanResult scanResult) {
@@ -52,12 +52,12 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
     /**
      * @param elementTypeSignature
      *            The type signature of the array elements.
-     * @param numArrayDims
+     * @param numDims
      *            The number of array dimensions.
      */
-    public ArrayTypeSignature(final TypeSignature elementTypeSignature, final int numArrayDims) {
+    public ArrayTypeSignature(final TypeSignature elementTypeSignature, final int numDims) {
         this.elementTypeSignature = elementTypeSignature;
-        this.numArrayDims = numArrayDims;
+        this.numDims = numDims;
     }
 
     /**
@@ -74,8 +74,8 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
      * 
      * @return The number of dimensions of the array.
      */
-    public int getNumArrayDims() {
-        return numArrayDims;
+    public int getNumDimensions() {
+        return numDims;
     }
 
     @Override
@@ -96,7 +96,7 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
 
     @Override
     public int hashCode() {
-        return elementTypeSignature.hashCode() + numArrayDims * 15;
+        return elementTypeSignature.hashCode() + numDims * 15;
     }
 
     @Override
@@ -105,7 +105,7 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
             return false;
         }
         final ArrayTypeSignature o = (ArrayTypeSignature) obj;
-        return o.elementTypeSignature.equals(this.elementTypeSignature) && o.numArrayDims == this.numArrayDims;
+        return o.elementTypeSignature.equals(this.elementTypeSignature) && o.numDims == this.numDims;
     }
 
     @Override
@@ -115,14 +115,14 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
         }
         final ArrayTypeSignature o = (ArrayTypeSignature) other;
         return o.elementTypeSignature.equalsIgnoringTypeParams(this.elementTypeSignature)
-                && o.numArrayDims == this.numArrayDims;
+                && o.numDims == this.numDims;
     }
 
     @Override
     public String toString() {
         final StringBuilder buf = new StringBuilder();
         buf.append(elementTypeSignature.toString());
-        for (int i = 0; i < numArrayDims; i++) {
+        for (int i = 0; i < numDims; i++) {
             buf.append("[]");
         }
         return buf.toString();

@@ -93,12 +93,21 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
     }
 
     /**
-     * Get the name of the referenced class.
+     * Get the name of the base class.
      * 
-     * @return The name of the referenced class.
+     * @return The name of the base class.
      */
     @Override
-    public String getClassName() {
+    protected String getClassName() {
+        return className;
+    }
+
+    /**
+     * Get the name of the base class.
+     * 
+     * @return The name of the base class.
+     */
+    public String getBaseClassName() {
         return className;
     }
 
@@ -157,20 +166,20 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
     @Override
     public void getClassNamesFromTypeDescriptors(final Set<String> classNameListOut) {
         classNameListOut.add(className);
-        classNameListOut.add(getClassNameAndSuffixesWithoutTypeArguments());
+        classNameListOut.add(getFullyQualifiedClassName());
         for (final TypeArgument typeArgument : typeArguments) {
             typeArgument.getClassNamesFromTypeDescriptors(classNameListOut);
         }
     }
 
     /**
-     * Get the name of the class, along with any suffixes (suffixes are for inner class nesting, and are separated
-     * by '$'). The returned name is stripped of any type arguments, e.g.
+     * Get the name of the class, formed from the base name and any suffixes (suffixes are for inner class nesting,
+     * and are separated by '$'), but without any type arguments. For example,
      * {@code "xyz.Cls<String>$InnerCls<Integer>"} is returned as {@code "xyz.Cls$InnerCls"}.
      * 
-     * @return The name of the class and suffixes without type arguments.
+     * @return The fully-qualified name of the class, including suffixes but without type arguments.
      */
-    public String getClassNameAndSuffixesWithoutTypeArguments() {
+    public String getFullyQualifiedClassName() {
         if (classNameAndSuffixesWithoutTypeArguments == null) {
             final StringBuilder buf = new StringBuilder();
             buf.append(className);
@@ -212,8 +221,7 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
         if (o.suffixes.equals(this.suffixes)) {
             return o.className.equals(this.className);
         } else {
-            return o.getClassNameAndSuffixesWithoutTypeArguments()
-                    .equals(this.getClassNameAndSuffixesWithoutTypeArguments());
+            return o.getFullyQualifiedClassName().equals(this.getFullyQualifiedClassName());
         }
     }
 

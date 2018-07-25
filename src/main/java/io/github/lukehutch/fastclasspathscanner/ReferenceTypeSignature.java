@@ -4,8 +4,8 @@ import io.github.lukehutch.fastclasspathscanner.utils.Parser;
 import io.github.lukehutch.fastclasspathscanner.utils.Parser.ParseException;
 
 /**
- * A type signature for a reference type. Subclasses are ClassRefTypeSignature, TypeVariableSignature, and
- * ArrayTypeSignature.
+ * A type signature for a reference type. Subclasses are {@link ClassRefTypeSignature},
+ * {@link TypeVariableSignature}, and {@link ArrayTypeSignature}.
  */
 public abstract class ReferenceTypeSignature extends TypeSignature {
     static ReferenceTypeSignature parseReferenceTypeSignature(final Parser parser) throws ParseException {

@@ -39,7 +39,7 @@ import io.github.lukehutch.fastclasspathscanner.utils.Parser.ParseException;
 /** A type argument. */
 public class TypeArgument extends HierarchicalTypeSignature {
     /** A type wildcard. */
-    public static enum WILDCARD {
+    public static enum Wildcard {
     /** No wildcard. */
     NONE,
     /** The '?' wildcard */
@@ -51,7 +51,7 @@ public class TypeArgument extends HierarchicalTypeSignature {
     };
 
     /** A wildcard type. */
-    private final TypeArgument.WILDCARD wildcard;
+    private final Wildcard wildcard;
 
     /** Type signature (will be null if wildcard == ANY). */
     private final ReferenceTypeSignature typeSignature;
@@ -70,7 +70,7 @@ public class TypeArgument extends HierarchicalTypeSignature {
      * @param typeSignature
      *            The type signature
      */
-    public TypeArgument(final TypeArgument.WILDCARD wildcard, final ReferenceTypeSignature typeSignature) {
+    public TypeArgument(final Wildcard wildcard, final ReferenceTypeSignature typeSignature) {
         this.wildcard = wildcard;
         this.typeSignature = typeSignature;
     }
@@ -80,7 +80,7 @@ public class TypeArgument extends HierarchicalTypeSignature {
      * 
      * @return The type wildcard.
      */
-    public TypeArgument.WILDCARD getWildcard() {
+    public Wildcard getWildcard() {
         return wildcard;
     }
 
@@ -147,27 +147,27 @@ public class TypeArgument extends HierarchicalTypeSignature {
         final char peek = parser.peek();
         if (peek == '*') {
             parser.expect('*');
-            return new TypeArgument(WILDCARD.ANY, null);
+            return new TypeArgument(Wildcard.ANY, null);
         } else if (peek == '+') {
             parser.expect('+');
             final ReferenceTypeSignature typeSignature = ReferenceTypeSignature.parseReferenceTypeSignature(parser);
             if (typeSignature == null) {
                 throw new ParseException(parser, "Missing '+' type bound");
             }
-            return new TypeArgument(WILDCARD.EXTENDS, typeSignature);
+            return new TypeArgument(Wildcard.EXTENDS, typeSignature);
         } else if (peek == '-') {
             parser.expect('-');
             final ReferenceTypeSignature typeSignature = ReferenceTypeSignature.parseReferenceTypeSignature(parser);
             if (typeSignature == null) {
                 throw new ParseException(parser, "Missing '-' type bound");
             }
-            return new TypeArgument(WILDCARD.SUPER, typeSignature);
+            return new TypeArgument(Wildcard.SUPER, typeSignature);
         } else {
             final ReferenceTypeSignature typeSignature = ReferenceTypeSignature.parseReferenceTypeSignature(parser);
             if (typeSignature == null) {
                 throw new ParseException(parser, "Missing type bound");
             }
-            return new TypeArgument(WILDCARD.NONE, typeSignature);
+            return new TypeArgument(Wildcard.NONE, typeSignature);
         }
     }
 
