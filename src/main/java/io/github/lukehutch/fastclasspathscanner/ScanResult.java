@@ -131,7 +131,7 @@ public class ScanResult {
             if (modRef != null) {
                 if (!modRef.isSystemModule()) {
                     // Add module files when they don't have a "jrt:/" scheme
-                    final File moduleLocationFile = modRef.getModuleLocationFile();
+                    final File moduleLocationFile = modRef.getLocationFile();
                     if (moduleLocationFile != null) {
                         classpathElementOrderFiles.add(moduleLocationFile);
                     }
@@ -166,7 +166,7 @@ public class ScanResult {
             if (modRef != null) {
                 // Add module URLs whether or not they have a "jrt:/" scheme
                 try {
-                    classpathElementOrderURLs.add(modRef.getModuleLocation().toURL());
+                    classpathElementOrderURLs.add(modRef.getLocation().toURL());
                 } catch (final MalformedURLException e) {
                     // Skip malformed URLs (shouldn't happen)
                 }

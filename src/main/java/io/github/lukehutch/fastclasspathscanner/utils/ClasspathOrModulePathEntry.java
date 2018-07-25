@@ -150,7 +150,7 @@ public class ClasspathOrModulePathEntry {
         this.classLoaders = classLoader == null ? null : new ClassLoader[] { classLoader };
         this.pathToResolveAgainst = "";
         this.nestedJarHandler = nestedJarHandler;
-        this.relativePath = moduleRef.getModuleLocationStr();
+        this.relativePath = moduleRef.getLocationStr();
         this.log = log;
     }
 

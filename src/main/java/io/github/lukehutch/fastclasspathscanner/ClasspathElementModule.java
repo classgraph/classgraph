@@ -67,7 +67,7 @@ class ClasspathElementModule extends ClasspathElement {
             moduleReaderProxyRecycler = nestedJarHandler.getModuleReaderProxyRecycler(moduleRef, log);
         } catch (final Exception e) {
             if (log != null) {
-                log.log("Exception while creating zipfile recycler for " + moduleRef.getModuleName() + " : " + e);
+                log.log("Exception while creating zipfile recycler for " + moduleRef.getName() + " : " + e);
             }
             skipClasspathElement = true;
             return;
@@ -96,18 +96,17 @@ class ClasspathElementModule extends ClasspathElement {
             @Override
             public URL getURL() {
                 try {
-                    if (moduleRef.getModuleLocationStr() == null) {
+                    if (moduleRef.getLocationStr() == null) {
                         // If there is no known module location, just guess that it should be a "jrt:/" URL,
                         // so that the user can at least see something in the result
                         return new URL(
-                                new URL("jrt:/" + moduleRef.getModuleName()).toString() + "!" + moduleResourcePath);
+                                new URL("jrt:/" + moduleRef.getName()).toString() + "!" + moduleResourcePath);
                     } else {
-                        return new URL(
-                                new URL(moduleRef.getModuleLocationStr()).toString() + "!" + moduleResourcePath);
+                        return new URL(new URL(moduleRef.getLocationStr()).toString() + "!" + moduleResourcePath);
                     }
                 } catch (final MalformedURLException e) {
                     throw new IllegalArgumentException("Could not form URL for module location: "
-                            + moduleRef.getModuleLocationStr() + " ; path: " + moduleResourcePath);
+                            + moduleRef.getLocationStr() + " ; path: " + moduleResourcePath);
                 }
             }
 
@@ -173,7 +172,7 @@ class ClasspathElementModule extends ClasspathElement {
 
             @Override
             protected String toStringImpl() {
-                return "[module " + moduleRef.getModuleName() + "]/" + moduleResourcePath;
+                return "[module " + moduleRef.getName() + "]/" + moduleResourcePath;
             }
         };
     }
@@ -181,7 +180,7 @@ class ClasspathElementModule extends ClasspathElement {
     /** Scan for package matches within module */
     @Override
     public void scanPaths(final LogNode log) {
-        final String moduleLocationStr = moduleRef.getModuleLocationStr();
+        final String moduleLocationStr = moduleRef.getLocationStr();
         final LogNode subLog = log == null ? null
                 : log.log(moduleLocationStr, "Scanning module classpath entry " + classpathEltPath);
         ModuleReaderProxy moduleReaderProxy = null;
@@ -201,7 +200,7 @@ class ClasspathElementModule extends ClasspathElement {
                     .isSpecificallyWhitelistedAndNotBlacklisted("");
             if (!hasWhitelistedPackage) {
                 // Check if module contains any whitelisted non-root packages
-                final List<String> packages = moduleRef.getModulePackages();
+                final List<String> packages = moduleRef.getPackages();
                 for (final String pkg : packages) {
                     final String pkgPath = pkg.replace('.', '/') + "/";
                     final ScanSpecPathMatch matchStatus = scanSpec.dirWhitelistMatchStatus(pkgPath);
@@ -220,7 +219,7 @@ class ClasspathElementModule extends ClasspathElement {
                     resourceRelativePaths = moduleReaderProxy.list();
                 } catch (final Exception e) {
                     if (subLog != null) {
-                        subLog.log("Could not get resource list for module " + moduleRef.getModuleName(), e);
+                        subLog.log("Could not get resource list for module " + moduleRef.getName(), e);
                     }
                     return;
                 }
@@ -278,7 +277,7 @@ class ClasspathElementModule extends ClasspathElement {
 
                     // Last modified time is not tracked for system modules, since they have a "jrt:/" URL
                     if (!moduleRef.isSystemModule()) {
-                        final File moduleFile = moduleRef.getModuleLocationFile();
+                        final File moduleFile = moduleRef.getLocationFile();
                         if (moduleFile.exists()) {
                             fileToLastModified.put(moduleFile, moduleFile.lastModified());
                         }

@@ -41,13 +41,13 @@ public class ModuleReaderProxy implements AutoCloseable {
 
     ModuleReaderProxy(final ModuleRef moduleRef) throws IOException {
         try {
-            moduleReader = (AutoCloseable) ReflectionUtils.invokeMethod(moduleRef.getModuleReference(), "open",
+            moduleReader = (AutoCloseable) ReflectionUtils.invokeMethod(moduleRef.getReference(), "open",
                     /* throwException = */ true);
             if (moduleReader == null) {
                 throw new IllegalArgumentException("moduleReference.open() should not return null");
             }
         } catch (final SecurityException e) {
-            throw new IOException("Could not open module " + moduleRef.getModuleName(), e);
+            throw new IOException("Could not open module " + moduleRef.getName(), e);
         }
     }
 

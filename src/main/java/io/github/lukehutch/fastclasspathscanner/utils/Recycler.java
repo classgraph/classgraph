@@ -39,7 +39,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * <code>
  *       // Autoclose the Recycler when last instance has been released
  *       try (Recycler<ZipFile, IOException> recycler = new Recycler<>() {
- *               @Override
+ *               &#64;Override
  *               public ZipFile newInstance() throws IOException {
  *                   return new ZipFile(zipFilePath);
  *               }

@@ -397,7 +397,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         if (classpathElementURL == null) {
             try {
                 if (moduleRef != null) {
-                    classpathElementURL = moduleRef.getModuleLocation().toURL();
+                    classpathElementURL = moduleRef.getLocation().toURL();
                 } else {
                     classpathElementURL = getClasspathElementFile().toURI().toURL();
                 }

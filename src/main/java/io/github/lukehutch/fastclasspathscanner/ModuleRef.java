@@ -46,32 +46,38 @@ import io.github.lukehutch.fastclasspathscanner.utils.ReflectionUtils;
 /** A ModuleReference proxy, written using reflection to preserve backwards compatibility with JDK 7 and 8. */
 public class ModuleRef implements Comparable<ModuleRef> {
     /** The name of the module. */
-    private final String moduleName;
+    private final String name;
 
     /** The ModuleReference for the module. */
-    private final Object moduleReference;
+    private final Object reference;
 
     /** The ModuleLayer for the module. */
-    private final Object moduleLayer;
+    private final Object layer;
 
     /** The ModuleDescriptor for the module. */
-    private final Object moduleDescriptor;
+    private final Object descriptor;
 
     /** The packages in the module. */
-    private final List<String> modulePackages;
+    private final List<String> packages;
 
     /** The location URI for the module (may be null). */
-    private final URI moduleLocation;
-
-    /** A file formed from the location URI. The file will not exist if the location URI is a jrt:/ URI. */
-    private File moduleLocationFile;
+    private final URI location;
 
     /** The location URI for the module, as a cached string (may be null). */
-    private String moduleLocationStr;
+    private String locationStr;
+
+    /** A file formed from the location URI. The file will not exist if the location URI is a jrt:/ URI. */
+    private File locationFile;
 
     /** The ClassLoader that loads classes in the module. May be null, to represent the bootstrap classloader. */
     private final ClassLoader classLoader;
 
+    /**
+     * @param moduleReference
+     *            The module reference, of JPMS type ModuleReference.
+     * @param moduleLayer
+     *            The module layer, of JPMS type ModuleLayer
+     */
     ModuleRef(final Object moduleReference, final Object moduleLayer) {
         if (moduleReference == null) {
             throw new IllegalArgumentException("moduleReference cannot be null");
@@ -79,28 +85,28 @@ public class ModuleRef implements Comparable<ModuleRef> {
         if (moduleLayer == null) {
             throw new IllegalArgumentException("moduleLayer cannot be null");
         }
-        this.moduleReference = moduleReference;
-        this.moduleLayer = moduleLayer;
+        this.reference = moduleReference;
+        this.layer = moduleLayer;
 
-        moduleDescriptor = ReflectionUtils.invokeMethod(moduleReference, "descriptor", /* throwException = */ true);
-        if (moduleDescriptor == null) {
+        this.descriptor = ReflectionUtils.invokeMethod(moduleReference, "descriptor", /* throwException = */ true);
+        if (this.descriptor == null) {
             // Should not happen
             throw new IllegalArgumentException("moduleReference.descriptor() should not return null");
         }
-        moduleName = (String) ReflectionUtils.invokeMethod(moduleDescriptor, "name", /* throwException = */ true);
-        if (moduleName == null) {
+        this.name = (String) ReflectionUtils.invokeMethod(this.descriptor, "name", /* throwException = */ true);
+        if (this.name == null) {
             // Should not happen
             throw new IllegalArgumentException("moduleReference.descriptor().name() should not return null");
         }
         @SuppressWarnings("unchecked")
-        final Set<String> pkgs = (Set<String>) ReflectionUtils.invokeMethod(moduleDescriptor, "packages",
+        final Set<String> packages = (Set<String>) ReflectionUtils.invokeMethod(this.descriptor, "packages",
                 /* throwException = */ true);
-        if (pkgs == null) {
+        if (packages == null) {
             // Should not happen
             throw new IllegalArgumentException("moduleReference.descriptor().packages() should not return null");
         }
-        modulePackages = new ArrayList<>(pkgs);
-        Collections.sort(modulePackages);
+        this.packages = new ArrayList<>(packages);
+        Collections.sort(this.packages);
         final Object moduleLocationOptional = ReflectionUtils.invokeMethod(moduleReference, "location",
                 /* throwException = */ true);
         if (moduleLocationOptional == null) {
@@ -114,52 +120,82 @@ public class ModuleRef implements Comparable<ModuleRef> {
             throw new IllegalArgumentException("moduleReference.location().isPresent() should not return null");
         }
         if ((Boolean) moduleLocationIsPresent) {
-            moduleLocation = (URI) ReflectionUtils.invokeMethod(moduleLocationOptional, "get",
+            this.location = (URI) ReflectionUtils.invokeMethod(moduleLocationOptional, "get",
                     /* throwException = */ true);
-            if (moduleLocation == null) {
+            if (this.location == null) {
                 // Should not happen
                 throw new IllegalArgumentException("moduleReference.location().get() should not return null");
             }
         } else {
-            moduleLocation = null;
+            this.location = null;
         }
 
         // Find the classloader for the module
-        classLoader = (ClassLoader) ReflectionUtils.invokeMethod(moduleLayer, "findLoader", String.class,
-                moduleName, /* throwException = */ true);
+        this.classLoader = (ClassLoader) ReflectionUtils.invokeMethod(moduleLayer, "findLoader", String.class,
+                this.name, /* throwException = */ true);
     }
 
-    /** Returns the module name, i.e. {@code moduleReference.descriptor().name()}. */
-    public String getModuleName() {
-        return moduleName;
+    /** Returns the module name, i.e. {@code getReference().descriptor().name()}. */
+    public String getName() {
+        return name;
     }
 
-    /** Returns the module reference (type ModuleReference). */
-    public Object getModuleReference() {
-        return moduleReference;
+    /** Returns the module reference (of JPMS type ModuleReference). */
+    public Object getReference() {
+        return reference;
     }
 
-    /** Returns the module layer (type ModuleLayer). */
-    public Object getModuleLayer() {
-        return moduleLayer;
+    /** Returns the module layer (of JPMS type ModuleLayer). */
+    public Object getLayer() {
+        return layer;
     }
 
-    /** Returns the module descriptor, i.e. {@code moduleReference.descriptor()} (type ModuleDescriptor). */
-    public Object getModuleDescriptor() {
-        return moduleDescriptor;
+    /** Returns the module descriptor, i.e. {@code getReference().descriptor()} (of JPMS type ModuleDescriptor). */
+    public Object getDescriptor() {
+        return descriptor;
     }
 
     /** Returns the list of packages in the module. */
-    public List<String> getModulePackages() {
-        return modulePackages;
+    public List<String> getPackages() {
+        return packages;
     }
 
     /**
-     * Returns the module location, i.e. {@code moduleReference.location()}. Returns null for modules that do not
+     * Returns the module location, i.e. {@code getReference().location()}. Returns null for modules that do not
      * have a location.
      */
-    public URI getModuleLocation() {
-        return moduleLocation;
+    public URI getLocation() {
+        return location;
+    }
+
+    /**
+     * Returns the module location as a string, i.e. {@code getReference().location().toString()}. Returns null for
+     * modules that do not have a location.
+     */
+    public String getLocationStr() {
+        if (locationStr == null && location != null) {
+            locationStr = location.toString();
+        }
+        return locationStr;
+    }
+
+    /**
+     * Returns the module location as a File, i.e. {@code new File(getReference().location())}. Returns null for
+     * modules that do not have a location, or for system ("jrt:/") modules.
+     */
+    public File getLocationFile() {
+        if (locationFile == null && location != null) {
+            if (!isSystemModule()) {
+                try {
+                    locationFile = new File(location);
+                } catch (final Exception e) {
+                    return null;
+                }
+            } else {
+                return null;
+            }
+        }
+        return locationFile;
     }
 
     /**
@@ -168,13 +204,13 @@ public class ModuleRef implements Comparable<ModuleRef> {
      * etc.).
      */
     public boolean isSystemModule() {
-        if (moduleLocation == null || classLoader == null) {
+        if (location == null || classLoader == null) {
             return true;
         }
-        if (JarUtils.isInSystemPackageOrModule(moduleName)) {
+        if (JarUtils.isInSystemPackageOrModule(name)) {
             return true;
         }
-        final String scheme = moduleLocation.getScheme();
+        final String scheme = location.getScheme();
         if (scheme == null) {
             return false;
         }
@@ -182,38 +218,8 @@ public class ModuleRef implements Comparable<ModuleRef> {
     }
 
     /**
-     * Returns the module location as a string, i.e. {@code moduleReference.location().toString()}. Returns null for
-     * modules that do not have a location.
-     */
-    public String getModuleLocationStr() {
-        if (moduleLocationStr == null && moduleLocation != null) {
-            moduleLocationStr = moduleLocation.toString();
-        }
-        return moduleLocationStr;
-    }
-
-    /**
-     * Returns the module location as a File, i.e. {@code new File(moduleReference.location())}. Returns null for
-     * modules that do not have a location, or for system ("jrt:/") modules.
-     */
-    public File getModuleLocationFile() {
-        if (moduleLocationFile == null && moduleLocation != null) {
-            if (!isSystemModule()) {
-                try {
-                    moduleLocationFile = new File(moduleLocation);
-                } catch (final Exception e) {
-                    return null;
-                }
-            } else {
-                return null;
-            }
-        }
-        return moduleLocationFile;
-    }
-
-    /**
      * Returns the classloader for the module, i.e.
-     * {@code moduleLayer.findLoader(moduleReference.descriptor().name())}.
+     * {@code moduleLayer.findLoader(getReference().descriptor().name())}.
      */
     public ClassLoader getClassLoader() {
         return classLoader;
@@ -225,22 +231,22 @@ public class ModuleRef implements Comparable<ModuleRef> {
             return false;
         }
         final ModuleRef mr = (ModuleRef) obj;
-        return moduleReference.equals(this.moduleReference) && mr.moduleLayer.equals(this.moduleLayer);
+        return reference.equals(this.reference) && mr.layer.equals(this.layer);
     }
 
     @Override
     public int hashCode() {
-        return moduleReference.hashCode() * moduleLayer.hashCode();
+        return reference.hashCode() * layer.hashCode();
     }
 
     @Override
     public String toString() {
-        return moduleReference.toString() + "; ClassLoader " + classLoader;
+        return reference.toString() + "; ClassLoader " + classLoader;
     }
 
     @Override
     public int compareTo(final ModuleRef o) {
-        final int diff = this.moduleName.compareTo(o.moduleName);
+        final int diff = this.name.compareTo(o.name);
         return diff != 0 ? diff : this.hashCode() - o.hashCode();
     }
 

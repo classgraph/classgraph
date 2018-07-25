@@ -178,7 +178,7 @@ abstract class ClasspathElement {
                     "Scanning " + (isModule ? "module" : isDir ? "directory" : "jarfile") + " classpath entry "
                             + (isModule
                                     ? classpathRelativePath.getModuleRef() + " -> "
-                                            + classpathRelativePath.getModuleRef().getModuleLocationStr()
+                                            + classpathRelativePath.getModuleRef().getLocationStr()
                                     : (file.getPath().equals(canonicalPath) ? canonicalPath
                                             : classpathRelativePath + " -> " + canonicalPath)));
         }

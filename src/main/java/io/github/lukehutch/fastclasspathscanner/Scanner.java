@@ -288,7 +288,7 @@ class Scanner implements Callable<ScanResult> {
                 final List<ModuleRef> systemModules = classLoaderAndModuleFinder.getSystemModuleRefs();
                 if (systemModules != null) {
                     for (final ModuleRef systemModule : systemModules) {
-                        final String moduleName = systemModule.getModuleName();
+                        final String moduleName = systemModule.getName();
                         if (!scanSpec.blacklistSystemJarsOrModules
                                 || !JarUtils.isInSystemPackageOrModule(moduleName)) {
                             if (scanSpec.moduleWhiteBlackList.isWhitelistedAndNotBlacklisted(moduleName)) {
@@ -309,7 +309,7 @@ class Scanner implements Callable<ScanResult> {
                 final List<ModuleRef> nonSystemModules = classLoaderAndModuleFinder.getNonSystemModuleRefs();
                 if (nonSystemModules != null) {
                     for (final ModuleRef nonSystemModule : nonSystemModules) {
-                        final String moduleName = nonSystemModule.getModuleName();
+                        final String moduleName = nonSystemModule.getName();
                         if (scanSpec.moduleWhiteBlackList.isWhitelistedAndNotBlacklisted(moduleName)) {
                             rawClasspathEltOrder.add(new ClasspathOrModulePathEntry(nonSystemModule,
                                     nestedJarHandler, getRawElementsLog));
@@ -417,8 +417,8 @@ class Scanner implements Callable<ScanResult> {
                     final String packageRoot = classpathElt.getJarfilePackageRoot();
                     final ModuleRef classpathElementModuleRef = classpathElt.getClasspathElementModuleRef();
                     if (classpathElementModuleRef != null) {
-                        logNode.log(i + ": module " + classpathElementModuleRef.getModuleName()
-                                + " ; module location: " + classpathElementModuleRef.getModuleLocationStr());
+                        logNode.log(i + ": module " + classpathElementModuleRef.getName() + " ; module location: "
+                                + classpathElementModuleRef.getLocationStr());
                     } else {
                         final String classpathEltStr = classpathElt.toString();
                         final String classpathEltFileStr = "" + classpathElt.getClasspathElementFile(logNode);
