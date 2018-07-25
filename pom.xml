@@ -1,4 +1,6 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
 	<groupId>io.github.lukehutch</groupId>
@@ -72,7 +74,8 @@
 						</goals>
 						<configuration>
 							<rules>
-								<checkSignatureRule implementation="org.codehaus.mojo.animal_sniffer.enforcer.CheckSignatureRule">
+								<checkSignatureRule
+									implementation="org.codehaus.mojo.animal_sniffer.enforcer.CheckSignatureRule">
 									<signature>
 										<groupId>org.codehaus.mojo.signature</groupId>
 										<artifactId>java17</artifactId>
@@ -85,6 +88,8 @@
 				</executions>
 			</plugin>
 			<plugin>
+				<!-- In the future, rather than using ModiTect to compile module-info.java, 
+					could use two execute rules: https://maven.apache.org/plugins/maven-compiler-plugin/examples/module-info.html -->
 				<groupId>org.moditect</groupId>
 				<artifactId>moditect-maven-plugin</artifactId>
 				<version>1.0.0.Beta1</version>
