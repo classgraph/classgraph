@@ -880,20 +880,14 @@ public class FastClasspathScanner {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /**
-     * A callback that can be used to processes the result of an asynchronous scan after scanning has completed and
-     * any MatchProcessors have been run.
-     */
+    /** A callback used to process the result of a successful asynchronous scan. */
     @FunctionalInterface
     public interface ScanResultProcessor {
-        /**
-         * Process the result of an asynchronous scan after scanning has completed and any MatchProcessors have been
-         * run.
-         */
+        /** Process the result of an asynchronous scan after scanning has completed. */
         public void processScanResult(ScanResult scanResult);
     }
 
-    /** A callback that can be called on scanning failure during an asynchronous scan. */
+    /** A callback used to handle failure during an asynchronous scan. */
     @FunctionalInterface
     public interface FailureHandler {
         /** Called on scanning failure during an asynchronous scan. */
@@ -939,8 +933,7 @@ public class FastClasspathScanner {
      * Asynchronously scans the classpath for matching files, and calls any MatchProcessors if a match is
      * identified. Returns a Future object immediately after starting the scan. To block on scan completion, get the
      * result of the returned Future. Uses the provided ExecutorService, and divides the work according to the
-     * requested degree of parallelism. This method should be called after all required MatchProcessors have been
-     * added.
+     * requested degree of parallelism.
      *
      * <p>
      * Note on thread safety: MatchProcessors are all run on a separate thread from the thread that calls this
@@ -972,8 +965,7 @@ public class FastClasspathScanner {
     /**
      * Scans the classpath for matching files, and calls any MatchProcessors if a match is identified. Uses the
      * provided ExecutorService, and divides the work according to the requested degree of parallelism. Blocks and
-     * waits for the scan to complete before returning a ScanResult. This method should be called after all required
-     * MatchProcessors have been added.
+     * waits for the scan to complete before returning a ScanResult.
      *
      * @param executorService
      *            A custom ExecutorService to use for scheduling worker tasks. This ExecutorService should start
@@ -1036,8 +1028,7 @@ public class FastClasspathScanner {
     /**
      * Scans the classpath for matching files, and calls any MatchProcessors if a match is identified. Temporarily
      * starts up a new fixed thread pool for scanning, with the requested number of threads. Blocks and waits for
-     * the scan to complete before returning a ScanResult. This method should be called after all required
-     * MatchProcessors have been added.
+     * the scan to complete before returning a ScanResult.
      *
      * @param numThreads
      *            The number of worker threads to start up.
@@ -1055,9 +1046,8 @@ public class FastClasspathScanner {
 
     /**
      * Scans the classpath for matching files, and calls any MatchProcessors if a match is identified. Temporarily
-     * starts up a new fixed thread pool for scanning, with the default number of threads. Blocks and waits for the
-     * scan to complete before returning a ScanResult. This method should be called after all required
-     * MatchProcessors have been added.
+     * starts up a new fixed thread pool for scanning, with the default number of threads (6). Blocks and waits for
+     * the scan to complete before returning a ScanResult.
      *
      * @throws RuntimeException
      *             if any of the worker threads throws an uncaught exception. (Should not happen, this would
