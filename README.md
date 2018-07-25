@@ -99,6 +99,18 @@ Some other classpath scanning mechanisms include:
 </dependency>
 ```
 
+To use FastClasspathScanner as a Java module, add the jar dependency to your project using one of the above methods, then add the following to your `module-info.java`: 
+
+```
+requires io.github.lukehutch.fastclasspathscanner;
+```
+
+If when trying to run your code, you get the following exception, the problem is that the code you are trying to run is modular, but the FastClasspathScanner jar was added to the regular classpath, not the module path:
+
+```
+java.lang.NoClassDefFoundError: io/github/lukehutch/fastclasspathscanner/FastClasspathScanner
+```  
+
 ### Pre-built JARs
 
 You can get pre-built JARs (usable in JRE 1.7 or later) from [Sonatype](https://oss.sonatype.org/#nexus-search;quick~fast-classpath-scanner).
@@ -112,14 +124,6 @@ git clone https://github.com/lukehutch/fast-classpath-scanner.git
 cd fast-classpath-scanner
 export JAVA_HOME=/usr/java/default   # Or similar -- Maven needs JAVA_HOME
 mvn -Dmaven.test.skip=true package
-```
-
-### Use as a Java module
-
-To use FastClasspathScanner as a Java module, add the jar dependency to your project using one of the above methods, then add the following to your `module-info.java`: 
-
-```
-    requires io.github.lukehutch.fastclasspathscanner;
 ```
 
 ## Mailing List
