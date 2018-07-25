@@ -43,7 +43,7 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
     final String className;
 
     /** The class name and suffixes, without type arguments. */
-    private String classNameAndSuffixesWithoutTypeArguments;
+    private String fullyQualifiedClassName;
 
     /** The class type arguments. */
     private final List<TypeArgument> typeArguments;
@@ -97,18 +97,38 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
      * 
      * @return The name of the base class.
      */
-    @Override
-    protected String getClassName() {
+    public String getBaseClassName() {
         return className;
     }
 
     /**
-     * Get the name of the base class.
+     * Get the name of the class, formed from the base name and any suffixes (suffixes are for inner class nesting,
+     * and are separated by '$'), but without any type arguments. For example,
+     * {@code "xyz.Cls<String>$InnerCls<Integer>"} is returned as {@code "xyz.Cls$InnerCls"}.
      * 
-     * @return The name of the base class.
+     * @return The fully-qualified name of the class, including suffixes but without type arguments.
      */
-    public String getBaseClassName() {
-        return className;
+    public String getFullyQualifiedClassName() {
+        if (fullyQualifiedClassName == null) {
+            final StringBuilder buf = new StringBuilder();
+            buf.append(className);
+            for (int i = 0; i < suffixes.size(); i++) {
+                buf.append('$');
+                buf.append(suffixes.get(i));
+            }
+            fullyQualifiedClassName = buf.toString();
+        }
+        return fullyQualifiedClassName;
+    }
+
+    /**
+     * Get the fully qualified class name (used by {@link #getClassInfo()} and {@link #loadClass()}.
+     * 
+     * @return The fully qualified name of the class.
+     */
+    @Override
+    protected String getClassName() {
+        return getFullyQualifiedClassName();
     }
 
     /**
@@ -170,26 +190,6 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
         for (final TypeArgument typeArgument : typeArguments) {
             typeArgument.getClassNamesFromTypeDescriptors(classNameListOut);
         }
-    }
-
-    /**
-     * Get the name of the class, formed from the base name and any suffixes (suffixes are for inner class nesting,
-     * and are separated by '$'), but without any type arguments. For example,
-     * {@code "xyz.Cls<String>$InnerCls<Integer>"} is returned as {@code "xyz.Cls$InnerCls"}.
-     * 
-     * @return The fully-qualified name of the class, including suffixes but without type arguments.
-     */
-    public String getFullyQualifiedClassName() {
-        if (classNameAndSuffixesWithoutTypeArguments == null) {
-            final StringBuilder buf = new StringBuilder();
-            buf.append(className);
-            for (int i = 0; i < suffixes.size(); i++) {
-                buf.append('$');
-                buf.append(suffixes.get(i));
-            }
-            classNameAndSuffixesWithoutTypeArguments = buf.toString();
-        }
-        return classNameAndSuffixesWithoutTypeArguments;
     }
 
     @Override
