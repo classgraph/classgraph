@@ -84,7 +84,7 @@ public class ModuleReaderProxy implements AutoCloseable {
      * SecurityException may also be thrown when using the stream to list the module contents and access is denied
      * by the security manager."
      */
-    public List<String> list() throws Exception {
+    public List<String> list() throws IOException, SecurityException {
         if (collectorsToList == null) {
             throw new IllegalArgumentException("Could not call Collectors.toList()");
         }
@@ -104,7 +104,7 @@ public class ModuleReaderProxy implements AutoCloseable {
     }
 
     /** Use the proxied ModuleReader to open the named resource as an InputStream. */
-    public InputStream open(final String name) throws Exception {
+    public InputStream open(final String name) throws IOException, SecurityException {
         final Object /* Optional<InputStream> */ optionalInputStream = ReflectionUtils.invokeMethod(moduleReader,
                 "open", String.class, name, /* throwException = */ true);
         if (optionalInputStream == null) {
@@ -125,7 +125,7 @@ public class ModuleReaderProxy implements AutoCloseable {
      * @throws OutOfMemoryError
      *             if the resource is larger than Integer.MAX_VALUE, the maximum capacity of a byte buffer.
      */
-    public ByteBuffer read(final String name) throws Exception, OutOfMemoryError {
+    public ByteBuffer read(final String name) throws IOException, SecurityException, OutOfMemoryError {
         final Object /* Optional<ByteBuffer> */ optionalByteBuffer = ReflectionUtils.invokeMethod(moduleReader,
                 "read", String.class, name, /* throwException = */ true);
         if (optionalByteBuffer == null) {
