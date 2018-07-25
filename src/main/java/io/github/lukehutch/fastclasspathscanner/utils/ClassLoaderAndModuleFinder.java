@@ -61,36 +61,6 @@ public class ClassLoaderAndModuleFinder {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Used for resolving the classes in the call stack. Requires RuntimePermission("createSecurityManager").
-     */
-    private static CallerResolver CALLER_RESOLVER;
-
-    static {
-        try {
-            // This can fail if the current SecurityManager does not allow RuntimePermission
-            // ("createSecurityManager"):
-            CALLER_RESOLVER = new CallerResolver();
-        } catch (final SecurityException e) {
-        }
-    }
-
-    /**
-     * Using a SecurityManager gets around the fact that Oracle removed sun.reflect.Reflection.getCallerClass, see:
-     * 
-     * https://www.infoq.com/news/2013/07/Oracle-Removes-getCallerClass
-     *
-     * http://www.javaworld.com/article/2077344/core-java/find-a-way-out-of-the-classloader-maze.html
-     */
-    private static final class CallerResolver extends SecurityManager {
-        @Override
-        protected Class<?>[] getClassContext() {
-            return super.getClassContext();
-        }
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
      * A class to find the unique ordered classpath elements.
      * 
      * @param scanSpec
@@ -126,41 +96,31 @@ public class ClassLoaderAndModuleFinder {
             // the application classloader returned by ClassLoader.getSystemClassLoader() (so is delegated to
             // by the application classloader), there is no point adding it here.
 
-            // Get caller classloader
-            if (CALLER_RESOLVER == null) {
-                if (log != null) {
-                    log.log(ClassLoaderAndModuleFinder.class.getSimpleName() + " could not create "
-                            + CallerResolver.class.getSimpleName() + ", current SecurityManager does not grant "
-                            + "RuntimePermission(\"createSecurityManager\")");
+            try {
+                // Find classloaders for classes on callstack
+                final Class<?>[] callStack = CallStackReader.getClassContext();
+                for (int i = callStack.length - 1; i >= 0; --i) {
+                    final ClassLoader callerClassLoader = callStack[i].getClassLoader();
+                    if (callerClassLoader != null) {
+                        classLoadersUnique.add(callerClassLoader);
+                    }
                 }
-            } else {
-                final Class<?>[] callStack = CALLER_RESOLVER.getClassContext();
-                if (callStack == null) {
-                    if (log != null) {
-                        log.log(ClassLoaderAndModuleFinder.class.getSimpleName() + ": "
-                                + CallerResolver.class.getSimpleName() + "#getClassContext() returned null");
-                    }
-                } else {
-                    // Find classloaders for classes on callstack
-                    for (int i = callStack.length - 1; i >= 0; --i) {
-                        final ClassLoader callerClassLoader = callStack[i].getClassLoader();
-                        if (callerClassLoader != null) {
-                            classLoadersUnique.add(callerClassLoader);
-                        }
-                    }
-                    // Find module references for classes on callstack (for JDK9+)
-                    final List<ModuleRef> allModuleRefsList = ModuleRef.findModuleRefs(callStack);
+                // Find module references for classes on callstack (for JDK9+)
+                final List<ModuleRef> allModuleRefsList = ModuleRef.findModuleRefs(callStack);
 
-                    // Split modules into system modules and non-system modules
-                    systemModuleRefs = new ArrayList<>();
-                    nonSystemModuleRefs = new ArrayList<>();
-                    for (final ModuleRef moduleRef : allModuleRefsList) {
-                        if (moduleRef.isSystemModule()) {
-                            systemModuleRefs.add(moduleRef);
-                        } else {
-                            nonSystemModuleRefs.add(moduleRef);
-                        }
+                // Split modules into system modules and non-system modules
+                systemModuleRefs = new ArrayList<>();
+                nonSystemModuleRefs = new ArrayList<>();
+                for (final ModuleRef moduleRef : allModuleRefsList) {
+                    if (moduleRef.isSystemModule()) {
+                        systemModuleRefs.add(moduleRef);
+                    } else {
+                        nonSystemModuleRefs.add(moduleRef);
                     }
+                }
+            } catch (final IllegalArgumentException e) {
+                if (log != null) {
+                    log.log("Could not get call stack: " + e);
                 }
             }
 
