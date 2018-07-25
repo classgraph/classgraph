@@ -84,6 +84,7 @@ Some other classpath scanning mechanisms include:
 * [extcos -- the Extended Component Scanner](https://sourceforge.net/projects/extcos/)
 * [Javassist](http://jboss-javassist.github.io/javassist/)
 * [ObjectWeb ASM](http://asm.ow2.org/)
+* [QDox](https://github.com/paul-hammant/qdox), a fast Java source parser and indexer
 * [bndtools](https://github.com/bndtools/bnd), which is able to ["crawl"/parse the bytecode of class files](https://github.com/bndtools/bnd/blob/master/biz.aQute.bndlib/src/aQute/bnd/osgi/Clazz.java) to find all imports/dependencies, among other things. 
 
 ## Downloading
