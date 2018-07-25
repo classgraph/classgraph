@@ -53,7 +53,7 @@ public class ClassLoaderHandlerRegistry {
             new ClassLoaderHandlerRegistryEntry(OSGiDefaultClassLoaderHandler.class),
 
             // JPMS support
-            new ClassLoaderHandlerRegistryEntry(Java9ClassLoaderHandler.class),
+            new ClassLoaderHandlerRegistryEntry(JPMSClassLoaderHandler.class),
 
             // Java 7/8 support (list last, as fallback)
             new ClassLoaderHandlerRegistryEntry(URLClassLoaderHandler.class));

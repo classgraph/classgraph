@@ -93,11 +93,9 @@ public class ModuleRef implements Comparable<ModuleRef> {
             // Should not happen
             throw new IllegalArgumentException("moduleReference.descriptor() should not return null");
         }
-        this.name = (String) ReflectionUtils.invokeMethod(this.descriptor, "name", /* throwException = */ true);
-        if (this.name == null) {
-            // Should not happen
-            throw new IllegalArgumentException("moduleReference.descriptor().name() should not return null");
-        }
+        String moduleName = (String) ReflectionUtils.invokeMethod(this.descriptor, "name",
+                /* throwException = */ true);
+        this.name = moduleName == null ? "" : moduleName;
         @SuppressWarnings("unchecked")
         final Set<String> packages = (Set<String>) ReflectionUtils.invokeMethod(this.descriptor, "packages",
                 /* throwException = */ true);
@@ -266,18 +264,18 @@ public class ModuleRef implements Comparable<ModuleRef> {
      * the problem was...
      */
     private static void findLayerOrder(final Object /* ModuleLayer */ layer,
-            final Set<Object> /* Set<ModuleLayer> */ visited,
-            final Deque<Object> /* Deque<ModuleLayer> */ layersOut) {
-        if (visited.add(layer)) {
+            final Set<Object> /* Set<ModuleLayer> */ layerVisited,
+            final Deque<Object> /* Deque<ModuleLayer> */ layerOrderOut) {
+        if (layerVisited.add(layer)) {
             @SuppressWarnings("unchecked")
             final List<Object> /* List<ModuleLayer> */ parents = (List<Object>) ReflectionUtils.invokeMethod(layer,
                     "parents", /* throwException = */ true);
             if (parents != null) {
                 for (int i = 0; i < parents.size(); i++) {
-                    findLayerOrder(parents.get(i), visited, layersOut);
+                    findLayerOrder(parents.get(i), layerVisited, layerOrderOut);
                 }
             }
-            layersOut.push(layer);
+            layerOrderOut.push(layer);
         }
     }
 
@@ -285,49 +283,71 @@ public class ModuleRef implements Comparable<ModuleRef> {
      * Get all visible ModuleReferences in all layers, given an array of stack frame {@code Class<?>} references.
      */
     public static List<ModuleRef> findModuleRefs(final Class<?>[] callStack) {
-        Deque<Object> /* Deque<ModuleLayer> */ layers = null;
-        final HashSet<Object> /* HashSet<ModuleLayer> */ visited = new HashSet<>();
+        Deque<Object> /* Deque<ModuleLayer> */ layerOrder = null;
+        final HashSet<Object> /* HashSet<ModuleLayer> */ layerVisited = new HashSet<>();
         for (int i = 0; i < callStack.length; i++) {
             final Object /* Module */ module = ReflectionUtils.invokeMethod(callStack[i], "getModule",
                     /* throwException = */ false);
             if (module != null) {
                 final Object /* ModuleLayer */ layer = ReflectionUtils.invokeMethod(module, "getLayer",
                         /* throwException = */ true);
+                // getLayer() returns null for unnamed modules -- we have to get their classes from java.class.path 
                 if (layer != null) {
-                    if (layers == null) {
-                        layers = new ArrayDeque<>();
+                    if (layerOrder == null) {
+                        layerOrder = new ArrayDeque<>();
                     }
-                    findLayerOrder(layer, visited, layers);
+                    findLayerOrder(layer, layerVisited, layerOrder);
                 }
             }
         }
-        if (layers != null) {
+
+        // Add system modules from boot layer, if they weren't already found in stacktrace
+        Class<?> moduleLayerClass = null;
+        try {
+            moduleLayerClass = Class.forName("java.lang.ModuleLayer");
+        } catch (Throwable e) {
+        }
+        if (moduleLayerClass != null) {
+            Object /* ModuleLayer */ bootLayer = ReflectionUtils.invokeStaticMethod(moduleLayerClass, "boot",
+                    /* throwException = */ false);
+            if (bootLayer != null) {
+                if (layerOrder == null) {
+                    layerOrder = new ArrayDeque<>();
+                }
+                findLayerOrder(bootLayer, layerVisited, layerOrder);
+            }
+        }
+
+        if (layerOrder != null) {
             // Find modules in the ordered layers
-            final LinkedHashSet<ModuleRef> moduleRefs = new LinkedHashSet<>();
-            for (final Object /* ModuleLayer */ layer : layers) {
-                final Object /* Configuration */ cfg = ReflectionUtils.invokeMethod(layer, "configuration",
-                        /* throwException = */ true);
-                if (cfg != null) {
+            final Set<Object> /* Set<ModuleReference> */ addedModules = new HashSet<>();
+            final LinkedHashSet<ModuleRef> moduleRefOrder = new LinkedHashSet<>();
+            for (final Object /* ModuleLayer */ layer : layerOrder) {
+                final Object /* Configuration */ configuration = ReflectionUtils.invokeMethod(layer,
+                        "configuration", /* throwException = */ true);
+                if (configuration != null) {
                     // Get ModuleReferences from layer configuration
                     @SuppressWarnings("unchecked")
                     final Set<Object> /* Set<ResolvedModule> */ modules = (Set<Object>) ReflectionUtils
-                            .invokeMethod(cfg, "modules", /* throwException = */ true);
+                            .invokeMethod(configuration, "modules", /* throwException = */ true);
                     if (modules != null) {
                         final List<ModuleRef> modulesInLayer = new ArrayList<>();
                         for (final Object /* ResolvedModule */ module : modules) {
-                            final Object /* ModuleReference */ ref = ReflectionUtils.invokeMethod(module,
-                                    "reference", /* throwException = */ true);
-                            if (ref != null) {
-                                modulesInLayer.add(new ModuleRef(ref, layer));
+                            final Object /* ModuleReference */ moduleReference = ReflectionUtils
+                                    .invokeMethod(module, "reference", /* throwException = */ true);
+                            if (moduleReference != null) {
+                                if (addedModules.add(moduleReference)) {
+                                    modulesInLayer.add(new ModuleRef(moduleReference, layer));
+                                }
                             }
                         }
                         // Sort modules in layer by name
                         Collections.sort(modulesInLayer);
-                        moduleRefs.addAll(modulesInLayer);
+                        moduleRefOrder.addAll(modulesInLayer);
                     }
                 }
             }
-            return new ArrayList<>(moduleRefs);
+            return new ArrayList<>(moduleRefOrder);
         } else {
             return Collections.<ModuleRef> emptyList();
         }

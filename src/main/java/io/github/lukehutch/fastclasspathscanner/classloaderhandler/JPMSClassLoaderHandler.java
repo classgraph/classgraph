@@ -37,7 +37,7 @@ import io.github.lukehutch.fastclasspathscanner.utils.LogNode;
  * A placeloader ClassLoaderHandler that matches Java 9+ classloaders, but does not attempt to extract URLs from
  * them (module scanning uses a different mechanism from classpath scanning).
  */
-public class Java9ClassLoaderHandler implements ClassLoaderHandler {
+public class JPMSClassLoaderHandler implements ClassLoaderHandler {
     @Override
     public String[] handledClassLoaders() {
         return new String[] { //
@@ -53,6 +53,7 @@ public class Java9ClassLoaderHandler implements ClassLoaderHandler {
     @Override
     public void handle(final ScanSpec scanSpec, final ClassLoader classLoader,
             final ClasspathOrder classpathOrderOut, final LogNode log) {
-        // No URLs to extract 
+        // The JDK9 classloaders have a field, URLClassPath ucp, containing URLs for unnamed modules,
+        // but it is not visible.
     }
 }
