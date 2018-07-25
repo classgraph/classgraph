@@ -180,7 +180,7 @@ public class LogNode {
     private LogNode addChild(final String sortKey, final String msg, final long elapsedTimeNanos,
             final Throwable exception) {
         final String newSortKey = sortKeyPrefix + String.format("-%09d", sortKeyUniqueSuffix.getAndIncrement())
-                + sortKey;
+                + (sortKey == null ? "" : sortKey);
         final LogNode newChild = new LogNode(newSortKey, msg, elapsedTimeNanos, exception);
         // Make the sort key unique, so that log entries are not clobbered if keys are reused; increment unique
         // suffix with each new log entry, so that ties are broken in chronological order.
