@@ -64,11 +64,6 @@ public class Issue140Test {
         assertThat(elementTypeSignature).isInstanceOf(ClassRefTypeSignature.class);
         final ClassRefTypeSignature classRefTypeSignature = (ClassRefTypeSignature) elementTypeSignature;
         assertThat(classRefTypeSignature.getClassName()).isEqualTo(String.class.getName());
-        final ClassInfo classInfo = classRefTypeSignature.getClassInfo();
-        assertThat(classInfo).isNotNull();
-        assertThat(classInfo.getName()).isEqualTo(String.class.getName());
         assertThat(classRefTypeSignature.loadClass()).isEqualTo(String.class);
-        // The following line will only work if String.class was encountered during scanning
-        assertThat(classInfo.loadClass()).isEqualTo(String.class);
     }
 }

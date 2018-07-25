@@ -93,11 +93,37 @@ public class AnnotationClassRef extends ScanResultObject {
         return className;
     }
 
-    /** Return the class reference as a {@link ClassInfo} object. */
+    /**
+     * Get the {@link ClassInfo} object for the referenced class, or null if the referenced class was not
+     * encountered during scanning (i.e. no ClassInfo object was created for the class during scanning). N.B. even
+     * if this method returns null, {@link #loadClass()} may be able to load the referenced class by name.
+     * 
+     * @return The {@link ClassInfo} object for the referenced class.
+     */
     @Override
     public ClassInfo getClassInfo() {
         getClassName();
         return super.getClassInfo();
+    }
+
+    /**
+     * Load the referenced class, if not already loaded, returning a {@code Class<?>} reference for the referenced
+     * class.
+     * 
+     * @return The {@code Class<?>} reference for the referenced class.
+     * @throws IllegalArgumentException
+     *             if the class could not be loaded.
+     */
+    public Class<?> loadClass() {
+        getTypeSignature();
+        if (typeSignature instanceof BaseTypeSignature) {
+            return ((BaseTypeSignature) typeSignature).getBaseType();
+        } else if (typeSignature instanceof ClassRefTypeSignature) {
+            return ((ClassRefTypeSignature) typeSignature).loadClass();
+        } else {
+            throw new IllegalArgumentException("Got unexpected type " + typeSignature.getClass().getName()
+                    + " for ref type signature: " + typeDescriptorStr);
+        }
     }
 
     @Override

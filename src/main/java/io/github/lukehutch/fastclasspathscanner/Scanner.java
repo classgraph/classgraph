@@ -631,16 +631,27 @@ class Scanner implements Callable<ScanResult> {
                         c.link(scanSpec, classNameToClassInfo, classGraphLog);
                     }
 
-                    // Create placeholder external classes for any classes referenced in type descriptors or
-                    // type signatures, so that a ClassInfo object can be obtained for those class references
-                    final Set<String> referencedClassNames = new HashSet<>();
-                    for (final ClassInfo classInfo : classNameToClassInfo.values()) {
-                        classInfo.getClassNamesFromTypeDescriptors(referencedClassNames);
-                    }
-                    for (final String referencedClass : referencedClassNames) {
-                        ClassInfo.getOrCreateClassInfo(referencedClass, /* modifiers = */ 0, scanSpec,
-                                classNameToClassInfo);
-                    }
+                    // Uncomment the following code to create placeholder external classes for any classes
+                    // referenced in type descriptors or type signatures, so that a ClassInfo object can be
+                    // obtained for those class references. This will cause all type descriptors and type
+                    // signatures to be parsed, and class names extracted from them. This will add some
+                    // overhead to the scanning time, and the only benefit is that
+                    // ClassRefTypeSignature.getClassInfo() and AnnotationClassRef.getClassInfo() will never
+                    // return null, since all external classes found in annotation class refs will have a
+                    // placeholder ClassInfo object created for them. This is obscure enough that it is
+                    // probably not worth slowing down scanning for all other usecases, by forcibly parsing
+                    // all type descriptors and type signatures before returning the ScanResult.
+                    // With this code commented out, type signatures and type descriptors are only parsed
+                    // lazily, on demand.
+
+                    //    final Set<String> referencedClassNames = new HashSet<>();
+                    //    for (final ClassInfo classInfo : classNameToClassInfo.values()) {
+                    //        classInfo.getClassNamesFromTypeDescriptors(referencedClassNames);
+                    //    }
+                    //    for (final String referencedClass : referencedClassNames) {
+                    //        ClassInfo.getOrCreateClassInfo(referencedClass, /* modifiers = */ 0, scanSpec,
+                    //                classNameToClassInfo);
+                    //    }
 
                     if (classGraphLog != null) {
                         classGraphLog.addElapsedTime();

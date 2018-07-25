@@ -52,6 +52,13 @@ public class AnnotationClassRefTest {
         Class<?> value();
     }
 
+    public void methodWithoutAnnotation() {
+    }
+
+    @ClassRefAnnotation(Void.class)
+    public void methodWithAnnotation() {
+    }
+
     @Test
     public void testClassRefAnnotation() throws Exception {
         final ClassInfoList testClasses = new FastClasspathScanner()
@@ -70,16 +77,6 @@ public class AnnotationClassRefTest {
         final Object val = paramVal.getValue();
         assertThat(val instanceof AnnotationClassRef).isTrue();
         final AnnotationClassRef classRefVal = (AnnotationClassRef) val;
-        final ClassInfo classInfo = classRefVal.getClassInfo();
-        assertThat(classInfo).isNotNull();
-        assertThat(classInfo.getName()).isEqualTo("java.lang.Void");
-        assertThat(classInfo.loadClass()).isEqualTo(Void.class);
-    }
-
-    public void methodWithoutAnnotation() {
-    }
-
-    @ClassRefAnnotation(Void.class)
-    public void methodWithAnnotation() {
+        assertThat(classRefVal.loadClass()).isEqualTo(Void.class);
     }
 }

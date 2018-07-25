@@ -104,8 +104,8 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
 
     /**
      * Get the {@link ClassInfo} object for the referenced class, or null if the referenced class was not
-     * encountered during scanning. (Even if this method returns null, {@link #loadClass()} may be able to load the
-     * referenced class by name.)
+     * encountered during scanning (i.e. no ClassInfo object was created for the class during scanning). N.B. even
+     * if this method returns null, {@link #loadClass()} may be able to load the referenced class by name.
      * 
      * @return The {@link ClassInfo} object for the referenced class.
      */
@@ -116,11 +116,11 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
 
     /**
      * Load the referenced class, if not already loaded, returning a {@code Class<?>} reference for the referenced
-     * class.
+     * class. (Called by {@link AnnotationClassRef#loadClass()}.)
      * 
      * @return The {@code Class<?>} reference for the referenced class.
      * @throws IllegalArgumentException
-     *             if the class cannot be loaded.
+     *             if the class could not be loaded.
      */
     public Class<?> loadClass() {
         final ClassInfo classInfo = super.getClassInfo();

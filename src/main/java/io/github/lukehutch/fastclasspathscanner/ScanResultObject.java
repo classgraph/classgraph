@@ -46,7 +46,8 @@ abstract class ScanResultObject {
         if (classInfo == null) {
             classInfo = scanResult.getClassInfo(className);
             if (classInfo == null) {
-                throw new IllegalArgumentException("Could not find ClassInfo object for " + className);
+                return null;
+                // TODO                throw new IllegalArgumentException("Could not find ClassInfo object for " + className);
             }
         }
         return classInfo;
