@@ -1,11 +1,9 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
 	<groupId>io.github.lukehutch</groupId>
 	<artifactId>fast-classpath-scanner</artifactId>
-	<version>3.1.13-SNAPSHOT</version>
+	<version>4.0.0-beta-1</version>
 	<name>FastClasspathScanner</name>
 
 	<description>
@@ -74,8 +72,7 @@
 						</goals>
 						<configuration>
 							<rules>
-								<checkSignatureRule
-									implementation="org.codehaus.mojo.animal_sniffer.enforcer.CheckSignatureRule">
+								<checkSignatureRule implementation="org.codehaus.mojo.animal_sniffer.enforcer.CheckSignatureRule">
 									<signature>
 										<groupId>org.codehaus.mojo.signature</groupId>
 										<artifactId>java17</artifactId>
@@ -302,7 +299,7 @@
 		<connection>scm:git:git@github.com:lukehutch/fast-classpath-scanner.git</connection>
 		<developerConnection>scm:git:git@github.com:lukehutch/fast-classpath-scanner.git</developerConnection>
 		<url>https://github.com/lukehutch/fast-classpath-scanner</url>
-		<tag>fast-classpath-scanner-3.0.0</tag>
+		<tag>fast-classpath-scanner-4.0.0-beta-1</tag>
 	</scm>
 	<url>https://github.com/lukehutch/fast-classpath-scanner</url>
 
