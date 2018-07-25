@@ -226,31 +226,6 @@ public class ScanResult {
         }
     }
 
-    /**
-     * Get a list of all resources found in whitelisted packages that have a path, relative to the package root of
-     * the classpath element, that starts with the requested path.
-     */
-    public ResourceList getResourcesWithPathPrefix(final String resourcePathPrefix) {
-        if (allResources == null || allResources.isEmpty()) {
-            return new ResourceList(1);
-        } else {
-            String pathPrefix = resourcePathPrefix;
-            while (pathPrefix.startsWith("/")) {
-                pathPrefix = pathPrefix.substring(1);
-            }
-            if (!pathPrefix.endsWith("/") && !pathPrefix.isEmpty()) {
-                pathPrefix = pathPrefix + "/";
-            }
-            final ResourceList filteredResources = new ResourceList();
-            for (final Resource classpathResource : allResources) {
-                if (classpathResource.getPath().startsWith(pathPrefix)) {
-                    filteredResources.add(classpathResource);
-                }
-            }
-            return filteredResources;
-        }
-    }
-
     /** Get a list of all resources found in whitelisted packages that have the requested leafname. */
     public ResourceList getResourcesWithLeafName(final String leafName) {
         if (allResources == null || allResources.isEmpty()) {
@@ -548,7 +523,7 @@ public class ScanResult {
     }
 
     /**
-     * Get non-annotation classes with the named class annotation or meta-annotation.
+     * Get classes with the named class annotation or meta-annotation.
      *
      * @param annotationName
      *            The name of the class annotation or meta-annotation.

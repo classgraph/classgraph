@@ -93,6 +93,8 @@ public class FastClasspathScanner {
         return this;
     }
 
+    // -------------------------------------------------------------------------------------------------------------
+
     /**
      * Enables the scanning of all classes, fields, methods, annotations, and static final field constant
      * initializer values, and ignores all visibility modifiers, so that both public and non-public classes, fields
@@ -207,6 +209,8 @@ public class FastClasspathScanner {
         return this;
     }
 
+    // -------------------------------------------------------------------------------------------------------------
+
     /**
      * Causes only runtime visible annotations to be scanned (causes runtime invisible annotations to be ignored).
      *
@@ -216,6 +220,8 @@ public class FastClasspathScanner {
         scanSpec.disableRuntimeInvisibleAnnotations = true;
         return this;
     }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Disables the scanning of jarfiles.
@@ -246,6 +252,8 @@ public class FastClasspathScanner {
         scanSpec.scanModules = false;
         return this;
     }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Causes FastClasspathScanner to return classes that are not in the whitelisted packages, but that are directly
@@ -300,9 +308,10 @@ public class FastClasspathScanner {
 
     /**
      * If this method is called, a new {@link java.net.URLClassLoader} is created for all classes found on the
-     * classpath that match whitelist criteria. This may be needed if you get a ClassNotFoundException,
-     * UnsatisfiedLinkError, NoClassDefFoundError, etc., due to trying to load classes that depend upon each other
-     * but that are loaded by different ClassLoaders in the classpath.
+     * classpath that match whitelist criteria. This may be needed if you get a {@link ClassNotFoundException},
+     * {@link UnsatisfiedLinkError}, {@link NoClassDefFoundError}, {@link TypeNotPresentException}, etc., due to
+     * trying to load classes that depend upon each other but that are loaded by different ClassLoaders in the
+     * classpath.
      * 
      * @return this (for method chaining).
      */
