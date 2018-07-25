@@ -194,93 +194,73 @@ class ClasspathElementModule extends ClasspathElement {
             return;
         }
         try {
-            // Always scan a module if the root package needs to be scanned, since moduleRef.getModulePackages()
-            // will never return the empty package ("").
-            boolean hasWhitelistedPackage = scanSpec.packagePrefixWhiteBlackList
-                    .isSpecificallyWhitelistedAndNotBlacklisted("");
-            if (!hasWhitelistedPackage) {
-                // Check if module contains any whitelisted non-root packages
-                final List<String> packages = moduleRef.getPackages();
-                for (final String pkg : packages) {
-                    final String pkgPath = pkg.replace('.', '/') + "/";
-                    final ScanSpecPathMatch matchStatus = scanSpec.dirWhitelistMatchStatus(pkgPath);
-                    if (matchStatus == ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX
-                            || matchStatus == ScanSpecPathMatch.AT_WHITELISTED_PATH
-                            || matchStatus == ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE) {
-                        hasWhitelistedPackage = true;
-                        break;
-                    }
+            // Look for whitelisted files in the module.
+            List<String> resourceRelativePaths;
+            try {
+                resourceRelativePaths = moduleReaderProxy.list();
+            } catch (final Exception e) {
+                if (subLog != null) {
+                    subLog.log("Could not get resource list for module " + moduleRef.getName(), e);
                 }
+                return;
             }
-            if (hasWhitelistedPackage) {
-                // Look for whitelisted files in the module.
-                List<String> resourceRelativePaths;
-                try {
-                    resourceRelativePaths = moduleReaderProxy.list();
-                } catch (final Exception e) {
-                    if (subLog != null) {
-                        subLog.log("Could not get resource list for module " + moduleRef.getName(), e);
-                    }
-                    return;
+            String prevParentRelativePath = null;
+            ScanSpecPathMatch prevParentMatchStatus = null;
+            for (final String relativePath : resourceRelativePaths) {
+                // From ModuleReader#find(): "If the module reader can determine that the name locates a
+                // directory then the resulting URI will end with a slash ('/')."  But From the documentation
+                // for ModuleReader#list(): "Whether the stream of elements includes names corresponding to
+                // directories in the module is module reader specific."  We don't have a way of checking if
+                // a resource is a directory without trying to open it, unless ModuleReader#list() also decides
+                // to put a "/" on the end of resource paths corresponding to directories. Skip directories if
+                // they are found, but if they are not able to be skipped, we will have to settle for having
+                // some IOExceptions thrown when directories are mistaken for files when trying to call a
+                // FileMatchProcessor on a directory path that matches a given path criterion.
+                if (relativePath.endsWith("/")) {
+                    continue;
                 }
-                String prevParentRelativePath = null;
-                ScanSpecPathMatch prevParentMatchStatus = null;
-                for (final String relativePath : resourceRelativePaths) {
-                    // From ModuleReader#find(): "If the module reader can determine that the name locates a
-                    // directory then the resulting URI will end with a slash ('/')."  But From the documentation
-                    // for ModuleReader#list(): "Whether the stream of elements includes names corresponding to
-                    // directories in the module is module reader specific."  We don't have a way of checking if
-                    // a resource is a directory without trying to open it, unless ModuleReader#list() also decides
-                    // to put a "/" on the end of resource paths corresponding to directories. Skip directories if
-                    // they are found, but if they are not able to be skipped, we will have to settle for having
-                    // some IOExceptions thrown when directories are mistaken for files when trying to call a
-                    // FileMatchProcessor on a directory path that matches a given path criterion.
-                    if (relativePath.endsWith("/")) {
-                        continue;
+
+                // Get match status of the parent directory of this resource's relative path (or reuse the last
+                // match status for speed, if the directory name hasn't changed).
+                final int lastSlashIdx = relativePath.lastIndexOf("/");
+                final String parentRelativePath = lastSlashIdx < 0 ? "/"
+                        : relativePath.substring(0, lastSlashIdx + 1);
+                final boolean parentRelativePathChanged = !parentRelativePath.equals(prevParentRelativePath);
+                final ScanSpecPathMatch parentMatchStatus = //
+                        prevParentRelativePath == null || parentRelativePathChanged
+                                ? scanSpec.dirWhitelistMatchStatus(parentRelativePath)
+                                : prevParentMatchStatus;
+                prevParentRelativePath = parentRelativePath;
+                prevParentMatchStatus = parentMatchStatus;
+
+                // Class can only be scanned if it's within a whitelisted path subtree, or if it is a classfile
+                // that has been specifically-whitelisted
+                if (parentMatchStatus != ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX
+                        && parentMatchStatus != ScanSpecPathMatch.AT_WHITELISTED_PATH
+                        && (parentMatchStatus != ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE
+                                || !scanSpec.isSpecificallyWhitelistedClass(relativePath))) {
+                    continue;
+                }
+
+                if (subLog != null) {
+                    subLog.log(relativePath, "Found whitelisted file: " + relativePath);
+                }
+
+                if (scanSpec.enableClassInfo) {
+                    // Store relative paths of any classfiles encountered
+                    if (FileUtils.isClassfile(relativePath)) {
+                        classfileMatches.add(newClasspathResource(relativePath));
                     }
+                }
 
-                    // Get match status of the parent directory of this resource's relative path (or reuse the last
-                    // match status for speed, if the directory name hasn't changed).
-                    final int lastSlashIdx = relativePath.lastIndexOf("/");
-                    final String parentRelativePath = lastSlashIdx < 0 ? "/"
-                            : relativePath.substring(0, lastSlashIdx + 1);
-                    final boolean parentRelativePathChanged = !parentRelativePath.equals(prevParentRelativePath);
-                    final ScanSpecPathMatch parentMatchStatus = //
-                            prevParentRelativePath == null || parentRelativePathChanged
-                                    ? scanSpec.dirWhitelistMatchStatus(parentRelativePath)
-                                    : prevParentMatchStatus;
-                    prevParentRelativePath = parentRelativePath;
-                    prevParentMatchStatus = parentMatchStatus;
+                // Record all classpath resources found in whitelisted paths
+                fileMatches.add(newClasspathResource(relativePath));
 
-                    // Class can only be scanned if it's within a whitelisted path subtree, or if it is a classfile
-                    // that has been specifically-whitelisted
-                    if (parentMatchStatus != ScanSpecPathMatch.HAS_WHITELISTED_PATH_PREFIX
-                            && parentMatchStatus != ScanSpecPathMatch.AT_WHITELISTED_PATH
-                            && (parentMatchStatus != ScanSpecPathMatch.AT_WHITELISTED_CLASS_PACKAGE
-                                    || !scanSpec.isSpecificallyWhitelistedClass(relativePath))) {
-                        continue;
-                    }
-
-                    if (subLog != null) {
-                        subLog.log(relativePath, "Found whitelisted file: " + relativePath);
-                    }
-
-                    if (scanSpec.enableClassInfo) {
-                        // Store relative paths of any classfiles encountered
-                        if (FileUtils.isClassfile(relativePath)) {
-                            classfileMatches.add(newClasspathResource(relativePath));
-                        }
-                    }
-
-                    // Record all classpath resources found in whitelisted paths
-                    fileMatches.add(newClasspathResource(relativePath));
-
-                    // Last modified time is not tracked for system modules, since they have a "jrt:/" URL
-                    if (!moduleRef.isSystemModule()) {
-                        final File moduleFile = moduleRef.getLocationFile();
-                        if (moduleFile.exists()) {
-                            fileToLastModified.put(moduleFile, moduleFile.lastModified());
-                        }
+                // Last modified time is not tracked for system modules, since they have a "jrt:/" URL
+                if (!moduleRef.isSystemModule()) {
+                    final File moduleFile = moduleRef.getLocationFile();
+                    if (moduleFile.exists()) {
+                        fileToLastModified.put(moduleFile, moduleFile.lastModified());
                     }
                 }
             }
