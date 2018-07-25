@@ -175,7 +175,7 @@ abstract class ClasspathElement {
                 canonicalPath = resolvedPath;
             }
             subLog = log.log(resolvedPath,
-                    "Scanning " + (isModule ? "module" : isDir ? "directory" : "jarfile") + " classpath entry "
+                    "Scanning " + (isModule ? "module" : isDir ? "directory" : "jarfile")
                             + (isModule
                                     ? classpathRelativePath.getModuleRef()
                                             + (classpathRelativePath.getModuleRef().getLocationStr() == null ? ""
