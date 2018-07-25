@@ -178,9 +178,13 @@ abstract class ClasspathElement {
             } catch (final Exception e) {
                 canonicalPath = resolvedPath;
             }
-            subLog = log.log(resolvedPath, "Scanning " + (isModule ? "module" : isDir ? "directory" : "jarfile")
-                    + " classpath entry " + classpathRelativePath + (isModule ? ""
-                            : (file.getPath().equals(canonicalPath) ? "" : " ; canonical path: " + canonicalPath)));
+            subLog = log.log(resolvedPath,
+                    "Scanning " + (isModule ? "module" : isDir ? "directory" : "jarfile") + " classpath entry "
+                            + (isModule
+                                    ? classpathRelativePath.getModuleRef() + " -> "
+                                            + classpathRelativePath.getModuleRef().getModuleLocationStr()
+                                    : (file.getPath().equals(canonicalPath) ? canonicalPath
+                                            : classpathRelativePath + " -> " + canonicalPath)));
         }
 
         // Dispatch to appropriate constructor
