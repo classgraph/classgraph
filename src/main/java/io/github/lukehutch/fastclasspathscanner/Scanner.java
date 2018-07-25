@@ -295,13 +295,14 @@ class Scanner implements Callable<ScanResult> {
                                 rawClasspathEltOrder.add(new ClasspathOrModulePathEntry(systemModule,
                                         nestedJarHandler, getRawElementsLog));
                             } else {
-                                if (log != null) {
-                                    log.log("Skipping non-whitelisted or blacklisted system module: " + moduleName);
+                                if (classpathFinderLog != null) {
+                                    classpathFinderLog.log(
+                                            "Skipping non-whitelisted or blacklisted system module: " + moduleName);
                                 }
                             }
                         } else {
-                            if (log != null) {
-                                log.log("Skipping system module: " + moduleName);
+                            if (classpathFinderLog != null) {
+                                classpathFinderLog.log("Skipping system module: " + moduleName);
                             }
                         }
                     }
@@ -314,8 +315,9 @@ class Scanner implements Callable<ScanResult> {
                             rawClasspathEltOrder.add(new ClasspathOrModulePathEntry(nonSystemModule,
                                     nestedJarHandler, getRawElementsLog));
                         } else {
-                            if (log != null) {
-                                log.log("Skipping non-whitelisted or blacklisted module: " + moduleName);
+                            if (classpathFinderLog != null) {
+                                classpathFinderLog
+                                        .log("Skipping non-whitelisted or blacklisted module: " + moduleName);
                             }
                         }
                     }
