@@ -96,7 +96,15 @@ class ClasspathElementModule extends ClasspathElement {
             @Override
             public URL getURL() {
                 try {
-                    return new URL(new URL(moduleRef.getModuleLocationStr()).toString() + "!" + moduleResourcePath);
+                    if (moduleRef.getModuleLocationStr() == null) {
+                        // If there is no known module location, just guess that it should be a "jrt:/" URL,
+                        // so that the user can at least see something in the result
+                        return new URL(
+                                new URL("jrt:/" + moduleRef.getModuleName()).toString() + "!" + moduleResourcePath);
+                    } else {
+                        return new URL(
+                                new URL(moduleRef.getModuleLocationStr()).toString() + "!" + moduleResourcePath);
+                    }
                 } catch (final MalformedURLException e) {
                     throw new IllegalArgumentException("Could not form URL for module location: "
                             + moduleRef.getModuleLocationStr() + " ; path: " + moduleResourcePath);
