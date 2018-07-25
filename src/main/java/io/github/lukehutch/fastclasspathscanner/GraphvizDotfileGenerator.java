@@ -355,8 +355,8 @@ class GraphvizDotfileGenerator {
                     // Method parameters
                     buf.append("<td align='left' valign='top'>");
                     buf.append('(');
-                    if (mi.getNumParameters() != 0) {
-                        final MethodParameterInfo[] paramInfo = mi.getParameterInfo();
+                    final MethodParameterInfo[] paramInfo = mi.getParameterInfo();
+                    if (paramInfo.length != 0) {
                         for (int i = 0, wrapPos = 0; i < paramInfo.length; i++) {
                             if (i > 0) {
                                 buf.append(", ");
@@ -485,7 +485,7 @@ class GraphvizDotfileGenerator {
                 for (final FieldInfo fi : fieldInfo) {
                     final TypeSignature fieldSig = fi.getTypeSignature();
                     if (fieldSig != null) {
-                        fieldSig.getAllReferencedClassNames(referencedFieldTypeNames);
+                        fieldSig.getClassNamesFromTypeDescriptors(referencedFieldTypeNames);
                     }
                 }
             }
@@ -503,7 +503,7 @@ class GraphvizDotfileGenerator {
                 for (final MethodInfo mi : methodInfo) {
                     final MethodTypeSignature methodSig = mi.getTypeSignature();
                     if (methodSig != null) {
-                        methodSig.getAllReferencedClassNames(referencedMethodTypeNames);
+                        methodSig.getClassNamesFromTypeDescriptors(referencedMethodTypeNames);
                     }
                 }
             }

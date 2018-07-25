@@ -41,11 +41,11 @@ public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
     /** The type variable name. */
     private final String typeVariableName;
 
+    /** The name of the class that this type variable is defined in. */
+    String containingClassName;
+
     /** The method signature that this type variable is part of. */
     MethodTypeSignature containingMethodSignature;
-
-    /** The class signature that this type variable is part of, or the enclosing class, if this is a method. */
-    ClassTypeSignature containingClassSignature;
 
     @Override
     void setScanResult(final ScanResult scanResult) {
@@ -90,6 +90,11 @@ public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
                 }
             }
         }
+        final ClassInfo containingClassInfo = getClassInfo();
+        if (containingClassInfo == null) {
+            throw new IllegalArgumentException("Could not find ClassInfo object for " + containingClassName);
+        }
+        final ClassTypeSignature containingClassSignature = containingClassInfo.getTypeSignature();
         if (containingClassSignature != null) {
             if (containingClassSignature.typeParameters != null
                     && !containingClassSignature.typeParameters.isEmpty()) {
@@ -104,12 +109,16 @@ public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
     }
 
     @Override
-    public void getAllReferencedClassNames(final Set<String> classNameListOut) {
+    public void getClassNamesFromTypeDescriptors(final Set<String> classNames) {
     }
 
+    /**
+     * Return containingClassName, so that getClassInfo() returns the {@link ClassInfo} object for the containing
+     * class.
+     */
     @Override
-    public Class<?> loadClass() {
-        throw new IllegalArgumentException("Cannot instantiate a type variable");
+    protected String getClassName() {
+        return containingClassName;
     }
 
     @Override

@@ -29,6 +29,7 @@
 package io.github.lukehutch.fastclasspathscanner;
 
 import java.lang.reflect.Modifier;
+import java.util.Set;
 
 import io.github.lukehutch.fastclasspathscanner.utils.Parser.ParseException;
 import io.github.lukehutch.fastclasspathscanner.utils.TypeUtils;
@@ -39,7 +40,6 @@ import io.github.lukehutch.fastclasspathscanner.utils.TypeUtils;
  */
 public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo> {
     String definingClassName;
-    ClassInfo definingClassInfo;
     String name;
     int modifiers;
     String typeSignatureStr;
@@ -90,7 +90,7 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
      * @param scanSpec
      *            The {@link ScanSpec}.
      */
-    public FieldInfo(final String definingClassName, final String fieldName, final int modifiers,
+    FieldInfo(final String definingClassName, final String fieldName, final int modifiers,
             final String typeDescriptorStr, final String typeSignatureStr, final Object constInitializerValue,
             final AnnotationInfoList annotationInfo, final ScanSpec scanSpec) {
         if (fieldName == null) {
@@ -109,6 +109,15 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
     }
 
     /**
+     * Returns the name of the field.
+     * 
+     * @return The name of the field.
+     */
+    public String getName() {
+        return name;
+    }
+
+    /**
      * Get the name of the class this field is defined within.
      * 
      * @return The name of the class this field is defined within.
@@ -118,21 +127,21 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
     }
 
     /**
+     * Returns the defining class name, so that {@link #getClassInfo()} returns the {@link ClassInfo} object for the
+     * defining class.
+     */
+    @Override
+    protected String getClassName() {
+        return definingClassName;
+    }
+
+    /**
      * Get the class this field is defined within.
      * 
      * @return The class this field is defined within.
      */
     public ClassInfo getDefiningClassInfo() {
-        return definingClassInfo;
-    }
-
-    /**
-     * Returns the name of the field.
-     * 
-     * @return The name of the field.
-     */
-    public String getName() {
-        return name;
+        return getClassInfo();
     }
 
     /**
@@ -151,33 +160,6 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
      */
     public boolean isPublic() {
         return Modifier.isPublic(modifiers);
-    }
-
-    /**
-     * Returns true if this field is private.
-     * 
-     * @return True if the field is private.
-     */
-    public boolean isPrivate() {
-        return Modifier.isPrivate(modifiers);
-    }
-
-    /**
-     * Returns true if this field is protected.
-     * 
-     * @return True if the field is protected.
-     */
-    public boolean isProtected() {
-        return Modifier.isProtected(modifiers);
-    }
-
-    /**
-     * Returns true if this field is package-private.
-     * 
-     * @return True if the field is package-private.
-     */
-    public boolean isPackagePrivate() {
-        return !isPublic() && !isPrivate() && !isProtected();
     }
 
     /**
@@ -217,16 +199,6 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
     }
 
     /**
-     * Returns the low-level internal type descriptor string for the field, without type parameters, e.g.
-     * "Ljava/util/List;".
-     * 
-     * @return The low-level type descriptor for the field.
-     */
-    public String getTypeDescriptorStr() {
-        return typeDescriptorStr;
-    }
-
-    /**
      * Returns the parsed type descriptor for the field, if available.
      * 
      * @return The parsed type descriptor for the field, if available, else returns null.
@@ -243,15 +215,6 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
             }
         }
         return typeDescriptor;
-    }
-
-    /**
-     * Returns the low-level internal type signature string for the method, possibly with type parameters.
-     * 
-     * @return The low-level internal type descriptor for the field.
-     */
-    public String getTypeSignatureStr() {
-        return typeSignatureStr;
     }
 
     /**
@@ -290,12 +253,36 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
         }
     }
 
+    /** Get the names of any classes in the type descriptor or type signature. */
+    @Override
+    protected void getClassNamesFromTypeDescriptors(final Set<String> classNames) {
+        final TypeSignature methodSig = getTypeSignature();
+        if (methodSig != null) {
+            methodSig.getClassNamesFromTypeDescriptors(classNames);
+        }
+        final TypeSignature methodDesc = getTypeDescriptor();
+        if (methodDesc != null) {
+            methodDesc.getClassNamesFromTypeDescriptors(classNames);
+        }
+        if (annotationInfo != null) {
+            for (final AnnotationInfo annotationInfo : annotationInfo) {
+                annotationInfo.getClassNamesFromTypeDescriptors(classNames);
+            }
+        }
+    }
+
     /**
-     * Returns the constant final initializer value of the field.
+     * Returns the constant final initializer value of the field. Requires
+     * {@link FastClasspathScanner#enableStaticFinalFieldConstantInitializerValues()} to have been called.
      * 
      * @return The constant final initializer value of the field, or null if none.
      */
     public Object getConstInitializerValue() {
+        if (!scanSpec.enableStaticFinalFieldConstantInitializerValues) {
+            throw new IllegalArgumentException(
+                    "Please call FastClasspathScanner#enableStaticFinalFieldConstantInitializerValues() "
+                            + "before #scan()");
+        }
         return constInitializerValue;
     }
 
@@ -313,6 +300,8 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
         }
         return annotationInfo == null ? AnnotationInfoList.EMPTY_LIST : annotationInfo;
     }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     /** Use class name and field name for equals(). */
     @Override

@@ -53,7 +53,7 @@ public class Issue148Test {
             buf.append(ci.isInnerClass() + " " + ci.isAnonymousInnerClass() + " " + ci.isOuterClass() + "|");
             buf.append(ci.getInnerClasses().getNames() + "|");
             buf.append(ci.getOuterClasses().getNames() + "|");
-            buf.append(ci.getFullyQualifiedContainingMethodName() + "\n");
+            buf.append(ci.getFullyQualifiedDefiningMethodName() + "\n");
         });
 
         final String bufStr = buf.toString().replace(pkg + ".", "");

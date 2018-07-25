@@ -29,39 +29,34 @@
 package io.github.lukehutch.fastclasspathscanner;
 
 import java.lang.reflect.Array;
+import java.util.Set;
 
 /** A wrapper used to pair annotation parameter names with annotation parameter values. */
-public class AnnotationParamValue extends ScanResultObject implements Comparable<AnnotationParamValue> {
-    String paramName;
-    AnnotationParamValueWrapper paramValue;
+public class AnnotationParameterValue extends ScanResultObject implements Comparable<AnnotationParameterValue> {
+    String name;
+    AnnotationParameterValueWrapper value;
 
     @Override
     void setScanResult(final ScanResult scanResult) {
         super.setScanResult(scanResult);
-        if (paramValue != null) {
-            paramValue.setScanResult(scanResult);
-        }
-    }
-
-    void setClassInfo(final ClassInfo classInfo) {
-        if (paramValue != null) {
-            paramValue.setClassInfo(classInfo);
+        if (value != null) {
+            value.setScanResult(scanResult);
         }
     }
 
     /** Default constructor for deserialization. */
-    AnnotationParamValue() {
+    AnnotationParameterValue() {
     }
 
     /**
-     * @param paramName
+     * @param name
      *            The annotation paramater name.
-     * @param paramValue
+     * @param value
      *            The annotation parameter value.
      */
-    public AnnotationParamValue(final String paramName, final Object paramValue) {
-        this.paramName = paramName;
-        this.paramValue = new AnnotationParamValueWrapper(paramValue);
+    public AnnotationParameterValue(final String name, final Object value) {
+        this.name = name;
+        this.value = new AnnotationParameterValueWrapper(value);
     }
 
     /**
@@ -69,8 +64,27 @@ public class AnnotationParamValue extends ScanResultObject implements Comparable
      * 
      * @return The annotation parameter name.
      */
-    public String getParamName() {
-        return paramName;
+    public String getName() {
+        return name;
+    }
+
+    @Override
+    protected String getClassName() {
+        // getClassInfo() is not valid for this type, so getClassName() does not need to be implemented
+        throw new IllegalArgumentException("getClassName() cannot be called here");
+    }
+
+    @Override
+    protected ClassInfo getClassInfo() {
+        throw new IllegalArgumentException("getClassInfo() cannot be called here");
+    }
+
+    /** Get the names of any classes referenced in the annotation parameters. */
+    @Override
+    void getClassNamesFromTypeDescriptors(final Set<String> referencedClassNames) {
+        if (value != null) {
+            value.getClassNamesFromTypeDescriptors(referencedClassNames);
+        }
     }
 
     /**
@@ -89,8 +103,8 @@ public class AnnotationParamValue extends ScanResultObject implements Comparable
      *         <li>{@link AnnotationInfo}, for nested annotations
      *         </ul>
      */
-    public Object getParamValue() {
-        return paramValue == null ? null : paramValue.get();
+    public Object getValue() {
+        return value == null ? null : value.get();
     }
 
     @Override
@@ -101,16 +115,16 @@ public class AnnotationParamValue extends ScanResultObject implements Comparable
     }
 
     void toString(final StringBuilder buf) {
-        buf.append(paramName);
+        buf.append(name);
         buf.append(" = ");
         toStringParamValueOnly(buf);
     }
 
     void toStringParamValueOnly(final StringBuilder buf) {
-        if (paramValue == null) {
+        if (value == null) {
             buf.append("null");
         } else {
-            final Object paramVal = paramValue.get();
+            final Object paramVal = value.get();
             final Class<? extends Object> valClass = paramVal.getClass();
             if (valClass.isArray()) {
                 buf.append('{');
@@ -137,15 +151,15 @@ public class AnnotationParamValue extends ScanResultObject implements Comparable
     }
 
     @Override
-    public int compareTo(final AnnotationParamValue o) {
-        final int diff = paramName.compareTo(o.getParamName());
+    public int compareTo(final AnnotationParameterValue o) {
+        final int diff = name.compareTo(o.getName());
         if (diff != 0) {
             return diff;
         }
         // Use toString() order and get() (which can be slow) as a last-ditch effort -- only happens
         // if the annotation has multiple parameters of the same name but different value. 
-        final Object p0 = getParamValue();
-        final Object p1 = o.getParamValue();
+        final Object p0 = getValue();
+        final Object p1 = o.getValue();
         if (p0 == null && p1 == null) {
             return 0;
         } else if (p0 == null && p1 != null) {
@@ -158,13 +172,12 @@ public class AnnotationParamValue extends ScanResultObject implements Comparable
 
     @Override
     public boolean equals(final Object obj) {
-        if (!(obj instanceof AnnotationParamValue)) {
+        if (!(obj instanceof AnnotationParameterValue)) {
             return false;
         }
-        final AnnotationParamValue o = (AnnotationParamValue) obj;
+        final AnnotationParameterValue o = (AnnotationParameterValue) obj;
         final int diff = this.compareTo(o);
         return (diff != 0 ? false
-                : paramValue == null && o.paramValue == null ? true
-                        : paramValue == null || o.paramValue == null ? false : true);
+                : value == null && o.value == null ? true : value == null || o.value == null ? false : true);
     }
 }

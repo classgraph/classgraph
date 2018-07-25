@@ -144,9 +144,9 @@ public class MethodInfoList extends ArrayList<MethodInfo> {
     }
 
     /** Return the {@link MethodInfo} object in the list with the given name, or null if not found. */
-    public MethodInfo get(final String name) {
+    public MethodInfo get(final String methodName) {
         for (final MethodInfo mi : this) {
-            if (mi.getName().equals(name)) {
+            if (mi.getName().equals(methodName)) {
                 return mi;
             }
         }

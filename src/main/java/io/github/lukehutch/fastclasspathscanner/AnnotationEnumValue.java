@@ -29,6 +29,7 @@
 package io.github.lukehutch.fastclasspathscanner;
 
 import java.lang.reflect.Field;
+import java.util.Set;
 
 /**
  * Class for wrapping an enum constant value (split into class name and constant name) referenced inside an
@@ -54,21 +55,17 @@ public class AnnotationEnumValue extends ScanResultObject implements Comparable<
     }
 
     /**
-     * Get the class name of the enum.
+     * Get the fully-qualified name of the enum value.
      * 
      * @return The name of the enum class.
      */
-    public String getClassName() {
-        return className;
+    public String getName() {
+        return className + "." + constName;
     }
 
-    /**
-     * Get the name of the enum constant.
-     * 
-     * @return The name of the enum constant.
-     */
-    public String getConstName() {
-        return constName;
+    @Override
+    protected String getClassName() {
+        return className;
     }
 
     /**
@@ -97,6 +94,12 @@ public class AnnotationEnumValue extends ScanResultObject implements Comparable<
         } catch (final IllegalAccessException e) {
             throw new IllegalArgumentException("Field " + toString() + " is not accessible", e);
         }
+    }
+
+    /** Get the names of any classes referenced in the annotation parameters. */
+    @Override
+    void getClassNamesFromTypeDescriptors(final Set<String> referencedClassNames) {
+        referencedClassNames.add(className);
     }
 
     @Override

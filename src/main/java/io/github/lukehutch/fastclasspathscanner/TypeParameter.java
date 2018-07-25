@@ -104,13 +104,24 @@ public class TypeParameter extends HierarchicalTypeSignature {
     }
 
     @Override
-    public void getAllReferencedClassNames(final Set<String> classNameListOut) {
+    public void getClassNamesFromTypeDescriptors(final Set<String> classNameListOut) {
         if (classBound != null) {
-            classBound.getAllReferencedClassNames(classNameListOut);
+            classBound.getClassNamesFromTypeDescriptors(classNameListOut);
         }
         for (final ReferenceTypeSignature typeSignature : interfaceBounds) {
-            typeSignature.getAllReferencedClassNames(classNameListOut);
+            typeSignature.getClassNamesFromTypeDescriptors(classNameListOut);
         }
+    }
+
+    @Override
+    protected String getClassName() {
+        // getClassInfo() is not valid for this type, so getClassName() does not need to be implemented
+        throw new IllegalArgumentException("getClassName() cannot be called here");
+    }
+
+    @Override
+    protected ClassInfo getClassInfo() {
+        throw new IllegalArgumentException("getClassInfo() cannot be called here");
     }
 
     @Override

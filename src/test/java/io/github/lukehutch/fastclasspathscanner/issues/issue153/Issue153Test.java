@@ -38,7 +38,7 @@ import org.junit.Test;
 
 import io.github.lukehutch.fastclasspathscanner.AnnotationEnumValue;
 import io.github.lukehutch.fastclasspathscanner.AnnotationInfo;
-import io.github.lukehutch.fastclasspathscanner.AnnotationParamValue;
+import io.github.lukehutch.fastclasspathscanner.AnnotationParameterValue;
 import io.github.lukehutch.fastclasspathscanner.ClassInfo;
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.ScanResult;
@@ -151,8 +151,8 @@ public class Issue153Test {
 
         // Make sure enum constants can be instantiated
         final AnnotationInfo annotation2 = classInfo.getAnnotationInfo().get(2);
-        final AnnotationParamValue annotationParam0 = annotation2.getAnnotationParamValues().get(0);
-        final Object bananaRef = ((AnnotationEnumValue) annotationParam0.getParamValue()).getEnumValue();
+        final AnnotationParameterValue annotationParam0 = annotation2.getParameterValues().get(0);
+        final Object bananaRef = ((AnnotationEnumValue) annotationParam0.getValue()).getEnumValue();
         assertThat(bananaRef.getClass()).isEqualTo(FruitEnum.class);
         assertThat(bananaRef.toString()).isEqualTo(FruitEnum.BANANA.toString());
     }

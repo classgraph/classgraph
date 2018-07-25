@@ -37,15 +37,6 @@ import io.github.lukehutch.fastclasspathscanner.utils.Parser.ParseException;
  */
 public abstract class TypeSignature extends HierarchicalTypeSignature {
     /**
-     * Instantiate the type signature into a {@code Class<?>} reference.
-     * 
-     * @throws IllegalArgumentException
-     *             if an exception or error is thrown while trying to load or instantiate this type.
-     * @return The instantiation of the type signature as a {@code Class<?>} reference.
-     */
-    public abstract Class<?> loadClass();
-
-    /**
      * Compare base types, ignoring generic type parameters.
      * 
      * @param other

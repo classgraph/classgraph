@@ -28,6 +28,8 @@
  */
 package io.github.lukehutch.fastclasspathscanner;
 
+import java.util.Set;
+
 import io.github.lukehutch.fastclasspathscanner.utils.Parser.ParseException;
 
 /**
@@ -38,11 +40,15 @@ import io.github.lukehutch.fastclasspathscanner.utils.Parser.ParseException;
  * Use ReflectionUtils.typeStrToClass() to get a {@code Class<?>} reference from this class type string.
  */
 public class AnnotationClassRef extends ScanResultObject {
-    String typeDescriptor;
+    String typeDescriptorStr;
     transient TypeSignature typeSignature;
-    transient ScanResult scanResult;
+    private transient String className;
 
     AnnotationClassRef() {
+    }
+
+    AnnotationClassRef(final String typeDescriptorStr) {
+        this.typeDescriptorStr = typeDescriptorStr;
     }
 
     @Override
@@ -53,27 +59,50 @@ public class AnnotationClassRef extends ScanResultObject {
         }
     }
 
-    public AnnotationClassRef(final String classRefTypeDescriptor) {
-        this.typeDescriptor = classRefTypeDescriptor;
-    }
-
     /**
      * Get the type signature for a type reference used in an annotation parameter.
-     *
-     * <p>
-     * Call getType() to get a {@code Class<?>} reference for this class.
      * 
      * @return The type signature of the annotation class ref.
      */
-    public TypeSignature getTypeSignature() {
+    private TypeSignature getTypeSignature() {
         if (typeSignature == null) {
             try {
-                typeSignature = TypeSignature.parse(typeDescriptor, scanResult);
+                final TypeSignature typeSig = TypeSignature.parse(typeDescriptorStr, scanResult);
+                typeSignature = typeSig;
             } catch (final ParseException e) {
                 throw new IllegalArgumentException(e);
             }
         }
         return typeSignature;
+    }
+
+    /** Return the name of the referenced class. */
+    @Override
+    public String getClassName() {
+        if (className == null) {
+            getTypeSignature();
+            if (typeSignature instanceof BaseTypeSignature) {
+                className = ((BaseTypeSignature) typeSignature).getBaseType().getName();
+            } else if (typeSignature instanceof ClassRefTypeSignature) {
+                className = ((ClassRefTypeSignature) typeSignature).getClassNameAndSuffixesWithoutTypeArguments();
+            } else {
+                throw new IllegalArgumentException("Got unexpected type " + typeSignature.getClass().getName()
+                        + " for ref type signature: " + typeDescriptorStr);
+            }
+        }
+        return className;
+    }
+
+    /** Return the class reference as a {@link ClassInfo} object. */
+    @Override
+    public ClassInfo getClassInfo() {
+        getClassName();
+        return super.getClassInfo();
+    }
+
+    @Override
+    protected void getClassNamesFromTypeDescriptors(final Set<String> classNames) {
+        classNames.add(getClassName());
     }
 
     @Override

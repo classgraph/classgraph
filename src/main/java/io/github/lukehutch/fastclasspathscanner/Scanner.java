@@ -630,7 +630,18 @@ class Scanner implements Callable<ScanResult> {
                     for (final ClassInfoUnlinked c : classInfoUnlinked) {
                         c.link(scanSpec, classNameToClassInfo, classGraphLog);
                     }
-                    // Create ClassGraphBuilder
+
+                    // Create placeholder external classes for any classes referenced in type descriptors or
+                    // type signatures, so that a ClassInfo object can be obtained for those class references
+                    final Set<String> referencedClassNames = new HashSet<>();
+                    for (final ClassInfo classInfo : classNameToClassInfo.values()) {
+                        classInfo.getClassNamesFromTypeDescriptors(referencedClassNames);
+                    }
+                    for (final String referencedClass : referencedClassNames) {
+                        ClassInfo.getOrCreateClassInfo(referencedClass, /* modifiers = */ 0, scanSpec,
+                                classNameToClassInfo);
+                    }
+
                     if (classGraphLog != null) {
                         classGraphLog.addElapsedTime();
                     }

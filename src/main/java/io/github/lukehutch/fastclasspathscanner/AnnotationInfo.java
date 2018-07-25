@@ -35,15 +35,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 
 /** Holds metadata about a specific annotation instance on a class, method or field. */
 public class AnnotationInfo extends ScanResultObject implements Comparable<AnnotationInfo> {
 
     String name;
-    List<AnnotationParamValue> annotationParamValues;
+    List<AnnotationParameterValue> annotationParamValues;
 
-    /** Link back to the ClassInfo class containing default annotation param values. */
-    private ClassInfo classInfo;
+    private transient List<AnnotationParameterValue> annotationParamValuesWithDefaults;
 
     /** Default constructor for deserialization. */
     AnnotationInfo() {
@@ -53,21 +53,9 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
     void setScanResult(final ScanResult scanResult) {
         super.setScanResult(scanResult);
         if (annotationParamValues != null) {
-            for (final AnnotationParamValue a : annotationParamValues) {
+            for (final AnnotationParameterValue a : annotationParamValues) {
                 if (a != null) {
                     a.setScanResult(scanResult);
-                }
-            }
-        }
-    }
-
-    /** Set the ClassInfo value (so that the annotation default parameter values can be read). */
-    void setClassInfo(final ClassInfo classInfo) {
-        this.classInfo = classInfo;
-        if (annotationParamValues != null) {
-            for (final AnnotationParamValue a : annotationParamValues) {
-                if (a != null) {
-                    a.setClassInfo(classInfo);
                 }
             }
         }
@@ -81,7 +69,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      * @param annotationParamValues
      *            The annotation parameter values, or null if none.
      */
-    public AnnotationInfo(final String name, final List<AnnotationParamValue> annotationParamValues) {
+    AnnotationInfo(final String name, final List<AnnotationParameterValue> annotationParamValues) {
         this.name = name;
         this.annotationParamValues = annotationParamValues;
     }
@@ -95,132 +83,94 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
         return name;
     }
 
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** Get the names of any classes referenced in the type descriptors of annotation parameters. */
+    @Override
+    void getClassNamesFromTypeDescriptors(final Set<String> classNames) {
+        classNames.add(name);
+        if (annotationParamValues != null) {
+            for (final AnnotationParameterValue annotationParamValue : annotationParamValues) {
+                annotationParamValue.getClassNamesFromTypeDescriptors(classNames);
+            }
+        }
+    }
+
+    /** Return the name of the annotation class, for {@link #getClassInfo()}. */
+    @Override
+    protected String getClassName() {
+        return name;
+    }
+
     /**
      * Get the {@link ClassInfo} object for the annotation class of this annotation.
      * 
      * @return The {@link ClassInfo} object for this annotation.
      */
+    @Override
     public ClassInfo getClassInfo() {
-        return classInfo;
+        return super.getClassInfo();
     }
 
     /** Returns true if this annotation is meta-annotated with {@link Inherited}. */
     public boolean isInherited() {
-        return classInfo.isInherited;
-    }
-
-    /** Returns the list of default parameter values for this annotation, or the empty list if there are none. */
-    public List<AnnotationParamValue> getDefaultParameterValues() {
-        final List<AnnotationParamValue> annotationDefaultParamValues = classInfo.getAnnotationDefaultParamValues();
-        return annotationDefaultParamValues == null ? Collections.<AnnotationParamValue> emptyList()
-                : annotationDefaultParamValues;
+        return getClassInfo().isInherited;
     }
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /**
-     * Get a class reference for the annotation. Causes the ClassLoader to load the annotation class, if it is not
-     * already loaded.
-     * 
-     * <p>
-     * Important note: since {@code superinterfaceType} is a class reference for an already-loaded class, it is
-     * critical that {@code superinterfaceType} is loaded by the same classloader as the class referred to by this
-     * {@link AnnotationInfo} object, otherwise the class cast will fail.
-     * 
-     * @param superinterfaceType
-     *            The type to cast the loaded annotation class to.
-     * @return The annotation type, as a {@code Class<?>} reference, or null, if ignoreExceptions is true and there
-     *         was an exception or error loading the class.
-     * @throws IllegalArgumentException
-     *             if ignoreExceptions is false and there was a problem loading the annotation class.
-     */
-    public <T> Class<T> loadClass(final Class<T> superinterfaceType, final boolean ignoreExceptions) {
-        return scanResult.loadClass(getName(), superinterfaceType, ignoreExceptions);
+    /** Returns the list of default parameter values for this annotation, or the empty list if none. */
+    public List<AnnotationParameterValue> getDefaultParameterValues() {
+        return getClassInfo().getAnnotationDefaultParameterValues();
+    }
+
+    /** Returns the annotation parameter values, without defaults, or null if none. */
+    List<AnnotationParameterValue> getParameterValuesWithoutDefaults() {
+        return annotationParamValues;
     }
 
     /**
-     * Get a class reference for the annotation. Causes the ClassLoader to load the annotation class, if it is not
-     * already loaded.
+     * Get the parameter values of this annotation, including any default parameter values inherited from the
+     * annotation class definition, or the empty list if none.
      * 
-     * <p>
-     * Important note: since {@code superinterfaceType} is a class reference for an already-loaded class, it is
-     * critical that {@code superinterfaceType} is loaded by the same classloader as the class referred to by this
-     * {@code AnnotationInfo} object, otherwise the class cast will fail.
-     * 
-     * @param superinterfaceType
-     *            The type to cast the loaded annotation class to.
-     * @return The annotation type, as a {@code Class<?>} reference.
-     * @throws IllegalArgumentException
-     *             if there was a problem loading the annotation class.
+     * @return The annotation parameter values, including any default parameter values, or the empty list if none.
      */
-    public <T> Class<T> loadClass(final Class<T> superinterfaceType) {
-        return loadClass(superinterfaceType, /* ignoreExceptions = */ false);
-    }
+    public List<AnnotationParameterValue> getParameterValues() {
+        if (annotationParamValuesWithDefaults == null) {
+            final ClassInfo classInfo = getClassInfo();
+            if (classInfo == null) {
+                // ClassInfo has not yet been set, (happen when trying to log AnnotationInfo while scanning)
+                return Collections.<AnnotationParameterValue> emptyList();
+            }
+            final List<AnnotationParameterValue> defaultParamValues = classInfo.annotationDefaultParamValues;
 
-    /**
-     * Get a class reference for the annotation. Causes the ClassLoader to load the annotation class, if it is not
-     * already loaded.
-     * 
-     * @return The annotation type, as a {@code Class<?>} reference, or null, if ignoreExceptions is true and there
-     *         was an exception or error loading the class.
-     * @throws IllegalArgumentException
-     *             if ignoreExceptions is false and there was a problem loading the annotation class.
-     */
-    public Class<?> loadClass(final boolean ignoreExceptions) {
-        return scanResult.loadClass(getName(), ignoreExceptions);
-    }
+            // Check if one or both of the defaults and the values in this annotation instance are null (empty)
+            if (defaultParamValues == null && annotationParamValues == null) {
+                return Collections.<AnnotationParameterValue> emptyList();
+            } else if (defaultParamValues == null) {
+                return annotationParamValues;
+            } else if (annotationParamValues == null) {
+                return defaultParamValues;
+            }
 
-    /**
-     * Get a class reference for the annotation. Causes the ClassLoader to load the annotation class, if it is not
-     * already loaded.
-     * 
-     * @return The annotation type, as a {@code Class<?>} reference.
-     * @throws IllegalArgumentException
-     *             if there were problems loading the annotation class.
-     */
-    public Class<?> loadClass() {
-        return loadClass(/* ignoreExceptions = */ false);
+            // Overwrite defaults with non-defaults
+            final Map<String, Object> allParamValues = new HashMap<>();
+            for (final AnnotationParameterValue defaultParamValue : defaultParamValues) {
+                allParamValues.put(defaultParamValue.name, defaultParamValue.value.get());
+            }
+            for (final AnnotationParameterValue annotationParamValue : this.annotationParamValues) {
+                allParamValues.put(annotationParamValue.name, annotationParamValue.value.get());
+            }
+            annotationParamValuesWithDefaults = new ArrayList<>();
+            for (final Entry<String, Object> ent : allParamValues.entrySet()) {
+                annotationParamValuesWithDefaults.add(new AnnotationParameterValue(ent.getKey(), ent.getValue()));
+            }
+            Collections.sort(annotationParamValuesWithDefaults);
+        }
+        return annotationParamValuesWithDefaults;
     }
 
     // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Get the parameter value of this annotation, including any default values inherited from the annotation class
-     * definition, or the empty list if none.
-     * 
-     * @return The annotation parameter values, including any default values, or the empty list if none.
-     */
-    public List<AnnotationParamValue> getAnnotationParamValues() {
-        if (classInfo == null) {
-            // ClassInfo has not yet been set, which can happen if trying to log this AnnotationInfo while scanning
-            return Collections.<AnnotationParamValue> emptyList();
-        }
-        final List<AnnotationParamValue> defaultParamValues = classInfo.annotationDefaultParamValues;
-
-        // Check if one or both of the defaults and the values in this annotation instance are null (empty)
-        if (defaultParamValues == null && annotationParamValues == null) {
-            return Collections.<AnnotationParamValue> emptyList();
-        } else if (defaultParamValues == null) {
-            return annotationParamValues;
-        } else if (annotationParamValues == null) {
-            return defaultParamValues;
-        }
-
-        // Overwrite defaults with non-defaults
-        final Map<String, Object> allParamValues = new HashMap<>();
-        for (final AnnotationParamValue defaultParamValue : defaultParamValues) {
-            allParamValues.put(defaultParamValue.paramName, defaultParamValue.paramValue.get());
-        }
-        for (final AnnotationParamValue annotationParamValue : this.annotationParamValues) {
-            allParamValues.put(annotationParamValue.paramName, annotationParamValue.paramValue.get());
-        }
-        final List<AnnotationParamValue> result = new ArrayList<>();
-        for (final Entry<String, Object> ent : allParamValues.entrySet()) {
-            result.add(new AnnotationParamValue(ent.getKey(), ent.getValue()));
-        }
-        Collections.sort(result);
-        return result;
-    }
 
     @Override
     public int compareTo(final AnnotationInfo o) {
@@ -266,8 +216,8 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
         int h = getName().hashCode();
         if (annotationParamValues != null) {
             for (int i = 0; i < annotationParamValues.size(); i++) {
-                final AnnotationParamValue e = annotationParamValues.get(i);
-                h = h * 7 + e.getParamName().hashCode() * 3 + e.getParamValue().hashCode();
+                final AnnotationParameterValue e = annotationParamValues.get(i);
+                h = h * 7 + e.getName().hashCode() * 3 + e.getValue().hashCode();
             }
         }
         return h;
@@ -281,15 +231,15 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      */
     public void toString(final StringBuilder buf) {
         buf.append("@" + getName());
-        final List<AnnotationParamValue> paramVals = getAnnotationParamValues();
+        final List<AnnotationParameterValue> paramVals = getParameterValues();
         if (paramVals != null && !paramVals.isEmpty()) {
             buf.append('(');
             for (int i = 0; i < paramVals.size(); i++) {
                 if (i > 0) {
                     buf.append(", ");
                 }
-                final AnnotationParamValue annotationParamValue = paramVals.get(i);
-                if (paramVals.size() > 1 || !"value".equals(annotationParamValue.paramName)) {
+                final AnnotationParameterValue annotationParamValue = paramVals.get(i);
+                if (paramVals.size() > 1 || !"value".equals(annotationParamValue.name)) {
                     annotationParamValue.toString(buf);
                 } else {
                     annotationParamValue.toStringParamValueOnly(buf);

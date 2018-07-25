@@ -28,7 +28,6 @@
  */
 package io.github.lukehutch.fastclasspathscanner;
 
-import java.lang.reflect.Array;
 import java.util.Set;
 
 import io.github.lukehutch.fastclasspathscanner.utils.Parser;
@@ -80,21 +79,19 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
     }
 
     @Override
-    public void getAllReferencedClassNames(final Set<String> classNameListOut) {
-        elementTypeSignature.getAllReferencedClassNames(classNameListOut);
+    void getClassNamesFromTypeDescriptors(final Set<String> classNameListOut) {
+        elementTypeSignature.getClassNamesFromTypeDescriptors(classNameListOut);
     }
 
     @Override
-    public Class<?> loadClass() {
-        final Class<?> cls = elementTypeSignature.loadClass();
-        if (numArrayDims == 0) {
-            // Should not happen
-            return cls;
-        } else {
-            final int[] zeroes = (int[]) Array.newInstance(int.class, numArrayDims);
-            return Array.newInstance(cls, zeroes).getClass();
-        }
+    protected String getClassName() {
+        // getClassInfo() is not valid for this type, so getClassName() does not need to be implemented
+        throw new IllegalArgumentException("getClassName() cannot be called here");
+    }
 
+    @Override
+    protected ClassInfo getClassInfo() {
+        throw new IllegalArgumentException("getClassInfo() cannot be called here");
     }
 
     @Override

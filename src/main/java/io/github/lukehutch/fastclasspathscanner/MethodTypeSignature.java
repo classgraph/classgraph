@@ -79,7 +79,7 @@ public class MethodTypeSignature extends HierarchicalTypeSignature {
      * @param paramTypes
      *            The parameter types for the method.
      * @param resultType
-     *            The result type for the method.
+     *            The return type for the method.
      * @param throwsSignatures
      *            The throws signatures for the method.
      */
@@ -101,11 +101,13 @@ public class MethodTypeSignature extends HierarchicalTypeSignature {
     }
 
     /**
-     * Get the type signatures of the method parameters.
+     * Get the type signatures of the method parameters. N.B. this is non-public, since the types have to be aligned
+     * with other parameter metadata. The type of a parameter can be obtained post-alignment from the parameter's
+     * {@link MethodParameterInfo} object.
      * 
      * @return The parameter types for the method, as {@link TypeSignature} parsed type objects.
      */
-    public List<TypeSignature> getParameterTypeSignatures() {
+    List<TypeSignature> getParameterTypeSignatures() {
         return parameterTypeSignatures;
     }
 
@@ -128,23 +130,34 @@ public class MethodTypeSignature extends HierarchicalTypeSignature {
     }
 
     @Override
-    public void getAllReferencedClassNames(final Set<String> classNameListOut) {
+    public void getClassNamesFromTypeDescriptors(final Set<String> classNameListOut) {
         for (final TypeParameter typeParameter : typeParameters) {
             if (typeParameter != null) {
-                typeParameter.getAllReferencedClassNames(classNameListOut);
+                typeParameter.getClassNamesFromTypeDescriptors(classNameListOut);
             }
         }
         for (final TypeSignature typeSignature : parameterTypeSignatures) {
             if (typeSignature != null) {
-                typeSignature.getAllReferencedClassNames(classNameListOut);
+                typeSignature.getClassNamesFromTypeDescriptors(classNameListOut);
             }
         }
-        resultType.getAllReferencedClassNames(classNameListOut);
+        resultType.getClassNamesFromTypeDescriptors(classNameListOut);
         for (final ClassRefOrTypeVariableSignature typeSignature : throwsSignatures) {
             if (typeSignature != null) {
-                typeSignature.getAllReferencedClassNames(classNameListOut);
+                typeSignature.getClassNamesFromTypeDescriptors(classNameListOut);
             }
         }
+    }
+
+    @Override
+    protected String getClassName() {
+        // getClassInfo() is not valid for this type, so getClassName() does not need to be implemented
+        throw new IllegalArgumentException("getClassName() cannot be called here");
+    }
+
+    @Override
+    protected ClassInfo getClassInfo() {
+        throw new IllegalArgumentException("getClassInfo() cannot be called here");
     }
 
     @Override
@@ -209,9 +222,8 @@ public class MethodTypeSignature extends HierarchicalTypeSignature {
     /**
      * Parse a method signature.
      * 
-     * @param classInfo
-     *            The {@link ClassInfo} of the containing class (for resolving type variables declared in the
-     *            class).
+     * @param definingClassName
+     *            The name of the defining class (for resolving type variables).
      * @param typeDescriptor
      *            The type descriptor of the method.
      * @param scanResult
@@ -220,7 +232,7 @@ public class MethodTypeSignature extends HierarchicalTypeSignature {
      * @throws ParseException
      *             If method type signature could not be parsed.
      */
-    public static MethodTypeSignature parse(final ClassInfo classInfo, final String typeDescriptor,
+    public static MethodTypeSignature parse(final String definingClassName, final String typeDescriptor,
             final ScanResult scanResult) throws ParseException {
         final Parser parser = new Parser(typeDescriptor);
         final List<TypeParameter> typeParameters = TypeParameter.parseList(parser);
@@ -274,10 +286,9 @@ public class MethodTypeSignature extends HierarchicalTypeSignature {
             for (final TypeVariableSignature typeVariableSignature : typeVariableSignatures) {
                 typeVariableSignature.containingMethodSignature = methodSignature;
             }
-            if (classInfo != null) {
-                final ClassTypeSignature classSignature = classInfo.getTypeSignature();
+            if (definingClassName != null) {
                 for (final TypeVariableSignature typeVariableSignature : typeVariableSignatures) {
-                    typeVariableSignature.containingClassSignature = classSignature;
+                    typeVariableSignature.containingClassName = definingClassName;
                 }
             }
         }

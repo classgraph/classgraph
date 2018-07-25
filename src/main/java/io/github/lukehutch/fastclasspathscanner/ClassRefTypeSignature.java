@@ -93,12 +93,42 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
     }
 
     /**
-     * Get the name of the base class.
+     * Get the name of the referenced class.
      * 
-     * @return The base class name.
+     * @return The name of the referenced class.
      */
+    @Override
     public String getClassName() {
         return className;
+    }
+
+    /**
+     * Get the {@link ClassInfo} object for the referenced class, or null if the referenced class was not
+     * encountered during scanning. (Even if this method returns null, {@link #loadClass()} may be able to load the
+     * referenced class by name.)
+     * 
+     * @return The {@link ClassInfo} object for the referenced class.
+     */
+    @Override
+    public ClassInfo getClassInfo() {
+        return super.getClassInfo();
+    }
+
+    /**
+     * Load the referenced class, if not already loaded, returning a {@code Class<?>} reference for the referenced
+     * class.
+     * 
+     * @return The {@code Class<?>} reference for the referenced class.
+     * @throws IllegalArgumentException
+     *             if the class cannot be loaded.
+     */
+    public Class<?> loadClass() {
+        final ClassInfo classInfo = super.getClassInfo();
+        if (classInfo != null) {
+            return classInfo.loadClass();
+        } else {
+            return scanResult.loadClass(className, /* ignoreExceptions = */ false);
+        }
     }
 
     /**
@@ -129,25 +159,12 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
     }
 
     @Override
-    public void getAllReferencedClassNames(final Set<String> classNameListOut) {
+    public void getClassNamesFromTypeDescriptors(final Set<String> classNameListOut) {
         classNameListOut.add(className);
         classNameListOut.add(getClassNameAndSuffixesWithoutTypeArguments());
         for (final TypeArgument typeArgument : typeArguments) {
-            typeArgument.getAllReferencedClassNames(classNameListOut);
+            typeArgument.getClassNamesFromTypeDescriptors(classNameListOut);
         }
-    }
-
-    /** Instantiate class ref. Type arguments are ignored. */
-    @Override
-    public Class<?> loadClass() {
-        final StringBuilder buf = new StringBuilder();
-        buf.append(className);
-        for (int i = 0; i < suffixes.size(); i++) {
-            buf.append("$");
-            buf.append(suffixes.get(i));
-        }
-        final String classNameWithSuffixes = buf.toString();
-        return scanResult.loadClass(classNameWithSuffixes, /* ignoreExceptions = */ false);
     }
 
     /**

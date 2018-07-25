@@ -50,9 +50,9 @@ class ClassInfoUnlinked {
     private String superclassName;
     private List<String> implementedInterfaces;
     private AnnotationInfoList classAnnotations;
-    private String fullyQualifiedContainingMethodName;
+    private String fullyQualifiedDefiningMethodName;
     private List<SimpleEntry<String, String>> classContainmentEntries;
-    List<AnnotationParamValue> annotationParamDefaultValues;
+    List<AnnotationParameterValue> annotationParamDefaultValues;
     final ClasspathElement classpathElement;
     FieldInfoList fieldInfoList;
     MethodInfoList methodInfoList;
@@ -103,8 +103,8 @@ class ClassInfoUnlinked {
         methodInfoList.add(methodInfo);
     }
 
-    public void addEnclosingMethod(final String fullyQualifiedContainingMethodName) {
-        this.fullyQualifiedContainingMethodName = fullyQualifiedContainingMethodName;
+    public void addEnclosingMethod(final String fullyQualifiedDefiningMethodName) {
+        this.fullyQualifiedDefiningMethodName = fullyQualifiedDefiningMethodName;
     }
 
     public void addClassContainment(final String innerClassName, final String outerClassName) {
@@ -114,7 +114,7 @@ class ClassInfoUnlinked {
         classContainmentEntries.add(new SimpleEntry<>(innerClassName, outerClassName));
     }
 
-    public void addAnnotationParamDefaultValues(final List<AnnotationParamValue> annotationParamDefaultValues) {
+    public void addAnnotationParamDefaultValues(final List<AnnotationParameterValue> annotationParamDefaultValues) {
         this.annotationParamDefaultValues = annotationParamDefaultValues;
     }
 
@@ -141,8 +141,8 @@ class ClassInfoUnlinked {
         if (annotationParamDefaultValues != null) {
             classInfo.addAnnotationParamDefaultValues(annotationParamDefaultValues);
         }
-        if (fullyQualifiedContainingMethodName != null) {
-            classInfo.addFullyQualifiedContainingMethodName(fullyQualifiedContainingMethodName);
+        if (fullyQualifiedDefiningMethodName != null) {
+            classInfo.addFullyQualifiedDefiningMethodName(fullyQualifiedDefiningMethodName);
         }
         if (fieldInfoList != null) {
             classInfo.addFieldInfo(fieldInfoList, classNameToClassInfo);
@@ -182,7 +182,7 @@ class ClassInfoUnlinked {
             if (typeSignature != null) {
                 ClassTypeSignature typeSig = null;
                 try {
-                    typeSig = ClassTypeSignature.parse(typeSignature, /* scanResult = */ null);
+                    typeSig = ClassTypeSignature.parse(className, typeSignature, /* scanResult = */ null);
                 } catch (final ParseException e) {
                 }
                 subLog.log("Class type signature: " + (typeSig == null ? typeSignature

@@ -86,6 +86,26 @@ public class MethodParameterInfo {
     }
 
     /**
+     * Get the method parameter modifiers as a String, e.g. "final". For the modifier bits, call
+     * {@link #getModifiers()}.
+     * 
+     * @return The modifiers for the method parameter, as a String.
+     */
+    public String getModifiersStr() {
+        return TypeUtils.modifiersToString(getModifiers(), /* isMethod = */ true);
+    }
+
+    /**
+     * Method parameter type signature, possibly including generic type information (or null if no type signature
+     * information available for this parameter).
+     * 
+     * @return The method type signature, if available, else null.
+     */
+    public TypeSignature getTypeSignature() {
+        return typeSignature;
+    }
+
+    /**
      * Method parameter type descriptor.
      * 
      * @return The method type descriptor.
@@ -101,16 +121,6 @@ public class MethodParameterInfo {
      */
     public TypeSignature getTypeSignatureOrTypeDescriptor() {
         return typeSignature != null ? typeSignature : typeDescriptor;
-    }
-
-    /**
-     * Method parameter type signature, possibly including generic type information (or null if no type signature
-     * information available for this parameter).
-     * 
-     * @return The method type signature, if available, else null.
-     */
-    public TypeSignature getTypeSignature() {
-        return typeSignature;
     }
 
     /**

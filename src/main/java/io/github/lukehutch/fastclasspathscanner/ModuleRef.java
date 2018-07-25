@@ -93,7 +93,7 @@ public class ModuleRef implements Comparable<ModuleRef> {
             // Should not happen
             throw new IllegalArgumentException("moduleReference.descriptor() should not return null");
         }
-        String moduleName = (String) ReflectionUtils.invokeMethod(this.descriptor, "name",
+        final String moduleName = (String) ReflectionUtils.invokeMethod(this.descriptor, "name",
                 /* throwException = */ true);
         this.name = moduleName == null ? "" : moduleName;
         @SuppressWarnings("unchecked")
@@ -305,10 +305,10 @@ public class ModuleRef implements Comparable<ModuleRef> {
         Class<?> moduleLayerClass = null;
         try {
             moduleLayerClass = Class.forName("java.lang.ModuleLayer");
-        } catch (Throwable e) {
+        } catch (final Throwable e) {
         }
         if (moduleLayerClass != null) {
-            Object /* ModuleLayer */ bootLayer = ReflectionUtils.invokeStaticMethod(moduleLayerClass, "boot",
+            final Object /* ModuleLayer */ bootLayer = ReflectionUtils.invokeStaticMethod(moduleLayerClass, "boot",
                     /* throwException = */ false);
             if (bootLayer != null) {
                 if (layerOrder == null) {

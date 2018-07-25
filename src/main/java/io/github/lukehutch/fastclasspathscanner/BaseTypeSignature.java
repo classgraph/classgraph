@@ -50,16 +50,16 @@ public class BaseTypeSignature extends TypeSignature {
      * 
      * @return The base type.
      */
-    public String getBaseType() {
+    public String getBaseTypeStr() {
         return baseType;
     }
 
-    @Override
-    public void getAllReferencedClassNames(final Set<String> classNameListOut) {
-    }
-
-    @Override
-    public Class<?> loadClass() {
+    /**
+     * Get the class of the base type, such as int.class, float.class, or void.class.
+     * 
+     * @return The base type class reference.
+     */
+    public Class<?> getBaseType() {
         switch (baseType) {
         case "byte":
             return byte.class;
@@ -82,6 +82,21 @@ public class BaseTypeSignature extends TypeSignature {
         default:
             throw new IllegalArgumentException("Unknown base type " + baseType);
         }
+    }
+
+    @Override
+    public void getClassNamesFromTypeDescriptors(final Set<String> classNameListOut) {
+    }
+
+    @Override
+    protected String getClassName() {
+        // getClassInfo() is not valid for this type, so getClassName() does not need to be implemented
+        throw new IllegalArgumentException("getClassName() cannot be called here");
+    }
+
+    @Override
+    protected ClassInfo getClassInfo() {
+        throw new IllegalArgumentException("getClassInfo() cannot be called here");
     }
 
     @Override

@@ -134,9 +134,9 @@ public class FieldInfoList extends ArrayList<FieldInfo> {
     // -------------------------------------------------------------------------------------------------------------
 
     /** Return true if this list contains a field with the given name. */
-    public boolean containsName(final String name) {
+    public boolean containsName(final String fieldName) {
         for (final FieldInfo fi : this) {
-            if (fi.getName().equals(name)) {
+            if (fi.getName().equals(fieldName)) {
                 return true;
             }
         }
@@ -144,9 +144,9 @@ public class FieldInfoList extends ArrayList<FieldInfo> {
     }
 
     /** Return the {@link FieldInfo} object in the list with the given name, or null if not found. */
-    public FieldInfo get(final String name) {
+    public FieldInfo get(final String fieldName) {
         for (final FieldInfo fi : this) {
-            if (fi.getName().equals(name)) {
+            if (fi.getName().equals(fieldName)) {
                 return fi;
             }
         }

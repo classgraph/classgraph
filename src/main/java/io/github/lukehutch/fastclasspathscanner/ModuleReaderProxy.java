@@ -56,7 +56,7 @@ public class ModuleReaderProxy implements AutoCloseable {
     public void close() {
         try {
             moduleReader.close();
-        } catch (Exception e) {
+        } catch (final Exception e) {
             // Ignore
         }
     }

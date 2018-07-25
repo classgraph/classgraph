@@ -28,8 +28,32 @@
  */
 package io.github.lukehutch.fastclasspathscanner;
 
+import java.util.Set;
+
 abstract class ScanResultObject {
     transient protected ScanResult scanResult;
+
+    private transient ClassInfo classInfo;
+
+    protected abstract String getClassName();
+
+    /** Return the {@link ClassInfo} object associated with this {@link ScanResultObject}. */
+    protected ClassInfo getClassInfo() {
+        final String className = getClassName();
+        if (className == null) {
+            throw new IllegalArgumentException("Class name was not set");
+        }
+        if (classInfo == null) {
+            classInfo = scanResult.getClassInfo(className);
+            if (classInfo == null) {
+                throw new IllegalArgumentException("Could not find ClassInfo object for " + className);
+            }
+        }
+        return classInfo;
+    }
+
+    /** Get any class names referenced in type descriptors of this object. */
+    abstract void getClassNamesFromTypeDescriptors(Set<String> classNames);
 
     /** Set ScanResult backreferences in info objects after scan has completed. */
     void setScanResult(final ScanResult scanResult) {

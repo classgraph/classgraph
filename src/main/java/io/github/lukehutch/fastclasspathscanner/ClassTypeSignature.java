@@ -111,16 +111,28 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
     }
 
     @Override
-    public void getAllReferencedClassNames(final Set<String> classNameListOut) {
+    public void getClassNamesFromTypeDescriptors(final Set<String> classNameListOut) {
         for (final TypeParameter typeParameter : typeParameters) {
-            typeParameter.getAllReferencedClassNames(classNameListOut);
+            typeParameter.getClassNamesFromTypeDescriptors(classNameListOut);
         }
         if (superclassSignature != null) {
-            superclassSignature.getAllReferencedClassNames(classNameListOut);
+            superclassSignature.getClassNamesFromTypeDescriptors(classNameListOut);
         }
         for (final ClassRefTypeSignature typeSignature : superinterfaceSignatures) {
-            typeSignature.getAllReferencedClassNames(classNameListOut);
+            typeSignature.getClassNamesFromTypeDescriptors(classNameListOut);
         }
+    }
+
+    @Override
+    protected String getClassName() {
+        // getClassInfo() is disabled for this type, so getClassName() does not need to be implemented
+        throw new IllegalArgumentException("getClassName() cannot be called here");
+    }
+
+    @Override
+    protected ClassInfo getClassInfo() {
+        // getClassInfo() is disabled for this type, since the class name is not part of a class type signature
+        throw new IllegalArgumentException("getClassInfo() cannot be called here");
     }
 
     @Override
@@ -210,6 +222,8 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
     /**
      * Parse a class type signature or class type descriptor.
      * 
+     * @param className
+     *            The name of the class (for resolving type variabless).
      * @param typeDescriptor
      *            The class type signature or class type descriptor to parse.
      * @param scanResult
@@ -218,8 +232,8 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
      * @throws ParseException
      *             If the class type signature could not be parsed.
      */
-    public static ClassTypeSignature parse(final String typeDescriptor, final ScanResult scanResult)
-            throws ParseException {
+    public static ClassTypeSignature parse(final String className, final String typeDescriptor,
+            final ScanResult scanResult) throws ParseException {
         final Parser parser = new Parser(typeDescriptor);
         final List<TypeParameter> typeParameters = TypeParameter.parseList(parser);
         final ClassRefTypeSignature superclassSignature = ClassRefTypeSignature.parse(parser);
@@ -246,7 +260,7 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
         final List<TypeVariableSignature> typeVariableSignatures = (List<TypeVariableSignature>) parser.getState();
         if (typeVariableSignatures != null) {
             for (final TypeVariableSignature typeVariableSignature : typeVariableSignatures) {
-                typeVariableSignature.containingClassSignature = classSignature;
+                typeVariableSignature.containingClassName = className;
             }
         }
         classSignature.setScanResult(scanResult);

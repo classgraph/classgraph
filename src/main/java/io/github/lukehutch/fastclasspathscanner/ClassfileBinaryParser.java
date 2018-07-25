@@ -249,14 +249,14 @@ class ClassfileBinaryParser {
         final String annotationClassName = getConstantPoolClassDescriptor(
                 inputStreamOrByteBuffer.readUnsignedShort());
         final int numElementValuePairs = inputStreamOrByteBuffer.readUnsignedShort();
-        List<AnnotationParamValue> paramVals = null;
+        List<AnnotationParameterValue> paramVals = null;
         if (numElementValuePairs > 0) {
             paramVals = new ArrayList<>(numElementValuePairs);
         }
         for (int i = 0; i < numElementValuePairs; i++) {
             final String paramName = getConstantPoolString(inputStreamOrByteBuffer.readUnsignedShort());
             final Object paramValue = readAnnotationElementValue();
-            paramVals.add(new AnnotationParamValue(paramName, paramValue));
+            paramVals.add(new AnnotationParameterValue(paramName, paramValue));
         }
         return new AnnotationInfo(annotationClassName, paramVals);
     }
@@ -579,7 +579,7 @@ class ClassfileBinaryParser {
             String[] methodParameterNames = null;
             int[] methodParameterModifiers = null;
             AnnotationInfo[][] methodParameterAnnotations = null;
-            List<AnnotationParamValue> annotationParamDefaultValues = null;
+            List<AnnotationParameterValue> annotationParamDefaultValues = null;
             AnnotationInfoList methodAnnotationInfo = null;
             if (!methodIsVisible || (!scanSpec.enableMethodInfo && !isAnnotation)) {
                 // Skip method attributes
@@ -641,7 +641,7 @@ class ClassfileBinaryParser {
                         }
                         final Object annotationParamDefaultValue = readAnnotationElementValue();
                         annotationParamDefaultValues
-                                .add(new AnnotationParamValue(methodName, annotationParamDefaultValue));
+                                .add(new AnnotationParameterValue(methodName, annotationParamDefaultValue));
                     } else {
                         inputStreamOrByteBuffer.skip(attributeLength);
                     }
@@ -693,20 +693,20 @@ class ClassfileBinaryParser {
                 final String innermostEnclosingClassName = getConstantPoolClassName(
                         inputStreamOrByteBuffer.readUnsignedShort());
                 final int enclosingMethodCpIdx = inputStreamOrByteBuffer.readUnsignedShort();
-                String enclosingMethodName;
+                String definingMethodName;
                 if (enclosingMethodCpIdx == 0) {
                     // A cpIdx of 0 (which is an invalid value) is used for anonymous inner classes declared in
                     // class initializer code, e.g. assigned to a class field.
-                    enclosingMethodName = "<clinit>";
+                    definingMethodName = "<clinit>";
                 } else {
-                    enclosingMethodName = getConstantPoolString(enclosingMethodCpIdx, /* subFieldIdx = */ 0);
+                    definingMethodName = getConstantPoolString(enclosingMethodCpIdx, /* subFieldIdx = */ 0);
                     // Could also fetch field type signature with subFieldIdx = 1, if needed
                 }
                 // Link anonymous inner classes into the class with their containing method
                 classInfoUnlinked.addClassContainment(className, innermostEnclosingClassName);
                 // Also store the fully-qualified name of the enclosing method, to mark this as an anonymous inner
                 // class
-                classInfoUnlinked.addEnclosingMethod(innermostEnclosingClassName + "." + enclosingMethodName);
+                classInfoUnlinked.addEnclosingMethod(innermostEnclosingClassName + "." + definingMethodName);
             } else {
                 inputStreamOrByteBuffer.skip(attributeLength);
             }

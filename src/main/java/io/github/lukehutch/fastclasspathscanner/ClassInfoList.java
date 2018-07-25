@@ -55,7 +55,7 @@ public class ClassInfoList implements List<ClassInfo> {
     private final ClassInfoList directlyRelatedClasses;
 
     /** A list of {@link ClassInfo} objects. */
-    public ClassInfoList(final List<ClassInfo> reachableClasses, final List<ClassInfo> directlyRelatedClasses) {
+    ClassInfoList(final List<ClassInfo> reachableClasses, final List<ClassInfo> directlyRelatedClasses) {
         this.reachableClasses = reachableClasses == null ? Collections.<ClassInfo> emptyList() : reachableClasses;
         Collections.sort(reachableClasses);
         // Make directlyRelatedClasses idempotent
@@ -67,14 +67,14 @@ public class ClassInfoList implements List<ClassInfo> {
     }
 
     /** A list of {@link ClassInfo} objects. */
-    public ClassInfoList(final Collection<ClassInfo> reachableClasses,
+    ClassInfoList(final Collection<ClassInfo> reachableClasses,
             final Collection<ClassInfo> directlyRelatedClasses) {
         this(reachableClasses == null ? null : new ArrayList<>(reachableClasses),
                 directlyRelatedClasses == null ? null : new ArrayList<>(directlyRelatedClasses));
     }
 
     /** A list of {@link ClassInfo} objects. */
-    public ClassInfoList(final Collection<ClassInfo> reachableClasses) {
+    ClassInfoList(final Collection<ClassInfo> reachableClasses) {
         this(reachableClasses, reachableClasses);
     }
 
@@ -224,7 +224,8 @@ public class ClassInfoList implements List<ClassInfo> {
      *             any of the classes.
      * @return The loaded {@code Class<?>} objects corresponding to each {@link ClassInfo} object in this list.
      */
-    public <T> List<Class<T>> loadClasss(final Class<T> superclassOrInterfaceType, final boolean ignoreExceptions) {
+    public <T> List<Class<T>> loadClasses(final Class<T> superclassOrInterfaceType,
+            final boolean ignoreExceptions) {
         if (this.isEmpty()) {
             return Collections.<Class<T>> emptyList();
         } else {
@@ -256,8 +257,8 @@ public class ClassInfoList implements List<ClassInfo> {
      *             if an exception or error was thrown while trying to load or cast any of the classes.
      * @return The loaded {@code Class<?>} objects corresponding to each {@link ClassInfo} object in this list.
      */
-    public <T> List<Class<T>> loadClasss(final Class<T> superclassOrInterfaceType) {
-        return loadClasss(superclassOrInterfaceType, /* ignoreExceptions = */ false);
+    public <T> List<Class<T>> loadClasses(final Class<T> superclassOrInterfaceType) {
+        return loadClasses(superclassOrInterfaceType, /* ignoreExceptions = */ false);
     }
 
     /**
@@ -274,7 +275,7 @@ public class ClassInfoList implements List<ClassInfo> {
      *             classes.
      * @return The loaded {@code Class<?>} objects corresponding to each {@link ClassInfo} object in this list.
      */
-    public List<Class<?>> loadClasss(final boolean ignoreExceptions) {
+    public List<Class<?>> loadClasses(final boolean ignoreExceptions) {
         if (this.isEmpty()) {
             return Collections.<Class<?>> emptyList();
         } else {
@@ -298,8 +299,8 @@ public class ClassInfoList implements List<ClassInfo> {
      *             if an exception or error was thrown while trying to load any of the classes.
      * @return The loaded {@code Class<?>} objects corresponding to each {@link ClassInfo} object in this list.
      */
-    public List<Class<?>> loadClasss() {
-        return loadClasss(/* ignoreExceptions = */ false);
+    public List<Class<?>> loadClasses() {
+        return loadClasses(/* ignoreExceptions = */ false);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -511,8 +512,8 @@ public class ClassInfoList implements List<ClassInfo> {
     }
 
     /**
-     * Filter this {@link ClassInfoList} to include only interfaces (N.B. this includes annotations, since they are
-     * technically interfaces, and can be implemented). See also {@link #getImplementedInterfaces()}.
+     * Filter this {@link ClassInfoList} to include only interfaces that are not annotations. See also
+     * {@link #getInterfacesAndAnnotations()}.
      * 
      * @return The filtered list, containing only interfaces.
      */
@@ -538,15 +539,15 @@ public class ClassInfoList implements List<ClassInfo> {
     }
 
     /**
-     * Filter this {@link ClassInfoList} to include only implemented interfaces, i.e. non-annotation interfaces, or
-     * annotations that have been implemented by a class.
+     * Filter this {@link ClassInfoList} to include only interfaces and annotations (annotations are interfaces, and
+     * can be implemented). See also {@link #getInterfaces()}.
      * 
-     * @return The filtered list, containing only implemented interfaces.
+     * @return The filtered list, containing only interfaces.
      */
-    public ClassInfoList getImplementedInterfaces() {
+    public ClassInfoList getInterfacesAndAnnotations() {
         final List<ClassInfo> reachableClassesFiltered = new ArrayList<>(reachableClasses.size());
         for (final ClassInfo classInfo : reachableClasses) {
-            if (classInfo.isInterface()) {
+            if (classInfo.isInterfaceOrAnnotation()) {
                 reachableClassesFiltered.add(classInfo);
             }
         }
@@ -556,7 +557,34 @@ public class ClassInfoList implements List<ClassInfo> {
         } else {
             final List<ClassInfo> directlyRelatedClassesFiltered = new ArrayList<>(directlyRelatedClasses.size());
             for (final ClassInfo classInfo : directlyRelatedClasses) {
-                if (classInfo.isInterface()) {
+                if (classInfo.isInterfaceOrAnnotation()) {
+                    directlyRelatedClassesFiltered.add(classInfo);
+                }
+            }
+            return new ClassInfoList(reachableClassesFiltered, directlyRelatedClassesFiltered);
+        }
+    }
+
+    /**
+     * Filter this {@link ClassInfoList} to include only implemented interfaces, i.e. non-annotation interfaces, or
+     * annotations that have been implemented by a class.
+     * 
+     * @return The filtered list, containing only implemented interfaces.
+     */
+    public ClassInfoList getImplementedInterfaces() {
+        final List<ClassInfo> reachableClassesFiltered = new ArrayList<>(reachableClasses.size());
+        for (final ClassInfo classInfo : reachableClasses) {
+            if (classInfo.isImplementedInterface()) {
+                reachableClassesFiltered.add(classInfo);
+            }
+        }
+        if (directlyRelatedClasses == reachableClasses) {
+            // Avoid duplicating work
+            return new ClassInfoList(reachableClassesFiltered, reachableClassesFiltered);
+        } else {
+            final List<ClassInfo> directlyRelatedClassesFiltered = new ArrayList<>(directlyRelatedClasses.size());
+            for (final ClassInfo classInfo : directlyRelatedClasses) {
+                if (classInfo.isImplementedInterface()) {
                     directlyRelatedClassesFiltered.add(classInfo);
                 }
             }
@@ -572,7 +600,7 @@ public class ClassInfoList implements List<ClassInfo> {
     public ClassInfoList getAnnotations() {
         final List<ClassInfo> reachableClassesFiltered = new ArrayList<>(reachableClasses.size());
         for (final ClassInfo classInfo : reachableClasses) {
-            if (classInfo.isInterface()) {
+            if (classInfo.isAnnotation()) {
                 reachableClassesFiltered.add(classInfo);
             }
         }
@@ -582,7 +610,33 @@ public class ClassInfoList implements List<ClassInfo> {
         } else {
             final List<ClassInfo> directlyRelatedClassesFiltered = new ArrayList<>(directlyRelatedClasses.size());
             for (final ClassInfo classInfo : directlyRelatedClasses) {
-                if (classInfo.isInterface()) {
+                if (classInfo.isAnnotation()) {
+                    directlyRelatedClassesFiltered.add(classInfo);
+                }
+            }
+            return new ClassInfoList(reachableClassesFiltered, directlyRelatedClassesFiltered);
+        }
+    }
+
+    /**
+     * Filter this {@link ClassInfoList} to include only {@link Enum} classes.
+     * 
+     * @return The filtered list, containing only enums.
+     */
+    public ClassInfoList getEnums() {
+        final List<ClassInfo> reachableClassesFiltered = new ArrayList<>(reachableClasses.size());
+        for (final ClassInfo classInfo : reachableClasses) {
+            if (classInfo.isEnum()) {
+                reachableClassesFiltered.add(classInfo);
+            }
+        }
+        if (directlyRelatedClasses == reachableClasses) {
+            // Avoid duplicating work
+            return new ClassInfoList(reachableClassesFiltered, reachableClassesFiltered);
+        } else {
+            final List<ClassInfo> directlyRelatedClassesFiltered = new ArrayList<>(directlyRelatedClasses.size());
+            for (final ClassInfo classInfo : directlyRelatedClasses) {
+                if (classInfo.isEnum()) {
                     directlyRelatedClassesFiltered.add(classInfo);
                 }
             }

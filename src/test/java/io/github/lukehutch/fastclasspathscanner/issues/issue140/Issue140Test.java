@@ -31,13 +31,16 @@ package io.github.lukehutch.fastclasspathscanner.issues.issue140;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
-import java.lang.reflect.Array;
 
 import org.junit.Test;
 
+import io.github.lukehutch.fastclasspathscanner.ArrayTypeSignature;
+import io.github.lukehutch.fastclasspathscanner.BaseTypeSignature;
 import io.github.lukehutch.fastclasspathscanner.ClassInfo;
+import io.github.lukehutch.fastclasspathscanner.ClassRefTypeSignature;
 import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.FieldInfoList;
+import io.github.lukehutch.fastclasspathscanner.TypeSignature;
 
 public class Issue140Test {
     // Order of fields is significant
@@ -51,8 +54,21 @@ public class Issue140Test {
         assertThat(ci).isNotNull();
         final FieldInfoList allFieldInfo = ci.getFieldInfo();
         assertThat(allFieldInfo.size()).isEqualTo(2);
-        assertThat(allFieldInfo.get(0).getTypeSignatureOrTypeDescriptor().loadClass()).isEqualTo(int.class);
-        assertThat(allFieldInfo.get(1).getTypeSignatureOrTypeDescriptor().loadClass())
-                .isEqualTo(Array.newInstance(String.class, 0).getClass());
+        final TypeSignature type0 = allFieldInfo.get(0).getTypeSignatureOrTypeDescriptor();
+        assertThat(type0).isInstanceOf(BaseTypeSignature.class);
+        assertThat(((BaseTypeSignature) type0).getBaseType()).isEqualTo(int.class);
+        final TypeSignature type1 = allFieldInfo.get(1).getTypeSignatureOrTypeDescriptor();
+        assertThat(type1).isInstanceOf(ArrayTypeSignature.class);
+        assertThat(((ArrayTypeSignature) type1).getNumArrayDims()).isEqualTo(1);
+        final TypeSignature elementTypeSignature = ((ArrayTypeSignature) type1).getElementTypeSignature();
+        assertThat(elementTypeSignature).isInstanceOf(ClassRefTypeSignature.class);
+        final ClassRefTypeSignature classRefTypeSignature = (ClassRefTypeSignature) elementTypeSignature;
+        assertThat(classRefTypeSignature.getClassName()).isEqualTo(String.class.getName());
+        final ClassInfo classInfo = classRefTypeSignature.getClassInfo();
+        assertThat(classInfo).isNotNull();
+        assertThat(classInfo.getName()).isEqualTo(String.class.getName());
+        assertThat(classRefTypeSignature.loadClass()).isEqualTo(String.class);
+        // The following line will only work if String.class was encountered during scanning
+        assertThat(classInfo.loadClass()).isEqualTo(String.class);
     }
 }
