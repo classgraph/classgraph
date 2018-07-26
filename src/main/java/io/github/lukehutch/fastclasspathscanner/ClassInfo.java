@@ -541,7 +541,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         CLASS_ANNOTATIONS,
 
         /** Classes annotated with this annotation, if this is an annotation. */
-        CLASSES_WITH_CLASS_ANNOTATION,
+        CLASSES_WITH_ANNOTATION,
 
         // Method annotations:
 
@@ -651,7 +651,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         this.annotationInfo.add(classAnnotationInfo);
 
         this.addRelatedClass(RelType.CLASS_ANNOTATIONS, annotationClassInfo);
-        annotationClassInfo.addRelatedClass(RelType.CLASSES_WITH_CLASS_ANNOTATION, this);
+        annotationClassInfo.addRelatedClass(RelType.CLASSES_WITH_ANNOTATION, this);
 
         // Record use of @Inherited meta-annotation
         if (classAnnotationInfo.getName().equals(Inherited.class.getName())) {
@@ -1010,7 +1010,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 || relType == RelType.CLASSES_WITH_FIELD_ANNOTATION) {
             // If looking for meta-annotated methods or fields, need to find all meta-annotated annotations, then
             // look for the methods or fields that they annotate
-            for (final ClassInfo subAnnotation : this.filterClassInfo(RelType.CLASSES_WITH_CLASS_ANNOTATION,
+            for (final ClassInfo subAnnotation : this.filterClassInfo(RelType.CLASSES_WITH_ANNOTATION,
                     ClassType.ANNOTATION)) {
                 final Set<ClassInfo> annotatedClasses = subAnnotation.relatedClasses.get(relType);
                 if (annotatedClasses != null) {
@@ -1256,22 +1256,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             throw new IllegalArgumentException("Class is not an annotation: " + getName());
         }
 
+        // Get classes that have this annotation
+        final ClassInfoList classesWithAnnotation = this.filterClassInfo(RelType.CLASSES_WITH_ANNOTATION);
+
         // Check if any of the meta-annotations on this annotation are @Inherited,
         // which causes an annotation to annotate a class and all of its subclasses.
-        boolean isInherited = false;
-        final Set<ClassInfo> metaAnnotations = relatedClasses.get(RelType.CLASS_ANNOTATIONS);
-        if (metaAnnotations != null) {
-            for (final ClassInfo metaAnnotation : metaAnnotations) {
-                if (metaAnnotation.name.equals("java.lang.annotation.Inherited")) {
-                    isInherited = true;
-                    break;
-                }
-            }
-        }
-
-        // Get classes that have this annotation
-        final ClassInfoList classesWithAnnotation = this.filterClassInfo(RelType.CLASSES_WITH_CLASS_ANNOTATION);
-
         if (isInherited) {
             // If this is an inherited annotation, add into the result all subclasses of the annotated classes 
             final Set<ClassInfo> classesWithAnnotationAndTheirSubclasses = new HashSet<>(classesWithAnnotation);
@@ -1312,13 +1301,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 final Set<ClassInfo> superclassAnnotations = superclassAnnotationClass.relatedClasses
                         .get(RelType.CLASS_ANNOTATIONS);
                 if (superclassAnnotations != null) {
-                    boolean isInherited = false;
-                    for (final ClassInfo superclassAnnotationClassMetaAnnotation : superclassAnnotations) {
-                        if (superclassAnnotationClassMetaAnnotation.getName().equals(Inherited.class.getName())) {
-                            isInherited = true;
-                            break;
-                        }
-                    }
+                    // Check if any of the meta-annotations on this annotation are @Inherited,
+                    // which causes an annotation to annotate a class and all of its subclasses.
                     if (isInherited) {
                         // inheritedSuperclassAnnotations is an inherited annotation
                         if (inheritedSuperclassAnnotations == null) {
@@ -1614,7 +1598,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         final ClassInfoList classesWithDirectlyAnnotatedMethods = this
                 .filterClassInfo(RelType.CLASSES_WITH_METHOD_ANNOTATION);
         final ClassInfoList annotationsWithThisMetaAnnotation = this
-                .filterClassInfo(RelType.CLASSES_WITH_CLASS_ANNOTATION, ClassType.ANNOTATION);
+                .filterClassInfo(RelType.CLASSES_WITH_ANNOTATION, ClassType.ANNOTATION);
         if (annotationsWithThisMetaAnnotation.isEmpty()) {
             // This annotation does not meta-annotate another annotation that annotates a method
             return classesWithDirectlyAnnotatedMethods;
@@ -1746,7 +1730,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         final ClassInfoList classesWithDirectlyAnnotatedFields = this
                 .filterClassInfo(RelType.CLASSES_WITH_FIELD_ANNOTATION);
         final ClassInfoList annotationsWithThisMetaAnnotation = this
-                .filterClassInfo(RelType.CLASSES_WITH_CLASS_ANNOTATION, ClassType.ANNOTATION);
+                .filterClassInfo(RelType.CLASSES_WITH_ANNOTATION, ClassType.ANNOTATION);
         if (annotationsWithThisMetaAnnotation.isEmpty()) {
             // This annotation does not meta-annotate another annotation that annotates a field
             return classesWithDirectlyAnnotatedFields;

@@ -527,7 +527,7 @@ class GraphvizDotfileGenerator {
         if (showAnnotations) {
             for (final ClassInfo annotationNode : annotationNodes) {
                 for (final ClassInfo annotatedClassNode : annotationNode
-                        .filterClassInfo(RelType.CLASSES_WITH_CLASS_ANNOTATION).directOnly()) {
+                        .filterClassInfo(RelType.CLASSES_WITH_ANNOTATION).directOnly()) {
                     if (allVisibleNodes.contains(annotatedClassNode.getName())) {
                         // annotated class --o annotation
                         buf.append("  \"" + annotatedClassNode.getName() + "\" -> \"" + annotationNode.getName()
