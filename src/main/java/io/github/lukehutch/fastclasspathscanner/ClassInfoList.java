@@ -456,11 +456,11 @@ public class ClassInfoList implements List<ClassInfo> {
     }
 
     /**
-     * Find the set difference between this ClassInfoList and another ClassInfoList, i.e. (this \ other).
+     * Find the subset of this {@link ClassInfoList} for which the given filter predicate is true.
      *
      * @param filter
      *            The {@link ClassInfoFilter} to apply.
-     * @return The set difference of this {@link ClassInfoList} and other, i.e. (this \ other).
+     * @return The subset of this {@link ClassInfoList} for which the given filter predicate is true.
      */
     public ClassInfoList filter(final ClassInfoFilter filter) {
         final List<ClassInfo> reachableClassesFiltered = new ArrayList<>();

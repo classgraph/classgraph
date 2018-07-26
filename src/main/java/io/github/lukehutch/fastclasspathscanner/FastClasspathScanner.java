@@ -1001,7 +1001,7 @@ public class FastClasspathScanner {
     public ScanResult scan(final ExecutorService executorService, final int numParallelTasks) {
         try {
             // Start the scan and wait for completion
-            ScanResult scanResult = executorService.submit(
+            final ScanResult scanResult = executorService.submit(
                     // Call MatchProcessors before returning if in async scanning mode
                     new Scanner(scanSpec, executorService, numParallelTasks, /* enableRecursiveScanning = */ true,
                             /* scanResultProcessor = */ null, /* failureHandler = */ null, log)) //
