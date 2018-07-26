@@ -678,8 +678,8 @@ public class ClassInfoList implements List<ClassInfo> {
      */
     public String generateGraphVizDotFile(final float sizeX, final float sizeY, final boolean showFields,
             final boolean showMethods, final boolean showAnnotations) {
-        final ScanSpec scanSpec = size() == 0 ? null : get(0).scanSpec;
-        if (scanSpec != null && !scanSpec.enableClassInfo) {
+        final ScanSpec scanSpec = size() == 0 ? null : get(0).scanResult.scanSpec;
+        if (scanSpec == null || !scanSpec.enableClassInfo) {
             throw new IllegalArgumentException("Please call FastClasspathScanner#enableClassInfo() before #scan()");
         }
         return GraphvizDotfileGenerator.generateClassGraphDotFile(this, sizeX, sizeY, showFields, showMethods,

@@ -136,7 +136,7 @@ class ClassInfoUnlinked {
             }
         }
         if (classContainmentEntries != null) {
-            ClassInfo.addClassContainment(classContainmentEntries, scanSpec, classNameToClassInfo);
+            ClassInfo.addClassContainment(classContainmentEntries, classNameToClassInfo);
         }
         if (annotationParamDefaultValues != null) {
             classInfo.addAnnotationParamDefaultValues(annotationParamDefaultValues);

@@ -89,8 +89,6 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     /** Aligned method parameter info */
     transient MethodParameterInfo[] parameterInfo;
 
-    transient private ScanSpec scanSpec;
-
     /** Default constructor for deserialization. */
     MethodInfo() {
     }
@@ -112,6 +110,11 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
                         ai.setScanResult(scanResult);
                     }
                 }
+            }
+        }
+        if (this.parameterInfo != null) {
+            for (final MethodParameterInfo mpi : parameterInfo) {
+                mpi.scanResult = scanResult;
             }
         }
     }
@@ -141,7 +144,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     MethodInfo(final String definingClassName, final String methodName,
             final AnnotationInfoList methodAnnotationInfo, final int modifiers, final String typeDescriptorStr,
             final String typeSignatureStr, final String[] parameterNames, final int[] parameterModifiers,
-            final AnnotationInfo[][] parameterAnnotationInfo, final ScanSpec scanSpec) {
+            final AnnotationInfo[][] parameterAnnotationInfo) {
         this.definingClassName = definingClassName;
         this.name = methodName;
         this.modifiers = modifiers;
@@ -152,7 +155,6 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
         this.parameterAnnotationInfo = parameterAnnotationInfo;
         this.annotationInfo = methodAnnotationInfo == null || methodAnnotationInfo.isEmpty() ? null
                 : methodAnnotationInfo;
-        this.scanSpec = scanSpec;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -476,7 +478,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
                         paramAnnotationInfoAligned == null ? null : paramAnnotationInfoAligned[i],
                         paramModifiersAligned == null ? 0 : paramModifiersAligned[i], paramTypeDescriptors.get(i),
                         paramTypeSignaturesAligned == null ? null : paramTypeSignaturesAligned.get(i),
-                        paramNamesAligned == null ? null : paramNamesAligned[i]);
+                        paramNamesAligned == null ? null : paramNamesAligned[i], scanResult);
             }
         }
         return parameterInfo;
@@ -491,7 +493,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
      *         {@link AnnotationInfo} objects, or the empty list if none.
      */
     public AnnotationInfoList getAnnotationInfo() {
-        if (!scanSpec.enableAnnotationInfo) {
+        if (!scanResult.scanSpec.enableAnnotationInfo) {
             throw new IllegalArgumentException(
                     "Please call FastClasspathScanner#enableAnnotationInfo() before #scan()");
         }
@@ -609,7 +611,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
                 buf.append(", ");
             }
 
-            final AnnotationInfo[] annInfo = paramInfo.getAnnotationInfo();
+            final AnnotationInfo[] annInfo = paramInfo.annotationInfo;
             if (annInfo != null) {
                 for (int j = 0; j < annInfo.length; j++) {
                     annInfo[j].toString(buf);

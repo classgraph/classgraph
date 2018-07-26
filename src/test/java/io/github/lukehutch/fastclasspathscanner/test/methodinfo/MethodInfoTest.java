@@ -64,8 +64,8 @@ public class MethodInfoTest {
     @Test
     public void getMethodInfo() throws Exception {
         assertThat(new FastClasspathScanner().whitelistPackages(MethodInfoTest.class.getPackage().getName())
-                .enableMethodInfo().enableAnnotationInfo().scan().getClassInfo(MethodInfoTest.class.getName())
-                .getMethodInfo().getAsStrings()).containsOnly( //
+                .enableClassInfo().enableMethodInfo().enableAnnotationInfo().scan()
+                .getClassInfo(MethodInfoTest.class.getName()).getMethodInfo().getAsStrings()).containsOnly( //
                         "@" + ExternalAnnotation.class.getName() //
                                 + " public final int publicMethodWithArgs"
                                 + "(java.lang.String, char, long, float[], byte[][], "
@@ -86,7 +86,7 @@ public class MethodInfoTest {
     @Test
     public void getMethodInfoIgnoringVisibility() throws Exception {
         assertThat(new FastClasspathScanner().whitelistPackages(MethodInfoTest.class.getPackage().getName())
-                .enableMethodInfo().enableAnnotationInfo().ignoreMethodVisibility().scan()
+                .enableClassInfo().enableMethodInfo().enableAnnotationInfo().ignoreMethodVisibility().scan()
                 .getClassInfo(MethodInfoTest.class.getName()).getMethodInfo().getAsStrings()).containsOnly( //
                         "@" + ExternalAnnotation.class.getName() //
                                 + " public final int publicMethodWithArgs"

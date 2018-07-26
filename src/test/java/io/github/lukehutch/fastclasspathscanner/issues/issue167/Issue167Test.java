@@ -53,8 +53,8 @@ public class Issue167Test {
     public void scanPackagesTest1() throws IOException {
         assertEquals(classNames,
                 new FastClasspathScanner()
-                        .whitelistPackagesNonRecursive(packages.toArray(new String[packages.size()])).scan()
-                        .getAllClasses().getNames());
+                        .whitelistPackagesNonRecursive(packages.toArray(new String[packages.size()]))
+                        .enableClassInfo().scan().getAllClasses().getNames());
     }
 
     @Test
@@ -62,7 +62,7 @@ public class Issue167Test {
         final List<String> reversedPackages = new ArrayList<>(packages);
         Collections.reverse(reversedPackages);
         assertEquals(classNames, new FastClasspathScanner()
-                .whitelistPackagesNonRecursive(reversedPackages.toArray(new String[reversedPackages.size()])).scan()
-                .getAllClasses().getNames());
+                .whitelistPackagesNonRecursive(reversedPackages.toArray(new String[reversedPackages.size()]))
+                .enableClassInfo().scan().getAllClasses().getNames());
     }
 }

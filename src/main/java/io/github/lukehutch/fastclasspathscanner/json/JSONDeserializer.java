@@ -238,6 +238,23 @@ public class JSONDeserializer {
             throw new IllegalArgumentException("Wrong JSON type for class " + objectInstance.getClass().getName());
         }
 
+        // Handle concrete subclasses of generic classes, e.g. ClassInfoList extends List<ClassInfo>
+        Type objectResolvedTypeGeneric = objectResolvedType;
+        if (objectResolvedType instanceof Class<?>) {
+            final Class<?> objectResolvedCls = (Class<?>) objectResolvedType;
+            if (Map.class.isAssignableFrom(objectResolvedCls)) {
+                if (!isMap) {
+                    throw new IllegalArgumentException("Got an unexpected map type");
+                }
+                objectResolvedTypeGeneric = objectResolvedCls.getGenericSuperclass();
+            } else if (Collection.class.isAssignableFrom(objectResolvedCls)) {
+                if (!isCollection) {
+                    throw new IllegalArgumentException("Got an unexpected map type");
+                }
+                objectResolvedTypeGeneric = objectResolvedCls.getGenericSuperclass();
+            }
+        }
+
         // Get type arguments of resolved type of object, and resolve any type variables
         TypeResolutions typeResolutions;
         // keyType is the first type parameter for maps, otherwise null
@@ -248,16 +265,18 @@ public class JSONDeserializer {
         Type commonResolvedValueType;
         Class<?> arrayComponentType;
         boolean is1DArray;
-        if (objectResolvedType instanceof Class<?>) {
+        if (objectResolvedTypeGeneric instanceof Class<?>) {
+            // Not a Map or Collection subclass
             typeResolutions = null;
             mapKeyType = null;
-            arrayComponentType = isArray ? ((Class<?>) objectResolvedType).getComponentType() : null;
+            final Class<?> objectResolvedCls = (Class<?>) objectResolvedTypeGeneric;
+            arrayComponentType = isArray ? objectResolvedCls.getComponentType() : null;
             is1DArray = isArray && !arrayComponentType.isArray();
             commonResolvedValueType = null;
-        } else if (objectResolvedType instanceof ParameterizedType) {
+        } else if (objectResolvedTypeGeneric instanceof ParameterizedType) {
             // Get mapping from type variables to resolved types, by comparing the concrete type arguments
             // of the expected type to its type parameters
-            final ParameterizedType parameterizedResolvedType = (ParameterizedType) objectResolvedType;
+            final ParameterizedType parameterizedResolvedType = (ParameterizedType) objectResolvedTypeGeneric;
             typeResolutions = new TypeResolutions(parameterizedResolvedType);
             // Correlate type variables with resolved types
             final int numTypeArgs = typeResolutions.resolvedTypeArguments.length;
@@ -274,7 +293,7 @@ public class JSONDeserializer {
             is1DArray = false;
             arrayComponentType = null;
         } else {
-            throw new IllegalArgumentException("Got illegal type: " + objectResolvedType);
+            throw new IllegalArgumentException("Got illegal type: " + objectResolvedTypeGeneric);
         }
         final Class<?> commonValueRawType = commonResolvedValueType == null ? null
                 : JSONUtils.getRawType(commonResolvedValueType);

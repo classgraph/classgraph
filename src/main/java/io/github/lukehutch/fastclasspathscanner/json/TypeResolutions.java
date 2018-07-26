@@ -136,7 +136,6 @@ class TypeResolutions {
             return type;
 
         } else {
-            // TODO: Support WildcardType
             throw new RuntimeException("Got unexpected type: " + type);
         }
     }

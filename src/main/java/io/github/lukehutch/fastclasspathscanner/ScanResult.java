@@ -851,11 +851,11 @@ public class ScanResult {
      *            If greater than 0, JSON will be formatted (indented), otherwise it will be minified (un-indented).
      */
     public String toJSON(final int indentWidth) {
-        if (!scanSpec.enableClassInfo) {
-            throw new IllegalArgumentException("Cannot get method info without calling "
-                    + "FastClasspathScanner#enableClassInfo() (or adding class or package whitelist/blacklist "
-                    + "criteria) before starting the scan");
-        }
+        //        if (!scanSpec.enableClassInfo) {
+        //            throw new IllegalArgumentException("Cannot get method info without calling "
+        //                    + "FastClasspathScanner#enableClassInfo() (or adding class or package whitelist/blacklist "
+        //                    + "criteria) before starting the scan");
+        //        }
         return JSONSerializer.serializeObject(
                 new SerializationFormat(CURRENT_SERIALIZATION_FORMAT, scanSpec, classNameToClassInfo), indentWidth,
                 false);

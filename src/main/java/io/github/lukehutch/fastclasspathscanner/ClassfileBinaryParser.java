@@ -549,9 +549,8 @@ class ClassfileBinaryParser {
                     }
                 }
                 if (scanSpec.enableFieldInfo && fieldIsVisible) {
-                    classInfoUnlinked.addFieldInfo(
-                            new FieldInfo(className, fieldName, fieldModifierFlags, fieldTypeDescriptor,
-                                    fieldTypeSignature, fieldConstValue, fieldAnnotationInfo, scanSpec));
+                    classInfoUnlinked.addFieldInfo(new FieldInfo(className, fieldName, fieldModifierFlags,
+                            fieldTypeDescriptor, fieldTypeSignature, fieldConstValue, fieldAnnotationInfo));
                 }
             }
         }
@@ -654,7 +653,7 @@ class ClassfileBinaryParser {
                 if (scanSpec.enableMethodInfo) {
                     classInfoUnlinked.addMethodInfo(new MethodInfo(className, methodName, methodAnnotationInfo,
                             methodModifierFlags, methodTypeDescriptor, methodTypeSignature, methodParameterNames,
-                            methodParameterModifiers, methodParameterAnnotations, scanSpec));
+                            methodParameterModifiers, methodParameterAnnotations));
                 }
             }
         }

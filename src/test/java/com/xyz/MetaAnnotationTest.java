@@ -36,8 +36,8 @@ import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 import io.github.lukehutch.fastclasspathscanner.ScanResult;
 
 public class MetaAnnotationTest {
-    ScanResult scanResult = new FastClasspathScanner().whitelistPackages("com.xyz.meta").enableAnnotationInfo()
-            .scan();
+    ScanResult scanResult = new FastClasspathScanner().whitelistPackages("com.xyz.meta").enableClassInfo()
+            .enableAnnotationInfo().scan();
 
     @Test
     public void oneLevel() {

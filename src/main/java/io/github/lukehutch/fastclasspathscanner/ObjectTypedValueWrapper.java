@@ -32,14 +32,14 @@ import java.lang.reflect.Array;
 import java.util.Set;
 
 /** A union type, used for typesafe serialization/deserialization to/from JSON. Only one field is ever set. */
-class AnnotationParameterValueWrapper extends ScanResultObject {
+class ObjectTypedValueWrapper extends ScanResultObject {
     // Parameter value is split into different fields by type, so that serialization and deserialization
     // works properly (can't properly serialize a field of Object type, since the concrete type is not
     // stored in JSON).
     AnnotationEnumValue enumValue;
     AnnotationClassRef classRef;
     AnnotationInfo annotationInfo;
-    AnnotationParameterValueWrapper[] valueArray;
+    ObjectTypedValueWrapper[] valueArray;
     String stringValue;
     Integer integerValue;
     Long longValue;
@@ -69,16 +69,16 @@ class AnnotationParameterValueWrapper extends ScanResultObject {
     }
 
     /** Default constructor for deserialization. */
-    public AnnotationParameterValueWrapper() {
+    public ObjectTypedValueWrapper() {
     }
 
-    public AnnotationParameterValueWrapper(final Object annotationParamValue) {
+    public ObjectTypedValueWrapper(final Object annotationParamValue) {
         if (annotationParamValue != null) {
             if (annotationParamValue.getClass().isArray()) {
                 final int n = Array.getLength(annotationParamValue);
-                valueArray = new AnnotationParameterValueWrapper[n];
+                valueArray = new ObjectTypedValueWrapper[n];
                 for (int i = 0; i < n; i++) {
-                    valueArray[i] = new AnnotationParameterValueWrapper(Array.get(annotationParamValue, i));
+                    valueArray[i] = new ObjectTypedValueWrapper(Array.get(annotationParamValue, i));
                 }
             } else if (annotationParamValue instanceof AnnotationEnumValue) {
                 enumValue = (AnnotationEnumValue) annotationParamValue;
@@ -171,7 +171,7 @@ class AnnotationParameterValueWrapper extends ScanResultObject {
         } else if (annotationInfo != null) {
             annotationInfo.getClassNamesFromTypeDescriptors(referencedClassNames);
         } else if (valueArray != null) {
-            for (final AnnotationParameterValueWrapper item : valueArray) {
+            for (final ObjectTypedValueWrapper item : valueArray) {
                 item.getClassNamesFromTypeDescriptors(referencedClassNames);
             }
         }

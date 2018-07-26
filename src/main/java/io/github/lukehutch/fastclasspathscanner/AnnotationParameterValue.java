@@ -34,7 +34,7 @@ import java.util.Set;
 /** A wrapper used to pair annotation parameter names with annotation parameter values. */
 public class AnnotationParameterValue extends ScanResultObject implements Comparable<AnnotationParameterValue> {
     String name;
-    AnnotationParameterValueWrapper value;
+    ObjectTypedValueWrapper value;
 
     @Override
     void setScanResult(final ScanResult scanResult) {
@@ -56,7 +56,7 @@ public class AnnotationParameterValue extends ScanResultObject implements Compar
      */
     public AnnotationParameterValue(final String name, final Object value) {
         this.name = name;
-        this.value = new AnnotationParameterValueWrapper(value);
+        this.value = new ObjectTypedValueWrapper(value);
     }
 
     /**

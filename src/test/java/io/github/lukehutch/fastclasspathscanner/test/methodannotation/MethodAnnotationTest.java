@@ -44,17 +44,17 @@ public class MethodAnnotationTest {
     @Test
     public void getNamesOfClassesWithMethodAnnotation() throws Exception {
         final List<String> testClasses = new FastClasspathScanner()
-                .whitelistPackages(MethodAnnotationTest.class.getPackage().getName()).enableMethodInfo()
-                .enableAnnotationInfo().scan().getClassesWithMethodAnnotation(ExternalAnnotation.class.getName())
-                .getNames();
+                .whitelistPackages(MethodAnnotationTest.class.getPackage().getName()).enableClassInfo()
+                .enableMethodInfo().enableAnnotationInfo().scan()
+                .getClassesWithMethodAnnotation(ExternalAnnotation.class.getName()).getNames();
         assertThat(testClasses).isEmpty();
     }
 
     @Test
     public void getNamesOfClassesWithMethodAnnotationIgnoringVisibility() throws Exception {
         final ClassInfoList classesWithMethodAnnotation = new FastClasspathScanner()
-                .whitelistPackages(MethodAnnotationTest.class.getPackage().getName()).enableMethodInfo()
-                .enableAnnotationInfo().ignoreMethodVisibility().scan()
+                .whitelistPackages(MethodAnnotationTest.class.getPackage().getName()).enableClassInfo()
+                .enableMethodInfo().enableAnnotationInfo().ignoreMethodVisibility().scan()
                 .getClassesWithMethodAnnotation(ExternalAnnotation.class.getName());
         final List<String> testClasses = classesWithMethodAnnotation.getNames();
         assertThat(testClasses).containsOnly(MethodAnnotationTest.class.getName());

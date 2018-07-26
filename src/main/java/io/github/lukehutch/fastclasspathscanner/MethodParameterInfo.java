@@ -43,6 +43,7 @@ public class MethodParameterInfo {
     final TypeSignature typeDescriptor;
     final TypeSignature typeSignature;
     final String name;
+    ScanResult scanResult;
 
     /**
      * @param annotationInfo
@@ -55,14 +56,18 @@ public class MethodParameterInfo {
      *            The method parameter type signature.
      * @param name
      *            The method parameter name.
+     * @param scanResult
+     *            The ScanResult.
      */
     public MethodParameterInfo(final AnnotationInfo[] annotationInfo, final int modifiers,
-            final TypeSignature typeDescriptor, final TypeSignature typeSignature, final String name) {
+            final TypeSignature typeDescriptor, final TypeSignature typeSignature, final String name,
+            final ScanResult scanResult) {
         this.name = name;
         this.modifiers = modifiers;
         this.typeDescriptor = typeDescriptor;
         this.typeSignature = typeSignature;
         this.annotationInfo = annotationInfo;
+        this.scanResult = scanResult;
     }
 
     /**
@@ -129,6 +134,10 @@ public class MethodParameterInfo {
      * @return {@link AnnotationInfo} for any annotations on this method parameter.
      */
     public AnnotationInfo[] getAnnotationInfo() {
+        if (!scanResult.scanSpec.enableAnnotationInfo) {
+            throw new IllegalArgumentException(
+                    "Please call FastClasspathScanner#enableAnnotationInfo() before #scan()");
+        }
         return annotationInfo;
     }
 
