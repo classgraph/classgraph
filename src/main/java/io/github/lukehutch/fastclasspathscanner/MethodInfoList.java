@@ -152,4 +152,41 @@ public class MethodInfoList extends ArrayList<MethodInfo> {
         }
         return null;
     }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Filter an {@link MethodInfoList} using a predicate mapping an {@link MethodInfo} object to a boolean,
+     * producing another {@link MethodInfoList} for all items in the list for which the predicate is true.
+     */
+    @FunctionalInterface
+    public interface MethodInfoFilter {
+        /**
+         * Whether or not to allow an {@link MethodInfo} list item through the filter.
+         *
+         * @param methodInfo
+         *            The {@link MethodInfo} item to filter.
+         * @return Whether or not to allow the item through the filter. If true, the item is copied to the output
+         *         list; if false, it is excluded.
+         */
+        public boolean accept(MethodInfo methodInfo);
+    }
+
+    /**
+     * Find the subset of the {@link MethodInfo} objects in this list for which the given filter predicate is true.
+     *
+     * @param filter
+     *            The {@link MethodInfoFilter} to apply.
+     * @return The subset of the {@link MethodInfo} objects in this list for which the given filter predicate is
+     *         true.
+     */
+    public MethodInfoList filter(final MethodInfoFilter filter) {
+        final MethodInfoList methodInfoFiltered = new MethodInfoList();
+        for (final MethodInfo resource : this) {
+            if (filter.accept(resource)) {
+                methodInfoFiltered.add(resource);
+            }
+        }
+        return methodInfoFiltered;
+    }
 }

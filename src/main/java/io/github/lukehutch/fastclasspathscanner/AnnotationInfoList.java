@@ -152,4 +152,42 @@ public class AnnotationInfoList extends ArrayList<AnnotationInfo> {
         }
         return null;
     }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Filter an {@link AnnotationInfoList} using a predicate mapping an {@link AnnotationInfo} object to a boolean,
+     * producing another {@link AnnotationInfoList} for all items in the list for which the predicate is true.
+     */
+    @FunctionalInterface
+    public interface AnnotationInfoFilter {
+        /**
+         * Whether or not to allow an {@link AnnotationInfo} list item through the filter.
+         *
+         * @param annotationInfo
+         *            The {@link AnnotationInfo} item to filter.
+         * @return Whether or not to allow the item through the filter. If true, the item is copied to the output
+         *         list; if false, it is excluded.
+         */
+        public boolean accept(AnnotationInfo annotationInfo);
+    }
+
+    /**
+     * Find the subset of the {@link AnnotationInfo} objects in this list for which the given filter predicate is
+     * true.
+     *
+     * @param filter
+     *            The {@link AnnotationInfoFilter} to apply.
+     * @return The subset of the {@link AnnotationInfo} objects in this list for which the given filter predicate is
+     *         true.
+     */
+    public AnnotationInfoList filter(final AnnotationInfoFilter filter) {
+        final AnnotationInfoList annotationInfoFiltered = new AnnotationInfoList();
+        for (final AnnotationInfo resource : this) {
+            if (filter.accept(resource)) {
+                annotationInfoFiltered.add(resource);
+            }
+        }
+        return annotationInfoFiltered;
+    }
 }

@@ -116,7 +116,7 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
                 resourcesFiltered.add(resource);
             }
         }
-        return new ResourceList(resourcesFiltered);
+        return resourcesFiltered;
     }
 
     // -------------------------------------------------------------------------------------------------------------

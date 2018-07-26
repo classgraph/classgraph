@@ -152,4 +152,41 @@ public class FieldInfoList extends ArrayList<FieldInfo> {
         }
         return null;
     }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Filter an {@link FieldInfoList} using a predicate mapping an {@link FieldInfo} object to a boolean, producing
+     * another {@link FieldInfoList} for all items in the list for which the predicate is true.
+     */
+    @FunctionalInterface
+    public interface FieldInfoFilter {
+        /**
+         * Whether or not to allow an {@link FieldInfo} list item through the filter.
+         *
+         * @param fieldInfo
+         *            The {@link FieldInfo} item to filter.
+         * @return Whether or not to allow the item through the filter. If true, the item is copied to the output
+         *         list; if false, it is excluded.
+         */
+        public boolean accept(FieldInfo fieldInfo);
+    }
+
+    /**
+     * Find the subset of the {@link FieldInfo} objects in this list for which the given filter predicate is true.
+     *
+     * @param filter
+     *            The {@link FieldInfoFilter} to apply.
+     * @return The subset of the {@link FieldInfo} objects in this list for which the given filter predicate is
+     *         true.
+     */
+    public FieldInfoList filter(final FieldInfoFilter filter) {
+        final FieldInfoList fieldInfoFiltered = new FieldInfoList();
+        for (final FieldInfo resource : this) {
+            if (filter.accept(resource)) {
+                fieldInfoFiltered.add(resource);
+            }
+        }
+        return fieldInfoFiltered;
+    }
 }
