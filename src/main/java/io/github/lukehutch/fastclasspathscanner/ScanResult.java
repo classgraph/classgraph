@@ -878,29 +878,37 @@ public class ScanResult {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Free any temporary files created by extracting jars from within jars. By default, temporary files are removed
-     * at the end of a scan, after MatchProcessors have completed, so this typically does not need to be called. The
-     * case where it might need to be called is if the list of classpath elements has been fetched, and the
-     * classpath contained jars within jars. Without calling this method, the temporary files created by extracting
-     * the inner jars will not be removed until the temporary file system cleans them up (typically at reboot).
+     * Free any temporary files created by extracting jars from within jars.
      * 
      * @param log
      *            The log.
      */
-    public void freeTempFiles(final LogNode log) {
+    void freeTempFiles(final LogNode log) {
         if (allResources != null) {
             for (final Resource classpathResource : allResources) {
                 classpathResource.close();
             }
+            allResources = null;
         }
         if (nestedJarHandler != null) {
             nestedJarHandler.close(log);
         }
     }
 
+    /**
+     * Free any temporary files created by extracting jars from within jars. By default, temporary files are removed
+     * at the end of a scan, after MatchProcessors have completed, so this typically does not need to be called. The
+     * case where it might need to be called is if the list of classpath elements has been fetched, and the
+     * classpath contained jars within jars. Without calling this method, the temporary files created by extracting
+     * the inner jars will not be removed until the temporary file system cleans them up (typically at reboot).
+     */
+    public void freeTempFiles() {
+        freeTempFiles(null);
+    }
+
     @Override
     protected void finalize() throws Throwable {
         // NestedJarHandler also adds a runtime shutdown hook, since finalizers are not reliable
-        freeTempFiles(null);
+        freeTempFiles();
     }
 }
