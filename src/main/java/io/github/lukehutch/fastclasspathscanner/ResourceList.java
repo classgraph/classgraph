@@ -85,6 +85,42 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /**
+     * Filter a {@link ResourceList} using a predicate mapping a {@link Resource} object to a boolean, producing
+     * another {@link ResourceList} for all items in the list for which the predicate is true.
+     */
+    @FunctionalInterface
+    public interface ResourceFilter {
+        /**
+         * Whether or not to allow a {@link Resource} list item through the filter.
+         *
+         * @param resource
+         *            The {@link Resource} item to filter.
+         * @return Whether or not to allow the item through the filter. If true, the item is copied to the output
+         *         list; if false, it is excluded.
+         */
+        public boolean accept(Resource resource);
+    }
+
+    /**
+     * Find the subset of the {@link Resource} objects in this list for which the given filter predicate is true.
+     *
+     * @param filter
+     *            The {@link ResourceFilter} to apply.
+     * @return The subset of the {@link Resource} objects in this list for which the given filter predicate is true.
+     */
+    public ResourceList filter(final ResourceFilter filter) {
+        final ResourceList resourcesFiltered = new ResourceList();
+        for (final Resource resource : this) {
+            if (filter.accept(resource)) {
+                resourcesFiltered.add(resource);
+            }
+        }
+        return new ResourceList(resourcesFiltered);
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
     /** A {@link FunctionalInterface} for consuming the contents of a {@link Resource} as a byte array. */
     @FunctionalInterface
     public interface ByteArrayConsumer {
