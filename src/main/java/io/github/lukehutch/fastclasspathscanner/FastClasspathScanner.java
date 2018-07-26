@@ -731,7 +731,7 @@ public class FastClasspathScanner {
 
     /**
      * Whitelist one or more jars in a JRE/JDK "lib/" or "ext/" directory (these directories are not scanned unless
-     * {@link #unBlacklistSystemPackages()} is called, by association with the JRE/JDK).
+     * {@link #enableSystemPackages()} is called, by association with the JRE/JDK).
      *
      * @param jarLeafNames
      *            The leafnames of the lib/ext jar(s) that should be scanned (e.g. "mylib.jar"). May contain a
@@ -883,11 +883,11 @@ public class FastClasspathScanner {
     /**
      * Enables the scanning of system packages (java.*, jdk.*, oracle.*, etc.) -- these are not scanned by default
      * for speed. Calls {#whitelistLibOrExtJars()} with no parameters, to enable scanning of jars in JRE/JDK "lib/"
-     * and "ext/" directories. (Automatically calls {@link #enableClassInfo()}.)
+     * and "ext/" directories. (Also automatically calls {@link #enableClassInfo()}.)
      *
      * @return this (for method chaining).
      */
-    public FastClasspathScanner unBlacklistSystemPackages() {
+    public FastClasspathScanner enableSystemPackages() {
         enableClassInfo();
         // Scan JRE lib and ext dirs
         whitelistLibOrExtJars();
