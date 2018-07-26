@@ -54,7 +54,10 @@ public class ScanResult {
     /** The scan spec. */
     final ScanSpec scanSpec;
 
-    /** The order of unique classpath elements. */
+    /** The order of raw classpath elements. */
+    private final List<String> rawClasspathEltOrderStrs;
+
+    /** The order of classpath elements, after inner jars have been extracted to temporary files, etc. */
     private final List<ClasspathElement> classpathOrder;
 
     /** A list of all files that were found in whitelisted packages. */
@@ -90,9 +93,11 @@ public class ScanResult {
 
     /** The result of a scan. Make sure you call complete() after calling the constructor. */
     ScanResult(final ScanSpec scanSpec, final List<ClasspathElement> classpathOrder,
-            final ClassLoader[] envClassLoaderOrder, final Map<String, ClassInfo> classNameToClassInfo,
-            final Map<File, Long> fileToLastModified, final NestedJarHandler nestedJarHandler, final LogNode log) {
+            final List<String> rawClasspathEltOrderStrs, final ClassLoader[] envClassLoaderOrder,
+            final Map<String, ClassInfo> classNameToClassInfo, final Map<File, Long> fileToLastModified,
+            final NestedJarHandler nestedJarHandler, final LogNode log) {
         this.scanSpec = scanSpec;
+        this.rawClasspathEltOrderStrs = rawClasspathEltOrderStrs;
         this.classpathOrder = classpathOrder;
         for (final ClasspathElement classpathElt : classpathOrder) {
             if (classpathElt.fileMatches != null) {
@@ -593,21 +598,6 @@ public class ScanResult {
      */
     Class<?> loadClass(final String className, final boolean returnNullIfClassNotFound, final LogNode log)
             throws IllegalArgumentException {
-        if (scanSpec.overrideClasspath != null) {
-            // Unfortunately many surprises can result when overriding classpath (e.g. the wrong class definition
-            // could be loaded, if a class is defined more than once in the classpath). Even when overriding the
-            // ClassLoaders, a class may not be able to be cast to its superclass, if the class and its superclass
-            // are loaded into different classloaders, possibly due to accidental loading and caching in the
-            // non-custom classloader). Basically if you're overriding the classpath and/or defining custom
-            // classloaders, bad things will probably happen at some point!
-            if (log != null) {
-                log.log("When loading classes from a custom classpath, defined using .overrideClasspath(), "
-                        + "the correct classloader for the requested class " + className
-                        + " cannot reliably be determined. Will try loading the class using the default context "
-                        + "classLoader (which may or may not even be able to find the class). "
-                        + "Preferably always use .overrideClassLoaders() instead.");
-            }
-        }
         if (className == null || className.isEmpty()) {
             throw new IllegalArgumentException("Cannot load class -- class names cannot be null or empty");
         }
@@ -797,17 +787,19 @@ public class ScanResult {
     private static class SerializationFormat {
         public String serializationFormat;
         public ScanSpec scanSpec;
-        public List<ClassInfo> allClassInfo;
+        public List<String> classpath;
+        public List<ClassInfo> classInfo;
 
         @SuppressWarnings("unused")
         public SerializationFormat() {
         }
 
         public SerializationFormat(final String serializationFormat, final ScanSpec scanSpec,
-                final Map<String, ClassInfo> classNameToClassInfo) {
+                final List<ClassInfo> classInfo, final List<String> classpath) {
             this.serializationFormat = serializationFormat;
             this.scanSpec = scanSpec;
-            this.allClassInfo = new ArrayList<>(classNameToClassInfo.values());
+            this.classpath = classpath;
+            this.classInfo = classInfo;
         }
     }
 
@@ -825,22 +817,39 @@ public class ScanResult {
                             + "the same version of FastClasspathScanner");
         }
 
+        // Deserialize the JSON
         final SerializationFormat deserialized = JSONDeserializer.deserializeObject(SerializationFormat.class,
                 json);
         if (!deserialized.serializationFormat.equals(CURRENT_SERIALIZATION_FORMAT)) {
             // Probably the deserialization failed before now anyway, if fields have changed, etc.
             throw new IllegalArgumentException("JSON was serialized by newer version of FastClasspathScanner");
         }
+
+        // Get the classpath that produced the serialized JSON, and extract inner jars, download remote jars, etc.
+        final List<URL> urls = new FastClasspathScanner().overrideClasspath(deserialized.classpath)
+                .getClasspathURLs();
+
+        // Define a custom URLClassLoader with the result that delegates to the first environment classloader
         final ClassLoader[] envClassLoaderOrder = new ClassLoaderAndModuleFinder(deserialized.scanSpec,
                 /* log = */ null).getClassLoaders();
+        final ClassLoader parentClassLoader = envClassLoaderOrder == null || envClassLoaderOrder.length == 0 ? null
+                : envClassLoaderOrder[0];
+        final URLClassLoader urlClassLoader = new URLClassLoader(urls.toArray(new URL[urls.size()]),
+                parentClassLoader);
+        final ClassLoader[] classLoaderOrder = new ClassLoader[] { urlClassLoader };
+
+        // Index ClassInfo objects by name, and set the classLoaders field of each one, for classloading
         final Map<String, ClassInfo> classNameToClassInfo = new HashMap<>();
-        for (final ClassInfo ci : deserialized.allClassInfo) {
+        for (final ClassInfo ci : deserialized.classInfo) {
+            ci.classLoaders = classLoaderOrder;
             classNameToClassInfo.put(ci.getName(), ci);
         }
+
+        // Produce a new ScanResult
         final ScanResult scanResult = new ScanResult(deserialized.scanSpec,
-                /* classpathOrder = */ Collections.<ClasspathElement> emptyList(), envClassLoaderOrder,
-                classNameToClassInfo, /* fileToLastModified = */ null, /* nestedJarHandler = */ null,
-                /* log = */ null);
+                /* classpathOrder = */ Collections.<ClasspathElement> emptyList(), deserialized.classpath,
+                classLoaderOrder, classNameToClassInfo, /* fileToLastModified = */ null,
+                /* nestedJarHandler = */ null, /* log = */ null);
         return scanResult;
     }
 
@@ -853,12 +862,12 @@ public class ScanResult {
     public String toJSON(final int indentWidth) {
         //        if (!scanSpec.enableClassInfo) {
         //            throw new IllegalArgumentException("Cannot get method info without calling "
-        //                    + "FastClasspathScanner#enableClassInfo() (or adding class or package whitelist/blacklist "
-        //                    + "criteria) before starting the scan");
+        //                    + "FastClasspathScanner#enableClassInfo() before starting the scan");
         //        }
-        return JSONSerializer.serializeObject(
-                new SerializationFormat(CURRENT_SERIALIZATION_FORMAT, scanSpec, classNameToClassInfo), indentWidth,
-                false);
+        final List<ClassInfo> allClassInfo = new ArrayList<>(classNameToClassInfo.values());
+        Collections.sort(allClassInfo);
+        return JSONSerializer.serializeObject(new SerializationFormat(CURRENT_SERIALIZATION_FORMAT, scanSpec,
+                allClassInfo, rawClasspathEltOrderStrs), indentWidth, false);
     }
 
     /** Serialize a ScanResult to minified (un-indented) JSON. */

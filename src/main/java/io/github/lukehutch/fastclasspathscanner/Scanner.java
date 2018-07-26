@@ -327,6 +327,11 @@ class Scanner implements Callable<ScanResult> {
             // Add traditional classpath entries to the classpath order
             rawClasspathEltOrder.addAll(classpathFinder.getRawClasspathElements());
 
+            final List<String> rawClasspathEltOrderStrs = new ArrayList<>(rawClasspathEltOrder.size());
+            for (final ClasspathOrModulePathEntry entry : rawClasspathEltOrder) {
+                rawClasspathEltOrderStrs.add(entry.getResolvedPath());
+            }
+
             // In parallel, resolve raw classpath elements to canonical paths, creating a ClasspathElement singleton
             // for each unique canonical path. Also check jars against jar whitelist/blacklist.
             final LogNode preScanLog = classpathFinderLog == null ? null
@@ -436,7 +441,7 @@ class Scanner implements Callable<ScanResult> {
             if (!enableRecursiveScanning) {
                 // This is the result of a call to FastClasspathScanner#getUniqueClasspathElements(), so just
                 // create placeholder ScanResult to contain classpathElementFilesOrdered.
-                scanResult = new ScanResult(scanSpec, classpathOrder, classLoaderOrder,
+                scanResult = new ScanResult(scanSpec, classpathOrder, rawClasspathEltOrderStrs, classLoaderOrder,
                         /* classNameToClassInfo = */ null, /* fileToLastModified = */ null, nestedJarHandler, log);
 
             } else {
@@ -659,8 +664,8 @@ class Scanner implements Callable<ScanResult> {
                 }
 
                 // Create ScanResult
-                scanResult = new ScanResult(scanSpec, classpathOrder, classLoaderOrder, classNameToClassInfo,
-                        fileToLastModified, nestedJarHandler, log);
+                scanResult = new ScanResult(scanSpec, classpathOrder, rawClasspathEltOrderStrs, classLoaderOrder,
+                        classNameToClassInfo, fileToLastModified, nestedJarHandler, log);
 
             }
             if (log != null) {
