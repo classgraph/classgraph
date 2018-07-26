@@ -9,7 +9,7 @@ import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
 public class Issue80Test {
     @Test
     public void issue80() {
-        assertThat(new FastClasspathScanner().unBlacklistSystemPackages().enableClassInfo().scan()
+        assertThat(new FastClasspathScanner().enableSystemPackages().enableClassInfo().scan()
                 .getAllStandardClasses().getNames()).contains("java.util.ArrayList");
     }
 }

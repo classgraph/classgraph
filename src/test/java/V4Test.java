@@ -21,7 +21,7 @@ public class V4Test {
         final long t0 = System.nanoTime();
         new FastClasspathScanner() //
                 // .verbose() //
-                .unBlacklistSystemPackages() //
+                .enableSystemPackages() //
                 .enableClassInfo()
                 //.enableMethodInfo().enableFieldInfo() //
                 .ignoreClassVisibility() //
