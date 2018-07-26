@@ -683,7 +683,7 @@ class Scanner implements Callable<ScanResult> {
 
             // Remove temporary files if necessary
             if (scanSpec.removeTemporaryFilesAfterScan) {
-                scanResult.freeTempFiles(log);
+                scanResult.removeTemporaryFiles(log);
             }
 
             // No exceptions were thrown -- return scan result

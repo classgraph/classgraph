@@ -883,7 +883,7 @@ public class ScanResult {
      * @param log
      *            The log.
      */
-    void freeTempFiles(final LogNode log) {
+    void removeTemporaryFiles(final LogNode log) {
         if (allResources != null) {
             for (final Resource classpathResource : allResources) {
                 classpathResource.close();
@@ -902,13 +902,13 @@ public class ScanResult {
      * classpath contained jars within jars. Without calling this method, the temporary files created by extracting
      * the inner jars will not be removed until the temporary file system cleans them up (typically at reboot).
      */
-    public void freeTempFiles() {
-        freeTempFiles(null);
+    public void removeTemporaryFiles() {
+        removeTemporaryFiles(null);
     }
 
     @Override
     protected void finalize() throws Throwable {
         // NestedJarHandler also adds a runtime shutdown hook, since finalizers are not reliable
-        freeTempFiles();
+        removeTemporaryFiles();
     }
 }
