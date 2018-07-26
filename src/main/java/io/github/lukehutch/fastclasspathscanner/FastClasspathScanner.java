@@ -131,66 +131,78 @@ public class FastClasspathScanner {
 
     /**
      * Causes class visibility to be ignored, enabling private, package-private and protected classes to be scanned.
-     * By default, only public classes are scanned.
+     * By default, only public classes are scanned. (Automatically calls {@link #enableClassInfo()}.)
      *
      * @return this (for method chaining).
      */
     public FastClasspathScanner ignoreClassVisibility() {
+        enableClassInfo();
         scanSpec.ignoreClassVisibility = true;
         return this;
     }
 
     /**
      * Enables the saving of method info during the scan. This information can be obtained using
-     * {@link ClassInfo#getMethodInfo()} etc. By default, method info is not scanned.
+     * {@link ClassInfo#getMethodInfo()} etc. By default, method info is not scanned. (Automatically calls
+     * {@link #enableClassInfo()}.)
      *
      * @return this (for method chaining).
      */
     public FastClasspathScanner enableMethodInfo() {
+        enableClassInfo();
         scanSpec.enableMethodInfo = true;
         return this;
     }
 
     /**
      * Causes method visibility to be ignored, enabling private, package-private and protected methods to be
-     * scanned. By default, only public methods are scanned.
+     * scanned. By default, only public methods are scanned. (Automatically calls {@link #enableClassInfo()} and
+     * {@link #enableMethodInfo()}.)
      *
      * @return this (for method chaining).
      */
     public FastClasspathScanner ignoreMethodVisibility() {
+        enableClassInfo();
+        enableMethodInfo();
         scanSpec.ignoreMethodVisibility = true;
         return this;
     }
 
     /**
      * Enables the saving of field info during the scan. This information can be obtained using
-     * {@link ClassInfo#getFieldInfo()}. By default, field info is not scanned.
+     * {@link ClassInfo#getFieldInfo()}. By default, field info is not scanned. (Automatically calls
+     * {@link #enableClassInfo()}.)
      *
      * @return this (for method chaining).
      */
     public FastClasspathScanner enableFieldInfo() {
+        enableClassInfo();
         scanSpec.enableFieldInfo = true;
         return this;
     }
 
     /**
      * Causes field visibility to be ignored, enabling private, package-private and protected fields to be scanned.
-     * By default, only public fields are scanned.
+     * By default, only public fields are scanned. (Automatically calls {@link #enableClassInfo()} and
+     * {@link #enableFieldInfo()}.)
      *
      * @return this (for method chaining).
      */
     public FastClasspathScanner ignoreFieldVisibility() {
+        enableClassInfo();
+        enableFieldInfo();
         scanSpec.ignoreFieldVisibility = true;
         return this;
     }
 
     /**
      * Enables the saving of static final field constant initializer values. By default, constant initializer values
-     * are not scanned. Automatically calls {@link #enableFieldInfo()}.
+     * are not scanned. Automatically calls {@link #enableClassInfo()} and {@link #enableFieldInfo()}.
      *
      * @return this (for method chaining).
      */
     public FastClasspathScanner enableStaticFinalFieldConstantInitializerValues() {
+        enableClassInfo();
         enableFieldInfo();
         scanSpec.enableStaticFinalFieldConstantInitializerValues = true;
         return this;
@@ -200,11 +212,12 @@ public class FastClasspathScanner {
      * Enables the saving of annotation info (for class, field, method and method parameter annotations) during the
      * scan. This information can be obtained using {@link ClassInfo#getAnnotationInfo()},
      * {@link FieldInfo#getAnnotationInfo()}, and {@link MethodParameterInfo#getAnnotationInfo()}. By default,
-     * annotation info is not scanned.
+     * annotation info is not scanned. (Automatically calls {@link #enableClassInfo()}.)
      *
      * @return this (for method chaining).
      */
     public FastClasspathScanner enableAnnotationInfo() {
+        enableClassInfo();
         scanSpec.enableAnnotationInfo = true;
         return this;
     }
@@ -213,10 +226,12 @@ public class FastClasspathScanner {
 
     /**
      * Causes only runtime visible annotations to be scanned (causes runtime invisible annotations to be ignored).
+     * (Automatically calls {@link #enableClassInfo()}.)
      *
      * @return this (for method chaining).
      */
     public FastClasspathScanner disableRuntimeInvisibleAnnotations() {
+        enableClassInfo();
         scanSpec.disableRuntimeInvisibleAnnotations = true;
         return this;
     }
@@ -258,10 +273,12 @@ public class FastClasspathScanner {
     /**
      * Causes FastClasspathScanner to return classes that are not in the whitelisted packages, but that are directly
      * referred to by classes within whitelisted packages as a superclass, implemented interface or annotation.
+     * (Automatically calls {@link #enableClassInfo()}.)
      *
      * @return this (for method chaining).
      */
     public FastClasspathScanner enableExternalClasses() {
+        enableClassInfo();
         scanSpec.enableExternalClasses = true;
         return this;
     }
@@ -492,7 +509,6 @@ public class FastClasspathScanner {
         enableClassInfo();
         for (final String packageName : packageNames) {
             if (packageName.startsWith("!") || packageName.startsWith("-")) {
-                // TODO: temp
                 throw new IllegalArgumentException(
                         "This style of whitelisting/blacklisting is no longer supported: " + packageName);
             }
@@ -867,11 +883,12 @@ public class FastClasspathScanner {
     /**
      * Enables the scanning of system packages (java.*, jdk.*, oracle.*, etc.) -- these are not scanned by default
      * for speed. Calls {#whitelistLibOrExtJars()} with no parameters, to enable scanning of jars in JRE/JDK "lib/"
-     * and "ext/" directories.
+     * and "ext/" directories. (Automatically calls {@link #enableClassInfo()}.)
      *
      * @return this (for method chaining).
      */
     public FastClasspathScanner unBlacklistSystemPackages() {
+        enableClassInfo();
         // Scan JRE lib and ext dirs
         whitelistLibOrExtJars();
         scanSpec.blacklistSystemJarsOrModules = false;
@@ -984,15 +1001,15 @@ public class FastClasspathScanner {
     public ScanResult scan(final ExecutorService executorService, final int numParallelTasks) {
         try {
             // Start the scan and wait for completion
-            final ScanResult scanResult = executorService.submit(
+            ScanResult scanResult = executorService.submit(
                     // Call MatchProcessors before returning if in async scanning mode
                     new Scanner(scanSpec, executorService, numParallelTasks, /* enableRecursiveScanning = */ true,
                             /* scanResultProcessor = */ null, /* failureHandler = */ null, log)) //
                     .get();
 
-            // // TODO: test serialization and deserialization by serializing and then deserializing the ScanResult 
-            // final String scanResultJson = scanResult.toJSON();
-            // scanResult = ScanResult.fromJSON(scanResultJson);
+//            // TODO: test serialization and deserialization by serializing and then deserializing the ScanResult 
+//            final String scanResultJson = scanResult.toJSON();
+//            scanResult = ScanResult.fromJSON(scanResultJson);
 
             // Return the scanResult after calling MatchProcessors
             return scanResult;
