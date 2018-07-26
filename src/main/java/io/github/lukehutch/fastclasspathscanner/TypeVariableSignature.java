@@ -50,7 +50,7 @@ public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
     @Override
     void setScanResult(final ScanResult scanResult) {
         super.setScanResult(scanResult);
-        // No need to set type signature in containing class or method, they will have already been set
+        // No need to set type signature in containing class or method, they are backlinks
     }
 
     /**
@@ -229,11 +229,11 @@ public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
             parser.expect(';');
             final TypeVariableSignature typeVariableSignature = new TypeVariableSignature(parser.currToken());
 
-            // Save type variable signature in the parser state, so method and class type signatures can link
+            // Save type variable signatures in the parser state, so method and class type signatures can link
             // to type signatures
             @SuppressWarnings("unchecked")
             List<TypeVariableSignature> typeVariableSignatures = (List<TypeVariableSignature>) parser.getState();
-            if (parser.getState() == null) {
+            if (typeVariableSignatures == null) {
                 parser.setState(typeVariableSignatures = new ArrayList<>());
             }
             typeVariableSignatures.add(typeVariableSignature);

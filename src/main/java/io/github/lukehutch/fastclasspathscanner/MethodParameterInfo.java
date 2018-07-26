@@ -56,18 +56,29 @@ public class MethodParameterInfo {
      *            The method parameter type signature.
      * @param name
      *            The method parameter name.
-     * @param scanResult
-     *            The ScanResult.
      */
     public MethodParameterInfo(final AnnotationInfo[] annotationInfo, final int modifiers,
-            final TypeSignature typeDescriptor, final TypeSignature typeSignature, final String name,
-            final ScanResult scanResult) {
+            final TypeSignature typeDescriptor, final TypeSignature typeSignature, final String name) {
         this.name = name;
         this.modifiers = modifiers;
         this.typeDescriptor = typeDescriptor;
         this.typeSignature = typeSignature;
         this.annotationInfo = annotationInfo;
+    }
+
+    public void setScanResult(final ScanResult scanResult) {
         this.scanResult = scanResult;
+        if (this.annotationInfo != null) {
+            for (final AnnotationInfo ai : annotationInfo) {
+                ai.setScanResult(scanResult);
+            }
+        }
+        if (this.typeDescriptor != null) {
+            this.typeDescriptor.setScanResult(scanResult);
+        }
+        if (this.typeSignature != null) {
+            this.typeSignature.setScanResult(scanResult);
+        }
     }
 
     /**

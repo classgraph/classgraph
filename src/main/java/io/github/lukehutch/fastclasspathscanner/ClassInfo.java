@@ -175,7 +175,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             }
         }
         if (annotationDefaultParamValues != null) {
-            for (AnnotationParameterValue apv : annotationDefaultParamValues) {
+            for (final AnnotationParameterValue apv : annotationDefaultParamValues) {
                 apv.setScanResult(scanResult);
             }
         }
@@ -390,7 +390,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         }
         if (typeSignature == null) {
             try {
-                typeSignature = ClassTypeSignature.parse(name, typeSignatureStr, scanResult);
+                typeSignature = ClassTypeSignature.parse(name, typeSignatureStr);
+                typeSignature.setScanResult(scanResult);
             } catch (final ParseException e) {
                 throw new IllegalArgumentException(e);
             }

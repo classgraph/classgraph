@@ -205,7 +205,8 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
         }
         if (typeDescriptor == null) {
             try {
-                typeDescriptor = TypeSignature.parse(typeDescriptorStr, scanResult);
+                typeDescriptor = TypeSignature.parse(typeDescriptorStr);
+                typeDescriptor.setScanResult(scanResult);
             } catch (final ParseException e) {
                 throw new IllegalArgumentException(e);
             }
@@ -224,7 +225,8 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
         }
         if (typeSignature == null) {
             try {
-                typeSignature = TypeSignature.parse(typeSignatureStr, scanResult);
+                typeSignature = TypeSignature.parse(typeSignatureStr);
+                typeSignature.setScanResult(scanResult);
             } catch (final ParseException e) {
                 throw new IllegalArgumentException(e);
             }

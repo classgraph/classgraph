@@ -228,14 +228,12 @@ public class MethodTypeSignature extends HierarchicalTypeSignature {
      *            The name of the defining class (for resolving type variables).
      * @param typeDescriptor
      *            The type descriptor of the method.
-     * @param scanResult
-     *            The {@link ScanResult} (for classloading).
      * @return The parsed method type signature.
      * @throws ParseException
      *             If method type signature could not be parsed.
      */
-    public static MethodTypeSignature parse(final String definingClassName, final String typeDescriptor,
-            final ScanResult scanResult) throws ParseException {
+    static MethodTypeSignature parse(final String definingClassName, final String typeDescriptor)
+            throws ParseException {
         final Parser parser = new Parser(typeDescriptor);
         final List<TypeParameter> typeParameters = TypeParameter.parseList(parser);
         parser.expect('(');
@@ -294,7 +292,6 @@ public class MethodTypeSignature extends HierarchicalTypeSignature {
                 }
             }
         }
-        methodSignature.setScanResult(scanResult);
         return methodSignature;
     }
 }

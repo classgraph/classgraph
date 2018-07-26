@@ -53,18 +53,18 @@ class ObjectTypedValueWrapper extends ScanResultObject {
     @Override
     void setScanResult(final ScanResult scanResult) {
         super.setScanResult(scanResult);
-        if (valueArray != null) {
-            for (int i = 0; i < valueArray.length; i++) {
-                if (valueArray[i] != null) {
-                    valueArray[i].setScanResult(scanResult);
-                }
-            }
-        } else if (enumValue != null) {
+        if (enumValue != null) {
             enumValue.setScanResult(scanResult);
         } else if (classRef != null) {
             classRef.setScanResult(scanResult);
         } else if (annotationInfo != null) {
             annotationInfo.setScanResult(scanResult);
+        } else if (valueArray != null) {
+            for (int i = 0; i < valueArray.length; i++) {
+                if (valueArray[i] != null) {
+                    valueArray[i].setScanResult(scanResult);
+                }
+            }
         }
     }
 

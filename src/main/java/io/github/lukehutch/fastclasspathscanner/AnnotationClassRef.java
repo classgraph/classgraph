@@ -54,8 +54,8 @@ public class AnnotationClassRef extends ScanResultObject {
     @Override
     void setScanResult(final ScanResult scanResult) {
         super.setScanResult(scanResult);
-        if (this.typeSignature != null) {
-            this.typeSignature.setScanResult(scanResult);
+        if (typeSignature != null) {
+            typeSignature.setScanResult(scanResult);
         }
     }
 
@@ -67,8 +67,8 @@ public class AnnotationClassRef extends ScanResultObject {
     private TypeSignature getTypeSignature() {
         if (typeSignature == null) {
             try {
-                final TypeSignature typeSig = TypeSignature.parse(typeDescriptorStr, scanResult);
-                typeSignature = typeSig;
+                typeSignature = TypeSignature.parse(typeDescriptorStr);
+                typeSignature.setScanResult(scanResult);
             } catch (final ParseException e) {
                 throw new IllegalArgumentException(e);
             }

@@ -96,6 +96,12 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     @Override
     void setScanResult(final ScanResult scanResult) {
         super.setScanResult(scanResult);
+        if (this.typeDescriptor != null) {
+            this.typeDescriptor.setScanResult(scanResult);
+        }
+        if (this.typeSignature != null) {
+            this.typeSignature.setScanResult(scanResult);
+        }
         if (this.annotationInfo != null) {
             for (int i = 0; i < this.annotationInfo.size(); i++) {
                 final AnnotationInfo ai = this.annotationInfo.get(i);
@@ -114,7 +120,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
         }
         if (this.parameterInfo != null) {
             for (final MethodParameterInfo mpi : parameterInfo) {
-                mpi.scanResult = scanResult;
+                mpi.setScanResult(scanResult);
             }
         }
     }
@@ -224,7 +230,8 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     public MethodTypeSignature getTypeDescriptor() {
         if (typeDescriptor == null) {
             try {
-                typeDescriptor = MethodTypeSignature.parse(definingClassName, typeDescriptorStr, scanResult);
+                typeDescriptor = MethodTypeSignature.parse(definingClassName, typeDescriptorStr);
+                typeDescriptor.setScanResult(scanResult);
             } catch (final ParseException e) {
                 throw new IllegalArgumentException(e);
             }
@@ -241,7 +248,8 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     public MethodTypeSignature getTypeSignature() {
         if (typeSignature == null && typeSignatureStr != null) {
             try {
-                typeSignature = MethodTypeSignature.parse(definingClassName, typeSignatureStr, scanResult);
+                typeSignature = MethodTypeSignature.parse(definingClassName, typeSignatureStr);
+                typeSignature.setScanResult(scanResult);
             } catch (final ParseException e) {
                 throw new IllegalArgumentException(e);
             }
@@ -478,7 +486,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
                         paramAnnotationInfoAligned == null ? null : paramAnnotationInfoAligned[i],
                         paramModifiersAligned == null ? 0 : paramModifiersAligned[i], paramTypeDescriptors.get(i),
                         paramTypeSignaturesAligned == null ? null : paramTypeSignaturesAligned.get(i),
-                        paramNamesAligned == null ? null : paramNamesAligned[i], scanResult);
+                        paramNamesAligned == null ? null : paramNamesAligned[i]);
             }
         }
         return parameterInfo;

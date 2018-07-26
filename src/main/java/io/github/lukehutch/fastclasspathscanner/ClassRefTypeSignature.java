@@ -84,7 +84,7 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
      * @param suffixTypeArguments
      *            The suffix type arguments.
      */
-    public ClassRefTypeSignature(final String className, final List<TypeArgument> typeArguments,
+    ClassRefTypeSignature(final String className, final List<TypeArgument> typeArguments,
             final List<String> suffixes, final List<List<TypeArgument>> suffixTypeArguments) {
         this.className = className;
         this.typeArguments = typeArguments;

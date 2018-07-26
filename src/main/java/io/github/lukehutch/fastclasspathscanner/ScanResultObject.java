@@ -44,6 +44,9 @@ abstract class ScanResultObject {
             throw new IllegalArgumentException("Class name is not set");
         }
         if (classInfo == null) {
+            if (scanResult == null) {
+                return null;
+            }
             classInfo = scanResult.getClassInfo(className);
             if (classInfo == null) {
                 return null;

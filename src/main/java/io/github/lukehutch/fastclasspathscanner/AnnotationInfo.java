@@ -139,8 +139,9 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
         if (annotationParamValuesWithDefaults == null) {
             final ClassInfo classInfo = getClassInfo();
             if (classInfo == null) {
-                // ClassInfo has not yet been set, (happen when trying to log AnnotationInfo while scanning)
-                return Collections.<AnnotationParameterValue> emptyList();
+                // ClassInfo has not yet been set, just return values without defaults
+                // (happens when trying to log AnnotationInfo during scanning, before ScanResult is available)
+                return annotationParamValues;
             }
             final List<AnnotationParameterValue> defaultParamValues = classInfo.annotationDefaultParamValues;
 
