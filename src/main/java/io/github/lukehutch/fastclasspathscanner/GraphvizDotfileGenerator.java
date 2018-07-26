@@ -33,8 +33,6 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
-import io.github.lukehutch.fastclasspathscanner.ClassInfo.RelType;
-
 /** Builds a class graph visualization in Graphviz .dot file format. */
 class GraphvizDotfileGenerator {
 
@@ -526,8 +524,7 @@ class GraphvizDotfileGenerator {
         }
         if (showAnnotations) {
             for (final ClassInfo annotationNode : annotationNodes) {
-                for (final ClassInfo annotatedClassNode : annotationNode
-                        .filterClassInfo(RelType.CLASSES_WITH_ANNOTATION).directOnly()) {
+                for (final ClassInfo annotatedClassNode : annotationNode.getClassesWithAnnotationDirectOnly()) {
                     if (allVisibleNodes.contains(annotatedClassNode.getName())) {
                         // annotated class --o annotation
                         buf.append("  \"" + annotatedClassNode.getName() + "\" -> \"" + annotationNode.getName()
@@ -535,7 +532,7 @@ class GraphvizDotfileGenerator {
                     }
                 }
                 for (final ClassInfo classWithMethodAnnotationNode : annotationNode
-                        .filterClassInfo(RelType.CLASSES_WITH_METHOD_ANNOTATION).directOnly()) {
+                        .getClassesWithMethodAnnotationDirectOnly()) {
                     if (allVisibleNodes.contains(classWithMethodAnnotationNode.getName())) {
                         // class with method annotation --o method annotation
                         buf.append("  \"" + classWithMethodAnnotationNode.getName() + "\" -> \""
@@ -543,7 +540,7 @@ class GraphvizDotfileGenerator {
                     }
                 }
                 for (final ClassInfo classWithMethodAnnotationNode : annotationNode
-                        .filterClassInfo(RelType.CLASSES_WITH_FIELD_ANNOTATION).directOnly()) {
+                        .getClassesWithFieldAnnotationDirectOnly()) {
                     if (allVisibleNodes.contains(classWithMethodAnnotationNode.getName())) {
                         // class with field annotation --o method annotation
                         buf.append("  \"" + classWithMethodAnnotationNode.getName() + "\" -> \""
