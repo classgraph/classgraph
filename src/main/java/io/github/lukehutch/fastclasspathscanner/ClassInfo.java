@@ -174,6 +174,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 mi.setScanResult(scanResult);
             }
         }
+        if (annotationDefaultParamValues != null) {
+            for (AnnotationParameterValue apv : annotationDefaultParamValues) {
+                apv.setScanResult(scanResult);
+            }
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
