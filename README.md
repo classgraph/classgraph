@@ -149,6 +149,7 @@ Some other classpath scanning mechanisms include:
 * [ObjectWeb ASM](http://asm.ow2.org/)
 * [QDox](https://github.com/paul-hammant/qdox), a fast Java source parser and indexer
 * [bndtools](https://github.com/bndtools/bnd), which is able to ["crawl"/parse the bytecode of class files](https://github.com/bndtools/bnd/blob/master/biz.aQute.bndlib/src/aQute/bnd/osgi/Clazz.java) to find all imports/dependencies, among other things. 
+* [coffea](https://github.com/sbilinski/coffea), a command line tool and Python library for analyzing static dependences in Java bytecode
 
 ## License
 
