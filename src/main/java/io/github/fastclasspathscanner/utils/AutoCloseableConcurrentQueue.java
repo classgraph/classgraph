@@ -31,7 +31,7 @@ package io.github.fastclasspathscanner.utils;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /** A list of AutoCloseable items that can be used in a try-with-resources block. */
-public class AutoCloseableConcurrentQueue<T extends AutoCloseable> extends ConcurrentLinkedQueue<T>
+class AutoCloseableConcurrentQueue<T extends AutoCloseable> extends ConcurrentLinkedQueue<T>
         implements AutoCloseable {
     /** Empty the queue, calling close() on each item. */
     @Override

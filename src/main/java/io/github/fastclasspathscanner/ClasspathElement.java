@@ -37,7 +37,6 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import io.github.fastclasspathscanner.utils.ClasspathOrModulePathEntry;
-import io.github.fastclasspathscanner.utils.InterruptionChecker;
 import io.github.fastclasspathscanner.utils.LogNode;
 import io.github.fastclasspathscanner.utils.NestedJarHandler;
 import io.github.fastclasspathscanner.utils.WorkQueue;
@@ -77,12 +76,6 @@ abstract class ClasspathElement {
      */
     private final boolean scanFiles;
 
-    /**
-     * Used to detect interruption of threads, and to shut down all workers in the case of interruption or execution
-     * exceptions.
-     */
-    protected InterruptionChecker interruptionChecker;
-
     /** The list of all classpath resources found within whitelisted paths within this classpath element. */
     protected List<Resource> fileMatches;
 
@@ -96,11 +89,10 @@ abstract class ClasspathElement {
 
     /** A classpath element (a directory or jarfile on the classpath). */
     ClasspathElement(final ClasspathOrModulePathEntry classpathEltPath, final ScanSpec scanSpec,
-            final boolean scanFiles, final InterruptionChecker interruptionChecker) {
+            final boolean scanFiles) {
         this.classpathEltPath = classpathEltPath;
         this.scanSpec = scanSpec;
         this.scanFiles = scanFiles;
-        this.interruptionChecker = interruptionChecker;
     }
 
     /** Return the classpath element's path. */
@@ -146,8 +138,7 @@ abstract class ClasspathElement {
      */
     static ClasspathElement newInstance(final ClasspathOrModulePathEntry classpathRelativePath,
             final boolean scanFiles, final ScanSpec scanSpec, final NestedJarHandler nestedJarHandler,
-            final WorkQueue<ClasspathOrModulePathEntry> workQueue, final InterruptionChecker interruptionChecker,
-            final LogNode log) {
+            final WorkQueue<ClasspathOrModulePathEntry> workQueue, final LogNode log) {
         boolean isModule = false;
         boolean isDir = false;
         String resolvedPath = null;
@@ -187,12 +178,10 @@ abstract class ClasspathElement {
 
         // Dispatch to appropriate constructor
         final ClasspathElement newInstance = isModule
-                ? new ClasspathElementModule(classpathRelativePath, scanSpec, scanFiles, nestedJarHandler,
-                        interruptionChecker, subLog)
-                : isDir ? new ClasspathElementDir(classpathRelativePath, scanSpec, scanFiles, interruptionChecker,
-                        subLog)
+                ? new ClasspathElementModule(classpathRelativePath, scanSpec, scanFiles, nestedJarHandler, subLog)
+                : isDir ? new ClasspathElementDir(classpathRelativePath, scanSpec, scanFiles, subLog)
                         : new ClasspathElementZip(classpathRelativePath, scanSpec, scanFiles, nestedJarHandler,
-                                workQueue, interruptionChecker, subLog);
+                                workQueue, subLog);
         if (subLog != null) {
             subLog.addElapsedTime();
         }

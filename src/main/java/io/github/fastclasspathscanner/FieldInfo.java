@@ -39,14 +39,14 @@ import io.github.fastclasspathscanner.utils.TypeUtils;
  * classfile for the class.
  */
 public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo> {
-    String definingClassName;
-    String name;
-    int modifiers;
-    String typeSignatureStr;
-    String typeDescriptorStr;
-    transient TypeSignature typeSignature;
-    transient TypeSignature typeDescriptor;
-    ObjectTypedValueWrapper constantInitializerValue;
+    private String definingClassName;
+    private String name;
+    private int modifiers;
+    private String typeSignatureStr;
+    private String typeDescriptorStr;
+    private transient TypeSignature typeSignature;
+    private transient TypeSignature typeDescriptor;
+    private ObjectTypedValueWrapper constantInitializerValue;
     AnnotationInfoList annotationInfo;
 
     /** Default constructor for deserialization. */

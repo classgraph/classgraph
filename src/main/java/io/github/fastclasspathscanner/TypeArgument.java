@@ -70,7 +70,7 @@ public class TypeArgument extends HierarchicalTypeSignature {
      * @param typeSignature
      *            The type signature
      */
-    public TypeArgument(final Wildcard wildcard, final ReferenceTypeSignature typeSignature) {
+    private TypeArgument(final Wildcard wildcard, final ReferenceTypeSignature typeSignature) {
         this.wildcard = wildcard;
         this.typeSignature = typeSignature;
     }
@@ -143,7 +143,7 @@ public class TypeArgument extends HierarchicalTypeSignature {
     }
 
     /** Parse a type argument. */
-    static TypeArgument parse(final Parser parser) throws ParseException {
+    private static TypeArgument parse(final Parser parser) throws ParseException {
         final char peek = parser.peek();
         if (peek == '*') {
             parser.expect('*');

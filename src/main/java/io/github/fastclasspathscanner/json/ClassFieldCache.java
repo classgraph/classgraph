@@ -60,13 +60,13 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.LinkedTransferQueue;
 import java.util.concurrent.TransferQueue;
 
-public class ClassFieldCache {
-    final Map<Class<?>, ClassFields> classToClassFields = new HashMap<>();
-    final boolean resolveTypes;
-    final boolean onlySerializePublicFields;
+class ClassFieldCache {
+    private final Map<Class<?>, ClassFields> classToClassFields = new HashMap<>();
+    private final boolean resolveTypes;
+    private final boolean onlySerializePublicFields;
 
-    final Map<Class<?>, Constructor<?>> defaultConstructorForConcreteType = new HashMap<>();
-    final Map<Class<?>, Constructor<?>> constructorForConcreteTypeWithSizeHint = new HashMap<>();
+    private final Map<Class<?>, Constructor<?>> defaultConstructorForConcreteType = new HashMap<>();
+    private final Map<Class<?>, Constructor<?>> constructorForConcreteTypeWithSizeHint = new HashMap<>();
 
     /** Placeholder constructor to signify no constructor was found previously. */
     private static final Constructor<?> NO_CONSTRUCTOR;
@@ -95,7 +95,7 @@ public class ClassFieldCache {
      * @param onlySerializePublicFields
      *            Set this to true if you only want to serialize public fields (ignored for deserialization).
      */
-    public ClassFieldCache(final boolean forDeserialization, final boolean onlySerializePublicFields) {
+    ClassFieldCache(final boolean forDeserialization, final boolean onlySerializePublicFields) {
         this.resolveTypes = forDeserialization;
         this.onlySerializePublicFields = !forDeserialization && onlySerializePublicFields;
     }
@@ -114,7 +114,7 @@ public class ClassFieldCache {
     }
 
     /** Get the concrete type for a map or collection whose raw type is an interface or abstract class. */
-    static Class<?> getConcreteType(final Class<?> rawType, final boolean returnNullIfNotMapOrCollection) {
+    private static Class<?> getConcreteType(final Class<?> rawType, final boolean returnNullIfNotMapOrCollection) {
         if (rawType == Map.class || rawType == AbstractMap.class) {
             return HashMap.class;
         } else if (rawType == ConcurrentMap.class) {

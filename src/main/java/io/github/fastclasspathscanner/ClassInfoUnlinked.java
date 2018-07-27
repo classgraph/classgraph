@@ -42,7 +42,7 @@ import io.github.fastclasspathscanner.utils.Parser.ParseException;
  * classes. (The cross-linking is done in a separate step to avoid the complexity of dealing with race conditions.)
  */
 class ClassInfoUnlinked {
-    String className;
+    private final String className;
     private final int classModifiers;
     private final boolean isInterface;
     private final boolean isAnnotation;
@@ -52,10 +52,10 @@ class ClassInfoUnlinked {
     private AnnotationInfoList classAnnotations;
     private String fullyQualifiedDefiningMethodName;
     private List<SimpleEntry<String, String>> classContainmentEntries;
-    List<AnnotationParameterValue> annotationParamDefaultValues;
+    private List<AnnotationParameterValue> annotationParamDefaultValues;
     final ClasspathElement classpathElement;
-    FieldInfoList fieldInfoList;
-    MethodInfoList methodInfoList;
+    private FieldInfoList fieldInfoList;
+    private MethodInfoList methodInfoList;
     private String typeSignature;
 
     ClassInfoUnlinked(final String className, final int classModifiers, final boolean isInterface,

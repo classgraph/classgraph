@@ -47,7 +47,6 @@ import io.github.fastclasspathscanner.utils.ClasspathUtils;
 import io.github.fastclasspathscanner.utils.FastPathResolver;
 import io.github.fastclasspathscanner.utils.FileUtils;
 import io.github.fastclasspathscanner.utils.InputStreamOrByteBufferAdapter;
-import io.github.fastclasspathscanner.utils.InterruptionChecker;
 import io.github.fastclasspathscanner.utils.JarfileMetadataReader;
 import io.github.fastclasspathscanner.utils.LogNode;
 import io.github.fastclasspathscanner.utils.NestedJarHandler;
@@ -67,9 +66,8 @@ class ClasspathElementZip extends ClasspathElement {
     /** A zip/jarfile classpath element. */
     ClasspathElementZip(final ClasspathOrModulePathEntry classpathEltPath, final ScanSpec scanSpec,
             final boolean scanFiles, final NestedJarHandler nestedJarHandler,
-            final WorkQueue<ClasspathOrModulePathEntry> workQueue, final InterruptionChecker interruptionChecker,
-            final LogNode log) {
-        super(classpathEltPath, scanSpec, scanFiles, interruptionChecker);
+            final WorkQueue<ClasspathOrModulePathEntry> workQueue, final LogNode log) {
+        super(classpathEltPath, scanSpec, scanFiles);
         try {
             classpathEltZipFile = classpathEltPath.getFile(log);
         } catch (final IOException e) {

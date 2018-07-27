@@ -409,7 +409,7 @@ public class NestedJarHandler {
         return path.substring(path.lastIndexOf('/') + 1);
     }
 
-    public String sanitizeFilename(final String filename) {
+    private String sanitizeFilename(final String filename) {
         return filename.replace('/', '_').replace('\\', '_').replace(':', '_').replace('?', '_').replace('&', '_')
                 .replace('=', '_').replace(' ', '_');
     }

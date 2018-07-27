@@ -33,7 +33,7 @@ package io.github.fastclasspathscanner.json;
  * equality.
  */
 class ReferenceEqualityKey<K> {
-    K wrappedKey;
+    private final K wrappedKey;
 
     public ReferenceEqualityKey(final K wrappedKey) {
         this.wrappedKey = wrappedKey;

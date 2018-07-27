@@ -83,7 +83,7 @@ public class MethodTypeSignature extends HierarchicalTypeSignature {
      * @param throwsSignatures
      *            The throws signatures for the method.
      */
-    public MethodTypeSignature(final List<TypeParameter> typeParameters, final List<TypeSignature> paramTypes,
+    private MethodTypeSignature(final List<TypeParameter> typeParameters, final List<TypeSignature> paramTypes,
             final TypeSignature resultType, final List<ClassRefOrTypeVariableSignature> throwsSignatures) {
         this.typeParameters = typeParameters;
         this.parameterTypeSignatures = paramTypes;

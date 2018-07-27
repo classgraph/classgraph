@@ -55,17 +55,16 @@ import io.github.fastclasspathscanner.utils.TypeUtils;
 /** Holds metadata about a class encountered during a scan. */
 public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo> {
     /** Name of the class. */
-    @Id
-    String name;
+    private @Id String name;
 
     /** Class modifier flags, e.g. Modifier.PUBLIC */
-    int modifiers;
+    private int modifiers;
 
     /** True if the classfile indicated this is an interface (or an annotation, which is an interface). */
-    boolean isInterface;
+    private boolean isInterface;
 
     /** True if the classfile indicated this is an annotation. */
-    boolean isAnnotation;
+    private boolean isAnnotation;
 
     /**
      * This annotation has the {@link Inherited} meta-annotation, which means that any class that this annotation is
@@ -74,13 +73,13 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     boolean isInherited;
 
     /** The class type signature string. */
-    String typeSignatureStr;
+    private String typeSignatureStr;
 
     /** The class type signature, parsed. */
-    transient ClassTypeSignature typeSignature;
+    private transient ClassTypeSignature typeSignature;
 
     /** The fully-qualified defining method name, for anonymous inner classes. */
-    String fullyQualifiedDefiningMethodName;
+    private String fullyQualifiedDefiningMethodName;
 
     /**
      * If true, this class is only being referenced by another class' classfile as a superclass / implemented
@@ -90,7 +89,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * If false, this classfile was matched during scanning (i.e. its classfile contents read), i.e. this class is a
      * whitelisted (and non-blacklisted) class in a whitelisted (and non-blacklisted) package.
      */
-    boolean isExternalClass;
+    private boolean isExternalClass;
 
     /**
      * The classpath element file (classpath root dir or jar) that this class was found within, or null if this
@@ -103,16 +102,16 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * the package root is the classpath element path (as opposed to within a subdirectory of the classpath
      * element).
      */
-    transient String jarfilePackageRoot = "";
+    private transient String jarfilePackageRoot = "";
 
     /**
      * The classpath element module that this class was found within, or null if this class was found within a
      * directory or jar.
      */
-    transient ModuleRef moduleRef;
+    private transient ModuleRef moduleRef;
 
     /** The classpath element URL (classpath root dir or jar) that this class was found within. */
-    transient URL classpathElementURL;
+    private transient URL classpathElementURL;
 
     /** The classloaders to try to load this class with before calling a MatchProcessor. */
     transient ClassLoader[] classLoaders;
@@ -124,7 +123,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     FieldInfoList fieldInfo;
 
     /** Reverse mapping from field name to FieldInfo. */
-    transient Map<String, FieldInfo> fieldNameToFieldInfo;
+    private transient Map<String, FieldInfo> fieldNameToFieldInfo;
 
     /** Info on fields. */
     MethodInfoList methodInfo;
@@ -412,6 +411,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             try {
                 if (moduleRef != null) {
                     classpathElementURL = moduleRef.getLocation().toURL();
+                } else if (!jarfilePackageRoot.isEmpty()) {
+                    classpathElementURL = new URL(
+                            getClasspathElementFile().toURI().toURL().toString() + "!" + jarfilePackageRoot);
                 } else {
                     classpathElementURL = getClasspathElementFile().toURI().toURL();
                 }
@@ -582,7 +584,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * Get a ClassInfo object, or create it if it doesn't exist. N.B. not threadsafe, so ClassInfo objects should
      * only ever be constructed by a single thread.
      */
-    static ClassInfo getOrCreateClassInfo(final String className, final int classModifiers,
+    private static ClassInfo getOrCreateClassInfo(final String className, final int classModifiers,
             final Map<String, ClassInfo> classNameToClassInfo) {
         ClassInfo classInfo = classNameToClassInfo.get(className);
         if (classInfo == null) {
@@ -946,7 +948,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         final Set<ClassInfo> reachableClasses;
         final Set<ClassInfo> directlyRelatedClasses;
 
-        public ReachableAndDirectlyRelatedClasses(final Set<ClassInfo> reachableClasses,
+        private ReachableAndDirectlyRelatedClasses(final Set<ClassInfo> reachableClasses,
                 final Set<ClassInfo> directlyRelatedClasses) {
             this.reachableClasses = reachableClasses;
             this.directlyRelatedClasses = directlyRelatedClasses;

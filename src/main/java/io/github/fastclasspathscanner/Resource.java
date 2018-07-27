@@ -45,7 +45,7 @@ public abstract class Resource implements AutoCloseable, Comparable<Resource> {
     protected InputStream inputStream;
     protected ByteBuffer byteBuffer;
     protected long length = -1L;
-    protected String toString;
+    private String toString;
 
     protected InputStream byteBufferToInputStream() {
         return inputStream == null ? inputStream = FileUtils.byteBufferToInputStream(byteBuffer) : inputStream;

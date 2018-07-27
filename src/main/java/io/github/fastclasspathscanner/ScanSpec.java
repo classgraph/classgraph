@@ -416,7 +416,7 @@ public class ScanSpec {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    public void log(final LogNode log) {
+    void log(final LogNode log) {
         if (log != null) {
             final LogNode scanSpecLog = log.log("ScanSpec:");
             for (final Field field : ScanSpec.class.getDeclaredFields()) {

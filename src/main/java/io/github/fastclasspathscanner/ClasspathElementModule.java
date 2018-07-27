@@ -42,7 +42,6 @@ import io.github.fastclasspathscanner.ScanSpec.ScanSpecPathMatch;
 import io.github.fastclasspathscanner.utils.ClasspathOrModulePathEntry;
 import io.github.fastclasspathscanner.utils.FileUtils;
 import io.github.fastclasspathscanner.utils.InputStreamOrByteBufferAdapter;
-import io.github.fastclasspathscanner.utils.InterruptionChecker;
 import io.github.fastclasspathscanner.utils.LogNode;
 import io.github.fastclasspathscanner.utils.NestedJarHandler;
 import io.github.fastclasspathscanner.utils.Recycler;
@@ -55,9 +54,8 @@ class ClasspathElementModule extends ClasspathElement {
 
     /** A zip/jarfile classpath element. */
     ClasspathElementModule(final ClasspathOrModulePathEntry classpathEltPath, final ScanSpec scanSpec,
-            final boolean scanFiles, final NestedJarHandler nestedJarHandler,
-            final InterruptionChecker interruptionChecker, final LogNode log) {
-        super(classpathEltPath, scanSpec, scanFiles, interruptionChecker);
+            final boolean scanFiles, final NestedJarHandler nestedJarHandler, final LogNode log) {
+        super(classpathEltPath, scanSpec, scanFiles);
         moduleRef = classpathEltPath.getModuleRef();
         if (moduleRef == null) {
             // Should not happen

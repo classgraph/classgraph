@@ -36,19 +36,19 @@ class ObjectTypedValueWrapper extends ScanResultObject {
     // Parameter value is split into different fields by type, so that serialization and deserialization
     // works properly (can't properly serialize a field of Object type, since the concrete type is not
     // stored in JSON).
-    AnnotationEnumValue enumValue;
-    AnnotationClassRef classRef;
-    AnnotationInfo annotationInfo;
-    ObjectTypedValueWrapper[] valueArray;
-    String stringValue;
-    Integer integerValue;
-    Long longValue;
-    Short shortValue;
-    Boolean booleanValue;
-    Character characterValue;
-    Float floatValue;
-    Double doubleValue;
-    Byte byteValue;
+    private AnnotationEnumValue enumValue;
+    private AnnotationClassRef classRef;
+    private AnnotationInfo annotationInfo;
+    private ObjectTypedValueWrapper[] valueArray;
+    private String stringValue;
+    private Integer integerValue;
+    private Long longValue;
+    private Short shortValue;
+    private Boolean booleanValue;
+    private Character characterValue;
+    private Float floatValue;
+    private Double doubleValue;
+    private Byte byteValue;
 
     @Override
     void setScanResult(final ScanResult scanResult) {

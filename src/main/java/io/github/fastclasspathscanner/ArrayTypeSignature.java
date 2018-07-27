@@ -36,10 +36,10 @@ import io.github.fastclasspathscanner.utils.Parser.ParseException;
 /** An array type. */
 public class ArrayTypeSignature extends ReferenceTypeSignature {
     /** The array element type signature. */
-    final TypeSignature elementTypeSignature;
+    private final TypeSignature elementTypeSignature;
 
     /** The number of array dimensions. */
-    final int numDims;
+    private final int numDims;
 
     @Override
     void setScanResult(final ScanResult scanResult) {
@@ -55,7 +55,7 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
      * @param numDims
      *            The number of array dimensions.
      */
-    public ArrayTypeSignature(final TypeSignature elementTypeSignature, final int numDims) {
+    ArrayTypeSignature(final TypeSignature elementTypeSignature, final int numDims) {
         this.elementTypeSignature = elementTypeSignature;
         this.numDims = numDims;
     }

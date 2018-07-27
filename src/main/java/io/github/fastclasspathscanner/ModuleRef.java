@@ -78,7 +78,7 @@ public class ModuleRef implements Comparable<ModuleRef> {
      * @param moduleLayer
      *            The module layer, of JPMS type ModuleLayer
      */
-    ModuleRef(final Object moduleReference, final Object moduleLayer) {
+    private ModuleRef(final Object moduleReference, final Object moduleLayer) {
         if (moduleReference == null) {
             throw new IllegalArgumentException("moduleReference cannot be null");
         }

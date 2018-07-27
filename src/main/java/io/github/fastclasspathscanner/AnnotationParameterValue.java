@@ -54,7 +54,7 @@ public class AnnotationParameterValue extends ScanResultObject implements Compar
      * @param value
      *            The annotation parameter value.
      */
-    public AnnotationParameterValue(final String name, final Object value) {
+    AnnotationParameterValue(final String name, final Object value) {
         this.name = name;
         this.value = new ObjectTypedValueWrapper(value);
     }

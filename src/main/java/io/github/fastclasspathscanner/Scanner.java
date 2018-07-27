@@ -106,16 +106,14 @@ class Scanner implements Callable<ScanResult> {
         private final boolean scanFiles;
         private final ScanSpec scanSpec;
         private final NestedJarHandler nestedJarHandler;
-        private final InterruptionChecker interruptionChecker;
         private WorkQueue<ClasspathOrModulePathEntry> workQueue;
 
         /** A map from relative path to classpath element singleton. */
         ClasspathOrModulePathEntryToClasspathElementMap(final boolean scanFiles, final ScanSpec scanSpec,
-                final NestedJarHandler nestedJarHandler, final InterruptionChecker interruptionChecker) {
+                final NestedJarHandler nestedJarHandler) {
             this.scanFiles = scanFiles;
             this.scanSpec = scanSpec;
             this.nestedJarHandler = nestedJarHandler;
-            this.interruptionChecker = interruptionChecker;
         }
 
         /**
@@ -131,7 +129,7 @@ class Scanner implements Callable<ScanResult> {
         @Override
         public ClasspathElement newInstance(final ClasspathOrModulePathEntry classpathElt, final LogNode log) {
             return ClasspathElement.newInstance(classpathElt, scanFiles, scanSpec, nestedJarHandler, workQueue,
-                    interruptionChecker, log);
+                    log);
         }
 
         /** Close the classpath elements. */
@@ -338,7 +336,7 @@ class Scanner implements Callable<ScanResult> {
                     : classpathFinderLog.log("Reading jarfile metadata");
             final ClasspathOrModulePathEntryToClasspathElementMap classpathElementMap = //
                     new ClasspathOrModulePathEntryToClasspathElementMap(enableRecursiveScanning, scanSpec,
-                            nestedJarHandler, interruptionChecker);
+                            nestedJarHandler);
             WorkQueue.runWorkQueue(rawClasspathEltOrder, executorService, numParallelTasks,
                     new WorkUnitProcessor<ClasspathOrModulePathEntry>() {
                         @Override
@@ -562,6 +560,7 @@ class Scanner implements Callable<ScanResult> {
                                 public void processWorkUnit(final ClassfileParserChunk chunk) throws Exception {
                                     chunk.classpathElement.parseClassfiles(chunk.classfileStartIdx,
                                             chunk.classfileEndIdx, classInfoUnlinked, classfileScanLog);
+                                    interruptionChecker.check();
                                 }
                             }, interruptionChecker, classfileScanLog);
                     if (classfileScanLog != null) {

@@ -41,7 +41,7 @@ public class BaseTypeSignature extends TypeSignature {
      * @param baseType
      *            the base type
      */
-    public BaseTypeSignature(final String baseType) {
+    private BaseTypeSignature(final String baseType) {
         this.baseType = baseType;
     }
 

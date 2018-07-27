@@ -581,7 +581,7 @@ public class JSONDeserializer {
      * @throws IllegalArgumentException
      *             If anything goes wrong during deserialization.
      */
-    public static <T> T deserializeObject(final Class<T> expectedType, final String json,
+    private static <T> T deserializeObject(final Class<T> expectedType, final String json,
             final ClassFieldCache classFieldCache) throws IllegalArgumentException {
         // Parse the JSON
         Object parsedJSON;

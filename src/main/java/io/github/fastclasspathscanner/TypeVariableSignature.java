@@ -57,7 +57,7 @@ public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
      * @param typeVariableName
      *            The type variable name.
      */
-    public TypeVariableSignature(final String typeVariableName) {
+    private TypeVariableSignature(final String typeVariableName) {
         this.typeVariableName = typeVariableName;
     }
 

@@ -601,7 +601,7 @@ public class ScanResult {
      * @return a reference to the loaded class, or null if returnNullIfClassNotFound was true and the class could
      *         not be loaded.
      */
-    Class<?> loadClass(final String className, final boolean returnNullIfClassNotFound, final LogNode log)
+    private Class<?> loadClass(final String className, final boolean returnNullIfClassNotFound, final LogNode log)
             throws IllegalArgumentException {
         if (className == null || className.isEmpty()) {
             throw new IllegalArgumentException("Cannot load class -- class names cannot be null or empty");
@@ -703,8 +703,7 @@ public class ScanResult {
      * @return a reference to the loaded class, or null if the class could not be loaded and ignoreExceptions is
      *         true.
      */
-    public Class<?> loadClass(final String className, final boolean ignoreExceptions)
-            throws IllegalArgumentException {
+    Class<?> loadClass(final String className, final boolean ignoreExceptions) throws IllegalArgumentException {
         try {
             return loadClass(className, /* returnNullIfClassNotFound = */ ignoreExceptions, log);
         } catch (final Throwable e) {

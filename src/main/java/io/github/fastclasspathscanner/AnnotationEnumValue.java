@@ -36,8 +36,8 @@ import java.util.Set;
  * annotation.
  */
 public class AnnotationEnumValue extends ScanResultObject implements Comparable<AnnotationEnumValue> {
-    String className;
-    String valueName;
+    private String className;
+    private String valueName;
 
     /** Default constructor for deserialization. */
     AnnotationEnumValue() {
@@ -49,7 +49,7 @@ public class AnnotationEnumValue extends ScanResultObject implements Comparable<
      * @param constValueName
      *            The enum const value name.
      */
-    public AnnotationEnumValue(final String className, final String constValueName) {
+    AnnotationEnumValue(final String className, final String constValueName) {
         this.className = className;
         this.valueName = constValueName;
     }

@@ -35,10 +35,10 @@ import java.util.concurrent.Future;
  * An AutoCloseable list of {@code Future<Void>} items that can be used in a try-with-resources block. When close()
  * is called on this list, all items' {@code get()} methods are called, implementing a completion barrier.
  */
-public class AutoCloseableFutureListWithCompletionBarrier extends ArrayList<Future<Void>> implements AutoCloseable {
+class AutoCloseableFutureListWithCompletionBarrier extends ArrayList<Future<Void>> implements AutoCloseable {
     private final LogNode log;
 
-    public AutoCloseableFutureListWithCompletionBarrier(final int size, final LogNode log) {
+    AutoCloseableFutureListWithCompletionBarrier(final int size, final LogNode log) {
         super(size);
         this.log = log;
     }

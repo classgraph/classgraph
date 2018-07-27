@@ -89,7 +89,7 @@ class GraphvizDotfileGenerator {
      * @param turnNewlineIntoBreak
      *            If true, turn '\n' into a break element in the output.
      */
-    public static void htmlEncode(final CharSequence unsafeStr, final boolean turnNewlineIntoBreak,
+    private static void htmlEncode(final CharSequence unsafeStr, final boolean turnNewlineIntoBreak,
             final StringBuilder buf) {
         for (int i = 0, n = unsafeStr.length(); i < n; i++) {
             final char c = unsafeStr.charAt(i);
@@ -176,15 +176,8 @@ class GraphvizDotfileGenerator {
      * @param unsafeStr
      *            The string to escape to make HTML-safe.
      */
-    public static void htmlEncode(final CharSequence unsafeStr, final StringBuilder buf) {
+    private static void htmlEncode(final CharSequence unsafeStr, final StringBuilder buf) {
         htmlEncode(unsafeStr, /* turnNewlineIntoBreak = */ false, buf);
-    }
-
-    /** Encode HTML-unsafe characters as HTML entities. */
-    public static String htmlEncode(final CharSequence unsafeStr) {
-        final StringBuilder buf = new StringBuilder(unsafeStr.length() * 2);
-        htmlEncode(unsafeStr, buf);
-        return buf.toString();
     }
 
     private static void labelClassNodeHTML(final ClassInfo ci, final String shape, final String boxBgColor,

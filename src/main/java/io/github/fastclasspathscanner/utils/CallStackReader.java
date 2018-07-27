@@ -29,7 +29,7 @@
 package io.github.fastclasspathscanner.utils;
 
 /** A class to find the unique ordered classpath elements. */
-public class CallStackReader {
+class CallStackReader {
     /** Used for resolving the call stack. Requires RuntimePermission("createSecurityManager"). */
     private static CallerResolver CALLER_RESOLVER;
 
@@ -68,7 +68,7 @@ public class CallStackReader {
      *             if the call stack could not be read.
      * @return the classes on the call stack.
      */
-    public static Class<?>[] getClassContext() {
+    static Class<?>[] getClassContext() {
         if (CALLER_RESOLVER == null) {
             throw new IllegalArgumentException(CallStackReader.class.getSimpleName() + " could not create "
                     + CallerResolver.class.getSimpleName() + ", current SecurityManager does not grant "

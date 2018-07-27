@@ -39,11 +39,11 @@ import io.github.fastclasspathscanner.utils.TypeUtils;
  */
 public class MethodParameterInfo {
     final AnnotationInfo[] annotationInfo;
-    final int modifiers;
-    final TypeSignature typeDescriptor;
-    final TypeSignature typeSignature;
-    final String name;
-    ScanResult scanResult;
+    private final int modifiers;
+    private final TypeSignature typeDescriptor;
+    private final TypeSignature typeSignature;
+    private final String name;
+    private ScanResult scanResult;
 
     /**
      * @param annotationInfo
@@ -57,7 +57,7 @@ public class MethodParameterInfo {
      * @param name
      *            The method parameter name.
      */
-    public MethodParameterInfo(final AnnotationInfo[] annotationInfo, final int modifiers,
+    MethodParameterInfo(final AnnotationInfo[] annotationInfo, final int modifiers,
             final TypeSignature typeDescriptor, final TypeSignature typeSignature, final String name) {
         this.name = name;
         this.modifiers = modifiers;

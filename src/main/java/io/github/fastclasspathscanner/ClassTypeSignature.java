@@ -56,7 +56,7 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
      * @param superinterfaceSignatures
      *            The superinterface signature(s).
      */
-    public ClassTypeSignature(final List<TypeParameter> typeParameters,
+    private ClassTypeSignature(final List<TypeParameter> typeParameters,
             final ClassRefTypeSignature superclassSignature,
             final List<ClassRefTypeSignature> superinterfaceSignatures) {
         this.typeParameters = typeParameters;
@@ -165,7 +165,7 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
      *            The class name
      * @return The String representation.
      */
-    public String toString(final int modifiers, final boolean isAnnotation, final boolean isInterface,
+    String toString(final int modifiers, final boolean isAnnotation, final boolean isInterface,
             final String className) {
         final StringBuilder buf = new StringBuilder();
         if (modifiers != 0) {

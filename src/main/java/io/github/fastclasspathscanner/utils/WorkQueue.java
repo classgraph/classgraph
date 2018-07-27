@@ -132,14 +132,14 @@ public class WorkQueue<T> implements AutoCloseable {
     }
 
     /** A parallel work queue. */
-    public WorkQueue(final Collection<T> initialWorkUnits, final WorkUnitProcessor<T> workUnitProcessor,
+    private WorkQueue(final Collection<T> initialWorkUnits, final WorkUnitProcessor<T> workUnitProcessor,
             final InterruptionChecker interruptionChecker, final LogNode log) {
         this(workUnitProcessor, interruptionChecker, log);
         addWorkUnits(initialWorkUnits);
     }
 
     /** Start worker threads with a shared log. */
-    public void startWorkers(final ExecutorService executorService, final int numWorkers, final LogNode log) {
+    private void startWorkers(final ExecutorService executorService, final int numWorkers, final LogNode log) {
         for (int i = 0; i < numWorkers; i++) {
             workerFutures.add(executorService.submit(new Callable<Void>() {
                 @Override
@@ -157,7 +157,7 @@ public class WorkQueue<T> implements AutoCloseable {
      * available as numParallelTasks. When this method returns, either all the work has been completed, or this or
      * some other thread was interrupted. If InterruptedException is thrown, this thread or another was interrupted.
      */
-    public void runWorkLoop() throws InterruptedException, ExecutionException {
+    private void runWorkLoop() throws InterruptedException, ExecutionException {
         // Get next work unit from queue
         while (numWorkUnitsRemaining.get() > 0) {
             T workUnit = null;

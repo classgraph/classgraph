@@ -40,8 +40,8 @@ import java.util.Set;
 /** Holds metadata about a specific annotation instance on a class, method or field. */
 public class AnnotationInfo extends ScanResultObject implements Comparable<AnnotationInfo> {
 
-    String name;
-    List<AnnotationParameterValue> annotationParamValues;
+    private String name;
+    private List<AnnotationParameterValue> annotationParamValues;
 
     private transient List<AnnotationParameterValue> annotationParamValuesWithDefaults;
 
@@ -122,11 +122,6 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
     /** Returns the list of default parameter values for this annotation, or the empty list if none. */
     public List<AnnotationParameterValue> getDefaultParameterValues() {
         return getClassInfo().getAnnotationDefaultParameterValues();
-    }
-
-    /** Returns the annotation parameter values, without defaults, or null if none. */
-    List<AnnotationParameterValue> getParameterValuesWithoutDefaults() {
-        return annotationParamValues;
     }
 
     /**
@@ -230,7 +225,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      * @param buf
      *            The buffer.
      */
-    public void toString(final StringBuilder buf) {
+    void toString(final StringBuilder buf) {
         buf.append("@" + getName());
         final List<AnnotationParameterValue> paramVals = getParameterValues();
         if (paramVals != null && !paramVals.isEmpty()) {

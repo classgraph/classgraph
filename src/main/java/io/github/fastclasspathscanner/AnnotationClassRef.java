@@ -40,8 +40,8 @@ import io.github.fastclasspathscanner.utils.Parser.ParseException;
  * Use ReflectionUtils.typeStrToClass() to get a {@code Class<?>} reference from this class type string.
  */
 public class AnnotationClassRef extends ScanResultObject {
-    String typeDescriptorStr;
-    transient TypeSignature typeSignature;
+    private String typeDescriptorStr;
+    private transient TypeSignature typeSignature;
     private transient String className;
 
     AnnotationClassRef() {

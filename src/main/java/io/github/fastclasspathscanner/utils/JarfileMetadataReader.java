@@ -72,18 +72,18 @@ public class JarfileMetadataReader {
      * classes need to be loaded from this jar, and no classloader can be found to load them, then each of these
      * subdirectories will get unzipped and added to the classpath of a new URLClassLoader.
      */
-    public Set<String> packageRootRelativePaths;
+    private Set<String> packageRootRelativePaths;
 
     /**
      * Any jarfiles found in "lib/", "BOOT-INF/lib", "WEB-INF/lib", or "WEB-INF/lib-provided". If classes need to be
      * loaded from this jar, and no classloader can be found to load them, then each of these subdirectories will
      * get unzipped and added to the classpath of a new URLClassLoader.
      */
-    public List<String> libJarPaths;
+    private List<String> libJarPaths;
 
     // -------------------------------------------------------------------------------------------------------------
 
-    public static final String MANIFEST_PATH = "META-INF/MANIFEST.MF";
+    private static final String MANIFEST_PATH = "META-INF/MANIFEST.MF";
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -182,14 +182,14 @@ public class JarfileMetadataReader {
         }
     }
 
-    public void addPackageRootPath(final String packageRoot) {
+    void addPackageRootPath(final String packageRoot) {
         if (this.packageRootRelativePaths == null) {
             this.packageRootRelativePaths = new HashSet<>();
         }
         this.packageRootRelativePaths.add(packageRoot);
     }
 
-    public void addLibJarEntry(final String libJarPath) {
+    private void addLibJarEntry(final String libJarPath) {
         if (this.libJarPaths == null) {
             this.libJarPaths = new ArrayList<>();
         }
@@ -242,7 +242,7 @@ public class JarfileMetadataReader {
      * class, so has lower overhead. Only extracts a few specific entries from the manifest file, if present.
      * Assumes there is only one of each entry present in the manifest.
      */
-    public JarfileMetadataReader(final File jarFile, final LogNode log) {
+    JarfileMetadataReader(final File jarFile, final LogNode log) {
         this.jarFile = jarFile;
         try (ZipFile zipFile = new ZipFile(jarFile)) {
             final int numEntries = zipFile.size();

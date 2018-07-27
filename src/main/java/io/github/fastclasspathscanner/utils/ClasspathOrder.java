@@ -38,18 +38,18 @@ import io.github.fastclasspathscanner.ScanSpec;
 
 /** A class to find the unique ordered classpath elements. */
 public class ClasspathOrder {
-    final ScanSpec scanSpec;
-    final NestedJarHandler nestedJarHandler;
+    private final ScanSpec scanSpec;
+    private final NestedJarHandler nestedJarHandler;
 
     private final LinkedHashSet<ClasspathOrModulePathEntry> classpathOrder = new LinkedHashSet<>();
 
-    public ClasspathOrder(final ScanSpec scanSpec, final NestedJarHandler nestedJarHandler) {
+    ClasspathOrder(final ScanSpec scanSpec, final NestedJarHandler nestedJarHandler) {
         this.scanSpec = scanSpec;
         this.nestedJarHandler = nestedJarHandler;
     }
 
     /** Get the order of classpath elements. */
-    public LinkedHashSet<ClasspathOrModulePathEntry> get() {
+    LinkedHashSet<ClasspathOrModulePathEntry> get() {
         return classpathOrder;
     }
 
@@ -80,8 +80,8 @@ public class ClasspathOrder {
      * @return true (and add the classpath element) if pathElement is not null, empty, nonexistent, or filtered out
      *         by user-specified criteria, otherwise return false.
      */
-    public boolean addClasspathElement(final String pathElement, final ClassLoader[] classLoaders,
-            final ScanSpec scanSpec, final LogNode log) {
+    boolean addClasspathElement(final String pathElement, final ClassLoader[] classLoaders, final ScanSpec scanSpec,
+            final LogNode log) {
         if (pathElement == null || pathElement.isEmpty()) {
             return false;
         }
@@ -285,11 +285,9 @@ public class ClasspathOrder {
      *
      * @param subsequentOrder
      *            the ordering to add after this one.
-     * @param log
-     *            the LogNode instance to use if logging in verbose mode.
      * @return true (and add the classpath element) if pathElement is not null or empty, otherwise return false.
      */
-    boolean addClasspathElements(final ClasspathOrder subsequentOrder) {
+    public boolean addClasspathElements(final ClasspathOrder subsequentOrder) {
         return this.classpathOrder.addAll(subsequentOrder.classpathOrder);
     }
 }

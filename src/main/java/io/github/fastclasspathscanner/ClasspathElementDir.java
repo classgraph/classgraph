@@ -45,7 +45,6 @@ import io.github.fastclasspathscanner.ScanSpec.ScanSpecPathMatch;
 import io.github.fastclasspathscanner.utils.ClasspathOrModulePathEntry;
 import io.github.fastclasspathscanner.utils.FileUtils;
 import io.github.fastclasspathscanner.utils.InputStreamOrByteBufferAdapter;
-import io.github.fastclasspathscanner.utils.InterruptionChecker;
 import io.github.fastclasspathscanner.utils.LogNode;
 
 /** A directory classpath element. */
@@ -54,8 +53,8 @@ class ClasspathElementDir extends ClasspathElement {
 
     /** A directory classpath element. */
     ClasspathElementDir(final ClasspathOrModulePathEntry classpathEltPath, final ScanSpec scanSpec,
-            final boolean scanFiles, final InterruptionChecker interruptionChecker, final LogNode log) {
-        super(classpathEltPath, scanSpec, scanFiles, interruptionChecker);
+            final boolean scanFiles, final LogNode log) {
+        super(classpathEltPath, scanSpec, scanFiles);
         if (scanFiles) {
             try {
                 dir = classpathEltPath.getFile(log);

@@ -42,13 +42,13 @@ import io.github.fastclasspathscanner.utils.TypeUtils;
  */
 public class MethodInfo extends ScanResultObject implements Comparable<MethodInfo> {
     /** Defining class name. */
-    String definingClassName;
+    private String definingClassName;
 
     /** Method name. */
-    String name;
+    private String name;
 
     /** Method modifiers. */
-    int modifiers;
+    private int modifiers;
 
     /** Method annotations. */
     AnnotationInfoList annotationInfo;
@@ -57,37 +57,37 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
      * The JVM-internal type descriptor (missing type parameters, but including types for synthetic and mandated
      * method parameters).
      */
-    String typeDescriptorStr;
+    private String typeDescriptorStr;
 
     /** The parsed type descriptor. */
-    transient MethodTypeSignature typeDescriptor;
+    private transient MethodTypeSignature typeDescriptor;
 
     /**
      * The type signature (may have type parameter information included, if present and available). Method parameter
      * types are unaligned.
      */
-    String typeSignatureStr;
+    private String typeSignatureStr;
 
     /** The parsed type signature (or null if none). Method parameter types are unaligned. */
-    transient MethodTypeSignature typeSignature;
+    private transient MethodTypeSignature typeSignature;
 
     /**
      * Unaligned parameter names. These are only produced in JDK8+, and only if the commandline switch `-parameters`
      * is provided at compiletime.
      */
-    String[] parameterNames;
+    private String[] parameterNames;
 
     /**
      * Unaligned parameter modifiers. These are only produced in JDK8+, and only if the commandline switch
      * `-parameters` is provided at compiletime.
      */
-    int[] parameterModifiers;
+    private int[] parameterModifiers;
 
     /** Unaligned parameter annotations */
-    AnnotationInfo[][] parameterAnnotationInfo;
+    private AnnotationInfo[][] parameterAnnotationInfo;
 
     /** Aligned method parameter info */
-    transient MethodParameterInfo[] parameterInfo;
+    private transient MethodParameterInfo[] parameterInfo;
 
     /** Default constructor for deserialization. */
     MethodInfo() {

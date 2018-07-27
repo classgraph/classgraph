@@ -379,7 +379,7 @@ class JSONParser extends Parser {
      *
      * </pre>
      */
-    Object parseJSON() throws ParseException {
+    private Object parseJSON() throws ParseException {
         skipWhitespace();
         try {
             final char c = peek();
