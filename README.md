@@ -12,7 +12,7 @@ FastClasspathScanner can scan both the traditional classpath and the visible Jav
 
 ## Documentation
 
-* [See the wiki for completed documentation and usage information.](https://github.com/fast-classpath-scanner/fast-classpath-scanner/wiki)**
+* **[See the wiki for completed documentation and usage information.](https://github.com/fast-classpath-scanner/fast-classpath-scanner/wiki)**
 * [Browse the JavaDoc here.](https://javadoc.io/doc/io.github.fast-classpath-scanner/fast-classpath-scanner/)
 
 ## Status
