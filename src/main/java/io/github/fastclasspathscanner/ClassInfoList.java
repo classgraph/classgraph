@@ -316,15 +316,10 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
      */
     public ClassInfoList union(final ClassInfoList... others) {
         final Set<ClassInfo> reachableClassesUnion = new HashSet<>(this);
-        final Set<ClassInfo> directlyRelatedClassesUnion = new HashSet<>();
-        if (directlyRelatedClasses != null) {
-            directlyRelatedClassesUnion.addAll(directlyRelatedClasses);
-        }
+        final Set<ClassInfo> directlyRelatedClassesUnion = new HashSet<>(directlyRelatedClasses);
         for (final ClassInfoList other : others) {
             reachableClassesUnion.addAll(other);
-            if (other.directlyRelatedClasses != null) {
-                directlyRelatedClassesUnion.addAll(other.directlyRelatedClasses);
-            }
+            directlyRelatedClassesUnion.addAll(other.directlyRelatedClasses);
         }
         return new ClassInfoList(reachableClassesUnion, directlyRelatedClassesUnion);
     }
@@ -338,15 +333,10 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
      */
     public ClassInfoList intersect(final ClassInfoList... others) {
         final Set<ClassInfo> reachableClassesIntersection = new HashSet<>(this);
-        final Set<ClassInfo> directlyRelatedClassesIntersection = new HashSet<>();
-        if (directlyRelatedClasses != null) {
-            directlyRelatedClassesIntersection.addAll(directlyRelatedClasses);
-        }
+        final Set<ClassInfo> directlyRelatedClassesIntersection = new HashSet<>(directlyRelatedClasses);
         for (final ClassInfoList other : others) {
             reachableClassesIntersection.retainAll(other);
-            if (other.directlyRelatedClasses != null) {
-                directlyRelatedClassesIntersection.retainAll(other.directlyRelatedClasses);
-            }
+            directlyRelatedClassesIntersection.retainAll(other.directlyRelatedClasses);
         }
         return new ClassInfoList(reachableClassesIntersection, directlyRelatedClassesIntersection);
     }
@@ -361,14 +351,9 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
      */
     public ClassInfoList exclude(final ClassInfoList other) {
         final Set<ClassInfo> reachableClassesDifference = new HashSet<>(this);
-        final Set<ClassInfo> directlyRelatedClassesDifference = new HashSet<>();
-        if (directlyRelatedClasses != null) {
-            directlyRelatedClassesDifference.addAll(directlyRelatedClasses);
-        }
+        final Set<ClassInfo> directlyRelatedClassesDifference = new HashSet<>(directlyRelatedClasses);
         reachableClassesDifference.removeAll(other);
-        if (other.directlyRelatedClasses != null) {
-            directlyRelatedClassesDifference.removeAll(other.directlyRelatedClasses);
-        }
+        directlyRelatedClassesDifference.removeAll(other.directlyRelatedClasses);
         return new ClassInfoList(reachableClassesDifference, directlyRelatedClassesDifference);
     }
 
@@ -400,15 +385,13 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
      */
     public ClassInfoList filter(final ClassInfoFilter filter) {
         final Set<ClassInfo> reachableClassesFiltered = new HashSet<>(size());
+        final Set<ClassInfo> directlyRelatedClassesFiltered = new HashSet<>(directlyRelatedClasses.size());
         for (final ClassInfo ci : this) {
             if (filter.accept(ci)) {
                 reachableClassesFiltered.add(ci);
-            }
-        }
-        final Set<ClassInfo> directlyRelatedClassesFiltered = new HashSet<>();
-        for (final ClassInfo ci : directlyRelatedClasses) {
-            if (filter.accept(ci)) {
-                directlyRelatedClassesFiltered.add(ci);
+                if (directlyRelatedClasses.contains(ci)) {
+                    directlyRelatedClassesFiltered.add(ci);
+                }
             }
         }
         return new ClassInfoList(reachableClassesFiltered, directlyRelatedClassesFiltered);
@@ -424,15 +407,13 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
      */
     public ClassInfoList getStandardClasses() {
         final Set<ClassInfo> reachableClassesFiltered = new HashSet<>(size());
-        for (final ClassInfo classInfo : this) {
-            if (classInfo.isStandardClass()) {
-                reachableClassesFiltered.add(classInfo);
-            }
-        }
         final Set<ClassInfo> directlyRelatedClassesFiltered = new HashSet<>(directlyRelatedClasses.size());
-        for (final ClassInfo classInfo : directlyRelatedClasses) {
-            if (classInfo.isStandardClass()) {
-                directlyRelatedClassesFiltered.add(classInfo);
+        for (final ClassInfo ci : this) {
+            if (ci.isStandardClass()) {
+                reachableClassesFiltered.add(ci);
+                if (directlyRelatedClasses.contains(ci)) {
+                    directlyRelatedClassesFiltered.add(ci);
+                }
             }
         }
         return new ClassInfoList(reachableClassesFiltered, directlyRelatedClassesFiltered);
@@ -446,15 +427,13 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
      */
     public ClassInfoList getInterfaces() {
         final Set<ClassInfo> reachableClassesFiltered = new HashSet<>(size());
-        for (final ClassInfo classInfo : this) {
-            if (classInfo.isInterface()) {
-                reachableClassesFiltered.add(classInfo);
-            }
-        }
         final Set<ClassInfo> directlyRelatedClassesFiltered = new HashSet<>(directlyRelatedClasses.size());
-        for (final ClassInfo classInfo : directlyRelatedClasses) {
-            if (classInfo.isInterface()) {
-                directlyRelatedClassesFiltered.add(classInfo);
+        for (final ClassInfo ci : this) {
+            if (ci.isInterface()) {
+                reachableClassesFiltered.add(ci);
+                if (directlyRelatedClasses.contains(ci)) {
+                    directlyRelatedClassesFiltered.add(ci);
+                }
             }
         }
         return new ClassInfoList(reachableClassesFiltered, directlyRelatedClassesFiltered);
@@ -468,15 +447,13 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
      */
     public ClassInfoList getInterfacesAndAnnotations() {
         final Set<ClassInfo> reachableClassesFiltered = new HashSet<>(size());
-        for (final ClassInfo classInfo : this) {
-            if (classInfo.isInterfaceOrAnnotation()) {
-                reachableClassesFiltered.add(classInfo);
-            }
-        }
         final Set<ClassInfo> directlyRelatedClassesFiltered = new HashSet<>(directlyRelatedClasses.size());
-        for (final ClassInfo classInfo : directlyRelatedClasses) {
-            if (classInfo.isInterfaceOrAnnotation()) {
-                directlyRelatedClassesFiltered.add(classInfo);
+        for (final ClassInfo ci : this) {
+            if (ci.isInterfaceOrAnnotation()) {
+                reachableClassesFiltered.add(ci);
+                if (directlyRelatedClasses.contains(ci)) {
+                    directlyRelatedClassesFiltered.add(ci);
+                }
             }
         }
         return new ClassInfoList(reachableClassesFiltered, directlyRelatedClassesFiltered);
@@ -490,15 +467,13 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
      */
     public ClassInfoList getImplementedInterfaces() {
         final Set<ClassInfo> reachableClassesFiltered = new HashSet<>(size());
-        for (final ClassInfo classInfo : this) {
-            if (classInfo.isImplementedInterface()) {
-                reachableClassesFiltered.add(classInfo);
-            }
-        }
         final Set<ClassInfo> directlyRelatedClassesFiltered = new HashSet<>(directlyRelatedClasses.size());
-        for (final ClassInfo classInfo : directlyRelatedClasses) {
-            if (classInfo.isImplementedInterface()) {
-                directlyRelatedClassesFiltered.add(classInfo);
+        for (final ClassInfo ci : this) {
+            if (ci.isImplementedInterface()) {
+                reachableClassesFiltered.add(ci);
+                if (directlyRelatedClasses.contains(ci)) {
+                    directlyRelatedClassesFiltered.add(ci);
+                }
             }
         }
         return new ClassInfoList(reachableClassesFiltered, directlyRelatedClassesFiltered);
@@ -511,15 +486,13 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
      */
     public ClassInfoList getAnnotations() {
         final Set<ClassInfo> reachableClassesFiltered = new HashSet<>(size());
-        for (final ClassInfo classInfo : this) {
-            if (classInfo.isAnnotation()) {
-                reachableClassesFiltered.add(classInfo);
-            }
-        }
         final Set<ClassInfo> directlyRelatedClassesFiltered = new HashSet<>(directlyRelatedClasses.size());
-        for (final ClassInfo classInfo : directlyRelatedClasses) {
-            if (classInfo.isAnnotation()) {
-                directlyRelatedClassesFiltered.add(classInfo);
+        for (final ClassInfo ci : this) {
+            if (ci.isAnnotation()) {
+                reachableClassesFiltered.add(ci);
+                if (directlyRelatedClasses.contains(ci)) {
+                    directlyRelatedClassesFiltered.add(ci);
+                }
             }
         }
         return new ClassInfoList(reachableClassesFiltered, directlyRelatedClassesFiltered);
@@ -532,15 +505,13 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
      */
     public ClassInfoList getEnums() {
         final Set<ClassInfo> reachableClassesFiltered = new HashSet<>(size());
-        for (final ClassInfo classInfo : this) {
-            if (classInfo.isEnum()) {
-                reachableClassesFiltered.add(classInfo);
-            }
-        }
         final Set<ClassInfo> directlyRelatedClassesFiltered = new HashSet<>(directlyRelatedClasses.size());
-        for (final ClassInfo classInfo : directlyRelatedClasses) {
-            if (classInfo.isEnum()) {
-                directlyRelatedClassesFiltered.add(classInfo);
+        for (final ClassInfo ci : this) {
+            if (ci.isEnum()) {
+                reachableClassesFiltered.add(ci);
+                if (directlyRelatedClasses.contains(ci)) {
+                    directlyRelatedClassesFiltered.add(ci);
+                }
             }
         }
         return new ClassInfoList(reachableClassesFiltered, directlyRelatedClassesFiltered);
