@@ -2,22 +2,22 @@
 
 FastClasspathScanner is an uber-fast, ultra-lightweight classpath scanner, module scanner, and annotation processor for Java, Scala, Kotlin and other JVM languages. Classpath and module path scanning offers the inverse of the Java class API and/or reflection: for example, the Java class API can tell you the superclass of a given class, or give you the list of annotations on a class; classpath scanning can find all subclasses of a given class, or find all classes that are annotated with a given annotation.
 
-FastClasspathScanner handles a [huge number](#classpath-specification-mechanisms-handled-by-fastclasspathscanner) of classpath specification mechanisms found in the wild. FastClasspathScanner can scan the classpath and module path either at runtime or [at build time](https://github.com/lukehutch/fast-classpath-scanner/wiki/Build-Time-Scanning) (e.g. to implement annotation processing for Android).
+FastClasspathScanner handles a [huge number](#classpath-specification-mechanisms-handled-by-fastclasspathscanner) of classpath specification mechanisms found in the wild. FastClasspathScanner can scan the classpath and module path either at runtime or [at build time](https://github.com/fast-classpath-scanner/fast-classpath-scanner/wiki/Build-Time-Scanning) (e.g. to implement annotation processing for Android).
 
-FastClasspathScanner reads the classfile bytecode format directly for speed, to avoid the overhead of loading classes, and to avoid the overhead and side effects of initializing classes (causing static initializer blocks to be run). After scanning, you get a collection of wrapper objects representing each class, method, field, and annotation found during the scan. These can be queried in a range of ways to find classes matching given criteria, without ever loading the classes. You can even generate a [GraphViz visualization of the class graph](https://raw.githubusercontent.com/lukehutch/fast-classpath-scanner/master/src/test/java/com/xyz/classgraph-fig.png).
+FastClasspathScanner reads the classfile bytecode format directly for speed, to avoid the overhead of loading classes, and to avoid the overhead and side effects of initializing classes (causing static initializer blocks to be run). After scanning, you get a collection of wrapper objects representing each class, method, field, and annotation found during the scan. These can be queried in a range of ways to find classes matching given criteria, without ever loading the classes. You can even generate a [GraphViz visualization of the class graph](https://raw.githubusercontent.com/fast-classpath-scanner/fast-classpath-scanner/master/src/test/java/com/xyz/classgraph-fig.png).
 
 FastClasspathScanner can scan both the traditional classpath and the visible Java modules (Project Jigsaw / JDK 9+), but is also backwards and forwards compatible with JDK 7 and JDK 8. FastClasspathScanner has been [carefully optimized](#how-fast-is-fastclasspathscanner).
 
 ## Status
 
-**Version 4.0.0-beta-1 has been released**, with a completely revamped API. See the [release notes](https://github.com/lukehutch/fast-classpath-scanner/releases/tag/fast-classpath-scanner-4.0.0-beta-1) for information on porting from the older API.
+**Version 4.0.0-beta-1 has been released**, with a completely revamped API. See the [release notes](https://github.com/fast-classpath-scanner/fast-classpath-scanner/releases/tag/fast-classpath-scanner-4.0.0-beta-1) for information on porting from the older API.
 
-[![Build Status](https://travis-ci.org/lukehutch/fast-classpath-scanner.png?branch=master)](https://travis-ci.org/lukehutch/fast-classpath-scanner)
+[![Build Status](https://travis-ci.org/fast-classpath-scanner/fast-classpath-scanner.png?branch=master)](https://travis-ci.org/fast-classpath-scanner/fast-classpath-scanner)
 
 ## Documentation
 
-* [See the wiki for documentation and usage information.](https://github.com/lukehutch/fast-classpath-scanner/wiki)
-* [See the JavaDoc for full API documentation.](https://javadoc.io/doc/io.github.lukehutch/fast-classpath-scanner/)
+* [See the wiki for documentation and usage information.](https://github.com/fast-classpath-scanner/fast-classpath-scanner/wiki)
+* [See the JavaDoc for full API documentation.](https://javadoc.io/doc/io.github.fast-classpath-scanner/fast-classpath-scanner/)
 
 ## Classpath specification mechanisms handled by FastClasspathScanner
 
@@ -41,7 +41,7 @@ FastClasspathScanner handles the following classpath and module path specificati
     `project.jar!/BOOT-INF/lib/dependency.jar` , and classpath roots within jarfiles, e.g.  
     `project.jar!/BOOT-INF/classes` , as required by The Spring, JBoss, and Felix classloaders, and probably others.
 * The **Spring** and **Spring-Boot** classloaders, including properly handling nested classpaths (jars within jars) in an optimal way.
-  * Also handles a special case, where you want to scan a Spring-Boot jar (or WAR), but the scanner is [not itself running within that jar](https://github.com/lukehutch/fast-classpath-scanner/issues/209). In this case, there is no classloader accessible to the scanner that knows how to load classes from the jar, since Spring-Boot has its own classloader contained in the jar. The package root is at `BOOT-INF/classes` or `WEB-INF/classes`, not at the root of the jarfile, meaning that `URLClassLoader` cannot load classes from that jar (`URLClassLoader` requires the package root to be the root directory of the jar). If you try loading classes through FastClasspathScanner, the package root of the jar (e.g. `BOOT-INF/classes`) is extracted to a temporary directory by FastClasspathScanner, and a custom `URLClassLoader` is automatically created to handle loading classes from the package root.
+  * Also handles a special case, where you want to scan a Spring-Boot jar (or WAR), but the scanner is [not itself running within that jar](https://github.com/fast-classpath-scanner/fast-classpath-scanner/issues/209). In this case, there is no classloader accessible to the scanner that knows how to load classes from the jar, since Spring-Boot has its own classloader contained in the jar. The package root is at `BOOT-INF/classes` or `WEB-INF/classes`, not at the root of the jarfile, meaning that `URLClassLoader` cannot load classes from that jar (`URLClassLoader` requires the package root to be the root directory of the jar). If you try loading classes through FastClasspathScanner, the package root of the jar (e.g. `BOOT-INF/classes`) is extracted to a temporary directory by FastClasspathScanner, and a custom `URLClassLoader` is automatically created to handle loading classes from the package root.
 * **lib jars within jars**, at the jar paths `lib`, `BOOT-INF/lib`, `WEB-INF/lib`, or `WEB-INF/lib-provided`. FastClasspathScanner can locate lib jars to scan within these common paths, even when these jars are not explicitly listed on the classpath in the form `file:/path/to/my-spring-project.jar!/BOOT-INF/lib/libjar.jar`. This is needed if you are trying to scan a Spring-Boot jar (or WAR), but the scanner is not running within that jar, and you need to scan the lib dependencies within the jar, or load classes from a package root (`BOOT-INF/classes`) that depend upon classes in a lib directory (`BOOT-INF/lib`). These lib dependencies are implicitly added by the Spring-Boot classloader, so if you're not running within that classloader, FastClasspathScanner will automatically construct a classloader for you that simulates the Spring-Boot classloader, but can run outside the Spring-Boot jar.
 * **Bridging classloading across multiple different classloaders**: If you try to load a class from a jar that is handled by one classloader, and it depends upon a class that is defined in a jar handled by a different classloader, you will get a `ClassNotFoundException`, `UnsatisfiedLinkError`, `NoClassDefFoundError` etc. FastClasspathScanner can handle this case if you call `FastClasspathScanner#createClassLoaderForMatchingClasses()` before `#scan()`. It will create a new "bridging" `URLClassLoader` that is able to load all whitelisted classes discovered during the scan. This is helpful in cases where you have multiple classpath entries containing jars-within-jars (`BOOT-INF/lib/*.lib`) or jars with non-root package roots (`BOOT-INF/classes`), where these jars have interdependencies that span different classloaders.
 * The **JBoss WildFly** classloader, including JARs and WARs nested inside EARs.
@@ -65,7 +65,7 @@ FastClasspathScanner is the fastest classpath scanning mechanism:
 * FastClasspathScanner includes comprehensive mechanisms for whitelisting and blacklisting, so that only the necessary resources are scanned.
 * FastClasspathScanner uses memory-mapped files wherever possible (when scanning directories and modules) for extra speed.  
 
-In particular, FastClasspathScanner is typically several times faster at scanning large classpaths consisting of many directories or jarfiles than the widely-used library [Reflections](https://github.com/ronmamo/reflections). If FastClasspathScanner is slower than Reflections for your usecase, that is because it has discovered a [much larger set of classpath elements to scan](#classpath-specification-mechanisms-handled-by-fastclasspathscanner) than Reflections. You can limit what is scanned using whitelist / blacklist criteria (see the documentation).
+In particular, FastClasspathScanner is typically several times faster at scanning large classpaths consisting of many directories or jarfiles than the widely-used library [Reflections](https://github.com/ronmamo/reflections). If FastClasspathScanner is slower than Reflections for your usecase, that is because it has discovered a [much larger set of classpath elements to scan](#classpath-specification-mechanisms-handled-by-fastclasspathscanner) than Reflections. You can limit what is scanned using whitelist / blacklist criteria (see the [wiki](https://github.com/fast-classpath-scanner/fast-classpath-scanner/wiki) for more info).
 
 ## Downloading
 
@@ -73,7 +73,7 @@ In particular, FastClasspathScanner is typically several times faster at scannin
 
 ```xml
 <dependency>
-    <groupId>io.github.lukehutch</groupId>
+    <groupId>io.github.fast-classpath-scanner</groupId>
     <artifactId>fast-classpath-scanner</artifactId>
     <version>LATEST</version>
 </dependency>
@@ -81,20 +81,20 @@ In particular, FastClasspathScanner is typically several times faster at scannin
 
 ### Pre-built JARs
 
-You can get pre-built JARs (usable in JRE 1.7 or later) from [Sonatype](https://oss.sonatype.org/#nexus-search;quick~fast-classpath-scanner).
+You can get pre-built JARs (usable in JRE 1.7 or later) from [Sonatype](https://oss.sonatype.org/#nexus-search;quick~io.github.fast-classpath-scanner).
 
 ### Use as a module
 
 To use FastClasspathScanner as a Java module, add the jar dependency to your project's module path, then add the following to your `module-info.java`: 
 
 ```
-requires io.github.lukehutch.fastclasspathscanner;
+requires io.github.fastclasspathscanner;
 ```
 
 If when trying to run your code, you get the following exception, the problem is that the code you are trying to run is modular, but the FastClasspathScanner jar was added to the regular classpath, not the module path:
 
 ```
-java.lang.NoClassDefFoundError: io/github/lukehutch/fastclasspathscanner/FastClasspathScanner
+java.lang.NoClassDefFoundError: io/github/fastclasspathscanner/FastClasspathScanner
 ```  
 
 In this case, if you manually added the FastClasspathScanner jar to an Eclipse project, go to *Project Properties > Java Build Path > Libraries > Classpath > fast-classpath-scanner-X.Y.Z.jar*, open the dropdown, double click on *Is not modular*, and check the box at the top, *Defines one or more modules*, then *OK*, then *Apply and Save*.
@@ -106,7 +106,7 @@ If you are launching from the commandline, make sure both your project and FastC
 The following commands will build the most recent version of FastClasspathScanner from git master. The compiled package will then be in the "fast-classpath-scanner/target" directory.
 
 ```
-git clone https://github.com/lukehutch/fast-classpath-scanner.git
+git clone https://github.com/fast-classpath-scanner/fast-classpath-scanner.git
 cd fast-classpath-scanner
 export JAVA_HOME=/usr/java/default   # Or similar -- Maven needs JAVA_HOME
 mvn -Dmaven.test.skip=true package
