@@ -36,7 +36,8 @@ public class IssuesTest {
     public void extendsExternal() {
         assertThat(
                 new FastClasspathScanner().whitelistPackages(InternalExtendsExternal.class.getPackage().getName())
-                        .scan().getSuperclasses(InternalExtendsExternal.class.getName()).getNames()).isEmpty();
+                        .scan().getSuperclasses(InternalExtendsExternal.class.getName()).getNames())
+                                .containsOnly(ExternalSuperclass.class.getName());
     }
 
     @Test

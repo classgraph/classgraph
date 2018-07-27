@@ -178,9 +178,10 @@ public class FastClasspathScannerTest {
     }
 
     @Test
-    public void testWhitelistedWithoutExceptionWithStrictWhitelist() throws Exception {
+    public void testExternalSuperclassReturned() throws Exception {
         final ScanResult scanResult = new FastClasspathScanner().whitelistPackages(WHITELIST_PACKAGE).scan();
-        assertThat(scanResult.getSuperclasses(Whitelisted.class.getName()).getNames()).isEmpty();
+        assertThat(scanResult.getSuperclasses(Whitelisted.class.getName()).getNames())
+                .containsExactly(BlacklistedSuperclass.class.getName());
         assertThat(scanResult.getSubclasses(Whitelisted.class.getName()).getNames()).isEmpty();
         assertThat(scanResult.getClassesImplementing(WhitelistedInterface.class.getName()).getNames()).isEmpty();
         assertThat(scanResult.getClassesImplementing(WhitelistedInterface.class.getName()).getNames()).isEmpty();
@@ -230,10 +231,11 @@ public class FastClasspathScannerTest {
     }
 
     @Test
-    public void testNonWhitelistedAnnotationNotReturnedWithStrictWhitelist() throws Exception {
+    public void testExternalAnnotationReturned() throws Exception {
         final ScanResult scanResult = new FastClasspathScanner().whitelistPackages(WHITELIST_PACKAGE)
                 .enableAnnotationInfo().scan();
-        assertThat(scanResult.getAnnotationsOnClass(Whitelisted.class.getName()).getNames()).isEmpty();
+        assertThat(scanResult.getAnnotationsOnClass(Whitelisted.class.getName()).getNames())
+                .containsExactly(BlacklistedAnnotation.class.getName());
     }
 
     public void testBlacklistedPackage() throws Exception {

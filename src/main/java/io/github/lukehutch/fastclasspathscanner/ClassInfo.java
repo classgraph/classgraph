@@ -601,7 +601,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
 
     /** Add a superclass to this class. */
     void addSuperclass(final String superclassName, final Map<String, ClassInfo> classNameToClassInfo) {
-        if (superclassName != null) {
+        if (superclassName != null && !superclassName.equals("java.lang.Object")) {
             final ClassInfo superclassClassInfo = getOrCreateClassInfo(superclassName, /* classModifiers = */ 0,
                     classNameToClassInfo);
             this.addRelatedClass(RelType.SUPERCLASSES, superclassClassInfo);
@@ -922,13 +922,16 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                     || includeStandardClasses && classInfo.isStandardClass()
                     || includeImplementedInterfaces && classInfo.isImplementedInterface()
                     || includeAnnotations && classInfo.isAnnotation()) {
-                if (!strictWhitelist || (
-                // Don't include external classes unless enableExternalClasses is true
-                (!classInfo.isExternalClass || scanSpec.enableExternalClasses)
-                        // If this is a system class, ignore blacklist unless the blanket blacklisting of
-                        // all system jars or modules has been disabled, and this system class was specifically
-                        // blacklisted by name
-                        && (!scanSpec.classIsBlacklisted(classInfo.name) //
+                if (
+                // Always check blacklist 
+                !scanSpec.classIsBlacklisted(classInfo.name)
+                        // If not blacklisted, and strictWhitelist is false, add class
+                        && (!strictWhitelist || (
+                        // Don't include external classes unless enableExternalClasses is true
+                        (!classInfo.isExternalClass || scanSpec.enableExternalClasses)
+                                // If this is a system class, ignore blacklist unless the blanket blacklisting of
+                                // all system jars or modules has been disabled, and this system class was specifically
+                                // blacklisted by name
                                 && (!scanSpec.blacklistSystemJarsOrModules
                                         || !JarUtils.isInSystemPackageOrModule(classInfo.name))))) {
                     // Class passed strict whitelist criteria
@@ -984,6 +987,35 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         if (reachableClasses.isEmpty()) {
             return ClassInfoList.EMPTY_LIST;
         }
+
+        // Special case -- don't inherit java.lang.annotation.* meta-annotations as related meta-annotations
+        // (but still return them as direct meta-annotations on annotation classes).
+        Set<ClassInfo> javaLangAnnotationRelatedClasses = null;
+        for (final ClassInfo classInfo : reachableClasses) {
+            if (classInfo.getName().startsWith("java.lang.annotation.")) {
+                if (javaLangAnnotationRelatedClasses == null) {
+                    javaLangAnnotationRelatedClasses = new HashSet<>();
+                }
+                javaLangAnnotationRelatedClasses.add(classInfo);
+            }
+        }
+        if (javaLangAnnotationRelatedClasses != null) {
+            // Remove all java.lang.annotation annotations that are not directly related to this class
+            Set<ClassInfo> javaLangAnnotationDirectlyRelatedClasses = null;
+            for (final ClassInfo classInfo : directlyRelatedClasses) {
+                if (classInfo.getName().startsWith("java.lang.annotation.")) {
+                    if (javaLangAnnotationDirectlyRelatedClasses == null) {
+                        javaLangAnnotationDirectlyRelatedClasses = new HashSet<>();
+                    }
+                    javaLangAnnotationDirectlyRelatedClasses.add(classInfo);
+                }
+            }
+            if (javaLangAnnotationDirectlyRelatedClasses != null) {
+                javaLangAnnotationRelatedClasses.removeAll(javaLangAnnotationDirectlyRelatedClasses);
+            }
+            reachableClasses.removeAll(javaLangAnnotationRelatedClasses);
+        }
+
         return new ClassInfoList(filterClassInfo(reachableClasses, scanResult.scanSpec, strictWhitelist),
                 filterClassInfo(directlyRelatedClasses, scanResult.scanSpec, strictWhitelist));
     }
@@ -1294,7 +1326,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get a list of annotations on this method, along with any annotation parameter values, as a list of
+     * Get a list of direct annotations on this method, along with any annotation parameter values, as a list of
      * {@link AnnotationInfo} objects, or the empty list if none.
      * 
      * <p>
@@ -1324,10 +1356,12 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         }
         if (inheritedSuperclassAnnotations == null) {
             // No inherited superclass annotations
-            return annotationInfo;
+            return annotationInfo == null ? AnnotationInfoList.EMPTY_LIST : annotationInfo;
         } else {
             // Merge inherited superclass annotations and annotations on this class
-            inheritedSuperclassAnnotations.addAll(annotationInfo);
+            if (annotationInfo != null) {
+                inheritedSuperclassAnnotations.addAll(annotationInfo);
+            }
             Collections.sort(inheritedSuperclassAnnotations);
             return inheritedSuperclassAnnotations;
         }

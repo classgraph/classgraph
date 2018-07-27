@@ -393,8 +393,13 @@ public class ScanResult {
         if (!scanSpec.enableClassInfo) {
             throw new IllegalArgumentException("Please call FastClasspathScanner#enableClassInfo() before #scan()");
         }
-        final ClassInfo superclass = classNameToClassInfo.get(superclassName);
-        return superclass == null ? ClassInfoList.EMPTY_LIST : superclass.getSubclasses();
+        if (superclassName.equals("java.lang.Object")) {
+            // Return all standard classes (interfaces don't extend Object)
+            return getAllStandardClasses();
+        } else {
+            final ClassInfo superclass = classNameToClassInfo.get(superclassName);
+            return superclass == null ? ClassInfoList.EMPTY_LIST : superclass.getSubclasses();
+        }
     }
 
     /**
