@@ -14,9 +14,7 @@ FastClasspathScanner can scan both the traditional classpath and the visible Jav
 
 ## Status
 
-**Version 4.0.0-beta-1 has been released**, with a completely revamped API. See the [release notes](https://github.com/fast-classpath-scanner/fast-classpath-scanner/releases/tag/fast-classpath-scanner-4.0.0-beta-1) for information on porting from the older API.
-
-**IMPORTANT: In particular, the Maven group id has changed from `io.github.lukehutch` to `io.github.fast-classpath-scanner` in version 4. Please see the new [Maven dependency rule](#maven-dependency) below.
+**Version 4.0.0-beta-1 has been released**, with a completely revamped API. See the [release notes](https://github.com/fast-classpath-scanner/fast-classpath-scanner/releases/tag/fast-classpath-scanner-4.0.0-beta-1) for information on porting from the older API. In particular, the Maven group id has changed from `io.github.lukehutch` to **`io.github.fast-classpath-scanner`** in version 4. Please see the new [Maven dependency rule](https://github.com/fast-classpath-scanner/fast-classpath-scanner/wiki) in the Wiki page.
 
 [![Build Status](https://travis-ci.org/fast-classpath-scanner/fast-classpath-scanner.png?branch=master)](https://travis-ci.org/fast-classpath-scanner/fast-classpath-scanner)
 
