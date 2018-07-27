@@ -7,4 +7,4 @@ jdk:
   - oraclejdk8    # Current LTS version
   - oraclejdk10   # Feature release
   - oraclejdk11   # upcoming LTS
-#  - oraclejdk-ea  # Early access
+  - oraclejdk-ea  # Early access
