@@ -204,7 +204,7 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     }
 
     /**
-     * Returns the defining class name, so that {@link #getClassInfo()} returns the {@link ClassInfo} object for the
+     * Returns the defining class name, so that super.getClassInfo() returns the {@link ClassInfo} object for the
      * defining class.
      */
     @Override
