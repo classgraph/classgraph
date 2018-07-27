@@ -1,15 +1,15 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
-	<groupId>io.github.lukehutch</groupId>
+	<groupId>io.github.fast-classpath-scanner</groupId>
 	<artifactId>fast-classpath-scanner</artifactId>
 	<version>4.0.0-beta-8-SNAPSHOT</version>
 	<name>FastClasspathScanner</name>
 
 	<description>
-	Uber-fast, ultra-lightweight Java classpath and module path scanner. Scans the classpath and module path by 
-	parsing the classfile  binary format directly, rather than by using reflection.
-	See https://github.com/lukehutch/fast-classpath-scanner
+	Uber-fast Java classpath and module path scanner. https://github.com/fast-classpath-scanner/fast-classpath-scanner
 	</description>
 
 	<properties>
@@ -18,7 +18,7 @@
 	</properties>
 
 	<issueManagement>
-		<url>https://github.com/lukehutch/fast-classpath-scanner/issues</url>
+		<url>https://github.com/fast-classpath-scanner/fast-classpath-scanner/issues</url>
 	</issueManagement>
 
 	<licenses>
@@ -34,7 +34,7 @@
 			<name>Luke Hutchison</name>
 			<email>luke.hutch@gmail.com</email>
 			<organization>--</organization>
-			<organizationUrl>https://github.com/lukehutch</organizationUrl>
+			<organizationUrl>https://github.com/fast-classpath-scanner</organizationUrl>
 		</developer>
 	</developers>
 
@@ -72,7 +72,8 @@
 						</goals>
 						<configuration>
 							<rules>
-								<checkSignatureRule implementation="org.codehaus.mojo.animal_sniffer.enforcer.CheckSignatureRule">
+								<checkSignatureRule
+									implementation="org.codehaus.mojo.animal_sniffer.enforcer.CheckSignatureRule">
 									<signature>
 										<groupId>org.codehaus.mojo.signature</groupId>
 										<artifactId>java17</artifactId>
