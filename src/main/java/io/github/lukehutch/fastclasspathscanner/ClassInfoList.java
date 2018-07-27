@@ -35,10 +35,10 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
-import java.util.ListIterator;
 import java.util.Set;
+
+import io.github.lukehutch.fastclasspathscanner.ClassInfo.ReachableAndDirectlyRelatedClasses;
 
 /**
  * A list of {@link ClassInfo} objects, which stores both reachable classes (obtained through a given class
@@ -49,154 +49,91 @@ import java.util.Set;
  * By default, this list returns reachable classes. By calling {@link #directOnly()}, you can get the directly
  * related classes.
  */
-public class ClassInfoList implements List<ClassInfo> {
+public class ClassInfoList extends ArrayList<ClassInfo> {
 
-    private final List<ClassInfo> reachableClasses;
-    private final ClassInfoList directlyRelatedClasses;
+    private final Set<ClassInfo> directlyRelatedClasses;
 
-    /** A list of {@link ClassInfo} objects. */
-    ClassInfoList(final List<ClassInfo> reachableClasses, final List<ClassInfo> directlyRelatedClasses) {
-        this.reachableClasses = reachableClasses == null ? Collections.<ClassInfo> emptyList() : reachableClasses;
-        Collections.sort(reachableClasses);
-        // Make directlyRelatedClasses idempotent
-        final List<ClassInfo> directlyRelatedClassesNotNull = directlyRelatedClasses == null
-                ? Collections.<ClassInfo> emptyList()
-                : directlyRelatedClasses;
-        this.directlyRelatedClasses = (reachableClasses == directlyRelatedClasses) ? this
-                : new ClassInfoList(directlyRelatedClassesNotNull, directlyRelatedClassesNotNull);
+    /**
+     * A list of {@link ClassInfo} objects, consisting of reachable classes (obtained through the transitive
+     * closure) and directly related classes (one step away in the graph).
+     */
+    ClassInfoList(final Set<ClassInfo> reachableClasses, final Set<ClassInfo> directlyRelatedClasses) {
+        super(reachableClasses);
+        // It's a bit dicey calling Collections.sort(this) from within a constructor, but the super-constructor
+        // has been called, so it should be fine :-)
+        Collections.sort(this);
+        // If directlyRelatedClasses was not provided, then assume all reachable classes were directly related
+        this.directlyRelatedClasses = directlyRelatedClasses == null ? reachableClasses : directlyRelatedClasses;
     }
 
     /** A list of {@link ClassInfo} objects. */
-    ClassInfoList(final Collection<ClassInfo> reachableClasses,
-            final Collection<ClassInfo> directlyRelatedClasses) {
-        this(reachableClasses == null ? null : new ArrayList<>(reachableClasses),
-                directlyRelatedClasses == null ? null : new ArrayList<>(directlyRelatedClasses));
+    ClassInfoList(final ReachableAndDirectlyRelatedClasses reachableAndDirectlyRelatedClasses) {
+        this(reachableAndDirectlyRelatedClasses.reachableClasses,
+                reachableAndDirectlyRelatedClasses.directlyRelatedClasses);
     }
 
-    /** A list of {@link ClassInfo} objects. */
-    ClassInfoList(final Collection<ClassInfo> reachableClasses) {
-        this(reachableClasses, reachableClasses);
+    /** A list of {@link ClassInfo} objects, where each class is directly related. */
+    ClassInfoList(final Set<ClassInfo> reachableClasses) {
+        this(reachableClasses, null);
+    }
+
+    private ClassInfoList() {
+        super(1);
+        directlyRelatedClasses = Collections.<ClassInfo> emptySet();
     }
 
     /** Unmodifiable empty ClassInfoList. */
-    static final ClassInfoList EMPTY_LIST = new ClassInfoList(Collections.<ClassInfo> emptyList(), null);
+    static final ClassInfoList EMPTY_LIST = new ClassInfoList() {
+        @Override
+        public boolean add(final ClassInfo e) {
+            throw new IllegalArgumentException("List  is immutable");
+        }
 
-    // -------------------------------------------------------------------------------------------------------------
+        @Override
+        public void add(final int index, final ClassInfo element) {
+            throw new IllegalArgumentException("List  is immutable");
+        }
 
-    @Override
-    public int size() {
-        return reachableClasses.size();
-    }
+        @Override
+        public boolean remove(final Object o) {
+            throw new IllegalArgumentException("List  is immutable");
+        }
 
-    @Override
-    public boolean isEmpty() {
-        return reachableClasses.isEmpty();
-    }
+        @Override
+        public ClassInfo remove(final int index) {
+            throw new IllegalArgumentException("List  is immutable");
+        }
 
-    @Override
-    public ClassInfo get(final int index) {
-        return reachableClasses.get(index);
-    }
+        @Override
+        public boolean addAll(final Collection<? extends ClassInfo> c) {
+            throw new IllegalArgumentException("List  is immutable");
+        }
 
-    @Override
-    public boolean contains(final Object o) {
-        return reachableClasses.contains(o);
-    }
+        @Override
+        public boolean addAll(final int index, final Collection<? extends ClassInfo> c) {
+            throw new IllegalArgumentException("List  is immutable");
+        }
 
-    @Override
-    public boolean containsAll(final Collection<?> c) {
-        return reachableClasses.containsAll(c);
-    }
+        @Override
+        public boolean removeAll(final Collection<?> c) {
+            throw new IllegalArgumentException("List  is immutable");
+        }
 
-    @Override
-    public Object[] toArray() {
-        return reachableClasses.toArray();
-    }
+        @Override
+        public boolean retainAll(final Collection<?> c) {
+            throw new IllegalArgumentException("List  is immutable");
+        }
 
-    @Override
-    public <T> T[] toArray(final T[] a) {
-        return reachableClasses.toArray(a);
-    }
+        @Override
+        public void clear() {
+            throw new IllegalArgumentException("List  is immutable");
+        }
 
-    @Override
-    public int indexOf(final Object o) {
-        return reachableClasses.indexOf(o);
-    }
-
-    @Override
-    public int lastIndexOf(final Object o) {
-        return reachableClasses.lastIndexOf(o);
-    }
-
-    @Override
-    public Iterator<ClassInfo> iterator() {
-        return reachableClasses.iterator();
-    }
-
-    @Override
-    public ListIterator<ClassInfo> listIterator() {
-        return reachableClasses.listIterator();
-    }
-
-    @Override
-    public ListIterator<ClassInfo> listIterator(final int index) {
-        return reachableClasses.listIterator(index);
-    }
-
-    @Override
-    public List<ClassInfo> subList(final int fromIndex, final int toIndex) {
-        return reachableClasses.subList(fromIndex, toIndex);
-    }
-
-    @Override
-    public boolean add(final ClassInfo e) {
-        throw new IllegalArgumentException(ClassInfoList.class.getSimpleName() + " is immutable");
-    }
-
-    @Override
-    public void add(final int index, final ClassInfo element) {
-        throw new IllegalArgumentException(ClassInfoList.class.getSimpleName() + " is immutable");
-    }
-
-    @Override
-    public boolean remove(final Object o) {
-        throw new IllegalArgumentException(ClassInfoList.class.getSimpleName() + " is immutable");
-    }
-
-    @Override
-    public ClassInfo remove(final int index) {
-        throw new IllegalArgumentException(ClassInfoList.class.getSimpleName() + " is immutable");
-    }
-
-    @Override
-    public boolean addAll(final Collection<? extends ClassInfo> c) {
-        throw new IllegalArgumentException(ClassInfoList.class.getSimpleName() + " is immutable");
-    }
-
-    @Override
-    public boolean addAll(final int index, final Collection<? extends ClassInfo> c) {
-        throw new IllegalArgumentException(ClassInfoList.class.getSimpleName() + " is immutable");
-    }
-
-    @Override
-    public boolean removeAll(final Collection<?> c) {
-        throw new IllegalArgumentException(ClassInfoList.class.getSimpleName() + " is immutable");
-    }
-
-    @Override
-    public boolean retainAll(final Collection<?> c) {
-        throw new IllegalArgumentException(ClassInfoList.class.getSimpleName() + " is immutable");
-    }
-
-    @Override
-    public void clear() {
-        throw new IllegalArgumentException(ClassInfoList.class.getSimpleName() + " is immutable");
-    }
-
-    @Override
-    public ClassInfo set(final int index, final ClassInfo element) {
-        throw new IllegalArgumentException(ClassInfoList.class.getSimpleName() + " is immutable");
-    }
+        @Override
+        public ClassInfo set(final int index, final ClassInfo element) {
+            throw new IllegalArgumentException("List  is immutable");
+        }
+    };
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -365,8 +302,12 @@ public class ClassInfoList implements List<ClassInfo> {
      * @return The list of directly-related classes.
      */
     public ClassInfoList directOnly() {
-        // If directlyRelatedClasses is not set, just return this, so that directlyRelatedClasses() is idempotent.
-        return directlyRelatedClasses == null ? this : directlyRelatedClasses;
+        return filter(new ClassInfoFilter() {
+            @Override
+            public boolean accept(final ClassInfo classInfo) {
+                return directlyRelatedClasses.contains(classInfo);
+            }
+        });
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -379,7 +320,7 @@ public class ClassInfoList implements List<ClassInfo> {
      * @return The union of this {@link ClassInfoList} with the others.
      */
     public ClassInfoList union(final ClassInfoList... others) {
-        final Set<ClassInfo> reachableClassesUnion = new HashSet<>(reachableClasses);
+        final Set<ClassInfo> reachableClassesUnion = new HashSet<>(this);
         final Set<ClassInfo> directlyRelatedClassesUnion = new HashSet<>();
         if (directlyRelatedClasses != null) {
             directlyRelatedClassesUnion.addAll(directlyRelatedClasses);
@@ -401,7 +342,7 @@ public class ClassInfoList implements List<ClassInfo> {
      * @return The intersection of this {@link ClassInfoList} with the others.
      */
     public ClassInfoList intersect(final ClassInfoList... others) {
-        final Set<ClassInfo> reachableClassesIntersection = new HashSet<>(reachableClasses);
+        final Set<ClassInfo> reachableClassesIntersection = new HashSet<>(this);
         final Set<ClassInfo> directlyRelatedClassesIntersection = new HashSet<>();
         if (directlyRelatedClasses != null) {
             directlyRelatedClassesIntersection.addAll(directlyRelatedClasses);
@@ -424,7 +365,7 @@ public class ClassInfoList implements List<ClassInfo> {
      * @return The set difference of this {@link ClassInfoList} and other, i.e. (this \ other).
      */
     public ClassInfoList exclude(final ClassInfoList other) {
-        final Set<ClassInfo> reachableClassesDifference = new HashSet<>(reachableClasses);
+        final Set<ClassInfo> reachableClassesDifference = new HashSet<>(this);
         final Set<ClassInfo> directlyRelatedClassesDifference = new HashSet<>();
         if (directlyRelatedClasses != null) {
             directlyRelatedClassesDifference.addAll(directlyRelatedClasses);
@@ -463,16 +404,13 @@ public class ClassInfoList implements List<ClassInfo> {
      * @return The subset of this {@link ClassInfoList} for which the given filter predicate is true.
      */
     public ClassInfoList filter(final ClassInfoFilter filter) {
-        final List<ClassInfo> reachableClassesFiltered = new ArrayList<>();
-        for (final ClassInfo ci : reachableClasses) {
+        final Set<ClassInfo> reachableClassesFiltered = new HashSet<>(size());
+        for (final ClassInfo ci : this) {
             if (filter.accept(ci)) {
                 reachableClassesFiltered.add(ci);
             }
         }
-        if (reachableClasses == directlyRelatedClasses) {
-            return new ClassInfoList(reachableClassesFiltered, reachableClassesFiltered);
-        }
-        final List<ClassInfo> directlyRelatedClassesFiltered = new ArrayList<>();
+        final Set<ClassInfo> directlyRelatedClassesFiltered = new HashSet<>();
         for (final ClassInfo ci : directlyRelatedClasses) {
             if (filter.accept(ci)) {
                 directlyRelatedClassesFiltered.add(ci);
@@ -490,24 +428,19 @@ public class ClassInfoList implements List<ClassInfo> {
      * @return The filtered list, containing only standard classes.
      */
     public ClassInfoList getStandardClasses() {
-        final List<ClassInfo> reachableClassesFiltered = new ArrayList<>(reachableClasses.size());
-        for (final ClassInfo classInfo : reachableClasses) {
+        final Set<ClassInfo> reachableClassesFiltered = new HashSet<>(size());
+        for (final ClassInfo classInfo : this) {
             if (classInfo.isStandardClass()) {
                 reachableClassesFiltered.add(classInfo);
             }
         }
-        if (directlyRelatedClasses == reachableClasses) {
-            // Avoid duplicating work
-            return new ClassInfoList(reachableClassesFiltered, reachableClassesFiltered);
-        } else {
-            final List<ClassInfo> directlyRelatedClassesFiltered = new ArrayList<>(directlyRelatedClasses.size());
-            for (final ClassInfo classInfo : directlyRelatedClasses) {
-                if (classInfo.isStandardClass()) {
-                    directlyRelatedClassesFiltered.add(classInfo);
-                }
+        final Set<ClassInfo> directlyRelatedClassesFiltered = new HashSet<>(directlyRelatedClasses.size());
+        for (final ClassInfo classInfo : directlyRelatedClasses) {
+            if (classInfo.isStandardClass()) {
+                directlyRelatedClassesFiltered.add(classInfo);
             }
-            return new ClassInfoList(reachableClassesFiltered, directlyRelatedClassesFiltered);
         }
+        return new ClassInfoList(reachableClassesFiltered, directlyRelatedClassesFiltered);
     }
 
     /**
@@ -517,24 +450,19 @@ public class ClassInfoList implements List<ClassInfo> {
      * @return The filtered list, containing only interfaces.
      */
     public ClassInfoList getInterfaces() {
-        final List<ClassInfo> reachableClassesFiltered = new ArrayList<>(reachableClasses.size());
-        for (final ClassInfo classInfo : reachableClasses) {
+        final Set<ClassInfo> reachableClassesFiltered = new HashSet<>(size());
+        for (final ClassInfo classInfo : this) {
             if (classInfo.isInterface()) {
                 reachableClassesFiltered.add(classInfo);
             }
         }
-        if (directlyRelatedClasses == reachableClasses) {
-            // Avoid duplicating work
-            return new ClassInfoList(reachableClassesFiltered, reachableClassesFiltered);
-        } else {
-            final List<ClassInfo> directlyRelatedClassesFiltered = new ArrayList<>(directlyRelatedClasses.size());
-            for (final ClassInfo classInfo : directlyRelatedClasses) {
-                if (classInfo.isInterface()) {
-                    directlyRelatedClassesFiltered.add(classInfo);
-                }
+        final Set<ClassInfo> directlyRelatedClassesFiltered = new HashSet<>(directlyRelatedClasses.size());
+        for (final ClassInfo classInfo : directlyRelatedClasses) {
+            if (classInfo.isInterface()) {
+                directlyRelatedClassesFiltered.add(classInfo);
             }
-            return new ClassInfoList(reachableClassesFiltered, directlyRelatedClassesFiltered);
         }
+        return new ClassInfoList(reachableClassesFiltered, directlyRelatedClassesFiltered);
     }
 
     /**
@@ -544,24 +472,19 @@ public class ClassInfoList implements List<ClassInfo> {
      * @return The filtered list, containing only interfaces.
      */
     public ClassInfoList getInterfacesAndAnnotations() {
-        final List<ClassInfo> reachableClassesFiltered = new ArrayList<>(reachableClasses.size());
-        for (final ClassInfo classInfo : reachableClasses) {
+        final Set<ClassInfo> reachableClassesFiltered = new HashSet<>(size());
+        for (final ClassInfo classInfo : this) {
             if (classInfo.isInterfaceOrAnnotation()) {
                 reachableClassesFiltered.add(classInfo);
             }
         }
-        if (directlyRelatedClasses == reachableClasses) {
-            // Avoid duplicating work
-            return new ClassInfoList(reachableClassesFiltered, reachableClassesFiltered);
-        } else {
-            final List<ClassInfo> directlyRelatedClassesFiltered = new ArrayList<>(directlyRelatedClasses.size());
-            for (final ClassInfo classInfo : directlyRelatedClasses) {
-                if (classInfo.isInterfaceOrAnnotation()) {
-                    directlyRelatedClassesFiltered.add(classInfo);
-                }
+        final Set<ClassInfo> directlyRelatedClassesFiltered = new HashSet<>(directlyRelatedClasses.size());
+        for (final ClassInfo classInfo : directlyRelatedClasses) {
+            if (classInfo.isInterfaceOrAnnotation()) {
+                directlyRelatedClassesFiltered.add(classInfo);
             }
-            return new ClassInfoList(reachableClassesFiltered, directlyRelatedClassesFiltered);
         }
+        return new ClassInfoList(reachableClassesFiltered, directlyRelatedClassesFiltered);
     }
 
     /**
@@ -571,24 +494,19 @@ public class ClassInfoList implements List<ClassInfo> {
      * @return The filtered list, containing only implemented interfaces.
      */
     public ClassInfoList getImplementedInterfaces() {
-        final List<ClassInfo> reachableClassesFiltered = new ArrayList<>(reachableClasses.size());
-        for (final ClassInfo classInfo : reachableClasses) {
+        final Set<ClassInfo> reachableClassesFiltered = new HashSet<>(size());
+        for (final ClassInfo classInfo : this) {
             if (classInfo.isImplementedInterface()) {
                 reachableClassesFiltered.add(classInfo);
             }
         }
-        if (directlyRelatedClasses == reachableClasses) {
-            // Avoid duplicating work
-            return new ClassInfoList(reachableClassesFiltered, reachableClassesFiltered);
-        } else {
-            final List<ClassInfo> directlyRelatedClassesFiltered = new ArrayList<>(directlyRelatedClasses.size());
-            for (final ClassInfo classInfo : directlyRelatedClasses) {
-                if (classInfo.isImplementedInterface()) {
-                    directlyRelatedClassesFiltered.add(classInfo);
-                }
+        final Set<ClassInfo> directlyRelatedClassesFiltered = new HashSet<>(directlyRelatedClasses.size());
+        for (final ClassInfo classInfo : directlyRelatedClasses) {
+            if (classInfo.isImplementedInterface()) {
+                directlyRelatedClassesFiltered.add(classInfo);
             }
-            return new ClassInfoList(reachableClassesFiltered, directlyRelatedClassesFiltered);
         }
+        return new ClassInfoList(reachableClassesFiltered, directlyRelatedClassesFiltered);
     }
 
     /**
@@ -597,24 +515,19 @@ public class ClassInfoList implements List<ClassInfo> {
      * @return The filtered list, containing only annotations.
      */
     public ClassInfoList getAnnotations() {
-        final List<ClassInfo> reachableClassesFiltered = new ArrayList<>(reachableClasses.size());
-        for (final ClassInfo classInfo : reachableClasses) {
+        final Set<ClassInfo> reachableClassesFiltered = new HashSet<>(size());
+        for (final ClassInfo classInfo : this) {
             if (classInfo.isAnnotation()) {
                 reachableClassesFiltered.add(classInfo);
             }
         }
-        if (directlyRelatedClasses == reachableClasses) {
-            // Avoid duplicating work
-            return new ClassInfoList(reachableClassesFiltered, reachableClassesFiltered);
-        } else {
-            final List<ClassInfo> directlyRelatedClassesFiltered = new ArrayList<>(directlyRelatedClasses.size());
-            for (final ClassInfo classInfo : directlyRelatedClasses) {
-                if (classInfo.isAnnotation()) {
-                    directlyRelatedClassesFiltered.add(classInfo);
-                }
+        final Set<ClassInfo> directlyRelatedClassesFiltered = new HashSet<>(directlyRelatedClasses.size());
+        for (final ClassInfo classInfo : directlyRelatedClasses) {
+            if (classInfo.isAnnotation()) {
+                directlyRelatedClassesFiltered.add(classInfo);
             }
-            return new ClassInfoList(reachableClassesFiltered, directlyRelatedClassesFiltered);
         }
+        return new ClassInfoList(reachableClassesFiltered, directlyRelatedClassesFiltered);
     }
 
     /**
@@ -623,24 +536,19 @@ public class ClassInfoList implements List<ClassInfo> {
      * @return The filtered list, containing only enums.
      */
     public ClassInfoList getEnums() {
-        final List<ClassInfo> reachableClassesFiltered = new ArrayList<>(reachableClasses.size());
-        for (final ClassInfo classInfo : reachableClasses) {
+        final Set<ClassInfo> reachableClassesFiltered = new HashSet<>(size());
+        for (final ClassInfo classInfo : this) {
             if (classInfo.isEnum()) {
                 reachableClassesFiltered.add(classInfo);
             }
         }
-        if (directlyRelatedClasses == reachableClasses) {
-            // Avoid duplicating work
-            return new ClassInfoList(reachableClassesFiltered, reachableClassesFiltered);
-        } else {
-            final List<ClassInfo> directlyRelatedClassesFiltered = new ArrayList<>(directlyRelatedClasses.size());
-            for (final ClassInfo classInfo : directlyRelatedClasses) {
-                if (classInfo.isEnum()) {
-                    directlyRelatedClassesFiltered.add(classInfo);
-                }
+        final Set<ClassInfo> directlyRelatedClassesFiltered = new HashSet<>(directlyRelatedClasses.size());
+        for (final ClassInfo classInfo : directlyRelatedClasses) {
+            if (classInfo.isEnum()) {
+                directlyRelatedClassesFiltered.add(classInfo);
             }
-            return new ClassInfoList(reachableClassesFiltered, directlyRelatedClassesFiltered);
         }
+        return new ClassInfoList(reachableClassesFiltered, directlyRelatedClassesFiltered);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -758,11 +666,11 @@ public class ClassInfoList implements List<ClassInfo> {
     public String toString() {
         final StringBuilder buf = new StringBuilder();
         buf.append('[');
-        for (int i = 0, n = reachableClasses.size(); i < n; i++) {
+        for (int i = 0, n = size(); i < n; i++) {
             if (i > 0) {
                 buf.append(", ");
             }
-            buf.append(reachableClasses.get(i));
+            buf.append(get(i));
         }
         buf.append(']');
         return buf.toString();
