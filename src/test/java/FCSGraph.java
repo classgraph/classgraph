@@ -1,18 +1,16 @@
 import java.io.IOException;
 import java.io.PrintWriter;
 
-import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-import io.github.lukehutch.fastclasspathscanner.ScanResult;
+import io.github.fastclasspathscanner.FastClasspathScanner;
+import io.github.fastclasspathscanner.ScanResult;
 
 public class FCSGraph {
     public static void main(final String[] args) throws IOException {
         final ScanResult scanResult = new FastClasspathScanner() //
-                .whitelistPackages("io.github.lukehutch.fastclasspathscanner")
-                .blacklistPackages("io.github.lukehutch.fastclasspathscanner.issues",
-                        "io.github.lukehutch.fastclasspathscanner.test",
-                        "io.github.lukehutch.fastclasspathscanner.json",
-                        "io.github.lukehutch.fastclasspathscanner.utils",
-                        "io.github.lukehutch.fastclasspathscanner.classloaderhandler") //
+                .whitelistPackages("io.github.fastclasspathscanner")
+                .blacklistPackages("io.github.fastclasspathscanner.issues", "io.github.fastclasspathscanner.test",
+                        "io.github.fastclasspathscanner.json", "io.github.fastclasspathscanner.utils",
+                        "io.github.fastclasspathscanner.classloaderhandler") //
                 .enableMethodInfo() //
                 .ignoreMethodVisibility() //
                 .enableFieldInfo() //

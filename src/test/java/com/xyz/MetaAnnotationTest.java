@@ -32,8 +32,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.Test;
 
-import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-import io.github.lukehutch.fastclasspathscanner.ScanResult;
+import io.github.fastclasspathscanner.FastClasspathScanner;
+import io.github.fastclasspathscanner.ScanResult;
 
 public class MetaAnnotationTest {
     ScanResult scanResult = new FastClasspathScanner().whitelistPackages("com.xyz.meta").enableClassInfo()

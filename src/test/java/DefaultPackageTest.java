@@ -34,9 +34,9 @@ import java.util.List;
 
 import org.junit.Test;
 
-import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
-import io.github.lukehutch.fastclasspathscanner.test.whitelisted.Cls;
-import io.github.lukehutch.fastclasspathscanner.test.whitelisted.blacklistedsub.BlacklistedSub;
+import io.github.fastclasspathscanner.FastClasspathScanner;
+import io.github.fastclasspathscanner.test.whitelisted.Cls;
+import io.github.fastclasspathscanner.test.whitelisted.blacklistedsub.BlacklistedSub;
 
 public class DefaultPackageTest {
     private static final String WHITELIST_PACKAGE = Cls.class.getPackage().getName();

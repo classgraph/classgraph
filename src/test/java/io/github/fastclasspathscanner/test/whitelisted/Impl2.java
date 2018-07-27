@@ -1,0 +1,4 @@
+package io.github.fastclasspathscanner.test.whitelisted;
+
+public class Impl2 implements Iface {
+}

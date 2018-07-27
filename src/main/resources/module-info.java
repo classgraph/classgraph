@@ -1,3 +1,3 @@
-module io.github.lukehutch.fastclasspathscanner {
-    exports io.github.lukehutch.fastclasspathscanner;
+module io.github.fastclasspathscanner {
+    exports io.github.fastclasspathscanner;
 }

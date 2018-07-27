@@ -1,6 +1,6 @@
 import java.io.IOException;
 
-import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner;
+import io.github.fastclasspathscanner.FastClasspathScanner;
 
 public class V4Test {
 
