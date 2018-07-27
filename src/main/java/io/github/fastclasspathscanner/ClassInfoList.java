@@ -302,12 +302,7 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
      * @return The list of directly-related classes.
      */
     public ClassInfoList directOnly() {
-        return filter(new ClassInfoFilter() {
-            @Override
-            public boolean accept(final ClassInfo classInfo) {
-                return directlyRelatedClasses.contains(classInfo);
-            }
-        });
+        return new ClassInfoList(directlyRelatedClasses, directlyRelatedClasses);
     }
 
     // -------------------------------------------------------------------------------------------------------------
