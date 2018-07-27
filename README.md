@@ -8,8 +8,6 @@ FastClasspathScanner reads the classfile bytecode format directly for speed, to 
 
 FastClasspathScanner can scan both the traditional classpath and the visible Java modules (Project Jigsaw / JDK 9+), but is also backwards and forwards compatible with JDK 7 and JDK 8. FastClasspathScanner has been [carefully optimized](#how-fast-is-fastclasspathscanner).
 
-[![Build Status](https://travis-ci.org/fast-classpath-scanner/fast-classpath-scanner.png?branch=master)](https://travis-ci.org/fast-classpath-scanner/fast-classpath-scanner)
-
 ## Documentation
 
 * [See the wiki for complete documentation and usage information.](https://github.com/fast-classpath-scanner/fast-classpath-scanner/wiki)
@@ -18,6 +16,8 @@ FastClasspathScanner can scan both the traditional classpath and the visible Jav
 ## Status
 
 **Version 4.0.0-beta-1 has been released**, with a completely revamped API. See the [release notes](https://github.com/fast-classpath-scanner/fast-classpath-scanner/releases/tag/fast-classpath-scanner-4.0.0-beta-1) for information on porting from the older API.
+
+[![Build Status](https://travis-ci.org/fast-classpath-scanner/fast-classpath-scanner.png?branch=master)](https://travis-ci.org/fast-classpath-scanner/fast-classpath-scanner)
 
 ## Classpath specification mechanisms handled by FastClasspathScanner
 
