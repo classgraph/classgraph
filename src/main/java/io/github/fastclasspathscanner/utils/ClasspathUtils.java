@@ -59,7 +59,7 @@ public class ClasspathUtils {
             throw new RuntimeException(e);
         }
         final String relativePathEncoded = URLPathEncoder.encodePath(relativePath);
-        final String url = classpathEltIsJar ? "jar:" + classpathEltURL + "!/" + relativePathEncoded
+        final String url = classpathEltIsJar ? "jar:" + classpathEltURL + "!" + relativePathEncoded
                 : classpathEltURL + relativePathEncoded;
         try {
             return new URL(url);
