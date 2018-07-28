@@ -47,11 +47,7 @@ public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
     /** The method signature that this type variable is part of. */
     MethodTypeSignature containingMethodSignature;
 
-    @Override
-    void setScanResult(final ScanResult scanResult) {
-        super.setScanResult(scanResult);
-        // No need to set type signature in containing class or method, they are backlinks
-    }
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * @param typeVariableName
@@ -60,6 +56,8 @@ public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
     private TypeVariableSignature(final String typeVariableName) {
         this.typeVariableName = typeVariableName;
     }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Get the name of the type variable.
@@ -71,15 +69,17 @@ public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
     }
 
     /**
-     * Look up a type variable (e.g. "T") in the defining method and/or enclosing class' type parameters, and
-     * returns the type parameter with the same name (e.g. "T extends com.xyz.Cls").
+     * Look up a type variable (e.g. "T") in the defining method and/or enclosing class' type parameters, and return
+     * the type parameter with the same name (e.g. "T extends com.xyz.Cls").
      * 
      * @return the type parameter (e.g. "T extends com.xyz.Cls", or simply "T" if the type parameter does not have
-     *         any bounds). Returns null if a type parameter with the same name as the type variable could not be
-     *         found (this should not in general happen, since type variables in successfully-compiled code should
-     *         be able to be linked to the corresponding type parameter).
+     *         any bounds).
+     * @throws IllegalArgumentException
+     *             if a type parameter with the same name as the type variable could not be found in the defining
+     *             method or the enclosing class.
      */
-    public TypeParameter getCorrespondingTypeParameter() {
+    public TypeParameter resolve() {
+        // Try resolving the type variable against the containing method
         if (containingMethodSignature != null) {
             if (containingMethodSignature.typeParameters != null
                     && !containingMethodSignature.typeParameters.isEmpty()) {
@@ -90,6 +90,7 @@ public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
                 }
             }
         }
+        // If that failed, try resolving the type variable against the containing class
         final ClassInfo containingClassInfo = getClassInfo();
         if (containingClassInfo == null) {
             throw new IllegalArgumentException("Could not find ClassInfo object for " + containingClassName);
@@ -105,11 +106,49 @@ public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
                 }
             }
         }
-        return null;
+        throw new IllegalArgumentException("Could not resolve " + typeVariableName
+                + " against parameters of the defining method or enclosing class");
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** Parse a TypeVariableSignature. */
+    static TypeVariableSignature parse(final Parser parser) throws ParseException {
+        final char peek = parser.peek();
+        if (peek == 'T') {
+            parser.next();
+            if (!TypeUtils.getIdentifierToken(parser)) {
+                throw new ParseException(parser, "Could not parse type variable signature");
+            }
+            parser.expect(';');
+            final TypeVariableSignature typeVariableSignature = new TypeVariableSignature(parser.currToken());
+
+            // Save type variable signatures in the parser state, so method and class type signatures can link
+            // to type signatures
+            @SuppressWarnings("unchecked")
+            List<TypeVariableSignature> typeVariableSignatures = (List<TypeVariableSignature>) parser.getState();
+            if (typeVariableSignatures == null) {
+                parser.setState(typeVariableSignatures = new ArrayList<>());
+            }
+            typeVariableSignatures.add(typeVariableSignature);
+
+            return typeVariableSignature;
+        } else {
+            return null;
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    @Override
+    void setScanResult(final ScanResult scanResult) {
+        super.setScanResult(scanResult);
+        // No need to set type signature in containing class or method, they are backlinks
     }
 
     @Override
     public void getClassNamesFromTypeDescriptors(final Set<String> classNames) {
+        // No class names present in type variables
     }
 
     /**
@@ -121,9 +160,20 @@ public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
         return containingClassName;
     }
 
+    // -------------------------------------------------------------------------------------------------------------
+
     @Override
     public int hashCode() {
         return typeVariableName.hashCode();
+    }
+
+    @Override
+    public boolean equals(final Object obj) {
+        if (!(obj instanceof TypeVariableSignature)) {
+            return false;
+        }
+        final TypeVariableSignature o = (TypeVariableSignature) obj;
+        return o.typeVariableName.equals(this.typeVariableName);
     }
 
     @Override
@@ -134,8 +184,8 @@ public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
                 // any type variable
                 return true;
             }
-            // Compare a type variable to a class reference
-            final TypeParameter typeParameter = getCorrespondingTypeParameter();
+            // Resolve the type variable against the containing class' type parameters
+            final TypeParameter typeParameter = resolve();
             // If the corresponding type parameter cannot be resolved
             if (typeParameter == null) {
                 // Unknown type variables can always be reconciled with a concrete class
@@ -187,30 +237,15 @@ public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
         return this.equals(other);
     }
 
-    @Override
-    public boolean equals(final Object obj) {
-        if (!(obj instanceof TypeVariableSignature)) {
-            return false;
-        }
-        final TypeVariableSignature o = (TypeVariableSignature) obj;
-        return o.typeVariableName.equals(this.typeVariableName);
-    }
-
-    @Override
-    public String toString() {
-        return typeVariableName;
-    }
-
     /**
      * Returns the type variable along with its type bound, if available (e.g. "X extends xyz.Cls"). You can get
-     * this in structured from by calling {@link #getCorrespondingTypeParameter()}. Returns just the type variable
-     * if there is no type bound, or if no type bound is known (i.e. if getCorrespondingTypeParameter() returns
-     * null).
+     * this in structured form by calling {@link #resolve()}. Returns just the type variable if there is no type
+     * bound, or if no type bound is known (i.e. if {@link #resolve()} returns null).
      * 
      * @return The string representation.
      */
     public String toStringWithTypeBound() {
-        final TypeParameter typeParameter = getCorrespondingTypeParameter();
+        final TypeParameter typeParameter = resolve();
         if (typeParameter == null) {
             return typeVariableName;
         } else {
@@ -218,29 +253,8 @@ public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
         }
     }
 
-    /** Parse a TypeVariableSignature. */
-    static TypeVariableSignature parse(final Parser parser) throws ParseException {
-        final char peek = parser.peek();
-        if (peek == 'T') {
-            parser.next();
-            if (!TypeUtils.getIdentifierToken(parser)) {
-                throw new ParseException(parser, "Could not parse type variable signature");
-            }
-            parser.expect(';');
-            final TypeVariableSignature typeVariableSignature = new TypeVariableSignature(parser.currToken());
-
-            // Save type variable signatures in the parser state, so method and class type signatures can link
-            // to type signatures
-            @SuppressWarnings("unchecked")
-            List<TypeVariableSignature> typeVariableSignatures = (List<TypeVariableSignature>) parser.getState();
-            if (typeVariableSignatures == null) {
-                parser.setState(typeVariableSignatures = new ArrayList<>());
-            }
-            typeVariableSignatures.add(typeVariableSignature);
-
-            return typeVariableSignature;
-        } else {
-            return null;
-        }
+    @Override
+    public String toString() {
+        return typeVariableName;
     }
 }
