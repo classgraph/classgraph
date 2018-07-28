@@ -102,7 +102,10 @@ public class MethodInfoList extends ArrayList<MethodInfo> {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Get the names of all methods in this list. */
+    /**
+     * @return The names of all methods in this list, by calling {@link MethodInfo#getName()} for each item in the
+     *         list.
+     */
     public List<String> getNames() {
         if (this.isEmpty()) {
             return Collections.<String> emptyList();
@@ -116,8 +119,8 @@ public class MethodInfoList extends ArrayList<MethodInfo> {
     }
 
     /**
-     * Get the string representations of all methods in this list (with annotations, modifiers, params, etc.), by
-     * calling {@link MethodInfo#toString()} on each item in the list.
+     * @return The string representations of all methods in this list (with annotations, modifiers, params, etc.),
+     *         by calling {@link MethodInfo#toString()} for each item in the list.
      */
     public List<String> getAsStrings() {
         if (this.isEmpty()) {
@@ -143,14 +146,30 @@ public class MethodInfoList extends ArrayList<MethodInfo> {
         return false;
     }
 
-    /** Return the {@link MethodInfo} object in the list with the given name, or null if not found. */
-    public MethodInfo get(final String methodName) {
+    /**
+     * @param methodName
+     *            The name of a method.
+     * @return A list of {@link MethodInfo} objects in the list with the given name (there may be more than one
+     *         method with a given name, due to overloading), or null if no method had a matching name.
+     */
+    public MethodInfoList get(final String methodName) {
+        boolean hasMethodWithName = false;
         for (final MethodInfo mi : this) {
             if (mi.getName().equals(methodName)) {
-                return mi;
+                hasMethodWithName = true;
+                break;
             }
         }
-        return null;
+        if (!hasMethodWithName) {
+            return EMPTY_LIST;
+        }
+        MethodInfoList matchingMethods = new MethodInfoList();
+        for (final MethodInfo mi : this) {
+            if (mi.getName().equals(methodName)) {
+                matchingMethods.add(mi);
+            }
+        }
+        return matchingMethods;
     }
 
     // -------------------------------------------------------------------------------------------------------------
