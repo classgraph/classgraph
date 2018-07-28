@@ -139,6 +139,7 @@ class ClasspathElementDir extends ClasspathElement {
             public byte[] load() throws IOException {
                 read();
                 final byte[] byteArray = byteBufferToByteArray();
+                length = byteArray.length;
                 close();
                 return byteArray;
             }
@@ -282,7 +283,7 @@ class ClasspathElementDir extends ClasspathElement {
 
     /** Hierarchically scan directory structure for classfiles and matching files. */
     @Override
-    public void scanPaths(final LogNode log) {
+    void scanPaths(final LogNode log) {
         final String path = classpathEltPath.getResolvedPath();
         String canonicalPath = path;
         try {
@@ -302,7 +303,7 @@ class ClasspathElementDir extends ClasspathElement {
     }
 
     @Override
-    public void close() {
+    void close() {
         // Nothing to do for directories
     }
 }

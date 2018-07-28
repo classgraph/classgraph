@@ -33,6 +33,7 @@ import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.ByteBuffer;
+import java.util.zip.ZipEntry;
 
 import io.github.fastclasspathscanner.utils.FileUtils;
 import io.github.fastclasspathscanner.utils.InputStreamOrByteBufferAdapter;
@@ -46,6 +47,8 @@ public abstract class Resource implements AutoCloseable, Comparable<Resource> {
     protected ByteBuffer byteBuffer;
     protected long length = -1L;
     private String toString;
+
+    // -------------------------------------------------------------------------------------------------------------
 
     protected InputStream byteBufferToInputStream() {
         return inputStream == null ? inputStream = FileUtils.byteBufferToInputStream(byteBuffer) : inputStream;
@@ -69,43 +72,50 @@ public abstract class Resource implements AutoCloseable, Comparable<Resource> {
         }
     }
 
+    // -------------------------------------------------------------------------------------------------------------
+
     /**
-     * Returns the path of this classpath resource relative to the package root within the classpath element.
-     * 
-     * @returns the path of this classpath resource relative to the package root within the classpath element. For
-     *          example, for a resource path of "BOOT-INF/classes/com/xyz/resource.xml" and a package root of
-     *          "BOOT-INF/classes/", returns "com/xyz/resource.xml".
+     * @return the path of this classpath resource relative to the package root within the classpath element. For
+     *         example, for a resource path of "BOOT-INF/classes/com/xyz/resource.xml" and a package root of
+     *         "BOOT-INF/classes/", returns "com/xyz/resource.xml".
      */
     public abstract String getPath();
 
     /**
-     * Returns the path of this classpath resource within the classpath element.
-     * 
-     * @returns the path of this classpath resource within the classpath element. For example, for a resource path
-     *          of "BOOT-INF/classes/com/xyz/resource.xml", returns "BOOT-INF/classes/com/xyz/resource.xml", even if
-     *          the package root is "BOOT-INF/classes/".
+     * @return the path of this classpath resource within the classpath element. For example, for a resource path of
+     *         "BOOT-INF/classes/com/xyz/resource.xml", returns "BOOT-INF/classes/com/xyz/resource.xml", even if the
+     *         package root is "BOOT-INF/classes/".
      */
     public abstract String getPathRelativeToClasspathElement();
 
     /**
-     * Get a URL representing the resource's location. May point to a temporary file that FastClasspathScanner
-     * extracted an inner jar or directory to, or downloaded a remote jar to. You may or may not be able to fetch
-     * content from the URL, because in the case of system modules, the URL is an internal "jrt:/" URL format.
-     * 
+     * @return A URL representing the resource's location. May point to a temporary file that FastClasspathScanner
+     *         extracted an inner jar or directory to, or downloaded a remote jar to. You may or may not be able to
+     *         fetch content from the URL.
      * @throws IllegalArgumentException
      *             if a {@link MalformedURLException} occurred while trying to construct the URL.
      */
     public abstract URL getURL();
 
+    // -------------------------------------------------------------------------------------------------------------
+
     /**
-     * Open an InputStream for a classpath resource. Make sure you call {@link Resource#close()} when you are
-     * finished with the InputStream, so that the InputStream is closed.
+     * Open an {@link InputStream} for a classpath resource. Make sure you call {@link Resource#close()} when you
+     * are finished with the {@link InputStream}, so that the {@link InputStream} is closed.
+     * 
+     * @return The opened {@link InputStream}.
+     * @throws IOException
+     *             If the {@link InputStream} could not be opened.
      */
     public abstract InputStream open() throws IOException;
 
     /**
-     * Open a ByteBuffer for a classpath resource. Make sure you call {@link Resource#close()} when you are finished
-     * with the ByteBuffer, so that the ByteBuffer is released or unmapped.
+     * Open a {@link ByteBuffer} for a classpath resource. Make sure you call {@link Resource#close()} when you are
+     * finished with the {@link ByteBuffer}, so that the {@link ByteBuffer} is released or unmapped.
+     * 
+     * @return The allocated or mapped {@link ByteBuffer} for the resource file content.
+     * @throws IOException
+     *             If the resource could not be opened.
      */
     public abstract ByteBuffer read() throws IOException;
 
@@ -113,6 +123,10 @@ public abstract class Resource implements AutoCloseable, Comparable<Resource> {
      * Load a classpath resource and return its content as a byte array. Automatically calls
      * {@link Resource#close()} after loading the byte array and before returning it, so that the underlying
      * InputStream is closed or the underlying ByteBuffer is released or unmapped.
+     * 
+     * @return The contents of the resource file.
+     * @throws IOException
+     *             If the file contents could not be loaded in their entirety.
      */
     public abstract byte[] load() throws IOException;
 
@@ -123,14 +137,16 @@ public abstract class Resource implements AutoCloseable, Comparable<Resource> {
     abstract InputStreamOrByteBufferAdapter openOrRead() throws IOException;
 
     /**
-     * Get length of InputStream or ByteBuffer. This only returns a valid value after calling {@link #open()} or
-     * {@link #read()}, and only if the underlying classpath element has length information for the classpath
-     * resource (some jarfiles may not have length information in their zip entries). Returns -1 if length is
-     * unknown.
+     * @return The length of the resource. This only reliably returns a valid value after calling {@link #open()},
+     *         {@link #read()}, or {@link #load()}, and for {@link #open()}, only if the underlying jarfile has
+     *         length information for corresponding {@link ZipEntry} (some jarfiles may not have length information
+     *         in their zip entries). Returns -1L if the length is unknown.
      */
     public long getLength() {
         return length;
     }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     protected abstract String toStringImpl();
 
@@ -161,6 +177,8 @@ public abstract class Resource implements AutoCloseable, Comparable<Resource> {
     public int compareTo(final Resource o) {
         return toString().compareTo(o.toString());
     }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     /** Close the underlying InputStream, or release/unmap the underlying ByteBuffer. */
     @Override

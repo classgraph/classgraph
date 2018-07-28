@@ -81,7 +81,7 @@ class Scanner implements Callable<ScanResult> {
     private static final int NUM_FILES_PER_CHUNK = 32;
 
     /** The classpath scanner. */
-    public Scanner(final ScanSpec scanSpec, final ExecutorService executorService, final int numParallelTasks,
+    Scanner(final ScanSpec scanSpec, final ExecutorService executorService, final int numParallelTasks,
             final boolean enableRecursiveScanning, final ScanResultProcessor scannResultProcessor,
             final FailureHandler failureHandler, final LogNode log) {
         this.scanSpec = scanSpec;
@@ -121,7 +121,7 @@ class Scanner implements Callable<ScanResult> {
          * Class-Path manifest entries, which require the adding of additional work units to the scanning work
          * queue.
          */
-        public void setWorkQueue(final WorkQueue<ClasspathOrModulePathEntry> workQueue) {
+        void setWorkQueue(final WorkQueue<ClasspathOrModulePathEntry> workQueue) {
             this.workQueue = workQueue;
         }
 

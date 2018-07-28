@@ -900,14 +900,24 @@ public class FastClasspathScanner {
     /** A callback used to process the result of a successful asynchronous scan. */
     @FunctionalInterface
     public interface ScanResultProcessor {
-        /** Process the result of an asynchronous scan after scanning has completed. */
+        /**
+         * Process the result of an asynchronous scan after scanning has completed.
+         * 
+         * @param scanResult
+         *            the {@link ScanResult} to process.
+         */
         public void processScanResult(ScanResult scanResult);
     }
 
     /** A callback used to handle failure during an asynchronous scan. */
     @FunctionalInterface
     public interface FailureHandler {
-        /** Called on scanning failure during an asynchronous scan. */
+        /**
+         * Called on scanning failure during an asynchronous scan.
+         * 
+         * @param throwable
+         *            the {@link Throwable} that was thrown during scanning.
+         */
         public void onFailure(Throwable throwable);
     }
 

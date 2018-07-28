@@ -109,19 +109,6 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
     }
 
     /**
-     * Load the referenced class, if not already loaded, returning a {@code Class<?>} reference for the referenced
-     * class. (Called by {@link AnnotationClassRef#loadClass()}.)
-     * 
-     * @return The {@code Class<?>} reference for the referenced class.
-     * @throws IllegalArgumentException
-     *             if the class could not be loaded.
-     */
-    @Override
-    public Class<?> loadClass() {
-        return super.loadClass();
-    }
-
-    /**
      * Get any type arguments of the base class.
      * 
      * @return The type arguments for the base class.
@@ -146,6 +133,21 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
      */
     public List<List<TypeArgument>> getSuffixTypeArguments() {
         return suffixTypeArguments;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Load the referenced class, if not already loaded, returning a {@code Class<?>} reference for the referenced
+     * class. (Called by {@link AnnotationClassRef#loadClass()}.)
+     * 
+     * @return The {@code Class<?>} reference for the referenced class.
+     * @throws IllegalArgumentException
+     *             if the class could not be loaded.
+     */
+    @Override
+    public Class<?> loadClass() {
+        return super.loadClass();
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -189,7 +191,7 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
     }
 
     @Override
-    public void getClassNamesFromTypeDescriptors(final Set<String> classNameListOut) {
+    void getClassNamesFromTypeDescriptors(final Set<String> classNameListOut) {
         classNameListOut.add(className);
         classNameListOut.add(getFullyQualifiedClassName());
         for (final TypeArgument typeArgument : typeArguments) {

@@ -33,9 +33,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import io.github.fastclasspathscanner.FastClasspathScanner.ClasspathElementFilter;
-import io.github.fastclasspathscanner.classloaderhandler.ClassLoaderHandlerRegistry;
 import io.github.fastclasspathscanner.classloaderhandler.ClassLoaderHandlerRegistry.ClassLoaderHandlerRegistryEntry;
-import io.github.fastclasspathscanner.utils.ClasspathFinder;
 import io.github.fastclasspathscanner.utils.JarUtils;
 import io.github.fastclasspathscanner.utils.LogNode;
 import io.github.fastclasspathscanner.utils.WhiteBlackList;
@@ -388,30 +386,6 @@ public class ScanSpec {
     boolean jarIsWhitelistedAndNotBlacklisted(final String jarName) {
         final String jarLeafName = JarUtils.leafName(jarName);
         return jarWhiteBlackList.isWhitelistedAndNotBlacklisted(jarLeafName);
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Get the list of all ClassLoaderHandlerRegistryEntry objects for user-defined ClassLoaderHandlers, followed by
-     * the defaults in the ClassLoaderHandlerRegistry.
-     */
-    public List<ClassLoaderHandlerRegistryEntry> getAllClassLoaderHandlerRegistryEntries() {
-        // Get all manually-added ClassLoaderHandlers (these are added before the default ClassLoaderHandlers,
-        // so that the behavior of the defaults can be overridden)
-        List<ClassLoaderHandlerRegistryEntry> allClassLoaderHandlerRegistryEntries;
-        if (extraClassLoaderHandlers.isEmpty()) {
-            allClassLoaderHandlerRegistryEntries = ClassLoaderHandlerRegistry.DEFAULT_CLASS_LOADER_HANDLERS;
-        } else {
-            allClassLoaderHandlerRegistryEntries = new ArrayList<>(extraClassLoaderHandlers);
-            allClassLoaderHandlerRegistryEntries.addAll(ClassLoaderHandlerRegistry.DEFAULT_CLASS_LOADER_HANDLERS);
-        }
-        return allClassLoaderHandlerRegistryEntries;
-    }
-
-    public ClassLoaderHandler findClassLoaderHandlerForClassLoader(final ClassLoader classLoader,
-            final LogNode log) {
-        return ClasspathFinder.findClassLoaderHandlerForClassLoader(this, classLoader, log);
     }
 
     // -------------------------------------------------------------------------------------------------------------

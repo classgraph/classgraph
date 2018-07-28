@@ -62,6 +62,17 @@ public interface ClassLoaderHandler {
     }
 
     /**
+     * If this ClassLoader delegates directly to an embedded classloader instance, return it here, otherwise return
+     * null.
+     * 
+     * @param outerClassLoaderInstance
+     *            The outer ClassLoader instance to check for an embedded ClassLoader.
+     * @return The embedded ClassLoader to use instead of the outer ClassLoader, or null to use the outer
+     *         ClassLoader.
+     */
+    public ClassLoader getEmbeddedClassLoader(ClassLoader outerClassLoaderInstance);
+
+    /**
      * The delegation order configuration for a given ClassLoader instance (this is usually PARENT_FIRST for most
      * ClassLoaders, since you don't generally want to be able to override system classes with user classes, but
      * this can be overridden by some ClassLoaders, e.g. WebSphere).

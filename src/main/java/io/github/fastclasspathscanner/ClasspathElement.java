@@ -101,8 +101,10 @@ abstract class ClasspathElement {
         return classpathEltPath.toString();
     }
 
-    /** Return the classpath element's file (directory or jarfile), or null if this is a module. */
-    public File getClasspathElementFile(final LogNode log) {
+    /**
+     * @return The classpath element's file (directory or jarfile), or null if this is a module.
+     */
+    File getClasspathElementFile(final LogNode log) {
         if (classpathEltPath.getModuleRef() != null) {
             return null;
         }
@@ -118,17 +120,17 @@ abstract class ClasspathElement {
      * If non-empty, this path represents the package root within a jarfile, e.g. if the path is
      * "spring-project.jar!/BOOT-INF/classes", the package root is "BOOT-INF/classes".
      */
-    public String getJarfilePackageRoot() {
+    String getJarfilePackageRoot() {
         return classpathEltPath.getJarfilePackageRoot();
     }
 
     /** Get the ClassLoader(s) to use when trying to load the class. */
-    public ClassLoader[] getClassLoaders() {
+    ClassLoader[] getClassLoaders() {
         return classpathEltPath.getClassLoaders();
     }
 
     /** Get the ModuleRef for the classpath element, if this is a module, otherwise returns null. */
-    public ModuleRef getClasspathElementModuleRef() {
+    ModuleRef getClasspathElementModuleRef() {
         return classpathEltPath.getModuleRef();
     }
 
@@ -189,7 +191,7 @@ abstract class ClasspathElement {
     }
 
     /** Get the number of classfile matches. */
-    public int getNumClassfileMatches() {
+    int getNumClassfileMatches() {
         return classfileMatches == null ? 0 : classfileMatches.size();
     }
 
@@ -283,11 +285,11 @@ abstract class ClasspathElement {
     // -------------------------------------------------------------------------------------------------------------
 
     /** Scan the classpath element */
-    public abstract void scanPaths(LogNode log);
+    abstract void scanPaths(LogNode log);
 
     /**
      * Close the classpath element's resources, if needed (this closes and frees any open ZipFiles or
      * ModuleReaders).
      */
-    public abstract void close();
+    abstract void close();
 }

@@ -225,7 +225,7 @@ public class MethodTypeSignature extends HierarchicalTypeSignature {
     }
 
     @Override
-    public void getClassNamesFromTypeDescriptors(final Set<String> classNameListOut) {
+    void getClassNamesFromTypeDescriptors(final Set<String> classNameListOut) {
         for (final TypeParameter typeParameter : typeParameters) {
             if (typeParameter != null) {
                 typeParameter.getClassNamesFromTypeDescriptors(classNameListOut);

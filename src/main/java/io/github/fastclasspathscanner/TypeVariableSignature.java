@@ -156,7 +156,7 @@ public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
     }
 
     @Override
-    public void getClassNamesFromTypeDescriptors(final Set<String> classNames) {
+    void getClassNamesFromTypeDescriptors(final Set<String> classNames) {
         // No class names present in type variables
     }
 

@@ -28,7 +28,10 @@
  */
 package io.github.fastclasspathscanner.utils;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Deque;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -43,19 +46,124 @@ public class ClassLoaderAndModuleFinder {
     private final List<ModuleRef> systemModuleRefs;
     private final List<ModuleRef> nonSystemModuleRefs;
 
-    /** Get context classloader, and any other classloader that is not an ancestor of context classloader. */
+    /**
+     * @return The context classloader, and any other classloader that is not an ancestor of context classloader.
+     */
     public ClassLoader[] getClassLoaders() {
         return classLoaders;
     }
 
-    /** Get system modules as ModuleRef wrappers, or null if no modules were found (e.g. on JDK 7 or 8). */
+    /** @return The system modules as ModuleRef wrappers, or null if no modules were found (e.g. on JDK 7 or 8). */
     public List<ModuleRef> getSystemModuleRefs() {
         return systemModuleRefs;
     }
 
-    /** Get non-system modules as ModuleRef wrappers, or null if no modules were found (e.g. on JDK 7 or 8). */
+    /**
+     * @return The non-system modules as ModuleRef wrappers, or null if no modules were found (e.g. on JDK 7 or 8).
+     */
     public List<ModuleRef> getNonSystemModuleRefs() {
         return nonSystemModuleRefs;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Recursively find the topological sort order of ancestral layers. The JDK (as of 10.0.0.1) uses a broken
+     * (non-topological) DFS ordering for layer resolution in ModuleLayer#layers() and
+     * Configuration#configurations() but when I reported this bug on the Jigsaw mailing list, Alan didn't see what
+     * the problem was...
+     */
+    private static void findLayerOrder(final Object /* ModuleLayer */ layer,
+            final Set<Object> /* Set<ModuleLayer> */ layerVisited,
+            final Deque<Object> /* Deque<ModuleLayer> */ layerOrderOut) {
+        if (layerVisited.add(layer)) {
+            @SuppressWarnings("unchecked")
+            final List<Object> /* List<ModuleLayer> */ parents = (List<Object>) ReflectionUtils.invokeMethod(layer,
+                    "parents", /* throwException = */ true);
+            if (parents != null) {
+                for (int i = 0; i < parents.size(); i++) {
+                    findLayerOrder(parents.get(i), layerVisited, layerOrderOut);
+                }
+            }
+            layerOrderOut.push(layer);
+        }
+    }
+
+    /**
+     * Get all visible ModuleReferences in all layers, given an array of stack frame {@code Class<?>} references.
+     * 
+     * @param callStack
+     * @return
+     */
+    private static List<ModuleRef> findModuleRefs(final Class<?>[] callStack) {
+        Deque<Object> /* Deque<ModuleLayer> */ layerOrder = null;
+        final HashSet<Object> /* HashSet<ModuleLayer> */ layerVisited = new HashSet<>();
+        for (int i = 0; i < callStack.length; i++) {
+            final Object /* Module */ module = ReflectionUtils.invokeMethod(callStack[i], "getModule",
+                    /* throwException = */ false);
+            if (module != null) {
+                final Object /* ModuleLayer */ layer = ReflectionUtils.invokeMethod(module, "getLayer",
+                        /* throwException = */ true);
+                // getLayer() returns null for unnamed modules -- we have to get their classes from java.class.path 
+                if (layer != null) {
+                    if (layerOrder == null) {
+                        layerOrder = new ArrayDeque<>();
+                    }
+                    findLayerOrder(layer, layerVisited, layerOrder);
+                }
+            }
+        }
+
+        // Add system modules from boot layer, if they weren't already found in stacktrace
+        Class<?> moduleLayerClass = null;
+        try {
+            moduleLayerClass = Class.forName("java.lang.ModuleLayer");
+        } catch (final Throwable e) {
+        }
+        if (moduleLayerClass != null) {
+            final Object /* ModuleLayer */ bootLayer = ReflectionUtils.invokeStaticMethod(moduleLayerClass, "boot",
+                    /* throwException = */ false);
+            if (bootLayer != null) {
+                if (layerOrder == null) {
+                    layerOrder = new ArrayDeque<>();
+                }
+                findLayerOrder(bootLayer, layerVisited, layerOrder);
+            }
+        }
+
+        if (layerOrder != null) {
+            // Find modules in the ordered layers
+            final Set<Object> /* Set<ModuleReference> */ addedModules = new HashSet<>();
+            final LinkedHashSet<ModuleRef> moduleRefOrder = new LinkedHashSet<>();
+            for (final Object /* ModuleLayer */ layer : layerOrder) {
+                final Object /* Configuration */ configuration = ReflectionUtils.invokeMethod(layer,
+                        "configuration", /* throwException = */ true);
+                if (configuration != null) {
+                    // Get ModuleReferences from layer configuration
+                    @SuppressWarnings("unchecked")
+                    final Set<Object> /* Set<ResolvedModule> */ modules = (Set<Object>) ReflectionUtils
+                            .invokeMethod(configuration, "modules", /* throwException = */ true);
+                    if (modules != null) {
+                        final List<ModuleRef> modulesInLayer = new ArrayList<>();
+                        for (final Object /* ResolvedModule */ module : modules) {
+                            final Object /* ModuleReference */ moduleReference = ReflectionUtils
+                                    .invokeMethod(module, "reference", /* throwException = */ true);
+                            if (moduleReference != null) {
+                                if (addedModules.add(moduleReference)) {
+                                    modulesInLayer.add(new ModuleRef(moduleReference, layer));
+                                }
+                            }
+                        }
+                        // Sort modules in layer by name
+                        Collections.sort(modulesInLayer);
+                        moduleRefOrder.addAll(modulesInLayer);
+                    }
+                }
+            }
+            return new ArrayList<>(moduleRefOrder);
+        } else {
+            return Collections.<ModuleRef> emptyList();
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -106,7 +214,7 @@ public class ClassLoaderAndModuleFinder {
                     }
                 }
                 // Find module references for classes on callstack (for JDK9+)
-                final List<ModuleRef> allModuleRefsList = ModuleRef.findModuleRefs(callStack);
+                final List<ModuleRef> allModuleRefsList = findModuleRefs(callStack);
 
                 // Split modules into system modules and non-system modules
                 systemModuleRefs = new ArrayList<>();

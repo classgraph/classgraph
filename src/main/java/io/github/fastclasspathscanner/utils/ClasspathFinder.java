@@ -30,8 +30,10 @@ package io.github.fastclasspathscanner.utils;
 
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 import io.github.fastclasspathscanner.ClassLoaderHandler;
 import io.github.fastclasspathscanner.ClassLoaderHandler.DelegationOrder;
@@ -41,8 +43,6 @@ import io.github.fastclasspathscanner.classloaderhandler.ClassLoaderHandlerRegis
 
 /** A class to find the unique ordered classpath elements. */
 public class ClasspathFinder {
-    static final String currDirPathStr = FileUtils.getCurrDirPathStr();
-
     private final List<ClasspathOrModulePathEntry> rawClasspathElements;
     private final ClassLoaderAndModuleFinder classLoaderAndModuleFinder;
 
@@ -55,43 +55,62 @@ public class ClasspathFinder {
             final List<ClassLoaderHandlerRegistryEntry> allClassLoaderHandlerRegistryEntries,
             final List<SimpleEntry<ClassLoader, ClassLoaderHandler>> classLoaderAndHandlerOrderOut,
             final List<SimpleEntry<ClassLoader, ClassLoaderHandler>> ignoredClassLoaderAndHandlerOrderOut,
-            final LogNode log) {
+            final Set<ClassLoader> visited, final LogNode log) {
         // Instantiate a ClassLoaderHandler for each ClassLoader, in case the ClassLoaderHandler has state
         final ClassLoaderHandler classLoaderHandler = classLoaderHandlerRegistryEntry.instantiate(log);
         if (classLoaderHandler != null) {
             if (log != null) {
                 log.log("ClassLoader " + classLoader + " will be handled by " + classLoaderHandler);
             }
-            final DelegationOrder delegationOrder = classLoaderHandler.getDelegationOrder(classLoader);
-            final ClassLoader parent = classLoader.getParent();
-            if (log != null && parent != null) {
-                log.log(classLoader + " delegates to parent " + parent + " with order " + delegationOrder);
-            }
-            switch (delegationOrder) {
-            case PARENT_FIRST:
-                // Recurse to parent first, then add this ClassLoader to order
-                if (parent != null) {
-                    findClassLoaderHandlerForClassLoaderAndParents(scanSpec, parent, foundClassLoaders,
-                            allClassLoaderHandlerRegistryEntries,
-                            scanSpec.ignoreParentClassLoaders ? ignoredClassLoaderAndHandlerOrderOut
-                                    : classLoaderAndHandlerOrderOut,
-                            ignoredClassLoaderAndHandlerOrderOut, log);
+            final ClassLoader embeddedClassLoader = classLoaderHandler.getEmbeddedClassLoader(classLoader);
+            if (embeddedClassLoader != null) {
+                if (visited.add(embeddedClassLoader)) {
+                    if (log != null) {
+                        log.log("Delegating from " + classLoader + " to embedded ClassLoader "
+                                + embeddedClassLoader);
+                    }
+                    return addClassLoaderHandler(scanSpec, embeddedClassLoader, classLoaderHandlerRegistryEntry,
+                            foundClassLoaders, allClassLoaderHandlerRegistryEntries, classLoaderAndHandlerOrderOut,
+                            ignoredClassLoaderAndHandlerOrderOut, visited, log);
+                } else {
+                    if (log != null) {
+                        log.log("Hit infinite loop when delegating from " + classLoader
+                                + " to embedded ClassLoader " + embeddedClassLoader);
+                    }
+                    return false;
                 }
-                classLoaderAndHandlerOrderOut.add(new SimpleEntry<>(classLoader, classLoaderHandler));
-                return true;
-            case PARENT_LAST:
-                // Add this ClassLoader to order, then recurse to parent
-                classLoaderAndHandlerOrderOut.add(new SimpleEntry<>(classLoader, classLoaderHandler));
-                if (parent != null) {
-                    findClassLoaderHandlerForClassLoaderAndParents(scanSpec, parent, foundClassLoaders,
-                            allClassLoaderHandlerRegistryEntries,
-                            scanSpec.ignoreParentClassLoaders ? ignoredClassLoaderAndHandlerOrderOut
-                                    : classLoaderAndHandlerOrderOut,
-                            ignoredClassLoaderAndHandlerOrderOut, log);
+            } else {
+                final DelegationOrder delegationOrder = classLoaderHandler.getDelegationOrder(classLoader);
+                final ClassLoader parent = classLoader.getParent();
+                if (log != null && parent != null) {
+                    log.log(classLoader + " delegates to parent " + parent + " with order " + delegationOrder);
                 }
-                return true;
-            default:
-                throw new RuntimeException("Unknown delegation order");
+                switch (delegationOrder) {
+                case PARENT_FIRST:
+                    // Recurse to parent first, then add this ClassLoader to order
+                    if (parent != null) {
+                        findClassLoaderHandlerForClassLoaderAndParents(scanSpec, parent, foundClassLoaders,
+                                allClassLoaderHandlerRegistryEntries,
+                                scanSpec.ignoreParentClassLoaders ? ignoredClassLoaderAndHandlerOrderOut
+                                        : classLoaderAndHandlerOrderOut,
+                                ignoredClassLoaderAndHandlerOrderOut, log);
+                    }
+                    classLoaderAndHandlerOrderOut.add(new SimpleEntry<>(classLoader, classLoaderHandler));
+                    return true;
+                case PARENT_LAST:
+                    // Add this ClassLoader to order, then recurse to parent
+                    classLoaderAndHandlerOrderOut.add(new SimpleEntry<>(classLoader, classLoaderHandler));
+                    if (parent != null) {
+                        findClassLoaderHandlerForClassLoaderAndParents(scanSpec, parent, foundClassLoaders,
+                                allClassLoaderHandlerRegistryEntries,
+                                scanSpec.ignoreParentClassLoaders ? ignoredClassLoaderAndHandlerOrderOut
+                                        : classLoaderAndHandlerOrderOut,
+                                ignoredClassLoaderAndHandlerOrderOut, log);
+                    }
+                    return true;
+                default:
+                    throw new RuntimeException("Unknown delegation order");
+                }
             }
         }
         return false;
@@ -118,11 +137,11 @@ public class ClasspathFinder {
                     for (final String handledClassLoaderName : //
                     classLoaderHandlerRegistryEntry.handledClassLoaderNames) {
                         if (handledClassLoaderName.equals(c.getName())) {
-                            // This ClassLoaderHandler can handle this class --
-                            // instantiate the ClassLoaderHandler for this ClassLoader
+                            // This ClassLoaderHandler can handle this class -- instantiate it
                             if (addClassLoaderHandler(scanSpec, classLoader, classLoaderHandlerRegistryEntry,
                                     foundClassLoaders, allClassLoaderHandlerRegistryEntries,
-                                    classLoaderAndHandlerOrderOut, ignoredClassLoaderAndHandlerOrderOut, log)) {
+                                    classLoaderAndHandlerOrderOut, ignoredClassLoaderAndHandlerOrderOut,
+                                    new HashSet<ClassLoader>(), log)) {
                                 foundMatch = true;
                             }
                             break;
@@ -147,39 +166,23 @@ public class ClasspathFinder {
                 addClassLoaderHandler(scanSpec, classLoader,
                         ClassLoaderHandlerRegistry.FALLBACK_CLASS_LOADER_HANDLER, foundClassLoaders,
                         allClassLoaderHandlerRegistryEntries, classLoaderAndHandlerOrderOut,
-                        ignoredClassLoaderAndHandlerOrderOut, log);
+                        ignoredClassLoaderAndHandlerOrderOut, new HashSet<ClassLoader>(), log);
             }
         }
-    }
-
-    /**
-     * Instantiate a ClassLoaderHandler for a given class, or return an instance of FallbackClassLoaderHandler if no
-     * ClassLoaderHandler can handle the class.
-     */
-    public static ClassLoaderHandler findClassLoaderHandlerForClassLoader(final ScanSpec scanSpec,
-            final ClassLoader classLoader, final LogNode log) {
-        // Iterate through each ClassLoader superclass name
-        for (Class<?> c = classLoader.getClass(); c != null; c = c.getSuperclass()) {
-            // Compare against the class names handled by each ClassLoaderHandler
-            final List<ClassLoaderHandlerRegistryEntry> allClassLoaderHandlerRegistryEntries = scanSpec
-                    .getAllClassLoaderHandlerRegistryEntries();
-            for (final ClassLoaderHandlerRegistryEntry classLoaderHandlerRegistryEntry : //
-            allClassLoaderHandlerRegistryEntries) {
-                for (final String handledClassLoaderName : classLoaderHandlerRegistryEntry.handledClassLoaderNames) {
-                    if (handledClassLoaderName.equals(c.getName())) {
-                        // This ClassLoaderHandler can handle this class --
-                        // instantiate the ClassLoaderHandler for this ClassLoader
-                        return classLoaderHandlerRegistryEntry.instantiate(log);
-                    }
-                }
-            }
-        }
-        return ClassLoaderHandlerRegistry.FALLBACK_CLASS_LOADER_HANDLER.instantiate(log);
     }
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** A class to find the unique ordered classpath elements. */
+    /**
+     * A class to find the unique ordered classpath elements.
+     * 
+     * @param scanSpec
+     *            The {@link ScanSpec}.
+     * @param nestedJarHandler
+     *            The {@link NestedJarHandler}.
+     * @param log
+     *            The log.
+     */
     public ClasspathFinder(final ScanSpec scanSpec, final NestedJarHandler nestedJarHandler, final LogNode log) {
         final LogNode classpathFinderLog = log == null ? null : log.log("Finding ClassLoaders and modules");
 
@@ -220,9 +223,17 @@ public class ClasspathFinder {
                 }
             }
 
-            // Get default ClassLoaderHandlers from the ClassLoaderHandler registry
-            final List<ClassLoaderHandlerRegistryEntry> allClassLoaderHandlerRegistryEntries = scanSpec
-                    .getAllClassLoaderHandlerRegistryEntries();
+            // Get all manually-added ClassLoaderHandlers (these are added before the default ClassLoaderHandlers,
+            // so that the behavior of the defaults can be overridden)
+            List<ClassLoaderHandlerRegistryEntry> allClassLoaderHandlerRegistryEntries;
+            if (scanSpec.extraClassLoaderHandlers.isEmpty()) {
+                allClassLoaderHandlerRegistryEntries = ClassLoaderHandlerRegistry.DEFAULT_CLASS_LOADER_HANDLERS;
+            } else {
+                allClassLoaderHandlerRegistryEntries = new ArrayList<>(scanSpec.extraClassLoaderHandlers);
+                allClassLoaderHandlerRegistryEntries
+                        .addAll(ClassLoaderHandlerRegistry.DEFAULT_CLASS_LOADER_HANDLERS);
+            }
+
             if (classpathFinderLog != null) {
                 final LogNode classLoaderHandlerLog = classpathFinderLog.log("ClassLoaderHandlers:");
                 for (final ClassLoaderHandlerRegistryEntry classLoaderHandlerEntry : //
@@ -286,8 +297,9 @@ public class ClasspathFinder {
                     final LogNode sysPropLog = classpathFinderLog == null ? null
                             : classpathFinderLog.log("Getting classpath entries from java.class.path");
                     for (final String pathElement : pathElements) {
-                        if (!ignoredClasspathOrder.get().contains(new ClasspathOrModulePathEntry(currDirPathStr,
-                                pathElement, classLoaders, nestedJarHandler, scanSpec, log))) {
+                        if (!ignoredClasspathOrder.get()
+                                .contains(new ClasspathOrModulePathEntry(FileUtils.CURR_DIR_PATH, pathElement,
+                                        classLoaders, nestedJarHandler, scanSpec, log))) {
                             // pathElement is not also listed in an ignored parent classloader
                             classpathOrder.addClasspathElement(pathElement, classLoaders, scanSpec, sysPropLog);
                         } else {

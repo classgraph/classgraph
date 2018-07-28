@@ -159,7 +159,7 @@ public class TypeParameter extends HierarchicalTypeSignature {
     }
 
     @Override
-    public void getClassNamesFromTypeDescriptors(final Set<String> classNameListOut) {
+    void getClassNamesFromTypeDescriptors(final Set<String> classNameListOut) {
         if (classBound != null) {
             classBound.getClassNamesFromTypeDescriptors(classNameListOut);
         }

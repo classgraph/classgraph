@@ -250,6 +250,7 @@ class ClasspathElementZip extends ClasspathElement {
             public byte[] load() throws IOException {
                 read();
                 final byte[] byteArray = inputStreamToByteArray();
+                length = byteArray.length;
                 close();
                 return byteArray;
             }
@@ -272,7 +273,7 @@ class ClasspathElementZip extends ClasspathElement {
 
     /** Scan for path matches within jarfile, and record ZipEntry objects of matching files. */
     @Override
-    public void scanPaths(final LogNode log) {
+    void scanPaths(final LogNode log) {
         final String path = classpathEltPath.getResolvedPath();
         String canonicalPath = path;
         try {
@@ -404,7 +405,7 @@ class ClasspathElementZip extends ClasspathElement {
 
     /** Close and free all open ZipFiles. */
     @Override
-    public void close() {
+    void close() {
         if (zipFileRecycler != null) {
             zipFileRecycler.close();
         }

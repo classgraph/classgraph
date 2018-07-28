@@ -97,9 +97,10 @@ public class ClasspathOrder {
                                             && pathElement.charAt(pathElement.length() - 2) == '/')))) {
                 // Got wildcard path element (allowable for local classpaths as of JDK 6)
                 try {
-                    final ClasspathOrModulePathEntry classpathEltParentDirRelativePath = new ClasspathOrModulePathEntry(
-                            ClasspathFinder.currDirPathStr, pathElement.substring(0, pathElement.length() - 2),
-                            classLoaders, nestedJarHandler, scanSpec, subLog);
+                    final ClasspathOrModulePathEntry classpathEltParentDirRelativePath = //
+                            new ClasspathOrModulePathEntry(FileUtils.CURR_DIR_PATH,
+                                    pathElement.substring(0, pathElement.length() - 2), classLoaders,
+                                    nestedJarHandler, scanSpec, subLog);
                     final String classpathEltParentDirPath = classpathEltParentDirRelativePath.getResolvedPath();
                     if (!filter(classpathEltParentDirPath)) {
                         if (log != null) {
@@ -147,7 +148,7 @@ public class ClasspathOrder {
             }
         } else {
             final ClasspathOrModulePathEntry classpathEltRelativePath = new ClasspathOrModulePathEntry(
-                    ClasspathFinder.currDirPathStr, pathElement, classLoaders, nestedJarHandler, scanSpec, subLog);
+                    FileUtils.CURR_DIR_PATH, pathElement, classLoaders, nestedJarHandler, scanSpec, subLog);
             final String classpathEltPath = classpathEltRelativePath.getResolvedPath();
             if (!filter(classpathEltPath)) {
                 if (log != null) {

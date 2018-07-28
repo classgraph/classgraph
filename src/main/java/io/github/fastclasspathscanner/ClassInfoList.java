@@ -151,11 +151,10 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
      *            The type to cast each loaded class to.
      * @param ignoreExceptions
      *            If true, ignore any exceptions or errors thrown during classloading, or when attempting to cast
-     *            the resulting {@code Class<?>} reference to the requested type. If an exception or error is
-     *            thrown, no {@code Class<?>} reference is added to the output class for the corresponding
-     *            {@link ClassInfo} object, so the returned list may contain fewer items than this input list. If
-     *            false, {@link IllegalArgumentException} is thrown if the class could not be loaded or cast to the
-     *            requested type.
+     *            the resulting {@code Class<?>} reference to the requested type -- instead, skip the element (i.e.
+     *            the returned list may contain fewer items than this input list). If false,
+     *            {@link IllegalArgumentException} is thrown if the class could not be loaded or could not be cast
+     *            to the requested type.
      * @throws IllegalArgumentException
      *             if ignoreExceptions is false and an exception or error was thrown while trying to load or cast
      *             any of the classes.

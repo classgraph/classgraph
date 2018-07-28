@@ -160,7 +160,7 @@ public class TypeArgument extends HierarchicalTypeSignature {
     }
 
     @Override
-    public void getClassNamesFromTypeDescriptors(final Set<String> classNameListOut) {
+    void getClassNamesFromTypeDescriptors(final Set<String> classNameListOut) {
         if (typeSignature != null) {
             typeSignature.getClassNamesFromTypeDescriptors(classNameListOut);
         }

@@ -53,6 +53,11 @@ public class JBossClassLoaderHandler implements ClassLoaderHandler {
     }
 
     @Override
+    public ClassLoader getEmbeddedClassLoader(final ClassLoader outerClassLoaderInstance) {
+        return null;
+    }
+
+    @Override
     public DelegationOrder getDelegationOrder(final ClassLoader classLoaderInstance) {
         return DelegationOrder.PARENT_FIRST;
     }

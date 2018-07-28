@@ -133,6 +133,14 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
     /** A {@link FunctionalInterface} for consuming the contents of a {@link Resource} as a byte array. */
     @FunctionalInterface
     public interface ByteArrayConsumer {
+        /**
+         * Consume the complete content of a {@link Resource} as a byte array.
+         * 
+         * @param resource
+         *            The {@link Resource} used to load the byte array.
+         * @param byteArray
+         *            The complete content of the resource.
+         */
         public void accept(final Resource resource, final byte[] byteArray);
     }
 
@@ -184,6 +192,14 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
     /** A {@link FunctionalInterface} for consuming the contents of a {@link Resource} as an {@link InputStream}. */
     @FunctionalInterface
     public interface InputStreamConsumer {
+        /**
+         * Consume a {@link Resource} as an {@link InputStream}.
+         * 
+         * @param resource
+         *            The {@link Resource} used to open the {@link InputStream}.
+         * @param inputStream
+         *            The {@link InputStream} opened on the resource.
+         */
         public void accept(final Resource resource, final InputStream inputStream);
     }
 
@@ -236,6 +252,14 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
     /** A {@link FunctionalInterface} for consuming the contents of a {@link Resource} as a {@link ByteBuffer}. */
     @FunctionalInterface
     public interface ByteBufferConsumer {
+        /**
+         * Consume a {@link Resource} as a {@link ByteBuffer}.
+         * 
+         * @param resource
+         *            The {@link Resource} whose content is reflected in the {@link ByteBuffer}.
+         * @param byteBuffer
+         *            The {@link ByteBuffer} mapped to the resource.
+         */
         public void accept(final Resource resource, final ByteBuffer byteBuffer);
     }
 

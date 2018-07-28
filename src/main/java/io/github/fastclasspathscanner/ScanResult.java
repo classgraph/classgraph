@@ -188,7 +188,9 @@ public class ScanResult implements Closeable {
         return classpathElementOrderURLs;
     }
 
-    /** Returns {@ModuleRef} references for all the visible modules. */
+    /**
+     * @return {@ModuleRef} references for all the visible modules.
+     */
     public List<ModuleRef> getModules() {
         final List<ModuleRef> moduleRefs = new ArrayList<>();
         for (final ClasspathElement classpathElement : classpathOrder) {
@@ -202,7 +204,7 @@ public class ScanResult implements Closeable {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Get a list of all resources (including classfiles and non-classfiles) found in whitelisted packages. */
+    /** @return A list of all resources (including classfiles and non-classfiles) found in whitelisted packages. */
     public ResourceList getAllResources() {
         if (allResources == null || allResources.isEmpty()) {
             return new ResourceList(1);
@@ -212,8 +214,10 @@ public class ScanResult implements Closeable {
     }
 
     /**
-     * Get a list of all resources found in whitelisted packages that have the given path, relative to the package
-     * root of the classpath element. May match several resources, up to one per classpath element.
+     * @param resourcePath
+     *            A complete resource path, relative to the classpath entry package root.
+     * @return A list of all resources found in whitelisted packages that have the given path, relative to the
+     *         package root of the classpath element. May match several resources, up to one per classpath element.
      */
     public ResourceList getResourcesWithPath(final String resourcePath) {
         if (allResources == null || allResources.isEmpty()) {
@@ -233,7 +237,11 @@ public class ScanResult implements Closeable {
         }
     }
 
-    /** Get a list of all resources found in whitelisted packages that have the requested leafname. */
+    /**
+     * @param leafName
+     *            A resource leaf filename.
+     * @return A list of all resources found in whitelisted packages that have the requested leafname.
+     */
     public ResourceList getResourcesWithLeafName(final String leafName) {
         if (allResources == null || allResources.isEmpty()) {
             return new ResourceList(1);
@@ -251,8 +259,9 @@ public class ScanResult implements Closeable {
     }
 
     /**
-     * Get a list of all resources found in whitelisted packages that have the requested extension (e.g. "xml" to
-     * match all resources ending in ".xml").
+     * @param extension
+     *            A filename extension, e.g. "xml" to match all resources ending in ".xml".
+     * @return A list of all resources found in whitelisted packages that have the requested filename extension.
      */
     public ResourceList getResourcesWithExtension(final String extension) {
         if (allResources == null || allResources.isEmpty()) {
@@ -278,8 +287,10 @@ public class ScanResult implements Closeable {
     }
 
     /**
-     * Get a list of all resources found in whitelisted packages that have a path, relative to the classpath package
-     * root, matching the requested pattern.
+     * @param pattern
+     *            A pattern to match {@link Resource} paths with.
+     * @return A list of all resources found in whitelisted packages that have a path matching the requested
+     *         pattern.
      */
     public ResourceList getResourcesMatchingPattern(final Pattern pattern) {
         if (allResources == null || allResources.isEmpty()) {
@@ -351,6 +362,8 @@ public class ScanResult implements Closeable {
      * Get the ClassInfo object for the named class, or null if no class of the requested name was found in a
      * whitelisted/non-blacklisted package during scanning.
      * 
+     * @param className
+     *            The class name.
      * @return The ClassInfo object for the named class, or null if the class was not found.
      */
     public ClassInfo getClassInfo(final String className) {
@@ -807,7 +820,13 @@ public class ScanResult implements Closeable {
         }
     }
 
-    /** Deserialize a ScanResult from previously-saved JSON. */
+    /**
+     * Deserialize a ScanResult from previously-serialized JSON.
+     * 
+     * @param json
+     *            The JSON string for the serialized {@link ScanResult}.
+     * @return The deserialized {@link ScanResult}.
+     */
     public static ScanResult fromJSON(final String json) {
         final Matcher matcher = Pattern.compile("\\{[\\n\\r ]*\"serializationFormat\"[ ]?:[ ]?\"([^\"]+)\"")
                 .matcher(json);
@@ -862,6 +881,7 @@ public class ScanResult implements Closeable {
      * 
      * @param indentWidth
      *            If greater than 0, JSON will be formatted (indented), otherwise it will be minified (un-indented).
+     * @return This {@link ScanResult}, serialized as a JSON string.
      */
     public String toJSON(final int indentWidth) {
         if (!scanSpec.enableClassInfo) {
@@ -873,7 +893,11 @@ public class ScanResult implements Closeable {
                 allClassInfo, rawClasspathEltOrderStrs), indentWidth, false);
     }
 
-    /** Serialize a ScanResult to minified (un-indented) JSON. */
+    /**
+     * Serialize a ScanResult to minified (un-indented) JSON.
+     * 
+     * @return This {@link ScanResult}, serialized as a JSON string.
+     */
     public String toJSON() {
         return toJSON(0);
     }

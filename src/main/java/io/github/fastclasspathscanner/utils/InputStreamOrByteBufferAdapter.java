@@ -59,6 +59,12 @@ public abstract class InputStreamOrByteBufferAdapter {
     /** Bytes used in the buffer. */
     public int used = 0;
 
+    /**
+     * Read an initial chunk of the file into the buffer.
+     * 
+     * @throws IOException
+     *             If a chunk of the file content could not be read.
+     */
     public void readInitialChunk() throws IOException {
         // Read first bufferful
         for (int bytesRead; used < INITIAL_BUFFER_CHUNK_SIZE

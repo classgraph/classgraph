@@ -148,6 +148,7 @@ class ClasspathElementModule extends ClasspathElement {
             public byte[] load() throws IOException {
                 read();
                 final byte[] byteArray = byteBufferToByteArray();
+                length = byteArray.length;
                 close();
                 return byteArray;
             }
@@ -177,7 +178,7 @@ class ClasspathElementModule extends ClasspathElement {
 
     /** Scan for package matches within module */
     @Override
-    public void scanPaths(final LogNode log) {
+    void scanPaths(final LogNode log) {
         final String moduleLocationStr = moduleRef.getLocationStr();
         final LogNode subLog = log == null ? null
                 : log.log(moduleLocationStr, "Scanning module classpath entry " + classpathEltPath);
@@ -276,7 +277,7 @@ class ClasspathElementModule extends ClasspathElement {
 
     /** Close and free all open ZipFiles. */
     @Override
-    public void close() {
+    void close() {
         if (moduleReaderProxyRecycler != null) {
             // Will close all the ModuleReaderProxies, which will in turn call ModuleReader#close()
             // on all open ModuleReaders.

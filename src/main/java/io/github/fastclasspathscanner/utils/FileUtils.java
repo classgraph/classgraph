@@ -38,6 +38,12 @@ import java.nio.file.Paths;
 
 public class FileUtils {
     /**
+     * The current directory path (only reads the current directory once, the first time this field is accessed, so
+     * will not reflect subsequent changes to the current directory).
+     */
+    public static final String CURR_DIR_PATH = getCurrDirPathStr();
+
+    /**
      * Get current dir (without resolving symlinks), and normalize path by calling FastPathResolver.resolve().
      */
     public static String getCurrDirPathStr() {

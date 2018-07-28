@@ -50,6 +50,11 @@ public class WebsphereTraditionalClassLoaderHandler implements ClassLoaderHandle
     }
 
     @Override
+    public ClassLoader getEmbeddedClassLoader(final ClassLoader outerClassLoaderInstance) {
+        return null;
+    }
+
+    @Override
     public DelegationOrder getDelegationOrder(final ClassLoader classLoaderInstance) {
         // TODO: Read correct delegation order from ClassLoader
         return DelegationOrder.PARENT_FIRST;

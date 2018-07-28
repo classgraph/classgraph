@@ -42,30 +42,19 @@ public class EquinoxContextFinderClassLoaderHandler implements ClassLoaderHandle
     }
 
     @Override
+    public ClassLoader getEmbeddedClassLoader(final ClassLoader outerClassLoaderInstance) {
+        return (ClassLoader) ReflectionUtils.getFieldVal(outerClassLoaderInstance, "parentContextClassLoader",
+                false);
+    }
+
+    @Override
     public DelegationOrder getDelegationOrder(final ClassLoader classLoaderInstance) {
         return DelegationOrder.PARENT_FIRST;
     }
 
-    // For ContextFinder, all but the last ClassLoader that is tried are pulled from the context stack.
-    // FCS already does this when looking for ClassLoaders to try, so all these ClassLoaders should already
-    // be handled. However, if all those ClassLoaders fail, as a fallback, ContextFinder calls the
-    // parentContextClassLoader, which may not be the same as the actual parent classloader.
-    // Therefore, create a ClassLoaderHandler for parentContextClassLoader, if present, and delegate to
-    // this ClassLoader here, and ignore the rest of the ClassLoaders in the call stack.
     @Override
     public void handle(final ScanSpec scanSpec, final ClassLoader classLoader,
             final ClasspathOrder classpathOrderOut, final LogNode log) throws Exception {
-        // type ClassLoader
-        final Object parentContextClassLoader = ReflectionUtils.getFieldVal(classLoader, "parentContextClassLoader",
-                false);
-        if (parentContextClassLoader != null) {
-            final ClassLoaderHandler parentContextClassLoaderHandler = scanSpec
-                    .findClassLoaderHandlerForClassLoader(classLoader, log);
-            LogNode subLog = log;
-            if (log != null) {
-                subLog = log.log("Delegating to parentContextClassLoader: " + parentContextClassLoader);
-            }
-            parentContextClassLoaderHandler.handle(scanSpec, classLoader, classpathOrderOut, subLog);
-        }
+        // Nothing to handle -- embedded parentContextClassLoader will be used instead.
     }
 }

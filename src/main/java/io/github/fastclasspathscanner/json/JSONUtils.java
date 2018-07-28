@@ -118,7 +118,13 @@ public class JSONUtils {
         }
     }
 
-    /** Escape a string to be surrounded in double quotes in JSON. */
+    /**
+     * Escape a string to be surrounded in double quotes in JSON.
+     * 
+     * @param unsafeStr
+     *            The string to escape.
+     * @return The escaped string.
+     */
     public static String escapeJSONString(final String unsafeStr) {
         if (unsafeStr == null) {
             return unsafeStr;

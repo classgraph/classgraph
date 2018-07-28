@@ -37,6 +37,8 @@ public class BaseTypeSignature extends TypeSignature {
     /** A base type, such as "int", "float", or "void". */
     private final String baseType;
 
+    // -------------------------------------------------------------------------------------------------------------
+
     /**
      * @param baseType
      *            the base type
@@ -45,19 +47,17 @@ public class BaseTypeSignature extends TypeSignature {
         this.baseType = baseType;
     }
 
+    // -------------------------------------------------------------------------------------------------------------
+
     /**
-     * Get the base type, such as "int", "float", or "void".
-     * 
-     * @return The base type.
+     * @return The base type, such as "int", "float", or "void".
      */
     public String getTypeStr() {
         return baseType;
     }
 
     /**
-     * Get the class of the base type, such as int.class, float.class, or void.class.
-     * 
-     * @return The base type class reference.
+     * @return The class of the base type, such as int.class, float.class, or void.class.
      */
     public Class<?> getType() {
         switch (baseType) {
@@ -84,43 +84,7 @@ public class BaseTypeSignature extends TypeSignature {
         }
     }
 
-    @Override
-    public void getClassNamesFromTypeDescriptors(final Set<String> classNameListOut) {
-    }
-
-    @Override
-    protected String getClassName() {
-        // getClassInfo() is not valid for this type, so getClassName() does not need to be implemented
-        throw new IllegalArgumentException("getClassName() cannot be called here");
-    }
-
-    @Override
-    protected ClassInfo getClassInfo() {
-        throw new IllegalArgumentException("getClassInfo() cannot be called here");
-    }
-
-    @Override
-    public int hashCode() {
-        return baseType.hashCode();
-    }
-
-    @Override
-    public boolean equals(final Object obj) {
-        return obj instanceof BaseTypeSignature && ((BaseTypeSignature) obj).baseType.equals(this.baseType);
-    }
-
-    @Override
-    public boolean equalsIgnoringTypeParams(final TypeSignature other) {
-        if (!(other instanceof BaseTypeSignature)) {
-            return false;
-        }
-        return baseType.equals(((BaseTypeSignature) other).baseType);
-    }
-
-    @Override
-    public String toString() {
-        return baseType;
-    }
+    // -------------------------------------------------------------------------------------------------------------
 
     /** Parse a base type. */
     static BaseTypeSignature parse(final Parser parser) {
@@ -155,5 +119,47 @@ public class BaseTypeSignature extends TypeSignature {
         default:
             return null;
         }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    @Override
+    protected String getClassName() {
+        // getClassInfo() is not valid for this type, so getClassName() does not need to be implemented
+        throw new IllegalArgumentException("getClassName() cannot be called here");
+    }
+
+    @Override
+    protected ClassInfo getClassInfo() {
+        throw new IllegalArgumentException("getClassInfo() cannot be called here");
+    }
+
+    @Override
+    void getClassNamesFromTypeDescriptors(final Set<String> classNameListOut) {
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    @Override
+    public int hashCode() {
+        return baseType.hashCode();
+    }
+
+    @Override
+    public boolean equals(final Object obj) {
+        return obj instanceof BaseTypeSignature && ((BaseTypeSignature) obj).baseType.equals(this.baseType);
+    }
+
+    @Override
+    public boolean equalsIgnoringTypeParams(final TypeSignature other) {
+        if (!(other instanceof BaseTypeSignature)) {
+            return false;
+        }
+        return baseType.equals(((BaseTypeSignature) other).baseType);
+    }
+
+    @Override
+    public String toString() {
+        return baseType;
     }
 }

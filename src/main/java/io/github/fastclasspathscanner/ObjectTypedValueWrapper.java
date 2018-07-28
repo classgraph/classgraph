@@ -93,7 +93,9 @@ class ObjectTypedValueWrapper extends ScanResultObject {
         }
     }
 
-    /** Unwrap the wrapped value. */
+    /**
+     * @return The value wrapped by this wrapper class.
+     */
     public Object get() {
         if (valueArray != null) {
             final Object[] annotationValueObjects = new Object[valueArray.length];
