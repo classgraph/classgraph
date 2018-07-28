@@ -47,6 +47,7 @@ import java.util.Map;
 import java.util.Set;
 
 import io.github.fastclasspathscanner.json.Id;
+import io.github.fastclasspathscanner.utils.ClasspathUtils;
 import io.github.fastclasspathscanner.utils.JarUtils;
 import io.github.fastclasspathscanner.utils.LogNode;
 import io.github.fastclasspathscanner.utils.Parser.ParseException;
@@ -1571,8 +1572,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 if (moduleRef != null) {
                     classpathElementURL = moduleRef.getLocation().toURL();
                 } else if (!jarfilePackageRoot.isEmpty()) {
-                    classpathElementURL = new URL(
-                            getClasspathElementFile().toURI().toURL().toString() + "!" + jarfilePackageRoot);
+                    classpathElementURL = ClasspathUtils.getClasspathResourceURL(getClasspathElementFile(),
+                            jarfilePackageRoot);
                 } else {
                     classpathElementURL = getClasspathElementFile().toURI().toURL();
                 }
