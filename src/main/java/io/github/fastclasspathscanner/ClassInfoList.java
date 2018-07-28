@@ -54,8 +54,8 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
     private final Set<ClassInfo> directlyRelatedClasses;
 
     /**
-     * A list of {@link ClassInfo} objects, consisting of reachable classes (obtained through the transitive
-     * closure) and directly related classes (one step away in the graph).
+     * Construct a list of {@link ClassInfo} objects, consisting of reachable classes (obtained through the
+     * transitive closure) and directly related classes (one step away in the graph).
      */
     ClassInfoList(final Set<ClassInfo> reachableClasses, final Set<ClassInfo> directlyRelatedClasses) {
         super(reachableClasses);
@@ -66,13 +66,13 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
         this.directlyRelatedClasses = directlyRelatedClasses == null ? reachableClasses : directlyRelatedClasses;
     }
 
-    /** A list of {@link ClassInfo} objects. */
+    /** Construct a list of {@link ClassInfo} objects. */
     ClassInfoList(final ReachableAndDirectlyRelatedClasses reachableAndDirectlyRelatedClasses) {
         this(reachableAndDirectlyRelatedClasses.reachableClasses,
                 reachableAndDirectlyRelatedClasses.directlyRelatedClasses);
     }
 
-    /** A list of {@link ClassInfo} objects, where each class is directly related. */
+    /** Construct a list of {@link ClassInfo} objects, where each class is directly related. */
     ClassInfoList(final Set<ClassInfo> reachableClasses) {
         this(reachableClasses, null);
     }
@@ -241,7 +241,10 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Get the names of all classes in this list. */
+    /**
+     * @return The names of all classes in this list, by calling {@link ClassInfo#getName()} for each item in the
+     *         list.
+     */
     public List<String> getNames() {
         if (this.isEmpty()) {
             return Collections.<String> emptyList();
@@ -255,8 +258,8 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
     }
 
     /**
-     * Get the string representations of all classes in this list (with annotations, modifiers, etc.), by calling
-     * {@link ClassInfo#toString()} on each item in the list.
+     * @return The string representations of all classes in this list (with annotations, modifiers, etc.), by
+     *         calling {@link ClassInfo#toString()} for each item in the list.
      */
     public List<String> getAsStrings() {
         if (this.isEmpty()) {
@@ -272,7 +275,11 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Return true if this {@link ClassInfo} list contains a class with the given name. */
+    /**
+     * @param className
+     *            The name of a class.
+     * @return true if the list contains a class with the given name.
+     */
     public boolean containsName(final String className) {
         for (final ClassInfo ci : this) {
             if (ci.getName().equals(className)) {
@@ -282,10 +289,14 @@ public class ClassInfoList extends ArrayList<ClassInfo> {
         return false;
     }
 
-    /** Return the {@link ClassInfo} object in the list with the given name, or null if not found. */
-    public ClassInfo get(final String name) {
+    /**
+     * @param className
+     *            The fully-qualified name of a class.
+     * @return The {@link ClassInfo} object in the list with the given name, or null if not found.
+     */
+    public ClassInfo get(final String className) {
         for (final ClassInfo ci : this) {
-            if (ci.getName().equals(name)) {
+            if (ci.getName().equals(className)) {
                 return ci;
             }
         }

@@ -182,11 +182,11 @@ class ClassInfoUnlinked {
             if (typeSignature != null) {
                 ClassTypeSignature typeSig = null;
                 try {
-                    typeSig = ClassTypeSignature.parse(className, typeSignature);
+                    typeSig = ClassTypeSignature.parse(typeSignature, /* classInfo = */ null);
                 } catch (final ParseException e) {
                 }
                 subLog.log("Class type signature: " + (typeSig == null ? typeSignature
-                        : typeSig.toString(classModifiers, isAnnotation, isInterface, className)));
+                        : typeSig.toString(className, classModifiers, isAnnotation, isInterface)));
             }
         }
     }

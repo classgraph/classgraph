@@ -33,16 +33,8 @@ import java.util.Set;
 
 /** A wrapper used to pair annotation parameter names with annotation parameter values. */
 public class AnnotationParameterValue extends ScanResultObject implements Comparable<AnnotationParameterValue> {
-    String name;
-    ObjectTypedValueWrapper value;
-
-    @Override
-    void setScanResult(final ScanResult scanResult) {
-        super.setScanResult(scanResult);
-        if (value != null) {
-            value.setScanResult(scanResult);
-        }
-    }
+    private String name;
+    private ObjectTypedValueWrapper value;
 
     /** Default constructor for deserialization. */
     AnnotationParameterValue() {
@@ -59,37 +51,12 @@ public class AnnotationParameterValue extends ScanResultObject implements Compar
         this.value = new ObjectTypedValueWrapper(value);
     }
 
-    /**
-     * Get the annotation parameter name.
-     * 
-     * @return The annotation parameter name.
-     */
+    /** @return The annotation parameter name. */
     public String getName() {
         return name;
     }
 
-    @Override
-    protected String getClassName() {
-        // getClassInfo() is not valid for this type, so getClassName() does not need to be implemented
-        throw new IllegalArgumentException("getClassName() cannot be called here");
-    }
-
-    @Override
-    protected ClassInfo getClassInfo() {
-        throw new IllegalArgumentException("getClassInfo() cannot be called here");
-    }
-
-    /** Get the names of any classes referenced in the annotation parameters. */
-    @Override
-    void getClassNamesFromTypeDescriptors(final Set<String> referencedClassNames) {
-        if (value != null) {
-            value.getClassNamesFromTypeDescriptors(referencedClassNames);
-        }
-    }
-
     /**
-     * Get the annotation parameter value.
-     * 
      * @return The annotation parameter value. May be one of the following types:
      *         <ul>
      *         <li>String for string constants
@@ -106,6 +73,37 @@ public class AnnotationParameterValue extends ScanResultObject implements Compar
     public Object getValue() {
         return value == null ? null : value.get();
     }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    @Override
+    protected String getClassName() {
+        // getClassInfo() is not valid for this type, so getClassName() does not need to be implemented
+        throw new IllegalArgumentException("getClassName() cannot be called here");
+    }
+
+    @Override
+    protected ClassInfo getClassInfo() {
+        throw new IllegalArgumentException("getClassInfo() cannot be called here");
+    }
+
+    @Override
+    void setScanResult(final ScanResult scanResult) {
+        super.setScanResult(scanResult);
+        if (value != null) {
+            value.setScanResult(scanResult);
+        }
+    }
+
+    /** Get the names of any classes referenced in the annotation parameters. */
+    @Override
+    void getClassNamesFromTypeDescriptors(final Set<String> referencedClassNames) {
+        if (value != null) {
+            value.getClassNamesFromTypeDescriptors(referencedClassNames);
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     @Override
     public String toString() {

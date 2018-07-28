@@ -39,7 +39,7 @@ import io.github.fastclasspathscanner.utils.TypeUtils;
 /** A type variable signature. */
 public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
     /** The type variable name. */
-    private final String typeVariableName;
+    private final String name;
 
     /** The name of the class that this type variable is defined in. */
     String containingClassName;
@@ -54,7 +54,7 @@ public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
      *            The type variable name.
      */
     private TypeVariableSignature(final String typeVariableName) {
-        this.typeVariableName = typeVariableName;
+        this.name = typeVariableName;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -64,8 +64,8 @@ public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
      * 
      * @return The type variable name.
      */
-    public String getTypeVariableName() {
-        return typeVariableName;
+    public String getName() {
+        return name;
     }
 
     /**
@@ -84,7 +84,7 @@ public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
             if (containingMethodSignature.typeParameters != null
                     && !containingMethodSignature.typeParameters.isEmpty()) {
                 for (final TypeParameter typeParameter : containingMethodSignature.typeParameters) {
-                    if (typeParameter.identifier.equals(this.typeVariableName)) {
+                    if (typeParameter.name.equals(this.name)) {
                         return typeParameter;
                     }
                 }
@@ -100,14 +100,14 @@ public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
             if (containingClassSignature.typeParameters != null
                     && !containingClassSignature.typeParameters.isEmpty()) {
                 for (final TypeParameter typeParameter : containingClassSignature.typeParameters) {
-                    if (typeParameter.identifier.equals(this.typeVariableName)) {
+                    if (typeParameter.name.equals(this.name)) {
                         return typeParameter;
                     }
                 }
             }
         }
-        throw new IllegalArgumentException("Could not resolve " + typeVariableName
-                + " against parameters of the defining method or enclosing class");
+        throw new IllegalArgumentException(
+                "Could not resolve " + name + " against parameters of the defining method or enclosing class");
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -140,6 +140,15 @@ public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /**
+     * Return containingClassName, so that getClassInfo() returns the {@link ClassInfo} object for the containing
+     * class.
+     */
+    @Override
+    protected String getClassName() {
+        return containingClassName;
+    }
+
     @Override
     void setScanResult(final ScanResult scanResult) {
         super.setScanResult(scanResult);
@@ -151,20 +160,11 @@ public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
         // No class names present in type variables
     }
 
-    /**
-     * Return containingClassName, so that getClassInfo() returns the {@link ClassInfo} object for the containing
-     * class.
-     */
-    @Override
-    protected String getClassName() {
-        return containingClassName;
-    }
-
     // -------------------------------------------------------------------------------------------------------------
 
     @Override
     public int hashCode() {
-        return typeVariableName.hashCode();
+        return name.hashCode();
     }
 
     @Override
@@ -173,7 +173,7 @@ public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
             return false;
         }
         final TypeVariableSignature o = (TypeVariableSignature) obj;
-        return o.typeVariableName.equals(this.typeVariableName);
+        return o.name.equals(this.name);
     }
 
     @Override
@@ -247,7 +247,7 @@ public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
     public String toStringWithTypeBound() {
         final TypeParameter typeParameter = resolve();
         if (typeParameter == null) {
-            return typeVariableName;
+            return name;
         } else {
             return typeParameter.toString();
         }
@@ -255,6 +255,6 @@ public class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
 
     @Override
     public String toString() {
-        return typeVariableName;
+        return name;
     }
 }

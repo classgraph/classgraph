@@ -714,7 +714,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
 
     // -------------------------------------------------------------------------------------------------------------
     // Predicates
-    
+
     /**
      * Get the name of this class.
      * 
@@ -1568,18 +1568,14 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /**
-     * Get the type signature for the class, if available (else returns null).
-     * 
-     * @return The class type signature.
-     */
+    /** @return The class type signature, if available, otherwise returns null. */
     public ClassTypeSignature getTypeSignature() {
         if (typeSignatureStr == null) {
             return null;
         }
         if (typeSignature == null) {
             try {
-                typeSignature = ClassTypeSignature.parse(name, typeSignatureStr);
+                typeSignature = ClassTypeSignature.parse(typeSignatureStr, this);
                 typeSignature.setScanResult(scanResult);
             } catch (final ParseException e) {
                 throw new IllegalArgumentException(e);
@@ -1587,6 +1583,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         }
         return typeSignature;
     }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * The classpath element URL (for a classpath root dir, jar or module) that this class was found within.
@@ -1663,8 +1661,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *             if ignoreExceptions is false and there were problems loading the class, or casting it to the
      *             requested type.
      */
+    @Override
     public <T> Class<T> loadClass(final Class<T> superclassOrInterfaceType, final boolean ignoreExceptions) {
-        return scanResult.loadClass(name, superclassOrInterfaceType, ignoreExceptions);
+        return super.loadClass(superclassOrInterfaceType, ignoreExceptions);
     }
 
     /**
@@ -1683,8 +1682,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @throws IllegalArgumentException
      *             if there were problems loading the class or casting it to the requested type.
      */
+    @Override
     public <T> Class<T> loadClass(final Class<T> superclassOrInterfaceType) {
-        return loadClass(superclassOrInterfaceType, /* ignoreExceptions = */ false);
+        return super.loadClass(superclassOrInterfaceType, /* ignoreExceptions = */ false);
     }
 
     /**
@@ -1696,8 +1696,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @throws IllegalArgumentException
      *             if ignoreExceptions is false and there were problems loading the class.
      */
+    @Override
     public Class<?> loadClass(final boolean ignoreExceptions) {
-        return scanResult.loadClass(name, ignoreExceptions);
+        return super.loadClass(ignoreExceptions);
     }
 
     /**
@@ -1710,10 +1711,20 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     @Override
     public Class<?> loadClass() {
-        return loadClass(/* ignoreExceptions = */ false);
+        return super.loadClass(/* ignoreExceptions = */ false);
     }
 
     // -------------------------------------------------------------------------------------------------------------
+
+    @Override
+    protected String getClassName() {
+        return name;
+    }
+
+    @Override
+    protected ClassInfo getClassInfo() {
+        return this;
+    }
 
     @Override
     void setScanResult(final ScanResult scanResult) {
@@ -1776,11 +1787,6 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         }
     }
 
-    @Override
-    protected String getClassName() {
-        return name;
-    }
-
     // -------------------------------------------------------------------------------------------------------------
 
     /** Compare based on class name. */
@@ -1815,7 +1821,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     public String toString() {
         final ClassTypeSignature typeSig = getTypeSignature();
         if (typeSig != null) {
-            return typeSig.toString(modifiers, isAnnotation, isInterface, name);
+            return typeSig.toString();
         } else {
             final StringBuilder buf = new StringBuilder();
             TypeUtils.modifiersToString(modifiers, /* isMethod = */ false, buf);

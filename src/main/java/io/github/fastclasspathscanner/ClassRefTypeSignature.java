@@ -57,22 +57,7 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
      */
     private final List<List<TypeArgument>> suffixTypeArguments;
 
-    @Override
-    void setScanResult(final ScanResult scanResult) {
-        super.setScanResult(scanResult);
-        if (typeArguments != null) {
-            for (final TypeArgument typeArgument : typeArguments) {
-                typeArgument.setScanResult(scanResult);
-            }
-        }
-        if (suffixTypeArguments != null) {
-            for (final List<TypeArgument> list : suffixTypeArguments) {
-                for (final TypeArgument typeArgument : list) {
-                    typeArgument.setScanResult(scanResult);
-                }
-            }
-        }
-    }
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * @param className
@@ -91,6 +76,8 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
         this.suffixes = suffixes;
         this.suffixTypeArguments = suffixTypeArguments;
     }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Get the name of the base class.
@@ -119,28 +106,6 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
             fullyQualifiedClassName = buf.toString();
         }
         return fullyQualifiedClassName;
-    }
-
-    /**
-     * Get the fully qualified class name (used by {@link #getClassInfo()} and {@link #loadClass()}.
-     * 
-     * @return The fully qualified name of the class.
-     */
-    @Override
-    protected String getClassName() {
-        return getFullyQualifiedClassName();
-    }
-
-    /**
-     * Get the {@link ClassInfo} object for the referenced class, or null if the referenced class was not
-     * encountered during scanning (i.e. no ClassInfo object was created for the class during scanning). N.B. even
-     * if this method returns null, {@link #loadClass()} may be able to load the referenced class by name.
-     * 
-     * @return The {@link ClassInfo} object for the referenced class.
-     */
-    @Override
-    public ClassInfo getClassInfo() {
-        return super.getClassInfo();
     }
 
     /**
@@ -183,6 +148,46 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
         return suffixTypeArguments;
     }
 
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Get the fully qualified class name (used by {@link #getClassInfo()} and {@link #loadClass()}.
+     * 
+     * @return The fully qualified name of the class.
+     */
+    @Override
+    protected String getClassName() {
+        return getFullyQualifiedClassName();
+    }
+
+    /**
+     * @return The {@link ClassInfo} object for the referenced class, or null if the referenced class was not
+     *         encountered during scanning (i.e. if no ClassInfo object was created for the class during scanning).
+     *         N.B. even if this method returns null, {@link #loadClass()} may be able to load the referenced class
+     *         by name.
+     */
+    @Override
+    public ClassInfo getClassInfo() {
+        return super.getClassInfo();
+    }
+
+    @Override
+    void setScanResult(final ScanResult scanResult) {
+        super.setScanResult(scanResult);
+        if (typeArguments != null) {
+            for (final TypeArgument typeArgument : typeArguments) {
+                typeArgument.setScanResult(scanResult);
+            }
+        }
+        if (suffixTypeArguments != null) {
+            for (final List<TypeArgument> list : suffixTypeArguments) {
+                for (final TypeArgument typeArgument : list) {
+                    typeArgument.setScanResult(scanResult);
+                }
+            }
+        }
+    }
+
     @Override
     public void getClassNamesFromTypeDescriptors(final Set<String> classNameListOut) {
         classNameListOut.add(className);
@@ -191,6 +196,8 @@ public class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
             typeArgument.getClassNamesFromTypeDescriptors(classNameListOut);
         }
     }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     @Override
     public int hashCode() {

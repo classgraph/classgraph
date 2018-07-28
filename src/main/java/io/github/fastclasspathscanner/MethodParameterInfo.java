@@ -45,6 +45,8 @@ public class MethodParameterInfo {
     private final String name;
     private ScanResult scanResult;
 
+    // -------------------------------------------------------------------------------------------------------------
+
     /**
      * @param annotationInfo
      *            {@link AnnotationInfo} for any annotations on this method parameter.
@@ -66,20 +68,7 @@ public class MethodParameterInfo {
         this.annotationInfo = annotationInfo;
     }
 
-    public void setScanResult(final ScanResult scanResult) {
-        this.scanResult = scanResult;
-        if (this.annotationInfo != null) {
-            for (final AnnotationInfo ai : annotationInfo) {
-                ai.setScanResult(scanResult);
-            }
-        }
-        if (this.typeDescriptor != null) {
-            this.typeDescriptor.setScanResult(scanResult);
-        }
-        if (this.typeSignature != null) {
-            this.typeSignature.setScanResult(scanResult);
-        }
-    }
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Method parameter name. May be null, for unnamed parameters (e.g. synthetic parameters), or if compiled for
@@ -151,6 +140,25 @@ public class MethodParameterInfo {
         }
         return annotationInfo;
     }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    protected void setScanResult(final ScanResult scanResult) {
+        this.scanResult = scanResult;
+        if (this.annotationInfo != null) {
+            for (final AnnotationInfo ai : annotationInfo) {
+                ai.setScanResult(scanResult);
+            }
+        }
+        if (this.typeDescriptor != null) {
+            this.typeDescriptor.setScanResult(scanResult);
+        }
+        if (this.typeSignature != null) {
+            this.typeSignature.setScanResult(scanResult);
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     @Override
     public String toString() {

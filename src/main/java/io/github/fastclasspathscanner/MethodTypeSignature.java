@@ -50,28 +50,7 @@ public class MethodTypeSignature extends HierarchicalTypeSignature {
     /** The throws type signatures. */
     private final List<ClassRefOrTypeVariableSignature> throwsSignatures;
 
-    @Override
-    void setScanResult(final ScanResult scanResult) {
-        super.setScanResult(scanResult);
-        if (typeParameters != null) {
-            for (final TypeParameter typeParameter : typeParameters) {
-                typeParameter.setScanResult(scanResult);
-            }
-        }
-        if (this.parameterTypeSignatures != null) {
-            for (final TypeSignature typeParameter : parameterTypeSignatures) {
-                typeParameter.setScanResult(scanResult);
-            }
-        }
-        if (this.resultType != null) {
-            this.resultType.setScanResult(scanResult);
-        }
-        if (throwsSignatures != null) {
-            for (final ClassRefOrTypeVariableSignature throwsSignature : throwsSignatures) {
-                throwsSignature.setScanResult(scanResult);
-            }
-        }
-    }
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * @param typeParameters
@@ -90,6 +69,8 @@ public class MethodTypeSignature extends HierarchicalTypeSignature {
         this.resultType = resultType;
         this.throwsSignatures = throwsSignatures;
     }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Get the type parameters for the method. N.B. this is non-public, since the types have to be aligned with
@@ -131,95 +112,7 @@ public class MethodTypeSignature extends HierarchicalTypeSignature {
         return throwsSignatures;
     }
 
-    @Override
-    public void getClassNamesFromTypeDescriptors(final Set<String> classNameListOut) {
-        for (final TypeParameter typeParameter : typeParameters) {
-            if (typeParameter != null) {
-                typeParameter.getClassNamesFromTypeDescriptors(classNameListOut);
-            }
-        }
-        for (final TypeSignature typeSignature : parameterTypeSignatures) {
-            if (typeSignature != null) {
-                typeSignature.getClassNamesFromTypeDescriptors(classNameListOut);
-            }
-        }
-        resultType.getClassNamesFromTypeDescriptors(classNameListOut);
-        for (final ClassRefOrTypeVariableSignature typeSignature : throwsSignatures) {
-            if (typeSignature != null) {
-                typeSignature.getClassNamesFromTypeDescriptors(classNameListOut);
-            }
-        }
-    }
-
-    @Override
-    protected String getClassName() {
-        // getClassInfo() is not valid for this type, so getClassName() does not need to be implemented
-        throw new IllegalArgumentException("getClassName() cannot be called here");
-    }
-
-    @Override
-    protected ClassInfo getClassInfo() {
-        throw new IllegalArgumentException("getClassInfo() cannot be called here");
-    }
-
-    @Override
-    public int hashCode() {
-        return typeParameters.hashCode() + parameterTypeSignatures.hashCode() * 7 + resultType.hashCode() * 15
-                + throwsSignatures.hashCode() * 31;
-    }
-
-    @Override
-    public boolean equals(final Object obj) {
-        if (!(obj instanceof MethodTypeSignature)) {
-            return false;
-        }
-        final MethodTypeSignature o = (MethodTypeSignature) obj;
-        return o.typeParameters.equals(this.typeParameters)
-                && o.parameterTypeSignatures.equals(this.parameterTypeSignatures)
-                && o.resultType.equals(this.resultType) && o.throwsSignatures.equals(this.throwsSignatures);
-    }
-
-    @Override
-    public String toString() {
-        final StringBuilder buf = new StringBuilder();
-
-        if (!typeParameters.isEmpty()) {
-            buf.append('<');
-            for (int i = 0; i < typeParameters.size(); i++) {
-                if (i > 0) {
-                    buf.append(", ");
-                }
-                final String typeParamStr = typeParameters.get(i).toString();
-                buf.append(typeParamStr);
-            }
-            buf.append('>');
-        }
-
-        if (buf.length() > 0) {
-            buf.append(' ');
-        }
-        buf.append(resultType.toString());
-
-        buf.append(" (");
-        for (int i = 0; i < parameterTypeSignatures.size(); i++) {
-            if (i > 0) {
-                buf.append(", ");
-            }
-            buf.append(parameterTypeSignatures.get(i).toString());
-        }
-        buf.append(')');
-
-        if (!throwsSignatures.isEmpty()) {
-            buf.append(" throws ");
-            for (int i = 0; i < throwsSignatures.size(); i++) {
-                if (i > 0) {
-                    buf.append(", ");
-                }
-                buf.append(throwsSignatures.get(i).toString());
-            }
-        }
-        return buf.toString();
-    }
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Parse a method signature.
@@ -293,5 +186,122 @@ public class MethodTypeSignature extends HierarchicalTypeSignature {
             }
         }
         return methodSignature;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    @Override
+    protected String getClassName() {
+        // getClassInfo() is not valid for this type, so getClassName() does not need to be implemented
+        throw new IllegalArgumentException("getClassName() cannot be called here");
+    }
+
+    @Override
+    protected ClassInfo getClassInfo() {
+        throw new IllegalArgumentException("getClassInfo() cannot be called here");
+    }
+
+    @Override
+    void setScanResult(final ScanResult scanResult) {
+        super.setScanResult(scanResult);
+        if (typeParameters != null) {
+            for (final TypeParameter typeParameter : typeParameters) {
+                typeParameter.setScanResult(scanResult);
+            }
+        }
+        if (this.parameterTypeSignatures != null) {
+            for (final TypeSignature typeParameter : parameterTypeSignatures) {
+                typeParameter.setScanResult(scanResult);
+            }
+        }
+        if (this.resultType != null) {
+            this.resultType.setScanResult(scanResult);
+        }
+        if (throwsSignatures != null) {
+            for (final ClassRefOrTypeVariableSignature throwsSignature : throwsSignatures) {
+                throwsSignature.setScanResult(scanResult);
+            }
+        }
+    }
+
+    @Override
+    public void getClassNamesFromTypeDescriptors(final Set<String> classNameListOut) {
+        for (final TypeParameter typeParameter : typeParameters) {
+            if (typeParameter != null) {
+                typeParameter.getClassNamesFromTypeDescriptors(classNameListOut);
+            }
+        }
+        for (final TypeSignature typeSignature : parameterTypeSignatures) {
+            if (typeSignature != null) {
+                typeSignature.getClassNamesFromTypeDescriptors(classNameListOut);
+            }
+        }
+        resultType.getClassNamesFromTypeDescriptors(classNameListOut);
+        for (final ClassRefOrTypeVariableSignature typeSignature : throwsSignatures) {
+            if (typeSignature != null) {
+                typeSignature.getClassNamesFromTypeDescriptors(classNameListOut);
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    @Override
+    public int hashCode() {
+        return typeParameters.hashCode() + parameterTypeSignatures.hashCode() * 7 + resultType.hashCode() * 15
+                + throwsSignatures.hashCode() * 31;
+    }
+
+    @Override
+    public boolean equals(final Object obj) {
+        if (!(obj instanceof MethodTypeSignature)) {
+            return false;
+        }
+        final MethodTypeSignature o = (MethodTypeSignature) obj;
+        return o.typeParameters.equals(this.typeParameters)
+                && o.parameterTypeSignatures.equals(this.parameterTypeSignatures)
+                && o.resultType.equals(this.resultType) && o.throwsSignatures.equals(this.throwsSignatures);
+    }
+
+    @Override
+    public String toString() {
+        final StringBuilder buf = new StringBuilder();
+
+        if (!typeParameters.isEmpty()) {
+            buf.append('<');
+            for (int i = 0; i < typeParameters.size(); i++) {
+                if (i > 0) {
+                    buf.append(", ");
+                }
+                final String typeParamStr = typeParameters.get(i).toString();
+                buf.append(typeParamStr);
+            }
+            buf.append('>');
+        }
+
+        if (buf.length() > 0) {
+            buf.append(' ');
+        }
+        buf.append(resultType.toString());
+
+        buf.append(" (");
+        for (int i = 0; i < parameterTypeSignatures.size(); i++) {
+            if (i > 0) {
+                buf.append(", ");
+            }
+            buf.append(parameterTypeSignatures.get(i).toString());
+        }
+        buf.append(')');
+
+        if (!throwsSignatures.isEmpty()) {
+            buf.append(" throws ");
+            for (int i = 0; i < throwsSignatures.size(); i++) {
+                if (i > 0) {
+                    buf.append(", ");
+                }
+                buf.append(throwsSignatures.get(i).toString());
+            }
+        }
+        return buf.toString();
     }
 }

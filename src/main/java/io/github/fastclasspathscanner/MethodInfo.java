@@ -89,40 +89,10 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     /** Aligned method parameter info */
     private transient MethodParameterInfo[] parameterInfo;
 
+    // -------------------------------------------------------------------------------------------------------------
+
     /** Default constructor for deserialization. */
     MethodInfo() {
-    }
-
-    @Override
-    void setScanResult(final ScanResult scanResult) {
-        super.setScanResult(scanResult);
-        if (this.typeDescriptor != null) {
-            this.typeDescriptor.setScanResult(scanResult);
-        }
-        if (this.typeSignature != null) {
-            this.typeSignature.setScanResult(scanResult);
-        }
-        if (this.annotationInfo != null) {
-            for (int i = 0; i < this.annotationInfo.size(); i++) {
-                final AnnotationInfo ai = this.annotationInfo.get(i);
-                ai.setScanResult(scanResult);
-            }
-        }
-        if (this.parameterAnnotationInfo != null) {
-            for (int i = 0; i < this.parameterAnnotationInfo.length; i++) {
-                final AnnotationInfo[] pai = this.parameterAnnotationInfo[i];
-                if (pai != null) {
-                    for (final AnnotationInfo ai : pai) {
-                        ai.setScanResult(scanResult);
-                    }
-                }
-            }
-        }
-        if (this.parameterInfo != null) {
-            for (final MethodParameterInfo mpi : parameterInfo) {
-                mpi.setScanResult(scanResult);
-            }
-        }
     }
 
     /**
@@ -204,15 +174,6 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
     }
 
     /**
-     * Returns the defining class name, so that super.getClassInfo() returns the {@link ClassInfo} object for the
-     * defining class.
-     */
-    @Override
-    protected String getClassName() {
-        return definingClassName;
-    }
-
-    /**
      * Get the class this method is defined within.
      * 
      * @return The class this method is defined within.
@@ -271,32 +232,6 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
             return typeSig;
         } else {
             return getTypeDescriptor();
-        }
-    }
-
-    /** Get the names of any classes in the type descriptor or type signature. */
-    @Override
-    protected void getClassNamesFromTypeDescriptors(final Set<String> classNames) {
-        final MethodTypeSignature methodSig = getTypeSignature();
-        if (methodSig != null) {
-            methodSig.getClassNamesFromTypeDescriptors(classNames);
-        }
-        final MethodTypeSignature methodDesc = getTypeDescriptor();
-        if (methodDesc != null) {
-            methodDesc.getClassNamesFromTypeDescriptors(classNames);
-        }
-        if (annotationInfo != null) {
-            for (final AnnotationInfo annotationInfo : annotationInfo) {
-                annotationInfo.getClassNamesFromTypeDescriptors(classNames);
-            }
-        }
-        for (final MethodParameterInfo parameterInfo : getParameterInfo()) {
-            final AnnotationInfo[] paramAnnotationInfo = parameterInfo.getAnnotationInfo();
-            if (paramAnnotationInfo != null) {
-                for (final AnnotationInfo annotationInfo : paramAnnotationInfo) {
-                    annotationInfo.getClassNamesFromTypeDescriptors(classNames);
-                }
-            }
         }
     }
 
@@ -506,6 +441,75 @@ public class MethodInfo extends ScanResultObject implements Comparable<MethodInf
                     "Please call FastClasspathScanner#enableAnnotationInfo() before #scan()");
         }
         return annotationInfo == null ? AnnotationInfoList.EMPTY_LIST : annotationInfo;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Returns the defining class name, so that super.getClassInfo() returns the {@link ClassInfo} object for the
+     * defining class.
+     */
+    @Override
+    protected String getClassName() {
+        return definingClassName;
+    }
+
+    @Override
+    void setScanResult(final ScanResult scanResult) {
+        super.setScanResult(scanResult);
+        if (this.typeDescriptor != null) {
+            this.typeDescriptor.setScanResult(scanResult);
+        }
+        if (this.typeSignature != null) {
+            this.typeSignature.setScanResult(scanResult);
+        }
+        if (this.annotationInfo != null) {
+            for (int i = 0; i < this.annotationInfo.size(); i++) {
+                final AnnotationInfo ai = this.annotationInfo.get(i);
+                ai.setScanResult(scanResult);
+            }
+        }
+        if (this.parameterAnnotationInfo != null) {
+            for (int i = 0; i < this.parameterAnnotationInfo.length; i++) {
+                final AnnotationInfo[] pai = this.parameterAnnotationInfo[i];
+                if (pai != null) {
+                    for (final AnnotationInfo ai : pai) {
+                        ai.setScanResult(scanResult);
+                    }
+                }
+            }
+        }
+        if (this.parameterInfo != null) {
+            for (final MethodParameterInfo mpi : parameterInfo) {
+                mpi.setScanResult(scanResult);
+            }
+        }
+    }
+
+    /** Get the names of any classes in the type descriptor or type signature. */
+    @Override
+    protected void getClassNamesFromTypeDescriptors(final Set<String> classNames) {
+        final MethodTypeSignature methodSig = getTypeSignature();
+        if (methodSig != null) {
+            methodSig.getClassNamesFromTypeDescriptors(classNames);
+        }
+        final MethodTypeSignature methodDesc = getTypeDescriptor();
+        if (methodDesc != null) {
+            methodDesc.getClassNamesFromTypeDescriptors(classNames);
+        }
+        if (annotationInfo != null) {
+            for (final AnnotationInfo annotationInfo : annotationInfo) {
+                annotationInfo.getClassNamesFromTypeDescriptors(classNames);
+            }
+        }
+        for (final MethodParameterInfo parameterInfo : getParameterInfo()) {
+            final AnnotationInfo[] paramAnnotationInfo = parameterInfo.getAnnotationInfo();
+            if (paramAnnotationInfo != null) {
+                for (final AnnotationInfo annotationInfo : paramAnnotationInfo) {
+                    annotationInfo.getClassNamesFromTypeDescriptors(classNames);
+                }
+            }
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------

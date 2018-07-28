@@ -35,17 +35,34 @@ abstract class ScanResultObject {
 
     private transient ClassInfo classInfo;
 
+    /** Set ScanResult backreferences in info objects after scan has completed. */
+    void setScanResult(final ScanResult scanResult) {
+        this.scanResult = scanResult;
+    }
+
+    /** Get any class names referenced in type descriptors of this object. */
+    abstract void getClassNamesFromTypeDescriptors(Set<String> classNames);
+
+    /**
+     * The name of the class (used by {@link #getClassInfo()} to fetch the {@link ClassInfo} object for the class).
+     */
     protected abstract String getClassName();
 
-    /** Return the {@link ClassInfo} object associated with this {@link ScanResultObject}. */
+    /**
+     * Get the {@link ClassInfo} object for the referenced class, or null if the referenced class was not
+     * encountered during scanning (i.e. no ClassInfo object was created for the class during scanning). N.B. even
+     * if this method returns null, {@link #loadClass()} may be able to load the referenced class by name.
+     * 
+     * @return The {@link ClassInfo} object for the referenced class.
+     */
     ClassInfo getClassInfo() {
-        final String className = getClassName();
-        if (className == null) {
-            throw new IllegalArgumentException("Class name is not set");
-        }
         if (classInfo == null) {
             if (scanResult == null) {
                 return null;
+            }
+            final String className = getClassName();
+            if (className == null) {
+                throw new IllegalArgumentException("Class name is not set");
             }
             classInfo = scanResult.getClassInfo(className);
             if (classInfo == null) {
@@ -56,34 +73,90 @@ abstract class ScanResultObject {
     }
 
     /**
-     * Load the referenced class, if not already loaded, returning a {@code Class<?>} reference for the referenced
-     * class. First tries calling {@link #getClassInfo()} to get a {@link ClassInfo} object, then calls
-     * {@link ClassInfo#loadClass()}, so that the right {@link ClassLoader} is called. If {@link #getClassInfo()}
-     * returns null (meaning that the class is an "external class" that was not encountered during the scan), then
-     * instead calls {@link ScanResult#loadClass(String, boolean)}.
+     * Load the class named returned by {@link #getClassInfo()}, or if that returns null, the class named by
+     * {@link #getClassName()}. Returns a {@code Class<?>} reference for the class, cast to the requested superclass
+     * or interface type.
      * 
-     * @return The {@code Class<?>} reference for the referenced class.
+     * @param superclassOrInterfaceType
+     *            The type to cast the resulting class reference to.
+     * @param ignoreExceptions
+     *            If true, ignore classloading exceptions and return null on failure.
+     * @return The {@code Class<?>} reference for the referenced class, or null if the class could not be loaded (or
+     *         casting failed) and ignoreExceptions is true.
      * @throws IllegalArgumentException
-     *             if the class could not be loaded.
+     *             if the class could not be loaded or cast, and ignoreExceptions was false.
      */
-    Class<?> loadClass() {
-        final String className = getClassName();
+    <T> Class<T> loadClass(final Class<T> superclassOrInterfaceType, final boolean ignoreExceptions) {
+        String className;
+        final ClassInfo classInfo = getClassInfo();
+        if (classInfo != null) {
+            // Get class name from getClassInfo().getName() 
+            className = classInfo.getName();
+        } else {
+            // Get class name from getClassName() 
+            className = getClassName();
+        }
         if (className == null) {
             throw new IllegalArgumentException("Class name is not set");
         }
-        final ClassInfo classInfo = getClassInfo();
-        if (classInfo != null) {
-            return classInfo.loadClass();
-        } else {
-            return scanResult.loadClass(className, /* ignoreExceptions = */ false);
-        }
+        return scanResult.loadClass(className, superclassOrInterfaceType, ignoreExceptions);
     }
 
-    /** Get any class names referenced in type descriptors of this object. */
-    abstract void getClassNamesFromTypeDescriptors(Set<String> classNames);
+    /**
+     * Load the class named returned by {@link #getClassInfo()}, or if that returns null, the class named by
+     * {@link #getClassName()}. Returns a {@code Class<?>} reference for the class, cast to the requested superclass
+     * or interface type.
+     * 
+     * @param superclassOrInterfaceType
+     *            The type to cast the resulting class reference to.
+     * @return The {@code Class<?>} reference for the referenced class, or null if the class could not be loaded (or
+     *         casting failed) and ignoreExceptions is true.
+     * @throws IllegalArgumentException
+     *             if the class could not be loaded or cast, and ignoreExceptions was false.
+     */
+    <T> Class<T> loadClass(final Class<T> superclassOrInterfaceType) {
+        return loadClass(superclassOrInterfaceType, /* ignoreExceptions = */ false);
+    }
 
-    /** Set ScanResult backreferences in info objects after scan has completed. */
-    void setScanResult(final ScanResult scanResult) {
-        this.scanResult = scanResult;
+    /**
+     * Load the class named returned by {@link #getClassInfo()}, or if that returns null, the class named by
+     * {@link #getClassName()}. Returns a {@code Class<?>} reference for the class.
+     * 
+     * @param ignoreExceptions
+     *            If true, ignore classloading exceptions and return null on failure.
+     * @return The {@code Class<?>} reference for the referenced class, or null if the class could not be loaded and
+     *         ignoreExceptions is true.
+     * @throws IllegalArgumentException
+     *             if the class could not be loaded and ignoreExceptions was false.
+     */
+    Class<?> loadClass(final boolean ignoreExceptions) {
+        String className;
+        final ClassInfo classInfo = getClassInfo();
+        if (classInfo != null) {
+            // Get class name from getClassInfo().getName() 
+            className = classInfo.getName();
+        } else {
+            // Get class name from getClassName() 
+            className = getClassName();
+        }
+        if (className == null) {
+            throw new IllegalArgumentException("Class name is not set");
+        }
+        return scanResult.loadClass(className, ignoreExceptions);
+    }
+
+    /**
+     * Load the class named returned by {@link #getClassInfo()}, or if that returns null, the class named by
+     * {@link #getClassName()}. Returns a {@code Class<?>} reference for the class.
+     * 
+     * @param ignoreExceptions
+     *            If true, ignore classloading exceptions and return null on failure.
+     * @return The {@code Class<?>} reference for the referenced class, or null if the class could not be loaded and
+     *         ignoreExceptions is true.
+     * @throws IllegalArgumentException
+     *             if the class could not be loaded and ignoreExceptions was false.
+     */
+    Class<?> loadClass() {
+        return loadClass(/* ignoreExceptions = */ false);
     }
 }

@@ -37,7 +37,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
-/** Holds metadata about a specific annotation instance on a class, method or field. */
+/** Holds metadata about a specific annotation instance on a class, method, method parameter or field. */
 public class AnnotationInfo extends ScanResultObject implements Comparable<AnnotationInfo> {
 
     private String name;
@@ -47,18 +47,6 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
 
     /** Default constructor for deserialization. */
     AnnotationInfo() {
-    }
-
-    @Override
-    void setScanResult(final ScanResult scanResult) {
-        super.setScanResult(scanResult);
-        if (annotationParamValues != null) {
-            for (final AnnotationParameterValue a : annotationParamValues) {
-                if (a != null) {
-                    a.setScanResult(scanResult);
-                }
-            }
-        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -74,61 +62,32 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
         this.annotationParamValues = annotationParamValues;
     }
 
+    // -------------------------------------------------------------------------------------------------------------
+
     /**
-     * Get the name of the annotation.
-     * 
-     * @return The annotation name.
+     * @return The name of the annotation class.
      */
     public String getName() {
         return name;
     }
 
-    // -------------------------------------------------------------------------------------------------------------
-
-    /** Get the names of any classes referenced in the type descriptors of annotation parameters. */
-    @Override
-    void getClassNamesFromTypeDescriptors(final Set<String> classNames) {
-        classNames.add(name);
-        if (annotationParamValues != null) {
-            for (final AnnotationParameterValue annotationParamValue : annotationParamValues) {
-                annotationParamValue.getClassNamesFromTypeDescriptors(classNames);
-            }
-        }
-    }
-
-    /** Return the name of the annotation class, for {@link #getClassInfo()}. */
-    @Override
-    protected String getClassName() {
-        return name;
-    }
-
     /**
-     * Get the {@link ClassInfo} object for the annotation class of this annotation.
-     * 
-     * @return The {@link ClassInfo} object for this annotation.
+     * @return true if this annotation is meta-annotated with {@link Inherited}.
      */
-    @Override
-    public ClassInfo getClassInfo() {
-        return super.getClassInfo();
-    }
-
-    /** Returns true if this annotation is meta-annotated with {@link Inherited}. */
     public boolean isInherited() {
         return getClassInfo().isInherited;
     }
 
-    // -------------------------------------------------------------------------------------------------------------
-
-    /** Returns the list of default parameter values for this annotation, or the empty list if none. */
+    /**
+     * @return the list of default parameter values for this annotation, or the empty list if none.
+     */
     public List<AnnotationParameterValue> getDefaultParameterValues() {
         return getClassInfo().getAnnotationDefaultParameterValues();
     }
 
     /**
-     * Get the parameter values of this annotation, including any default parameter values inherited from the
-     * annotation class definition, or the empty list if none.
-     * 
-     * @return The annotation parameter values, including any default parameter values, or the empty list if none.
+     * @return The parameter values of this annotation, including any default parameter values inherited from the
+     *         annotation class definition, or the empty list if none.
      */
     public List<AnnotationParameterValue> getParameterValues() {
         if (annotationParamValuesWithDefaults == null) {
@@ -152,10 +111,10 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
             // Overwrite defaults with non-defaults
             final Map<String, Object> allParamValues = new HashMap<>();
             for (final AnnotationParameterValue defaultParamValue : defaultParamValues) {
-                allParamValues.put(defaultParamValue.name, defaultParamValue.value.get());
+                allParamValues.put(defaultParamValue.getName(), defaultParamValue.getValue());
             }
             for (final AnnotationParameterValue annotationParamValue : this.annotationParamValues) {
-                allParamValues.put(annotationParamValue.name, annotationParamValue.value.get());
+                allParamValues.put(annotationParamValue.getName(), annotationParamValue.getValue());
             }
             annotationParamValuesWithDefaults = new ArrayList<>();
             for (final Entry<String, Object> ent : allParamValues.entrySet()) {
@@ -164,6 +123,44 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
             Collections.sort(annotationParamValuesWithDefaults);
         }
         return annotationParamValuesWithDefaults;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** Return the name of the annotation class, for {@link #getClassInfo()}. */
+    @Override
+    protected String getClassName() {
+        return name;
+    }
+
+    /** @return The {@link ClassInfo} object for the annotation class. */
+    @Override
+    public ClassInfo getClassInfo() {
+        getClassName();
+        return super.getClassInfo();
+    }
+
+    @Override
+    void setScanResult(final ScanResult scanResult) {
+        super.setScanResult(scanResult);
+        if (annotationParamValues != null) {
+            for (final AnnotationParameterValue a : annotationParamValues) {
+                if (a != null) {
+                    a.setScanResult(scanResult);
+                }
+            }
+        }
+    }
+
+    /** Get the names of any classes referenced in the type descriptors of annotation parameters. */
+    @Override
+    void getClassNamesFromTypeDescriptors(final Set<String> classNames) {
+        classNames.add(name);
+        if (annotationParamValues != null) {
+            for (final AnnotationParameterValue annotationParamValue : annotationParamValues) {
+                annotationParamValue.getClassNamesFromTypeDescriptors(classNames);
+            }
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -235,7 +232,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
                     buf.append(", ");
                 }
                 final AnnotationParameterValue annotationParamValue = paramVals.get(i);
-                if (paramVals.size() > 1 || !"value".equals(annotationParamValue.name)) {
+                if (paramVals.size() > 1 || !"value".equals(annotationParamValue.getName())) {
                     annotationParamValue.toString(buf);
                 } else {
                     annotationParamValue.toStringParamValueOnly(buf);

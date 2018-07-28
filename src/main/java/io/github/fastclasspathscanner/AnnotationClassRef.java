@@ -33,11 +33,7 @@ import java.util.Set;
 import io.github.fastclasspathscanner.utils.Parser.ParseException;
 
 /**
- * Stores a class descriptor in an annotation as a class type string, e.g. "[[[java/lang/String;" is stored as
- * "String[][][]".
- *
- * <p>
- * Use ReflectionUtils.typeStrToClass() to get a {@code Class<?>} reference from this class type string.
+ * Stores the type descriptor of a {@code Class<?>}, as found in an annotation parameter value.
  */
 public class AnnotationClassRef extends ScanResultObject {
     private String typeDescriptorStr;
@@ -51,18 +47,18 @@ public class AnnotationClassRef extends ScanResultObject {
         this.typeDescriptorStr = typeDescriptorStr;
     }
 
-    @Override
-    void setScanResult(final ScanResult scanResult) {
-        super.setScanResult(scanResult);
-        if (typeSignature != null) {
-            typeSignature.setScanResult(scanResult);
-        }
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * @return The name of the referenced class.
+     */
+    public String getName() {
+        return getClassName();
     }
 
     /**
-     * Get the type signature for a type reference used in an annotation parameter.
-     * 
-     * @return The type signature of the annotation class ref.
+     * @return The type signature of the {@code Class<?>} reference. This will be a {@link ClassRefTypeSignature} or
+     *         a {@link BaseTypeSignature}.
      */
     private TypeSignature getTypeSignature() {
         if (typeSignature == null) {
@@ -76,39 +72,8 @@ public class AnnotationClassRef extends ScanResultObject {
         return typeSignature;
     }
 
-    /** Return the name of the referenced class. */
-    @Override
-    public String getClassName() {
-        if (className == null) {
-            getTypeSignature();
-            if (typeSignature instanceof BaseTypeSignature) {
-                className = ((BaseTypeSignature) typeSignature).getType().getName();
-            } else if (typeSignature instanceof ClassRefTypeSignature) {
-                className = ((ClassRefTypeSignature) typeSignature).getFullyQualifiedClassName();
-            } else {
-                throw new IllegalArgumentException("Got unexpected type " + typeSignature.getClass().getName()
-                        + " for ref type signature: " + typeDescriptorStr);
-            }
-        }
-        return className;
-    }
-
     /**
-     * Get the {@link ClassInfo} object for the referenced class, or null if the referenced class was not
-     * encountered during scanning (i.e. no ClassInfo object was created for the class during scanning). N.B. even
-     * if this method returns null, {@link #loadClass()} may be able to load the referenced class by name.
-     * 
-     * @return The {@link ClassInfo} object for the referenced class.
-     */
-    @Override
-    public ClassInfo getClassInfo() {
-        getClassName();
-        return super.getClassInfo();
-    }
-
-    /**
-     * Load the referenced class, if not already loaded, returning a {@code Class<?>} reference for the referenced
-     * class.
+     * Loads the referenced class, returning a {@code Class<?>} reference for the referenced class.
      * 
      * @return The {@code Class<?>} reference for the referenced class.
      * @throws IllegalArgumentException
@@ -127,10 +92,50 @@ public class AnnotationClassRef extends ScanResultObject {
         }
     }
 
+    // -------------------------------------------------------------------------------------------------------------
+
+    @Override
+    protected String getClassName() {
+        if (className == null) {
+            getTypeSignature();
+            if (typeSignature instanceof BaseTypeSignature) {
+                className = ((BaseTypeSignature) typeSignature).getType().getName();
+            } else if (typeSignature instanceof ClassRefTypeSignature) {
+                className = ((ClassRefTypeSignature) typeSignature).getFullyQualifiedClassName();
+            } else {
+                throw new IllegalArgumentException("Got unexpected type " + typeSignature.getClass().getName()
+                        + " for ref type signature: " + typeDescriptorStr);
+            }
+        }
+        return className;
+    }
+
+    /**
+     * @return The {@link ClassInfo} object for the referenced class, or null if the referenced class was not
+     *         encountered during scanning (i.e. if no ClassInfo object was created for the class during scanning).
+     *         N.B. even if this method returns null, {@link #loadClass()} may be able to load the referenced class
+     *         by name.
+     */
+    @Override
+    public ClassInfo getClassInfo() {
+        getClassName();
+        return super.getClassInfo();
+    }
+
+    @Override
+    void setScanResult(final ScanResult scanResult) {
+        super.setScanResult(scanResult);
+        if (typeSignature != null) {
+            typeSignature.setScanResult(scanResult);
+        }
+    }
+
     @Override
     protected void getClassNamesFromTypeDescriptors(final Set<String> classNames) {
         classNames.add(getClassName());
     }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     @Override
     public int hashCode() {

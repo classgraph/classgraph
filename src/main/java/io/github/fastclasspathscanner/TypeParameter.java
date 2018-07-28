@@ -40,7 +40,7 @@ import io.github.fastclasspathscanner.utils.TypeUtils;
 /** A type parameter. */
 public class TypeParameter extends HierarchicalTypeSignature {
     /** The type parameter identifier. */
-    final String identifier;
+    final String name;
 
     /** Class bound -- may be null */
     final ReferenceTypeSignature classBound;
@@ -48,18 +48,7 @@ public class TypeParameter extends HierarchicalTypeSignature {
     /** Interface bounds -- may be empty */
     final List<ReferenceTypeSignature> interfaceBounds;
 
-    @Override
-    void setScanResult(final ScanResult scanResult) {
-        super.setScanResult(scanResult);
-        if (this.classBound != null) {
-            this.classBound.setScanResult(scanResult);
-        }
-        if (interfaceBounds != null) {
-            for (final ReferenceTypeSignature referenceTypeSignature : interfaceBounds) {
-                referenceTypeSignature.setScanResult(scanResult);
-            }
-        }
-    }
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * @param identifier
@@ -71,7 +60,7 @@ public class TypeParameter extends HierarchicalTypeSignature {
      */
     private TypeParameter(final String identifier, final ReferenceTypeSignature classBound,
             final List<ReferenceTypeSignature> interfaceBounds) {
-        this.identifier = identifier;
+        this.name = identifier;
         this.classBound = classBound;
         this.interfaceBounds = interfaceBounds;
     }
@@ -81,8 +70,8 @@ public class TypeParameter extends HierarchicalTypeSignature {
      * 
      * @return The type parameter identifier.
      */
-    public String getIdentifier() {
-        return identifier;
+    public String getName() {
+        return name;
     }
 
     /**
@@ -103,75 +92,7 @@ public class TypeParameter extends HierarchicalTypeSignature {
         return interfaceBounds;
     }
 
-    @Override
-    public void getClassNamesFromTypeDescriptors(final Set<String> classNameListOut) {
-        if (classBound != null) {
-            classBound.getClassNamesFromTypeDescriptors(classNameListOut);
-        }
-        for (final ReferenceTypeSignature typeSignature : interfaceBounds) {
-            typeSignature.getClassNamesFromTypeDescriptors(classNameListOut);
-        }
-    }
-
-    @Override
-    protected String getClassName() {
-        // getClassInfo() is not valid for this type, so getClassName() does not need to be implemented
-        throw new IllegalArgumentException("getClassName() cannot be called here");
-    }
-
-    @Override
-    protected ClassInfo getClassInfo() {
-        throw new IllegalArgumentException("getClassInfo() cannot be called here");
-    }
-
-    @Override
-    public int hashCode() {
-        return identifier.hashCode() + (classBound == null ? 0 : classBound.hashCode() * 7)
-                + interfaceBounds.hashCode() * 15;
-    }
-
-    @Override
-    public boolean equals(final Object obj) {
-        if (!(obj instanceof TypeParameter)) {
-            return false;
-        }
-        final TypeParameter o = (TypeParameter) obj;
-        return o.identifier.equals(this.identifier)
-                && ((o.classBound == null && this.classBound == null)
-                        || (o.classBound != null && o.classBound.equals(this.classBound)))
-                && o.interfaceBounds.equals(this.interfaceBounds);
-    }
-
-    @Override
-    public String toString() {
-        final StringBuilder buf = new StringBuilder();
-        buf.append(identifier);
-        String classBoundStr;
-        if (classBound == null) {
-            classBoundStr = null;
-        } else {
-            classBoundStr = classBound.toString();
-            if (classBoundStr.equals("java.lang.Object")) {
-                // Don't add "extends java.lang.Object"
-                classBoundStr = null;
-            }
-        }
-        if (classBoundStr != null || !interfaceBounds.isEmpty()) {
-            buf.append(" extends");
-        }
-        if (classBoundStr != null) {
-            buf.append(' ');
-            buf.append(classBoundStr);
-        }
-        for (int i = 0; i < interfaceBounds.size(); i++) {
-            if (i > 0 || classBoundStr != null) {
-                buf.append(" &");
-            }
-            buf.append(' ');
-            buf.append(interfaceBounds.get(i).toString());
-        }
-        return buf.toString();
-    }
+    // -------------------------------------------------------------------------------------------------------------
 
     /** Parse a list of {@link TypeParameter}s. */
     static List<TypeParameter> parseList(final Parser parser) throws ParseException {
@@ -209,5 +130,92 @@ public class TypeParameter extends HierarchicalTypeSignature {
         }
         parser.expect('>');
         return typeParams;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    @Override
+    protected String getClassName() {
+        // getClassInfo() is not valid for this type, so getClassName() does not need to be implemented
+        throw new IllegalArgumentException("getClassName() cannot be called here");
+    }
+
+    @Override
+    protected ClassInfo getClassInfo() {
+        throw new IllegalArgumentException("getClassInfo() cannot be called here");
+    }
+
+    @Override
+    void setScanResult(final ScanResult scanResult) {
+        super.setScanResult(scanResult);
+        if (this.classBound != null) {
+            this.classBound.setScanResult(scanResult);
+        }
+        if (interfaceBounds != null) {
+            for (final ReferenceTypeSignature referenceTypeSignature : interfaceBounds) {
+                referenceTypeSignature.setScanResult(scanResult);
+            }
+        }
+    }
+
+    @Override
+    public void getClassNamesFromTypeDescriptors(final Set<String> classNameListOut) {
+        if (classBound != null) {
+            classBound.getClassNamesFromTypeDescriptors(classNameListOut);
+        }
+        for (final ReferenceTypeSignature typeSignature : interfaceBounds) {
+            typeSignature.getClassNamesFromTypeDescriptors(classNameListOut);
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    @Override
+    public int hashCode() {
+        return name.hashCode() + (classBound == null ? 0 : classBound.hashCode() * 7)
+                + interfaceBounds.hashCode() * 15;
+    }
+
+    @Override
+    public boolean equals(final Object obj) {
+        if (!(obj instanceof TypeParameter)) {
+            return false;
+        }
+        final TypeParameter o = (TypeParameter) obj;
+        return o.name.equals(this.name)
+                && ((o.classBound == null && this.classBound == null)
+                        || (o.classBound != null && o.classBound.equals(this.classBound)))
+                && o.interfaceBounds.equals(this.interfaceBounds);
+    }
+
+    @Override
+    public String toString() {
+        final StringBuilder buf = new StringBuilder();
+        buf.append(name);
+        String classBoundStr;
+        if (classBound == null) {
+            classBoundStr = null;
+        } else {
+            classBoundStr = classBound.toString();
+            if (classBoundStr.equals("java.lang.Object")) {
+                // Don't add "extends java.lang.Object"
+                classBoundStr = null;
+            }
+        }
+        if (classBoundStr != null || !interfaceBounds.isEmpty()) {
+            buf.append(" extends");
+        }
+        if (classBoundStr != null) {
+            buf.append(' ');
+            buf.append(classBoundStr);
+        }
+        for (int i = 0; i < interfaceBounds.size(); i++) {
+            if (i > 0 || classBoundStr != null) {
+                buf.append(" &");
+            }
+            buf.append(' ');
+            buf.append(interfaceBounds.get(i).toString());
+        }
+        return buf.toString();
     }
 }

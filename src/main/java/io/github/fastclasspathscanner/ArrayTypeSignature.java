@@ -33,7 +33,7 @@ import java.util.Set;
 import io.github.fastclasspathscanner.utils.Parser;
 import io.github.fastclasspathscanner.utils.Parser.ParseException;
 
-/** An array type. */
+/** An array type signature. */
 public class ArrayTypeSignature extends ReferenceTypeSignature {
     /** The array element type signature. */
     private final TypeSignature elementTypeSignature;
@@ -41,13 +41,7 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
     /** The number of array dimensions. */
     private final int numDims;
 
-    @Override
-    void setScanResult(final ScanResult scanResult) {
-        super.setScanResult(scanResult);
-        if (elementTypeSignature != null) {
-            elementTypeSignature.setScanResult(scanResult);
-        }
-    }
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * @param elementTypeSignature
@@ -60,28 +54,17 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
         this.numDims = numDims;
     }
 
-    /**
-     * Get the type signature of the array elements.
-     * 
-     * @return The type signature of the array elements.
-     */
+    /** @return The type signature of the array elements. */
     public TypeSignature getElementTypeSignature() {
         return elementTypeSignature;
     }
 
-    /**
-     * Get the number of dimensions of the array.
-     * 
-     * @return The number of dimensions of the array.
-     */
+    /** @return The number of dimensions of the array. */
     public int getNumDimensions() {
         return numDims;
     }
 
-    @Override
-    void getClassNamesFromTypeDescriptors(final Set<String> classNameListOut) {
-        elementTypeSignature.getClassNamesFromTypeDescriptors(classNameListOut);
-    }
+    // -------------------------------------------------------------------------------------------------------------
 
     @Override
     protected String getClassName() {
@@ -93,6 +76,21 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
     protected ClassInfo getClassInfo() {
         throw new IllegalArgumentException("getClassInfo() cannot be called here");
     }
+
+    @Override
+    void setScanResult(final ScanResult scanResult) {
+        super.setScanResult(scanResult);
+        if (elementTypeSignature != null) {
+            elementTypeSignature.setScanResult(scanResult);
+        }
+    }
+
+    @Override
+    void getClassNamesFromTypeDescriptors(final Set<String> classNameListOut) {
+        elementTypeSignature.getClassNamesFromTypeDescriptors(classNameListOut);
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     @Override
     public int hashCode() {

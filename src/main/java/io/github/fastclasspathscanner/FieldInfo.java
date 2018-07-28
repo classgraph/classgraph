@@ -49,24 +49,10 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
     private ObjectTypedValueWrapper constantInitializerValue;
     AnnotationInfoList annotationInfo;
 
+    // -------------------------------------------------------------------------------------------------------------
+
     /** Default constructor for deserialization. */
     FieldInfo() {
-    }
-
-    @Override
-    void setScanResult(final ScanResult scanResult) {
-        super.setScanResult(scanResult);
-        if (this.typeSignature != null) {
-            this.typeSignature.setScanResult(scanResult);
-        }
-        if (this.typeDescriptor != null) {
-            this.typeDescriptor.setScanResult(scanResult);
-        }
-        if (this.annotationInfo != null) {
-            for (final AnnotationInfo ai : this.annotationInfo) {
-                ai.setScanResult(scanResult);
-            }
-        }
     }
 
     /**
@@ -104,6 +90,8 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
         this.annotationInfo = annotationInfo == null || annotationInfo.isEmpty() ? null : annotationInfo;
     }
 
+    // -------------------------------------------------------------------------------------------------------------
+
     /**
      * Returns the name of the field.
      * 
@@ -119,15 +107,6 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
      * @return The name of the class this field is defined within.
      */
     public String getDefiningClassName() {
-        return definingClassName;
-    }
-
-    /**
-     * Returns the defining class name, so that super.getClassInfo() returns the {@link ClassInfo} object for the
-     * defining class.
-     */
-    @Override
-    protected String getClassName() {
         return definingClassName;
     }
 
@@ -251,24 +230,6 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
         }
     }
 
-    /** Get the names of any classes in the type descriptor or type signature. */
-    @Override
-    protected void getClassNamesFromTypeDescriptors(final Set<String> classNames) {
-        final TypeSignature methodSig = getTypeSignature();
-        if (methodSig != null) {
-            methodSig.getClassNamesFromTypeDescriptors(classNames);
-        }
-        final TypeSignature methodDesc = getTypeDescriptor();
-        if (methodDesc != null) {
-            methodDesc.getClassNamesFromTypeDescriptors(classNames);
-        }
-        if (annotationInfo != null) {
-            for (final AnnotationInfo annotationInfo : annotationInfo) {
-                annotationInfo.getClassNamesFromTypeDescriptors(classNames);
-            }
-        }
-    }
-
     /**
      * Returns the constant final initializer value of the field. Requires
      * {@link FastClasspathScanner#enableStaticFinalFieldConstantInitializerValues()} to have been called.
@@ -297,6 +258,51 @@ public class FieldInfo extends ScanResultObject implements Comparable<FieldInfo>
                     "Please call FastClasspathScanner#enableAnnotationInfo() before #scan()");
         }
         return annotationInfo == null ? AnnotationInfoList.EMPTY_LIST : annotationInfo;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Returns the defining class name, so that super.getClassInfo() returns the {@link ClassInfo} object for the
+     * defining class.
+     */
+    @Override
+    protected String getClassName() {
+        return definingClassName;
+    }
+
+    @Override
+    void setScanResult(final ScanResult scanResult) {
+        super.setScanResult(scanResult);
+        if (this.typeSignature != null) {
+            this.typeSignature.setScanResult(scanResult);
+        }
+        if (this.typeDescriptor != null) {
+            this.typeDescriptor.setScanResult(scanResult);
+        }
+        if (this.annotationInfo != null) {
+            for (final AnnotationInfo ai : this.annotationInfo) {
+                ai.setScanResult(scanResult);
+            }
+        }
+    }
+
+    /** Get the names of any classes in the type descriptor or type signature. */
+    @Override
+    protected void getClassNamesFromTypeDescriptors(final Set<String> classNames) {
+        final TypeSignature methodSig = getTypeSignature();
+        if (methodSig != null) {
+            methodSig.getClassNamesFromTypeDescriptors(classNames);
+        }
+        final TypeSignature methodDesc = getTypeDescriptor();
+        if (methodDesc != null) {
+            methodDesc.getClassNamesFromTypeDescriptors(classNames);
+        }
+        if (annotationInfo != null) {
+            for (final AnnotationInfo annotationInfo : annotationInfo) {
+                annotationInfo.getClassNamesFromTypeDescriptors(classNames);
+            }
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------

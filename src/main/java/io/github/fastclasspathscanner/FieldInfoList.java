@@ -36,15 +36,15 @@ import java.util.List;
 /** A list of {@link FieldInfo} objects. */
 public class FieldInfoList extends ArrayList<FieldInfo> {
 
-    public FieldInfoList() {
+    FieldInfoList() {
         super();
     }
 
-    public FieldInfoList(final int sizeHint) {
+    FieldInfoList(final int sizeHint) {
         super(sizeHint);
     }
 
-    public FieldInfoList(final Collection<FieldInfo> fieldInfoCollection) {
+    FieldInfoList(final Collection<FieldInfo> fieldInfoCollection) {
         super(fieldInfoCollection);
     }
 
@@ -102,7 +102,10 @@ public class FieldInfoList extends ArrayList<FieldInfo> {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Get the names of all fields in this list. */
+    /**
+     * @return The names of all fields in this list, by calling {@link FieldInfo#getName()} for each item in the
+     *         list.
+     */
     public List<String> getNames() {
         if (this.isEmpty()) {
             return Collections.<String> emptyList();
@@ -116,8 +119,8 @@ public class FieldInfoList extends ArrayList<FieldInfo> {
     }
 
     /**
-     * Get the string representations of all fields in this list (with annotations, modifiers, etc.), by calling
-     * {@link FieldInfo#toString()} on each item in the list.
+     * @return The string representations of all fields in this list (with annotations, modifiers, etc.), by calling
+     *         {@link FieldInfo#toString()} for each item in the list.
      */
     public List<String> getAsStrings() {
         if (this.isEmpty()) {
@@ -133,7 +136,11 @@ public class FieldInfoList extends ArrayList<FieldInfo> {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Return true if this list contains a field with the given name. */
+    /**
+     * @param fieldName
+     *            The name of a field.
+     * @return true if this list contains a field with the given name.
+     */
     public boolean containsName(final String fieldName) {
         for (final FieldInfo fi : this) {
             if (fi.getName().equals(fieldName)) {
@@ -143,7 +150,11 @@ public class FieldInfoList extends ArrayList<FieldInfo> {
         return false;
     }
 
-    /** Return the {@link FieldInfo} object in the list with the given name, or null if not found. */
+    /**
+     * @param fieldName
+     *            The name of a field.
+     * @return The {@link FieldInfo} object in the list with the given name, or null if not found.
+     */
     public FieldInfo get(final String fieldName) {
         for (final FieldInfo fi : this) {
             if (fi.getName().equals(fieldName)) {

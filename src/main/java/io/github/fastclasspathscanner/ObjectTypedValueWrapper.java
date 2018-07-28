@@ -50,24 +50,6 @@ class ObjectTypedValueWrapper extends ScanResultObject {
     private Double doubleValue;
     private Byte byteValue;
 
-    @Override
-    void setScanResult(final ScanResult scanResult) {
-        super.setScanResult(scanResult);
-        if (enumValue != null) {
-            enumValue.setScanResult(scanResult);
-        } else if (classRef != null) {
-            classRef.setScanResult(scanResult);
-        } else if (annotationInfo != null) {
-            annotationInfo.setScanResult(scanResult);
-        } else if (valueArray != null) {
-            for (int i = 0; i < valueArray.length; i++) {
-                if (valueArray[i] != null) {
-                    valueArray[i].setScanResult(scanResult);
-                }
-            }
-        }
-    }
-
     /** Default constructor for deserialization. */
     public ObjectTypedValueWrapper() {
     }
@@ -150,6 +132,8 @@ class ObjectTypedValueWrapper extends ScanResultObject {
         }
     }
 
+    // -------------------------------------------------------------------------------------------------------------
+
     @Override
     protected String getClassName() {
         // getClassInfo() is not valid for this type, so getClassName() does not need to be implemented
@@ -159,6 +143,24 @@ class ObjectTypedValueWrapper extends ScanResultObject {
     @Override
     protected ClassInfo getClassInfo() {
         throw new IllegalArgumentException("getClassInfo() cannot be called here");
+    }
+
+    @Override
+    void setScanResult(final ScanResult scanResult) {
+        super.setScanResult(scanResult);
+        if (enumValue != null) {
+            enumValue.setScanResult(scanResult);
+        } else if (classRef != null) {
+            classRef.setScanResult(scanResult);
+        } else if (annotationInfo != null) {
+            annotationInfo.setScanResult(scanResult);
+        } else if (valueArray != null) {
+            for (int i = 0; i < valueArray.length; i++) {
+                if (valueArray[i] != null) {
+                    valueArray[i].setScanResult(scanResult);
+                }
+            }
+        }
     }
 
     /** Get the names of any classes referenced in the annotation parameters. */

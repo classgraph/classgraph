@@ -38,27 +38,25 @@ import java.util.List;
 
 /** An AutoCloseable list of AutoCloseable {@link Resource} objects. */
 public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
-    public ResourceList() {
+    ResourceList() {
         super();
     }
 
-    public ResourceList(final int sizeHint) {
+    ResourceList(final int sizeHint) {
         super(sizeHint);
     }
 
-    public ResourceList(final Collection<Resource> collection) {
+    ResourceList(final Collection<Resource> collection) {
         super(collection);
     }
 
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Returns a list containing the path of each {@link Resource} in this list, relative to the package root within
-     * its respective classpath element.
-     * 
-     * @returns the paths of each {@link Resource} relative to the package root within its respective classpath
-     *          element. For example, given a resource path of "BOOT-INF/classes/com/xyz/resource.xml" and a package
-     *          root of "BOOT-INF/classes/", returns "com/xyz/resource.xml".
+     * @return The paths of all resources in this list relative to the package root of the classpath element, by
+     *         calling {@link Resource#getPath()} for each item in the list. For example, given a resource path of
+     *         "BOOT-INF/classes/com/xyz/resource.xml" and a package root of "BOOT-INF/classes/", returns
+     *         "com/xyz/resource.xml".
      */
     public List<String> getPaths() {
         final List<String> resourcePaths = new ArrayList<>(this.size());
@@ -69,11 +67,22 @@ public class ResourceList extends ArrayList<Resource> implements AutoCloseable {
     }
 
     /**
-     * Returns a list of the URLs of each {@link Resource} in this list.
-     * 
-     * @returns the paths of of each {@link Resource} within its respective classpath element. For example, for a
-     *          resource path of "BOOT-INF/classes/com/xyz/resource.xml", returns
-     *          "BOOT-INF/classes/com/xyz/resource.xml" (even if the package root is "BOOT-INF/classes/").
+     * @return The paths of all resources in this list relative to the root of the classpath element, by calling
+     *         {@link Resource#getPathRelativeToClasspathElement()} for each item in the list. For example, given a
+     *         resource path of "BOOT-INF/classes/com/xyz/resource.xml", returns
+     *         "BOOT-INF/classes/com/xyz/resource.xml" (even if the package root is "BOOT-INF/classes/").
+     */
+    public List<String> getPathsRelativeToClasspathElement() {
+        final List<String> resourcePaths = new ArrayList<>(this.size());
+        for (final Resource resource : this) {
+            resourcePaths.add(resource.getPath());
+        }
+        return resourcePaths;
+    }
+
+    /**
+     * @return The URLs of all resources in this list, by calling {@link Resource#getURL()} for each item in the
+     *         list.
      */
     public List<URL> getURLs() {
         final List<URL> resourceURLs = new ArrayList<>(this.size());

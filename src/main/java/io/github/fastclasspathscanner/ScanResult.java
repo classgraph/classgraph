@@ -731,7 +731,7 @@ public class ScanResult implements Closeable {
      *
      * @param className
      *            the class to load.
-     * @param classType
+     * @param superclassOrInterfaceType
      *            The class type to cast the result to.
      * @param ignoreExceptions
      *            If true, null is returned if there was an exception during classloading, otherwise
@@ -745,10 +745,10 @@ public class ScanResult implements Closeable {
      * @return a reference to the loaded class, or null if the class could not be loaded and ignoreExceptions is
      *         true.
      */
-    <T> Class<T> loadClass(final String className, final Class<T> classType, final boolean ignoreExceptions)
-            throws IllegalArgumentException {
+    <T> Class<T> loadClass(final String className, final Class<T> superclassOrInterfaceType,
+            final boolean ignoreExceptions) throws IllegalArgumentException {
         try {
-            if (classType == null) {
+            if (superclassOrInterfaceType == null) {
                 if (ignoreExceptions) {
                     return null;
                 } else {
@@ -757,12 +757,12 @@ public class ScanResult implements Closeable {
             }
             final Class<?> loadedClass = loadClass(className, /* returnNullIfClassNotFound = */ ignoreExceptions,
                     log);
-            if (loadedClass != null && !classType.isAssignableFrom(loadedClass)) {
+            if (loadedClass != null && !superclassOrInterfaceType.isAssignableFrom(loadedClass)) {
                 if (ignoreExceptions) {
                     return null;
                 } else {
-                    throw new IllegalArgumentException(
-                            "Loaded class " + loadedClass.getName() + " cannot be cast to " + classType.getName());
+                    throw new IllegalArgumentException("Loaded class " + loadedClass.getName()
+                            + " cannot be cast to " + superclassOrInterfaceType.getName());
                 }
             }
             @SuppressWarnings("unchecked")

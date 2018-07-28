@@ -35,16 +35,15 @@ import java.util.List;
 
 /** A list of {@link AnnotationInfo} objects. */
 public class AnnotationInfoList extends ArrayList<AnnotationInfo> {
-
-    public AnnotationInfoList() {
+    AnnotationInfoList() {
         super();
     }
 
-    public AnnotationInfoList(final int sizeHint) {
+    AnnotationInfoList(final int sizeHint) {
         super(sizeHint);
     }
 
-    public AnnotationInfoList(final Collection<AnnotationInfo> annotationInfoCollection) {
+    AnnotationInfoList(final Collection<AnnotationInfo> annotationInfoCollection) {
         super(annotationInfoCollection);
     }
 
@@ -102,7 +101,10 @@ public class AnnotationInfoList extends ArrayList<AnnotationInfo> {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Get the names of all annotations in this list. */
+    /**
+     * @return The names of all annotations in this list, by calling {@link AnnotationInfo#getName()} for each item
+     *         in the list.
+     */
     public List<String> getNames() {
         if (this.isEmpty()) {
             return Collections.<String> emptyList();
@@ -116,8 +118,8 @@ public class AnnotationInfoList extends ArrayList<AnnotationInfo> {
     }
 
     /**
-     * Get the string representations of all annotations in this list (with meta-annotations, etc.), by calling
-     * {@link AnnotationInfo#toString()} on each item in the list.
+     * @return The string representations of all annotations in this list, by calling
+     *         {@link AnnotationInfo#toString()} for each item in the list.
      */
     public List<String> getAsStrings() {
         if (this.isEmpty()) {
@@ -133,7 +135,11 @@ public class AnnotationInfoList extends ArrayList<AnnotationInfo> {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Return true if this list contains the annotation with the given name. */
+    /**
+     * @param annotationName
+     *            The fully-qualified class name of an annotation.
+     * @return true if this list contains the annotation with the given name.
+     */
     public boolean containsName(final String annotationName) {
         for (final AnnotationInfo ai : this) {
             if (ai.getName().equals(annotationName)) {
@@ -143,7 +149,11 @@ public class AnnotationInfoList extends ArrayList<AnnotationInfo> {
         return false;
     }
 
-    /** Return the {@link AnnotationInfo} object in the list with the given name, or null if not found. */
+    /**
+     * @param annotationName
+     *            The fully-qualified class name of an annotation.
+     * @return The {@link AnnotationInfo} object in the list with the given name, or null if not found.
+     */
     public AnnotationInfo get(final String annotationName) {
         for (final AnnotationInfo ai : this) {
             if (ai.getName().equals(annotationName)) {

@@ -39,6 +39,8 @@ import io.github.fastclasspathscanner.utils.TypeUtils;
 
 /** A class type signature (called "ClassSignature" in the classfile documentation). */
 public class ClassTypeSignature extends HierarchicalTypeSignature {
+    private final ClassInfo classInfo;
+
     /** The class type parameters. */
     final List<TypeParameter> typeParameters;
 
@@ -48,7 +50,11 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
     /** The superinterface signatures. */
     private final List<ClassRefTypeSignature> superinterfaceSignatures;
 
+    // -------------------------------------------------------------------------------------------------------------
+
     /**
+     * @param classInfo
+     *            the {@link ClassInfo} object of the class.
      * @param typeParameters
      *            The class type parameters.
      * @param superclassSignature
@@ -56,35 +62,18 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
      * @param superinterfaceSignatures
      *            The superinterface signature(s).
      */
-    private ClassTypeSignature(final List<TypeParameter> typeParameters,
+    private ClassTypeSignature(final ClassInfo classInfo, final List<TypeParameter> typeParameters,
             final ClassRefTypeSignature superclassSignature,
             final List<ClassRefTypeSignature> superinterfaceSignatures) {
+        this.classInfo = classInfo;
         this.typeParameters = typeParameters;
         this.superclassSignature = superclassSignature;
         this.superinterfaceSignatures = superinterfaceSignatures;
     }
 
-    @Override
-    void setScanResult(final ScanResult scanResult) {
-        super.setScanResult(scanResult);
-        if (typeParameters != null) {
-            for (final TypeParameter typeParameter : typeParameters) {
-                typeParameter.setScanResult(scanResult);
-            }
-        }
-        if (this.superclassSignature != null) {
-            this.superclassSignature.setScanResult(scanResult);
-        }
-        if (superinterfaceSignatures != null) {
-            for (final ClassRefTypeSignature classRefTypeSignature : superinterfaceSignatures) {
-                classRefTypeSignature.setScanResult(scanResult);
-            }
-        }
-    }
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the type parameters for the class.
-     * 
      * @return The type parameters for the class.
      */
     public List<TypeParameter> getTypeParameters() {
@@ -110,6 +99,80 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
         return superinterfaceSignatures;
     }
 
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Parse a class type signature or class type descriptor.
+     * 
+     * @param typeDescriptor
+     *            The class type signature or class type descriptor to parse.
+     * @return The parsed class type signature or class type descriptor.
+     * @throws ParseException
+     *             If the class type signature could not be parsed.
+     */
+    static ClassTypeSignature parse(final String typeDescriptor, final ClassInfo classInfo) throws ParseException {
+        final Parser parser = new Parser(typeDescriptor);
+        final List<TypeParameter> typeParameters = TypeParameter.parseList(parser);
+        final ClassRefTypeSignature superclassSignature = ClassRefTypeSignature.parse(parser);
+        List<ClassRefTypeSignature> superinterfaceSignatures;
+        if (parser.hasMore()) {
+            superinterfaceSignatures = new ArrayList<>();
+            while (parser.hasMore()) {
+                final ClassRefTypeSignature superinterfaceSignature = ClassRefTypeSignature.parse(parser);
+                if (superinterfaceSignature == null) {
+                    throw new ParseException(parser, "Could not parse superinterface signature");
+                }
+                superinterfaceSignatures.add(superinterfaceSignature);
+            }
+        } else {
+            superinterfaceSignatures = Collections.emptyList();
+        }
+        if (parser.hasMore()) {
+            throw new ParseException(parser, "Extra characters at end of type descriptor");
+        }
+        final ClassTypeSignature classSignature = new ClassTypeSignature(classInfo, typeParameters,
+                superclassSignature, superinterfaceSignatures);
+        // Add back-links from type variable signature to the class signature it is part of
+        @SuppressWarnings("unchecked")
+        final List<TypeVariableSignature> typeVariableSignatures = (List<TypeVariableSignature>) parser.getState();
+        if (typeVariableSignatures != null) {
+            for (final TypeVariableSignature typeVariableSignature : typeVariableSignatures) {
+                typeVariableSignature.containingClassName = classInfo.getName();
+            }
+        }
+        return classSignature;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    @Override
+    protected String getClassName() {
+        return classInfo != null ? classInfo.getName() : null;
+    }
+
+    @Override
+    protected ClassInfo getClassInfo() {
+        return classInfo;
+    }
+
+    @Override
+    void setScanResult(final ScanResult scanResult) {
+        super.setScanResult(scanResult);
+        if (typeParameters != null) {
+            for (final TypeParameter typeParameter : typeParameters) {
+                typeParameter.setScanResult(scanResult);
+            }
+        }
+        if (this.superclassSignature != null) {
+            this.superclassSignature.setScanResult(scanResult);
+        }
+        if (superinterfaceSignatures != null) {
+            for (final ClassRefTypeSignature classRefTypeSignature : superinterfaceSignatures) {
+                classRefTypeSignature.setScanResult(scanResult);
+            }
+        }
+    }
+
     @Override
     public void getClassNamesFromTypeDescriptors(final Set<String> classNameListOut) {
         for (final TypeParameter typeParameter : typeParameters) {
@@ -123,17 +186,7 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
         }
     }
 
-    @Override
-    protected String getClassName() {
-        // getClassInfo() is disabled for this type, so getClassName() does not need to be implemented
-        throw new IllegalArgumentException("getClassName() cannot be called here");
-    }
-
-    @Override
-    protected ClassInfo getClassInfo() {
-        // getClassInfo() is disabled for this type, since the class name is not part of a class type signature
-        throw new IllegalArgumentException("getClassInfo() cannot be called here");
-    }
+    // -------------------------------------------------------------------------------------------------------------
 
     @Override
     public int hashCode() {
@@ -165,8 +218,8 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
      *            The class name
      * @return The String representation.
      */
-    String toString(final int modifiers, final boolean isAnnotation, final boolean isInterface,
-            final String className) {
+    String toString(final String className, final int modifiers, final boolean isAnnotation,
+            final boolean isInterface) {
         final StringBuilder buf = new StringBuilder();
         if (modifiers != 0) {
             TypeUtils.modifiersToString(modifiers, /* isMethod = */ false, buf);
@@ -215,51 +268,7 @@ public class ClassTypeSignature extends HierarchicalTypeSignature {
 
     @Override
     public String toString() {
-        return toString(/* modifiers = */ 0, /* isAnnotation = */ false, /* isInterface = */ false,
-                /* methodName = */ null);
-    }
-
-    /**
-     * Parse a class type signature or class type descriptor.
-     * 
-     * @param className
-     *            The name of the class (for resolving type variabless).
-     * @param typeDescriptor
-     *            The class type signature or class type descriptor to parse.
-     * @return The parsed class type signature or class type descriptor.
-     * @throws ParseException
-     *             If the class type signature could not be parsed.
-     */
-    static ClassTypeSignature parse(final String className, final String typeDescriptor) throws ParseException {
-        final Parser parser = new Parser(typeDescriptor);
-        final List<TypeParameter> typeParameters = TypeParameter.parseList(parser);
-        final ClassRefTypeSignature superclassSignature = ClassRefTypeSignature.parse(parser);
-        List<ClassRefTypeSignature> superinterfaceSignatures;
-        if (parser.hasMore()) {
-            superinterfaceSignatures = new ArrayList<>();
-            while (parser.hasMore()) {
-                final ClassRefTypeSignature superinterfaceSignature = ClassRefTypeSignature.parse(parser);
-                if (superinterfaceSignature == null) {
-                    throw new ParseException(parser, "Could not parse superinterface signature");
-                }
-                superinterfaceSignatures.add(superinterfaceSignature);
-            }
-        } else {
-            superinterfaceSignatures = Collections.emptyList();
-        }
-        if (parser.hasMore()) {
-            throw new ParseException(parser, "Extra characters at end of type descriptor");
-        }
-        final ClassTypeSignature classSignature = new ClassTypeSignature(typeParameters, superclassSignature,
-                superinterfaceSignatures);
-        // Add back-links from type variable signature to the class signature it is part of
-        @SuppressWarnings("unchecked")
-        final List<TypeVariableSignature> typeVariableSignatures = (List<TypeVariableSignature>) parser.getState();
-        if (typeVariableSignatures != null) {
-            for (final TypeVariableSignature typeVariableSignature : typeVariableSignatures) {
-                typeVariableSignature.containingClassName = className;
-            }
-        }
-        return classSignature;
+        return toString(classInfo.getName(), classInfo.getModifiers(), classInfo.isAnnotation(),
+                classInfo.isInterface());
     }
 }

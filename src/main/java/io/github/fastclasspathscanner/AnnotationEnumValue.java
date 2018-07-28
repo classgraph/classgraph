@@ -32,8 +32,8 @@ import java.lang.reflect.Field;
 import java.util.Set;
 
 /**
- * Class for wrapping an enum constant value (split into class name and constant name) referenced inside an
- * annotation.
+ * Class for wrapping an enum constant value (split into class name and constant name), as used as an annotation
+ * parameter value.
  */
 public class AnnotationEnumValue extends ScanResultObject implements Comparable<AnnotationEnumValue> {
     private String className;
@@ -54,31 +54,36 @@ public class AnnotationEnumValue extends ScanResultObject implements Comparable<
         this.valueName = constValueName;
     }
 
-    /** Return the name of the enum class. */
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * @return The name of the enum class.
+     */
     @Override
     public String getClassName() {
         return className;
     }
 
-    /** Return the name of the enum const value. */
+    /**
+     * @return The name of the enum const value.
+     */
     public String getValueName() {
         return valueName;
     }
 
     /**
-     * Get the fully-qualified name of the enum const value, i.e. (getClassName() + getConstValueName()).
-     * 
-     * @return The fully-qualified name of the enum const value, i.e. (getClassName() + getConstValueName()).
+     * @return The fully-qualified name of the enum constant value, i.e. ({@link #getClassName()} +
+     *         {#getValueName()}).
      */
     public String getName() {
         return className + "." + valueName;
     }
 
     /**
-     * Loads the enum class, if it has not yet been loaded, instantiates the enum constants, and returns the enum
-     * constant value represented by this {@link AnnotationEnumValue}.
+     * Loads the enum class, instantiates the enum constants for the class, and returns the enum constant value
+     * represented by this {@link AnnotationEnumValue}.
      * 
-     * @return The enum constant value.
+     * @return The enum constant value represented by this {@link AnnotationEnumValue}
      * @throws IllegalArgumentException
      *             if the class could not be loaded, or the enum constant is invalid.
      */
@@ -103,7 +108,8 @@ public class AnnotationEnumValue extends ScanResultObject implements Comparable<
         }
     }
 
-    /** Get the names of any classes referenced in the annotation parameters. */
+    // -------------------------------------------------------------------------------------------------------------
+
     @Override
     void getClassNamesFromTypeDescriptors(final Set<String> referencedClassNames) {
         referencedClassNames.add(className);

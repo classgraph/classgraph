@@ -56,13 +56,7 @@ public class TypeArgument extends HierarchicalTypeSignature {
     /** Type signature (will be null if wildcard == ANY). */
     private final ReferenceTypeSignature typeSignature;
 
-    @Override
-    void setScanResult(final ScanResult scanResult) {
-        super.setScanResult(scanResult);
-        if (this.typeSignature != null) {
-            this.typeSignature.setScanResult(scanResult);
-        }
-    }
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * @param wildcard
@@ -74,6 +68,8 @@ public class TypeArgument extends HierarchicalTypeSignature {
         this.wildcard = wildcard;
         this.typeSignature = typeSignature;
     }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Get the type wildcard, which is one of {NONE, ANY, EXTENDS, SUPER}.
@@ -93,54 +89,7 @@ public class TypeArgument extends HierarchicalTypeSignature {
         return typeSignature;
     }
 
-    @Override
-    public void getClassNamesFromTypeDescriptors(final Set<String> classNameListOut) {
-        if (typeSignature != null) {
-            typeSignature.getClassNamesFromTypeDescriptors(classNameListOut);
-        }
-    }
-
-    @Override
-    protected String getClassName() {
-        // getClassInfo() is not valid for this type, so getClassName() does not need to be implemented
-        throw new IllegalArgumentException("getClassName() cannot be called here");
-    }
-
-    @Override
-    protected ClassInfo getClassInfo() {
-        throw new IllegalArgumentException("getClassInfo() cannot be called here");
-    }
-
-    @Override
-    public int hashCode() {
-        return typeSignature.hashCode() + 7 * wildcard.hashCode();
-    }
-
-    @Override
-    public boolean equals(final Object obj) {
-        if (!(obj instanceof TypeArgument)) {
-            return false;
-        }
-        final TypeArgument o = (TypeArgument) obj;
-        return (o.typeSignature.equals(this.typeSignature) && o.wildcard.equals(this.wildcard));
-    }
-
-    @Override
-    public String toString() {
-        final String typeSigStr = typeSignature == null ? null : typeSignature.toString();
-        switch (wildcard) {
-        case ANY:
-            return "?";
-        case EXTENDS:
-            return typeSigStr.equals("java.lang.Object") ? "?" : "? extends " + typeSigStr;
-        case SUPER:
-            return "? super " + typeSigStr;
-        case NONE:
-            return typeSigStr;
-        default:
-            throw new RuntimeException("Unknown wildcard type");
-        }
-    }
+    // -------------------------------------------------------------------------------------------------------------
 
     /** Parse a type argument. */
     private static TypeArgument parse(final Parser parser) throws ParseException {
@@ -188,4 +137,66 @@ public class TypeArgument extends HierarchicalTypeSignature {
             return Collections.emptyList();
         }
     }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    @Override
+    protected String getClassName() {
+        // getClassInfo() is not valid for this type, so getClassName() does not need to be implemented
+        throw new IllegalArgumentException("getClassName() cannot be called here");
+    }
+
+    @Override
+    protected ClassInfo getClassInfo() {
+        throw new IllegalArgumentException("getClassInfo() cannot be called here");
+    }
+
+    @Override
+    void setScanResult(final ScanResult scanResult) {
+        super.setScanResult(scanResult);
+        if (this.typeSignature != null) {
+            this.typeSignature.setScanResult(scanResult);
+        }
+    }
+
+    @Override
+    public void getClassNamesFromTypeDescriptors(final Set<String> classNameListOut) {
+        if (typeSignature != null) {
+            typeSignature.getClassNamesFromTypeDescriptors(classNameListOut);
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    @Override
+    public int hashCode() {
+        return typeSignature.hashCode() + 7 * wildcard.hashCode();
+    }
+
+    @Override
+    public boolean equals(final Object obj) {
+        if (!(obj instanceof TypeArgument)) {
+            return false;
+        }
+        final TypeArgument o = (TypeArgument) obj;
+        return (o.typeSignature.equals(this.typeSignature) && o.wildcard.equals(this.wildcard));
+    }
+
+    @Override
+    public String toString() {
+        final String typeSigStr = typeSignature == null ? null : typeSignature.toString();
+        switch (wildcard) {
+        case ANY:
+            return "?";
+        case EXTENDS:
+            return typeSigStr.equals("java.lang.Object") ? "?" : "? extends " + typeSigStr;
+        case SUPER:
+            return "? super " + typeSigStr;
+        case NONE:
+            return typeSigStr;
+        default:
+            throw new RuntimeException("Unknown wildcard type");
+        }
+    }
+
 }
