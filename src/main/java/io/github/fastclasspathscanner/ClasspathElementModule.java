@@ -40,11 +40,13 @@ import java.util.List;
 
 import io.github.fastclasspathscanner.ScanSpec.ScanSpecPathMatch;
 import io.github.fastclasspathscanner.utils.ClasspathOrModulePathEntry;
+import io.github.fastclasspathscanner.utils.ClasspathUtils;
 import io.github.fastclasspathscanner.utils.FileUtils;
 import io.github.fastclasspathscanner.utils.InputStreamOrByteBufferAdapter;
 import io.github.fastclasspathscanner.utils.LogNode;
 import io.github.fastclasspathscanner.utils.NestedJarHandler;
 import io.github.fastclasspathscanner.utils.Recycler;
+import io.github.fastclasspathscanner.utils.URLPathEncoder;
 
 /** A module classpath element. */
 class ClasspathElementModule extends ClasspathElement {
@@ -97,10 +99,11 @@ class ClasspathElementModule extends ClasspathElement {
                     if (moduleRef.getLocationStr() == null) {
                         // If there is no known module location, just guess that it should be a "jrt:/" URL,
                         // so that the user can at least see something in the result
-                        return new URL(
-                                new URL("jrt:/" + moduleRef.getName()).toString() + "!" + moduleResourcePath);
+                        return new URL(new URL("jrt:/" + moduleRef.getName()).toString() + "!"
+                                + URLPathEncoder.encodePath(moduleResourcePath));
                     } else {
-                        return new URL(new URL(moduleRef.getLocationStr()).toString() + "!" + moduleResourcePath);
+                        return new URL(new URL(moduleRef.getLocationStr()).toString() + "!"
+                                + URLPathEncoder.encodePath(moduleRef.getLocationStr()));
                     }
                 } catch (final MalformedURLException e) {
                     throw new IllegalArgumentException("Could not form URL for module location: "
