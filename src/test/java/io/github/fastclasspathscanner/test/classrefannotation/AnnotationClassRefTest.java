@@ -66,7 +66,7 @@ public class AnnotationClassRefTest {
                 .enableAnnotationInfo().scan().getClassesWithMethodAnnotation(ClassRefAnnotation.class.getName());
         assertThat(testClasses.size()).isEqualTo(1);
         final ClassInfo testClass = testClasses.get(0);
-        final MethodInfo method = testClass.getMethodInfo().get("methodWithAnnotation");
+        final MethodInfo method = testClass.getMethodInfo().getSingleMethod("methodWithAnnotation");
         assertThat(method).isNotNull();
         final AnnotationInfoList annotations = method.getAnnotationInfo();
         assertThat(annotations.size()).isEqualTo(1);

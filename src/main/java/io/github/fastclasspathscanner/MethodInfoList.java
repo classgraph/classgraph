@@ -36,15 +36,16 @@ import java.util.List;
 /** A list of {@link MethodInfo} objects. */
 public class MethodInfoList extends ArrayList<MethodInfo> {
 
-    public MethodInfoList() {
+    /** Construct a list of {@link MethodInfo} objects. */
+    MethodInfoList() {
         super();
     }
 
-    public MethodInfoList(final int sizeHint) {
+    MethodInfoList(final int sizeHint) {
         super(sizeHint);
     }
 
-    public MethodInfoList(final Collection<MethodInfo> methodInfoCollection) {
+    MethodInfoList(final Collection<MethodInfo> methodInfoCollection) {
         super(methodInfoCollection);
     }
 
@@ -136,7 +137,11 @@ public class MethodInfoList extends ArrayList<MethodInfo> {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Return true if this list contains a method with the given name. */
+    /**
+     * @param methodName
+     *            The name of a class.
+     * @return true if the list contains a method with the given name.
+     */
     public boolean containsName(final String methodName) {
         for (final MethodInfo mi : this) {
             if (mi.getName().equals(methodName)) {
@@ -147,10 +152,14 @@ public class MethodInfoList extends ArrayList<MethodInfo> {
     }
 
     /**
+     * Returns a list of all methods matching a given name. (There may be more than one method with a given name,
+     * due to overloading.)
+     * 
      * @param methodName
      *            The name of a method.
      * @return A list of {@link MethodInfo} objects in the list with the given name (there may be more than one
-     *         method with a given name, due to overloading), or null if no method had a matching name.
+     *         method with a given name, due to overloading). Returns the empty list if no method had a matching
+     *         name.
      */
     public MethodInfoList get(final String methodName) {
         boolean hasMethodWithName = false;
@@ -162,14 +171,45 @@ public class MethodInfoList extends ArrayList<MethodInfo> {
         }
         if (!hasMethodWithName) {
             return EMPTY_LIST;
+        } else {
+            final MethodInfoList matchingMethods = new MethodInfoList(2);
+            for (final MethodInfo mi : this) {
+                if (mi.getName().equals(methodName)) {
+                    matchingMethods.add(mi);
+                }
+            }
+            return matchingMethods;
         }
-        MethodInfoList matchingMethods = new MethodInfoList();
+    }
+
+    /**
+     * Returns a single method with the given name, or null if not found. Throws {@link IllegalArgumentException} if
+     * there are two methods with the given name.
+     * 
+     * @param methodName
+     *            The name of a method.
+     * @return The {@link MethodInfo} object from the list with the given name, if there is exactly one method with
+     *         the given name. Returns null if there were no methods with the given name.
+     * @throws IllegalArgumentException
+     *             if there are two or more methods with the given name.
+     */
+    public MethodInfo getSingleMethod(final String methodName) {
+        int numMethodsWithName = 0;
+        MethodInfo lastFoundMethod = null;
         for (final MethodInfo mi : this) {
             if (mi.getName().equals(methodName)) {
-                matchingMethods.add(mi);
+                numMethodsWithName++;
+                lastFoundMethod = mi;
             }
         }
-        return matchingMethods;
+        if (numMethodsWithName == 0) {
+            return null;
+        } else if (numMethodsWithName == 1) {
+            return lastFoundMethod;
+        } else {
+            throw new IllegalArgumentException("There are multiple methods named \"" + methodName + "\" in class "
+                    + iterator().next().getName());
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
