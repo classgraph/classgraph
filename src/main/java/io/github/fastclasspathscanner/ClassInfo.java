@@ -151,348 +151,6 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         this.isExternalClass = isExternalClass;
     }
 
-    @Override
-    void setScanResult(final ScanResult scanResult) {
-        super.setScanResult(scanResult);
-        if (this.typeSignature != null) {
-            this.typeSignature.setScanResult(scanResult);
-        }
-        if (annotationInfo != null) {
-            for (final AnnotationInfo ai : annotationInfo) {
-                ai.setScanResult(scanResult);
-            }
-        }
-        if (fieldInfo != null) {
-            for (final FieldInfo fi : fieldInfo) {
-                fi.setScanResult(scanResult);
-            }
-        }
-        if (methodInfo != null) {
-            for (final MethodInfo mi : methodInfo) {
-                mi.setScanResult(scanResult);
-            }
-        }
-        if (annotationDefaultParamValues != null) {
-            for (final AnnotationParameterValue apv : annotationDefaultParamValues) {
-                apv.setScanResult(scanResult);
-            }
-        }
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Obtain a {@code Class<?>} reference for the class named by this {@link ClassInfo} object, casting it to the
-     * requested interface or superclass type. Causes the ClassLoader to load the class, if it is not already
-     * loaded.
-     * 
-     * <p>
-     * <b>Important note:</b> since {@code superclassOrInterfaceType} is a class reference for an already-loaded
-     * class, it is critical that {@code superclassOrInterfaceType} is loaded by the same classloader as the class
-     * referred to by this {@code ClassInfo} object, otherwise the class cast will fail.
-     * 
-     * @param superclassOrInterfaceType
-     *            The type to cast the loaded class to.
-     * @param ignoreExceptions
-     *            If true, ignore any exceptions or errors thrown during classloading, or when attempting to cast
-     *            the resulting {@code Class<?>} reference to the requested type. If an exception or error is
-     *            thrown, no {@code Class<?>} reference is added to the output class for the corresponding
-     *            {@link ClassInfo} object, so the returned list may contain fewer items than this input list. If
-     *            false, {@link IllegalArgumentException} is thrown if the class could not be loaded or cast to the
-     *            requested type.
-     * @return The class reference, or null, if ignoreExceptions is true and there was an exception or error loading
-     *         the class.
-     * @throws IllegalArgumentException
-     *             if ignoreExceptions is false and there were problems loading the class, or casting it to the
-     *             requested type.
-     */
-    public <T> Class<T> loadClass(final Class<T> superclassOrInterfaceType, final boolean ignoreExceptions) {
-        return scanResult.loadClass(name, superclassOrInterfaceType, ignoreExceptions);
-    }
-
-    /**
-     * Obtain a {@code Class<?>} reference for the class named by this {@link ClassInfo} object, casting it to the
-     * requested interface or superclass type. Causes the ClassLoader to load the class, if it is not already
-     * loaded.
-     * 
-     * <p>
-     * <b>Important note:</b> since {@code superclassOrInterfaceType} is a class reference for an already-loaded
-     * class, it is critical that {@code superclassOrInterfaceType} is loaded by the same classloader as the class
-     * referred to by this {@code ClassInfo} object, otherwise the class cast will fail.
-     * 
-     * @param superclassOrInterfaceType
-     *            The type to cast the loaded class to.
-     * @return The class reference.
-     * @throws IllegalArgumentException
-     *             if there were problems loading the class or casting it to the requested type.
-     */
-    public <T> Class<T> loadClass(final Class<T> superclassOrInterfaceType) {
-        return loadClass(superclassOrInterfaceType, /* ignoreExceptions = */ false);
-    }
-
-    /**
-     * Obtain a {@code Class<?>} reference for the class named by this {@link ClassInfo} object. Causes the
-     * ClassLoader to load the class, if it is not already loaded.
-     * 
-     * @return The class reference, or null, if ignoreExceptions is true and there was an exception or error loading
-     *         the class.
-     * @throws IllegalArgumentException
-     *             if ignoreExceptions is false and there were problems loading the class.
-     */
-    public Class<?> loadClass(final boolean ignoreExceptions) {
-        return scanResult.loadClass(name, ignoreExceptions);
-    }
-
-    /**
-     * Obtain a {@code Class<?>} reference for the class named by this {@link ClassInfo} object. Causes the
-     * ClassLoader to load the class, if it is not already loaded.
-     * 
-     * @return The class reference.
-     * @throws IllegalArgumentException
-     *             if there were problems loading the class.
-     */
-    @Override
-    public Class<?> loadClass() {
-        return loadClass(/* ignoreExceptions = */ false);
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Get the name of this class.
-     * 
-     * @return The class name.
-     */
-    public String getName() {
-        return name;
-    }
-
-    /**
-     * Returns true if this class is an external class, i.e. was referenced by a whitelisted class as a superclass /
-     * implemented interface / annotation, but is not itself a whitelisted class.
-     */
-    public boolean isExternalClass() {
-        return isExternalClass;
-    }
-
-    /**
-     * Get the class modifier flags, e.g. Modifier.PUBLIC
-     * 
-     * @return The class modifiers.
-     */
-    public int getModifiers() {
-        return modifiers;
-    }
-
-    /**
-     * Get the field modifiers as a String, e.g. "public static final". For the modifier bits, call getModifiers().
-     * 
-     * @return The class modifiers, in String format.
-     */
-    public String getModifiersStr() {
-        return TypeUtils.modifiersToString(modifiers, /* isMethod = */ false);
-    }
-
-    /**
-     * Return whether this class is a public class.
-     *
-     * @return true if this class is a public class.
-     */
-    public boolean isPublic() {
-        return (modifiers & Modifier.PUBLIC) != 0;
-    }
-
-    /**
-     * Return whether this class is an abstract class.
-     *
-     * @return true if this class is an abstract class.
-     */
-    public boolean isAbstract() {
-        return (modifiers & 0x400) != 0;
-    }
-
-    /**
-     * Return whether this class is a synthetic class.
-     *
-     * @return true if this class is a synthetic class.
-     */
-    public boolean isSynthetic() {
-        return (modifiers & 0x1000) != 0;
-    }
-
-    /**
-     * Return whether this class is a final class.
-     *
-     * @return true if this class is a final class.
-     */
-    public boolean isFinal() {
-        return (modifiers & Modifier.FINAL) != 0;
-    }
-
-    /**
-     * Returns true if this class is static.
-     * 
-     * @return True if this class is static.
-     */
-    public boolean isStatic() {
-        return Modifier.isStatic(modifiers);
-    }
-
-    /**
-     * Return whether this class is an annotation.
-     *
-     * @return true if this class is an annotation.
-     */
-    public boolean isAnnotation() {
-        return isAnnotation;
-    }
-
-    /**
-     * Return whether this class is an interface that is not an annotation (annotations are interfaces, and can be
-     * implemented).
-     *
-     * @return true if this class is an interface that is not an annotation.
-     */
-    public boolean isInterface() {
-        return isInterface && !isAnnotation;
-    }
-
-    /**
-     * Return whether this class is an interface or annotation (annotations are interfaces, and can be implemented).
-     *
-     * @return true if this class is an interface or annotation.
-     */
-    public boolean isInterfaceOrAnnotation() {
-        return isInterface;
-    }
-
-    /**
-     * Return whether this class is an enum.
-     *
-     * @return true if this class is an enum.
-     */
-    public boolean isEnum() {
-        return (modifiers & 0x4000) != 0;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Get the type signature for the class, if available (else returns null).
-     * 
-     * @return The class type signature.
-     */
-    public ClassTypeSignature getTypeSignature() {
-        if (typeSignatureStr == null) {
-            return null;
-        }
-        if (typeSignature == null) {
-            try {
-                typeSignature = ClassTypeSignature.parse(name, typeSignatureStr);
-                typeSignature.setScanResult(scanResult);
-            } catch (final ParseException e) {
-                throw new IllegalArgumentException(e);
-            }
-        }
-        return typeSignature;
-    }
-
-    /**
-     * The classpath element URL (for a classpath root dir, jar or module) that this class was found within.
-     * 
-     * N.B. Classpath elements are handled as File objects internally. It is much faster to call
-     * getClasspathElementFile() and/or getClasspathElementModule() -- the conversion of a File into a URL (via
-     * File#toURI()#toURL()) is time consuming.
-     * 
-     * @return The classpath element, as a URL.
-     */
-    public URL getClasspathElementURL() {
-        if (classpathElementURL == null) {
-            try {
-                if (moduleRef != null) {
-                    classpathElementURL = moduleRef.getLocation().toURL();
-                } else if (!jarfilePackageRoot.isEmpty()) {
-                    classpathElementURL = new URL(
-                            getClasspathElementFile().toURI().toURL().toString() + "!" + jarfilePackageRoot);
-                } else {
-                    classpathElementURL = getClasspathElementFile().toURI().toURL();
-                }
-            } catch (final MalformedURLException e) {
-                // Shouldn't happen
-                throw new IllegalArgumentException(e);
-            }
-        }
-        return classpathElementURL;
-    }
-
-    /**
-     * The classpath element file (classpath root dir or jar) that this class was found within, or null if this
-     * class was found in a module.
-     * 
-     * @return The classpath element, as a File.
-     */
-    public File getClasspathElementFile() {
-        return classpathElementFile;
-    }
-
-    /**
-     * The module in the module path that this class was found within, or null if this class was found in a
-     * directory or jar in the classpath.
-     * 
-     * @return The module, as a ModuleRef.
-     */
-    public ModuleRef getModuleRef() {
-        return moduleRef;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /** Compare based on class name. */
-    @Override
-    public int compareTo(final ClassInfo o) {
-        return this.name.compareTo(o.name);
-    }
-
-    /** Use class name for equals(). */
-    @Override
-    public boolean equals(final Object obj) {
-        if (this == obj) {
-            return true;
-        }
-        if (obj == null) {
-            return false;
-        }
-        if (this.getClass() != obj.getClass()) {
-            return false;
-        }
-        final ClassInfo other = (ClassInfo) obj;
-        return name.equals(other.name);
-    }
-
-    /** Use hash code of class name. */
-    @Override
-    public int hashCode() {
-        return name != null ? name.hashCode() : 33;
-    }
-
-    @Override
-    public String toString() {
-        final ClassTypeSignature typeSig = getTypeSignature();
-        if (typeSig != null) {
-            return typeSig.toString(modifiers, isAnnotation, isInterface, name);
-        } else {
-            final StringBuilder buf = new StringBuilder();
-            TypeUtils.modifiersToString(modifiers, /* isMethod = */ false, buf);
-            if (buf.length() > 0) {
-                buf.append(' ');
-            }
-            buf.append(isAnnotation ? "@interface "
-                    : isInterface ? "interface " : (modifiers & 0x4000) != 0 ? "enum " : "class ");
-            buf.append(name);
-            return buf.toString();
-        }
-    }
-
     // -------------------------------------------------------------------------------------------------------------
 
     /** How classes are related. */
@@ -564,8 +222,6 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
          */
         CLASSES_WITH_FIELD_ANNOTATION,
     }
-
-    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Add a class with a given relationship type. Return whether the collection changed as a result of the call.
@@ -821,46 +477,6 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /**
-     * Get the names of any classes referenced in this class' type descriptor, or the type descriptors of fields,
-     * methods or annotations.
-     */
-    @Override
-    protected void getClassNamesFromTypeDescriptors(final Set<String> classNames) {
-        final Set<String> referencedClassNames = new HashSet<>();
-        if (methodInfo != null) {
-            for (final MethodInfo mi : methodInfo) {
-                mi.getClassNamesFromTypeDescriptors(classNames);
-            }
-        }
-        if (fieldInfo != null) {
-            for (final FieldInfo fi : fieldInfo) {
-                fi.getClassNamesFromTypeDescriptors(classNames);
-            }
-        }
-        if (annotationInfo != null) {
-            for (final AnnotationInfo ai : annotationInfo) {
-                ai.getClassNamesFromTypeDescriptors(referencedClassNames);
-            }
-        }
-        if (annotationDefaultParamValues != null) {
-            for (final AnnotationParameterValue paramValue : annotationDefaultParamValues) {
-                paramValue.getClassNamesFromTypeDescriptors(referencedClassNames);
-            }
-        }
-        final ClassTypeSignature classSig = getTypeSignature();
-        if (classSig != null) {
-            classSig.getClassNamesFromTypeDescriptors(referencedClassNames);
-        }
-    }
-
-    @Override
-    protected String getClassName() {
-        return name;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
     /** The class type to return. */
     private static enum ClassType {
         /** Get all class types. */
@@ -1097,7 +713,124 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     // -------------------------------------------------------------------------------------------------------------
-    // Standard classes
+    // Predicates
+    
+    /**
+     * Get the name of this class.
+     * 
+     * @return The class name.
+     */
+    public String getName() {
+        return name;
+    }
+
+    /**
+     * Returns true if this class is an external class, i.e. was referenced by a whitelisted class as a superclass /
+     * implemented interface / annotation, but is not itself a whitelisted class.
+     */
+    public boolean isExternalClass() {
+        return isExternalClass;
+    }
+
+    /**
+     * Get the class modifier flags, e.g. Modifier.PUBLIC
+     * 
+     * @return The class modifiers.
+     */
+    public int getModifiers() {
+        return modifiers;
+    }
+
+    /**
+     * Get the field modifiers as a String, e.g. "public static final". For the modifier bits, call getModifiers().
+     * 
+     * @return The class modifiers, in String format.
+     */
+    public String getModifiersStr() {
+        return TypeUtils.modifiersToString(modifiers, /* isMethod = */ false);
+    }
+
+    /**
+     * Return whether this class is a public class.
+     *
+     * @return true if this class is a public class.
+     */
+    public boolean isPublic() {
+        return (modifiers & Modifier.PUBLIC) != 0;
+    }
+
+    /**
+     * Return whether this class is an abstract class.
+     *
+     * @return true if this class is an abstract class.
+     */
+    public boolean isAbstract() {
+        return (modifiers & 0x400) != 0;
+    }
+
+    /**
+     * Return whether this class is a synthetic class.
+     *
+     * @return true if this class is a synthetic class.
+     */
+    public boolean isSynthetic() {
+        return (modifiers & 0x1000) != 0;
+    }
+
+    /**
+     * Return whether this class is a final class.
+     *
+     * @return true if this class is a final class.
+     */
+    public boolean isFinal() {
+        return (modifiers & Modifier.FINAL) != 0;
+    }
+
+    /**
+     * Returns true if this class is static.
+     * 
+     * @return True if this class is static.
+     */
+    public boolean isStatic() {
+        return Modifier.isStatic(modifiers);
+    }
+
+    /**
+     * Return whether this class is an annotation.
+     *
+     * @return true if this class is an annotation.
+     */
+    public boolean isAnnotation() {
+        return isAnnotation;
+    }
+
+    /**
+     * Return whether this class is an interface that is not an annotation (annotations are interfaces, and can be
+     * implemented).
+     *
+     * @return true if this class is an interface that is not an annotation.
+     */
+    public boolean isInterface() {
+        return isInterface && !isAnnotation;
+    }
+
+    /**
+     * Return whether this class is an interface or annotation (annotations are interfaces, and can be implemented).
+     *
+     * @return true if this class is an interface or annotation.
+     */
+    public boolean isInterfaceOrAnnotation() {
+        return isInterface;
+    }
+
+    /**
+     * Return whether this class is an enum.
+     *
+     * @return true if this class is an enum.
+     */
+    public boolean isEnum() {
+        return (modifiers & 0x4000) != 0;
+    }
 
     /**
      * Return whether this class is a standard class (not an annotation or interface).
@@ -1107,6 +840,116 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     public boolean isStandardClass() {
         return !(isAnnotation || isInterface);
     }
+
+    /**
+     * Returns true if this class implements the named interface.
+     */
+    public boolean extendsSuperclass(final String superclassName) {
+        return getSuperclasses().containsName(superclassName);
+    }
+
+    /**
+     * Returns true if this is an inner class (call isAnonymousInnerClass() to test if this is an anonymous inner
+     * class). If true, the containing class can be determined by calling getOuterClasses() or getOuterClassNames().
+     * 
+     * @return True if this class is an inner class.
+     */
+    public boolean isInnerClass() {
+        return !getOuterClasses().isEmpty();
+    }
+
+    /**
+     * Returns true if this class contains inner classes. If true, the inner classes can be determined by calling
+     * getInnerClasses() or getInnerClassNames().
+     * 
+     * @return True if this is an outer class.
+     */
+    public boolean isOuterClass() {
+        return !getInnerClasses().isEmpty();
+    }
+
+    /**
+     * Returns true if this is an anonymous inner class. If true, the name of the containing method can be obtained
+     * by calling getFullyQualifiedContainingMethodName().
+     * 
+     * @return True if this is an anonymous inner class.
+     */
+    public boolean isAnonymousInnerClass() {
+        return fullyQualifiedDefiningMethodName != null;
+    }
+
+    /**
+     * Return whether this class is an "implemented interface" (meaning a standard, non-annotation interface, or an
+     * annotation that has also been implemented as an interface by some class).
+     *
+     * <p>
+     * Annotations are interfaces, but you can also implement an annotation, so to we return whether an interface
+     * (even an annotation) is implemented by a class or extended by a subinterface, or (failing that) if it is not
+     * an interface but not an annotation.
+     *
+     * <p>
+     * (This is named "implemented interface" rather than just "interface" to distinguish it from an annotation.)
+     *
+     * @return true if this class is an "implemented interface".
+     */
+    public boolean isImplementedInterface() {
+        return relatedClasses.get(RelType.CLASSES_IMPLEMENTING) != null || (isInterface && !isAnnotation);
+    }
+
+    /**
+     * Returns true if this class implements the named interface.
+     */
+    public boolean implementsInterface(final String interfaceName) {
+        return getInterfaces().containsName(interfaceName);
+    }
+
+    /**
+     * Returns true if this class has the named annotation.
+     */
+    public boolean hasAnnotation(final String annotationName) {
+        return getAnnotations().containsName(annotationName);
+    }
+
+    /**
+     * Returns true if this class has the named field.
+     */
+    public boolean hasField(final String fieldName) {
+        return getFieldInfo().containsName(fieldName);
+    }
+
+    /**
+     * Returns true if this class has the named field annotation.
+     */
+    public boolean hasFieldAnnotation(final String fieldAnnotationName) {
+        for (final FieldInfo fieldInfo : getFieldInfo()) {
+            if (fieldInfo.getAnnotationInfo().containsName(fieldAnnotationName)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Returns true if this class has the named method.
+     */
+    public boolean hasMethod(final String methodName) {
+        return getMethodInfo().containsName(methodName);
+    }
+
+    /**
+     * Returns true if this class has the named method annotation.
+     */
+    public boolean hasMethodAnnotation(final String methodAnnotationName) {
+        for (final MethodInfo methodInfo : getMethodInfo()) {
+            if (methodInfo.getAnnotationInfo().containsName(methodAnnotationName)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+    // Standard classes
 
     /**
      * Get the subclasses of this class.
@@ -1155,23 +998,6 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Returns true if this class implements the named interface.
-     */
-    public boolean extendsSuperclass(final String superclassName) {
-        return getSuperclasses().containsName(superclassName);
-    }
-
-    /**
-     * Returns true if this is an inner class (call isAnonymousInnerClass() to test if this is an anonymous inner
-     * class). If true, the containing class can be determined by calling getOuterClasses() or getOuterClassNames().
-     * 
-     * @return True if this class is an inner class.
-     */
-    public boolean isInnerClass() {
-        return !getOuterClasses().isEmpty();
-    }
-
-    /**
      * Returns the containing outer classes, for inner classes. Note that all containing outer classes are returned,
      * not just the innermost containing outer class. Returns the empty list if this is not an inner class.
      * 
@@ -1183,32 +1009,12 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Returns true if this class contains inner classes. If true, the inner classes can be determined by calling
-     * getInnerClasses() or getInnerClassNames().
-     * 
-     * @return True if this is an outer class.
-     */
-    public boolean isOuterClass() {
-        return !getInnerClasses().isEmpty();
-    }
-
-    /**
      * Returns the inner classes contained within this class. Returns the empty list if none.
      * 
      * @return The list of inner classes within this class.
      */
     public ClassInfoList getInnerClasses() {
         return new ClassInfoList(this.filterClassInfo(RelType.CONTAINS_INNER_CLASS, /* strictWhitelist = */ false));
-    }
-
-    /**
-     * Returns true if this is an anonymous inner class. If true, the name of the containing method can be obtained
-     * by calling getFullyQualifiedContainingMethodName().
-     * 
-     * @return True if this is an anonymous inner class.
-     */
-    public boolean isAnonymousInnerClass() {
-        return fullyQualifiedDefiningMethodName != null;
     }
 
     /**
@@ -1223,24 +1029,6 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
 
     // -------------------------------------------------------------------------------------------------------------
     // Interfaces
-
-    /**
-     * Return whether this class is an "implemented interface" (meaning a standard, non-annotation interface, or an
-     * annotation that has also been implemented as an interface by some class).
-     *
-     * <p>
-     * Annotations are interfaces, but you can also implement an annotation, so to we return whether an interface
-     * (even an annotation) is implemented by a class or extended by a subinterface, or (failing that) if it is not
-     * an interface but not an annotation.
-     *
-     * <p>
-     * (This is named "implemented interface" rather than just "interface" to distinguish it from an annotation.)
-     *
-     * @return true if this class is an "implemented interface".
-     */
-    public boolean isImplementedInterface() {
-        return relatedClasses.get(RelType.CLASSES_IMPLEMENTING) != null || (isInterface && !isAnnotation);
-    }
 
     /**
      * Get the interfaces implemented by this class or by one of its superclasses, if this is a standard class, or
@@ -1261,13 +1049,6 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             allInterfaces.addAll(superclassImplementedInterfaces);
         }
         return new ClassInfoList(allInterfaces, implementedInterfaces.directlyRelatedClasses);
-    }
-
-    /**
-     * Returns true if this class implements the named interface.
-     */
-    public boolean implementsInterface(final String interfaceName) {
-        return getInterfaces().containsName(interfaceName);
     }
 
     /**
@@ -1344,13 +1125,6 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             inheritedSuperclassAnnotations.addAll(annotationClasses.reachableClasses);
             return new ClassInfoList(inheritedSuperclassAnnotations, annotationClasses.directlyRelatedClasses);
         }
-    }
-
-    /**
-     * Returns true if this class has the named annotation.
-     */
-    public boolean hasAnnotation(final String annotationName) {
-        return getAnnotations().containsName(annotationName);
     }
 
     /**
@@ -1612,13 +1386,6 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Returns true if this class has the named method.
-     */
-    public boolean hasMethod(final String methodName) {
-        return getMethodInfo().containsName(methodName);
-    }
-
-    /**
      * Get the method annotations or meta-annotations on this class. N.B. these annotations do not contain specific
      * annotation parameters -- call {@link MethodInfo#getAnnotationInfo()} to get details on specific method
      * annotation instances.
@@ -1639,18 +1406,6 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                     /* strictWhitelist = */ false).reachableClasses);
         }
         return new ClassInfoList(methodAnnotationsAndMetaAnnotations, methodAnnotations.directlyRelatedClasses);
-    }
-
-    /**
-     * Returns true if this class has the named method annotation.
-     */
-    public boolean hasMethodAnnotation(final String methodAnnotationName) {
-        for (final MethodInfo methodInfo : getMethodInfo()) {
-            if (methodInfo.getAnnotationInfo().containsName(methodAnnotationName)) {
-                return true;
-            }
-        }
-        return false;
     }
 
     /**
@@ -1753,13 +1508,6 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Returns true if this class has the named field.
-     */
-    public boolean hasField(final String fieldName) {
-        return getFieldInfo().containsName(fieldName);
-    }
-
-    /**
      * Get the field annotations on this class. N.B. these annotations do not contain specific annotation parameters
      * -- call {@link FieldInfo#getAnnotationInfo()} to get details on specific field annotation instances.
      *
@@ -1778,18 +1526,6 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                     /* strictWhitelist = */ false).reachableClasses);
         }
         return new ClassInfoList(fieldAnnotationsAndMetaAnnotations, fieldAnnotations.directlyRelatedClasses);
-    }
-
-    /**
-     * Returns true if this class has the named field annotation.
-     */
-    public boolean hasFieldAnnotation(final String fieldAnnotationName) {
-        for (final FieldInfo fieldInfo : getFieldInfo()) {
-            if (fieldInfo.getAnnotationInfo().containsName(fieldAnnotationName)) {
-                return true;
-            }
-        }
-        return false;
     }
 
     /**
@@ -1828,5 +1564,268 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     ClassInfoList getClassesWithFieldAnnotationDirectOnly() {
         return new ClassInfoList(
                 this.filterClassInfo(RelType.CLASSES_WITH_FIELD_ANNOTATION, /* strictWhitelist = */ true));
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Get the type signature for the class, if available (else returns null).
+     * 
+     * @return The class type signature.
+     */
+    public ClassTypeSignature getTypeSignature() {
+        if (typeSignatureStr == null) {
+            return null;
+        }
+        if (typeSignature == null) {
+            try {
+                typeSignature = ClassTypeSignature.parse(name, typeSignatureStr);
+                typeSignature.setScanResult(scanResult);
+            } catch (final ParseException e) {
+                throw new IllegalArgumentException(e);
+            }
+        }
+        return typeSignature;
+    }
+
+    /**
+     * The classpath element URL (for a classpath root dir, jar or module) that this class was found within.
+     * 
+     * N.B. Classpath elements are handled as File objects internally. It is much faster to call
+     * getClasspathElementFile() and/or getClasspathElementModule() -- the conversion of a File into a URL (via
+     * File#toURI()#toURL()) is time consuming.
+     * 
+     * @return The classpath element, as a URL.
+     */
+    public URL getClasspathElementURL() {
+        if (classpathElementURL == null) {
+            try {
+                if (moduleRef != null) {
+                    classpathElementURL = moduleRef.getLocation().toURL();
+                } else if (!jarfilePackageRoot.isEmpty()) {
+                    classpathElementURL = new URL(
+                            getClasspathElementFile().toURI().toURL().toString() + "!" + jarfilePackageRoot);
+                } else {
+                    classpathElementURL = getClasspathElementFile().toURI().toURL();
+                }
+            } catch (final MalformedURLException e) {
+                // Shouldn't happen
+                throw new IllegalArgumentException(e);
+            }
+        }
+        return classpathElementURL;
+    }
+
+    /**
+     * The classpath element file (classpath root dir or jar) that this class was found within, or null if this
+     * class was found in a module.
+     * 
+     * @return The classpath element, as a File.
+     */
+    public File getClasspathElementFile() {
+        return classpathElementFile;
+    }
+
+    /**
+     * The module in the module path that this class was found within, or null if this class was found in a
+     * directory or jar in the classpath.
+     * 
+     * @return The module, as a ModuleRef.
+     */
+    public ModuleRef getModuleRef() {
+        return moduleRef;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Obtain a {@code Class<?>} reference for the class named by this {@link ClassInfo} object, casting it to the
+     * requested interface or superclass type. Causes the ClassLoader to load the class, if it is not already
+     * loaded.
+     * 
+     * <p>
+     * <b>Important note:</b> since {@code superclassOrInterfaceType} is a class reference for an already-loaded
+     * class, it is critical that {@code superclassOrInterfaceType} is loaded by the same classloader as the class
+     * referred to by this {@code ClassInfo} object, otherwise the class cast will fail.
+     * 
+     * @param superclassOrInterfaceType
+     *            The type to cast the loaded class to.
+     * @param ignoreExceptions
+     *            If true, ignore any exceptions or errors thrown during classloading, or when attempting to cast
+     *            the resulting {@code Class<?>} reference to the requested type. If an exception or error is
+     *            thrown, no {@code Class<?>} reference is added to the output class for the corresponding
+     *            {@link ClassInfo} object, so the returned list may contain fewer items than this input list. If
+     *            false, {@link IllegalArgumentException} is thrown if the class could not be loaded or cast to the
+     *            requested type.
+     * @return The class reference, or null, if ignoreExceptions is true and there was an exception or error loading
+     *         the class.
+     * @throws IllegalArgumentException
+     *             if ignoreExceptions is false and there were problems loading the class, or casting it to the
+     *             requested type.
+     */
+    public <T> Class<T> loadClass(final Class<T> superclassOrInterfaceType, final boolean ignoreExceptions) {
+        return scanResult.loadClass(name, superclassOrInterfaceType, ignoreExceptions);
+    }
+
+    /**
+     * Obtain a {@code Class<?>} reference for the class named by this {@link ClassInfo} object, casting it to the
+     * requested interface or superclass type. Causes the ClassLoader to load the class, if it is not already
+     * loaded.
+     * 
+     * <p>
+     * <b>Important note:</b> since {@code superclassOrInterfaceType} is a class reference for an already-loaded
+     * class, it is critical that {@code superclassOrInterfaceType} is loaded by the same classloader as the class
+     * referred to by this {@code ClassInfo} object, otherwise the class cast will fail.
+     * 
+     * @param superclassOrInterfaceType
+     *            The type to cast the loaded class to.
+     * @return The class reference.
+     * @throws IllegalArgumentException
+     *             if there were problems loading the class or casting it to the requested type.
+     */
+    public <T> Class<T> loadClass(final Class<T> superclassOrInterfaceType) {
+        return loadClass(superclassOrInterfaceType, /* ignoreExceptions = */ false);
+    }
+
+    /**
+     * Obtain a {@code Class<?>} reference for the class named by this {@link ClassInfo} object. Causes the
+     * ClassLoader to load the class, if it is not already loaded.
+     * 
+     * @return The class reference, or null, if ignoreExceptions is true and there was an exception or error loading
+     *         the class.
+     * @throws IllegalArgumentException
+     *             if ignoreExceptions is false and there were problems loading the class.
+     */
+    public Class<?> loadClass(final boolean ignoreExceptions) {
+        return scanResult.loadClass(name, ignoreExceptions);
+    }
+
+    /**
+     * Obtain a {@code Class<?>} reference for the class named by this {@link ClassInfo} object. Causes the
+     * ClassLoader to load the class, if it is not already loaded.
+     * 
+     * @return The class reference.
+     * @throws IllegalArgumentException
+     *             if there were problems loading the class.
+     */
+    @Override
+    public Class<?> loadClass() {
+        return loadClass(/* ignoreExceptions = */ false);
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    @Override
+    void setScanResult(final ScanResult scanResult) {
+        super.setScanResult(scanResult);
+        if (this.typeSignature != null) {
+            this.typeSignature.setScanResult(scanResult);
+        }
+        if (annotationInfo != null) {
+            for (final AnnotationInfo ai : annotationInfo) {
+                ai.setScanResult(scanResult);
+            }
+        }
+        if (fieldInfo != null) {
+            for (final FieldInfo fi : fieldInfo) {
+                fi.setScanResult(scanResult);
+            }
+        }
+        if (methodInfo != null) {
+            for (final MethodInfo mi : methodInfo) {
+                mi.setScanResult(scanResult);
+            }
+        }
+        if (annotationDefaultParamValues != null) {
+            for (final AnnotationParameterValue apv : annotationDefaultParamValues) {
+                apv.setScanResult(scanResult);
+            }
+        }
+    }
+
+    /**
+     * Get the names of any classes referenced in this class' type descriptor, or the type descriptors of fields,
+     * methods or annotations.
+     */
+    @Override
+    protected void getClassNamesFromTypeDescriptors(final Set<String> classNames) {
+        final Set<String> referencedClassNames = new HashSet<>();
+        if (methodInfo != null) {
+            for (final MethodInfo mi : methodInfo) {
+                mi.getClassNamesFromTypeDescriptors(classNames);
+            }
+        }
+        if (fieldInfo != null) {
+            for (final FieldInfo fi : fieldInfo) {
+                fi.getClassNamesFromTypeDescriptors(classNames);
+            }
+        }
+        if (annotationInfo != null) {
+            for (final AnnotationInfo ai : annotationInfo) {
+                ai.getClassNamesFromTypeDescriptors(referencedClassNames);
+            }
+        }
+        if (annotationDefaultParamValues != null) {
+            for (final AnnotationParameterValue paramValue : annotationDefaultParamValues) {
+                paramValue.getClassNamesFromTypeDescriptors(referencedClassNames);
+            }
+        }
+        final ClassTypeSignature classSig = getTypeSignature();
+        if (classSig != null) {
+            classSig.getClassNamesFromTypeDescriptors(referencedClassNames);
+        }
+    }
+
+    @Override
+    protected String getClassName() {
+        return name;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** Compare based on class name. */
+    @Override
+    public int compareTo(final ClassInfo o) {
+        return this.name.compareTo(o.name);
+    }
+
+    /** Use class name for equals(). */
+    @Override
+    public boolean equals(final Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (obj == null) {
+            return false;
+        }
+        if (this.getClass() != obj.getClass()) {
+            return false;
+        }
+        final ClassInfo other = (ClassInfo) obj;
+        return name.equals(other.name);
+    }
+
+    /** Use hash code of class name. */
+    @Override
+    public int hashCode() {
+        return name != null ? name.hashCode() : 33;
+    }
+
+    @Override
+    public String toString() {
+        final ClassTypeSignature typeSig = getTypeSignature();
+        if (typeSig != null) {
+            return typeSig.toString(modifiers, isAnnotation, isInterface, name);
+        } else {
+            final StringBuilder buf = new StringBuilder();
+            TypeUtils.modifiersToString(modifiers, /* isMethod = */ false, buf);
+            if (buf.length() > 0) {
+                buf.append(' ');
+            }
+            buf.append(isAnnotation ? "@interface "
+                    : isInterface ? "interface " : (modifiers & 0x4000) != 0 ? "enum " : "class ");
+            buf.append(name);
+            return buf.toString();
+        }
     }
 }
