@@ -28,7 +28,9 @@
  */
 package io.github.fastclasspathscanner;
 
+import java.io.Closeable;
 import java.io.File;
+import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -50,7 +52,7 @@ import io.github.fastclasspathscanner.utils.LogNode;
 import io.github.fastclasspathscanner.utils.NestedJarHandler;
 
 /** The result of a scan. */
-public class ScanResult {
+public class ScanResult implements Closeable {
     /** The scan spec. */
     final ScanSpec scanSpec;
 
@@ -679,8 +681,6 @@ public class ScanResult {
         }
     }
 
-    // -------------------------------------------------------------------------------------------------------------
-
     /**
      * Load a class given a class name. If ignoreExceptions is false, and the class cannot be loaded (due to
      * classloading error, or due to an exception being thrown in the class initialization block), an
@@ -898,20 +898,18 @@ public class ScanResult {
         }
     }
 
-    /**
-     * Free any temporary files created by extracting jars from within jars. By default, temporary files are removed
-     * at the end of a scan, after MatchProcessors have completed, so this typically does not need to be called. The
-     * case where it might need to be called is if the list of classpath elements has been fetched, and the
-     * classpath contained jars within jars. Without calling this method, the temporary files created by extracting
-     * the inner jars will not be removed until the temporary file system cleans them up (typically at reboot).
-     */
-    public void removeTemporaryFiles() {
-        removeTemporaryFiles(null);
-    }
-
     @Override
     protected void finalize() throws Throwable {
         // NestedJarHandler also adds a runtime shutdown hook, since finalizers are not reliable
-        removeTemporaryFiles();
+        removeTemporaryFiles(null);
+    }
+
+    /**
+     * Free any temporary files created by extracting jars or files from within jars. Without calling this method,
+     * the temporary files created by extracting the inner jars will be removed at JVM shutdown or reboot.
+     */
+    @Override
+    public void close() throws IOException {
+        removeTemporaryFiles(null);
     }
 }
